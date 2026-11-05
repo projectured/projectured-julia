@@ -1,13 +1,14 @@
 """
     TreeModule
 
-A document of any type shown as a tree of its parts: the `DocumentTree`, the
-three generics that say how a document is a node of a tree, and the projection
-that shows a tree as one `WidgetTree`. A node is a document, its children are
-the documents of one or more of its collections, and the tree keeps its open
-nodes by the identity of their documents, so a node stays open when another one
-comes before it. Each slice that owns a kind of node adds its own methods of the
-generics, so this module names none of them.
+A document of any type shown as a tree of its parts, whose nodes a person opens and
+closes. The module holds the `DocumentTree`, the three generics that say how a
+document is a node of a tree, and the projection that shows a tree as one
+`WidgetTree`. A node is a document, its children are the documents of one or more of
+its collections, and the tree keeps its open nodes by the identity of their
+documents, so a node stays open when another one comes before it. Each slice that
+owns a kind of node adds its own methods of the generics, so this module names none
+of them.
 """
 module TreeModule
 

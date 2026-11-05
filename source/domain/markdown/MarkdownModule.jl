@@ -1,8 +1,10 @@
 """
     MarkdownModule
 
-The Markdown document domain — blocks (headings, paragraphs, code blocks,
-quotes, lists) and inlines (text, code, emphasis, strong, link, image).
+Markdown documents: headings, paragraphs, code blocks, quotes and lists, with text,
+code, emphasis, links and images inside them. They hold blocks (headings,
+paragraphs, code blocks, quotes, lists) and inlines (text, code, emphasis, strong,
+link, image).
 """
 module MarkdownModule
 

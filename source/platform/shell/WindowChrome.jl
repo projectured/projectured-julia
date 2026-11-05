@@ -379,7 +379,7 @@ function _find_shell_reference(root)
         end
     end
     found = search_references(root, node -> node isa WidgetShell;
-                              descend = (parent, child) -> !(parent isa WidgetShell))
+                              walk = DocumentWalk(; descend = (parent, child) -> !(parent isa WidgetShell)))
     length(found) == 1 ? only(found) : nothing
 end
 

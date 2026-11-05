@@ -240,7 +240,11 @@ whole set is parsed.
     document = parse_pred_text(read("study.pred", String))
 
 See also `print_pred_text`, which writes the text this reads.
+
+For the assistant.
 """
+function parse_pred_text end
+
 function parse_pred_text(text::AbstractString)
     expression = _parse_marker_expression(strip(text))
     expression === nothing &&
@@ -321,6 +325,8 @@ notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
 of those, a document, a value of a type that [`is_pred_constructible`](@ref)
 says a file may build, such a type by its bare name, and a reference are all of
 it.
+
+For the assistant.
 """
 function print_pred_text end
 

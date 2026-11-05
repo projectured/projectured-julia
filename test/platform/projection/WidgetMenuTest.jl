@@ -173,8 +173,10 @@ end
     @test popup isa OpenPopupOperation
     @test popup.id === :widget_popup
     @test popup.auto_dismiss === true
-    @test popup.x == 0                          # at the left edge of the item
-    @test popup.y == _menu_iomap_of(iomap, item).control_height + 2   # just below it
+    # The box of the item, and 2 pixels below it.
+    @test (popup.x, popup.y) == (0, 0)
+    @test popup.anchor_size[2] == _menu_iomap_of(iomap, item).control_height
+    @test popup.gap == 2
     @test popup.content === submenu             # the popup content is the submenu
     @test popup.height > 0
 end
@@ -207,8 +209,9 @@ end
     popup = _menu_popup(read_intent(proj, iomap, MouseClick(:left, ox + 3, oy + 3, ModifierKeys(); time = 0.0)))
     @test popup isa OpenPopupOperation
     @test ox > 0
-    @test popup.x == ox
-    @test popup.y == oy + cim.control_height + 2
+    @test (popup.x, popup.y) == (ox, oy)
+    @test popup.anchor_size[2] == cim.control_height
+    @test popup.gap == 2
     @test popup.content === submenu
 end
 

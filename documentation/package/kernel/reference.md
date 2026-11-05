@@ -422,9 +422,12 @@ iteration, `length`, `isempty`, `keys`, `haskey`, `get`, `values`, `setindex!`,
 document of a `ReferencedDocument` it is given, so the tree never holds one. The
 rule is in the document layer: `get_document`, a function of `DocumentModule`,
 answers the document of a referenced document and any other value as it is, and
-the constructor and the setter that `@document` generates store `get_document` of
-each value. So a document that is built from a value that a read answered holds
-the document too, and no maker or verb unwraps a value on its own. A read
+the constructor and the setter that `@document` generates store
+`get_stored_value` of each value: `get_document` of it, and for a plain vector
+that holds a part, a new vector of the `get_document` of each element. So a
+document that is built from a value that a read answered holds the document too,
+a list that is built from parts holds their documents, and no maker or verb
+unwraps a value on its own. A read
 that answers a document or a collection answers a `ReferencedDocument` too, with
 the reference extended by the field or the index that reached it; a read that
 answers a leaf value — a string, a number, a `Bool`, `nothing` — answers that
@@ -454,6 +457,21 @@ Because every property goes to the document, `x isa T` is false for a
 type asks `get_document(x)` first. `convert` to a document type converts
 `get_document(x)` to it, and `convert` to `Reference` converts `get_reference(x)`
 to it, so a `ReferencedDocument` fits where either is wanted.
+
+A plain document has no place. `get_reference` of any value that is not a part
+throws an `ArgumentError`, and a function that needs the place of its argument
+reads it there, so it refuses a plain document with the same error. A function
+that takes only a part refuses a plain document with Julia's `MethodError`, and
+`ReferenceModule` registers a hint for it: when an argument is a `Document` where
+a method of the function takes a `ReferencedDocument`, the error says so. Both
+errors say how to get a part: a read of a part, or
+`search_documents(editor.document, query; places = true)`.
+
+A function that needs no place takes a part as well as a plain document. For each
+parameter of a document type, it has one more method that takes a
+`ReferencedDocument` there and calls the function again with `get_document(x)`.
+Such a function answers what the plain document gives, so its answer does not
+keep the place.
 
 `get_parent(root, x)` answers the document that holds `x`, read from `root` at the
 call: one step up the reference of `x`, and past each collection on the way, so
@@ -555,9 +573,9 @@ type of each node on its reference, as the selection does
 reaches in the printed output with `find_reference_box` of the graphics package:
 `(x, y, width, height)` in the frame of the output. `visible = true` cuts the
 box to what the viewports on the way show, and a box that none shows is
-`nothing`. `find_part_place` of the screen package does both from a wrapper at
-the screen and answers the bottom left corner of the box, where a window that a
-command opens, such as a tooltip with no pointer, stands. The round trip test of
+`nothing`. `find_window_part_box` of the screen package does both for a placement and
+answers the box in screen coordinates, where a window that a command opens, such as a
+tooltip with no pointer, stands below it. The round trip test of
 the widget examples, `test_widget_round_trip()`, ties the two maps together:
 each displayed part maps forward, and a point where its node draws something
 maps back to the part or to a part inside it.

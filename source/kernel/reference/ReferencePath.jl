@@ -90,7 +90,42 @@ end
 Base.isempty(::EmptyReference) = true
 Base.isempty(::ConcreteReference) = false
 
+"""
+    get_reference_head(reference) -> ReferenceStep
+
+The first step of a reference that has a step. A reference with no step has no head.
+
+Use it to read the step that leaves the document at the start of a path.
+
+# Example
+
+    step_1 = get_reference_head(reference_1)
+
+See also `get_reference_tail` and `get_reference_steps`.
+
+For the assistant.
+"""
+function get_reference_head end
+
 get_reference_head(p::ConcreteReference) = p.head
+
+"""
+    get_reference_tail(reference) -> Reference
+
+The reference that remains after its first step. A reference with no step has no tail.
+
+Use it to read what a path does below its first step.
+
+# Example
+
+    reference_2 = get_reference_tail(reference_1)
+
+See also `get_reference_head` and `get_reference_steps`.
+
+For the assistant.
+"""
+function get_reference_tail end
+
 get_reference_tail(p::ConcreteReference) = p.tail
 
 Base.length(::EmptyReference) = 0
@@ -151,7 +186,19 @@ Base.hash(r::ConcreteReference, h::UInt) =
 
 Structural equality of two reference paths. **Strict**: node type fields are
 significant, so an annotated path is not equal to its stripped form.
+
+Use it to tell whether two references name the same place with the same recorded types.
+
+# Example
+
+    is_reference_equal(reference_1, reference_2)
+
+See also `is_reference_prefix`.
+
+For the assistant.
 """
+function is_reference_equal end
+
 is_reference_equal(a::Reference, b::Reference) = a == b
 
 """
@@ -159,7 +206,19 @@ is_reference_equal(a::Reference, b::Reference) = a == b
 
 Return `true` if reference path `a` is a proper prefix of `b` (i.e. `a` is
 strictly shorter and matches the leading steps of `b`).
+
+Use it to tell whether a place lies above another place.
+
+# Example
+
+    is_reference_prefix(reference_1, reference_2)
+
+See also `is_reference_equal` and `get_reference_steps`.
+
+For the assistant.
 """
+function is_reference_prefix end
+
 is_reference_prefix(::EmptyReference, ::EmptyReference) = false
 is_reference_prefix(::EmptyReference, ::ConcreteReference) = true
 is_reference_prefix(::ConcreteReference, ::EmptyReference) = false
@@ -180,7 +239,19 @@ and `base`'s terminal type — the type of the node the first appended step desc
 *from* — is carried onto that first new node. Later appended nodes are untyped
 (`nothing`), since the types they would stand on are not yet known. For an untyped
 `base` the result is a plain skeleton.
+
+Use it to name a part below a path by adding steps to its end.
+
+# Example
+
+    reference_2 = extend_reference(reference_1, ElementReferenceStep(2))
+
+See also `concat_references` and `ElementReferenceStep`.
+
+For the assistant.
 """
+function extend_reference end
+
 function extend_reference(base::EmptyReference, steps...)
     isempty(steps) && return base
     # `base.type` is the type of the node the first appended step descends from.
@@ -203,7 +274,19 @@ skeleton, identical to a naive rebuild.
 
 This is the one canonical path-concatenation (vs `extend_reference`, which appends
 raw *steps*); readers/builders that splice whole paths route through it.
+
+Use it to join the path of a part with a path inside that part.
+
+# Example
+
+    reference_3 = concat_references(reference_1, reference_2)
+
+See also `extend_reference` and `get_reference_steps`.
+
+For the assistant.
 """
+function concat_references end
+
 concat_references(a::ConcreteReference, b::Reference) =
     ConcreteReference(a.type, a.head, concat_references(get_reference_tail(a), b))
 concat_references(a::EmptyReference, b::ConcreteReference) =
@@ -220,7 +303,19 @@ rebuilds a plain (untyped) skeleton — so this pair is the shared "path ↔ ste
 vector" conversion used by callers that need to inspect or rewrite a path's tail
 (e.g. splitting off the terminal step). The node types of `path` are not steps, so
 the vector does not hold them.
+
+Use it to read the steps of a path one after the other.
+
+# Example
+
+    steps_1 = get_reference_steps(reference_1)
+
+See also `get_reference_head` and `extend_reference`.
+
+For the assistant.
 """
+function get_reference_steps end
+
 function get_reference_steps(path::Reference)
     steps = ReferenceStep[]
     cur = path

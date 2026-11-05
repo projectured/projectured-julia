@@ -31,3 +31,48 @@ start. The command line wins over them for its run.
 end
 
 is_settings_group_read_at_start(::Type{StartSettings}) = true
+
+"""
+    AssistantIndexSettings(; preset = :automatic, module_sentences = :preset,
+                           function_names = :preset, function_sentences = :preset,
+                           types = :preset)
+
+How large the index of names is that the assistant gets with its text: a preset,
+and each part of the index, which takes the value of the preset until a person
+sets it. The automatic preset gives the compact index to a local model and the
+full index to every other backend. [`describe_api`](@ref) says what each part
+and each preset holds.
+"""
+@settings struct AssistantIndexSettings
+    "Index: the preset of the index of names; automatic gives a local model the compact one and any other the full one."
+    preset::Symbol = :automatic in (:automatic, :full, :compact)
+    "Module sentences: a sentence for each module, after its name."
+    module_sentences::Symbol = :preset in (:preset, :on, :off)
+    "Function names: the names of the functions of each module."
+    function_names::Symbol = :preset in (:preset, :on, :off)
+    "Function sentences: a sentence for each function, after its name."
+    function_sentences::Symbol = :preset in (:preset, :on, :off)
+    "Types: the names of the types of each module, how many it has, or none."
+    types::Symbol = :preset in (:preset, :names, :count, :none)
+end
+
+is_settings_group_read_at_start(::Type{AssistantIndexSettings}) = true
+
+"""
+    describe_api_index(api, backend; settings = AssistantIndexSettings()) -> String
+
+The index of the names that `api` declares, as [`describe_api`](@ref) makes it,
+with the parts that `settings` gives to an assistant of the backend `backend`,
+such as `:ollama` or `:anthropic`.
+"""
+function describe_api_index(api, backend::Symbol; settings::AssistantIndexSettings = AssistantIndexSettings())
+    preset = settings.preset === :automatic ? (backend === :ollama ? :compact : :full) : settings.preset
+    describe_api(api; preset,
+                 module_sentences = _get_index_switch(settings.module_sentences),
+                 function_names = _get_index_switch(settings.function_names),
+                 function_sentences = _get_index_switch(settings.function_sentences),
+                 types = settings.types === :preset ? nothing : settings.types)
+end
+
+# A part that is on or off, or `nothing` for the value of the preset.
+_get_index_switch(value::Symbol) = value === :preset ? nothing : value === :on

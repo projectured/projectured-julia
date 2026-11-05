@@ -18,7 +18,9 @@ and as the root of an [`Explorer`](@ref).
 
     section_1 = ExplorerSection("Tools", Any[get_session_task_group_list()])
 
-See also `Explorer` and `find_explorer_content`.
+See also `find_explorer_content` and `open_explorer_page!`.
+
+For the assistant.
 """
 @document struct ExplorerSection <: Document
     title::String
@@ -196,7 +198,8 @@ function _find_window_explorer_content(editor::Editor)
     tree isa PaneTree || return nothing
     for group in get_pane_groups(tree), tab in group.tabs
         found = search_documents(tab.content, document -> document isa Explorer;
-                                 maxdepth = _EXPLORER_SEARCH_DEPTH, descend = _is_held_document)
+                                 maxdepth = _EXPLORER_SEARCH_DEPTH,
+                                 walk = DocumentWalk(; descend = _is_held_document))
         isempty(found) || return getfield(first(found), :tree)[].root
     end
     nothing
@@ -230,6 +233,8 @@ dashboard, and to find an entry for `describe_commands` and `open_explorer_page!
                      [Dashboard("Queue study", [DashboardCard("Tasks", get_session_task_group_list())])])
 
 See also `ExplorerSection`, `Dashboard`, `describe_commands`, `open_explorer_page!`.
+
+For the assistant.
 """
 function find_explorer_content end
 
@@ -238,11 +243,11 @@ function find_explorer_content(; editor = get_evaluation_editor())
         root = getfield(editor, :document)
         content = get_session_explorer_content(; editor)
         is_shown = document -> document isa Explorer && getfield(document, :tree)[].root === content
-        for tab_reference in search_references(root, node -> node isa PaneTab; descend = is_pane_search_step,
-                                               limit = nothing)
+        for tab_reference in search_references(root, node -> node isa PaneTab;
+                                               walk = DocumentWalk(; descend = is_pane_search_step), limit = nothing)
             tab = evaluate_reference(root, tab_reference)
             for found in search_references(tab.content, is_shown; maxdepth = _EXPLORER_SEARCH_DEPTH,
-                                           descend = _is_held_document, limit = 1)
+                                           walk = DocumentWalk(; descend = _is_held_document), limit = 1)
                 steps = (get_reference_steps(strip_reference_types(tab_reference))..., FieldReferenceStep("content"),
                          get_reference_steps(strip_reference_types(found))...,
                          FieldReferenceStep("tree"), FieldReferenceStep("root"))
@@ -254,7 +259,7 @@ function find_explorer_content(; editor = get_evaluation_editor())
 end
 
 """
-    open_explorer_page!(part; editor = get_evaluation_editor()) -> Text
+    open_explorer_page!(part; editor = get_evaluation_editor()) -> String
 
 Show the page of `part` in the navigator of the explorer, beside its tree, and open
 the rows of the tree above it so its row shows, as a press on a link on a page
@@ -273,32 +278,50 @@ place of a new tab.
     open_explorer_page!(content_1.entries[1])
 
 See also `find_explorer_content`, `open_page!`.
+
+For the assistant.
 """
 function open_explorer_page! end
 
 function open_explorer_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_explorer_page!") do
-        content = find_explorer_content(; editor)
-        content === nothing && throw(ArgumentError("No tab of the window shows the explorer."))
-        address = _find_explorer_address(editor, content, part)
-        address === nothing &&
-            throw(ArgumentError("The explorer holds no " * describe_document(part) * ". Add it to the explorer " *
-                                "first, with an insert into `find_explorer_content().entries`."))
-        steps = get_reference_steps(strip_reference_types(get_reference(content)))
-        place = annotate_reference_types(getfield(editor, :document), _make_steps(steps[1:(end - 2)]...))
-        explorer = evaluate_reference(getfield(editor, :document), place)
-        operations = Any[]
-        visit = make_navigator_open_operation(getfield(explorer, :navigator)[], address)
-        visit === nothing || push!(operations, _get_visit_writes(visit))
-        reveal = make_tree_reveal_operation(getfield(explorer, :tree)[], address)
-        reveal === nothing || push!(operations, reveal)
-        isempty(operations) && return nothing
-        rooted = read_rooted_operation(editor, place, CompoundOperation(operations);
-                                       description = "Show " * describe_document(part) * " in the explorer")
-        rooted === nothing && throw(ArgumentError("The window can not show this part in the explorer."))
-        evaluate_operation(editor, rooted)
+        change = _make_explorer_page_change(editor, part)
+        change === nothing || apply_change!(change; editor)
     end
-    Text("The explorer shows the page of " * describe_document(part) * ".")
+    "The explorer shows the page of " * describe_document(part) * "."
+end
+
+make_change(::typeof(open_explorer_page!), part::ReferencedDocument; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        change = _make_explorer_page_change(editor, part)
+        change === nothing &&
+            throw(ArgumentError("The explorer shows the page of " * describe_document(part) *
+                                " already, so there is no change to make."))
+        change
+    end
+
+# The change that shows the page of `part` in the navigator of the explorer and
+# opens the rows of the tree above it; `nothing` when the explorer shows it already.
+function _make_explorer_page_change(editor, part::ReferencedDocument)
+    content = find_explorer_content(; editor)
+    content === nothing && throw(ArgumentError("No tab of the window shows the explorer."))
+    address = _find_explorer_address(editor, content, part)
+    address === nothing &&
+        throw(ArgumentError("The explorer holds no " * describe_document(part) * ". Add it to the explorer " *
+                            "first, with an insert into `find_explorer_content().entries`."))
+    steps = get_reference_steps(strip_reference_types(get_reference(content)))
+    place = annotate_reference_types(getfield(editor, :document), _make_steps(steps[1:(end - 2)]...))
+    explorer = evaluate_reference(getfield(editor, :document), place)
+    operations = Any[]
+    visit = make_navigator_open_operation(getfield(explorer, :navigator)[], address)
+    visit === nothing || push!(operations, _get_visit_writes(visit))
+    reveal = make_tree_reveal_operation(getfield(explorer, :tree)[], address)
+    reveal === nothing || push!(operations, reveal)
+    isempty(operations) && return nothing
+    description = "Show " * describe_document(part) * " in the explorer"
+    rooted = read_rooted_operation(editor, place, CompoundOperation(operations); description)
+    rooted === nothing && throw(ArgumentError("The window can not show this part in the explorer."))
+    RootedOperation(rooted, description)
 end
 
 # The path of `part` from the root section `content` of the explorer: the rest of

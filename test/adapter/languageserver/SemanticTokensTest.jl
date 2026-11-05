@@ -57,6 +57,24 @@ end
     stop_language_server!(connection)
 end
 
+@testset "the compile command of a path goes to the server once, before the file opens" begin
+    commands = Dict("/projectured/a.c" => (; directory = "/projectured", arguments = ["clang", "-c", "a.c"]),
+                    "/projectured/b.c" => nothing)
+    server, connection = start_fake_language_server(compile_command = path -> commands[path])
+    compute_semantic_text_marks(connection, "/projectured/a.c", "c", "int a;")
+    compute_semantic_text_marks(connection, "/projectured/a.c", "c", "int b;")
+    compute_semantic_text_marks(connection, "/projectured/b.c", "c", "int c;")
+    methods = [m["method"] for m in server.received if haskey(m, "method")]
+    @test filter(!=("textDocument/semanticTokens/full"), methods) == ["initialize", "initialized",
+        "workspace/didChangeConfiguration", "textDocument/didOpen", "textDocument/didChange",
+        "textDocument/didOpen"]
+    configuration = only(get_fake_messages(server, "workspace/didChangeConfiguration"))
+    @test configuration["params"]["settings"]["compilationDatabaseChanges"] ==
+          Dict("/projectured/a.c" => Dict("workingDirectory" => "/projectured",
+                                          "compilationCommand" => ["clang", "-c", "a.c"]))
+    stop_language_server!(connection)
+end
+
 @testset "clangd colours the names of a C file" begin
     if Sys.which("clangd") === nothing
         @test_skip "clangd is not installed"

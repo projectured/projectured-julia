@@ -119,7 +119,7 @@ required and the optional terms.
 module after it, and the first sentence of the description under it.
 
 ```
-- `replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text` — function in PaneModule
+- `replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> String` — function in PaneModule
   Put `value` where `reference` points, and answer the window's new program.
 ```
 
@@ -179,8 +179,9 @@ each with its count and its shape, in six lines.
 **`execute_julia_code!` answers what the code printed, whole, then the value of
 the last statement on its own.** What the code prints is what the model asked
 for, so it is never cut. The value comes unasked — a `DataFrame` of thousands
-of rows, the `Text` a side-effect verb answers — so a `describe_value` function
-renders it: the default keeps a short value whole, limits a longer one as the
+of rows, the text a side-effect verb answers — so a `describe_value` function
+renders it: the default shows a string that has a line break as its lines,
+without quotes, keeps a short value whole, limits a longer one as the
 Julia REPL would, and trims one still longer than that to its start and its end
 around one mark line, with a note that names `summary(value)` and how to read a
 part. `nothing` with nothing printed answers "Done.", because an empty answer

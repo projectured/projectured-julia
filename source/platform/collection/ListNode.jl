@@ -229,7 +229,17 @@ Use it to turn a node back into a place, such as the new head of a list that a
 table writes, when the owner of the list keeps the place as an anchor. It walks
 both ways from `head` and reads the links on the way, so a lazy chain builds the
 nodes that it passes.
+
+# Example
+
+    index_1 = find_list_index(head_1, node_1)
+
+See also `get_table_row_count`.
+
+For the assistant.
 """
+function find_list_index end
+
 function find_list_index(head, node; limit::Int = 10_000)
     head isa ListNode || return nothing
     forward, backward = head, head

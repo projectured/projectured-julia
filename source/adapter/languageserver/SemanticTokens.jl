@@ -41,6 +41,7 @@ function compute_semantic_text_marks(connection::LanguageServerConnection, path:
         uri = make_file_uri(path)
         version = lock(() -> get(connection.documents, uri, 0) + 1, connection.state_lock)
         if version == 1
+            _send_compile_command!(connection, path)
             send_language_server_notification!(connection, "textDocument/didOpen", Dict{String, Any}(
                 "textDocument" => Dict{String, Any}("uri" => uri, "languageId" => language,
                                                     "version" => version, "text" => text)))
@@ -57,6 +58,21 @@ function compute_semantic_text_marks(connection::LanguageServerConnection, path:
                                      connection.state_lock)
         convert_semantic_tokens(data, text, token_types, encoding)
     end
+end
+
+# Send the compile command of the file at `path` that `connection.compile_command`
+# gives, unless there is none or the server already has it. The key of
+# `compilationDatabaseChanges` is the path of the file, as `clangd` takes it.
+function _send_compile_command!(connection::LanguageServerConnection, path::AbstractString)
+    connection.compile_command === nothing && return nothing
+    command = connection.compile_command(path)
+    known = lock(() -> get(connection.compile_commands, String(path), nothing), connection.state_lock)
+    (command === nothing || command == known) && return nothing
+    send_language_server_notification!(connection, "workspace/didChangeConfiguration", Dict{String, Any}(
+        "settings" => Dict("compilationDatabaseChanges" => Dict(String(path) => Dict(
+            "workingDirectory" => command.directory, "compilationCommand" => command.arguments)))))
+    lock(() -> connection.compile_commands[String(path)] = command, connection.state_lock)
+    nothing
 end
 
 """

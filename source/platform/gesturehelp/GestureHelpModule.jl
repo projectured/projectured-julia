@@ -1,9 +1,9 @@
 """
     GestureHelpModule
 
-The gesture help domain: the gesture map, the command palette, the projections
-that draw them, and the two decorators that put them on screen. This file holds
-the map, which the rest of the slice is written in terms of.
+Gesture help: the gesture map, the command palette, and the projections and
+decorators that put them on screen. This file holds the map, which the rest of the
+slice is written in terms of.
 
 A `GestureMap` is a read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
@@ -47,7 +47,7 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..EditorModule: wrap_editor!, get_wrapper_layers
+import ..EditorModule: wrap_editor!, get_wrapper_layers, make_change
 
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 export describe_commands, run_command!, collect_part_commands

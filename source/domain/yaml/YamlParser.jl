@@ -311,7 +311,19 @@ end
     parse_yaml(text) -> YamlDocument
 
 Parse a YAML string into a `YamlDocument`. An empty document yields `YamlNull`.
+
+Use it to read YAML text into a document that you can open in a pane or edit.
+
+# Example
+
+    yaml_1 = parse_yaml("name: pump\\nsize: 3")
+
+See also `parse_json` and `parse_xml`.
+
+For the assistant.
 """
+function parse_yaml end
+
 function parse_yaml(text::AbstractString)
     p = _Block(_logical_lines(text), 1)
     _at_end(p) && return YamlNull()

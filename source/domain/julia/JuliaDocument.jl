@@ -2,6 +2,22 @@
 # `JuliaDocument`, the insertion that holds source being typed, and the nodes a
 # parsed file becomes.
 
+"""
+    JuliaDocument
+
+The abstract supertype of the documents of Julia source code. Its main members are `JuliaFunction`, `JuliaCall`, `JuliaStruct`, `JuliaIf`, `JuliaToplevel`.
+
+Use it to recognise the documents of Julia source code when you walk a document: a part is one of them when `part isa JuliaDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaDocument)
+    found_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaCall)
+
+See also `search_documents`, `find_pane`, `describe_document` and `JuliaCall`.
+
+For the assistant.
+"""
 abstract type JuliaDocument <: Document end
 
 # Julia code is what a person typed, so its duplicate is a copy of it.
@@ -719,7 +735,20 @@ _julia_signature_name(node) = string(nameof(typeof(node)))
 The signature of `function_` as a caller reads it: the name, the parameters, and
 the result type where one is declared. Not the body, and not the `where` clause:
 a tooltip says what to pass, and a person who needs the rest opens the file.
+
+Use it to read what a Julia function takes and returns without its body.
+
+# Example
+
+    julia_1 = parse_julia("f(x::Int; scale = 2)::Int = x * scale")
+    signature_1 = compute_julia_signature(julia_1)
+
+See also `parse_julia` and `find_julia_definition`.
+
+For the assistant.
 """
+function compute_julia_signature end
+
 function compute_julia_signature(function_::JuliaFunction)
     parameters = join((_julia_signature_name(function_.params[i])
                        for i in 1:length(function_.params)), ", ")
@@ -730,6 +759,8 @@ function compute_julia_signature(function_::JuliaFunction)
     result = _julia_signature_name(function_.result_type)
     isempty(result) ? signature : signature * "::" * result
 end
+
+compute_julia_signature(function_::ReferencedDocument) = compute_julia_signature(get_document(function_))
 
 # A function answers a dwell with its signature. Its prose is in the docstring, a
 # node ABOVE it that holds the function as its subject, and the docstring adds its

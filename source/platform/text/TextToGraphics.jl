@@ -377,9 +377,9 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
         when(KeyDown(k), k === :home || k === :end) => begin
             coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing
-            seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
-            seg_idx === nothing && return nothing
-            current_y = coord_map[seg_idx].y
+            found = _find_caret_coordinate(styled, coord_map, current)
+            found === nothing && return nothing
+            current_y = found.coordinate.y
             line_segs = filter(sc -> sc.y == current_y, coord_map)
             sc = k === :home ? line_segs[1] : line_segs[end]
             new_char = k === :home ? sc.char_start : sc.char_end
@@ -388,10 +388,10 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
         when(KeyDown(k), k === :up || k === :down) => begin
             coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing
-            seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
-            seg_idx === nothing && return nothing
-            cur_sc   = coord_map[seg_idx]
-            cursor_x = _seg_cursor_x(cur_sc, current.char, p.measure)
+            found = _find_caret_coordinate(styled, coord_map, current)
+            found === nothing && return nothing
+            cur_sc   = found.coordinate
+            cursor_x = _seg_cursor_x(cur_sc, found.char, p.measure)
             current_y = cur_sc.y
             target_segs = if k === :up
                 ys = [sc.y for sc in coord_map if sc.y < current_y]
@@ -433,6 +433,26 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
     # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
     return nothing
+end
+
+# The coordinate of `coord_map` that holds the caret `current`, a `(span, char)`,
+# and the character of the caret in it. A caret on an empty span of a line that
+# draws a glyph has no coordinate of its span, because the glyphs give the places
+# of that line: it takes the coordinate that holds its flat offset.
+function _find_caret_coordinate(styled::TextBlock, coord_map, current)
+    index = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+    index === nothing || return (coordinate = coord_map[index], char = current.char)
+    _, bases = _compute_span_bases(styled)
+    base = get(bases, current.span, nothing)
+    base === nothing && return nothing
+    flat = base + current.char
+    for sc in coord_map
+        sc_base = get(bases, sc.span_path, nothing)
+        sc_base === nothing && continue
+        sc_base + sc.char_start <= flat <= sc_base + sc.char_end &&
+            return (coordinate = sc, char = flat - sc_base)
+    end
+    nothing
 end
 
 # ── Layout engine (wrap-free) ──────────────────────────────────────────

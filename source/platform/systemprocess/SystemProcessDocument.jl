@@ -28,6 +28,18 @@ again.
 - `sampled_at` — the time of the last sample of the tree. The cell is the cell
   `sampled_at` of the tree itself, so one write moves the elapsed time of every
   process of the tree, and no clock is read.
+
+Use it to read the facts of one process of a tree: its command, state, load and
+memory.
+
+# Example
+
+    processes_1 = search_documents(get_edited_document(find_pane("Processes")), part -> part isa SystemProcess)
+    records_1 = read_system_processes([1])
+
+See also `SystemProcessTree`, `read_system_processes` and `search_documents`.
+
+For the assistant.
 """
 @document struct SystemProcess <: Document
     process_id::Int
@@ -59,6 +71,17 @@ with no `/proc`, the node of the tree says that the processes can not be read.
 
 Show it with [`show_system_process_tree!`](@ref), or alone, as the page of a
 navigator, where it draws as a tree.
+
+Use it to reach the processes under a root process as one document.
+
+# Example
+
+    trees_1 = search_documents(get_edited_document(find_pane("Processes")), part -> part isa SystemProcessTree)
+    records_1 = read_system_processes([1])
+
+See also `SystemProcess`, `read_system_processes` and `search_documents`.
+
+For the assistant.
 """
 @document struct SystemProcessTree <: Document
     root_process_ids::Vector{Int}

@@ -234,7 +234,13 @@ end
     editor, backend = _stab_editor(settings, settings; focus_cycling = true)
     fault = get_settings_group!(settings, FaultSettings)
     @test fault.is_barrier_enabled
-    _stab_press!(editor, backend, KeyPress('\t'; time = 0.0))
+    # The groups follow the order of their names, and each setting of a group before
+    # the faults is two stops: its control and its Reset.
+    stops = sum(2 * length(get_setting_descriptions(T)) for T in compute_loaded_settings_types()
+                if get_settings_name(T) < get_settings_name(FaultSettings); init = 0)
+    for _ in 1:(stops + 1)
+        _stab_press!(editor, backend, KeyPress('\t'; time = 0.0))
+    end
     # The selection of the settings is a path that the tab introduces.
     @test get_selection(settings) isa ConcreteReference
     _stab_press!(editor, backend, KeyPress(' '; time = 0.0))
@@ -290,9 +296,12 @@ end
     @test bottom > height
     # The row of the undo steps starts below the window.
     @test place("Undo steps") > height
-    (_, x, y) = only(text for text in drawn() if text[1] == "Catch faults")
-    # The wheel scrolls the tab until the row of the undo steps is in the window.
-    for i in 1:20
+    # The wheel turns over the label of a setting inside the window, and scrolls the
+    # tab until the row of the undo steps is in the window.
+    labels = Set(description.label for T in compute_loaded_settings_types()
+                 for description in get_setting_descriptions(T))
+    (_, x, y) = first(text for text in drawn() if text[1] in labels && 0 < text[3] < height - 30)
+    for i in 1:40
         place("Undo steps") <= 250 && break
         send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 0.1 * i))
     end

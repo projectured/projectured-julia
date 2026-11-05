@@ -1,7 +1,7 @@
 """
     PrimitiveModule
 
-The primitive domain. Editable, domain-independent wrappers for boolean,
+Primitive documents: editable wrappers for boolean,
 number, and string scalar values with selection and identity. Each value
 is stored in a reactive Cell so changes are tracked.
 """

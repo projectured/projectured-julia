@@ -1,7 +1,7 @@
 """
     MathModule
 
-The math document domain: formulas as `Document`s.
+Math documents: formulas as trees of assignments, variables, numbers and operations.
 `X = (3*A + B)/2` becomes
 `MathAssignment(MathVariable("X"), MathBinaryOperation(:/, …))`.
 

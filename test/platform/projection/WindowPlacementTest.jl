@@ -78,6 +78,156 @@ end
     @test (list.x, list.y) == (40, 41)
 end
 
+@testset "an anchored place goes below its box, flips above, and slides inside the area" begin
+    screen = ScreenDocument(; display_areas = [(0, 0, 1200, 700)])
+    window = WindowDocument(; id = :popup, style = :popup, width = 300, height = 200,
+                              content = PrimitiveString("x"))
+    place(anchor; keywords...) =
+        (p = compute_anchored_place(WindowPlacementContext(screen, window, nothing), anchor; keywords...);
+         (p.x, p.y))
+    # Room below: the left edges are aligned, `gap` under the box.
+    @test place((x = 10, y = 100, width = 50, height = 20); gap = 4) == (10, 124)
+    # No room below: above the box; no room on the right: it slides left.
+    @test place((x = 1000, y = 600, width = 100, height = 20); gap = 4) == (900, 396)
+    # No room above either: it stays below and slides up inside the area.
+    window.height = 650
+    @test place((x = 10, y = 100, width = 50, height = 20); gap = 4) == (10, 50)
+    window.height = 200
+    # A point is a box of no size.
+    @test place((x = 1100, y = 650, width = 0, height = 0)) == (900, 450)
+    # The center of the box, inside the area.
+    @test place((x = 0, y = 0, width = 1000, height = 600); side = :center) == (350, 200)
+    @test place((x = 1100, y = 0, width = 400, height = 100); side = :center) == (900, 0)
+    # The area is the one that holds the middle of the box.
+    screen.display_areas = [(0, 0, 1000, 700), (1000, 0, 800, 600)]
+    @test place((x = 1500, y = 550, width = 0, height = 0)) == (1500, 350)
+    @test place((x = 900, y = 650, width = 0, height = 0)) == (700, 450)
+    # A screen with no areas keeps the place on its side.
+    screen.display_areas = NTuple{4,Int}[]
+    @test place((x = 1000, y = 600, width = 100, height = 20); gap = 4) == (1000, 624)
+    @test_throws ArgumentError place((x = 0, y = 0, width = 0, height = 0); side = :left)
+end
+
+@testset "a window on a monitor above, left of or right of the main one stays there" begin
+    main, above = (0, 0, 1920, 1080), (0, -1080, 1920, 1080)
+    left, right = (-1280, 0, 1280, 1024), (1920, 0, 2560, 1440)
+    screen = ScreenDocument(; display_areas = [main, above, left, right])
+    window = WindowDocument(; id = :popup, style = :popup, width = 200, height = 80,
+                              content = PrimitiveString("x"))
+    place(x, y) = (p = compute_anchored_place(WindowPlacementContext(screen, window, nothing),
+                                              (x = x, y = y, width = 0, height = 0));
+                   (p.x, p.y))
+    # A point on the monitor above keeps the window on that monitor, and at its
+    # bottom edge the window goes above the point.
+    @test place(869, -974) == (869, -974)
+    @test place(100, -50) == (100, -130)
+    # The monitor on the left, and the right edge of the one on the right.
+    @test place(-300, 100) == (-300, 100)
+    @test place(4400, 100) == (4280, 100)
+    # A point on no display takes the main one.
+    @test place(5000, 2000) == (1720, 1000)
+end
+
+@testset "an anchored place follows the size of its window and the areas" begin
+    screen, _, _ = _make_placement_screen()
+    screen.display_areas = [(0, 0, 1200, 700)]
+    anchor = (x = 1000, y = 600, width = 100, height = 20)
+    push!(screen.windows, WindowDocument(; id = :popup, style = :popup, width = 100, height = 200,
+                                           maximum_size = (300, 400),
+                                           placement = context -> compute_anchored_place(context, anchor;
+                                                                                         gap = 4),
+                                           content = PrimitiveString("x")))
+    popup = print_document(_make_placement_projection(), screen).output.windows[2]
+    @test (popup.x, popup.y) == (1000, 396)
+    # The backend writes the size that it fits to the content, and the place
+    # follows it in the same frame.
+    popup.height = 50
+    @test (popup.x, popup.y) == (1000, 624)
+    popup.width = 300
+    @test (popup.x, popup.y) == (900, 624)
+    screen.display_areas = [(0, 0, 2000, 1000)]
+    @test (popup.x, popup.y) == (1000, 624)
+end
+
+@testset "a fixed placement answers its place whatever the screen holds" begin
+    placement = make_fixed_placement(30, 40; maximum_size = (200, 100))
+    @test placement(nothing) == WindowPlace(30, 40; maximum_size = (200, 100))
+    @test has_window_frame(WindowDocument(; style = :dialog, content = PrimitiveString("x")))
+    @test has_window_frame(WindowDocument(; style = :floating, content = PrimitiveString("x")))
+    @test !has_window_frame(WindowDocument(; style = :popup, content = PrimitiveString("x")))
+    @test !has_window_frame(WindowDocument(; style = :tooltip, content = PrimitiveString("x")))
+end
+
+@testset "a person resizes a placed window with a frame, and it stays where it stands" begin
+    screen, main, _ = _make_placement_screen()
+    push!(screen.windows, WindowDocument(; id = :dialog, style = :dialog, width = 300, height = 200,
+                                           placement = context -> (box = find_window_part_box(context,
+                                                                       @reference(screen, windows[1].content));
+                                                                   box === nothing ? nothing :
+                                                                   compute_anchored_place(context, box;
+                                                                                          side = :center)),
+                                           content = PrimitiveString("x")))
+    projection = _make_placement_projection()
+    iomap = print_document(projection, screen)
+    dialog = iomap.output.windows[2]
+    # The main window is 1000 by 600 at (100, 50).
+    @test (dialog.x, dialog.y) == (450, 250)
+    answer = read_intent(projection, nothing, Intent(WindowInput(:dialog, WindowResize(400, 300; time = 0.0))),
+                         iomap)
+    evaluate_operation((; document = screen), answer.operation)
+    @test (dialog.width, dialog.height) == (400, 300)
+    @test (dialog.x, dialog.y) == (450, 250)
+    main.x = 300
+    @test (dialog.x, dialog.y) == (450, 250)
+    # A popup has no frame, so a resize keeps its placement.
+    push!(screen.windows, WindowDocument(; id = :popup, style = :popup, width = 100, height = 50,
+                                           placement = context -> WindowPlace(Int(context.window.width), 7),
+                                           content = PrimitiveString("x")))
+    popup = iomap.output.windows[3]
+    answer = read_intent(projection, nothing, Intent(WindowInput(:popup, WindowResize(120, 50; time = 0.0))),
+                         iomap)
+    evaluate_operation((; document = screen), answer.operation)
+    @test (popup.x, popup.y) == (120, 7)
+end
+
+@testset "a dialog with no place of its own stands at the center of the main window" begin
+    screen, main, _ = _make_placement_screen()
+    editor = (; document = screen)
+    # A callback opens it, so no window opens it: the first window is the main one.
+    evaluate_operation(editor, OpenWindowOperation(; id = :file_dialog, x = -1, y = -1,
+                                                     width = 640, height = 420, style = :floating,
+                                                     content = PrimitiveString("x")))
+    dialog = print_document(_make_placement_projection(), screen).output.windows[2]
+    @test is_window_placed(dialog)
+    # The main window is 1000 by 600 at (100, 50).
+    @test (dialog.x, dialog.y) == (100 + (1000 - 640) ÷ 2, 50 + (600 - 420) ÷ 2)
+    main.x = 300
+    @test (dialog.x, dialog.y) == (300 + (1000 - 640) ÷ 2, 50 + (600 - 420) ÷ 2)
+    # A normal window at the automatic place is the backend's to place, and so is a
+    # dialog with a place of its own.
+    evaluate_operation(editor, OpenWindowOperation(; id = :other, x = -1, y = -1, content = PrimitiveString("y")))
+    @test !is_window_placed(screen.windows[3])
+    evaluate_operation(editor, OpenWindowOperation(; id = :placed_dialog, x = 5, y = 6, style = :dialog,
+                                                     content = PrimitiveString("z")))
+    @test !is_window_placed(screen.windows[4])
+end
+
+@testset "a popup that replaces the window that opened it stands where it is asked" begin
+    # A submenu in a menu of the same id replaces that menu, so its placement would
+    # read the place of its own window.
+    open_popup = ProjecturedPlatform.ScreenModule._open_popup_window
+    op = OpenPopupOperation(; id = :widget_popup, x = 5, y = 6, anchor_size = (30, 10), gap = 2,
+                              content = PrimitiveString("y"))
+    menu = WindowDocument(; id = :widget_popup, x = 10, y = 20, style = :popup, content = PrimitiveString("x"))
+    opened = open_popup(op, menu)
+    @test opened.placement === nothing
+    @test (opened.x, opened.y) == (10 + 5, 20 + 6 + 10 + 2)
+    main = WindowDocument(; id = :main, x = 10, y = 20, content = PrimitiveString("x"))
+    @test open_popup(op, main).placement !== nothing
+    dialog = OpenWindowOperation(; id = :main, x = -1, y = -1, style = :dialog, content = PrimitiveString("z"))
+    @test open_popup(dialog, main).placement === nothing
+end
+
 @testset "a file keeps no placement" begin
     window = WindowDocument(; id = :list, placement = context -> WindowPlace(1, 2),
                               content = PrimitiveString("x"))

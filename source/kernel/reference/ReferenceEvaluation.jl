@@ -28,7 +28,19 @@
 
 Navigate into `document` by following each step in `path` in order.
 Returns the sub-document reached at the end of the path.
+
+Use it to read the part of a document that a reference names.
+
+# Example
+
+    part_1 = evaluate_reference(document_1, reference_1)
+
+See also `try_evaluate_reference` and `is_valid_reference`.
+
+For the assistant.
 """
+function evaluate_reference end
+
 function evaluate_reference(document, path::EmptyReference)
     # Folded terminal checkpoint: assert the landed node's recorded type.
     path.type === nothing || document isa path.type ||
@@ -64,7 +76,19 @@ resolve: an exception that is not a fault (`is_fault_exception`), and a
 method — a fault of the program. Every method of that function takes a document of
 any type, so such an error names a missing step method. A `TypeReferenceStep` left
 in a path is one: the path was never folded.
+
+Use it to read a part that a stored reference names when the part may be gone.
+
+# Example
+
+    part_1 = try_evaluate_reference(document_1, reference_1)
+
+See also `evaluate_reference` and `is_valid_reference`.
+
+For the assistant.
 """
+function try_evaluate_reference end
+
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
         _evaluate_reference_or(document, path, default)
@@ -140,7 +164,19 @@ end
 Document-aware validity: `true` iff every step of `path` resolves against
 `document` and every node type that it records holds there. Equivalent to
 `get_valid_reference_prefix(document, path) == path`.
+
+Use it to check that a stored reference still names a part of the document.
+
+# Example
+
+    is_valid_reference(document_1, reference_1)
+
+See also `try_evaluate_reference` and `evaluate_reference`.
+
+For the assistant.
 """
+function is_valid_reference end
+
 is_valid_reference(document, path::Reference) =
     get_valid_reference_prefix(document, path) == path
 
@@ -175,7 +211,19 @@ Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
 here — e.g. a whole-element selection mapped across a projection carries
 `get_reference_node_type(output_document)`.
+
+Use it to read the type that a reference records for a document.
+
+# Example
+
+    type_1 = get_reference_node_type(document_1)
+
+See also `is_valid_reference`.
+
+For the assistant.
 """
+function get_reference_node_type end
+
 get_reference_node_type(document) = get_document_cell_type(document)
 
 """
@@ -250,11 +298,14 @@ Anything that is not a reference is answered unchanged, so a caller that may hol
 
 # Example
 
-    before = copy_reference(get_selection(document))
+    before = copy_reference(reference_1)
 
-See also `get_selection`, which answers the live path, and
-`strip_reference_types`, which rebuilds a path without its type checkpoints.
+See also `is_reference_equal` and `is_valid_reference`.
+
+For the assistant.
 """
+function copy_reference end
+
 copy_reference(reference::ConcreteReference) =
     ConcreteReference(reference.type, _copy_reference_step(get_reference_head(reference)),
                       copy_reference(get_reference_tail(reference)))

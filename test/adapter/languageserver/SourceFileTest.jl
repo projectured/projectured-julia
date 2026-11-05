@@ -112,7 +112,7 @@ end
 
 @testset "a file that no tab acquired has no server and no marks" begin
     file = SourceFile("/projectured/hello.c", MarkedText(text = _SF_SOURCE))
-    @test file.server === nothing
+    @test file.server_text.server === nothing
     @test isempty(file.content.marks)
 end
 
@@ -123,7 +123,7 @@ end
     editor, backend = _sf_editor(file)
     _sf_give_server!(editor, path, connection)
     acquire_document!(editor, file)
-    @test file.server === connection
+    @test file.server_text.server === connection
     # The marks are final while the answer is to come: a provisional value that
     # asks again would compute again at each read, once for each line of the view.
     _sf_frame!(editor, backend)
@@ -153,7 +153,7 @@ end
 
     # The release closes the file in the server, and the stop of the editor stops it.
     release_document!(editor, file)
-    @test file.server === nothing
+    @test file.server_text.server === nothing
     @test timedwait(() -> !isempty(get_fake_messages(server, "textDocument/didClose")), 5.0) === :ok
     @test any(step -> step === stop_language_servers!, editor.stop_steps)
     stop_language_servers!(editor)
@@ -176,6 +176,23 @@ end
     @test marked.text == "// x\n" * _SF_SOURCE
     @test _sf_wait(() -> _sf_spans(marked.marks) ==
                    [(9, 13, _SF_FUNCTION), (26, 31, _SF_VARIABLE), (48, 53, _SF_VARIABLE)], editor, backend)
+    stop_language_servers!(editor)
+end
+
+@testset "a walk of the documents before the print leaves the colours to come" begin
+    # A search reads the request and the marks where the request can not ask; the
+    # next print asks the server, and the colours come.
+    server, connection = start_fake_language_server(token_types = ["variable", "function"], tokens = _sf_tokens)
+    path = "/projectured/walked.c"
+    file = SourceFile(path, MarkedText(text = _SF_SOURCE))
+    editor, backend = _sf_editor(file)
+    _sf_give_server!(editor, path, connection)
+    acquire_document!(editor, file)
+    run_with_evaluation_editor(() -> search_documents(file, x -> x isa MarkedText), editor)
+    @test is_cell_provisional(getfield(file.content, :marks))
+    expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]
+    @test _sf_wait(() -> _sf_spans(file.content.marks) == expected, editor, backend)
+    @test !is_cell_provisional(getfield(file.content, :marks))
     stop_language_servers!(editor)
 end
 
@@ -208,10 +225,46 @@ end
     editor, backend = _sf_editor(page)
     _sf_give_server!(editor, path, connection)
     evaluate_operation(editor, AcquireDocumentOperation(page))
-    @test file.server === connection
+    @test file.server_text.server === connection
     expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]
     @test _sf_wait(() -> _sf_spans(file.content.marks) == expected, editor, backend)
     stop_language_servers!(editor)
+end
+
+@testset "two language server texts on one connection get their own marks" begin
+    server, connection = start_fake_language_server(token_types = ["variable", "function"], tokens = _sf_tokens)
+    first = make_language_server_text("/projectured/one.c", () -> "int main() {}")
+    second = make_language_server_text("/projectured/two.c", () -> "int count = 0;")
+    first.server = connection
+    second.server = connection
+    editor, _ = _sf_editor(SourceFile("/projectured/other.c", MarkedText(text = "")))
+    # The work of the background cell, then the store, as the editor does them.
+    for text in (first, second)
+        answer = ProjecturedLanguageServer.LanguageServerModule._compute_source_file_answer(
+            connection, text.path, text.text)
+        evaluate_operation(editor, StoreLanguageServerAnswerOperation(text, answer))
+    end
+    run_with_evaluation_editor(editor) do
+        @test _sf_spans(compute_language_server_marks(first)) == [(4, 8, _SF_FUNCTION)]
+        @test _sf_spans(compute_language_server_marks(second)) == [(4, 9, _SF_VARIABLE)]
+    end
+    @test length(get_fake_messages(server, "textDocument/didOpen")) == 2
+    stop_language_server!(connection)
+end
+
+@testset "the wrapper language_server gives its compile command to the connections" begin
+    f = path -> nothing
+    path = "/projectured/hello.c"
+    file = SourceFile(path, MarkedText(text = _SF_SOURCE))
+    backend = HeadlessBackend()
+    editor = build_editor(file, NaturalToGraphics(; measure = FontFileMeasure());
+                          backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, appearance = false, settings = false, tabs = false,
+                          focus_cycling = false, language_server = (; compile_command = f))
+    connection = get_language_server!(editor, ["clangd"])
+    @test connection.compile_command === f
+    plain, _ = _sf_editor(file)
+    @test get_language_server!(plain, ["clangd"]).compile_command === nothing
 end
 
 @testset "clangd colours a C file in an editor" begin
@@ -230,7 +283,7 @@ end
         finally
             stop_language_servers!(editor)
         end
-        @test !is_language_server_running(file.server)
+        @test !is_language_server_running(file.server_text.server)
     end
 end
 

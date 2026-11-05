@@ -24,7 +24,9 @@ Two equal fonts are one value: a font is 24 bytes, stored inline, with no cache.
 
     StyleFont("Ubuntu Mono", 14; weight = 700)
 
-See also `StyleText`, which pairs a font with a colour, and `GraphicsText`.
+See also `StyleColor` and `GraphicsText`.
+
+For the assistant.
 """
 @document ImmutableCell [DC] struct StyleFont
     family::String

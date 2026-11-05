@@ -1,6 +1,22 @@
 # Fragment of `MathModule` — the mathematics document types: the abstract
 # `MathDocument`, its atoms, and the compound expressions built from them.
 
+"""
+    MathDocument
+
+The abstract supertype of the documents of mathematical expressions. Its main members are `MathFraction`, `MathBinaryOperation`, `MathMatrix`, `MathScript`, `MathVariable`.
+
+Use it to recognise the documents of mathematical expressions when you walk a document: a part is one of them when `part isa MathDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathDocument)
+    found_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathFraction)
+
+See also `search_documents`, `find_pane`, `describe_document` and `MathFraction`.
+
+For the assistant.
+"""
 abstract type MathDocument <: Document end
 
 """
@@ -351,7 +367,19 @@ get_math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
 
 The name of the symbol that a glyph draws, `ρ` is `:rho`, or `nothing` when the
 glyph is none of the named symbols.
+
+Use it to learn the name of a Greek or other symbol that a formula draws, so you can type it back.
+
+# Example
+
+    name_1 = find_math_symbol_name("ρ")
+
+See also `parse_math`.
+
+For the assistant.
 """
+function find_math_symbol_name end
+
 function find_math_symbol_name(glyph::AbstractString)
     for (name, text) in _MATH_SYMBOLS
         text == glyph && return name

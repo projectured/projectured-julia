@@ -60,7 +60,17 @@ That is the whole wiring. The drain calls `append_fault!` on it once per frame,
 from the editor's own task, which is the only place a document made of cells may
 be written.
 
-See also `FaultLogOverlayProjection`, which draws it, and `append_fault!`.
+Use it to read what failed in this session: each entry holds one fault and how
+many times it came.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Faults"))
+    log_1 isa FaultLog
+
+See also `find_pane`, `get_edited_document` and `search_documents`.
+
+For the assistant.
 """
 @document struct FaultLog
     entries::CellVector = CellVector()
@@ -151,6 +161,8 @@ for each fault, with its place, its message and its count.
     println(print_natural_text(get_session_fault_log()))
 
 See also `get_session_message_log`, `get_session_gesture_log`.
+
+For the assistant.
 """
 function get_session_fault_log end
 

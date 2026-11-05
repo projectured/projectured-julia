@@ -2,6 +2,22 @@
 # decision, an option of a decision, and an entry of a journal. A node holds the
 # documents of any domain that the work needs as its elements.
 
+"""
+    WorkflowDocument
+
+The abstract supertype of the documents of a workflow. Its main members are `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`, `WorkflowJournal`, `WorkflowEntry`.
+
+Use it to recognise the documents of a workflow when you walk a document: a part is one of them when `part isa WorkflowDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowDocument)
+    found_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowStep)
+
+See also `search_documents`, `find_pane`, `describe_document` and `WorkflowStep`.
+
+For the assistant.
+"""
 abstract type WorkflowDocument <: Document end
 
 # ── The tree ─────────────────────────────────────────────────────────────
@@ -37,6 +53,8 @@ Use it to read or build a thing to do in a workflow, with its sub-steps.
     step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
 
 See also `add_workflow_step!`, `change_workflow_state!`.
+
+For the assistant.
 """
 @document struct WorkflowStep <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -64,6 +82,8 @@ Use it to read or build a branch point of a workflow, with its options.
     decision_1 = WorkflowDecision(question = PrimitiveString("Where does the view live?"))
 
 See also `record_workflow_decision!`, `WorkflowOption`.
+
+For the assistant.
 """
 @document struct WorkflowDecision <: WorkflowDocument
     question::PrimitiveString = PrimitiveString("")
@@ -91,6 +111,8 @@ Use it to read or build one answer of a decision, with its state and reason.
     option_1 = WorkflowOption(title = PrimitiveString("a widget view"), state = :chosen)
 
 See also `choose_workflow_option!`, `WorkflowDecision`.
+
+For the assistant.
 """
 @document struct WorkflowOption <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -121,9 +143,11 @@ Use it to read a dated record in the journal of a node.
 
 # Example
 
-    entry_1 = make_workflow_entry("The view embeds an element."; author = :assistant)
+    entries_1 = collect_workflow_entries(workflow_1)
 
 See also `add_workflow_entry!`, `collect_workflow_entries`.
+
+For the assistant.
 """
 @document struct WorkflowEntry <: WorkflowDocument
     time::String = ""
@@ -150,6 +174,8 @@ Use it to show the entries of a whole workflow as one document.
     journal_1 = WorkflowJournal(workflow = workflow_1, kind = :decision)
 
 See also `collect_workflow_entries`, `WorkflowEntry`.
+
+For the assistant.
 """
 @document struct WorkflowJournal <: WorkflowDocument
     workflow::Any = nothing
@@ -235,9 +261,23 @@ end
     get_workflow_states(node) -> Tuple
 
 The states that `node` can have, in the order that a press steps through them.
+
+Use it to list the states that a step or an option can have.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    states_1 = get_workflow_states(step_1)
+
+See also `get_next_workflow_state` and `change_workflow_state!`.
+
+For the assistant.
 """
+function get_workflow_states end
+
 get_workflow_states(::WorkflowStep) = WORKFLOW_STEP_STATES
 get_workflow_states(::WorkflowOption) = WORKFLOW_OPTION_STATES
+get_workflow_states(node::ReferencedDocument) = get_workflow_states(get_document(node))
 
 """
     is_workflow_node(document) -> Bool
@@ -252,20 +292,48 @@ is_workflow_node(document) = document isa Union{WorkflowStep, WorkflowDecision, 
 
 The text that names `node`: the title of a step or an option, the question of a
 decision.
+
+Use it to read the words that name a step, an option or a decision.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    title_1 = get_workflow_node_title(step_1)
+
+See also `get_workflow_node_children` and `get_workflow_states`.
+
+For the assistant.
 """
+function get_workflow_node_title end
+
 get_workflow_node_title(node::WorkflowStep) = node.title
 get_workflow_node_title(node::WorkflowOption) = node.title
 get_workflow_node_title(node::WorkflowDecision) = node.question
+get_workflow_node_title(node::ReferencedDocument) = get_workflow_node_title(get_document(node))
 
 """
     get_workflow_node_children(node) -> CellVector
 
 The nodes below `node` in the tree: the children of a step or an option, the
 options of a decision.
+
+Use it to walk down the tree of a workflow one level at a time.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    children_1 = get_workflow_node_children(step_1)
+
+See also `get_workflow_node_title` and `add_workflow_step!`.
+
+For the assistant.
 """
+function get_workflow_node_children end
+
 get_workflow_node_children(node::WorkflowStep) = node.children
 get_workflow_node_children(node::WorkflowOption) = node.children
 get_workflow_node_children(node::WorkflowDecision) = node.options
+get_workflow_node_children(node::ReferencedDocument) = get_workflow_node_children(get_document(node))
 
 # The name of the field that `get_workflow_node_children` reads.
 _get_children_field(::Union{WorkflowStep, WorkflowOption}) = :children

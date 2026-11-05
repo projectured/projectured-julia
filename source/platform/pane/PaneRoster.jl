@@ -18,6 +18,8 @@ Use it to give a roster the documents that the tabs of the window show.
     Roster(TabDocuments(FileDocument); columns = ["name", "folder", "has_edits"])
 
 See also `Roster` and `ItemsWithin`.
+
+For the assistant.
 """
 struct TabDocuments
     type::Type

@@ -16,6 +16,17 @@ The buffer. `entries` holds at most `capacity` entries, oldest first. `count` is
 the number of entries that were recorded, including the entries that the buffer
 dropped. `typing` is the text of the run of typed characters that the newest
 entry folds, and is empty when the newest entry is not such a run.
+
+Use it to read the gestures that a person made lately and the operation that each one produced.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Gestures"))
+    log_1 isa GestureLog
+
+See also `find_pane`, `get_edited_document` and `search_documents`.
+
+For the assistant.
 """
 @document struct GestureLog
     entries::CellVector = CellVector()
@@ -189,6 +200,8 @@ each gesture, with its keys or its click and the operation that it ran.
     println(print_natural_text(get_session_gesture_log()))
 
 See also `describe_undo_history`, `find_selected_part`.
+
+For the assistant.
 """
 function get_session_gesture_log end
 

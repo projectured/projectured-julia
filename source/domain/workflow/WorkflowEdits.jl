@@ -57,12 +57,27 @@ make_workflow_state_operation(::WorkflowDecision, state::Symbol; keywords...) =
 
 The state after the state of `node`, in the order of `get_workflow_states`,
 around the end.
+
+Use it to know which state a press on the state of a step or an option moves it to.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    state_1 = get_next_workflow_state(step_1)
+
+See also `get_workflow_states` and `change_workflow_state!`.
+
+For the assistant.
 """
+function get_next_workflow_state end
+
 function get_next_workflow_state(node::Union{WorkflowStep, WorkflowOption})
     states = get_workflow_states(node)
     index = something(findfirst(==(node.state), states), 0)
     states[mod1(index + 1, length(states))]
 end
+
+get_next_workflow_state(node::ReferencedDocument) = get_next_workflow_state(get_document(node))
 
 """
     make_insert_workflow_node_operation(parent, index, child) -> Operation
@@ -181,30 +196,32 @@ end
 
 # ── The verbs of the assistant ───────────────────────────────────────────
 
-"""
-The names that the workflow domain offers to the model of an assistant: the
-documents of a workflow, the verbs that record the work as the assistant, the
-read of the journal of a tree, and the list of the workflows of the open files.
-"""
-const WORKFLOW_ASSISTANT_API = (
-    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
-    :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
-    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_element!,
-    :collect_workflow_entries, :WorkflowList, :get_session_workflow_list,
-)
 #
 # Each verb takes a node as a `ReferencedDocument`, makes the operation above, and
 # lets the readers of the editor carry it from the node to the root, so the
 # history of the tab that shows the workflow records it, as it records an edit of
 # the person. A workflow that no view shows takes the operation directly.
 
+# The operation as a change from the root of the editor's document; `nothing` when
+# `node` is no part of a window that the editor printed.
+function _find_workflow_change(editor, node, operation, description)
+    node isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    rooted = find_rooted_operation(editor, get_reference(node), relative -> operation; description)
+    rooted === nothing ? nothing : RootedOperation(rooted, description)
+end
+
+function _make_workflow_change(editor, node, operation, description, thing::String, verb)
+    change = _find_workflow_change(editor, node, operation, description)
+    change === nothing &&
+        throw(ArgumentError("The " * thing * " is no part of a window that the editor printed, so no " *
+                            "history can record a change of it; call `" * string(nameof(verb)) *
+                            "`, which changes it at once."))
+    change
+end
+
 function _evaluate_workflow_operation!(editor, node, operation, description)
-    if node isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing
-        rooted = find_rooted_operation(editor, get_reference(node), relative -> operation;
-                                       description)
-        rooted === nothing || return evaluate_operation(editor, rooted)
-    end
-    evaluate_operation(editor, operation)
+    change = _find_workflow_change(editor, node, operation, description)
+    evaluate_operation(editor, change === nothing ? operation : change)
 end
 
 """
@@ -229,20 +246,35 @@ tried. Do not record every turn.
                               chosen = 2, reason = "a reference into another file is durable")
 
 See also `choose_workflow_option!`, `reject_workflow_option!`.
+
+For the assistant.
 """
 function record_workflow_decision! end
 
 function record_workflow_decision!(node, question, options; chosen::Integer = 0, reason = "",
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "record_workflow_decision!") do
-        parent = get_document(node)
-        decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
-        index = length(get_workflow_node_children(parent)) + 1
-        _evaluate_workflow_operation!(editor, node,
-            make_insert_workflow_node_operation(parent, index, decision),
-            "Record the decision " * repr(_get_plain_text(question)))
+        operation, description, index = _make_record_workflow_decision(node, question, options; chosen, reason)
+        _evaluate_workflow_operation!(editor, node, operation, description)
         _get_child(node, index)
     end
+end
+
+make_change(::typeof(record_workflow_decision!), node, question, options; chosen::Integer = 0,
+            reason = "", editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, description, _ = _make_record_workflow_decision(node, question, options; chosen, reason)
+        _make_workflow_change(editor, node, operation, description, "node", record_workflow_decision!)
+    end
+
+# The operation, its description and the index of the new decision among the
+# children of `node`.
+function _make_record_workflow_decision(node, question, options; chosen, reason)
+    parent = get_document(node)
+    decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
+    index = length(get_workflow_node_children(parent)) + 1
+    (make_insert_workflow_node_operation(parent, index, decision),
+     "Record the decision " * repr(_get_plain_text(question)), index)
 end
 
 """
@@ -261,19 +293,30 @@ Use it to settle a decision with one of its options.
     choose_workflow_option!(decision_1, 2; reason = "it needs no new tool")
 
 See also `reject_workflow_option!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function choose_workflow_option! end
 
 function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "choose_workflow_option!") do
-        _evaluate_workflow_operation!(editor, decision,
-            make_choose_workflow_option_operation(get_document(decision), index; reason,
-                                                  author = :assistant),
-            "Choose an option")
+        operation = _make_choose_workflow_option(decision, index; reason)
+        _evaluate_workflow_operation!(editor, decision, operation, "Choose an option")
         decision
     end
 end
+
+make_change(::typeof(choose_workflow_option!), decision, index::Integer; reason = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = _make_choose_workflow_option(decision, index; reason)
+        _make_workflow_change(editor, decision, operation, "Choose an option", "decision",
+                              choose_workflow_option!)
+    end
+
+_make_choose_workflow_option(decision, index::Integer; reason) =
+    make_choose_workflow_option_operation(get_document(decision), index; reason, author = :assistant)
 
 """
     reject_workflow_option!(decision, index; reason = nothing, editor = get_evaluation_editor())
@@ -290,19 +333,33 @@ Use it to record that an option of a decision is not taken.
     reject_workflow_option!(decision_1, 1; reason = "no domain can add a tool")
 
 See also `choose_workflow_option!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function reject_workflow_option! end
 
 function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "reject_workflow_option!") do
-        option = get_document(decision).options[index]
-        operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
-        reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
-        operation = CompoundOperation(operations)
+        operation = _make_reject_workflow_option(decision, index; reason)
         _evaluate_workflow_operation!(editor, decision, operation, "Reject an option")
         decision
     end
+end
+
+make_change(::typeof(reject_workflow_option!), decision, index::Integer; reason = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = _make_reject_workflow_option(decision, index; reason)
+        _make_workflow_change(editor, decision, operation, "Reject an option", "decision",
+                              reject_workflow_option!)
+    end
+
+function _make_reject_workflow_option(decision, index::Integer; reason)
+    option = get_document(decision).options[index]
+    operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
+    reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
+    CompoundOperation(operations)
 end
 
 """
@@ -324,17 +381,30 @@ a link to a document. Do not record every turn.
     add_workflow_entry!(step_1, "The view embeds an element through the renderer."; kind = :comment)
 
 See also `add_element!`, `collect_workflow_entries`.
+
+For the assistant.
 """
 function add_workflow_entry! end
 
 function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothing,
                              editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_entry!") do
-        entry = make_workflow_entry(text; author = :assistant, kind, source)
-        _evaluate_workflow_operation!(editor, node,
-            make_add_workflow_entry_operation(get_document(node), entry), "Add an entry")
+        _evaluate_workflow_operation!(editor, node, _make_add_workflow_entry(node, text; kind, source),
+                                      "Add an entry")
         node
     end
+end
+
+make_change(::typeof(add_workflow_entry!), node, text; kind::Symbol = :comment, source = nothing,
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_workflow_change(editor, node, _make_add_workflow_entry(node, text; kind, source),
+                              "Add an entry", "node", add_workflow_entry!)
+    end
+
+function _make_add_workflow_entry(node, text; kind, source)
+    entry = make_workflow_entry(text; author = :assistant, kind, source)
+    make_add_workflow_entry_operation(get_document(node), entry)
 end
 
 """
@@ -351,8 +421,8 @@ workflow on top, a third of the height, and the conversation below. A second
 workflow joins the tab group on top. A window with no conversation opens the tab
 as `open_pane!` places any pane.
 
-Use it at the start of work of several stages, before the first of them, so the
-person sees the stages ahead and the one that runs: a study, a port, a release.
+Use it to open a workflow at the start of work of several stages, before the first
+of them, so the person sees the stages ahead and the one that runs: a study, a port, a release.
 Keep the steps at the level of the stages; mark each `:active` when it starts and
 `:done` when it ends, and add to it what it made with `add_element!`.
 
@@ -362,6 +432,8 @@ Keep the steps at the level of the stages; mark each `:active` when it starts an
                              steps = ["Read the model", "Run the sweep", "Answer the question"])
 
 See also `add_workflow_step!`, `change_workflow_state!`, `add_element!`.
+
+For the assistant.
 """
 function start_workflow! end
 
@@ -398,7 +470,7 @@ function _open_workflow_pane!(editor, root::WorkflowStep)
     name = title === nothing ? "Workflow" : String(title)
     group = PaneGroup(PaneTab[PaneTab(name, root)])
     reference = first(search_references(editor.document, node -> node === conversation;
-                                        descend = is_pane_search_step))
+                                        walk = DocumentWalk(; descend = is_pane_search_step)))
     replace_referenced_value!(reference,
         PaneSplit(:horizontal, Any[group, conversation]; weights = [1 / 3, 2 / 3]); editor)
     find_pane(name; editor)
@@ -417,18 +489,32 @@ Use it to add a sub-step to a step or to an option.
     step_2 = add_workflow_step!(step_1, "Write the view")
 
 See also `change_workflow_state!`, `record_workflow_decision!`.
+
+For the assistant.
 """
 function add_workflow_step! end
 
 function add_workflow_step!(node, title; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "add_workflow_step!") do
-        parent = get_document(node)
-        index = length(get_workflow_node_children(parent)) + 1
-        _evaluate_workflow_operation!(editor, node,
-            make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
-            "Add the step " * repr(_get_plain_text(title)))
+        operation, description, index = _make_add_workflow_step(node, title)
+        _evaluate_workflow_operation!(editor, node, operation, description)
         _get_child(node, index)
     end
+end
+
+make_change(::typeof(add_workflow_step!), node, title; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, description, _ = _make_add_workflow_step(node, title)
+        _make_workflow_change(editor, node, operation, description, "node", add_workflow_step!)
+    end
+
+# The operation, its description and the index of the new step among the children
+# of `node`.
+function _make_add_workflow_step(node, title)
+    parent = get_document(node)
+    index = length(get_workflow_node_children(parent)) + 1
+    (make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
+     "Add the step " * repr(_get_plain_text(title)), index)
 end
 
 """
@@ -447,17 +533,27 @@ Use it to mark a step or an option as active, done, dropped or parked.
     change_workflow_state!(step_1, :done)
 
 See also `add_workflow_step!`, `choose_workflow_option!`.
+
+For the assistant.
 """
 function change_workflow_state! end
 
 function change_workflow_state!(node, state::Symbol; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "change_workflow_state!") do
-        _evaluate_workflow_operation!(editor, node,
-            make_workflow_state_operation(get_document(node), state; author = :assistant),
-            "Change the state to :" * string(state))
+        _evaluate_workflow_operation!(editor, node, _make_change_workflow_state(node, state),
+                                      "Change the state to :" * string(state))
         node
     end
 end
+
+make_change(::typeof(change_workflow_state!), node, state::Symbol; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_workflow_change(editor, node, _make_change_workflow_state(node, state),
+                              "Change the state to :" * string(state), "node", change_workflow_state!)
+    end
+
+_make_change_workflow_state(node, state::Symbol) =
+    make_workflow_state_operation(get_document(node), state; author = :assistant)
 
 # The child at `index` of `node`, as a `ReferencedDocument` when `node` is one.
 function _get_child(node::ReferencedDocument, index::Integer)
@@ -483,6 +579,8 @@ Use it to read what was decided and found before you continue a workflow.
     entries_1 = collect_workflow_entries(workflow_1; kind = :decision)
 
 See also `add_workflow_entry!`, `WorkflowJournal`.
+
+For the assistant.
 """
 function collect_workflow_entries end
 

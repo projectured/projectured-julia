@@ -22,6 +22,16 @@ const _RESEARCH_LINK_LIST_FIELDS = (:basis, :tests, :uses, :supports, :opposes, 
 
 The item of `study` whose id is `id`, such as `"H1"`, or `nothing` when the study
 holds none.
+
+Use it to reach an item of a study by the id that the study shows for it.
+
+# Example
+
+    item_1 = find_study_item(study_1, "H1")
+
+See also `collect_study_items` and `describe_study`.
+
+For the assistant.
 """
 function find_study_item end
 
@@ -40,7 +50,21 @@ end
 
 The links of `item`, as the name of the field `=>` the linked item, in the order
 of the fields of its type: `:question => question_1`, `:supports => hypothesis_1`.
+
+Use it to find what an item of a study refers to.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    links_1 = collect_research_links(hypothesis_1)
+
+See also `describe_research_link` and `collect_study_items`.
+
+For the assistant.
 """
+function collect_research_links end
+
 function collect_research_links(item::ResearchItem)
     links = Pair{Symbol, Any}[]
     for name in fieldnames(typeof(item))
@@ -55,6 +79,8 @@ function collect_research_links(item::ResearchItem)
     end
     links
 end
+
+collect_research_links(item::ReferencedDocument) = collect_research_links(get_document(item))
 
 """
     make_research_id(study, type) -> String

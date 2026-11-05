@@ -19,6 +19,8 @@ Use it to read a text file of a natural format, such as JSON, into a document.
     people_1 = import_document("people.json")
 
 See also `export_document` and `read_document_file`.
+
+For the assistant.
 """
 function import_document end
 
@@ -48,6 +50,8 @@ Use it to write a document as the natural text of its format.
     export_document(people_1, "people_copy.json")
 
 See also `import_document` and `print_natural_text`.
+
+For the assistant.
 """
 function export_document end
 

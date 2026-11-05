@@ -1,7 +1,7 @@
 """
     PivotModule
 
-The pivot domain: a table cut into parts by the values of its dimensions, and a
+Pivot tables: a table cut into parts by the values of its dimensions, and a
 view of each part. The source is any table of the table interface of the
 collection slice, so a data frame, a vector of named tuples and a named tuple of
 vectors pivot alike, and a part of a data frame is a `SubDataFrame`.
@@ -26,6 +26,7 @@ using ..ChartModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: make_change
 import ..WidgetModule: make_graphics_projection
 import ..DomainModule: compute_context_menu
 import ..GestureBindingModule: get_document_gesture_bindings_own
@@ -64,17 +65,12 @@ make_graphics_projection(::Type{PivotPartTable}; measure, appearance) =
 make_graphics_projection(::Type{PivotChartCell}; measure, appearance) =
     make_pivot_chart_cell_projection(; measure, appearance)
 
-# What the model of an assistant may write about a pivot: the documents, the
-# values of a key, the reads of one cell and the move of a field, with a worked
+# The sentence that the system text of a window says about a pivot: the documents,
+# the values of a key, the reads of one cell and the move of a field, with a worked
 # example of each request that a person makes of a pivot. A setting changes with
-# `replace_referenced_value!` and a measure with the verbs of a collection, which
-# every window declares.
+# `replace_referenced_value!` and a measure with the verbs of a collection.
 function __init__()
-    register_assistant_api!(PivotModule => (:make_pivot_table, :PivotDimension, :PivotMeasure,
-                                            :PivotNumberView, :PivotRowsView, :PivotBarChartView,
-                                            :PivotLineChartView, :PivotPieChartView, :PivotGroupView,
-                                            :PivotTotal, :PivotBin, :PivotMonth,
-                                            :find_pivot_value, :find_pivot_part_rows, :move_pivot_field!);
+    register_assistant_api!(Any[];
         description = "A pivot is `make_pivot_table(table; rows = [\"region\", \"country\"], columns = [\"year\"], " *
                       "measures = [PivotMeasure(\"amount\", :sum)])`, and `open_pane!` draws it. The table " *
                       "can be the data of a tab: `make_pivot_table(get_edited_document(find_pane(\"Sales\")); " *

@@ -18,12 +18,11 @@ entry stands for one task, in the order the group was made.
 
 # Example
 
-    document = wrap_task_group_document(TaskGroup(tasks; name = "builds", jobs = 4))
-    start_task_group_document!(document)
-    get_task_group_document_status(document)       # :running, then :finished
+    group_1 = find_task_group("T3")
+    group_1 isa TaskGroupDocument
+    tasks_1 = search_documents(group_1, part -> part isa TaskDocument)
 
-See also `start_task_group_document!`, `stop_task_group_document!` and
-`build_task_group_document_counts`.
+See also `find_task_group`, `list_task_groups`, `TaskDocument` and `TaskGroupList`.
 
 # Fields
 - `title::String` — what the pane is called, such as the words that chose the
@@ -65,6 +64,8 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
   alone, in the whole place of the table and the split. Return on the table sets
   it, and Escape clears it. While it is set, Up and Down select the previous or
   the next task in the order of the table.
+
+For the assistant.
 """
 @document struct TaskGroupDocument <: Document
     title::String

@@ -32,7 +32,8 @@ function print_document(p::ExplorerSectionToWidget, recursion, section::Explorer
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(section.title))
     set_output_path_computations!(title, section, path -> _map_title_field_path(path))
-    root = VerticalLayout(Any[title, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
+    root = VerticalLayout(Any[title, LayoutConstraint(WidgetScrollPane(body; grows = (width = false, height = true));
+                                                     width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
     iomap = ChildrenIoMap(p, section, root, Cell(Any[]))
     # The part under the pointer, so a link lights and takes a press, and the

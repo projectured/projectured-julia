@@ -608,6 +608,17 @@ end # @testset "ReactiveCollection"
         @test collect(holder.elements) == ["a", "b"]
     end
 
+    @testset "a plain vector of parts becomes a list of their documents" begin
+        root = CellVector(Any[PrimitiveString("a"), PrimitiveString("b")])
+        whole = ReferencedDocument(root, EmptyReference())
+        parts = [whole[1], whole[2]]
+        @test all(part -> part isa ReferencedDocument, parts)
+        list = CellVector(parts)
+        @test list[1] === root[1] && list[2] === root[2]
+        holder = CollectionHolder(; elements = parts)
+        @test holder.elements[1] === root[1] && holder.elements[2] === root[2]
+    end
+
     @testset "a list finds an element by its index" begin
         list = CellVector(["a", "b", "b"])
         @test findfirst(==("b"), list) == 2

@@ -197,7 +197,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentMacro.jl`
   - ⬜ `document/SelectionDocument.jl`
   - ⬜ `document/DocumentWalk.jl`
-  - ⬜ `document/DocumentSearch.jl`
   - ⬜ `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
@@ -262,6 +261,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/DocstringSummary.jl`
   - ⬜ `tool/MeaningSearch.jl`
   - ⬜ `tool/RelevanceSearch.jl`
+  - ⬜ `tool/AssistantMark.jl`
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 19 — llm** (`llm/`)
   - ⬜ `llm/LlmModule.jl`

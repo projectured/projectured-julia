@@ -1,10 +1,12 @@
 """
     GraphicsModule
 
-The `PointReferenceStep` step type — a reference step that identifies a point
-within an element by pixel coordinates relative to that element's origin.
-Lives with the graphics slice because pixel coordinates are the graphics
-domain's own vocabulary; the kernel reference layer never names it.
+Graphics documents: text, rectangles, lines, circles, arcs, polygons, splines,
+images and canvases, which a window draws. The `PointReferenceStep` step type is a
+reference step that identifies a point within an element by pixel coordinates
+relative to that element's origin. Lives with the graphics slice because pixel
+coordinates are the graphics domain's own vocabulary; the kernel reference layer
+never names it.
 
 Registered as a `:terminal` step type (identifies a location but does not
 descend), and registers its own `.point(x, y)` entries with the kernel

@@ -17,8 +17,8 @@ _mt_runs(line) = [(run.content, run.font_color) for run in line.elements]
 _mt_print(document; projection = MarkedTextToText()) =
     print_document(projection, nothing, document, nothing)
 
-function _mt_editor(document)
-    chain = ChainingProjection(MarkedTextToText(), TextToGraphics(; measure = FontFileMeasure()))
+function _mt_editor(document;
+                    chain = ChainingProjection(MarkedTextToText(), TextToGraphics(; measure = FontFileMeasure())))
     backend = HeadlessBackend()
     editor = build_editor(document, chain;
                           backend, devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse(), Display()],
@@ -35,6 +35,14 @@ function _mt_select!(editor, start, stop = start)
 end
 
 _mt_press!(editor, backend, event) = (push_event!(backend, event); run_frame!(editor))
+
+# Each piece of text of a printed text, with its colour, in order.
+_mt_pieces(text::TextString) = Tuple{String,Any}[(text.content, text.font_color)]
+_mt_pieces(text) = reduce(vcat, (_mt_pieces(element) for element in text.elements);
+                          init = Tuple{String,Any}[])
+
+_mt_syntax_chain() = ChainingProjection(MarkedTextToSyntaxLeaf(), RecursiveProjection(SyntaxToText()),
+                                        TextToGraphics(; measure = FontFileMeasure()))
 
 function test_marked_text_to_text()
 @testset "MarkedTextToText" begin
@@ -128,6 +136,42 @@ end
     _mt_select!(editor, 2, 6)
     _mt_press!(editor, backend, KeyDown(:delete, ModifierKeys(); time = 0.0))
     @test document.text == "ininX() {\n    int count = 0;\n}"
+end
+
+@testset "a marked text as a syntax leaf: a line for each line, split at the marks" begin
+    document = MarkedText(text = _MT_SOURCE, marks = _mt_marks())
+    out = print_document(ChainingProjection(MarkedTextToSyntaxLeaf(), RecursiveProjection(SyntaxToText())),
+                         document).output
+    plain = MarkedTextToSyntaxLeaf().style.color
+    pieces = filter(piece -> !isempty(first(piece)), _mt_pieces(out))
+    @test pieces[1:3] == [("int ", plain), ("main", _mt_color(:function_name)), ("() {", plain)]
+    @test count(==(("count", _mt_color(:variable))), pieces) == 2
+    @test get_flat_string(out) == _MT_SOURCE
+end
+
+@testset "a marked text as a syntax leaf: a key and Enter change the string" begin
+    document = MarkedText(text = "int main() {\n    int count = 0;\n}", marks = _mt_marks()[1:2])
+    editor, backend = _mt_editor(document; chain = _mt_syntax_chain())
+    _mt_select!(editor, 8)
+    _mt_press!(editor, backend, KeyPress('X'; time = 0.0))
+    @test document.text == "int mainX() {\n    int count = 0;\n}"
+    _mt_press!(editor, backend, KeyPress('\n'; time = 0.0))
+    @test document.text == "int mainX\n() {\n    int count = 0;\n}"
+    _mt_press!(editor, backend, KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    @test document.text == "int mainX() {\n    int count = 0;\n}"
+end
+
+@testset "the natural view draws a marked text in the colours of its marks, and a key edits it" begin
+    dispatch = make_natural_to_syntax_dispatch(; appearance = Appearance())
+    @test only(last(row) for row in dispatch if first(row) === MarkedText) isa MarkedTextToSyntaxLeaf
+    document = MarkedText(text = "int main() {\n    int count = 0;\n}", marks = _mt_marks()[1:2])
+    out = print_document(ChainingProjection(TypeDispatchingProjection(dispatch), RecursiveProjection(SyntaxToText())),
+                         document).output
+    @test ("main", _mt_color(:function_name)) in _mt_pieces(out)
+    editor, backend = _mt_editor(document; chain = NaturalToGraphics(; measure = FontFileMeasure()))
+    _mt_select!(editor, 8)
+    _mt_press!(editor, backend, KeyPress('X'; time = 0.0))
+    @test document.text == "int mainX() {\n    int count = 0;\n}"
 end
 
 @testset "a file read again keeps the marked text and its marks, also in a history" begin

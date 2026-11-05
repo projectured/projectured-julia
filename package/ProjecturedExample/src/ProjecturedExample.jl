@@ -395,6 +395,7 @@ export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
 export widget_table_offered_example, widget_table_frozen_example
 export widget_disabled_example, widget_focus_example
+export layout_text_above_table_example, layout_scroll_area_in_page_example, layout_fill_in_scroll_area_example, layout_shares_example, layout_row_edge_example, layout_rows_in_slot_and_page_example
 export layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, files_example
 export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example
 export lazy_example, lazy_bidirectional_example

@@ -1,7 +1,8 @@
 """
     ArrangementModule
 
-What a person arranges in how a document shows, apart from the document: the
+Filters and sorts of a collection that a person sets in a view, apart from the
+document, and the verbs that set them from code. The module holds the
 `ArrangementDocument` that holds a document and the projections that a person
 placed at its parts, such as a filter or a sort of a collection, the projection
 that prints it, the dispatch that puts those projections at their places in a
@@ -33,6 +34,7 @@ using ..ToolModule
 import ..DocumentModule: get_document_title, get_wrapped_document, get_edited_field, replace_wrapped_document!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
+import ..EditorModule: make_change
 import ..OperationModule: operation_reference, retarget_operation
 
 import ..DomainModule: get_document_decoration

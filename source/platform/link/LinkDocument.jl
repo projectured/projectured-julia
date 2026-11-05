@@ -21,7 +21,9 @@ Use it to put a link to a part into a note, a list or a dashboard.
     Link(page)                          # the name and the icon of `page`
     Link(page; content = "the list")    # an alias
 
-See also `is_link`, `format_link_label` and `WidgetLink`.
+See also `is_link`, `Url` and `WidgetLink`.
+
+For the assistant.
 """
 @document struct Link
     target::Any
@@ -64,7 +66,7 @@ a browser resolves a relative link against its page.
 The page of an address, for "Open as a page", shows the address and the command
 that opens it.
 
-Use it for a link to the web, to a mail address, or to a file by its address.
+Use it to write a link to the web, to a mail address, or to a file by its address.
 Change a piece with `make_url_piece_operation`, which reads the address again,
 so a piece never holds a delimiter of another piece.
 
@@ -74,7 +76,9 @@ so a piece never holds a delimiter of another piece.
     Url("mailto:someone@example.org").path   # "someone@example.org"
     Link(Url("https://julialang.org"); content = "Julia")
 
-See also `format_url`, `OpenUrlOperation` and `is_absolute_url`.
+See also `Link` and `is_link`.
+
+For the assistant.
 """
 @document struct Url
     scheme::Union{Nothing,String} = nothing

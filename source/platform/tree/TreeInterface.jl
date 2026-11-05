@@ -37,6 +37,8 @@ Use it to name an entry of the explorer or a node of a tree as the person sees i
     [format_tree_node_label(entry) for entry in content_1.entries]
 
 See also `find_explorer_content`, `show_document_tree!`.
+
+For the assistant.
 """
 function format_tree_node_label end
 
@@ -51,6 +53,16 @@ the disk or a process answers it from its stored state, such as a folder whose
 emptiness the read of its parent found. It runs inside the computation of the
 row, so it reads cells. The default reads the children: `true` when a collection
 of the children has an element.
+
+Use it to tell whether a node of a tree has children to open.
+
+# Example
+
+    has_tree_children(document_1)
+
+See also `collect_tree_children` and `format_tree_node_label`.
+
+For the assistant.
 """
 function has_tree_children end
 

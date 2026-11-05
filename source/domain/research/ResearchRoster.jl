@@ -19,6 +19,8 @@ Use it to show the timeline of a study, or any table of its items.
                  columns = ["time", "author", "id", "kind", "status", "text"], sort = ["time"])
 
 See also `ResearchStudy`, `collect_study_items`.
+
+For the assistant.
 """
 struct StudyItems
     study::Any

@@ -60,11 +60,22 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the window input.
+    # A person resizes a placed window with a frame, so it also takes a fixed
+    # placement at the place where it stands: a placement that reads the size would
+    # move the window under the hand of the person.
     if window_input isa WindowInput && window_input.event isa WindowResize
         win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
+        resize = ResizeWindowOperation(win, window_input.event.width, window_input.event.height)
+        (is_window_placed(win) && has_window_frame(win)) || return Intent(change.gesture, resize)
+        shown = _find_window(unwrap_cell(get_iomap_output(iomap)), window_input.window_id)
+        shown === nothing && return Intent(change.gesture, resize)
+        fixed = make_fixed_placement(shown.x, shown.y; minimum_size = shown.minimum_size,
+                                     maximum_size = shown.maximum_size)
         return Intent(change.gesture,
-                      ResizeWindowOperation(win, window_input.event.width, window_input.event.height))
+                      CompoundOperation(Any[resize,
+                                            ReplaceViewStateOperation(
+                                                ReplaceReferencedValueOperation(win, "placement", fixed))]))
     end
     # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
     # as a WindowClose carrying the window id. Resolve the window and
@@ -189,6 +200,7 @@ _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation) =
 
 function _open_screen_window!(screen, op::OpenWindowOperation)
     screen isa ScreenDocument || return
+    op = _place_dialog_at_main_window(screen, op)
 
     # Existing window with this id → update in place. A window that a placement
     # places has a computed place in the output, and a window with no placement
@@ -209,6 +221,17 @@ function _open_screen_window!(screen, op::OpenWindowOperation)
 
     # New window: construct and push; the inner stage projects the output side.
     push!(in_wins, Cell(_make_opened_window(screen, op)))
+end
+
+# A dialog that names no place of its own and that no window opened, as one that a
+# callback opens, stands at the center of the first window of the screen, the main
+# window.
+function _place_dialog_at_main_window(screen::ScreenDocument, op::OpenWindowOperation)
+    _is_unplaced_dialog(op) || return op
+    isempty(screen.windows) && return op
+    main = screen.windows[1]
+    (main isa WindowDocument && main.id !== op.id) || return op
+    _place_at_window_center(op, main.id)
 end
 
 _make_opened_window(screen::ScreenDocument, op::OpenWindowOperation) =

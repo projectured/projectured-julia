@@ -61,6 +61,8 @@ Use it to save a document to a file, in the format of the extension of the file.
     write_document_file(notes_1, "notes_copy.json")
 
 See also `read_document_file` and `export_document`.
+
+For the assistant.
 """
 function write_document_file end
 
@@ -88,6 +90,8 @@ Use it to read a file of any supported format into a document.
     notes_1 = read_document_file("notes.json")
 
 See also `write_document_file` and `import_document`.
+
+For the assistant.
 """
 function read_document_file end
 
@@ -155,6 +159,8 @@ Use it to make the document of a file, with the content that the file holds on t
     file_1 = make_file_tab("notes.json")
 
 See also `make_file_tab_content` and `read_document_file`.
+
+For the assistant.
 """
 function make_file_tab end
 
@@ -172,7 +178,9 @@ end
 
 The content of a tab that shows the file at `path`: the [`FilePage`](@ref) of the
 file document of [`make_file_tab`](@ref) in a scroll pane, so a file longer than
-its tab scrolls, and the band of the page stays above it. The page knows the hash
+its tab scrolls, and the band of the page stays above it. The file grows down on
+its height, as a page does, so a table on a Markdown page is as tall as its rows
+and the tab scrolls it. The page knows the hash
 of the text of the file that it read ([`make_file_page`](@ref)). The scroll is
 made here, where a file tab is made, and not by the tab: a tab page gets no
 scroll of its own, because a page can hold two parts that each scroll.
@@ -185,11 +193,13 @@ Use it to open a file in a tab.
     open_pane!(content_1; title = "notes.json")
 
 See also `make_file_tab` and `open_pane!`.
+
+For the assistant.
 """
 function make_file_tab_content end
 
 make_file_tab_content(path::AbstractString, wrap = identity) =
-    make_file_page(WidgetScrollPane(make_file_tab(path, wrap)))
+    make_file_page(WidgetScrollPane(make_file_tab(path, wrap); grows = (width = false, height = true)))
 
 # ── What a file is called ────────────────────────────────────────────────────
 
@@ -209,12 +219,7 @@ get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 Write `file`'s current content to its own name. A pure side effect; the
 document is not mutated.
 
-Use it to write an open file to the disk, as Ctrl+S does.
-
-# Example
-
-    file_1 = make_file_tab("notes.json")
-    evaluate_operation(editor, SaveFileOperation(file_1))
+Ctrl+S answers it; code saves a file with `save_file_to_disk!`.
 
 See also `ReloadFileOperation` and `write_document_file`.
 """
@@ -262,6 +267,16 @@ record_saved_state!(content) = nothing
 Whether `content`, what a file holds, has edits since its file was read or saved.
 A history answers it from its steps. The default answers `nothing`, for a content
 that keeps no history and so can not say.
+
+Use it to tell whether the file that holds a content differs from what the content is now.
+
+# Example
+
+    has_unsaved_edits(content_1)
+
+See also `compute_file_text`.
+
+For the assistant.
 """
 function has_unsaved_edits end
 
@@ -381,11 +396,23 @@ end
 
 The text that `SaveFileOperation` writes for `file` now: the document that the
 file holds, without a wrapper such as a history, in the notation of the file
-type. It writes nothing. Use it to compare a file document with its file on
-disk.
+type. It writes nothing.
+
+Use it to compare a file document with its file on disk.
+
+# Example
+
+    text_1 = compute_file_text(file_1)
+
+See also `has_unsaved_edits` and `save_file_to_disk!`.
+
+For the assistant.
 """
+function compute_file_text end
+
 compute_file_text(file::FileDocument) =
     cut_file_text(_make_plain_file(file), dirname(abspath(get_filename(file))))
+compute_file_text(file::ReferencedDocument) = compute_file_text(get_document(file))
 
 # The text of a file is the text of what it holds, so a caller with a tab in
 # hand asks the file itself. The history a file carries stays out of the answer,
@@ -408,12 +435,7 @@ It writes no selection. F5 answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
 selection pointed into the replaced content.
 
-Use it to read an open file again from the disk, as F5 does.
-
-# Example
-
-    file_1 = make_file_tab("notes.json")
-    evaluate_operation(editor, ReloadFileOperation(file_1))
+F5 answers it; code reads a file again with `reload_file_from_disk!`.
 
 See also `SaveFileOperation` and `make_file_tab`.
 """
@@ -475,25 +497,3 @@ end
 # between the gesture and the editor passes it up unchanged.
 OperationModule.is_self_contained_operation(::Union{SaveFileOperation,
                                                     ReloadFileOperation}) = true
-
-# ── What a model may write about a file ─────────────────────────────────────
-
-"""
-    make_file_api() -> Vector
-
-The file verbs a model may call, as [`declare_api!`](@ref) takes them.
-
-A host concatenates this with the other vocabularies it offers. It names only
-this slice's own verbs: opening a path as a tab, reading and writing a document,
-and the two operations a key answers. Where a file comes FROM — a workspace, a
-file list, a dialog — belongs to the host, because a host knows what it holds.
-"""
-make_file_api() = Any[
-    FileFormatModule => (
-        # A path becomes a tab, and a tab becomes a file again.
-        :make_file_tab, :make_file_tab_content, :read_document_file, :write_document_file,
-        # What Ctrl+S and F5 answer with.
-        :SaveFileOperation, :ReloadFileOperation,
-        # Text in, document out, and back.
-        :import_document, :export_document),
-]

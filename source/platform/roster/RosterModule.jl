@@ -1,7 +1,8 @@
 """
     RosterModule
 
-A list of all the members of one kind, gathered from anywhere in a session: the
+A list of all the members of one kind, gathered from anywhere in a session. The
+module holds the
 `Roster`, its rows, the sources that give its items, the facets that name the
 values of an item, and the projection that shows a roster as a table. A filter, a
 sort and the other steps of an arrangement act on the rows of a roster as on any
@@ -38,6 +39,7 @@ import ..FaultModule: is_fault_exception
 
 # Imported to extend: this module adds a method to each of these.
 import ..ArrangementModule: find_arrangement_key_value, get_arrangement_value, get_arranged_collection_steps
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps

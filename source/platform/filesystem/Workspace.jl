@@ -1,6 +1,22 @@
 # Fragment of `FileSystemModule` — the workspace document types: the abstract
 # `WorkspaceDocument`, and the folder and file nodes a workspace tree holds.
 
+"""
+    WorkspaceDocument
+
+The abstract supertype of the documents of a workspace tree. Its main members are `Workspace`, `WorkspaceFolder`, `WorkspaceExplorer`.
+
+Use it to recognise the documents of a workspace tree when you walk a document: a part is one of them when `part isa WorkspaceDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("workspace")), part -> part isa WorkspaceDocument)
+    found_1 = search_documents(get_edited_document(find_pane("workspace")), part -> part isa WorkspaceFolder)
+
+See also `search_documents`, `find_pane`, `describe_document` and `WorkspaceFolder`.
+
+For the assistant.
+"""
 abstract type WorkspaceDocument <: Document end
 
 # A workspace names the folders a person opened, so its duplicate is a copy of
@@ -25,7 +41,9 @@ Use it to add a folder to the explorer.
     folder_1 = WorkspaceFolder("data", "/home/person/data")
     workspace_1 = Workspace([folder_1])
 
-See also `Workspace` and `OpenFileOperation`.
+See also `Workspace` and `open_file!`.
+
+For the assistant.
 """
 @document struct WorkspaceFolder <: WorkspaceDocument
     name::String
@@ -88,6 +106,8 @@ Use it to show the files of a folder in a tab.
     open_pane!(workspace_1; title = "Explorer")
 
 See also `WorkspaceFolder` and `make_file_tab_content`.
+
+For the assistant.
 """
 @document struct Workspace <: WorkspaceDocument
     folders::CellVector = CellVector()
@@ -123,6 +143,8 @@ Use it to show the files of a workspace in a tab.
     open_pane!(explorer_1; title = "Files")
 
 See also `Workspace` and `WorkspaceFolder`.
+
+For the assistant.
 """
 @document struct WorkspaceExplorer <: WorkspaceDocument
     workspace::Any                    # Workspace

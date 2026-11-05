@@ -19,6 +19,8 @@ Use it to give a roster the items of a collection in a document.
     Roster(CollectionItems(@reference(results)); columns = ["name", "status"])
 
 See also `Roster` and `show_roster!`.
+
+For the assistant.
 """
 struct CollectionItems
     collection::Any
@@ -70,6 +72,8 @@ Use it to give a roster the documents of one type that lie inside other items.
     Roster(ItemsWithin(CollectionItems(@reference(groups)), TaskDocument; enter_field = is_task_search_field))
 
 See also `Roster` and `TabDocuments`.
+
+For the assistant.
 """
 struct ItemsWithin
     source::Any
@@ -133,9 +137,10 @@ collect_roster_items(source::ItemsWithin, link, inside::_ItemInside) =
 # functions of the searches of `source`; the search does not enter `outer`.
 function _search_items(source::ItemsWithin, root, predicate, outer)
     descend = something(source.descend, _is_any_step)
-    search_documents(root, predicate; limit = nothing, enter_matches = false,
-                     descend = (parent, child) -> child !== outer && descend(parent, child),
-                     enter_field = something(source.enter_field, _is_any_step))
+    enter_field = something(source.enter_field, _is_any_step)
+    walk = DocumentWalk(; descend = (parent, child) -> child !== outer && descend(parent, child),
+                        enter_field = (node, name) -> is_field_entered(node, name) && enter_field(node, name))
+    search_documents(root, predicate; limit = nothing, enter_matches = false, walk)
 end
 
 _is_any_step(_, _) = true
@@ -169,7 +174,19 @@ end
 
 The names of the stores that the loaded slices registered as sources, in the order
 of their names.
+
+Use it to list the stores that a roster can take its rows from.
+
+# Example
+
+    names_1 = get_roster_source_names()
+
+See also `describe_roster`.
+
+For the assistant.
 """
+function get_roster_source_names end
+
 get_roster_source_names() = sort!(collect(keys(_ROSTER_SOURCES)))
 
 """
@@ -186,6 +203,8 @@ Use it to give a roster the records of a store, such as the log.
     show_roster!(StoreRecords(:log); columns = ["level", "message"])
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 struct StoreRecords
     name::Symbol

@@ -88,7 +88,7 @@ end
     @test 300 < widths[4] <= 500 - 10 - short
 end
 
-@testset "a column shares an exact height, and sums its children in a bounded one" begin
+@testset "a column shares an edge, exact or bounded, and grows past a minimum" begin
     # A card above a pane of thirty lines that takes the rest, as a view of a
     # table is made.
     column() = VerticalLayout(Any[WidgetLabel("Title"),
@@ -96,13 +96,14 @@ end
                                                                                        for i in 1:30]));
                                                    height = Fill)]; gap = 4)
     title = _range_column_heights(VerticalLayout(Any[WidgetLabel("Title")]), (nothing, nothing))[1]
-    # A tab gives an exact height: the pane takes what the title leaves.
-    exact = Cell(Int32(200))
-    @test _range_column_heights(column(), (exact, exact)) == (200, [title, 200 - 4 - title])
-    # A page gives the room that the blocks above leave, a limit: the column is
-    # as tall as its content, so the block after it is placed below all of it.
-    height, children = _range_column_heights(column(), (nothing, Cell(Int32(0))))
+    # A tab gives an exact height, and a slot that cuts gives a bounded one: the
+    # pane takes what the title leaves.
+    edge = Cell(Int32(200))
+    @test _range_column_heights(column(), (edge, edge)) == (200, [title, 200 - 4 - title])
+    @test _range_column_heights(column(), (nothing, edge)) == (200, [title, 200 - 4 - title])
+    # A view that grows gives a minimum and no edge: the pane takes at least what
+    # the title leaves, and its content, so the column is as tall as its content.
+    height, children = _range_column_heights(column(), (edge, nothing))
     @test children[2] > 200 && height == title + 4 + children[2]
-    @test _range_column_heights(column(), (nothing, Cell(Int32(5000)))) == (height, children)
 end
 end # test_size_range_main_axis

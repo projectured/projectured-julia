@@ -24,6 +24,7 @@ detail in a split a person can drag.
     error_color::StyleColor = get_task_style(nothing, :error_color)
     running_color::StyleColor = get_task_style(nothing, :running_color)
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
+    document_minimum_height::Int = get_task_style(nothing, :document_minimum_height)
 end
 
 # ── Words and colours ────────────────────────────────────────────────────────
@@ -329,9 +330,9 @@ const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeRef
                        FieldReferenceStep("child"))
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
-# The parts of the detail of a task before its documents: its state, its facts, its
-# process, its result, its earlier executions and its buttons.
-const _PARTS_BEFORE_DOCUMENTS = 6
+# The parts of the detail of a task before its documents: the scroll area of its
+# state, its facts, its process, its result, its earlier executions and its buttons.
+const _PARTS_BEFORE_DOCUMENTS = 1
 
 # The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
@@ -434,27 +435,27 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
-        parts = Any[]
-        push!(parts, _make_live_label(() -> begin
+        facts = Any[]
+        push!(facts, _make_live_label(() -> begin
             (text, color) = _get_task_state(p, group.codes, document)
             (format_task_parameters(task) * " — " * text, color)
         end))
-        push!(parts, _build_task_details(p, task, document))
-        push!(parts, WidgetLabel(() -> begin
-            facts = String[]
+        push!(facts, _build_task_details(p, task, document))
+        push!(facts, WidgetLabel(() -> begin
+            items = String[]
             process = _get_current_field(document, :process_id)
-            process === nothing || push!(facts, "process " * string(process))
+            process === nothing || push!(items, "process " * string(process))
             elapsed = _format_task_elapsed_time(doc, document)
-            isempty(elapsed) || push!(facts, "elapsed " * elapsed)
-            join(facts, " · ")
+            isempty(elapsed) || push!(items, "elapsed " * elapsed)
+            join(items, " · ")
         end))
-        push!(parts, _make_live_label(() -> begin
+        push!(facts, _make_live_label(() -> begin
             result = get_task_document_result(document)
             result === nothing ? ("", p.muted_color) :
                 (format_task_result(result),
                  _get_role_color(p, get_result_role(group.codes, result.result)))
         end))
-        push!(parts, _build_earlier_executions(p, document))
+        push!(facts, _build_earlier_executions(p, document))
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = _ -> _run_guarded("stop", () -> _stop_task(group, index)))
         set_cell_computation!(getfield(stop, :enabled), () -> get_task_document_status(document) === :running)
@@ -466,18 +467,22 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                       for (label, action) in get_task_actions(task)]
         page = WidgetButton("Open the task page"; size = p.button_size,
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
-        push!(parts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
+        push!(facts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
                                       gap = p.button_gap))
+        # The facts scroll in a part with no weight, so a short detail keeps the
+        # least height of the place of a document and gives up the height of the facts.
+        parts = Any[WidgetScrollPane(VerticalLayout(facts; gap = p.section_gap, child_width = Fill))]
         # The tree of the processes of the task while it runs, and the document
-        # that the kind gives for the result, each in a place that gives it an
-        # exact share of the height, between the facts and the output. The maps of
-        # the pane find each document by its place.
+        # that the kind gives for the result, each in a place that gives it a
+        # share of the height and at least `document_minimum_height`, between the
+        # facts and the output. The maps of the pane find each document by its place.
         length(parts) == _PARTS_BEFORE_DOCUMENTS ||
             error("the documents of the task are not where the maps of the pane find them")
         for field in _DOCUMENT_FIELDS
             shown = getfield(document, field)[]
             shown === nothing && continue
-            place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill)
+            place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill,
+                                     min_height = p.document_minimum_height)
             push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
         push!(parts, _make_label("stdout", p.muted_color))
@@ -573,16 +578,19 @@ Use it to give the tab of a group a title that shows how far the group is.
 
 # Example
 
-    group = wrap_task_group_document(TaskGroup(tasks; name = "builds"))
-    open_pane!(group; title = "Builds")
-    start_task_group_document!(group)
+    group_1 = find_task_group("T3")
+    title_1 = make_task_group_tab_title(group_1)
 
 See also `describe_task_group` and `open_pane!`.
+
+For the assistant.
 """
 function make_task_group_tab_title end
 
 make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[]) =
     make_pane_tab_title(doc, String(name))
+make_task_group_tab_title(document::ReferencedDocument; keywords...) =
+    make_task_group_tab_title(get_document(document); keywords...)
 
 # A group is a work item: its icon is its state, its tint the role of its state,
 # its counts how far it is and each code that came back unexpected, and its
@@ -1247,7 +1255,9 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
         make_object_field_widget_dispatch(make_widget_rows()), documents, Pair{Type,Any}[
             TaskStreamLines => ChainingProjection(lines, VerticalLayoutToGraphicsCanvas())])))
     Pair{Type,Any}[
-        TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),
+        TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
+                                                    document_minimum_height = get_style(:document_minimum_height)),
+                                                widgets()),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
         ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; section_gap = styles.section_gap,
                                                   label_gap = styles.label_gap, muted_color = styles.muted_color),

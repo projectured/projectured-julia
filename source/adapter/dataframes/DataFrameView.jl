@@ -262,6 +262,47 @@ function jump_to_row(view::DataFrameView, row::Integer)
         ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "top_row", 1))])
 end
 
+"""
+    jump_to_row!(view, row; editor = get_evaluation_editor()) -> view
+
+Show the kept row at the place `row` at the top of the table `view`, as Ctrl+Home
+and Ctrl+End do, and answer `view`. The place counts the rows that the filter of
+the view keeps, from 1. A place out of range is the first or the last row. The
+data and the filter do not change, and it is no step of the undo. `view` is a
+table of the window, as a part.
+
+Use it to show the person a row of a long table.
+
+# Example
+
+    jump_to_row!(table_1, 120)
+
+See also `make_change`.
+
+For the assistant.
+"""
+function jump_to_row! end
+
+jump_to_row!(view::ReferencedDocument, row::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "jump_to_row!") do
+        apply_change!(make_change(jump_to_row!, view, row; editor); editor)
+        view
+    end
+
+make_change(::typeof(jump_to_row!), view::ReferencedDocument, row::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = get_document(view)
+        document isa DataFrameView ||
+            throw(ArgumentError("The part is a " * string(nameof(typeof(document))) * ", not a table of a data frame."))
+        operation = jump_to_row(document, row)
+        operation === nothing && throw(ArgumentError("The table keeps no row, so it has no row to show."))
+        description = string("Show the row ", row, " of the table")
+        reference = extend_reference(get_reference(view), FieldReferenceStep("anchor"))
+        rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+        rooted === nothing && throw(ArgumentError("No reader of the window carries a change of the table."))
+        RootedOperation(rooted, description)
+    end
+
 # A right click on the corner of the table opens the menu of the view
 # (`compute_context_menu`), which shows the hidden columns again.
 const _DATA_FRAME_VIEW_MENU =

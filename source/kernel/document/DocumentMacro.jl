@@ -186,8 +186,9 @@ The auto-wrapping inner constructor — the **only** inner constructor. Raw valu
 wrap in `ReactiveCell{Any}` (the untyped `Cell`), so the bare name keeps
 the untyped-cell semantics; cells of any kind pass through as-is, which is how the
 kind constructors and `copy_document` build every other kind. A raw value is
-stored as its [`get_document`](@ref), so a document never holds a referenced
-document; the call resolves when the constructor compiles for the types of its
+stored as its [`get_document`](@ref), and a plain `Vector` as the `get_document` of
+each element, so a document never holds a referenced document, also not inside a
+list; the call resolves when the constructor compiles for the types of its
 arguments.
 
 `new{…}` needs the cell types as parameters, and computing them via `typeof` is a
@@ -211,7 +212,7 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     # A raw value is stored as its document, and a plain vector for a reactive list
     # field becomes the list of the field.
     list_types = _cell_value_types(plan)
-    stored(i) = :($(get_document)($(arg_names[i])))
+    stored(i) = :($(get_stored_value)($(arg_names[i])))
     raw_value(i) = kinds[i] === ReactiveCell && _is_list_field_type(list_types[i]) ?
         :($(_wrap_list_value)($(list_types[i]), $(stored(i)))) : stored(i)
     raw_wrap(i) = :($(def_types[i])($(raw_value(i))))
@@ -304,7 +305,8 @@ That call dispatches at run time, because a field of the reactive kind holds
 `Any`, and the test of the name is one comparison of two symbols.
 
 A write stores the [`get_document`](@ref) of its value, as the constructor does,
-so a document never holds a referenced document.
+and of each element of a plain `Vector`, so a document never holds a referenced
+document, also not inside a list.
 """
 _emit_accessors(plan) = (
     :(Base.getproperty(obj::$(plan.name), name::Symbol) =
@@ -313,8 +315,26 @@ _emit_accessors(plan) = (
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
         (getfield(obj, name)[] =
              $(_check_declared_write)(obj, name,
-                 $(_wrap_list_write)(obj, name, $(_refuse_cell_value)(obj, name, $(get_document)(val)))))),
+                 $(_wrap_list_write)(obj, name, $(_refuse_cell_value)(obj, name, $(get_stored_value)(val)))))),
 )
+
+"""
+    get_stored_value(value) -> value
+
+The value that a document stores for `value`: its [`get_document`](@ref), and for a
+plain `Vector` that holds a referenced document, a new vector of the `get_document`
+of each element, so a document holds no referenced document, also not inside a
+list. A vector with no referenced document, or with an unassigned element, is
+stored as it is. The constructor and the write of a field of a `@document` store
+it, and so does a verb that writes a value it was given.
+"""
+function get_stored_value(value)
+    value = get_document(value)
+    (value isa Vector && !isbitstype(eltype(value))) || return value
+    all(index -> isassigned(value, index), eachindex(value)) || return value
+    any(element -> get_document(element) !== element, value) || return value
+    map(get_document, value)
+end
 
 # The value of a write `document.f = v`. A field holds a value, and a cell is not
 # one, so a cell throws: two documents share a cell only through the constructor.

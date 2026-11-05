@@ -1,9 +1,8 @@
 """
     FocusModule
 
-Focus traversal — the generic walk that finds the first / last focusable leaf
-in a document subtree, and the selection that a left button down on a focusable
-leaf makes.
+Focus: the walk that finds the first or last focusable leaf of a document, and the
+selection that a press on a leaf makes.
 
 Focus is selection. These pure helpers locate the *first* / *last* focusable
 leaf as a relative whole-element (∅) path, mirroring the generic field/element

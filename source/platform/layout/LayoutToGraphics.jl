@@ -514,6 +514,13 @@ end
 
 # ── Allocation cell helpers ────────────────────────────────────────────────
 
+# The extent of a container on one axis: what its children need, raised to the
+# minimum of the range that its parent gave, so that it takes a slot or a minimum
+# that is more than its children (`layout-rules.md` §1). `minimum` is the cell of
+# the parent, never the container's own extent, so no cell reads its own result.
+_make_extent_at_least(extent::Cell, minimum) =
+    minimum === nothing ? extent : Cell(@computation max(Int(extent[]), Int(minimum[])))
+
 """
 Build a `Cell{Vector{Int}}` that lazily computes the per-child allocation
 for one axis. The cell depends reactively on the available-extent cell,
@@ -880,12 +887,16 @@ function _hl_build(recursion, doc, ctx)
     # parent-supplied edge, never `outer_h`.
     # The mirror of `_vl_build`: a child that carries a weight on the main axis
     # (width, here) asks for a share of this row's width, and can have one only
-    # when the row has an edge on that axis, exact or bounded. Only a weighted child is offered a
-    # slot, so an unweighted child's width does not depend on the allocation and
-    # is safe to read while computing it.
+    # when the row has an edge on that axis, exact or bounded, or a minimum and no
+    # maximum. Only a weighted child is offered a slot, so an unweighted child's
+    # width does not depend on the allocation and is safe to read while computing
+    # it.
     # The space a row divides is the edge of its range, exact or bounded: `Fill`
     # takes all of what is offered, and the edge is what is offered.
-    avail_w  = ctx.maximum_width
+    # With no edge, the weighted children share the minimum of the range: each
+    # takes at least its share, and its content.
+    floor_w  = ctx.maximum_width === nothing ? ctx.minimum_width : nothing
+    avail_w  = floor_w === nothing ? ctx.maximum_width : floor_w
     default  = getfield(doc, :child_width)[]
     weighted = [layout_weight(doc.children[i], :x; default) > 0 for i in 1:n]
     filling  = avail_w !== nothing && any(weighted)
@@ -916,7 +927,7 @@ function _hl_build(recursion, doc, ctx)
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_w, :x, default,
-                             gap_cell, ctx.maximum_width)
+                             gap_cell, ctx.maximum_width; at_least = floor_w !== nothing)
         cctx = make_cross_axis_context(cctx, child, :y, cross_default)
         cctx = _with_child_space(cctx, _get_child_space(ctx.space, :x, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
@@ -958,9 +969,11 @@ function _hl_build(recursion, doc, ctx)
         end
         h
     end))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
-    # Distributing an offer means occupying it.
-    outer_w = filling ? Cell(@computation Int(avail_w[])) : Cell(Computation(function ()
+    # Distributing an edge means occupying it. A shared minimum is a sum, which
+    # is at least the minimum.
+    outer_w = (filling && floor_w === nothing) ? Cell(@computation Int(avail_w[])) : Cell(Computation(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0
@@ -969,6 +982,7 @@ function _hl_build(recursion, doc, ctx)
         end
         total + (n2 - 1) * gap_cell[]
     end))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     child_x = Cell[]
     child_y = Cell[]
@@ -1021,7 +1035,8 @@ end
 # *growing* recomputes those cells without rebuilding the stack.
 # The range a stack gives a child on the axis it divides.
 #
-# A weighted child of a stack that distributes takes its slot exactly, and a
+# A weighted child of a stack that distributes takes its slot exactly, or at
+# least, with `at_least`, when the slot is a share of a minimum; and a
 # child with a declared preferred extent (`Fixed`) takes that number exactly. Any
 # other child — `Content`, or a weighted child of a stack that has no slot to
 # divide — draws its content up to the room the others leave: the stack's edge,
@@ -1051,9 +1066,9 @@ end
 _with_child_space(ctx, space::NTuple{4, Int}) = with_size_range(ctx; space)
 
 function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Bool},
-                       slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge)
+                       slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge; at_least::Bool = false)
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
-    slotted[i] && return with_exact_size(cctx; on_axis(slots[i])...)
+    slotted[i] && return with_size_range(cctx; on_axis((slots[i], at_least ? nothing : slots[i]))...)
     child = children[i]
     pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
@@ -1084,9 +1099,9 @@ that the container does not divide: the cross axis of a stack, and both axes
 of a `WidgetComposite`, whose children overlap.
 
 The edge `B` on that axis is the maximum of the range of `cctx`. `Fill` and
-`Relative` take it exactly, `(B, B)`, and with no edge they take their minimum
-and their content; a declared preferred extent takes that
-number exactly; and everything else is `Content`: the child draws its content
+`Relative` take it exactly, `(B, B)`, and with no edge they take their content,
+at least their minimum and the minimum of the range; a declared preferred extent
+takes that number exactly; and everything else is `Content`: the child draws its content
 up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's minimum and
 maximum. The policy is the `LayoutConstraint` that `child` is, else `default`,
 the container's `child_width` or `child_height` for that axis.
@@ -1099,10 +1114,10 @@ function make_cross_axis_context(cctx, child, axis::Symbol, default)
     edge = axis === :x ? cctx.maximum_width : cctx.maximum_height
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
     if layout_weight(child, axis; default) > 0
-        # With no edge to take, a weighted child draws its content, at least its minimum.
-        minimum = layout_min(child, axis, 0; default)
-        return with_size_range(cctx; on_axis(edge === nothing && minimum > 0 ? (Cell(Int32(minimum)), nothing) :
-                                              (edge, edge))...)
+        edge === nothing || return with_size_range(cctx; on_axis((edge, edge))...)
+        # With no edge to take, a weighted child draws its content, and at least
+        # the larger of its minimum and the minimum of the range.
+        return with_size_range(cctx; on_axis((_get_shared_minimum(cctx, child, axis, default), nothing))...)
     end
     pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
@@ -1113,6 +1128,67 @@ function make_cross_axis_context(cctx, child, axis::Symbol, default)
             Cell(@computation Int32(min(Int(edge[]), maximum)))
     with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
+
+# The minimum of a weighted child on an axis with no edge: the larger of its
+# placement minimum and the minimum of the range of `cctx`, or `nothing`.
+function _get_shared_minimum(cctx, child, axis::Symbol, default)
+    floor = axis === :x ? cctx.minimum_width : cctx.minimum_height
+    minimum = layout_min(child, axis, 0; default)
+    floor === nothing && return minimum > 0 ? Cell(Int32(minimum)) : nothing
+    minimum > 0 ? Cell(@computation Int32(max(Int(floor[]), minimum))) : floor
+end
+
+# The keyword default of `with_visible_size`: the axis keeps its visible extent.
+const _KEEP_VISIBLE = :keep
+
+"""
+    with_visible_size(ctx; width, height) -> PrinterContext
+
+A copy of `ctx` that gives the visible extent on each axis given: a cell of how
+much of the content shows now. `nothing` takes it away. An axis that is not
+given keeps its visible extent. A scroll area gives its view to its content, and
+the parts below keep it.
+
+Use it where a part shows a view of its content, as a scroll area does.
+"""
+function with_visible_size(ctx; width = _KEEP_VISIBLE, height = _KEEP_VISIBLE)
+    width === _KEEP_VISIBLE || (ctx = with_property(ctx, :visible_width, width))
+    height === _KEEP_VISIBLE || (ctx = with_property(ctx, :visible_height, height))
+    ctx
+end
+
+"""
+    get_visible_width(ctx) -> Union{Cell, Nothing}
+
+The most of the width of a part that can show now: the maximum of its range when
+it has one, because its giver cuts there; else the minimum of its range when it
+has one, because that is the share that its giver gives it; else the visible
+extent of the scroll area that holds it, which grows on the width; else
+`nothing`.
+
+Use it in a part that builds only the columns that show. A part that fills its
+own slot reads `get_exact_width`.
+"""
+get_visible_width(ctx) =
+    ctx === nothing ? nothing :
+    ctx.maximum_width !== nothing ? ctx.maximum_width :
+    ctx.minimum_width !== nothing ? ctx.minimum_width : get_property(ctx, :visible_width)
+
+"""
+    get_visible_height(ctx) -> Union{Cell, Nothing}
+
+The most of the height of a part that can show now: the maximum of its range
+when it has one; else the minimum of its range when it has one; else the visible
+extent of the scroll area that holds it, which grows on the height; else
+`nothing`. See [`get_visible_width`](@ref).
+
+Use it in a part that builds only the rows that show: a table of a list, the
+lines of a stream, the rows of a data frame.
+"""
+get_visible_height(ctx) =
+    ctx === nothing ? nothing :
+    ctx.maximum_height !== nothing ? ctx.maximum_height :
+    ctx.minimum_height !== nothing ? ctx.minimum_height : get_property(ctx, :visible_height)
 
 function _vl_build(recursion, doc, ctx)
     gap_cell   = getfield(doc, :gap)
@@ -1129,19 +1205,19 @@ function _vl_build(recursion, doc, ctx)
     # the children before it, never `outer_h`. The cross axis is cycle-free
     # because `outer_w` (below) reads child widths while each child reads the
     # *parent-supplied* edge, never `outer_w`.
-    # A child that carries a weight on the main axis is asking for a share of this
-    # layout's height. It can have one only when this layout has an exact height —
-    # a share of a sum of its own children is the reactive cycle the comment above
-    # describes. So the two conditions together decide, and nothing has to be
-    # declared on the layout.
-    # The space a column divides is an exact height, such as the height of a tab:
-    # `Fill` takes all of it. A bounded height is a limit and not an amount: the
-    # room that a page leaves a block below the others is what the view has left,
-    # not what the page has, because a page grows down with its blocks. There the
-    # column sums its children, as it does with no range, and a weighted child
-    # draws its content. A row keeps a bounded width as its edge, because a page
-    # gives every block the width of its view.
-    avail_h  = get_exact_height(ctx)
+    # The mirror of `_hl_build`: a child that carries a weight on the main axis
+    # (height, here) asks for a share of this column's height, and can have one
+    # only when the column has an edge on that axis, exact or bounded, or a
+    # minimum and no maximum — a share of a sum of its own children is the
+    # reactive cycle the comment above describes. So the two conditions together
+    # decide, and nothing has to be declared on the layout.
+    # The space a column divides is the edge of its range, exact or bounded: an
+    # edge is where the giver cuts, so `Fill` takes all of it. A page in a view
+    # that grows has no edge, and a share of its minimum is a minimum: the child
+    # takes at least it, and its content, so a part that fills the view fills
+    # it, and grows with its content.
+    floor_h  = ctx.maximum_height === nothing ? ctx.minimum_height : nothing
+    avail_h  = floor_h === nothing ? ctx.maximum_height : floor_h
     default  = getfield(doc, :child_height)[]
     weighted = [layout_weight(doc.children[i], :y; default) > 0 for i in 1:n]
     filling  = avail_h !== nothing && any(weighted)
@@ -1180,7 +1256,7 @@ function _vl_build(recursion, doc, ctx)
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_h, :y, default,
-                             gap_cell, ctx.maximum_height)
+                             gap_cell, ctx.maximum_height; at_least = floor_h !== nothing)
         cctx = make_cross_axis_context(cctx, child, :x, cross_default)
         cctx = _with_child_space(cctx, _get_child_space(ctx.space, :y, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
@@ -1212,9 +1288,11 @@ function _vl_build(recursion, doc, ctx)
         end
         w
     end))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
-    # Distributing an offer means occupying it.
-    outer_h = filling ? Cell(@computation Int(avail_h[])) : Cell(Computation(function ()
+    # Distributing an offer means occupying it. A shared minimum is a sum, which
+    # is at least the minimum.
+    outer_h = (filling && floor_h === nothing) ? Cell(@computation Int(avail_h[])) : Cell(Computation(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0
@@ -1223,6 +1301,7 @@ function _vl_build(recursion, doc, ctx)
         end
         total + (n2 - 1) * gap_cell[]
     end))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     child_x = Cell[]
     child_y = Cell[]
@@ -1442,6 +1521,18 @@ end
 # An offer is carried as an `Int32` cell, the way every other seeded extent is.
 _gl_int32_cell(extent::Cell) = Cell(@computation Int32(max(0, extent[])))
 
+# What a grid divides on an axis with the range `(minimum, maximum)`, and whether
+# it is a minimum: the edge, exact or bounded, else the minimum, else nothing.
+_gl_divided_extent(minimum, maximum) =
+    maximum !== nothing ? (maximum, false) :
+    minimum !== nothing ? (minimum, true) : (nothing, false)
+
+# Whether a column or a row takes a share by its weight.
+_gl_is_weighted(p::SizePolicy) = p.weight !== nothing && p.weight > 0
+
+# The larger of a share and what the cells of its column or row drew.
+_gl_at_least_cell(share::Cell, content::Cell) = Cell(@computation max(Int(share[]), Int(content[])))
+
 # One entry of what `_gl_extents_cell` allocated.
 _gl_extent_cell(extents, k::Int) =
     Cell(Computation(function ()
@@ -1503,8 +1594,11 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
     column_align_cell = getfield(doc, :column_align)
-    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    # What the grid divides on each axis, as a stack does: the edge of its range,
+    # exact or bounded, else its minimum, which a weighted column or row then
+    # takes as a minimum (`least_w`, `least_h`).
+    avail_w, least_w = ctx === nothing ? (nothing, false) : _gl_divided_extent(ctx.minimum_width, ctx.maximum_width)
+    avail_h, least_h = ctx === nothing ? (nothing, false) : _gl_divided_extent(ctx.minimum_height, ctx.maximum_height)
 
     # A column's and a row's policy. Its KIND — `Fixed`, a weight or `Content` —
     # decides what a cell is offered, and that is read when the grid prints,
@@ -1567,8 +1661,16 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
                                    reads = k -> !offers_to_row_cells(k),
                                    extra_gap = c -> sum((gap_above(r) - Int(vgap[])::Int for r in 2:c); init = 0))
-    col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
-    row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
+    # The share of each column and each row. A weighted one that shares a minimum
+    # gives its share to its cells as their minimum, and is as wide or as tall as
+    # the larger of the share and its cells; its cells read only the share, so no
+    # extent reads itself. Every other one is its share.
+    share_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
+    share_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
+    shares_least_w(k::Int) = least_w && _gl_is_weighted(peek_column_policy(k))
+    shares_least_h(k::Int) = least_h && _gl_is_weighted(peek_row_policy(k))
+    col_w = Cell[shares_least_w(k) ? _gl_at_least_cell(share_w[k], content_col_w[k]) : share_w[k] for k in 1:n]
+    row_h = Cell[shares_least_h(k) ? _gl_at_least_cell(share_h[k], content_row_h[k]) : share_h[k] for k in 1:n]
 
     # The edge of a `Content` column: the grid's edge, less the gaps, less what
     # the `Content` columns before it drew, less the minimums of the other
@@ -1620,7 +1722,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
 
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
-    # slot. A `Content` column gives its cells its edge, so a cell draws its
+    # slot — and a weighted one that shares a minimum gives its share as a
+    # minimum. A `Content` column gives its cells its edge, so a cell draws its
     # content up to it; a row that does not hand out its extent keeps the height
     # free, because no content reflows with its height. A child that spans
     # columns is given their width exactly when each of them hands out its
@@ -1630,15 +1733,20 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         cctx = ctx
         if cctx !== nothing
             cctx = span > 1 ?
-                       (all(offers_to_cells, spanned_columns(i)) ?
-                            with_exact_size(cctx; width = _gl_int32_cell(span_w[i])) :
-                            with_bounded_size(cctx; width = make_span_edge(i))) :
+                       (!all(offers_to_cells, spanned_columns(i)) ?
+                            with_bounded_size(cctx; width = make_span_edge(i)) :
+                        any(shares_least_w, spanned_columns(i)) ?
+                            with_size_range(cctx; width = (_gl_int32_cell(_gl_span_w_cell(i, places, share_w, hgap)), nothing)) :
+                            with_exact_size(cctx; width = _gl_int32_cell(span_w[i]))) :
+                   shares_least_w(col) ? with_size_range(cctx; width = (_gl_int32_cell(share_w[col]), nothing)) :
                    offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    with_free_axis(cctx, :x)
-            cctx = offers_to_row_cells(row) ?
-                with_exact_size(cctx; height = _gl_int32_cell(row_h[row]), space = get_cell_space(i)) :
-                with_free_axis(cctx, :y; space = get_cell_space(i))
+            cctx = shares_least_h(row) ? with_size_range(cctx; height = (_gl_int32_cell(share_h[row]), nothing),
+                                                         space = get_cell_space(i)) :
+                   offers_to_row_cells(row) ? with_exact_size(cctx; height = _gl_int32_cell(row_h[row]),
+                                                              space = get_cell_space(i)) :
+                   with_free_axis(cctx, :y; space = get_cell_space(i))
         end
         cim = _recurse_child(recursion, doc.children[i],
                              make_child_context(cctx, doc, (@reference_step children), (@reference_step [i])))
@@ -1682,6 +1790,10 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         end
         total
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # A child in a column or a row whose extent was given is drawn inside that
     # slot; every other child is drawn where the alignment put it and reaches as
@@ -1932,6 +2044,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             end
             total + max(0, lc - 1) * vgap_cell[]
         end))
+        ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
         entries = Tuple{Cell,Cell,Any}[]
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
@@ -2083,6 +2196,10 @@ function print_document(p::StackLayoutToGraphicsCanvas,
         end
         h
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # Per-child position cells; rebuilt only on a structural change (they capture
     # `outer_w`/`outer_h` rather than reading them, so `active` does not churn them).

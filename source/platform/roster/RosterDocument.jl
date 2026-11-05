@@ -264,6 +264,8 @@ Use it to list the members of one kind from the whole window, as the rows of a t
     roster_1 = Roster(TabDocuments(FileDocument); columns = ["name", "has_edits"], title = "Files")
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 @document struct Roster <: Document
     source::Any

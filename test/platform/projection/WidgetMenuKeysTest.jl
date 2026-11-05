@@ -60,12 +60,16 @@ function test_widget_menu_keys()
         @test read_intent(projection, iomap, KeyDown(:down, ModifierKeys(ctrl = true); time = 0.0)) === nothing
     end
 
-    @testset "the lit item draws a band, and a menu with none draws no band" begin
+    @testset "the lit item draws the selection band, and a menu with none draws no band" begin
+        band = WidgetModule._make_selected_row_color(nothing)
         unlit = make_menu()
-        plain = length(_menu_keys_rects(print_document(projection, nothing, unlit, PrinterContext()).output))
+        plain = _menu_keys_rects(print_document(projection, nothing, unlit, PrinterContext()).output)
         lit = make_menu()
         lit.highlighted = 4
-        @test length(_menu_keys_rects(print_document(projection, nothing, lit, PrinterContext()).output)) == plain + 1
+        rects = _menu_keys_rects(print_document(projection, nothing, lit, PrinterContext()).output)
+        @test length(rects) == length(plain) + 1
+        @test count(rect -> rect.color == band, rects) == 1
+        @test count(rect -> rect.color == band, plain) == 0
     end
 
     @testset "an item draws its keys at its right edge" begin
@@ -109,9 +113,15 @@ function test_widget_menu_keys()
         choices = _MenuKeysCountedChoices(10_000, reads)
         list = WidgetChoiceList(; shown_rows = 12, find = query -> choices, choose = value -> nothing)
         shown() = [item.action.label for item in WidgetModule._make_choice_widgets(list)[2].elements]
+        # The index of the lit row among the rows that show, and its icon.
+        lit() = WidgetModule._make_choice_widgets(list)[2].highlighted
+        lit_icon() = WidgetModule._make_choice_widgets(list)[2].elements[lit()].action.icon
         @test shown() == ["row $index" for index in 1:12]
         # The lazy list builds the rows that show, and the link after the last one.
         @test reads[] <= 13
+        @test lit() == 1
+        # The row that Return chooses keeps the icon of its choice.
+        @test lit_icon() === nothing
         choice_projection = WidgetChoiceListToWidget()
         iomap = print_document(choice_projection, nothing, list, PrinterContext())
         read(gesture) = read_intent(choice_projection, nothing, Intent(gesture), iomap).operation
@@ -120,14 +130,18 @@ function test_widget_menu_keys()
         end
         @test (list.row, list.top) == (13, 2)
         @test first(shown()) == "row 2" && last(shown()) == "row 13"
+        @test lit() == 12
         evaluate_operation(nothing, read(key(:pagedown)))
         @test (list.row, list.top) == (25, 14)
         evaluate_operation(nothing, read(key(:up)))
         @test (list.row, list.top) == (24, 14)
+        @test lit() == 11
         # A turn of the wheel scrolls the rows that show, and keeps the row; a
         # positive turn scrolls up.
         evaluate_operation(nothing, read(MouseScroll(0, 1, 5, 5, ModifierKeys(), 0.0)))
         @test (list.row, list.top) == (24, 11)
+        # The row is below the rows that show, so no row lights.
+        @test lit() == 0
         evaluate_operation(nothing, read(MouseScroll(0, -10, 5, 5, ModifierKeys(), 0.0)))
         @test list.top == 41
         # The top stops at the last rows of the list.

@@ -28,6 +28,8 @@ field of `object` that has the same name.
   converted to that schema. A vector converts each element whose declared type
   is a schema.
 
+Use it to show a plain value through a document schema, such as a form.
+
 # Example
 
     struct Server
@@ -41,7 +43,11 @@ field of `object` that has the same name.
     form = convert_object_to_document(ServerForm, Server("gateway", 4))
 
 See also [`convert_document_to_object`](@ref), the way back.
+
+For the assistant.
 """
+function convert_object_to_document end
+
 function convert_object_to_document(T::Type, object)
     values = Any[]
     for name in _get_schema_field_names(T)
@@ -67,13 +73,19 @@ field makes the value.
   collection of elements becomes a vector, and each element converts by the
   element type that `T` declares.
 
+Use it to turn the edited document of a form back into a plain value, as at a commit.
+
 # Example
 
     server = convert_document_to_object(Server, form)            # at a commit
     server = convert_document_to_object(Server, form; base = server)
 
 See also [`convert_object_to_document`](@ref), the way there.
+
+For the assistant.
 """
+function convert_document_to_object end
+
 function convert_document_to_object(T::Type, document; base = nothing)
     names = _get_schema_field_names(typeof(document))
     values = Any[]

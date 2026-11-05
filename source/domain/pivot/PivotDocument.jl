@@ -35,6 +35,8 @@ as the menu of the field changes it.
     replace_referenced_value!(pivot_1.row_dimensions[1], :limit, 10)
 
 See also `move_pivot_field!`, `make_pivot_table`, `PivotMeasure`.
+
+For the assistant.
 """
 @document struct PivotDimension <: PivotDocument
     column::String
@@ -66,6 +68,8 @@ or add it to the measures of a pivot.
     replace_referenced_value!(pivot_1.measures[1], :aggregate, :maximum)
 
 See also `make_pivot_table`, `find_pivot_value`.
+
+For the assistant.
 """
 @document struct PivotMeasure <: PivotDocument
     column::String = ""
@@ -96,6 +100,8 @@ Use it to show each cell of a pivot as numbers.
     replace_referenced_value!(pivot_1, :cell_view, PivotNumberView())
 
 See also `PivotRowsView`, `PivotBarChartView`, `make_pivot_table`.
+
+For the assistant.
 """
 @document struct PivotNumberView <: PivotCellView
 end
@@ -114,6 +120,8 @@ Use it to show the rows of the source in each cell of a pivot.
     replace_referenced_value!(pivot_1, :cell_view, PivotRowsView())
 
 See also `PivotNumberView`, `PivotGroupView`, `make_pivot_table`.
+
+For the assistant.
 """
 @document struct PivotRowsView <: PivotCellView
 end
@@ -132,6 +140,8 @@ Use it to show each cell of a pivot as a bar chart of its part.
     replace_referenced_value!(pivot_1, :cell_view, PivotBarChartView())
 
 See also `PivotLineChartView`, `PivotPieChartView`, `PivotNumberView`.
+
+For the assistant.
 """
 @document struct PivotBarChartView <: PivotCellView
 end
@@ -150,6 +160,8 @@ Use it to show each cell of a pivot as a line chart of its part.
     replace_referenced_value!(pivot_1, :cell_view, PivotLineChartView())
 
 See also `PivotBarChartView`, `PivotPieChartView`, `PivotNumberView`.
+
+For the assistant.
 """
 @document struct PivotLineChartView <: PivotCellView
 end
@@ -167,6 +179,8 @@ Use it to show each cell of a pivot as a pie chart of its part.
     replace_referenced_value!(pivot_1, :cell_view, PivotPieChartView())
 
 See also `PivotBarChartView`, `PivotLineChartView`, `PivotNumberView`.
+
+For the assistant.
 """
 @document struct PivotPieChartView <: PivotCellView
 end
@@ -187,6 +201,8 @@ Use it to list the rows of the source of a pivot under their groups.
     replace_referenced_value!(pivot_1, :cell_view, PivotGroupView())
 
 See also `PivotRowsView`, `PivotNumberView`, `make_pivot_table`.
+
+For the assistant.
 """
 @document struct PivotGroupView <: PivotCellView
 end
@@ -346,6 +362,8 @@ its columns, and show the result as a table of totals.
     open_pane!(pivot_1; title = "Sales by region")
 
 See also `PivotMeasure`, `move_pivot_field!`, `find_pivot_value`.
+
+For the assistant.
 """
 function make_pivot_table end
 

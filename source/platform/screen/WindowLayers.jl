@@ -24,7 +24,7 @@ function show_window_layers(state, count::Int, make_content::Function)
                                      maximum_size = window.maximum_size,
                                      bg = window.bg, style = window.style,
                                      auto_dismiss = window.auto_dismiss,
-                                     modal = window.modal,
+                                     modal = window.modal, placement = window.placement,
                                      content = make_content(state.layers, count))
     CompoundOperation(Any[_write_window_state(state, "shown", count),
                           _write_window_state(state, "window", reopened),

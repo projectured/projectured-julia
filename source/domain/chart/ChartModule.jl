@@ -1,9 +1,10 @@
 """
     ChartModule
 
-The chart domain: a chart document, the plot it becomes, the projection that
-draws the plot, and the reference step that names one sample inside it. This
-file holds the step, because the rest of the slice is written in terms of it.
+Chart documents: a chart, the plot that it becomes, the projection that draws the
+plot, and a reference to one sample. A reference step names one sample inside a
+chart. This file holds the step, because the rest of the slice is written in terms
+of it.
 
 The `ChartSampleReferenceStep` step type — a reference step naming one sample
 inside a chart series.
@@ -30,11 +31,12 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..DisplayModule: make_workload_file
+import ..EditorModule: make_change
 
 export ChartSampleReferenceStep
 export ChartTheme, ScaledChartTheme
 export ChartSeries, get_chart_series_family, get_chart_axis_family,
-       get_selected_series_index, move_series, remove_series,
+       get_selected_series_index, move_series, remove_series, move_series!, remove_series!,
        collect_chart_parts, get_chart_part_index,
        get_chart_sample, make_chart_sample_reference, get_selected_sample
 export ChartView, get_chart_view, is_point_in_chart_view
@@ -68,9 +70,7 @@ function __init__()
                                     ChartPlotToGraphicsCanvas(measure = measure,
                                         theme = get_scaled_theme!(appearance, ChartTheme))),
     ])
-    register_assistant_api!(ChartModule => (:Chart, :ChartLineSeries, :ChartScatterSeries,
-                                            :ChartBarSeries, :ChartPieSeries, :ChartHistogramSeries,
-                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend);
+    register_assistant_api!(Any[];
         description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
                       "a series of each kind, and `open_pane!` draws it.")
 end

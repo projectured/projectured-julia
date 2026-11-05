@@ -1,10 +1,9 @@
 """
     TextModule
 
-The text domain: a block of styled spans, the reference steps that address a
-character range inside it, the projections that render it to graphics and to a
-string, and the decorating projections that wrap, filter, highlight, number and
-invert it.
+Styled text documents: a block of spans, the projections that draw it as graphics or
+print it as a string, and the projections that wrap, filter, highlight, number and
+invert it. Reference steps address a character range inside a block.
 
 This file holds `TextSpanReferenceStep`, because the rest of the slice is
 written in terms of the reference steps.
@@ -75,7 +74,7 @@ export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
 export TextView, make_text_view, TextViewToGraphics, TextViewToGraphicsIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
-export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks
+export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks, make_marked_text_lines
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText

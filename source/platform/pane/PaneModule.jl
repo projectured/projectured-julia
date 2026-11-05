@@ -1,8 +1,7 @@
 """
     PaneModule
 
-The **pane tree** — a layout of tab groups and splits, and the generic way to
-organize documents on the screen.
+The pane tree: tab groups and splits that place documents on the screen.
 
 A pane tree has four node kinds:
 
@@ -67,7 +66,7 @@ import ..DomainModule: accepts_pasted_replacement, acquire_document!, release_do
 import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
-import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_change
 import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
 import ..GestureBindingModule: get_document_gesture_bindings_own
@@ -99,7 +98,7 @@ export show_layout, get_referenced_value, replace_referenced_value!,
        find_pane, find_focused_pane, find_pane_reference, find_pane_tree_reference, is_pane_search_step,
        post_pane_operation!,
        get_window_tree, describe_document,
-       pane_group_to_avoid, avoids_new_panes, make_pane_api, make_interface_api
+       pane_group_to_avoid, avoids_new_panes
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,

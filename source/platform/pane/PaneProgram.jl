@@ -21,7 +21,9 @@
 # editor (`read_rooted_operation`) and evaluates it at once, so every document on
 # the path of the selection holds its part of one path. Each verb has a
 # `make_…_operation` that reads the edit and evaluates nothing, for a caller that
-# posts it with [`post_pane_operation!`](@ref).
+# posts it with [`post_pane_operation!`](@ref), and a method of
+# [`make_change`](@ref), which the verb applies with [`apply_change!`](@ref) and
+# which `combine_changes` joins with other changes into one step of the undo.
 #
 # **The editor is a keyword.** Each verb takes `editor = get_evaluation_editor()`,
 # so the code of the evaluator or of a model names no editor. Code that has an
@@ -42,9 +44,9 @@
 #
 # A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`.
 # `PaneSplit` and `PaneGroup` are this module's own types; `GridLayout` and
-# `@reference` belong to `LayoutModule` and `ReferenceModule` — and
-# [`make_pane_api`](@ref) declares all four **by name** to the model rather than
-# declaring any of their modules whole. A declaration is not an export, so each
+# `@reference` belong to `LayoutModule` and `ReferenceModule`. Each of the four
+# names carries the mark `For the assistant.` in its docstring, so the model is
+# offered those names and not their modules whole. A mark is not an export, so each
 # of those names still has exactly one owning module.
 #
 # Their modules are not declared, and that is the point. `@document` exports about
@@ -65,78 +67,6 @@
 # beside the ones below.
 # The pane package binds it, so a layout costs this package no dependency of its
 # own and the window's closure is what it was.
-
-
-"""
-    make_pane_api() -> Vector
-
-What a model needs declared to read the layout that [`show_layout`](@ref) prints
-and to change it: this module's verbs, and the borrowed names a write at a path
-of the layout uses.
-
-The borrowed ones are listed **by name**. Their modules export far more than a
-layout needs, and a declared module puts every one of its exported names in the
-model's search — this module's own documentation says what that costs.
-"""
-make_pane_api() = Any[
-    # The verbs and not the module: `make_pane_api` builds this very list, and a model
-    # has no use for the function that builds its own surface.
-    # `get_document_title` is not declared either: a caller names a pane by
-    # passing `title`, and what a document calls itself is `open_pane!`'s
-    # business, not something to be asked separately.
-    #
-    # `describe_document` is here because it is two things at once — the
-    # extension point `show_layout` writes its notes with, and the sentence a
-    # caller asks about a value it holds: how far a set of runs has got, whether
-    # that set is in a pane or in a hand.
-    #
-    # `get_window_tree` is not declared: it answers the first window's tree, and
-    # a model names a part by a complete reference from the root.
-    PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
-                          :open_pane!, :show_pane!, :focus_pane!, :close_pane!, :move_pane!,
-                          :duplicate_pane!, :find_pane, :find_focused_pane, :find_pane_reference,
-                          :find_pane_tree_reference, :describe_document),
-    PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
-    LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
-                        :FlowLayout, :StackLayout),
-    # `find_pane` answers a referenced document, and `get_edited_document` reaches
-    # the document a tab shows through it; `get_document` answers the document of
-    # a referenced document.
-    ReferenceModule => (Symbol("@reference"), :ReferencedDocument,
-                        :get_reference, :DocumentLocator, :find_referenced_document,
-                        :get_edited_document, :get_parent),
-    DocumentModule  => (:get_document,),
-]
-
-"""
-    make_interface_api() -> Vector
-
-What a model needs declared to build what a pane shows: the widgets a person
-asks for by name, the policies a layout sizes a child with, and the two geometry
-values a widget takes. The layouts are in [`make_pane_api`](@ref), because a
-write at a path of the layout uses them.
-
-Every name is listed, as `make_pane_api` lists its borrowed ones. `WidgetModule`
-exports about a hundred names, and most of them are projections, operations and
-readers a model has no use for; a search for "a card around the plot" must answer
-`WidgetCard` and not `WidgetCardToGraphicsCanvas`.
-"""
-make_interface_api() = Any[
-    WidgetModule => (
-        # What holds other widgets.
-        :WidgetCard, :WidgetTitlePane, :WidgetTabbedPane, :WidgetSplitPane,
-        :WidgetScrollPane, :WidgetAccordion, :WidgetComposite,
-        # What shows a value.
-        :WidgetLabel, :WidgetText, :WidgetTextarea, :WidgetTable, :WidgetBadge,
-        :WidgetAlert, :WidgetProgressBar, :WidgetProgressRing, :WidgetSeparator,
-        # What a person acts on.
-        :WidgetButton, :WidgetLink, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
-        :WidgetRadioGroup, :WidgetSelect, :WidgetSlider, :WidgetSpinBox, :WidgetList,
-        # A position or a size, and a spacing.
-        :Point2D, :Inset),
-    # How a layout sizes a child on an axis.
-    LayoutModule => (:Fixed, :Content, :Relative, :Fill),
-]
 
 # ── The window a verb acts on ───────────────────────────────────────────────
 
@@ -226,6 +156,8 @@ The default answers the type's name, so a document with no method of its own
 still says something. **Each application writes the methods for the documents it
 holds**, beside those documents — this package can only describe what it knows,
 which is a layout and an empty pane.
+
+For the assistant.
 """
 function describe_document end
 
@@ -360,15 +292,17 @@ example to put a file that the Files pane opens beside the other files. `group` 
 
 The answer holds the new tab and its complete reference, from the root of the
 editor's document.
+
+For the assistant.
 """
 function open_pane! end
 
 function open_pane!(document; title = nothing, group = nothing, target = nothing,
                     side = nothing, editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_pane!") do
-        operation, route, tree, tab = _make_open_pane(editor, document; title, group, target, side,
-                                                      focus = false)
-        _evaluate_pane_operation!(editor, operation)
+        change, route, tree, tab = _make_open_pane(editor, document; title, group, target, side,
+                                                   focus = false)
+        apply_change!(change; editor)
         reference = _reference_of_tab(tree, tab)
         reference === nothing &&
             error("The pane was opened and then could not be found again.")
@@ -378,6 +312,14 @@ end
 
 open_pane!(document::ReferencedDocument; keywords...) =
     open_pane!(get_document(document); keywords...)
+
+make_change(::typeof(open_pane!), document; title = nothing, group = nothing, target = nothing,
+            side = nothing, editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> first(_make_open_pane(editor, document; title, group, target, side, focus = false)),
+                        editor; description = "make_change")
+
+make_change(::typeof(open_pane!), document::ReferencedDocument; keywords...) =
+    make_change(open_pane!, get_document(document); keywords...)
 
 """
     make_open_pane_operation(document; title = nothing, group = nothing, target = nothing,
@@ -391,7 +333,7 @@ a caller that runs inside another evaluation posts it with `post_operation!`.
 """
 make_open_pane_operation(document; title = nothing, group = nothing, target = nothing,
                          side = nothing, focus::Bool = false, editor = get_evaluation_editor()) =
-    run_on_editor_task!(() -> first(_make_open_pane(editor, document; title, group, target, side, focus)),
+    run_on_editor_task!(() -> first(_make_open_pane(editor, document; title, group, target, side, focus)).operation,
                         editor; description = "make_open_pane_operation")
 
 # A title like `title` with the name `name`: the same cells for its other parts,
@@ -436,10 +378,9 @@ function _make_open_pane(editor, document; title, group, target, side, focus::Bo
     placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index, focus) :
                 make_pane_split_operation(tree, group; tab, side, focus,
                                           orientation = side in (:left, :right) ? :vertical : :horizontal)
-    operation = _make_rooted_pane_operation(editor, route, tree, placement,
-                                            "Open the pane " * name)
-    operation === nothing && error("The window has no group to open a pane in.")
-    (operation, route, tree, tab)
+    change = _make_rooted_pane_change(editor, route, tree, placement, "Open the pane " * name)
+    change === nothing && error("The window has no group to open a pane in.")
+    (change, route, tree, tab)
 end
 
 # The pane tree, the group and the index in it that `target` names: a group, at
@@ -527,9 +468,12 @@ end
 # ── Reading one node ────────────────────────────────────────────────────────
 
 """
-    get_referenced_value(reference; editor = get_evaluation_editor()) -> Document
+    get_referenced_value(reference; editor = get_evaluation_editor()) -> ReferencedDocument
 
-The node `reference` names, resolved from the root of the editor's document.
+The node `reference` names, resolved from the root of the editor's document, as a
+part: the node with its place, so a verb that needs the place, such as
+`replace_referenced_value!` or `focus_pane!`, takes it as it is. It reads like the
+node; code that checks the type of the node asks `get_document` of it.
 
 Use it to read what a pane holds — a set of runs, a plot, a table, a card — by
 the reference `show_layout` printed, `open_pane!` answered or
@@ -552,6 +496,8 @@ reference from the tree.
 
 Throws when the path reaches nothing, naming the path, because a path that no
 longer resolves is a layout that moved under the caller.
+
+For the assistant.
 """
 function get_referenced_value end
 
@@ -566,7 +512,7 @@ function get_referenced_value(reference::Reference; editor = get_evaluation_edit
             throw(ArgumentError("No node at " * _path_text(path) * ": " * sprint(showerror, error)))
         end
         node === nothing && throw(ArgumentError("No node at " * _path_text(path) * "."))
-        node
+        ReferencedDocument(node, reference)
     end
 end
 
@@ -576,7 +522,7 @@ get_referenced_value(reference::ReferencedDocument; keywords...) =
 # ── Writing ─────────────────────────────────────────────────────────────────
 
 """
-    replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text
+    replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> String
     replace_referenced_value!(part, field, value; editor = get_evaluation_editor()) -> ReferencedDocument
 
 Put `value` where `reference` points, and answer the new layout, as
@@ -588,7 +534,7 @@ reference `show_layout` printed. One call, one undo. To close a pane, use
 [`close_pane!`](@ref).
 
 `reference` can also be a `ReferencedDocument`, such as the tab that
-[`find_pane`](@ref) answers, and `value` can be one too: its document is written.
+[`find_pane`](@ref) answers, and `value` can be one too, or a list of them: their documents are written.
 
 With a `field`, put `value` in the field `field` of `part`, a `ReferencedDocument`,
 and answer `part`. It is the edit that the menu of a part makes when it changes
@@ -632,11 +578,27 @@ second tab goes on showing that tab.
 It refuses a write it can see is wrong — an empty reference, a range outside its
 collection, or a value of a type that slot can not hold — rather than leaving the
 window in a shape nothing can draw.
+
+For the assistant.
 """
 function replace_referenced_value! end
 
 function replace_referenced_value!(reference::Reference, value; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "replace_referenced_value!") do
+        apply_change!(make_change(replace_referenced_value!, reference, value; editor); editor)
+        show_layout(; editor)
+    end
+end
+
+replace_referenced_value!(reference::ReferencedDocument, value; keywords...) =
+    replace_referenced_value!(get_reference(reference), value; keywords...)
+
+# The write, and after it the operations that keep the tab that each group shows
+# and the tab that has the focus where the write moves them.
+function make_change(::typeof(replace_referenced_value!), reference::Reference, value;
+                     editor = get_evaluation_editor())
+    value = get_stored_value(value)
+    run_on_editor_task!(editor; description = "make_change") do
         _refuse_stale(reference)
         root = _get_root_document(editor)
         found = _find_pane_tree_route(root, reference; below = true)
@@ -646,41 +608,42 @@ function replace_referenced_value!(reference::Reference, value; editor = get_eva
         route, tree = found
         path = _get_path_in_tree(reference, route)
         _refuse_bad_write(tree, path, value)
-
-        focused = _focused_tab(tree)
-        shown = _shown_tabs(tree)
-        operation = _make_deepest_pane_write(editor, reference, route, tree, path, value,
-                                             "Replace " * describe_reference(reference, root))
-        operation === nothing && throw(ArgumentError("The window did not take the write."))
-        _evaluate_pane_operation!(editor, operation)
-        _restore_shown!(tree, shown)
-        _restore_focus!(editor, route, tree, focused)
-        show_layout(; editor)
+        description = "Replace " * describe_reference(reference, root)
+        write = _make_deepest_pane_write(editor, reference, route, tree, path, value, description)
+        write === nothing && throw(ArgumentError("The window did not take the write."))
+        kept = _make_rooted_pane_operation(editor, route, tree, _make_kept_view_operation(tree, path, value),
+                                           "Keep the shown panes and the focus")
+        RootedOperation(kept === nothing ? write : CompoundOperation(write, kept), description)
     end
 end
 
-replace_referenced_value!(reference::ReferencedDocument, value; keywords...) =
-    replace_referenced_value!(get_reference(reference), value; keywords...)
-replace_referenced_value!(reference::Reference, value::ReferencedDocument; keywords...) =
-    replace_referenced_value!(reference, get_document(value); keywords...)
+make_change(::typeof(replace_referenced_value!), reference::ReferencedDocument, value; keywords...) =
+    make_change(replace_referenced_value!, get_reference(reference), value; keywords...)
 
 function replace_referenced_value!(part::ReferencedDocument, field::Union{Symbol,AbstractString}, value;
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "replace_referenced_value!") do
+        apply_change!(make_change(replace_referenced_value!, part, field, value; editor); editor)
+        part
+    end
+end
+
+function make_change(::typeof(replace_referenced_value!), part::ReferencedDocument,
+                     field::Union{Symbol,AbstractString}, value; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
         document = get_document(part)
         name = Symbol(field)
         hasproperty(document, name) ||
             throw(ArgumentError("A " * string(nameof(typeof(document))) * " has no field :" * string(name) *
                                 ". Its fields: " * join((":" * string(n) for n in propertynames(document)), ", ") * "."))
-        stored = get_document(value)
+        stored = get_stored_value(value)
         reference = extend_reference(strip_reference_types(get_reference(part)), FieldReferenceStep(String(name)))
+        description = "Replace " * describe_reference(reference, _get_root_document(editor))
         operation = find_rooted_operation(editor, reference,
-            relative -> ReplaceReferencedValueOperation(nothing, relative, stored);
-            description = "Replace " * describe_reference(reference, _get_root_document(editor)))
+            relative -> ReplaceReferencedValueOperation(nothing, relative, stored); description)
         operation === nothing &&
             throw(ArgumentError("No reader of the window takes a write of " * _path_text(reference) * "."))
-        evaluate_operation(editor, operation)
-        part
+        RootedOperation(operation, description)
     end
 end
 
@@ -759,10 +722,13 @@ end
 
 # ── The focus, and the tab each group shows ────────────────────────────────
 #
-# Focus is the selection, and the selection is a path into the tree the write
-# replaced. A fresh `PaneGroup` carries no selection at all, so it would show its
-# first tab. Both are repaired by object identity: a tab that is still in the
-# tree is the same object it was, whatever path now reaches it.
+# Focus is the selection, and the selection is a path into the tree that a write
+# can change. A fresh `PaneGroup` carries no selection at all, so it would show its
+# first tab. Both are kept by object identity: a tab that is still in the tree
+# after the write is the same object it was, whatever path reaches it then. The
+# operations that keep them are made with the write, from the tree as the write
+# leaves it: a walk that reads the node or the list that the write replaces as
+# its new value.
 
 _focused_tab(tree::PaneTree) = begin
     focus = get_pane_focus(tree)
@@ -773,28 +739,90 @@ _shown_tabs(tree::PaneTree) =
     Any[group.tabs[get_pane_shown_tab_index(group)]
         for group in get_pane_groups(tree) if length(group.tabs) > 0]
 
-function _restore_shown!(tree::PaneTree, shown)
-    for group in get_pane_groups(tree)
-        n = length(group.tabs)
-        n == 0 && continue
-        index = findfirst(i -> any(t -> t === group.tabs[i], shown), 1:n)
-        index === nothing && continue
-        replace_selection!(group, @reference(group, tabs[index]))
+# The operations that keep, after the write of `value` at `path` of `tree`, the tab
+# that each group shows and the tab that has the focus: a write of the dormant
+# selection of each group that would show another tab, and a move of the focus
+# when its tab gets another path. `nothing` when the write moves no tab.
+function _make_kept_view_operation(tree::PaneTree, path::Reference, value)
+    swap = _find_layout_swap(tree, path, value)
+    swap === nothing && return nothing
+    focused = _focused_tab(tree)
+    shown = _shown_tabs(tree)
+    focus_path = focused === nothing ? nothing : get_pane_path(tree, focused)
+    operations = Any[]
+    focus = nothing
+    _visit_groups_after(tree, swap) do group, pairs, tabs
+        # The group of the focused tab shows that tab; any other group the first
+        # tab that a group showed before.
+        index = focused === nothing ? nothing : findfirst(tab -> tab === focused, tabs)
+        if index !== nothing
+            moved = _reference_from(vcat(pairs, Any[(group, FieldReferenceStep("tabs")),
+                                                    (tabs, ElementReferenceStep(index))]), focused)
+            _has_same_steps(moved, focus_path) || (focus = ReplaceSelectionOperation(moved))
+        else
+            index = findfirst(tab -> any(other -> other === tab, shown), tabs)
+        end
+        (index === nothing || index == get_pane_shown_tab_index(group)) && return
+        push!(operations, _make_dormant_selection_write(tree, group,
+                              Reference(FieldReferenceStep("tabs"), ElementReferenceStep(index));
+                              node_path = _reference_from(pairs, group)))
     end
+    focus === nothing || push!(operations, focus)
+    isempty(operations) ? nothing : CompoundOperation(operations)
 end
 
-function _restore_focus!(editor, route, tree::PaneTree, focused)
-    focused === nothing && return
-    for group in get_pane_groups(tree)
-        for i in 1:length(group.tabs)
-            group.tabs[i] === focused || continue
-            operation = _make_rooted_pane_operation(editor, route, tree,
-                                                    make_pane_focus_operation(tree, group, i),
-                                                    "Keep the focus on " * get_pane_tab_title_string(focused))
-            operation === nothing || _evaluate_pane_operation!(editor, operation)
-            return
+_has_same_steps(a::Reference, b::Reference) =
+    collect(get_reference_steps(strip_reference_types(a))) == collect(get_reference_steps(strip_reference_types(b)))
+_has_same_steps(a, b) = false
+
+# What the write of `value` at `path` of `tree` replaces in the layout, as
+# `(owner, replacement)`: the root of the tree and its new node, or a split or a
+# group and the list of elements or of tabs it has after the write. `nothing` for
+# a write that changes no list of the layout, such as the weights of a split or
+# the content of a tab.
+function _find_layout_swap(tree::PaneTree, path::Reference, value)
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    isempty(steps) && return nothing
+    steps == Any[FieldReferenceStep("root")] && return (tree, value)
+    last_step = steps[end]
+    range = last_step isa RangeReferenceStep ? last_step : nothing
+    field_index = range === nothing ? length(steps) : length(steps) - 1
+    field_index >= 1 && steps[field_index] isa FieldReferenceStep || return nothing
+    owner = try_evaluate_reference(tree, foldr(ConcreteReference, steps[1:(field_index - 1)];
+                                               init = EmptyReference()), nothing)
+    field = steps[field_index].name
+    (owner isa PaneSplit && field == "elements") || (owner isa PaneGroup && field == "tabs") || return nothing
+    range === nothing && return (owner, collect(Any, value))
+    old = getproperty(owner, Symbol(field))
+    items = value isa AbstractVector ? collect(Any, value) : Any[value]
+    (owner, vcat(Any[old[1:range.start]...], items, Any[old[(range.stop + 1):end]...]))
+end
+
+# Calls `visit(group, pairs, tabs)` for each group of `tree` as the write that
+# `swap` names leaves it, with the pairs from the tree down to the group and the
+# tabs the group has then.
+function _visit_groups_after(visit, tree::PaneTree, swap)
+    owner, replacement = swap
+    root = owner === tree ? replacement : tree.root
+    _visit_groups_after!(visit, root, Any[(tree, FieldReferenceStep("root"))], owner === tree ? nothing : swap)
+end
+
+# The write replaces a list once, so the walk below the owner of the list reads
+# the lists as they are.
+function _visit_groups_after!(visit, node, pairs, swap)
+    replaced = swap !== nothing && first(swap) === node
+    if node isa PaneGroup
+        visit(node, pairs, replaced ? last(swap) : node.tabs)
+    elseif node isa PaneSplit
+        elements = replaced ? last(swap) : node.elements
+        for index in eachindex(elements)
+            push!(pairs, (node, FieldReferenceStep("elements")), (elements, ElementReferenceStep(index)))
+            _visit_groups_after!(visit, elements[index], pairs, replaced ? nothing : swap)
+            pop!(pairs)
+            pop!(pairs)
         end
     end
+    nothing
 end
 
 # ── The focus ───────────────────────────────────────────────────────────────
@@ -803,7 +831,7 @@ end
 # own and not a write at a reference.
 
 """
-    focus_pane!(reference::Reference; editor = get_evaluation_editor()) -> Text
+    focus_pane!(reference::Reference; editor = get_evaluation_editor()) -> String
 
 Show the pane `reference` names and give it the focus, and answer the new
 layout, as [`show_layout`](@ref) prints it.
@@ -832,16 +860,14 @@ The reference is complete: it starts at the root of the editor's document, and
 of the editor and evaluated at once, so every document from the root down holds
 its part of the new selection. A caller that holds a tree and no editor passes
 the tree as `editor`, and a reference from the tree.
+
+For the assistant.
 """
 function focus_pane! end
 
 function focus_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "focus_pane!") do
-        _refuse_stale(reference)
-        operation = make_focus_pane_operation(reference; editor)
-        operation === nothing &&
-            throw(ArgumentError("The window can not focus that pane."))
-        _evaluate_pane_operation!(editor, operation)
+        apply_change!(make_change(focus_pane!, reference; editor); editor)
         show_layout(; editor)
     end
 end
@@ -850,6 +876,21 @@ focus_pane!(pane::ReferencedDocument; keywords...) = focus_pane!(get_reference(p
 
 focus_pane!(::Nothing; keywords...) =
     throw(ArgumentError("No pane has that name, so there is no pane to focus."))
+
+function make_change(::typeof(focus_pane!), reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
+        _refuse_stale(reference)
+        change = _make_focus_pane_change(editor, reference)
+        change === nothing && throw(ArgumentError("The window can not focus that pane."))
+        change
+    end
+end
+
+make_change(::typeof(focus_pane!), pane::ReferencedDocument; keywords...) =
+    make_change(focus_pane!, get_reference(pane); keywords...)
+
+# A pane that is not there is refused as the verb refuses it.
+make_change(::typeof(focus_pane!), ::Nothing; keywords...) = focus_pane!(nothing)
 
 """
     make_focus_pane_operation(reference::Reference; editor = get_evaluation_editor()) -> Operation | Nothing
@@ -861,21 +902,23 @@ readers of the editor ([`read_rooted_operation`](@ref)). It evaluates nothing.
 
 See also `focus_pane!`, which makes it and evaluates it at once.
 """
-function make_focus_pane_operation(reference::Reference; editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "make_focus_pane_operation") do
-        root = _get_root_document(editor)
-        found = _find_pane_tree_route(root, reference)
-        found === nothing &&
-            throw(ArgumentError("That reference names nothing inside a pane tree."))
-        route, tree = found
-        group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
-        _make_rooted_pane_operation(editor, route, tree, make_pane_focus_operation(tree, group, index),
-                                    "Focus the pane " * get_pane_tab_title_string(group.tabs[index]))
-    end
+make_focus_pane_operation(reference::Reference; editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> _get_change_operation(_make_focus_pane_change(editor, reference)),
+                        editor; description = "make_focus_pane_operation")
+
+function _make_focus_pane_change(editor, reference::Reference)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    _make_rooted_pane_change(editor, route, tree, make_pane_focus_operation(tree, group, index),
+                             "Focus the pane " * get_pane_tab_title_string(group.tabs[index]))
 end
 
 """
-    show_pane!(reference; editor = get_evaluation_editor()) -> Text
+    show_pane!(reference; editor = get_evaluation_editor()) -> String
 
 Bring the pane `reference` names to the front of its group, and answer the new
 layout, as [`show_layout`](@ref) prints it. The focus of the person stays where
@@ -901,16 +944,14 @@ See also `open_pane!`, `focus_pane!`, `find_pane`, `show_layout`.
 nothing, because what the person looks at is theirs; a program shows a pane
 when it wants the person to look. [`focus_pane!`](@ref) also moves the focus,
 which is a step for a person, never for a program.
+
+For the assistant.
 """
 function show_pane! end
 
 function show_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_pane!") do
-        _refuse_stale(reference)
-        operation = make_show_pane_operation(reference; editor)
-        operation === nothing &&
-            throw(ArgumentError("The window can not show that pane."))
-        _evaluate_pane_operation!(editor, operation)
+        apply_change!(make_change(show_pane!, reference; editor); editor)
         show_layout(; editor)
     end
 end
@@ -920,6 +961,21 @@ show_pane!(pane::ReferencedDocument; keywords...) = show_pane!(get_reference(pan
 show_pane!(::Nothing; keywords...) =
     throw(ArgumentError("No pane has that name, so there is no pane to show."))
 
+function make_change(::typeof(show_pane!), reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
+        _refuse_stale(reference)
+        change = _make_show_pane_change(editor, reference)
+        change === nothing && throw(ArgumentError("The window can not show that pane."))
+        change
+    end
+end
+
+make_change(::typeof(show_pane!), pane::ReferencedDocument; keywords...) =
+    make_change(show_pane!, get_reference(pane); keywords...)
+
+# A pane that is not there is refused as the verb refuses it.
+make_change(::typeof(show_pane!), ::Nothing; keywords...) = show_pane!(nothing)
+
 """
     make_show_pane_operation(reference::Reference; editor = get_evaluation_editor()) -> Operation | Nothing
 
@@ -927,17 +983,19 @@ The operation that brings the pane `reference` names to the front of its group,
 from the root of the editor's document, as [`show_pane!`](@ref) does. It
 evaluates nothing. `nothing` when the window can not show that pane.
 """
-function make_show_pane_operation(reference::Reference; editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "make_show_pane_operation") do
-        root = _get_root_document(editor)
-        found = _find_pane_tree_route(root, reference)
-        found === nothing &&
-            throw(ArgumentError("That reference names nothing inside a pane tree."))
-        route, tree = found
-        group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
-        _make_rooted_pane_operation(editor, route, tree, make_pane_show_operation(tree, group, index),
-                                    "Show the pane " * get_pane_tab_title_string(group.tabs[index]))
-    end
+make_show_pane_operation(reference::Reference; editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> _get_change_operation(_make_show_pane_change(editor, reference)),
+                        editor; description = "make_show_pane_operation")
+
+function _make_show_pane_change(editor, reference::Reference)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    _make_rooted_pane_change(editor, route, tree, make_pane_show_operation(tree, group, index),
+                             "Show the pane " * get_pane_tab_title_string(group.tabs[index]))
 end
 
 """
@@ -958,6 +1016,8 @@ the tree, and put the two together.
     groups = concat_references(tree_reference, @reference(tree, root.elements))
 
 See also `find_pane_reference` and `show_layout`.
+
+For the assistant.
 """
 function find_pane_tree_reference end
 
@@ -997,14 +1057,16 @@ function _find_focused_tree_route(editor)
         found = _find_pane_tree_route(root, selection)
         found === nothing || return found
     end
-    trees = search_references(root, node -> node isa PaneTree; descend = is_pane_search_step)
+    trees = search_references(root, node -> node isa PaneTree;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
     length(trees) == 1 || return nothing
     _find_pane_tree_route(root, only(trees))
 end
 
 # The route to the pane tree that holds `group`, and that tree.
 function _find_group_tree_route(root, group::PaneGroup)
-    found = search_references(root, node -> node === group; descend = is_pane_search_step)
+    found = search_references(root, node -> node === group;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
     isempty(found) && error("The group is not a group of this window.")
     _find_pane_tree_route(root, first(found))
 end
@@ -1015,6 +1077,19 @@ function _make_rooted_pane_operation(editor, route, tree, operation, description
     (operation === nothing || tree === _get_root_document(editor)) && return operation
     read_rooted_operation(editor, route, operation; description)
 end
+
+# The same pane edit as a change with its description, or `nothing`.
+function _make_rooted_pane_change(editor, route, tree, operation, description)
+    rooted = _make_rooted_pane_operation(editor, route, tree, operation, description)
+    rooted === nothing ? nothing : RootedOperation(rooted, description)
+end
+
+_get_change_operation(change::RootedOperation) = change.operation
+_get_change_operation(::Nothing) = nothing
+
+# A change that a caller holding a pane tree and no editor applies to the tree.
+OperationModule.evaluate_operation(tree::PaneTree, change::RootedOperation) =
+    apply_pane_operation!(tree, change.operation)
 
 # A pane edit, evaluated where its path starts: on the tree for a caller that
 # holds the tree, else by the editor at the root.
@@ -1051,7 +1126,7 @@ end
 # ── Closing a pane ──────────────────────────────────────────────────────────
 
 """
-    close_pane!(reference::Reference; editor = get_evaluation_editor()) -> Text
+    close_pane!(reference::Reference; editor = get_evaluation_editor()) -> String
 
 Close the pane `reference` names, and answer the new layout, as
 [`show_layout`](@ref) prints it.
@@ -1070,15 +1145,14 @@ See also `find_pane_reference`, `open_pane!`, `show_layout`.
 The reference is complete: it starts at the root of the editor's document. The
 close is made through the readers of the editor and evaluated at once, as the
 close button of the tab does it, so the person undoes it with one press.
+
+For the assistant.
 """
 function close_pane! end
 
 function close_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_pane!") do
-        _refuse_stale(reference)
-        operation = make_close_pane_operation(reference; editor)
-        operation === nothing && throw(ArgumentError("The window can not close that pane."))
-        _evaluate_pane_operation!(editor, operation)
+        apply_change!(make_change(close_pane!, reference; editor); editor)
         show_layout(; editor)
     end
 end
@@ -1087,6 +1161,21 @@ close_pane!(pane::ReferencedDocument; keywords...) = close_pane!(get_reference(p
 
 close_pane!(::Nothing; keywords...) =
     throw(ArgumentError("No pane has that name, so there is no pane to close."))
+
+function make_change(::typeof(close_pane!), reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
+        _refuse_stale(reference)
+        change = _make_close_pane_change(editor, reference)
+        change === nothing && throw(ArgumentError("The window can not close that pane."))
+        change
+    end
+end
+
+make_change(::typeof(close_pane!), pane::ReferencedDocument; keywords...) =
+    make_change(close_pane!, get_reference(pane); keywords...)
+
+# A pane that is not there is refused as the verb refuses it.
+make_change(::typeof(close_pane!), ::Nothing; keywords...) = close_pane!(nothing)
 
 """
     make_close_pane_operation(reference::Reference; editor = get_evaluation_editor()) -> Operation | Nothing
@@ -1098,17 +1187,19 @@ close that pane.
 
 See also `close_pane!`, which makes it and evaluates it at once.
 """
-function make_close_pane_operation(reference::Reference; editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "make_close_pane_operation") do
-        root = _get_root_document(editor)
-        found = _find_pane_tree_route(root, reference)
-        found === nothing &&
-            throw(ArgumentError("That reference names nothing inside a pane tree."))
-        route, tree = found
-        group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
-        _make_rooted_pane_operation(editor, route, tree, make_pane_close_tab_operation(tree, group, index),
-                                    "Close the pane " * get_pane_tab_title_string(group.tabs[index]))
-    end
+make_close_pane_operation(reference::Reference; editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> _get_change_operation(_make_close_pane_change(editor, reference)),
+                        editor; description = "make_close_pane_operation")
+
+function _make_close_pane_change(editor, reference::Reference)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    _make_rooted_pane_change(editor, route, tree, make_pane_close_tab_operation(tree, group, index),
+                             "Close the pane " * get_pane_tab_title_string(group.tabs[index]))
 end
 
 # ── Finding a pane ──────────────────────────────────────────────────────────
@@ -1132,6 +1223,8 @@ The search goes down only into the documents that can hold a pane
 ([`is_pane_search_step`](@ref)); `descend` names another rule.
 
 See also `find_pane` and `focus_pane!`.
+
+For the assistant.
 """
 function find_pane_reference end
 
@@ -1140,7 +1233,7 @@ function find_pane_reference(title::AbstractString; descend = is_pane_search_ste
     run_on_editor_task!(editor; description = "find_pane_reference") do
         found = search_references(_get_root_document(editor),
                                   node -> node isa PaneTab && get_pane_tab_title_string(node) == title;
-                                  descend)
+                                  walk = DocumentWalk(; descend))
         isempty(found) && return nothing
         length(found) == 1 && return only(found)
         throw(ArgumentError(string(length(found), " panes are called \"", title, "\": ",
@@ -1170,6 +1263,8 @@ closes it.
     items_group_1 = get_parent(editor, items_tab_1)  # the group that holds the tab
 
 See also `get_edited_document`, `find_pane_reference` and `open_pane!`.
+
+For the assistant.
 """
 function find_pane end
 
@@ -1177,7 +1272,7 @@ function find_pane(title::AbstractString; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "find_pane") do
         reference = find_pane_reference(title; editor)
         reference === nothing && return nothing
-        ReferencedDocument(get_referenced_value(reference; editor), reference)
+        get_referenced_value(reference; editor)
     end
 end
 
@@ -1201,6 +1296,8 @@ with [`open_pane!`](@ref) and its `target`.
     println(print_natural_text(data_1))
 
 See also `find_pane`, `find_selected_part`, `show_layout`.
+
+For the assistant.
 """
 function find_focused_pane end
 
@@ -1310,14 +1407,16 @@ group is the one [`pane_group_to_avoid`](@ref) names, the duplicate goes where
 [`open_pane!`](@ref) puts a pane, so the conversation stays in view. A pane
 whose content has no duplicate, such as a set of runs that goes on, raises an
 `ArgumentError` that says why.
+
+For the assistant.
 """
 function duplicate_pane! end
 
 function duplicate_pane!(reference::Reference; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "duplicate_pane!") do
         _refuse_stale(reference)
-        operation, route, tree, duplicate = _make_duplicate_pane(editor, reference)
-        _evaluate_pane_operation!(editor, operation)
+        change, route, tree, duplicate = _make_duplicate_pane(editor, reference)
+        apply_change!(change; editor)
         found = _reference_of_tab(tree, duplicate)
         found === nothing &&
             error("The duplicate was opened and then could not be found again.")
@@ -1327,6 +1426,16 @@ end
 
 duplicate_pane!(pane::ReferencedDocument; keywords...) = duplicate_pane!(get_reference(pane); keywords...)
 
+function make_change(::typeof(duplicate_pane!), reference::Reference; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
+        _refuse_stale(reference)
+        first(_make_duplicate_pane(editor, reference))
+    end
+end
+
+make_change(::typeof(duplicate_pane!), pane::ReferencedDocument; keywords...) =
+    make_change(duplicate_pane!, get_reference(pane); keywords...)
+
 """
     make_duplicate_pane_operation(reference::Reference; editor = get_evaluation_editor()) -> Operation
 
@@ -1335,7 +1444,8 @@ The operation that opens a duplicate of the pane `reference` names, as
 evaluates nothing.
 """
 make_duplicate_pane_operation(reference::Reference; editor = get_evaluation_editor()) =
-    run_on_editor_task!(() -> first(_make_duplicate_pane(editor, reference)), editor; description = "make_duplicate_pane_operation")
+    run_on_editor_task!(() -> first(_make_duplicate_pane(editor, reference)).operation, editor;
+                        description = "make_duplicate_pane_operation")
 
 function _make_duplicate_pane(editor, reference::Reference)
     root = _get_root_document(editor)
@@ -1356,10 +1466,10 @@ function _make_duplicate_pane(editor, reference::Reference)
     operation = target === group ?
         make_pane_open_tab_operation(tree, group, duplicate; index = index + 1) :
         make_pane_open_tab_operation(tree, target, duplicate)
-    operation = _make_rooted_pane_operation(editor, route, tree, operation,
-                                            "Duplicate the pane " * get_pane_tab_title_string(source))
-    operation === nothing && error("The window has no group to open the duplicate in.")
-    (operation, route, tree, duplicate)
+    change = _make_rooted_pane_change(editor, route, tree, operation,
+                                      "Duplicate the pane " * get_pane_tab_title_string(source))
+    change === nothing && error("The window has no group to open the duplicate in.")
+    (change, route, tree, duplicate)
 end
 
 
@@ -1367,7 +1477,7 @@ end
 
 """
     move_pane!(reference::Reference, target::Reference; side = nothing,
-               editor = get_evaluation_editor()) -> Text
+               editor = get_evaluation_editor()) -> String
 
 Move the pane `reference` names to `target`, and answer the window's new layout.
 
@@ -1389,17 +1499,15 @@ pane goes before that tab. With `side` — `:left`, `:right`, `:above` or `:belo
 complete, and both name parts of one pane tree. The move is made through the
 readers of the editor and evaluated at once, so the person undoes it with one
 press.
+
+For the assistant.
 """
 function move_pane! end
 
 function move_pane!(reference::Reference, target::Reference; side = nothing,
                     editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "move_pane!") do
-        _refuse_stale(reference)
-        _refuse_stale(target)
-        operation = make_move_pane_operation(reference, target; side, editor)
-        operation === nothing && throw(ArgumentError("The window can not move that pane there."))
-        _evaluate_pane_operation!(editor, operation)
+        apply_change!(make_change(move_pane!, reference, target; side, editor); editor)
         show_layout(; editor)
     end
 end
@@ -1407,6 +1515,21 @@ end
 move_pane!(pane::Union{Reference, ReferencedDocument},
            target::Union{Reference, ReferencedDocument}; keywords...) =
     move_pane!(convert(Reference, pane), convert(Reference, target); keywords...)
+
+function make_change(::typeof(move_pane!), reference::Reference, target::Reference; side = nothing,
+                     editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "make_change") do
+        _refuse_stale(reference)
+        _refuse_stale(target)
+        change = _make_move_pane_change(editor, reference, target, side)
+        change === nothing && throw(ArgumentError("The window can not move that pane there."))
+        change
+    end
+end
+
+make_change(::typeof(move_pane!), pane::Union{Reference, ReferencedDocument},
+            target::Union{Reference, ReferencedDocument}; keywords...) =
+    make_change(move_pane!, convert(Reference, pane), convert(Reference, target); keywords...)
 
 """
     make_move_pane_operation(reference, target; side = nothing,
@@ -1416,42 +1539,44 @@ The operation that moves the pane `reference` names, as [`move_pane!`](@ref)
 moves it, from the root of the editor's document. It evaluates nothing.
 `nothing` when the window can not make that move.
 """
-function make_move_pane_operation(reference::Reference, target::Reference; side = nothing,
-                                  editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "make_move_pane_operation") do
-        root = _get_root_document(editor)
-        found = _find_pane_tree_route(root, reference)
-        found === nothing &&
-            throw(ArgumentError("That reference names nothing inside a pane tree."))
-        route, tree = found
-        source, source_index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
-        destination = try_evaluate_reference(root, target, nothing)
-        if destination isa PaneTab
-            group, index = _find_pane_position(tree, destination)
-        elseif destination isa PaneGroup && any(g -> g === destination, get_pane_groups(tree))
-            group, index = destination, length(destination.tabs) + 1
-        else
-            throw(ArgumentError("The target names no group or tab of the pane's tree."))
-        end
-        operation = if side === nothing
-            make_pane_move_tab_operation(tree, source; source_index, target = group, target_index = index)
-        else
-            side in (:left, :right, :above, :below) ||
-                throw(ArgumentError("`side` is :left, :right, :above or :below."))
-            make_pane_drop_split_operation(tree, source; source_index, target = group,
-                                           orientation = side in (:left, :right) ? :vertical : :horizontal,
-                                           side)
-        end
-        _make_rooted_pane_operation(editor, route, tree, operation,
-                                    "Move the pane " * get_pane_tab_title_string(source.tabs[source_index]))
+make_move_pane_operation(reference::Reference, target::Reference; side = nothing,
+                         editor = get_evaluation_editor()) =
+    run_on_editor_task!(() -> _get_change_operation(_make_move_pane_change(editor, reference, target, side)),
+                        editor; description = "make_move_pane_operation")
+
+function _make_move_pane_change(editor, reference::Reference, target::Reference, side)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    source, source_index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    destination = try_evaluate_reference(root, target, nothing)
+    if destination isa PaneTab
+        group, index = _find_pane_position(tree, destination)
+    elseif destination isa PaneGroup && any(g -> g === destination, get_pane_groups(tree))
+        group, index = destination, length(destination.tabs) + 1
+    else
+        throw(ArgumentError("The target names no group or tab of the pane's tree."))
     end
+    operation = if side === nothing
+        make_pane_move_tab_operation(tree, source; source_index, target = group, target_index = index)
+    else
+        side in (:left, :right, :above, :below) ||
+            throw(ArgumentError("`side` is :left, :right, :above or :below."))
+        make_pane_drop_split_operation(tree, source; source_index, target = group,
+                                       orientation = side in (:left, :right) ? :vertical : :horizontal,
+                                       side)
+    end
+    _make_rooted_pane_change(editor, route, tree, operation,
+                             "Move the pane " * get_pane_tab_title_string(source.tabs[source_index]))
 end
 
 # ── The layout ──────────────────────────────────────────────────────────────
 
 """
     show_layout(; include = is_layout_line, descend = is_pane_search_step,
-                editor = get_evaluation_editor()) -> Text
+                editor = get_evaluation_editor()) -> String
 
 What is where in the windows of the editor: a tree of reference steps, one line
 for each window, pane tree, split, group and tab, with the type of the node it
@@ -1496,8 +1621,10 @@ whose steps go through wrappers, such as a history, names them.
 the walk goes. The defaults show the windows, the pane trees, the splits, the
 groups and the tabs, and a pane tree inside a tab below that tab.
 
-It answers a `Text`, not a `String`, so the tree arrives as the lines it is. A
-`String` would reach a model through `repr`, as one line of `\\n` escapes.
+It answers a `String` with one line per node. The code tool shows a string with
+line breaks as its lines.
+
+For the assistant.
 """
 function show_layout end
 
@@ -1505,7 +1632,8 @@ function show_layout(; include = is_layout_line, descend = is_pane_search_step,
                      editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_layout") do
         root = _get_root_document(editor)
-        paths = search_references(root, node -> node === root || include(node); descend, limit = nothing)
+        paths = search_references(root, node -> node === root || include(node);
+                                  walk = DocumentWalk(; descend), limit = nothing)
         focused = _find_focused_pane_tab(root)
         lines = Tuple{String,String,String}[]
         printed = Tuple{Vector{Any},Int}[]           # the steps of each line, and its depth
@@ -1523,8 +1651,8 @@ function show_layout(; include = is_layout_line, descend = is_pane_search_step,
         end
         width = maximum(line -> length(line[1]), lines; init = 0)
         kind = maximum(line -> length(line[2]), lines; init = 0)
-        Text(join((rpad(step, width + 2) * rpad(type, kind + 2) *
-                   (isempty(note) ? "" : "# " * note) for (step, type, note) in lines), "\n") * "\n")
+        join((rpad(step, width + 2) * rpad(type, kind + 2) *
+               (isempty(note) ? "" : "# " * note) for (step, type, note) in lines), "\n") * "\n"
     end
 end
 

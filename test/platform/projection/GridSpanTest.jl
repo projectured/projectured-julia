@@ -49,7 +49,8 @@ end
 @testset "a spanning child widens no column, and breaks its text at the edge of the grid" begin
     long = "a description that is far longer than the name and the control together, " *
            "so it must break into lines at the edge of the grid"
-    narrow() = with_exact_size(PrinterContext(EmptyReference()); width = _GS_Cell(300), height = _GS_Cell(400))
+    # An edge of 300 and no slot, so the grid is as wide as what it holds.
+    narrow() = with_bounded_size(PrinterContext(EmptyReference()); width = _GS_Cell(300))
     without = GridLayout(Any[WidgetLabel("name"), WidgetLabel("control")], 2; horizontal_gap = 8)
     with = GridLayout(Any[WidgetLabel("name"), WidgetLabel("control"),
                           LayoutConstraint(WidgetLabel(long); column_span = 2)], 2; horizontal_gap = 8)
@@ -73,7 +74,7 @@ end
     g = _gs_grid(print_document(proj, nothing, grid, offer()))
     h = [Int(x[]) for x in g.row_h[1:4]]
     @test [Int(y[]) for y in g.row_y[1:4]] == [0, h[1], h[1] + h[2] + 10, h[1] + h[2] + 10 + h[3] + 3]
-    @test Int(g.output.h[]) == sum(h) + 10 + 3
+    @test Int(g.row_y[4][]) + h[4] == sum(h) + 10 + 3
     # With no gaps named, every row is `vertical_gap` from the row above.
     plain = _gs_grid(print_document(proj, nothing,
         GridLayout(Any[WidgetLabel("a"), WidgetLabel("b")], 1; vertical_gap = 10), offer()))

@@ -36,7 +36,8 @@ export LanguageServerException, LanguageServerConnection, is_language_server_run
 export SEMANTIC_TOKEN_ROLES, compute_semantic_text_marks, close_language_server_document!,
        convert_semantic_tokens
 export LanguageServers, get_language_server!, stop_language_servers!
-export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, StoreSourceFileAnswerOperation,
+export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, LanguageServerText,
+       make_language_server_text, compute_language_server_marks, StoreLanguageServerAnswerOperation,
        make_source_file_code_projection
 
 include("LanguageServerConnection.jl")

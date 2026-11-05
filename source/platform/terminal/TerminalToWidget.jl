@@ -70,7 +70,8 @@ function print_document(p::TerminalToWidget, recursion, terminal::TerminalDocume
     set_cell_computation!(getfield(lines.children, :elements), () ->
         Cell[Cell(WidgetLabel(isempty(line.text) ? " " : line.text; text_style = _get_terminal_line_style(p, line.kind)))
              for line in terminal.lines])
-    lines_pane = WidgetScrollPane(lines; follow_end = true, size = Point2D(0, p.lines_height))
+    lines_pane = WidgetScrollPane(lines; follow_end = true, size = Point2D(0, p.lines_height),
+                                  grows = (width = false, height = true))
     input_pane = WidgetScrollPane(terminal.input; size = Point2D(0, p.input_height))
     column = VerticalLayout(Any[header, lines_pane, input_pane]; horizontal_align = :left, gap = p.gap,
                             child_width = Fill)

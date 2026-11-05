@@ -248,18 +248,47 @@ _get_back_link_word(::ResearchItem, ::Val{name}) where {name} = string(name) * "
 The line that a reader of `item` says for its link `name` to `linked`: the word of
 the link, the id of the linked item and its text, as in
 `"supports H1 A queue capacity of 13 is enough."`.
+
+Use it to say in one line how an item refers to another.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    line_1 = describe_research_link(hypothesis_1, :question, question_1)
+
+See also `collect_research_links` and `describe_research_expectation`.
+
+For the assistant.
 """
+function describe_research_link end
+
 describe_research_link(item::ResearchItem, name::Symbol, linked) =
     _get_link_word(item, Val(name)) * " " *
     (linked isa ResearchItem ? linked.id * " " * _format_plain_text(get_research_item_text(linked)) :
                                string(nameof(typeof(linked))))
+describe_research_link(item::ReferencedDocument, name::Symbol, linked) =
+    describe_research_link(get_document(item), name, linked)
 
 """
     describe_research_expectation(expectation) -> String
 
 The line that a row shows for an expectation: the bounds, and what the check
 reads, as in `"expects a value ≤ 0.01 of drop rate at K = 13"`.
+
+Use it to say in one line what a prediction of a hypothesis expects.
+
+# Example
+
+    expectation_1 = ResearchExpectation(upper = 0.01)
+    line_1 = describe_research_expectation(expectation_1)
+
+See also `describe_research_link` and `ResearchExpectation`.
+
+For the assistant.
 """
+function describe_research_expectation end
+
 function describe_research_expectation(expectation::ResearchExpectation)
     bounds = if expectation.reference !== nothing
         "within " * string(something(expectation.tolerance, 0)) * " of " *
@@ -278,6 +307,9 @@ function describe_research_expectation(expectation::ResearchExpectation)
            selection isa Document ? _format_plain_text(selection) : string(selection)
     "expects a value " * bounds * " of " * (isempty(what) ? string(nameof(typeof(selection))) : what)
 end
+
+describe_research_expectation(expectation::ReferencedDocument) =
+    describe_research_expectation(get_document(expectation))
 
 # The links of `item` as groups of a word and the linked documents, in the order of
 # its fields, then the links into it from the other items of `study`, which the

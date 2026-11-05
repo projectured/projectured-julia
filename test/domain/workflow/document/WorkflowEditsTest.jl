@@ -187,7 +187,9 @@ function test_workflow_edits()
             entries = get_session_explorer_content(; editor).entries
             @test any(entry -> get_document(entry) === root, entries)
             @test find_pane("A study of the Aloha sample"; editor) !== nothing
-            @test :start_workflow! in WORKFLOW_ASSISTANT_API
+            @test any(entry -> entry.module_ === WorkflowModule &&
+                      :start_workflow! in ProjecturedKernel.ToolModule.get_api_entry_names(entry),
+                      ProjecturedKernel.ToolModule.collect_marked_api())
         end
 
         @testset "a workflow opens above the conversation, and a second joins it" begin

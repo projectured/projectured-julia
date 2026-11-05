@@ -1,8 +1,9 @@
 """
     SystemProcessModule
 
-The processes of the system as documents. A pure read of `/proc` answers plain
-records of the processes under a set of roots; a `SystemProcessTree` keeps one
+The processes of the operating system as documents: a tree of processes, each with a
+page of facts. A pure read of `/proc` answers plain records of the processes under a
+set of roots; a `SystemProcessTree` keeps one
 `SystemProcess` for each, by its process id and its start ticks, and a sync on
 the editor task writes only the cells that changed. The read runs on a task of
 its own, once in an interval and only while a view reads the tree, and the

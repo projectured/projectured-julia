@@ -2,6 +2,22 @@
 # `FileSystemDocument`, its insertion placeholder, and the file and directory
 # nodes.
 
+"""
+    FileSystemDocument
+
+The abstract supertype of the documents of files and folders on disk. Its main members are `FileSystemFile`, `FileSystemDirectory`, `FileSystemChooser`.
+
+Use it to recognise the documents of files and folders on disk when you walk a document: a part is one of them when `part isa FileSystemDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemDocument)
+    found_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemFile)
+
+See also `search_documents`, `find_pane`, `describe_document` and `FileSystemFile`.
+
+For the assistant.
+"""
 abstract type FileSystemDocument <: Document end
 
 # ── FileSystemInsertion ─────────────────────────────────────────────────
@@ -192,14 +208,66 @@ function evaluate_operation(editor, op::OpenFileOperation)
                                                                   focus = true, editor))
         return nothing
     end
+    # A file opens as a person opens it: the new tab takes the focus.
+    post_pane_operation!(editor, make_open_pane_operation(_make_opened_file_content(editor, op);
+                                                          group = get_pane_file_group(; editor),
+                                                          focus = true, editor))
+    nothing
+end
+
+# What the tab of the file of `op` shows: the file read from disk, in a scroll pane,
+# with a history when the editor has settings.
+function _make_opened_file_content(editor, op::OpenFileOperation)
     settings = find_editor_settings(; editor)
     history = settings === nothing ? identity : make_history_wrap(settings)
-    tab = op.file_wrap === identity ?
-          make_file_tab_content(op.path, document -> history(op.wrap(document))) :
-          make_file_page(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)))))
-    # A file opens as a person opens it: the new tab takes the focus.
-    post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor),
-                                                          focus = true, editor))
+    op.file_wrap === identity ?
+        make_file_tab_content(op.path, document -> history(op.wrap(document))) :
+        make_file_page(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)));
+                                        grows = (width = false, height = true)))
+end
+
+"""
+    open_file!(path; editor = get_evaluation_editor()) -> ReferencedDocument
+
+Open the file at `path` in a tab, where the window puts files, and answer the tab.
+The tab shows the file as the extension of its name reads it, and keeps the
+history of its edits, so Ctrl+Z undoes them. A file that is open already keeps
+its tab, and the answer is that tab. The tab does not take the focus, and the
+group shows it only when `show_pane!` shows it.
+
+Use it to open a file of the disk, so that you can read it and change it as a
+part of the window.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    show_pane!(notes_tab_1)
+
+See also `save_file_to_disk!`, `reload_file_from_disk!`, `show_pane!`.
+
+For the assistant.
+"""
+function open_file! end
+
+function open_file!(path::AbstractString; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_file!") do
+        open = find_open_file_document(path; editor)
+        tab = open === nothing ? nothing : _find_open_file_tab(editor, open)
+        tab === nothing || return tab
+        open_pane!(open === nothing ? _make_opened_file_content(editor, OpenFileOperation(path)) : open;
+                   group = get_pane_file_group(; editor), editor)
+    end
+end
+
+# The tab whose content is `document`, as a part, or `nothing`.
+function _find_open_file_tab(editor, document)
+    reference = find_pane_tree_reference(; editor)
+    reference === nothing && return nothing
+    tree = evaluate_reference(editor.document, reference)
+    for group in get_pane_groups(tree), (index, tab) in enumerate(group.tabs)
+        tab.content === document || continue
+        return ReferencedDocument(tab, concat_references(reference, get_pane_tab_reference(tree, group, index)))
+    end
     nothing
 end
 

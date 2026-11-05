@@ -191,7 +191,7 @@ function test_search_answer()
         @test occursin("`shut_verb(box) -> Bool` — function in AnswerToy", listed)
         @test occursin("`fenced_verb(box; force = false) -> Nothing`", listed)
         # The declaration lines show one signature each, the first of a paragraph.
-        described = describe_api([AnswerToy => (:overloaded_verb,)])
+        described = describe_api([AnswerToy => (:overloaded_verb,)]; signatures = true)
         @test occursin("overloaded_verb(x) -> Int", described)
         @test !occursin("overloaded_verb(x, y)", described)
     end

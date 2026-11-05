@@ -25,13 +25,45 @@ end
 
 """
     find_first_prompt(assistant) -> String or nothing
+
+The text of the first turn of the person in the conversation of `assistant`, or
+`nothing` before the first prompt.
+
+Use it to read what a person first asked an assistant.
+
+# Example
+
+    prompt_1 = find_first_prompt(assistant_1)
+
+See also `find_last_prompt` and `describe_assistant_activity`.
+
+For the assistant.
+"""
+function find_first_prompt end
+
+find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+find_first_prompt(assistant::ReferencedDocument) = find_first_prompt(get_document(assistant))
+
+"""
     find_last_prompt(assistant) -> String or nothing
 
-The text of the first and of the last turn of the person in the conversation of
-`assistant`, or `nothing` before the first prompt.
+The text of the last turn of the person in the conversation of `assistant`, or
+`nothing` before the first prompt.
+
+Use it to read what a person asked an assistant last.
+
+# Example
+
+    prompt_1 = find_last_prompt(assistant_1)
+
+See also `find_first_prompt` and `describe_assistant_activity`.
+
+For the assistant.
 """
-find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+function find_last_prompt end
+
 find_last_prompt(a::Assistant) = _find_prompt(a, findlast)
+find_last_prompt(assistant::ReferencedDocument) = find_last_prompt(get_document(assistant))
 
 function _find_prompt(a::Assistant, find::Function)
     turns = collect(a.conversation.turns)
@@ -65,7 +97,19 @@ end
 What the turn of `assistant` that runs does now, in a few words: "starts",
 "thinks", "writes", "runs <tool>", or the question of the agent that waits for
 the person. "failed" after a turn that failed, and empty between turns.
+
+Use it to tell a person what an assistant does now.
+
+# Example
+
+    text_1 = describe_assistant_activity(assistant_1)
+
+See also `find_last_prompt`.
+
+For the assistant.
 """
+function describe_assistant_activity end
+
 function describe_assistant_activity(a::Assistant)
     a.status === :error && return "failed"
     is_assistant_turn_running(a) || return ""
@@ -80,6 +124,8 @@ function describe_assistant_activity(a::Assistant)
     content isa EvaluatorForm && return "runs " * content.tool_name
     "writes"
 end
+
+describe_assistant_activity(assistant::ReferencedDocument) = describe_assistant_activity(get_document(assistant))
 
 # The question of the agent in the last turn that waits for the person.
 function _find_open_permission_request(a::Assistant)

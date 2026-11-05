@@ -1,3 +1,13 @@
+# The names of the workflow domain that the assistant is offered, each by the mark
+# `For the assistant.` in its docstring. `add_element!` is the outline module's.
+const OFFERED_WORKFLOW_NAMES = (
+    :WorkflowDocument, :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowJournal,
+    :start_workflow!, :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
+    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!,
+    :collect_workflow_entries, :WorkflowList, :get_session_workflow_list,
+    :get_workflow_states, :get_next_workflow_state, :get_workflow_node_title, :get_workflow_node_children,
+)
+
 """
     test_workflow_assistant_api()
 
@@ -8,12 +18,12 @@ takes it back as one step.
 """
 function test_workflow_assistant_api()
     @testset "WorkflowAssistantApi" begin
-        entries = [e for e in get_registered_assistant_api() if e isa Pair && first(e) === WorkflowModule]
+        entries = [e for e in ProjecturedKernel.ToolModule.collect_marked_api() if e.module_ === WorkflowModule]
 
         @testset "the domain offers its documents and its verbs" begin
             @test length(entries) == 1
-            offered = collect(last(only(entries)))
-            @test Set(offered) == Set(WORKFLOW_ASSISTANT_API)
+            offered = ProjecturedKernel.ToolModule.get_api_entry_names(only(entries))
+            @test Set(offered) == Set(OFFERED_WORKFLOW_NAMES)
             @test all(name -> isdefined(WorkflowModule, name), offered)
             set = declare_api!(ToolSet(), entries)
             @test occursin("record_workflow_decision!", search_api(set, "record_workflow_decision!"))

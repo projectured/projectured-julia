@@ -164,6 +164,31 @@ scope's own insertion from its candidate list.
 get_domain_insertion(::Type) = nothing
 
 """
+    is_domain_placeholder(type) -> Bool
+
+Whether `type` is a placeholder that the editor makes and a person or a model
+does not write: the insertion buffer of a domain (`JsonInsertion`), the empty
+placeholder that it aborts to (`JsonNothing`), or one of the two that belong to no
+domain (`DocumentInsertion`, `DocumentNothing`). The domain of `type` is the first
+supertype that names an insertion with [`get_domain_insertion`](@ref). An insertion
+cursor that a slice writes by hand, such as `MarkdownInsertion`, is one too: its
+name ends in "Insertion", as the completion of the domains reads it.
+"""
+function is_domain_placeholder(type::Type)
+    (type === DocumentNothing || type === DocumentInsertion) && return true
+    type isa Union && return false
+    endswith(String(nameof(type)), "Insertion") && return true
+    above = Base.unwrap_unionall(type)
+    while above isa DataType && above !== Any
+        insertion = Base.invokelatest(get_domain_insertion, above)
+        insertion === nothing ||
+            return type === insertion || type === Base.invokelatest(get_nothing_document, insertion)
+        above = supertype(above)
+    end
+    false
+end
+
+"""
     get_domain_prefix(root::Type) -> String
 
 The type-name prefix stripped for prefix-free matching inside a domain scope
@@ -784,7 +809,8 @@ macro domain(name, opts...)
         push!(out.args, :(abstract type $root <: $Document end))
         # The root is what a reader looks for first — "the documents of this
         # domain" — so it says what it is, as the placeholder and the insertion
-        # below do.
+        # below do. Its mark offers every document type of the domain to the
+        # assistant, apart from the two placeholders.
         push!(out.args, esc(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__,
             "    $root_sym\n\n" *
             "Every document of the $prefix domain.\n\n" *
@@ -793,8 +819,11 @@ macro domain(name, opts...)
             "this domain.\n\n" *
             "# Example\n\n" *
             "    is_$(lowercase(prefix))(document) = document isa $root_sym\n\n" *
-            "See also `$nothing_sym`, the empty one, and `$insertion_sym`, the one a " *
-            "person types a name into.",
+            "The editor makes two documents of the domain for its own use: " *
+            "`$nothing_sym`, the empty one, and `$insertion_sym`, the one a person " *
+            "types a name into.\n\n" *
+            "See also `search_documents`, which finds the documents of the domain in a tab.\n\n" *
+            "For the assistant.",
             root_sym)))
     end
     # The root is the domain's public name, so it is exported either way —

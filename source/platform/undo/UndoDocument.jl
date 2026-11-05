@@ -98,6 +98,13 @@ UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
 # for the document it stands for and gets what it holds.
 get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
 
+# A walk of the documents does not enter the steps of a buffer. They hold the old
+# versions of the content, which share their parts with it, so a search would find
+# a value that the content no longer holds, and a search of places would find each
+# shared part once for each step. A search of the old versions starts at the list of
+# steps itself, `search_documents(buffer.undo_entries, query)`.
+is_field_walked(::UndoBuffer, name::Symbol) = name !== :undo_entries && name !== :redo_entries
+
 # A person edits the document that a history keeps the steps of.
 get_edited_field(::UndoBuffer) = :content
 
@@ -434,7 +441,7 @@ function find_undo_buffer(document)
 end
 
 """
-    describe_undo_history(; editor = get_evaluation_editor()) -> Text
+    describe_undo_history(; editor = get_evaluation_editor()) -> String
 
 The changes of the window that the tool `undo` and Ctrl+Z take back, and the
 changes that the tool `redo` puts back, newest last: one line each, in the words
@@ -449,13 +456,15 @@ the tool `undo` would take back before you call it.
     println(describe_undo_history())
 
 See also `find_selected_part`, `print_natural_text`.
+
+For the assistant.
 """
 function describe_undo_history end
 
 function describe_undo_history(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_undo_history") do
         buffer = find_undo_buffer(getfield(editor, :document))
-        buffer === nothing && return Text("This window keeps no history.")
+        buffer === nothing && return "This window keeps no history."
         undo = [entry.label for entry in buffer.undo_entries]
         redo = [entry.label for entry in buffer.redo_entries]
         lines = String[isempty(undo) ? "Nothing to take back." :
@@ -465,7 +474,7 @@ function describe_undo_history(; editor = get_evaluation_editor())
             push!(lines, "To put back, newest last:")
             append!(lines, "  " .* redo)
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 

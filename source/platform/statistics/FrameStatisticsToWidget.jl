@@ -123,7 +123,7 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
             WidgetLabel(() -> _format_head_line(statistics); text_style = p.header_text),
             _make_pause_toggle(statistics)];
         vertical_align = :center, gap = 4 * p.gap)
-    bar = _make_frame_scroll_bar(p, statistics, ctx === nothing ? nothing : get_exact_height(ctx))
+    bar = _make_frame_scroll_bar(p, statistics, get_visible_height(ctx))
     root = VerticalLayout(Any[]; horizontal_align = :left, gap = p.gap)
     # The parts are built again only when a measurement appears or the choice of
     # the columns of the frames changes: this reads the count of the rows, each

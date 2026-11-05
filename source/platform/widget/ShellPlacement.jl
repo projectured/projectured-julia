@@ -48,7 +48,8 @@ function _find_window_shell(screen, reference)
     window = try_evaluate_reference(screen, extend_reference(EmptyReference(), steps[1], steps[2]), nothing)
     window isa WindowDocument || return nothing
     found = search_references(window.content, document -> document isa WidgetShell;
-                              maxdepth = _SHELL_SEARCH_DEPTH, descend = _is_shell_search_step, limit = 1)
+                              walk = DocumentWalk(; descend = _is_shell_search_step),
+                              maxdepth = _SHELL_SEARCH_DEPTH, limit = 1)
     isempty(found) && return nothing
     extend_reference(EmptyReference(), steps[1], steps[2], FieldReferenceStep("content"),
                      get_reference_steps(strip_reference_types(first(found)))...)

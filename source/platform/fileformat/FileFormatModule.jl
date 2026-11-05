@@ -1,8 +1,8 @@
 """
     FileFormatModule
 
-Reading and writing a document **as a file** — `import_document` /
-`export_document` — and the two editor operations that do it.
+The functions `import_document` and `export_document` read a document from a file
+and write it to a file, and two editor operations call them.
 
 What a natural notation *is* lives in the natural slice (`NaturalModule`): a
 domain declares the rung it starts at, the format it is written in, the
@@ -18,6 +18,7 @@ Round-trip on real data documents; not on editor scaffolding.
 """
 module FileFormatModule
 
+using ..AgentModule: run_on_editor_task!
 using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
@@ -64,6 +65,7 @@ export write_document_file, read_document_file, make_document_for, make_document
        make_file_tab, make_file_tab_content
 export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
+       save_file_to_disk!, reload_file_from_disk!,
        compute_file_text, compute_file_text_hash, read_file_content_again
 export get_file_icon, make_file_note
 export FileToContent
@@ -73,7 +75,6 @@ export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
 export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!,
        collect_open_file_paths, find_shown_file_path,
        OpenFileListToWidget
-export make_file_api
 
 
 include("NaturalFormat.jl")

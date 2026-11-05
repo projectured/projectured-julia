@@ -132,7 +132,8 @@ function _keep_dormant_caret!(editor, draft, tail)
     live = get_selection(root)
     live isa Reference || return nothing
     live = copy_reference(live)
-    found = search_references(root, node -> node === draft; descend = _is_draft_search_step)
+    found = search_references(root, node -> node === draft;
+                               walk = DocumentWalk(; descend = _is_draft_search_step))
     isempty(found) && return nothing
     replace_selection!(root, concat_references(first(found), tail))
     replace_selection!(root, live)

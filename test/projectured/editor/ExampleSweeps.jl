@@ -226,6 +226,8 @@ function test_position_navigations()
             # Skip every widget example except the editable widget_text, whose
             # content recurses through TextToGraphics and so seeds a selection.
             (startswith(example.name, "widget") && example.name != "widget_text") && continue
+            # The layout cases are widgets in layouts, for the same reason.
+            startswith(example.name, "layout_") && continue
             # Widget-presentation pipelines (…ToWidget → Graphics), e.g.
             # `json_widget`, `xml_widget`, the `*_catalog_widget`s, and
             # `conversation_widget`: the widget/graphics layer doesn't route
@@ -466,6 +468,7 @@ function test_click_roundtrips()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
+            startswith(example.name, "layout_") && continue
             example.name in ("filesystem", "xml", "table", "math_table", "pivot",
                               "graphics_image", "layout", "tooltip",
                               "files", "assistant",
@@ -551,6 +554,7 @@ function test_text_navigation_invariants_all()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
+            startswith(example.name, "layout_") && continue
             example.name in ("filesystem", "xml", "table", "math_table", "pivot",
                               "graphics_image", "layout", "tooltip",
                               "files", "assistant",

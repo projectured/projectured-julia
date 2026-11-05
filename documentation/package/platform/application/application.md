@@ -24,20 +24,7 @@ The chrome is `make_window_menu_bar()`, `make_window_toolbar(; assistant, explor
 
 `make_application_assistant(backend; model, context, llm)` makes the `Assistant` of the window: `backend` is one of `APPLICATION_ASSISTANTS` (`:ollama`, `:anthropic`, `:acp`, `:none`). With `:none` the pane opens too: its greeting says that no model backend is chosen and where to choose one. A caller that wants no assistant pane, such as the recorder of a video, passes `assistant = nothing` to `make_application_document`. Its greeting, from `get_application_greeting_text(backend)`, says what the window shows and what the assistant needs to answer.
 
-`make_editor_api()` is what the assistant of a window of the editor may write: the vocabularies that every window declares, concatenated and passed to `declare_api!`. The application declares the list as it is, and an application that builds on the editor adds the verbs of its own domain to it, so every window offers one vocabulary.
-
-| Vocabulary | Where it comes from |
-| --- | --- |
-| the pane verbs that arrange the window | `make_pane_api()` |
-| the widget names that build what a pane shows | `make_interface_api()` |
-| the file verbs that open and save one | `make_file_api()` |
-| the workspace of the folder of the window, and how to read what a tab holds | named in `make_editor_api` itself: `OpenFileOperation`, `Workspace`, `WorkspaceFolder`, `search_documents`, `get_wrapped_document`, `get_file_content`, `print_natural_text`, `parse_natural_text`, `insert_elements!`, `delete_elements!` |
-| the arrangement and the roster of a collection | named in `make_editor_api` itself |
-| the groups of tasks of the session | `make_task_api()` |
-| a tree of documents, the processes of the system, the work of an agent | named in `make_editor_api` itself |
-| what each loaded domain registered | `get_registered_assistant_api()` |
-
-Each vocabulary is declared where its verbs are, so a host that offers the same verbs states it once and this function only names which it wants. The last row is the open end: a domain's `__init__` registers names with `register_assistant_api!`, and `get_registered_assistant_api()` answers every one that is loaded, in the order of the registrations; [assistant.md](../assistant/assistant.md#the-api-a-loaded-package-offers) describes the registry. A domain with a parser registers no constructors: a model reads and writes such a document as its text, with `print_natural_text` and `parse_natural_text`.
+`make_editor_api()` is what the assistant of a window of the editor may write: every loaded name whose docstring has the line `For the assistant.` (`collect_marked_api`), and the foreign names that an adapter registers with `register_assistant_api!`, such as the verbs of `DataFrames`. The application declares the list as it is, so every window offers one vocabulary, and an application that builds on the editor marks the verbs of its own domain in their docstrings. A domain with a parser offers no constructors: a model reads and writes such a document as its text, with `print_natural_text` and `parse_natural_text`. A package also registers the sentence that the system text says about its domain; [assistant.md](../assistant/assistant.md#the-api-a-loaded-package-offers) describes the registry.
 
 `EDITOR_SYSTEM` is the paragraph of the system text that names these verbs, and the system text of every window holds it. `APPLICATION_SYSTEM` is the editor's own instructions with one sentence about the window and `EDITOR_SYSTEM`, and `make_application_system()` appends the section "Reach what a tab holds" of the orientation guide. `register_editor_tools!(set)` adds the tools `undo`, `redo` and `take_picture`. `start_application!(editor; mcp, assistant, model)` declares `make_editor_api()` and these tools on `editor.tools` once the editor exists, and, with `mcp` on and an assistant, also binds the meaning model of the backend to the tools, so a search by description ranks by meaning for an MCP client too.
 

@@ -54,7 +54,8 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         im = iomap_cell[]
         im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    output = ScreenDocument(out_windows, pointer_shape, paths.selection, paths.mouse_target)
+    output = ScreenDocument(out_windows, pointer_shape, getfield(input, :display_areas),
+                            paths.selection, paths.mouse_target)
     iomap = ScreenToScreenIoMap(p, input, output, window_iomaps)
     iomap_cell[] = iomap
     iomap
@@ -69,13 +70,16 @@ print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx) =
 # window on no screen.
 function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx, pointer_shape::Cell,
                        screen_iomap)
-    # Seed the window's pixel size as the available layout extent for its
-    # content, so split/tabbed/scroll panes size to the window.
+    # A window of a fixed size gives its content that size as a slot, so
+    # split, tabbed and scroll panes size to the window.
     #
-    # A window that fits its content is offered its **maximum**, and always that:
-    # the backend gives such a window the extent of what it printed, and an offer
-    # that followed that size would chase it. So a text wraps at the maximum
-    # width, and the window ends as wide as the text needed.
+    # A window that fits its content gives it its **minimum** and its **maximum**
+    # as a range, and always that: the content draws what it needs between them,
+    # and the backend gives the window the extent of what it printed. A range that
+    # followed that size would chase it. So a text wraps at the maximum width, and
+    # the window ends as wide as the text needed. The maximum of the input says
+    # whether the window fits its content on an axis, because a placement computes
+    # its bounds only once the screen is printed.
     #
     # A window that a placement places takes its place and its bounds from the
     # placement, in cells that compute them over the printed screen. Only such a
@@ -88,8 +92,14 @@ function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx,
                                      m[1] > 0 ? m[1] : getfield(input, :width)[])))
     offer_height = Cell(@computation((m = maximum_size[];
                                       m[2] > 0 ? m[2] : getfield(input, :height)[])))
-    content_ctx = with_exact_size(make_child_context(ctx, FieldReferenceStep("content"));
-                                  width=offer_width, height=offer_height)
+    minimum_width = Cell(@computation(place.minimum_size[][1]))
+    minimum_height = Cell(@computation(place.minimum_size[][2]))
+    (fits_width, fits_height) = getfield(input, :maximum_size)[] .> 0
+    content_ctx = make_child_context(ctx, FieldReferenceStep("content"))
+    content_ctx = fits_width ? with_size_range(content_ctx; width = (minimum_width, offer_width)) :
+                               with_exact_size(content_ctx; width = offer_width)
+    content_ctx = fits_height ? with_size_range(content_ctx; height = (minimum_height, offer_height)) :
+                                with_exact_size(content_ctx; height = offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
     # (a re-opened tooltip) re-projects it reactively; a same object mutated in
     # place reuses the iomap and re-derives
@@ -438,24 +448,43 @@ end
 # tooltip, has it moved into the screen here too (`map_operation_position`), also
 # in the answer to a routed gesture, whose point each container on the route moved
 # into the frame of its child.
-_open_popup_windows(op, window::WindowDocument) =
-    _open_popup_window(op, _wval(getfield(window, :x)), _wval(getfield(window, :y)))
+_open_popup_windows(op, window::WindowDocument) = _open_popup_window(op, window)
 _open_popup_windows(op, window) = op
 
-_open_popup_window(op, x, y) = map_operation_position(op, (px, py) -> (px + x, py + y))
-_open_popup_window(op::OpenPopupOperation, x, y) =
-    OpenWindowOperation(; id = op.id, x = x + op.x, y = y + op.y,
+_open_popup_window(op, window) =
+    map_operation_position(op, (px, py) -> (px + _wval(getfield(window, :x)),
+                                            py + _wval(getfield(window, :y))))
+# The placement of the popup reads the place of `window` where the screen prints
+# it, and while the screen holds no such window the popup stands below its box at
+# the place of now. A popup with the id of `window` replaces that window, as a
+# submenu in a menu of the same id does, so it stands at the place of now: a
+# placement that read the place of its own window would read itself.
+function _open_popup_window(op::OpenPopupOperation, window)
+    id = window.id
+    placement = id === op.id ? nothing : context -> begin
+        box = find_window_box(context, id)
+        box === nothing && return nothing
+        anchor = (x = box.x + op.x, y = box.y + op.y, width = op.anchor_size[1], height = op.anchor_size[2])
+        compute_anchored_place(context, anchor; gap = op.gap)
+    end
+    OpenWindowOperation(; id = op.id, x = _wval(getfield(window, :x)) + op.x,
+                          y = _wval(getfield(window, :y)) + op.y + op.anchor_size[2] + op.gap,
                           width = op.width, height = op.height,
                           maximum_size = (op.width, op.height), style = :popup,
-                          auto_dismiss = op.auto_dismiss, content = op.content)
-function _open_popup_window(op::CompoundOperation, x, y)
-    members = Any[_open_popup_window(member, x, y) for member in op.operations]
+                          auto_dismiss = op.auto_dismiss, placement, content = op.content)
+end
+# A dialog that the content of `window` opens with no place of its own stands at
+# the center of that window, unless it replaces that window.
+_open_popup_window(op::OpenWindowOperation, window) =
+    _is_unplaced_dialog(op) && window.id !== op.id ? _place_at_window_center(op, window.id) : op
+function _open_popup_window(op::CompoundOperation, window)
+    members = Any[_open_popup_window(member, window) for member in op.operations]
     all(member === original for (member, original) in zip(members, op.operations)) ?
         op : CompoundOperation(members)
 end
-function _open_popup_window(op::WrappingOperation, x, y)
+function _open_popup_window(op::WrappingOperation, window)
     inner = get_wrapped_operation(op)
-    opened = _open_popup_window(inner, x, y)
+    opened = _open_popup_window(inner, window)
     opened === inner && return op
     (op isa ReplaceViewStateOperation && opened isa OpenWindowOperation) && return opened
     rewrap_operation(op, opened)

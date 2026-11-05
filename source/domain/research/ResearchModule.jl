@@ -1,12 +1,12 @@
 """
     ResearchModule
 
-The research document domain: the record of a study, the work on one problem by
-the scientific approach, from the question to the answer. A study holds nine
-kinds of item: questions, sources, hypotheses, experiments, analyses, results,
-evidence, decisions and answers. Each item records who made it, the person or the
-assistant, and when. An item holds the items that it links to, and only a
-decision changes the status of an item.
+Research documents: the record of a study of one problem, from the question to the
+answer, by the scientific approach. A study holds nine kinds of item: questions,
+sources, hypotheses, experiments, analyses, results, evidence, decisions and
+answers. Each item records who made it, the person or the assistant, and when. An
+item holds the items that it links to, and only a decision changes the status of an
+item.
 
 The domain includes:
 - **The study**: `ResearchStudy`, which owns each item in the list of its kind
@@ -29,6 +29,7 @@ using ..MarkdownModule
 using ..MathModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, get_view_state_fields
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
@@ -52,7 +53,7 @@ export ResearchItemToWidget, ResearchStudyToWidget, make_research_projections, m
 export ResearchMap, ResearchMapToGraph, ResearchMapToGraphIoMap,
        make_research_map_projection
 export StudyItems
-export RESEARCH_ASSISTANT_API, start_study!, add_question!, add_source!, add_hypothesis!,
+export start_study!, add_question!, add_source!, add_hypothesis!,
        add_experiment!, add_analysis!, add_result!, add_evidence!, add_answer!, record_decision!,
        get_expectation_bounds, check_predictions!, add_study_section!, add_study_prose!,
        embed_in_study!, add_study_formula!, describe_study
@@ -74,10 +75,9 @@ function __init__()
     # one as its card inside any other document.
     register_natural_graphics!(:research, make_research_graphics_entries)
 
-    # What the model of an assistant may write about a study: the documents, the
-    # verbs that write it as the assistant, and the reads of a study. Each verb is
-    # an edit of the editor, which a person takes back with Ctrl+Z.
-    register_assistant_api!(ResearchModule => RESEARCH_ASSISTANT_API;
+    # The sentence that the system text of a window says about a study: the
+    # documents, the verbs that write it as the assistant, and the reads of a study.
+    register_assistant_api!(Any[];
         description = "A study records the work on one problem by the scientific approach: " *
                       "questions, sources, hypotheses, experiments, analyses, results, evidence, " *
                       "decisions and answers, each with an id such as H1, its author and its time. " *

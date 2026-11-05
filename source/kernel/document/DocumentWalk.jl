@@ -1,64 +1,103 @@
 # Fragment of `DocumentModule` — the reflection walk over an arbitrary object
-# graph, parameterized by how a visited node's *location* is named.
+# graph, and the walk that says which nodes it visits and in what order.
 #
 # There is exactly one traversal. It knows how to descend four shapes — a
 # positional collection (`is_element_collection`), a dict, an array, and a struct
-# read by `fieldnames` — how to stop (scalar leaves, `is_walk_opaque`, `maxdepth`,
-# and a child that the caller's `descend` refuses), how to fold a scalar match up
-# to its enclosing `Document`, and how to keep from looping. What it leaves open
-# is how to *name* the node it is standing on, and which children it enters: a
-# caller that wants the matching *objects* names a node by the object itself, a
-# caller that wants the *paths* names it by a location it builds up as it descends.
-# Those location functions are the `DocumentWalk`'s parameters — supplied by the
-# caller, not dispatched off a subtype — which is what lets the walk sit below the
-# reference layer (whose `Reference` a caller passes back in as a location) while
-# knowing nothing of it.
+# read by `fieldnames` — how to stop (scalar leaves, `maxdepth`, `maxvisits`), how
+# to fold a scalar match up to its enclosing `Document`, and how to keep from
+# looping. The `DocumentWalk` decides which nodes it enters, in what order, and how
+# often a shared node is visited. The caller decides how a match is named: the
+# object itself, or its path as a chain of steps, which the reference layer turns
+# into a `Reference`. So the walk sits below the reference layer and knows nothing
+# of it.
 
 """
-    DocumentWalk(; locate_field, locate_element, initial, policy)
+    DocumentWalk(; is_opaque = is_walk_opaque, enter_field = is_field_entered,
+                   descend = (parent, child) -> true, order = (node, steps) -> steps,
+                   policy = :once_per_object)
 
-The parameters a [`walk_document`](@ref) runs under: how a visited node's
-**location** is named, and how often a node may be visited. A location is whatever
-these functions return — the object itself (the defaults, a value-collecting walk)
-or a path built up as the walk descends.
+The rules of a walk of the documents: which nodes it visits, in what order, and how
+often it visits a node that two places share. A search takes a walk, so a caller
+that needs another route through the documents passes one.
 
-  - `locate_field(location, name, child) -> location` — the location of `child`
-    reached from `location` by struct field / dict key `name`.
-  - `locate_element(location, index, child) -> location` — the location of `child`
-    reached at 1-based `index` of a positional collection or array.
-  - `initial(root) -> location` — the root's location (default: `root` itself).
-  - `policy::Symbol` — the cycle rule (default `:once_per_object`):
+  - `is_opaque(node) -> Bool` — a node whose parts the walk does not enter. The
+    default asks the node's own rule, `is_walk_opaque`.
+  - `enter_field(node, name) -> Bool` — whether the walk enters the field `name` of
+    `node`, a struct or a document. It decides before the read, so a field that it
+    refuses is not read, and a computed field is not computed. The default,
+    `is_field_entered`, asks the node's own rule, `is_field_walked`, and never
+    enters the mouse target or the selection.
+  - `descend(parent, child) -> Bool` — whether the walk enters `child`, decided by
+    its value. The walk does not match or walk a child that it does not enter. The
+    root is always entered, and the default enters every child.
+  - `order(node, steps) -> steps` — the steps from `node` to its children, in the
+    order that the walk visits them: the positions of a collection, the keys of a
+    dict, or the field names of a struct. The default keeps their own order.
+  - `policy` — how often the walk visits a node that two places share:
 
-      • `:once_per_object` — one visited set for the whole walk, so a node reachable
-        by several paths is walked **once**; shared subtrees are not re-walked and
-        cyclic graphs terminate.
-      • `:once_per_path` — the visited set holds only the current path's ancestors,
-        so **every distinct path** to a node is walked; a path that loops back
-        through one of its own ancestors is dropped, keeping a cyclic graph finite.
+      • `:once_per_object` (default) — once, at the first path that reaches it; a
+        shared part is not walked again, and a cyclic graph ends.
+      • `:once_per_path` — once for each path; a path that comes back through one
+        of its own nodes is dropped, so a cyclic graph ends. A node that many
+        places share, such as a row that the old versions of undo share, costs a
+        visit at each place.
 
-    The two are not interchangeable: a location that *is* the object gains nothing
-    from a second visit (same location), while a *path* location does — the same
-    node reached two ways is two different places to put a cursor.
+Use it to search the documents along a route of your own, such as a route that
+also enters the selection.
 
-`DocumentWalk()` is the value-collecting walk (locations are the objects);
-[`search_documents`](@ref) runs it.
+# Example
+
+    walk_1 = DocumentWalk(; enter_field = (node, name) -> name === :selection || is_field_entered(node, name))
+    search_documents(editor.document, "Ada"; walk = walk_1)
+
+See also `search_documents`, `search_references` and `is_field_entered`.
+
+For the assistant.
 """
 struct DocumentWalk
-    locate_field::Function
-    locate_element::Function
-    initial::Function
+    is_opaque::Function
+    enter_field::Function
+    descend::Function
+    order::Function
     policy::Symbol
+
+    function DocumentWalk(is_opaque, enter_field, descend, order, policy::Symbol)
+        policy in (:once_per_object, :once_per_path) ||
+            throw(ArgumentError("DocumentWalk: `policy` is :once_per_object or :once_per_path, got :$policy"))
+        new(is_opaque, enter_field, descend, order, policy)
+    end
 end
-DocumentWalk(; locate_field = (location, name, child) -> child,
-               locate_element = (location, index, child) -> child,
-               initial = root -> root,
-               policy = :once_per_object) =
-    DocumentWalk(locate_field, locate_element, initial, policy)
+
+DocumentWalk(; is_opaque = is_walk_opaque, enter_field = is_field_entered, descend = _enter_every_child,
+               order = _keep_walk_order, policy::Symbol = :once_per_object) =
+    DocumentWalk(is_opaque, enter_field, descend, order, policy)
+
+"""
+    is_field_entered(node, name) -> Bool
+
+Whether the default walk enters the field `name` of `node`: a field that the node's
+own rule, `is_field_walked`, allows, apart from the mouse target and the
+selection, which hold where the person points and what the person selected, not
+content.
+
+Use it to build a walk that changes one rule and keeps the rest.
+
+# Example
+
+    walk_1 = DocumentWalk(; enter_field = (node, name) -> node isa UndoBuffer || is_field_entered(node, name))
+
+See also `DocumentWalk`.
+
+For the assistant.
+"""
+function is_field_entered end
+
+is_field_entered(node, name) = name !== :mouse_target && name !== :selection && is_field_walked(node, name)
 
 # A node is a walk leaf — nothing to descend into — when it is a scalar Julia
-# value or an opaque document (see `is_walk_opaque`).
-_is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                   x isa Symbol || x isa Char || is_walk_opaque(x)
+# value or a node that the walk does not open.
+_is_walk_leaf(walk::DocumentWalk, x) = x === nothing || x isa Number || x isa AbstractString ||
+                                       x isa Symbol || x isa Char || walk.is_opaque(x)
 
 # The string form of a leaf, for a String/Regex query. Struct and collection
 # nodes have none, so they never match one.
@@ -90,6 +129,24 @@ The limits that a walk of the documents ran under, and what each one left out:
 - `background` — whether the walk starts background work; `provisional_count` is
   how many values that a task still computes the walk took as they are, which it
   does when it starts no work. A match can be in the final value of such a value.
+- `maxvisits` — the most nodes that the walk visits, or `nothing` for no bound;
+  `is_visit_limit_reached` says that the walk stopped there, so parts that it did
+  not visit can hold more matches.
+- `unreadable_count` — how many matches a search of places left out, because the
+  path that the walk built to them does not read back to them, such as a match
+  inside a dict whose keys are types.
+
+Use it to read why a search answered fewer matches than the document holds.
+
+# Example
+
+    found_1 = search_documents(document_1, "temperature")
+    limits_1 = found_1.limits
+    is_search_complete(found_1)
+
+See also `DocumentMatches`, `search_documents` and `is_search_complete`.
+
+For the assistant.
 """
 struct WalkLimits
     limit::Union{Int,Nothing}
@@ -98,6 +155,9 @@ struct WalkLimits
     depth_stop_count::Int
     background::Bool
     provisional_count::Int
+    maxvisits::Union{Int,Nothing}
+    is_visit_limit_reached::Bool
+    unreadable_count::Int
 end
 
 """
@@ -110,12 +170,16 @@ vector. Its summary, the first line of its display, names each limit that stoppe
 the walk and the keyword that lifts it, so a person and the assistant see that an
 answer is not complete.
 
+Use it to read the matches of a search and to see whether the search is complete.
+
 # Example
 
     matches_1 = search_documents(editor.document, "temperature")
     is_search_complete(matches_1)
 
 See also `search_documents` and `is_search_complete`.
+
+For the assistant.
 """
 struct DocumentMatches{T} <: AbstractVector{T}
     matches::Vector{T}
@@ -131,8 +195,9 @@ Base.IndexStyle(::Type{<:DocumentMatches}) = IndexLinear()
     is_search_complete(found::DocumentMatches) -> Bool
 
 Whether no limit of the walk left a match out: the limit of matches did not cut the
-answer, the depth stopped at no part, and the walk read no value that a task still
-computes.
+answer, the depth stopped at no part, the bound of visits did not stop the walk,
+the walk read no value that a task still computes, and no match was left out for a
+path that does not read back.
 
 Use it to know whether a search found everything before you act on its answer.
 
@@ -141,12 +206,15 @@ Use it to know whether a search found everything before you act on its answer.
     is_search_complete(search_documents(editor.document, "temperature"))
 
 See also `DocumentMatches`.
+
+For the assistant.
 """
 function is_search_complete end
 
 function is_search_complete(found::DocumentMatches)
     limits = found.limits
-    !limits.is_limit_reached && limits.depth_stop_count == 0 && limits.provisional_count == 0
+    !limits.is_limit_reached && limits.depth_stop_count == 0 && limits.provisional_count == 0 &&
+        !limits.is_visit_limit_reached && limits.unreadable_count == 0
 end
 
 # The count of the matches, then each limit that stopped the walk, with the
@@ -162,67 +230,77 @@ function Base.summary(io::IO, found::DocumentMatches)
         print(io, ". The search did not enter ", limits.depth_stop_count,
               limits.depth_stop_count == 1 ? " part" : " parts", " below its depth of ", limits.maxdepth,
               ": pass a larger `maxdepth` to search them")
+    limits.is_visit_limit_reached &&
+        print(io, ". The search stopped after it visited ", limits.maxvisits,
+              " nodes: pass `maxvisits = nothing` to search further")
     limits.provisional_count > 0 &&
         print(io, ". ", limits.provisional_count,
               limits.provisional_count == 1 ? " value that a task still computes was taken as it is" :
                                               " values that a task still computes were taken as they are",
               ": pass `background = true` to wait for them")
+    limits.unreadable_count > 0 &&
+        print(io, ". ", limits.unreadable_count, limits.unreadable_count == 1 ? " match was" : " matches were",
+              " left out, because the path to ", limits.unreadable_count == 1 ? "it" : "them",
+              " does not read back")
     nothing
 end
 
 # What a walk counts while it runs: the matches that it may still find before its
-# limit, the parts that its depth left out, and the values still to come that it
-# read as they are.
+# limit, the parts that its depth left out, the values still to come that it read
+# as they are, and the nodes that it visited.
 mutable struct _WalkCounts
     limit::Int
     depth_stop_count::Int
     provisional_count::Int
+    maxvisits::Int
+    visit_count::Int
+    is_visit_limit_reached::Bool
 end
+
+# Whether the walk stops: it found one match more than its limit, or it came to a
+# node after it visited as many as it may.
+_is_walk_stopped(results, counts::_WalkCounts) = length(results) > counts.limit || counts.is_visit_limit_reached
 
 """
     walk_document(walk::DocumentWalk, obj, predicate;
-                  include_selection=false, maxdepth=64, limit=100, raw=false,
-                  descend=(parent, child) -> true, enter_field=(parent, name) -> true,
-                  enter_matches=true, on_error=(object, exception) -> false,
-                  background=false) -> DocumentMatches
+                  paths = false, maxdepth = 64, limit = 100, maxvisits = 100_000, raw = false,
+                  enter_matches = true, on_error = (object, exception) -> false,
+                  background = false) -> DocumentMatches
 
-Walk any object graph and return the **location** of every match, as `walk`
-defines locations, as a [`DocumentMatches`](@ref) that says which limit stopped the
-walk.
+Walk any object graph along `walk` and return every match, as a
+[`DocumentMatches`](@ref) that says which limit stopped the walk. `walk` decides
+which nodes the walk enters, in what order, and how often it visits a node that
+two places share.
+
+A match is the matched object itself. With `paths = true` it is the path to the
+object instead: a chain of steps from the root, `()` for the root and
+`parent => step` below it, where `step` is the name of a field (a `Symbol`), the
+key of a dict entry (a `String`, or a `Symbol` key as it is) or a 1-based position
+(an `Int`). The reference layer turns a chain into a `Reference`.
 
 By default the results are **document-scoped**: a match on a raw scalar (a
 String / Number / Bool leaf) folds up to the nearest enclosing `Document`, so
-every location addresses a selectable node. A predicate matching a `Document`
+every match is a selectable node. A predicate matching a `Document`
 directly reports that document. A scalar match with no enclosing document is
-dropped. Pass `raw=true` to report the location of the **exact matched node**
-instead, scalars included.
+dropped. Pass `raw=true` to report the **exact matched node** instead, scalars
+included.
 
-Each location is reported at most once. How often a *node* is visited is
-`walk.policy`'s business. `include_selection` includes `selection` fields in the
-walk; a `mouse_target` field is never walked. `maxdepth` bounds recursion for
-structures that are never the *same* object — an infinite lazy list whose nodes
-are generated fresh on demand — which the visited set alone cannot stop.
+Each match is reported at most once. `maxdepth` bounds recursion for structures
+that are never the *same* object — an infinite lazy list whose nodes are generated
+fresh on demand — which the visited set alone cannot stop.
 
-`limit` is the most matches that the walk answers: 100 by default, so a search in a
-large document stays small. `limit = nothing` answers every match. A caller that
-needs every match, such as a save that visits every node of a kind, passes
-`limit = nothing`. The answer says when the limit cut it, when the depth left a part
-out, and when the walk took values that a task still computes as they are
-(`is_search_complete`).
+The walk has three bounds, each with a default that keeps a walk of a large
+document small, and the answer says when one stopped it (`is_search_complete`):
 
-`descend(parent, child) -> Bool` returns whether the walk enters `child` from
-`parent`. The walk does not match or walk a child that it does not enter. The
-root is always entered, and the default enters every child. Pass one when the
-matches can be only in some parts of the graph, so that the walk skips the
-parts that can hold none, such as a type or a function held in a field. An
-exception from `descend` goes to the caller.
-
-`enter_field(parent, name) -> Bool` returns whether the walk reads the field
-`name` of `parent`, a struct or a document; `name` is a position for a tuple. It decides before the read, so a
-field that it refuses is not read, and a computed field is not computed. The
-default reads every field that `is_field_walked` allows. Pass one when the
-matches can be only in some fields of a kind of document, as the tasks inside a
-task can be only in its inner group.
+- `limit` is the most matches that the walk answers: 100 by default.
+  `limit = nothing` answers every match. A caller that needs every match, such as
+  a save that visits every node of a kind, passes `limit = nothing`.
+- `maxdepth` is how deep the walk goes: 64 by default.
+- `maxvisits` is the most nodes that the walk visits: 100,000 by default, so a
+  walk of a window, which has some thousands of nodes, ends in a fraction of a
+  second, and a walk of a large table stops. `maxvisits = nothing` visits every
+  node. With `limit = nothing` the default is `nothing` too, because a caller that
+  asks for every match asks for the whole walk.
 
 `enter_matches = false` stops the walk at each match: it reports the match and
 reads no part of it. A caller that gathers items, each with parts of its own,
@@ -246,29 +324,44 @@ the caller. An exception that is not a fault (`is_fault_exception`) never
 reaches `on_error`: it ends the walk.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
+
+Use it to walk a document with a walk of your own, such as `DocumentWalk()`, which answers the matching objects.
+
+# Example
+
+    matches_1 = walk_document(DocumentWalk(), document_1, value -> value isa String; limit = 10)
+
+See also `search_documents` and `search_references`.
 """
+function walk_document end
+
 function walk_document(walk::DocumentWalk, obj, predicate;
-                       include_selection::Bool=false, maxdepth::Int=64,
-                       limit::Union{Integer,Nothing} = 100, raw::Bool=false,
-                       descend = _enter_every_child, enter_field = _enter_every_field, enter_matches::Bool = true,
-                       on_error = _count_as_no_match,
-                       background::Bool = false)
+                       paths::Bool = false, maxdepth::Int = 64,
+                       limit::Union{Integer,Nothing} = 100,
+                       maxvisits::Union{Integer,Nothing} = limit === nothing ? nothing : 100_000,
+                       raw::Bool = false, enter_matches::Bool = true,
+                       on_error = _count_as_no_match, background::Bool = false)
     limit === nothing || limit >= 0 || throw(ArgumentError("walk_document: `limit` is a count, got $limit"))
+    maxvisits === nothing || maxvisits >= 1 ||
+        throw(ArgumentError("walk_document: `maxvisits` is a count of at least 1, got $maxvisits"))
     results = Any[]
     # The walk looks for one match more than its limit, so it knows that the limit
     # cut the answer.
-    counts = _WalkCounts(limit === nothing ? typemax(Int) - 1 : Int(limit), 0, 0)
+    counts = _WalkCounts(limit === nothing ? typemax(Int) - 1 : Int(limit), 0, 0,
+                         maxvisits === nothing ? typemax(Int) : Int(maxvisits), 0, false)
     with(_IS_BACKGROUND_WORK_ALLOWED => background) do
         root = _read_walked(obj, background, counts)
         _walk_document!(walk, results, IdDict{Any,Bool}(), root,
                         _GuardedPredicate(predicate, on_error),
-                        walk.initial(root), nothing, IdDict{Any,Bool}(),
-                        include_selection, maxdepth, raw, descend, enter_field, enter_matches, background, counts)
+                        paths ? () : root, nothing, IdDict{Any,Bool}(),
+                        maxdepth, raw, paths, enter_matches, background, counts)
     end
     is_limit_reached = length(results) > counts.limit
     is_limit_reached && pop!(results)
     DocumentMatches(results, WalkLimits(limit === nothing ? nothing : Int(limit), is_limit_reached, maxdepth,
-                                        counts.depth_stop_count, background, counts.provisional_count))
+                                        counts.depth_stop_count, background, counts.provisional_count,
+                                        maxvisits === nothing ? nothing : Int(maxvisits),
+                                        counts.is_visit_limit_reached, 0))
 end
 
 # Whether a read may start background work now: false inside a walk that starts
@@ -306,16 +399,20 @@ function _read_walked(x, background::Bool, counts::_WalkCounts)
 end
 
 # Whether a node that the depth stops at has a part that the walk would enter.
-_has_walk_children(obj) =
+_has_walk_children(walk::DocumentWalk, obj) =
     is_element_collection(obj) ? length(obj)::Int > 0 :
     obj isa Union{AbstractDict,AbstractArray} ? !isempty(obj) :
-    any(name -> name !== :mouse_target && name !== :selection, fieldnames(typeof(obj)))
+    any(name -> walk.enter_field(obj, name), fieldnames(typeof(obj)))
 
 _enter_every_child(_, _) = true
 
-_enter_every_field(_, _) = true
+_keep_walk_order(_, steps) = steps
 
 _count_as_no_match(_, _) = false
+
+# The location of `child`, one `step` below `location`: the child itself, or with
+# `paths` the chain of steps to it.
+_locate_walked(paths::Bool, location, step, child) = paths ? Pair{Any,Any}(location, step) : child
 
 # The predicate of a walk with its answer for an exception: an exception that
 # means stop goes on, and `on_error` answers for every other one.
@@ -363,16 +460,18 @@ end
 # distinct locations are all kept.
 # All but `obj`, `location`, `enclosing`, `seen` and `depth` pass through
 # unchanged, and the compile count below is measured on this form. The walk ends
-# when it found one match more than its limit.
-function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
-                         seen, include_selection, depth, raw, descend, enter_field, enter_matches, background, counts)
+# when it found one match more than its limit, or when it comes to a node after it
+# visited as many as `maxvisits` allows.
+function _walk_document!(walk::DocumentWalk, results, reported, obj, predicate, location, enclosing,
+                         seen, depth, raw, paths, enter_matches, background, counts)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,
     # used as an `IdDict{Any, Bool}` key, and handed down. Every use is an `Any`
     # slot already, so specialising on it buys no speed — and costs a great deal
     # of compilation, because the walk then instantiates once per (child type,
     # enclosing type) PAIR rather than once per child type. Walking one demo page
     # produced 67 instantiations across 38 distinct children, `CellVector` alone
-    # appearing under twelve different parents.
+    # appearing under twelve different parents. A location that is a path is the
+    # same kind of `Any` slot.
     #
     # The recursion is written out at each branch rather than through one closure
     # that recurses, for the same reason, and it is the half that actually works: a
@@ -381,8 +480,13 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     # the closure form compiled 16 instances, the closure with `here::Any` 14, and
     # this form 9.
     @nospecialize enclosing
-    length(results) > counts.limit && return
-    leaf = _is_walk_leaf(obj)
+    _is_walk_stopped(results, counts) && return
+    if counts.visit_count >= counts.maxvisits
+        counts.is_visit_limit_reached = true
+        return
+    end
+    counts.visit_count += 1
+    leaf = _is_walk_leaf(walk, obj)
     if !leaf
         seen = _enter_node(walk, obj, seen)
         seen === nothing && return
@@ -397,58 +501,48 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     end
     leaf && return
     if depth <= 0
-        _has_walk_children(obj) && (counts.depth_stop_count += 1)
+        _has_walk_children(walk, obj) && (counts.depth_stop_count += 1)
         return
     end
 
     if is_element_collection(obj)
-        for i in 1:(length(obj)::Int)
-            length(results) > counts.limit && return
+        for i in walk.order(obj, 1:(length(obj)::Int))
+            _is_walk_stopped(results, counts) && return
             child = _read_walked(obj[i], background, counts)
-            descend(obj, child) || continue
-            _walk_document!(walk, results, reported, child, predicate,
-                            walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, enter_field, enter_matches,
-                            background, counts)
+            walk.descend(obj, child) || continue
+            _walk_document!(walk, results, reported, child, predicate, _locate_walked(paths, location, i, child),
+                            here, seen, depth - 1, raw, paths, enter_matches, background, counts)
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
         # into the hash table's internals, whose `Memory` buffers have undefined
         # slots. The key is the field name, which is how a dict entry is addressed.
-        for (k, v) in obj
-            length(results) > counts.limit && return
-            child = _read_walked(v, background, counts)
-            descend(obj, child) || continue
-            _walk_document!(walk, results, reported, child, predicate,
-                            walk.locate_field(location, k, child),
-                            here, seen, include_selection, depth - 1, raw, descend, enter_field, enter_matches,
-                            background, counts)
+        for key in walk.order(obj, keys(obj))
+            _is_walk_stopped(results, counts) && return
+            child = _read_walked(obj[key], background, counts)
+            walk.descend(obj, child) || continue
+            step = key isa Symbol ? key : string(key)
+            _walk_document!(walk, results, reported, child, predicate, _locate_walked(paths, location, step, child),
+                            here, seen, depth - 1, raw, paths, enter_matches, background, counts)
         end
     elseif obj isa AbstractArray
-        for i in 1:length(obj)
+        for i in walk.order(obj, 1:length(obj))
             isassigned(obj, i) || continue
-            length(results) > counts.limit && return
+            _is_walk_stopped(results, counts) && return
             child = _read_walked(obj[i], background, counts)
-            descend(obj, child) || continue
-            _walk_document!(walk, results, reported, child, predicate,
-                            walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw, descend, enter_field, enter_matches,
-                            background, counts)
+            walk.descend(obj, child) || continue
+            _walk_document!(walk, results, reported, child, predicate, _locate_walked(paths, location, i, child),
+                            here, seen, depth - 1, raw, paths, enter_matches, background, counts)
         end
     else
-        for fn in fieldnames(typeof(obj))
-            fn == :mouse_target && continue
-            fn == :selection && !include_selection && continue
-            is_field_walked(obj, fn) || continue
-            enter_field(obj, fn) || continue
-            isdefined(obj, fn) || continue
-            length(results) > counts.limit && return
-            child = _read_walked(getfield(obj, fn), background, counts)
-            descend(obj, child) || continue
-            _walk_document!(walk, results, reported, child, predicate,
-                            walk.locate_field(location, fn, child),
-                            here, seen, include_selection, depth - 1, raw, descend, enter_field, enter_matches,
-                            background, counts)
+        for name in walk.order(obj, fieldnames(typeof(obj)))
+            walk.enter_field(obj, name) || continue
+            isdefined(obj, name) || continue
+            _is_walk_stopped(results, counts) && return
+            child = _read_walked(getfield(obj, name), background, counts)
+            walk.descend(obj, child) || continue
+            _walk_document!(walk, results, reported, child, predicate, _locate_walked(paths, location, name, child),
+                            here, seen, depth - 1, raw, paths, enter_matches, background, counts)
         end
     end
 end

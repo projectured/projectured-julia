@@ -12,10 +12,17 @@ document for each group that started, or a [`ClosedTaskGroup`](@ref) in the plac
 of a group whose row a person closed. The Tasks pane shows the open groups,
 newest first, and the title of each is a link to its page.
 
+Use it to reach every group of tasks that the session started.
+
 # Example
 
-    list = get_session_task_group_list()
-    [getfield(group, :title)[] for group in collect_task_group_documents(list)]
+    list_1 = get_session_task_group_list()
+    groups_1 = search_documents(list_1, part -> part isa TaskGroupDocument)
+
+See also `get_session_task_group_list`, `list_task_groups`, `find_task_group` and
+`ClosedTaskGroup`.
+
+For the assistant.
 """
 @document struct TaskGroupList <: Document
     groups::CellVector = CellVector()
@@ -35,7 +42,19 @@ made at the first call: the list that a tab of its window shows or holds in its
 content, which a window made before its editor existed, or else a new list. With no editor, such as a
 script that runs outside every window, a new list, which nothing keeps; so a
 group that starts there joins no list.
+
+Use it to read the groups of tasks and the other work items of the session.
+
+# Example
+
+    list_1 = get_session_task_group_list()
+
+See also `collect_work_items` and `list_task_groups`.
+
+For the assistant.
 """
+function get_session_task_group_list end
+
 get_session_task_group_list(; editor = find_evaluation_editor()) =
     editor isa Editor ?
         get_session_document!(() -> something(_find_window_task_group_list(editor), TaskGroupList()), editor,
@@ -67,7 +86,8 @@ function _find_window_task_group_list(editor::Editor)
     tree isa PaneTree || return nothing
     for group in get_pane_groups(tree), tab in group.tabs
         found = search_documents(tab.content, document -> document isa TaskGroupList;
-                                 maxdepth = _LIST_SEARCH_DEPTH, descend = _is_held_document)
+                                 maxdepth = _LIST_SEARCH_DEPTH,
+                                 walk = DocumentWalk(; descend = _is_held_document))
         isempty(found) || return first(found)
     end
     nothing
@@ -89,6 +109,16 @@ its identifier, its title and the line that sums it up, which
 [`remove_task_group!`](@ref) makes. It holds no task and no execution, so their
 memory goes. It keeps the place of the group in the list, and its page says that
 the group closed.
+
+Use it to tell a group that a person closed from one that is open.
+
+# Example
+
+    closed_1 = search_documents(get_session_task_group_list(), part -> part isa ClosedTaskGroup)
+
+See also `TaskGroupList`, `get_session_task_group_list` and `list_task_groups`.
+
+For the assistant.
 """
 @document struct ClosedTaskGroup <: Document
     identifier::String
@@ -142,13 +172,16 @@ Use it to read every work item of the session, whatever its kind.
 
 # Example
 
-    [get_work_item_identifier(item) for item in collect_work_items(get_session_task_group_list())]
+    items_1 = collect_work_items(get_session_task_group_list())
 
-See also `collect_task_group_documents`, which gives the groups only.
+See also `list_task_groups`, which lists them in lines for a person.
+
+For the assistant.
 """
 function collect_work_items end
 
 collect_work_items(list::TaskGroupList) = Any[item for item in list.groups if !(item isa ClosedTaskGroup)]
+collect_work_items(list::ReferencedDocument) = collect_work_items(get_document(list))
 
 # ── The addresses ────────────────────────────────────────────────────────────
 #

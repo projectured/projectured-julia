@@ -156,7 +156,19 @@ The tree the one-line linear form of a formula stands for: what
 reads to an assignment of a fraction. A script takes one atom without braces
 too, `ρ^n`, and a symbol reads as its glyph or as its name, `ρ` or `\\rho`.
 An error names the position of what the reader could not read.
+
+Use it to read a formula in its one-line linear form into a document that you can open in a pane or edit.
+
+# Example
+
+    math_1 = parse_math("p = (1 - ρ) ρ^n")
+
+See also `parse_julia` and `find_math_symbol_name`.
+
+For the assistant.
 """
+function parse_math end
+
 function parse_math(text::AbstractString)
     p = _MathCursor(_tokenize_math(text), 1, Set{String}(), String[])
     _at(p, :end) && error("math: the line is empty")

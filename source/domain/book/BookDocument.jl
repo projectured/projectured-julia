@@ -1,6 +1,22 @@
 # Fragment of `BookModule` — the book document types: the abstract
 # `BookDocument`, its insertion cursor, and the nodes a book tree holds.
 
+"""
+    BookDocument
+
+The abstract supertype of the documents of a book. Its main members are `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture`.
+
+Use it to recognise the documents of a book when you walk a document: a part is one of them when `part isa BookDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("book")), part -> part isa BookDocument)
+    found_1 = search_documents(get_edited_document(find_pane("book")), part -> part isa BookChapter)
+
+See also `search_documents`, `find_pane`, `describe_document` and `BookChapter`.
+
+For the assistant.
+"""
 abstract type BookDocument <: Document end
 
 # ── Insertion cursor ─────────────────────────────────────────────────────

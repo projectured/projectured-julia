@@ -345,10 +345,10 @@ end
     # window of 800.
     popup = _cm_output_window(editor, screen, :widget_popup)
     main = _cm_output_window(editor, screen, id)
-    toolbar = find_part_place(editor.projection, editor.iomap,
-                              extend_reference(ProjecturedPlatform.ShellModule._find_shell_reference(editor.document),
-                                               FieldReferenceStep("toolbar")))
-    @test popup.y == toolbar[2] + 8
+    toolbar = ProjecturedPlatform.ScreenModule._find_part_box(editor.projection, editor.iomap,
+                  extend_reference(ProjecturedPlatform.ShellModule._find_shell_reference(editor.document),
+                                   FieldReferenceStep("toolbar")))
+    @test popup.y == toolbar.y + toolbar.height + 8
     @test popup.maximum_size[1] == 480
     @test popup.x == Int(main.x) + (800 - 480) ÷ 2
 end

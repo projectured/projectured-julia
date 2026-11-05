@@ -1,10 +1,11 @@
 """
     SettingsManagingModule
 
-The settings of an editor in its view: a document that holds the `Settings` of
-the editor around the document that the editor shows, a projection that turns
-each normal edit of a setting into an `ApplySettingOperation`, the commands of
-the settings, and the `settings` wrapper of `build_editor`.
+The settings of an editor as a view that a person edits, with the commands of the
+settings. The module holds a document that holds the `Settings` of the editor around
+the document that the editor shows, a projection that turns each normal edit of a
+setting into an `ApplySettingOperation`, the commands of the settings, and the
+`settings` wrapper of `build_editor`.
 
 The editor holds no setting and reads none. A view of a settings group makes the
 normal edit of a field, and `SettingsManagingProjection` is the one place that

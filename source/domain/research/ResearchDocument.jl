@@ -2,6 +2,22 @@
 # kinds of item that it holds, and the expectation that the prediction of a
 # hypothesis can be.
 
+"""
+    ResearchDocument
+
+The abstract supertype of the documents of a research study. Its main members are `ResearchStudy`, `ResearchMap`, `ResearchExpectation`, `ResearchDecisionDraft`.
+
+Use it to recognise the documents of a research study when you walk a document: a part is one of them when `part isa ResearchDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("study")), part -> part isa ResearchDocument)
+    found_1 = search_documents(get_edited_document(find_pane("study")), part -> part isa ResearchStudy)
+
+See also `search_documents`, `find_pane`, `describe_document` and `ResearchStudy`.
+
+For the assistant.
+"""
 abstract type ResearchDocument <: Document end
 
 """
@@ -35,6 +51,8 @@ Use it to read or build the question of a study.
     question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer keeps the drop rate under 1 %?"))
 
 See also `add_question!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchQuestion <: ResearchItem
     id::String = ""
@@ -65,6 +83,8 @@ Use it to read or build a source of a study.
     source_1 = ResearchSource(id = "S1", citation = PrimitiveString("Kleinrock, Queueing Systems, 1975"))
 
 See also `add_source!`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchSource <: ResearchItem
     id::String = ""
@@ -98,6 +118,8 @@ Use it to read or build a hypothesis of a study.
                                       question = question_1)
 
 See also `add_hypothesis!`, `ResearchExpectation`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchHypothesis <: ResearchItem
     id::String = ""
@@ -131,6 +153,8 @@ Use it to read or build the evidence of a study.
                                   supports = [hypothesis_1])
 
 See also `add_evidence!`, `check_predictions!`.
+
+For the assistant.
 """
 @document struct ResearchEvidence <: ResearchItem
     id::String = ""
@@ -164,6 +188,8 @@ Use it to read or build a decision of a study.
     decision_1 = ResearchDecision(id = "D1", statement = PrimitiveString("H1 holds."), accepts = [hypothesis_1])
 
 See also `record_decision!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchDecision <: ResearchItem
     id::String = ""
@@ -195,6 +221,8 @@ Use it to read or build the answer of a study.
     answer_1 = ResearchAnswer(id = "A1", statement = PrimitiveString("13 packets."), question = question_1)
 
 See also `add_answer!`, `ResearchQuestion`.
+
+For the assistant.
 """
 @document struct ResearchAnswer <: ResearchItem
     id::String = ""
@@ -229,6 +257,8 @@ Use it to read or build an experiment of a study.
     experiment_1 = ResearchExperiment(id = "X1", title = PrimitiveString("Sweep K = 1 … 20"), tests = [hypothesis_1])
 
 See also `add_experiment!`, `ResearchResult`.
+
+For the assistant.
 """
 @document struct ResearchExperiment <: ResearchItem
     id::String = ""
@@ -259,6 +289,8 @@ Use it to read or build an analysis of a study.
     analysis_1 = ResearchAnalysis(id = "N1", title = PrimitiveString("Blocking in closed form"))
 
 See also `add_analysis!`, `add_study_formula!`.
+
+For the assistant.
 """
 @document struct ResearchAnalysis <: ResearchItem
     id::String = ""
@@ -292,6 +324,8 @@ Use it to read or build a result of a study.
     result_1 = ResearchResult(id = "R1", title = PrimitiveString("Drop rate by K"), origin = experiment_1)
 
 See also `add_result!`, `ResearchEvidence`.
+
+For the assistant.
 """
 @document struct ResearchResult <: ResearchItem
     id::String = ""
@@ -317,13 +351,15 @@ A bound on recorded values: the prediction of a hypothesis that
   its value times `1 - tolerance` and `1 + tolerance`.
 - `tolerance` — the share of the reference that a value can differ by.
 
-Use it as the `prediction` of a hypothesis that a check of the results tests.
+Use it to give the `prediction` of a hypothesis that a check of the results tests.
 
 # Example
 
     ResearchExpectation(result_selection = selection_1, upper = 0.01)
 
 See also `check_predictions!`, `ResearchHypothesis`.
+
+For the assistant.
 """
 @document struct ResearchExpectation <: ResearchDocument
     result_selection::Any = nothing
@@ -389,6 +425,8 @@ Use it to read or build a study. A tab draws it as an outline of its items.
                             questions = [question_1], hypotheses = [hypothesis_1])
 
 See also `start_study!`, `describe_study`, `find_study_item`.
+
+For the assistant.
 """
 @document struct ResearchStudy <: ResearchDocument
     title::Any = PrimitiveString("")
@@ -460,7 +498,19 @@ const RESEARCH_AUTHORS = (:person, :assistant)
 
 The entry of `RESEARCH_KINDS` for the item type `type` or for an item: its field,
 its type, its letter and its name.
+
+Use it to find the field, the letter and the name of a kind of item, such as the `H` of a hypothesis.
+
+# Example
+
+    kind_1 = get_research_kind(ResearchHypothesis)
+
+See also `get_research_item_text` and `has_research_status`.
+
+For the assistant.
 """
+function get_research_kind end
+
 function get_research_kind(type::Type{<:ResearchItem})
     for kind in RESEARCH_KINDS
         type <: kind.type && return kind
@@ -468,20 +518,51 @@ function get_research_kind(type::Type{<:ResearchItem})
     throw(ArgumentError("No kind of item is a " * string(nameof(type)) * "."))
 end
 get_research_kind(item::ResearchItem) = get_research_kind(typeof(item))
+get_research_kind(item::ReferencedDocument) = get_research_kind(get_document(item))
 
 """
     has_research_status(item) -> Bool
 
 Whether `item` has a status: every item but a decision.
+
+Use it to check whether an item takes a status such as `:open` or `:accepted`.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    is_status_1 = has_research_status(hypothesis_1)
+
+See also `get_research_kind`.
+
+For the assistant.
 """
+function has_research_status end
+
 has_research_status(item::ResearchItem) = !(item isa ResearchDecision)
+has_research_status(item::ReferencedDocument) = has_research_status(get_document(item))
 
 """
     collect_study_items(study) -> Vector{ResearchItem}
 
 The items of the lists of `study`, in the order of the kinds and, in a list, in
 the order that they were made. An item that a link holds is not given again.
+
+Use it to list every item of a study in one vector.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    study_1 = ResearchStudy(title = PrimitiveString("Buffer"), questions = [question_1], hypotheses = [hypothesis_1])
+    items_1 = collect_study_items(study_1)
+
+See also `collect_research_links` and `get_research_item_text`.
+
+For the assistant.
 """
+function collect_study_items end
+
 function collect_study_items(study::ResearchStudy)
     items = ResearchItem[]
     for kind in RESEARCH_KINDS
@@ -489,6 +570,8 @@ function collect_study_items(study::ResearchStudy)
     end
     items
 end
+
+collect_study_items(study::ReferencedDocument) = collect_study_items(get_document(study))
 
 # ── The time ─────────────────────────────────────────────────────────────
 
@@ -540,10 +623,25 @@ end
 
 The text that names `item`: the title of an experiment, an analysis or a result,
 the citation of a source, the statement of any other item.
+
+Use it to read the words that name an item of a study.
+
+# Example
+
+    question_1 = ResearchQuestion(id = "Q1", statement = PrimitiveString("Which buffer is enough?"))
+    hypothesis_1 = ResearchHypothesis(id = "H1", statement = PrimitiveString("13 packets are enough."), question = question_1)
+    text_1 = get_research_item_text(hypothesis_1)
+
+See also `get_research_kind` and `collect_study_items`.
+
+For the assistant.
 """
+function get_research_item_text end
+
 get_research_item_text(item::Union{ResearchExperiment, ResearchAnalysis, ResearchResult}) = item.title
 get_research_item_text(item::ResearchSource) = item.citation
 get_research_item_text(item::ResearchItem) = item.statement
+get_research_item_text(item::ReferencedDocument) = get_research_item_text(get_document(item))
 
 _format_plain_text(text::AbstractString) = String(text)
 _format_plain_text(text::PrimitiveString) = something(text.value, "")

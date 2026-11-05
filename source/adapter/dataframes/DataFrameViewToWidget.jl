@@ -92,7 +92,7 @@ const _COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 const _LIST_COLUMN_COUNT = 64
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
-    height = ctx === nothing ? nothing : get_exact_height(ctx)
+    height = get_visible_height(ctx)
     # The rows that the table shows: the height less the space that the slot gives
     # at the top and at the bottom, less the expression bar and the header row,
     # which holds the filter row too, about four rows.

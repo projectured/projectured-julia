@@ -1,14 +1,14 @@
 """
     TaskModule
 
-Tasks as `opp_repl` runs them: a piece of work that runs and ends with a result,
-the codes a result takes, the words a result is reported in, the execution of a
-task that runs a process, and a group of tasks that runs a number at a time. Its
-documents show a task and a group on the screen, a feed carries what an
-execution says into them, its panes draw a group and the groups of the
-session, and its verbs read and act on the groups from the REPL and from a
-model. Nothing here knows what the work is: a domain adds its kinds of task,
-and says what a kind adds to the views.
+Tasks as `opp_repl` runs them: a piece of work that runs and ends with a result. The
+module holds the codes a result takes, the words a result is reported in, the
+execution of a task that runs a process, and a group of tasks that runs a number at
+a time. Its documents show a task and a group on the screen, a feed carries what an
+execution says into them, its panes draw a group and the groups of the session, and
+its verbs read and act on the groups from the REPL and from a model. Nothing here
+knows what the work is: a domain adds its kinds of task, and says what a kind adds
+to the views.
 """
 module TaskModule
 
@@ -112,7 +112,7 @@ export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, 
        TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
        get_task_output, wait_for_task_group!, wait_for_tasks!, is_task_group_running, stop_tasks!,
-       rerun_tasks!, close_task_group!, make_task_api
+       rerun_tasks!, close_task_group!
 
 include("TaskResult.jl")
 include("ImitatedProcess.jl")

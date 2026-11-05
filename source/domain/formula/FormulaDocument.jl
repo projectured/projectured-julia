@@ -2,6 +2,22 @@
 # `FormulaDocument` and the type-in entry point that parses typed text into
 # one.
 
+"""
+    FormulaDocument
+
+The abstract supertype of the documents of a formula. Its main members are `FormulaFormula`, `FormulaEnvironment`, `FormulaInsertion`.
+
+Use it to recognise the documents of a formula when you walk a document: a part is one of them when `part isa FormulaDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("sheet")), part -> part isa FormulaDocument)
+    found_1 = search_documents(get_edited_document(find_pane("sheet")), part -> part isa FormulaFormula)
+
+See also `search_documents`, `find_pane`, `describe_document` and `FormulaFormula`.
+
+For the assistant.
+"""
 abstract type FormulaDocument <: Document end
 
 """
@@ -163,7 +179,22 @@ The formulas `formula` depends on in `env`: each formula of the sheet that a
 free name of its code resolves to. A formula refers to another by name, so a
 sheet read from a `.pred` file, `code = "(1 - rho) * rho^n"`, refers to the
 formula `rho` of the same sheet.
+
+Use it to find which formulas of a sheet a formula reads, so you know what a change of one reaches.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    dependencies_1 = get_formula_dependencies(queue_1, sheet_1)
+
+See also `get_formula_names`, `would_create_cycle` and `evaluate_formula`.
+
+For the assistant.
 """
+function get_formula_dependencies end
+
 function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironment)
     deps = FormulaFormula[]
     for name in get_formula_names(formula)
@@ -174,6 +205,33 @@ function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironme
     end
     deps
 end
+
+get_formula_dependencies(formula::ReferencedDocument, environment) =
+    get_formula_dependencies(get_document(formula), environment)
+get_formula_dependencies(formula::FormulaFormula, environment::ReferencedDocument) =
+    get_formula_dependencies(formula, get_document(environment))
+
+"""
+    get_formula_names(code) -> Vector{String}
+    get_formula_names(formula::FormulaFormula) -> Vector{String}
+
+The free names of a Julia or math tree `code`, or of the code of `formula`, in the
+order that the walk meets them. A name that the code binds itself is not free.
+
+Use it to find the names that a formula reads from its sheet.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    names_1 = get_formula_names(queue_1)
+
+See also `get_formula_dependencies` and `parse_julia`.
+
+For the assistant.
+"""
+function get_formula_names end
 
 """
     get_formula_names(code) -> Vector{String}
@@ -446,7 +504,22 @@ end
 True if adding a reference `from → to` would close a cycle, i.e. if `to` can
 already reach `from` through the existing dependency graph (or `to === from`).
 DFS over `get_formula_dependencies`.
+
+Use it to check that a formula may read another before you make it do so.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    is_cycle_1 = would_create_cycle(sheet_1, rho_1, queue_1)
+
+See also `get_formula_dependencies`.
+
+For the assistant.
 """
+function would_create_cycle end
+
 function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::FormulaFormula)
     from === to && return true
     visited = Set{FormulaFormula}()
@@ -462,6 +535,14 @@ function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::F
     end
     return false
 end
+
+# A part reads as its document.
+would_create_cycle(environment::ReferencedDocument, from, to) =
+    would_create_cycle(get_document(environment), from, to)
+would_create_cycle(environment::FormulaEnvironment, from::ReferencedDocument, to) =
+    would_create_cycle(environment, get_document(from), to)
+would_create_cycle(environment::FormulaEnvironment, from::FormulaFormula, to::ReferencedDocument) =
+    would_create_cycle(environment, from, get_document(to))
 
 """
     compute_topological_order(env) -> Vector{FormulaFormula}
@@ -575,7 +656,22 @@ that calls it, so no print calls it.
 
 An error that the code raises, a dependency whose value is a `FormulaError`,
 and a formula that depends on itself give a `FormulaError`.
+
+Use it to compute the value of a formula of a sheet from the values of the formulas it reads.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    value_1 = evaluate_formula(queue_1, sheet_1)
+
+See also `get_formula_result` and `get_formula_dependencies`.
+
+For the assistant.
 """
+function evaluate_formula end
+
 function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
                           scratch::Module = _make_formula_scratch_module())
     _depends_on_itself(formula, env) && return FormulaError("#CYCLE!")
@@ -593,6 +689,11 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment;
         FormulaError("#ERROR! " * sprint(showerror, e))
     end
 end
+
+evaluate_formula(formula::ReferencedDocument, environment; keywords...) =
+    evaluate_formula(get_document(formula), environment; keywords...)
+evaluate_formula(formula::FormulaFormula, environment::ReferencedDocument; keywords...) =
+    evaluate_formula(formula, get_document(environment); keywords...)
 
 # Run the `Expr` of the code of a formula in `scratch`, with each binding as a
 # local of a `let`. An error that the code raises is a `FormulaError`.
@@ -657,6 +758,8 @@ it, or to state an expectation from it.
     println(get_formula_value(p_block_1))
 
 See also `get_edited_document`, `print_natural_text`.
+
+For the assistant.
 """
 function get_formula_value end
 
@@ -706,8 +809,24 @@ end
 
 The value that the last computation of `formula` stored, which a view shows, or
 `nothing` before the first one. It runs no code.
+
+Use it to read the value that a sheet shows for a formula without computing it again.
+
+# Example
+
+    rho_1 = FormulaFormula("rho", parse_julia("0.8"))
+    queue_1 = FormulaFormula("queue", parse_julia("rho * 2"))
+    sheet_1 = FormulaEnvironment([rho_1, queue_1])
+    result_1 = get_formula_result(queue_1)
+
+See also `evaluate_formula`.
+
+For the assistant.
 """
+function get_formula_result end
+
 get_formula_result(formula::FormulaFormula) = formula.result
+get_formula_result(formula::ReferencedDocument) = get_formula_result(get_document(formula))
 
 # Whether the stored value of a formula is a function, which a row shows as its
 # equation and no value.

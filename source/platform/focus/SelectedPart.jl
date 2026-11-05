@@ -35,6 +35,8 @@ the text of the part, to say what it is, or to change it.
     println(print_natural_text(part_1))
 
 See also `find_part_under_pointer`, `select_part!`, `print_natural_text`.
+
+For the assistant.
 """
 function find_selected_part end
 
@@ -63,6 +65,8 @@ this?" when nothing is selected.
     part_1 === nothing || println(describe_document(part_1))
 
 See also `find_selected_part`, `describe_document`.
+
+For the assistant.
 """
 function find_part_under_pointer end
 
@@ -92,6 +96,8 @@ Use it to show the person the part that you talk about.
     select_part!(people_1[2])
 
 See also `find_selected_part`, `focus_pane!`.
+
+For the assistant.
 """
 function select_part! end
 

@@ -16,6 +16,8 @@ Use it to put a document on a dashboard.
     card_1 = DashboardCard("Runs", get_session_task_group_list())
 
 See also `Dashboard`.
+
+For the assistant.
 """
 @document struct DashboardCard <: Document
     title::String
@@ -52,7 +54,9 @@ runs, notes.
 
     dashboard_1 = Dashboard("Queue study", Any[DashboardCard("Tasks", get_session_task_group_list())])
 
-See also `DashboardCard` and `Explorer`.
+See also `DashboardCard` and `find_explorer_content`.
+
+For the assistant.
 """
 @document struct Dashboard <: Document
     title::String

@@ -61,7 +61,7 @@ _collect_runnable_commands(editor, part::ReferencedDocument) =
     [command for command in _collect_part_commands(editor, part) if first(command).operation !== nothing]
 
 """
-    describe_commands(part; editor = get_evaluation_editor()) -> Text
+    describe_commands(part; editor = get_evaluation_editor()) -> String
 
 The commands that can run on `part` now, one line each: the words that say what
 the command does, and the keys that run it when it has keys. They are the
@@ -83,6 +83,8 @@ of an entry of the explorer.
     println(describe_commands(find_explorer_content().entries[1]))
 
 See also `run_command!`, `find_selected_part`.
+
+For the assistant.
 """
 function describe_commands end
 
@@ -90,14 +92,14 @@ function describe_commands(part::ReferencedDocument; editor = get_evaluation_edi
     run_on_editor_task!(editor; description = "describe_commands") do
         rows = first.(_collect_runnable_commands(editor, part))
         isempty(rows) &&
-            return Text("This " * String(nameof(typeof(get_document(part)))) * " has no command now.")
-        Text(join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
-                   for row in rows], "\n"))
+            return "This " * String(nameof(typeof(get_document(part)))) * " has no command now."
+        join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
+                 for row in rows], "\n")
     end
 end
 
 """
-    run_command!(part, description; editor = get_evaluation_editor()) -> Text
+    run_command!(part, description; editor = get_evaluation_editor()) -> String
 
 Run the command of `part` whose words are `description`, as [`describe_commands`](@ref)
 writes them, as the person runs it from the command palette. The change is an
@@ -114,12 +116,22 @@ the end of a JSON array.
     run_command!(people_1, "Insert a new element")
 
 See also `describe_commands`, `replace_referenced_value!`.
+
+For the assistant.
 """
 function run_command! end
 
 function run_command!(part::ReferencedDocument, description::AbstractString;
                       editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "run_command!") do
+        apply_change!(make_change(run_command!, part, description; editor); editor)
+        "Ran " * repr(String(description)) * "."
+    end
+end
+
+make_change(::typeof(run_command!), part::ReferencedDocument, description::AbstractString;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
         commands = _collect_runnable_commands(editor, part)
         rows = first.(commands)
         matches = [command for command in commands if first(command).description == description]
@@ -137,7 +149,5 @@ function run_command!(part::ReferencedDocument, description::AbstractString;
         rooted === nothing &&
             throw(ArgumentError("The window can not run " * repr(String(description)) *
                                 " on this part."))
-        evaluate_operation(editor, rooted)
+        RootedOperation(rooted, String(description))
     end
-    Text("Ran " * repr(String(description)) * ".")
-end

@@ -91,7 +91,8 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
         set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
     end
     buttons = HorizontalLayout(Any[reset, save, load]; gap = unwrap_cell(p.button_gap))
-    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = unwrap_cell(p.section_gap)))
+    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = unwrap_cell(p.section_gap));
+                              grows = (width = false, height = true))
     # Each kind of path of the settings names a part of the tab: the output holds
     # its image, and each document below it the part of its parent's path.
     set_output_path_computations!(output, settings, path -> find_introduced_path(p, path))

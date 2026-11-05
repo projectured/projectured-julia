@@ -1,9 +1,9 @@
 """
     JuliaModule
 
-The Julia document domain — a Julia AST as reactive `Document`s. Leaves
-(identifiers, literals), expressions (binary/call/index/…), and statements
-(assign/for/if/function/block).
+Julia code as documents: the syntax tree of a Julia program, with one document for
+each node. Leaves (identifiers, literals), expressions (binary/call/index/…), and
+statements (assign/for/if/function/block).
 """
 module JuliaModule
 

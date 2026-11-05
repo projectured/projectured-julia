@@ -1,12 +1,14 @@
 """
     CollectionModule
 
-Generic reactive collection document types. Four structural shapes: an indexed
+Collection documents: a vector, a matrix, a table and a linked list, in which a
+change to one slot touches only its readers. Four structural shapes: an indexed
 growable vector (each slot is a reactive Cell), a dense rectangular matrix of
 reactive Cells, a table (CellVector of CellVector rows) optimised for row
-insert/delete, and a doubly-linked list with a fixed head and two unlimited
-tails. The table interface reads any kind of table, a part of its rows too. Per-slot reactivity means a change to one element invalidates only that
-slot's dependents, not the entire collection.
+insert/delete, and a doubly-linked list with a fixed head and two unlimited tails.
+The table interface reads any kind of table, a part of its rows too. Per-slot
+reactivity means a change to one element invalidates only that slot's dependents,
+not the entire collection.
 
 # Invariants
 - **Value change vs. structural change.** `cv[i] = val` writes *into* slot `i`'s

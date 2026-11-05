@@ -215,7 +215,9 @@ section of an explorer does.
 
     collect_tree_children(get_session_task_group_list(); limit = 5)
 
-See also `get_tree_children_steps` and `DocumentTree`.
+See also `has_tree_children` and `DocumentTree`.
+
+For the assistant.
 """
 function collect_tree_children end
 

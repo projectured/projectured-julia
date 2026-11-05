@@ -84,7 +84,7 @@ function show_document!(editor::Editor, ::PaneTree, document; title::AbstractStr
     found = search_references(_get_root_document(editor),
                               node -> node isa PaneTab &&
                                       find_pane_tab_layer(node, layer -> layer === document) !== nothing;
-                              descend = is_pane_search_step)
+                              walk = DocumentWalk(; descend = is_pane_search_step))
     tab = isempty(found) ? open_pane!(document; title = String(title), editor) : first(found)
     show_pane!(tab; editor)
     nothing

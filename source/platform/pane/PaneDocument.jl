@@ -2,6 +2,22 @@
 # `PaneDocument`, the tab that names a content document, and the containers
 # that arrange them.
 
+"""
+    PaneDocument
+
+The abstract supertype of the documents of the window layout. Its main members are `PaneTree`, `PaneSplit`, `PaneGroup`, `PaneTab`.
+
+Use it to recognise the documents of the window layout when you walk a document: a part is one of them when `part isa PaneDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneDocument)
+    found_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneTab)
+
+See also `search_documents`, `find_pane`, `describe_document` and `PaneTab`.
+
+For the assistant.
+"""
 abstract type PaneDocument <: Document end
 
 # ── PaneTabTitle ───────────────────────────────────────────────────────────
@@ -98,6 +114,8 @@ and a `PaneSplit` you write by hand needs them.
     PaneTab("Delay", make_result_plot(frame))
 
 See also `PaneTabTitle`, `PaneGroup`, `open_pane!`.
+
+For the assistant.
 """
 @document struct PaneTab <: PaneDocument
     title::Any
@@ -207,6 +225,8 @@ See also `PaneSplit`, `PaneTab`.
 
 The tab the group shows is the tab its own `selection` names. There is no
 `active` field.
+
+For the assistant.
 """
 @document struct PaneGroup <: PaneDocument
     tabs::CellVector
@@ -241,6 +261,8 @@ reference with `replace_referenced_value!` to split the window.
         PaneSplit(:vertical, [PaneGroup([PaneTab("Plot", plot)]), tree.root]; weights = [0.4, 0.6]))
 
 See also `PaneGroup`, `PaneTab`, `replace_referenced_value!`.
+
+For the assistant.
 """
 @document struct PaneSplit <: PaneDocument
     orientation::Symbol
@@ -281,6 +303,8 @@ not part of the layout and is not meant to be serialized.
 `maximized` is the group that fills the window, or `nothing`; the layout stays as
 it is. [`find_pane_maximized_group`](@ref) says when the group shows. It is a view
 state, and a save does not write it.
+
+For the assistant.
 """
 @document struct PaneTree <: PaneDocument
     root::Any
@@ -333,7 +357,13 @@ It reads the live tree: a tab that an undo holds is not in it.
 # Example
 
     collect_pane_tab_contents(tree, Assistant)     # the assistant tabs of the window
+
+See also `get_wrapped_document` and `get_session_assistant_list`.
+
+For the assistant.
 """
+function collect_pane_tab_contents end
+
 function collect_pane_tab_contents(tree::PaneTree, T::Type)
     found = T[]
     for group in get_pane_groups(tree)
@@ -344,6 +374,8 @@ function collect_pane_tab_contents(tree::PaneTree, T::Type)
     end
     found
 end
+
+collect_pane_tab_contents(tree::ReferencedDocument, T::Type) = collect_pane_tab_contents(get_document(tree), T)
 
 """
     find_pane_tab_layer(tab, matches) -> document or nothing

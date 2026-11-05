@@ -1,11 +1,11 @@
 """
     OutlineModule
 
-The kit of an outline of records, such as a study or a workflow: one theme, and
-the builders of the parts that a row of a record shows. A row has a column of its
-facts (its fold, its mark, its id, its author and its time), the column of its
-text, and a column for its menu. A domain builds its view from these parts, so a
-study and a workflow read as one notation.
+The shared parts of an outline of records, such as a study or a workflow: one theme,
+and the builders of a row. A row has a column of its facts (its fold, its mark, its
+id, its author and its time), the column of its text, and a column for its menu. A
+domain builds its view from these parts, so a study and a workflow read as one
+notation.
 """
 module OutlineModule
 
@@ -25,6 +25,8 @@ using ..StyleModule
 using ..ToolModule
 using ..TooltipModule
 using ..WidgetModule
+
+import ..EditorModule: make_change
 
 export OutlineTheme, ScaledOutlineTheme, make_outline_values_field
 export compute_shown_dates

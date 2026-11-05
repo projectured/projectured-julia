@@ -589,6 +589,28 @@ fail reports zero whether or not anything is wrong:
 `test_verdict_stability(names)` additionally requires that the same leaves
 measured forward, forward again and backward give identical counts.
 
+## The layout rules
+
+`test_layout_rules()` (`ProjecturedPlatformTest`, in `test_platform()`) checks
+the rules of [layout-rules.md](../rule/layout-rules.md) for every widget type
+and every layout type of the platform. It runs in about 16 s, most of which is
+compilation, and makes 520 checks.
+
+- Each type has a small sample with no authored size, and a kind on each axis:
+  `:rigid`, `:reflowing`, `:scrolls`, `:fills`, `:authored` or `:overlay`. The
+  test prints the sample in an exact, a bounded, an "at least" and a free range,
+  and checks what it draws by the rule of its kind.
+- A guard fails for a concrete type below `WidgetDocument` or `LayoutDocument`
+  that has no kind. When you add such a type, add its sample and its kind to
+  `_RULES_KINDS` in `test/platform/projection/LayoutRulesTest.jl`, or a reason
+  why the type is not placed alone.
+- The worked cases of [layout-rules.md](../rule/layout-rules.md) §5 are tests,
+  and so is a lazy grid of ten million rows in a scroll area that grows.
+
+Run it after a change of a printer that sizes a widget or a layout, of a scroll
+area, or of a stack. Then run `test_dataframes()`. The view of a data frame sizes
+its rows by the same rules, and only that suite edits a data frame in its view.
+
 ## The static guards
 
 `test/suite/*.jl` holds the guards of the rules that a program can check. Each

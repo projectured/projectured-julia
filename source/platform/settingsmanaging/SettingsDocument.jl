@@ -64,7 +64,7 @@ function make_pred_document(::Type{<:Settings}, positional, keywords)
 end
 
 """
-    describe_settings(; editor = get_evaluation_editor()) -> Text
+    describe_settings(; editor = get_evaluation_editor()) -> String
 
 The settings of the window, one line each: the group, the name, the value now,
 and the sentence that says what the setting does, with the values it can take
@@ -78,13 +78,15 @@ Use it to find the name of a setting before you change it with
     println(describe_settings())
 
 See also `change_setting!`.
+
+For the assistant.
 """
 function describe_settings end
 
 function describe_settings(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_settings") do
         settings = find_editor_settings(; editor)
-        settings === nothing && return Text("This window has no settings.")
+        settings === nothing && return "This window has no settings."
         lines = String[]
         for group in get_settings_groups(settings)
             T = get_settings_group_type(group)
@@ -96,7 +98,7 @@ function describe_settings(; editor = get_evaluation_editor())
                              description.text * values)
             end
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 
@@ -118,6 +120,8 @@ Use it to change how the window looks or works when the person asks for it.
     change_setting!(:partial_render, false)
 
 See also `describe_settings`.
+
+For the assistant.
 """
 function change_setting! end
 

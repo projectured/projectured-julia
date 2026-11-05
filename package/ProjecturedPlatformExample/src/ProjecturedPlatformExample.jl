@@ -72,6 +72,7 @@ include("../../../example/platform/TextHighlightingDocumentExample.jl")
 include("../../../example/platform/TextMarkingDocumentExample.jl")
 include("../../../example/platform/WidgetDocumentExample.jl")
 include("../../../example/platform/LayoutDocumentExample.jl")
+include("../../../example/platform/LayoutCaseDocumentExample.jl")
 include("../../../example/platform/CollectionDocumentExample.jl")
 include("../../../example/platform/PrimitiveDocumentExample.jl")
 include("../../../example/platform/AppearanceDocumentExample.jl")
@@ -174,6 +175,8 @@ export make_fault_log_document_example, make_fault_report_document_example,
        make_widget_highlight_document_example, make_context_menu_window_state_document_example
 export make_horizontal_layout_document_example, make_layout_constraint_document_example
 export make_layout_document_example, make_layout_projection_example
+export make_layout_text_above_table_document_example, make_layout_scroll_area_in_page_document_example, make_layout_fill_in_scroll_area_document_example, make_layout_shares_document_example, make_layout_row_edge_document_example, make_layout_rows_in_slot_and_page_document_example
+export layout_text_above_table_example, layout_scroll_area_in_page_example, layout_fill_in_scroll_area_example, layout_shares_example, layout_row_edge_example, layout_rows_in_slot_and_page_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_line_numbering_document_example, make_line_numbering_projection_example

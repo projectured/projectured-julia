@@ -339,99 +339,23 @@ function _make_application_pane_projection(content, measure, appearance::Appeara
 end
 
 """
-    make_editor_api() -> Vector
+    make_editor_api() -> Vector{ApiEntry}
 
-What the assistant of a window of the editor may write: the vocabulary that
-every window declares, and that a window of a domain extends with its own verbs.
-
-The vocabularies: the pane verbs that arrange the window, the widget names that
-build what a pane shows, the file verbs that open and save one, the workspace
-that the Files pane lists, the text form of a document of any domain, the verbs
-that edit a collection, the verbs that filter, sort, group and limit a
-collection, the verbs that gather the members of one kind into a roster, the
-verbs of the groups of tasks, the verb that shows a document as a tree, the verbs
-that show and describe the processes of the system, and what each loaded domain
-registered with `register_assistant_api!`. Every name here is a verb the
+What the assistant of a window of the editor may write: every name of a loaded
+module whose docstring has the mark `For the assistant.`
+([`collect_marked_api`](@ref)), with every subtype of a marked type except the
+placeholders that a domain makes for the editor ([`is_domain_placeholder`](@ref)),
+and the names of the other packages that an
+adapter registered with [`register_assistant_api!`](@ref), such as the verbs of
+`DataFrames`, whose docstrings no mark can reach. Every name here is a name the
 assistant reaches through `execute_julia_code`, and nothing else resolves.
 
-Each vocabulary is declared where its verbs are, so a host that offers the same
-verbs states it once and this function only names which it wants. The Projectured
-application declares this list as it is; the OMNeT++ IDE adds the verbs of its
-simulations to it.
+The marks are read when it runs, so a window offers the verbs of every package
+that it loads: the OMNeT++ IDE offers the verbs of its simulations beside those of
+the editor, and the Projectured application offers those of each domain it loads.
 """
-make_editor_api() = Any[
-    make_pane_api()...,
-    make_interface_api()...,
-    make_file_api()...,
-    # The tree that the Files pane lists, and the operation that opens a row of it.
-    FileSystemModule => (:Workspace, :WorkspaceFolder, :WorkspaceExplorer),
-    WidgetModule => (:OpenFileOperation,),
-    # How a model reads what a tab holds, which is what a window of files is
-    # asked about: find a document in the window, see through the history a file
-    # carries, take the content of a file document, and read or write a document
-    # of any domain as its own text.
-    DocumentModule => (:search_documents, :get_wrapped_document),
-    FileFormatModule => (:get_file_content,),
-    NaturalModule => (:print_natural_text, :parse_natural_text, :describe_natural_formats),
-    # The text of a part that has no text of its own domain: the constructor that
-    # builds it.
-    SerializationModule => (:print_pred_text,),
-    # What the person does and did: the part that the person selected, the part
-    # under the pointer, the history of the changes, the gestures, the messages and
-    # the faults of the window, and the text that the person copied.
-    FocusModule => (:find_selected_part, :find_part_under_pointer, :select_part!),
-    UndoModule => (:describe_undo_history,),
-    GestureLogModule => (:get_session_gesture_log,),
-    MessageLogModule => (:get_session_message_log,),
-    FaultViewModule => (:get_session_fault_log,),
-    ClipboardModule => (:read_os_clipboard, :write_os_clipboard!),
-    # What a model draws with for the person: the shapes and the text of a
-    # canvas, their colors and fonts. A chart and a graph come with their domains.
-    GraphicsModule => (:GraphicsCanvas, :GraphicsRect, :GraphicsText, :GraphicsLine,
-                       :GraphicsCircle, :GraphicsArc, :GraphicsPolyline, :GraphicsPolygon,
-                       :GraphicsSpline, :GraphicsImage),
-    StyleModule => (:StyleColor, :StyleFont),
-    # The time of the animation clock of the editor, which a live coordinate of a
-    # shape reads to move.
-    ClockModule => (:get_reactive_clock_time, :get_clock_time),
-    # The commands of a part, which a key or the command palette runs for the
-    # person, listed and run by their words.
-    GestureHelpModule => (:describe_commands, :run_command!),
-    # What controls the window and what shows the person a part: a part as a page
-    # of a navigator, and the settings of the window.
-    NavigatorModule => (:open_page!,),
-    SettingsManagingModule => (:describe_settings, :change_setting!),
-    # The verbs that edit a collection of a document, as edits of the editor.
-    EditorModule => (:insert_elements!, :delete_elements!),
-    # The verbs that filter, sort, group and limit a collection, which change how
-    # it shows and not its data.
-    ArrangementModule => (:filter_collection!, :sort_collection!, :group_collection!, :limit_collection!),
-    # The verbs that gather the members of one kind from the whole window or the
-    # session into a table, the sources of such a table, and the words that say
-    # what it can show.
-    RosterModule => (:Roster, :show_roster!, :describe_roster_sources, :describe_item_facets,
-                     :edit_shown_items!, :CollectionItems, :ItemsWithin, :StoreRecords),
-    # The verbs that list, describe, stop, run again and close the groups of tasks
-    # of the session, whichever verb started them.
-    make_task_api()...,
-    # The verb that shows a document and the documents under it as a tree, and the
-    # label of a node as a tree shows it.
-    TreeModule => (:DocumentTree, :show_document_tree!, :format_tree_node_label),
-    # The verbs that show the processes under a process as a tree, and write them
-    # as text.
-    SystemProcessModule => (:show_system_process_tree!, :describe_system_process_tree),
-    # The verb that shows the work of the agent of an assistant as a page.
-    AssistantModule => (:show_assistant_work!,),
-    # The content of the explorer of the window as a part of it, the page of a part
-    # in the explorer, and the documents that a model adds to it: a section and a
-    # dashboard of cards.
-    ExplorerModule => (:find_explorer_content, :open_explorer_page!, :ExplorerSection, :Dashboard,
-                       :DashboardCard),
-    PaneModule => (:TabDocuments,),
-    # What each loaded domain offers for its own documents, such as the shape of
-    # a JSON file, which a model reads to find the fields of a record.
-    get_registered_assistant_api()...,
-]
+make_editor_api() =
+    ApiEntry[collect_marked_api(; exclude = is_domain_placeholder)..., get_registered_assistant_api()...]
 
 """
     EDITOR_SYSTEM

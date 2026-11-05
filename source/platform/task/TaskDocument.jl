@@ -15,10 +15,9 @@ and runs no process, for an example or a picture of a task.
 
 # Example
 
-    document = TaskDocument(task)
-    start_task!(document)
-    wait_task_document(document)
-    get_task_document_status(document)       # :done
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskDocument)
+
+See also `TaskGroupDocument`, `TaskExecution`, `find_task_group` and `list_task_groups`.
 
 # Fields
 - `task` — the task that runs, an `AbstractTask` of a domain. It does not change.
@@ -52,6 +51,8 @@ and runs no process, for an example or a picture of a task.
 
 While the document has a current execution, its shadow is the last of
 `executions` ([`get_current_task_execution`](@ref)).
+
+For the assistant.
 """
 @document struct TaskDocument <: Document
     task::Any

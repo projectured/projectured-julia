@@ -73,6 +73,10 @@ function _cm_output_window(editor, scene, id::Symbol)
     _cm_force(windows[index])
 end
 
+# Where the window `window` of `scene` stands on the screen.
+_cm_shown_place(editor, scene, window) =
+    (shown = _cm_output_window(editor, scene, window.id); (Int(shown.x), Int(shown.y)))
+
 # Where `text` is drawn in `node`, in the frame of `node`, or `nothing`.
 function _cm_place_of(node, text, ox = 0, oy = 0)
     node = _cm_force(node)
@@ -86,7 +90,20 @@ function _cm_place_of(node, text, ox = 0, oy = 0)
             found === nothing || return found
         end
     end
+    # A viewport, such as the pane of the rows of a list, holds its canvas.
+    node isa GraphicsViewport && return _cm_place_of(node.content, text, x, y)
     nothing
+end
+
+# The innermost canvas of `node` that draws every one of `texts`, or `nothing`.
+function _cm_canvas_holding(node, texts)
+    node = _cm_force(node)
+    hasproperty(node, :elements) || return nothing
+    for element in _cm_force(node.elements)
+        inner = _cm_canvas_holding(element, texts)
+        inner === nothing || return inner
+    end
+    all(text -> _cm_place_of(node, text) !== nothing, texts) ? node : nothing
 end
 
 function test_context_menu_window()
@@ -98,7 +115,7 @@ function test_context_menu_window()
     window = only(_cm_menus(scene))
     # At the point of the click, in the coordinates of the screen: the window is
     # at (100, 100).
-    @test (window.x, window.y) == (100 + 20, 100 + 10)
+    @test _cm_shown_place(editor, scene, window) == (100 + 20, 100 + 10)
     @test window.auto_dismiss
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # The state of the wrapper keeps what the window shows.
@@ -162,7 +179,7 @@ end
     @test count(element -> element isa WidgetSeparator, elements) == 1
     @test !first(item for item in elements if item isa WidgetMenuItem).enabled
     # The window stays where it opened.
-    @test (window.x, window.y) == (100 + x + 2, 100 + y + 2)
+    @test _cm_shown_place(editor, scene, window) == (100 + x + 2, 100 + y + 2)
     # With every layer shown, F2 changes nothing.
     _cm_send!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 1.3))
     @test state.shown == 2
@@ -266,7 +283,21 @@ end
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # With no point, the window stands below the wrapper, with the left edges
     # aligned and a gap of 2 pixels.
-    @test (window.x, window.y) == (100, 100 + height + 2)
+    @test _cm_shown_place(editor, scene, window) == (100, 100 + height + 2)
+end
+
+@testset "a menu with no room below the pointer opens above it" begin
+    editor, backend, scene = _cm_editor()
+    _cm_click!(editor, backend, :right, 20, 10, 1.0)
+    window = only(_cm_menus(scene))
+    # The backend fits the size, and writes the areas of the displays. The point
+    # is at (120, 110) on the screen.
+    window.width, window.height = 80, 60
+    scene.display_areas = [(0, 0, 500, 150)]
+    @test _cm_shown_place(editor, scene, window) == (120, 110 - 60)
+    # No room on the right: it slides left.
+    scene.display_areas = [(0, 0, 150, 150)]
+    @test _cm_shown_place(editor, scene, window) == (70, 50)
 end
 
 @testset "a list with the top placement opens at the top center of its part, and keeps its width" begin
@@ -306,6 +337,27 @@ end
     window = _cm_output_window(editor, scene, :widget_popup)
     @test window.maximum_size == (listed, 200)
     @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
+end
+
+@testset "a list that fills its offer is as wide as the minimum width that its placement sets" begin
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[WidgetButton("Run"; size = Point2D(300, 24))]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    list = WidgetChoiceList(; find = query -> WidgetChoice[WidgetChoice(name) for name in ("alpha", "beta")],
+                            choose = value -> nothing, fills_offer = true)
+    # The window fits its content, so its minimum width reaches the list as the
+    # minimum of a range, and not as a slot.
+    placement = part -> make_part_top_placement(part; width_share = 0.5, minimum_width = 250,
+                                                maximum_height = 200, gap = 8)
+    evaluate_operation(editor, read_rooted_operation(editor, place, make_choice_list_operation("Find", list; placement)))
+    run_frame!(editor)
+    @test _cm_output_window(editor, scene, :widget_popup).minimum_size == (250, 0)
+    menu = _cm_canvas_holding(_cm_drawn_window(editor, scene, :widget_popup), ("alpha", "beta"))
+    @test Int(_cm_force(menu.w)) == 250
 end
 
 @testset "the first key of an insertion opens its kinds under it, the next keys type into them, and Return makes one" begin

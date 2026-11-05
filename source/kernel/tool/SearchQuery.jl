@@ -179,17 +179,23 @@ function parse_keyword_query(text::AbstractString)
     KeywordQuery(must, should, must_not)
 end
 
-# Does `form` occur in `text` where a word starts? A word character is a letter or
-# a digit; `_` separates the words of a name.
-function _occurs_at_word_start(form::AbstractString, text::AbstractString)
-    for range in findall(form, text; overlap = true)
-        start = first(range)
-        start == firstindex(text) && return true
-        before = text[prevind(text, start)]
-        (isletter(before) || isdigit(before)) || return true
-    end
-    false
+# Does a word start at index `start` of `text`? A word character is a letter or a
+# digit; `_` separates the words of a name.
+function _is_word_start(text::AbstractString, start::Int)
+    start == firstindex(text) && return true
+    before = text[prevind(text, start)]
+    !(isletter(before) || isdigit(before))
 end
+
+# Does `form` occur in `text` where a word starts?
+_occurs_at_word_start(form::AbstractString, text::AbstractString) =
+    any(range -> _is_word_start(text, first(range)), findall(form, text; overlap = true))
+
+# How often `form` occurs in `text` where a word starts: "row" counts in "rows" and
+# not in "grows". A pattern counts wherever it matches, because it says where.
+_count_at_word_start(form::AbstractString, text::AbstractString) =
+    count(range -> _is_word_start(text, first(range)), findall(form, text; overlap = true))
+_count_at_word_start(form::Regex, text::AbstractString) = length(findall(form, text))
 
 _has_term(term::SearchTerm, text::AbstractString) =
     any(form -> occursin(form, text), term.forms)

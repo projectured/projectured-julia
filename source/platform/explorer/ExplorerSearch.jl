@@ -206,7 +206,7 @@ function describe_work_item(search::ExplorerSearch; limit::Integer = 20)
         push!(lines, string(format_tree_node_label(match.document), " — ", join(match.labels, " / ")))
     end
     length(result.matches) > limit && push!(lines, string("… and ", length(result.matches) - limit, " more"))
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 """

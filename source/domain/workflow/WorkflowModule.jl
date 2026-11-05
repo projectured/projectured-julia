@@ -1,10 +1,11 @@
 """
     WorkflowModule
 
-The workflow document domain: the record of a piece of human work. A workflow is
-an AND/OR tree. A step holds its sub-steps, which all belong to it; a decision
-holds its options, of which one is chosen. Each node keeps a dated journal and
-the documents of any domain that the work needs, as its elements.
+Workflow documents: the record of a piece of human work, as a tree of steps and
+decisions. A workflow is an AND/OR tree. A step holds its sub-steps, which all
+belong to it; a decision holds its options, of which one is chosen. Each node keeps
+a dated journal and the documents of any domain that the work needs, as its
+elements.
 
 The domain includes:
 - **The tree**: `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`
@@ -22,6 +23,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, get_view_state_fields, has_document_duplicate, is_walk_opaque
 import ..DomainModule: make_pasted_document_operation, get_insertion_aliases, make_insertion_document,
                        get_document_decoration, accepts_pasted_document, accepts_opened_file
@@ -39,7 +41,7 @@ export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, Workflo
 export make_add_workflow_entry_operation, make_workflow_entry, make_workflow_state_operation,
        get_next_workflow_state, make_insert_workflow_node_operation, make_delete_workflow_node_operation,
        make_workflow_decision,
-       make_choose_workflow_option_operation, WORKFLOW_ASSISTANT_API, start_workflow!,
+       make_choose_workflow_option_operation, start_workflow!,
        record_workflow_decision!,
        choose_workflow_option!, reject_workflow_option!, add_workflow_entry!, add_workflow_step!,
        change_workflow_state!, collect_workflow_entries
@@ -67,10 +69,9 @@ function __init__()
                             description = "the workflows of the open files of the session, each with its file " *
                                           "as within")
 
-    # What the model of an assistant may write about a workflow: the documents,
-    # the verbs that record the work as the assistant, and the read of a journal.
-    # Each verb is an edit of the editor, which a person takes back with Ctrl+Z.
-    register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API;
+    # The sentence that the system text of a window says about a workflow: the
+    # documents, the verbs that record the work, and the read of a journal.
+    register_assistant_api!(Any[];
         description = "A workflow records the work as steps, decisions and elements: " *
                       "`add_workflow_step!` and `record_workflow_decision!` add to it, " *
                       "`add_element!` adds a document of any domain to a node, and " *

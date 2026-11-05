@@ -124,6 +124,8 @@ Use it to keep a study as files beside the project that it studies.
     save_study_folder!(study_1, "buffer-study")
 
 See also `load_study_folder`.
+
+For the assistant.
 """
 function save_study_folder! end
 
@@ -159,6 +161,8 @@ Use it to open a study that a folder keeps.
     study_1 = load_study_folder("buffer-study")
 
 See also `save_study_folder!`.
+
+For the assistant.
 """
 function load_study_folder end
 

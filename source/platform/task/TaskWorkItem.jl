@@ -58,7 +58,7 @@ See also `describe_work_item` and `remove_task_group!`.
 function stop_work_item! end
 
 """
-    describe_work_item(item; limit = 20) -> Text
+    describe_work_item(item; limit = 20) -> String
 
 What `item` did, in lines for a person: its state and what it found, at most
 `limit` lines of its parts. A group says how its tasks went, and a search names
@@ -70,7 +70,9 @@ Use it to tell the person how a work item of the task list went.
 
     describe_work_item(find_task_group("S1"); limit = 5)
 
-See also `stop_work_item!` and `get_work_item_identifier`.
+See also `describe_task_group` and `find_task_group`.
+
+For the assistant.
 """
 function describe_work_item end
 
@@ -78,6 +80,8 @@ get_work_item_identifier(group::TaskGroupDocument) = getfield(group, :identifier
 describe_work_item_kind(::TaskGroupDocument, count::Integer) = count == 1 ? "group" : "groups"
 stop_work_item!(group::TaskGroupDocument) = (stop_task_group_document!(group); nothing)
 describe_work_item(group::TaskGroupDocument; limit::Integer = 20) = _describe_task_group(group, :unexpected, limit)
+describe_work_item(item::ReferencedDocument; keywords...) =
+    describe_work_item(get_document(item); keywords...)
 
 # Whether the work of `item` goes on, as its decoration says. A group reads its
 # status only.

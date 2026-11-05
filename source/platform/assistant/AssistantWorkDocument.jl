@@ -95,6 +95,8 @@ subagents and background tasks run.
     show_assistant_work!(get_session_assistant_list().assistants[1])
 
 See also `show_document_tree!`, which shows any document as a tree.
+
+For the assistant.
 """
 function show_assistant_work! end
 
@@ -123,6 +125,9 @@ function show_assistant_work!(a::Assistant; editor = get_evaluation_editor())
         ReferencedDocument(work, annotate_reference_types(root, reference))
     end
 end
+
+show_assistant_work!(assistant::ReferencedDocument; keywords...) =
+    show_assistant_work!(get_document(assistant); keywords...)
 
 # The work page of `a` that a tab of a window of `editor` shows, and the steps from
 # the root to that tab, or `nothing`. It reads only the windows, their pane trees

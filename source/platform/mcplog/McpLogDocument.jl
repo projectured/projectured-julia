@@ -9,6 +9,16 @@ One call that the server answered: `time` it came (seconds since the epoch), the
 the `arguments` as text (the code itself for `execute_julia_code`), the
 `answer`, the `duration` in seconds that the call held the editor, and whether
 it was a `fault`.
+
+Use it to read one call that the MCP server answered: its method, name, arguments and answer.
+
+# Example
+
+    calls_1 = search_documents(get_edited_document(find_pane("MCP log")), part -> part isa McpCallEntry)
+
+See also `McpLog`, `find_pane` and `search_documents`.
+
+For the assistant.
 """
 @document struct McpCallEntry
     time::Float64
@@ -27,6 +37,17 @@ The calls of the session, oldest first, at most `capacity` of them. `count`,
 `faults` and `held` count every call, the faults, and the seconds that the calls
 held the editor, also the calls that the log dropped. `shown` is what the pane
 lists: `"all"`, `"tools"` or `"faults"`.
+
+Use it to read the calls of the session and how long they held the editor.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("MCP log"))
+    log_1 isa McpLog
+
+See also `McpCallEntry`, `find_pane` and `get_edited_document`.
+
+For the assistant.
 """
 @document struct McpLog
     entries::CellVector = CellVector()

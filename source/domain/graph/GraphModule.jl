@@ -1,9 +1,8 @@
 """
     GraphModule
 
-The graph domain: a graph document, the layout that places it, the engines that
-compute a layout, the registry that picks one, and the projections that draw the
-result.
+Graph documents: vertices and edges, the layout that places them, the engines and
+the registry that make a layout, and the projections that draw it.
 
 This file holds the document — vertices with a content `Document` (any domain: a
 table, JSON, another graph) and edges connecting vertices by identity, which is

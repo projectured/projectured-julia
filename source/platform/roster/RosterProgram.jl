@@ -31,6 +31,8 @@ session: the files with edits, the documents of each type, the errors of the log
 
 See also `describe_roster_sources` and `describe_item_facets`, which say what a
 roster can show, and `edit_shown_items!`.
+
+For the assistant.
 """
 function show_roster! end
 
@@ -52,7 +54,7 @@ end
 get_arranged_collection_steps(::Roster) = (FieldReferenceStep("rows"),)
 
 """
-    describe_roster(roster) -> Text
+    describe_roster(roster) -> String
 
 How a roster shows, as text for a person or a model: its title, how many rows show
 of all and the parts of their arrangement, the columns, and a line for each of the
@@ -60,7 +62,19 @@ first 20 rows that show. `roster` is what [`show_roster!`](@ref) answers: the
 roster with its path in its window. The link of the roster is the document of the
 window, which holds the arrangement of its rows; a roster with no link shows every
 row.
+
+Use it to tell a person how a roster shows after its arrangement changed.
+
+# Example
+
+    text_1 = describe_roster(roster_1)
+
+See also `describe_arrangement` and `get_roster_source_names`.
+
+For the assistant.
 """
+function describe_roster end
+
 function describe_roster(handle::ReferencedDocument)
     roster = get_document(handle)
     roster isa Roster || throw(ArgumentError("describe_roster takes what show_roster! answers."))
@@ -71,13 +85,13 @@ function describe_roster(handle::ReferencedDocument)
     entry = found === nothing ? nothing : found.entry
     shown = collect_shown_items(entry, items)
     lines = String[string(roster.title, ": ", describe_arranged_collection(entry, items))]
-    isempty(shown) && return Text(lines[1])
+    isempty(shown) && return String(lines[1])
     push!(lines, join(shown[1].columns, " | "))
     for row in shown[1:min(length(shown), 20)]
         push!(lines, join((format_roster_value(_get_shown_value(value)) for value in row.values), " | "))
     end
     length(shown) > 20 && push!(lines, string("(the first 20 of ", length(shown), " rows)"))
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 # The roster that `show_roster!` answers prints how it shows, so a model reads it.
@@ -85,7 +99,7 @@ Base.show(io::IO, roster::ReferencedDocument{<:Roster}) = print(io, describe_ros
 Base.show(io::IO, ::MIME"text/plain", roster::ReferencedDocument{<:Roster}) = show(io, roster)
 
 """
-    describe_roster_sources() -> Text
+    describe_roster_sources() -> String
 
 The kinds of sources of a roster that the loaded slices give, each with the call
 that makes one and what its items are, and the names of the stores that
@@ -98,6 +112,8 @@ Use it to choose the source of a roster before `show_roster!`.
     describe_roster_sources()
 
 See also `show_roster!` and `describe_item_facets`.
+
+For the assistant.
 """
 function describe_roster_sources end
 
@@ -110,7 +126,7 @@ function describe_roster_sources()
     for name in get_roster_source_names()
         push!(lines, string("- :", name, ": ", _ROSTER_SOURCES[name].description))
     end
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 # The text of the docstring of `type`, read through its binding, as the
@@ -147,8 +163,8 @@ function _describe_source_type(type::Type)
 end
 
 """
-    describe_item_facets(type) -> Text
-    describe_item_facets(source) -> Text
+    describe_item_facets(type) -> String
+    describe_item_facets(source) -> String
 
 The keys of a roster of the items of `type`, or of the items of `source`: each
 facet with what it says ([`collect_item_facets`](@ref)), and the fields of the
@@ -162,6 +178,8 @@ Use it to choose the columns, the conditions and the keys of a roster.
     describe_item_facets(TabDocuments(FileDocument))
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 function describe_item_facets end
 
@@ -173,13 +191,13 @@ function describe_item_facets(type::Type)
     fields = String[String(name) for name in _get_own_field_names(type) if !is_view_state_field(name)]
     push!(lines, isempty(fields) ? "and the path of each field of an item, with dots between its names." :
                  string("and the path of each field of an item: ", join(fields, ", "), "."))
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 describe_item_facets(source) = describe_item_facets(get_roster_item_type(source))
 
 """
-    edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor()) -> Text
+    edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor()) -> String
 
 Give the value of `change` to the key of `change` in the item of each row that
 the roster at `collection` shows, as one edit, which one undo takes back, and
@@ -198,10 +216,27 @@ parameter in all the modules that a filter keeps.
     edit_shown_items!(rows, "status" => "checked")
 
 See also `show_roster!` and `describe_item_facets`.
+
+For the assistant.
 """
 function edit_shown_items! end
 
 function edit_shown_items!(collection, change::Pair; editor = get_evaluation_editor())
+    made = _make_shown_items_change(editor, collection, change)
+    made === nothing && return "The roster shows no row, so nothing changed."
+    apply_change!(first(made); editor)
+    string(last(made), " to ", repr(last(change)), ".")
+end
+
+make_change(::typeof(edit_shown_items!), collection, change::Pair; editor = get_evaluation_editor()) =
+    let made = _make_shown_items_change(editor, collection, change)
+        made === nothing && throw(ArgumentError("The roster shows no row, so there is no change to make."))
+        first(made)
+    end
+
+# The change that gives the value of `change` to its key in each row that the
+# roster shows, and the words that say it; `nothing` when the roster shows no row.
+function _make_shown_items_change(editor, collection, change::Pair)
     reference = collection isa ReferencedDocument ?
         extend_reference(get_reference(collection), get_arranged_collection_steps(get_document(collection))...) :
         collection
@@ -213,13 +248,12 @@ function edit_shown_items!(collection, change::Pair; editor = get_evaluation_edi
     key = String(first(change))
     value = last(change)
     operations = Any[_make_item_edit(row, key, value) for row in shown]
-    isempty(operations) && return Text("The roster shows no row, so nothing changed.")
+    isempty(operations) && return nothing
     words = string("Set ", key, " in ", length(operations), length(operations) == 1 ? " item" : " items")
     operation = find_rooted_operation(editor, found.path, relative -> CompoundOperation(operations);
                                       description = words)
     operation === nothing && throw(ArgumentError("No reader of the window carries an edit of the roster."))
-    evaluate_operation(editor, operation)
-    Text(string(words, " to ", repr(value), "."))
+    (RootedOperation(operation, words), words)
 end
 
 # The edit that gives `value` to the key `key` of the item of `row`: the edit that

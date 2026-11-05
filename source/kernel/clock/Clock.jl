@@ -48,12 +48,13 @@ the animation.
 
 # Example
 
-    x = Cell(@computation 100 * get_reactive_clock_time(clock))
-    angle_1 = () -> 2pi * get_reactive_clock_time(editor.clock)
+    x_1 = () -> 100 * get_reactive_clock_time(editor.clock)
 
 A time that is not a real number throws a `MethodError`.
 
 See also `get_clock_time`, the read that records nothing.
+
+For the assistant.
 """
 function get_reactive_clock_time end
 
@@ -70,12 +71,14 @@ animation does not run again on each write of the time.
 
 # Example
 
-    start = get_clock_time(clock)
-    elapsed = Cell(@computation get_reactive_clock_time(clock) - start)
+    start_1 = get_clock_time(editor.clock)
+    elapsed_1 = () -> get_reactive_clock_time(editor.clock) - start_1
 
 A time that is not a real number throws a `MethodError`.
 
 See also `get_reactive_clock_time`.
+
+For the assistant.
 """
 function get_clock_time end
 

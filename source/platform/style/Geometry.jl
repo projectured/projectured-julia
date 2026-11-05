@@ -20,6 +20,8 @@ Each side is a `Cell` that holds a number.
                title = "Padded")
 
 See also `Point2D` for a position or a size.
+
+For the assistant.
 """
 struct Inset
     top::Cell     # Number
@@ -55,6 +57,8 @@ a `Cell` that holds a number, so a widget moves when the cell changes.
     open_pane!(WidgetButton("Run"; size = Point2D(120, 32)); title = "Button")
 
 See also `Inset` for a spacing per side.
+
+For the assistant.
 """
 struct Point2D
     x::Cell  # Number

@@ -210,6 +210,16 @@ brings up to date.
   which a shadow holds and the native layout does not: every line of the stream,
   with the state of its view, which stays while the shadow follows the
   execution.
+
+Use it to read one start of a task: its status, its progress and what it printed.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskExecution)
+
+See also `TaskDocument`, `TaskStream`, `find_task_group` and `list_task_groups`.
+
+For the assistant.
 """
 @document [M, C] struct TaskExecution
     task::AbstractTask
@@ -393,7 +403,19 @@ _interrupt_process_group(process::ImitatedProcess) = kill(process, Base.SIGINT)
 The status that a result code leaves a task in. A code that says the work was
 done — a run, a test that passed, an update — is `:done`; `CANCEL` is
 `:cancelled`, `SKIP` is `:skipped`, and every other code is `:error`.
+
+Use it to turn the result code of a task into its status.
+
+# Example
+
+    status_1 = get_task_status("PASS")
+
+See also `describe_task`.
+
+For the assistant.
 """
+function get_task_status end
+
 get_task_status(code::AbstractString) =
     code in ("DONE", "PASS", "KEEP", "INSERT", "UPDATE") ? :done :
     code == "CANCEL" ? :cancelled : code == "SKIP" ? :skipped : :error

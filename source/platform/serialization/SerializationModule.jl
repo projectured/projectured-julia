@@ -1,8 +1,8 @@
 """
     SerializationModule
 
-Exact, lossless binary persistence for documents — `save_document` /
-`load_document` — independent of any domain's text format.
+The functions `save_document` and `load_document` write a document to a binary file
+and read it back without loss, independent of any text format of a domain.
 
 A document is written with Julia's `Serialization` stdlib. The only
 customization is that a [`Cell`](@ref) serializes as **just its value**: a cell's

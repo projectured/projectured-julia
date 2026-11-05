@@ -547,6 +547,20 @@ press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), Ke
 @test press("", 0, :down) === nothing
 # A text with no glyph keeps its one line of height.
 @test Int(print_document(p, block("", 0)).output.h) == 18
+# A caret at the start of a line whose first span is empty stands on that span,
+# which draws no place, because the glyph of "b" gives the places of its line.
+# The keys move it from the place of its flat offset.
+text_run(text) = TextString(text, StyleFont("Ubuntu Mono", 20), color_red)
+spans_block(k) = set_selection!(TextBlock(TextLine(text_run("a")), TextLine(text_run("")), TextLine(text_run(""), text_run("b"))),
+                                TextModule.make_flat_caret_reference(k))
+press_spans(k, key) = (op = read_intent(p, print_document(p, spans_block(k)), KeyDown(key, ModifierKeys(); time = 0.0));
+                       op === nothing ? nothing : flat(op))
+@test TextModule.get_flat_cursor_coordinate(spans_block(3)) == (span = [3, 1], char = 0)
+@test press_spans(3, :up) == 2
+@test press_spans(3, :end) == 4
+@test press_spans(4, :home) == 3
+@test press_spans(2, :down) == 3
+@test press_spans(3, :down) === nothing
 
 end # @testset "TextToGraphics empty line"
 

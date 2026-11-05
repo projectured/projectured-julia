@@ -715,10 +715,10 @@ WidgetTooltipToGraphicsCanvas(theme; measure,
     vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
     bar_gap::Int                # between the items of a horizontal menu bar
-    highlighted_color::StyleColor   # behind the item that the keys lit
+    highlighted_color::StyleColor   # behind the item that the keys lit, the selection band
 end
 
-WidgetMenuToGraphicsCanvas(theme; measure,
+WidgetMenuToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            margin = inset_default, border = inset_default,
                            padding = _themed(Inset, theme, t -> t.menu_bar_padding),
                            vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
@@ -730,7 +730,7 @@ WidgetMenuToGraphicsCanvas(theme; measure,
                            vertical_content_color = _themed(StyleColor, theme, t -> t.popover),
                            font = _themed(StyleFont, theme, t -> t.font),
                            bar_gap = _themed(Int, theme, t -> t.bar_gap),
-                           highlighted_color = _themed(StyleColor, theme, _get_hover_layer)) =
+                           highlighted_color = _make_selected_row_color(graphics_theme)) =
     WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
                                margin_color, border_color, padding_color, content_color,
                                vertical_border_color, vertical_padding_color,
@@ -1446,8 +1446,12 @@ function _get_entry_box(x, y, cim, measure)
 end
 
 # `cap` is an overlay's context: given one, the extent is capped by what the
-# parent offered rather than allowed to run past it.
-function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
+# parent offered rather than allowed to run past it. `stretch` is a context whose
+# minimum raises the extent, by the rule of every widget (`layout-rules.md` §1).
+# `width` and `height` are cells that fix the extent on an axis where the widget
+# has a slot.
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing, stretch = nothing,
+                               width = nothing, height = nothing)
     elems = CellVector(Computation(elems_fn))
     bounds = Cell(@computation begin
         w = 0; h = 0
@@ -1455,12 +1459,12 @@ function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
             ew, eh = _element_size(e, measure)
             w = max(w, ew); h = max(h, eh)
         end
-        cap === nothing ? (w, h) :
-            (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        cap === nothing || return (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        stretch === nothing ? (w, h) : (_resolve_size(stretch, :x, 0, w), _resolve_size(stretch, :y, 0, h))
     end)
     GraphicsCanvas(Int32(x), Int32(y),
-                   Cell(@computation Int32(bounds[][1])),
-                   Cell(@computation Int32(bounds[][2])),
+                   width === nothing ? Cell(@computation Int32(bounds[][1])) : Cell(@computation Int32(Int(width[]))),
+                   height === nothing ? Cell(@computation Int32(bounds[][2])) : Cell(@computation Int32(Int(height[]))),
                    elems, layout_none, true, Cell(nothing))
 end
 
@@ -2626,8 +2630,8 @@ end
 # the default primary op — it is not privileged; any gesture (double/right/shift-
 # click, …) is expressed as its own per-instance binding. A modal dialog is
 # centered, not placed under a widget, so it opens directly as an
-# `OpenWindowOperation`. v1 uses a generous fixed window box; true screen-sizing /
-# centering is deferred (see widget.md).
+# `OpenWindowOperation` at the automatic place, which the screen makes the center
+# of the window that holds the button.
 # A command that does something wins; the dialog is the fallback for one that
 # does not, so a button carrying both a callback and a dialog runs the callback.
 function _button_primary_op(w::WidgetButton)
@@ -2636,7 +2640,7 @@ function _button_primary_op(w::WidgetButton)
     dlg = w.dialog
     dlg === nothing && return InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
-                        x=80, y=60, width=480, height=320, content=dlg)
+                        x=-1, y=-1, width=480, height=320, content=dlg)
 end
 
 # ── WidgetLink ──────────────────────────────────────────────────────────────
@@ -3387,14 +3391,14 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
-# Open the item's `submenu` as a popup just below the item: a position in
-# the item's own frame, which each reader above moves into its own frame, as the
+# Open the item's `submenu` as a popup below the item: the box of the item in its
+# own frame, which each reader above moves into its own frame, as the
 # `WidgetSelect` dropdown does. The popup window takes the extent of what the
-# submenu draws; placement beyond "below" is left to anchored-layout.md.
+# submenu draws, and goes above the item when the display has no room below.
 function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=submenu))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=submenu))
 end
 
 # ── WidgetToolbarItem ───────────────────────────────────────────────────────
@@ -3432,17 +3436,17 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
             content_width, content_height = _text_size(p.measure, label.font, text)
             _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
         end
-        # As large as what it shows, on both axes. A band can offer the height of
-        # the window, and an item that took it would take every press below it.
-        width = content_width + inset_width
-        height = content_height + inset_height
+        # What it shows, raised to the minimum of its range: a toolbar gives its
+        # items no minimum, so an item there is as large as what it shows.
+        width = _resolve_width(ctx, 0, content_width + inset_width)
+        height = _resolve_height(ctx, 0, content_height + inset_height)
         # A clear surface over the whole button, inside the space around it: a
         # press anywhere on it hits the item, and not only on the strokes of its
         # picture.
         surface = _get_part_rect(box, :margin, width, height)
         drawn = Any[GraphicsRect(surface...; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, box, _get_box_colors(p, w; state),
-                         content_width, content_height; radius = p.corner_radius)
+                         width - inset_width, height - inset_height; radius = p.corner_radius)
         # Flat at rest; under the pointer the layer draws the surface and the
         # outline of a button, and a darker surface while it is held.
         enabled && _push_hover_layer!(drawn, w, surface...; hovered_color = p.layer_hovered_color,
@@ -3700,10 +3704,11 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
         (_, c) -> print_child(recursion, c, _make_composite_child_context(w, geometry, c, ctx)))
     # The natural extent of the children together, before the box around them. A
-    # context with a minimum width, as a slot that the composite fills gives, makes
-    # the box at least that wide, so a box of a `Fill` composite reaches the edge
-    # of its slot.
+    # context with a minimum, as a slot that the composite fills gives, makes the
+    # box at least that large, so a box of a `Fill` composite reaches the edges of
+    # its slot.
     minimum_width = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_height = ctx isa PrinterContext ? ctx.minimum_height : nothing
     extent = Cell(@computation begin
         content_width, content_height = 0, 0
         for cim in child_cells[]
@@ -3712,6 +3717,8 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         end
         minimum_width === nothing ||
             (content_width = max(content_width, Int(minimum_width[]) - _get_inset_total(geometry[])[1]))
+        minimum_height === nothing ||
+            (content_height = max(content_height, Int(minimum_height[]) - _get_inset_total(geometry[])[2]))
         (content_width, content_height)
     end)
     # The box around the children is a canvas of its own, so the list of the
@@ -3755,7 +3762,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         _get_entry_box(x, y, cim, _p_measure(p))
     end, p.graphics_style)
     WidgetChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
-                                                    _p_measure(p)),
+                                                    _p_measure(p); stretch = ctx isa PrinterContext ? ctx : nothing),
                         Cell(@computation build[].child_iomaps), geometry)
 end
 
@@ -4100,8 +4107,13 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         elems
     end)
     child_iomaps = Cell(@computation Any[(get_band_left(name), get_band_top(name), cim) for (name, cim) in slots[]])
-    WidgetChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p)), child_iomaps,
-                        geometry)
+    # The shell takes its size or its slot on each axis by itself, else what it
+    # holds, raised to the minimum of its range.
+    WidgetChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p);
+                                                    stretch = ctx isa PrinterContext ? ctx : nothing,
+                                                    width = has_width ? outer_width : nothing,
+                                                    height = has_height ? outer_height : nothing),
+                        child_iomaps, geometry)
 end
 
 # How tall a band's printed output is.
@@ -4635,6 +4647,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 else
                     prefs[i] = intrinsic
                     wts[i]   = layout_weight(elem, axis)
+                    # A split divides its axis: a pane that declares no size and no
+                    # weight takes an equal share.
+                    intrinsic == 0 && wts[i] == 0.0 && (wts[i] = 1.0)
                 end
             end
             # Only the open slots share the extent, and only the splitters between
@@ -4719,6 +4734,16 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             Cell(@computation Int32(avail_w[]))
     end
     # Report the whole box: the slots plus the inset they sit inside.
+    # With no slot on an axis, the split is what its panes need there, raised to
+    # the minimum of its range.
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
+    at_least(extent, slot, minimum, inset) = (slot !== nothing || minimum === nothing) ? extent :
+        Cell(@computation Int32(max(Int(extent[]), Int(minimum[]) - inset)))
+    outer_main = main_axis === :x ? at_least(outer_main, avail_w, minimum_w, inset_x) :
+                                    at_least(outer_main, avail_h, minimum_h, inset_y)
+    outer_cross = main_axis === :x ? at_least(outer_cross, avail_h, minimum_h, inset_y) :
+                                     at_least(outer_cross, avail_w, minimum_w, inset_x)
     inner_w_cell = main_axis === :x ? outer_main : outer_cross
     inner_h_cell = main_axis === :x ? outer_cross : outer_main
     outer_w_cell = Cell(@computation Int32(Int(inner_w_cell[]) + inset_x))
@@ -5616,10 +5641,16 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         GraphicsCanvas(rule_cv),
         ring,
     ])
-    canvas = (avail_w === nothing && avail_h === nothing) ? inner :
+    # The pane takes its slot on an axis, else what it holds, raised to the
+    # minimum of its range.
+    minimum_w = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_h = ctx isa PrinterContext ? ctx.minimum_height : nothing
+    extent(slot, own, minimum) =
+        slot !== nothing ? Cell(@computation Int32(max(0, Int(slot[])))) :
+        minimum === nothing ? own : Cell(@computation Int32(max(Int(own[]), Int(minimum[]))))
+    canvas = (avail_w === nothing && avail_h === nothing && minimum_w === nothing && minimum_h === nothing) ? inner :
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                       avail_w === nothing ? inner.w : Cell(@computation Int32(max(0, Int(avail_w[])))),
-                       avail_h === nothing ? inner.h : Cell(@computation Int32(max(0, Int(avail_h[])))),
+                       extent(avail_w, inner.w, minimum_w), extent(avail_h, inner.h, minimum_h),
                        CellVector(Cell[Cell(inner)]),
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
@@ -6131,14 +6162,18 @@ function _descends_into_page(widget, idx::Int)
     page isa WidgetTabPage && !(page.element isa WidgetDocument)
 end
 
-# The viewport extent of a scroll pane on one axis. It is the offer when the pane
-# has one — an authored size or the space the parent gave. It is the content's own
-# extent when the pane has neither, because a pane with nothing to clip against
-# must not clip.
-function _pane_extent(offer, content_cell)
+# The viewport extent of a viewport on one axis. It is the offer when it has one —
+# an authored size or the slot the parent gave. With neither, it is the content's
+# own extent between the `minimum` and the `maximum` of its range, each a cell or
+# `nothing`: an edge cuts the content, and the viewport scrolls the rest.
+function _pane_extent(offer, content_cell, minimum = nothing, maximum = nothing)
     offer !== nothing && return offer
-    content_cell === nothing && return Cell(Int32(0))
-    Cell(@computation Int32(max(0, Int(content_cell[]))))
+    Cell(@computation begin
+        extent = content_cell === nothing ? 0 : max(0, Int(content_cell[]))
+        minimum === nothing || (extent = max(extent, Int(minimum[])))
+        maximum === nothing || (extent = min(extent, Int(maximum[])))
+        Int32(extent)
+    end)
 end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
@@ -6459,13 +6494,15 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # it (`layout-rules.md` §1). So a pane that authors its height and a width of
     # 0 has a fixed height and takes the width its parent offers.
     #
-    # An axis with no authored size and no offer is not clipped at all. On that
-    # axis the pane withholds the offer, lets the content size itself, and takes
-    # the viewport extent from the content. This is what keeps a pane that clips
-    # one axis — a collapsed card body, clipped to a fixed height — as wide as
-    # its content on the other. The two cases cannot form a cycle: a clipped axis
-    # offers a cell that the content reads, and an unclipped axis reads a cell
-    # that the content produces.
+    # On an axis with no authored size and no offer, the pane passes its range on
+    # to the content, lets the content size itself, and takes the content between
+    # the minimum and the maximum of its range (`layout-rules.md` §1): it
+    # stops at an edge that cuts and scrolls the rest, and with no edge it is as
+    # large as its content. This is what keeps a pane that clips one axis — a
+    # collapsed card body, clipped to a fixed height — as wide as its content on
+    # the other. The two cases cannot form a cycle: a clipped axis offers a cell
+    # that the content reads, and an unclipped axis reads a cell that the content
+    # produces.
     #
     # An authored extent is read inside the cell, so a pane whose size is a
     # computed cell — a tree pane that grows as its rows open — follows it after
@@ -6489,6 +6526,10 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     end
     offer_w = extent_cell(() -> sz isa Point2D ? Int(sz.x[]) : 0, avail_w, tx)
     offer_h = extent_cell(() -> sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
+    # The range of the pane less its insets: what the content gets on an axis with
+    # no offer, and what the viewport stops at there. The insets hold the space of
+    # the slot, and the content gets no space of its own.
+    inner_ctx = with_inner_size(ctx; width = tx, height = ty)
     cox, coy = _get_content_offset(box)
     scroll_cell = getfield(w, :scroll_position)
     # Recurse into the content before the extent cells exist: on an unclipped axis
@@ -6504,14 +6545,27 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     part_inset_w = Cell(Int32(0))
     part_inset_h = Cell(Int32(0))
     if content isa Document
-        # A clipped axis gives the content its extent exactly. An unclipped axis
-        # passes the parent's range on, less the insets: an edge stays an edge,
-        # so text in the pane wraps at it, and the pane takes the content's
-        # extent there.
-        content_ctx = with_inner_size(ctx; width = tx, height = ty)
-        offer_w === nothing || (content_ctx = with_exact_size(content_ctx; width = offer_w))
-        offer_h === nothing || (content_ctx = with_exact_size(content_ctx; height = offer_h))
+        # A clipped axis gives the content its extent exactly where the content
+        # fits the view, and as its minimum where it grows (`grows`). An
+        # unclipped axis passes the parent's range on, less the insets: an edge
+        # stays an edge, so text in the pane wraps at it, and the pane takes the
+        # content's extent there. A clipped axis gives the view as the visible
+        # extent too.
+        # On an axis that grows and has no offer, the content gets the minimum of
+        # the range and no edge, and the edge is its visible extent.
+        grows = w.grows
+        content_ctx = inner_ctx
+        content_ctx = offer_w !== nothing ?
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)) :
+            grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
+        content_ctx = offer_h !== nothing ?
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : offer_h)) :
+            grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
         content_ctx = with_inner_size(content_ctx; width = part_inset_w, height = part_inset_h)
+        visible_w = offer_w !== nothing ? content_ctx.minimum_width : inner_ctx.maximum_width
+        visible_h = offer_h !== nothing ? content_ctx.minimum_height : inner_ctx.maximum_height
+        visible_w === nothing || (content_ctx = with_visible_size(content_ctx; width = visible_w))
+        visible_h === nothing || (content_ctx = with_visible_size(content_ctx; height = visible_h))
         content_iomap = print_child(recursion, content, content_ctx)
         output = content_iomap.output
         if output isa ScrollLayout
@@ -6536,8 +6590,8 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
     content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
-    vw_cell = _pane_extent(offer_w, content_w)
-    vh_cell = _pane_extent(offer_h, content_h)
+    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
     inner_x = Cell(@computation Int32(-(content_canvas === nothing ?
@@ -7321,24 +7375,52 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    # The same rule as the scroll pane's: an authored size wins over an offer.
+    # The same rule as the scroll pane's, one axis at a time: an authored size
+    # wins, and 0 authors nothing; then the slot that the parent gives; then the
+    # content, between the minimum and the maximum of the range.
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     box = geometry[]
     tx, ty = _get_inset_total(box)
     avail_w = get_exact_width(ctx)
     avail_h = get_exact_height(ctx)
-    vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
-              avail_w !== nothing ?
-              Cell(@computation Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(0))
-    vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
-              avail_h !== nothing ?
-              Cell(@computation Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(0))
+    function offer_cell(authored, avail, inset)
+        authored > 0 && return Cell(Int32(authored))
+        avail === nothing ? nothing : Cell(@computation Int32(max(0, Int(avail[]) - inset)))
+    end
+    offer_w = offer_cell(sz isa Point2D ? Int(sz.x[]) : 0, avail_w, tx)
+    offer_h = offer_cell(sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
+    inner_ctx = with_inner_size(ctx; width = tx, height = ty)
     cox, coy = _get_content_offset(box)
     # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
     # the viewport reactively.
     transform_cell = Cell(@computation getfield(w, :transform)[]::AffineTransform)
+    # Recurse into the content first, at the viewport's (unscaled) logical
+    # extent — the content lays out at 1× and the viewport's transform magnifies
+    # it. On an axis with no offer the viewport extent is the content's.
+    content_iomap = nothing
+    content = w.content
+    if content isa Document
+        # The view is the extent of the content on an axis where the content
+        # fits, and its minimum where it grows; it is the visible extent on both.
+        # On an axis with no offer the content gets the range of the pane.
+        grows = w.grows
+        content_ctx = inner_ctx
+        content_ctx = offer_w !== nothing ?
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)) :
+            grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
+        content_ctx = offer_h !== nothing ?
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : offer_h)) :
+            grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
+        visible_w = something(offer_w, inner_ctx.maximum_width, Some(nothing))
+        visible_h = something(offer_h, inner_ctx.maximum_height, Some(nothing))
+        visible_w === nothing || (content_ctx = with_visible_size(content_ctx; width = visible_w))
+        visible_h === nothing || (content_ctx = with_visible_size(content_ctx; height = visible_h))
+        content_iomap = print_child(recursion, content, content_ctx)
+    end
+    content_w = content_iomap === nothing ? nothing : Cell(@computation Int32(content_iomap.output.w))
+    content_h = content_iomap === nothing ? nothing : Cell(@computation Int32(content_iomap.output.h))
+    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
     elems = Any[]
     colors = _get_box_colors(p, w)
     _push_following_box_bands!(elems, box, colors, vw_cell, vh_cell)
@@ -7350,13 +7432,7 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
                               Cell(Int32(0)),
                               Cell(color_transparent),
                               Cell(nothing)))
-    # Recurse into the content at the viewport's (unscaled) logical extent — the
-    # content lays out at 1× and the viewport's transform magnifies it.
-    content_iomap = nothing
-    content = w.content
-    if content isa Document
-        content_ctx = with_exact_size(ctx; width=vw_cell, height=vh_cell)
-        content_iomap = print_child(recursion, content, content_ctx)
+    if content_iomap !== nothing
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
         # Inner canvas stays at the origin; the transform carries pan + zoom.
@@ -7553,10 +7629,11 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
         # A toolbar lays its items out at their own size, side by side, so it gives
-        # no slot on the main axis: an item that took a slot would stretch to the
-        # whole band. It gives its edge instead, as a bounded range, so an item
+        # them no slot and no minimum: an item that took one would stretch to the
+        # whole band. It gives its edges instead, as bounded ranges, so an item
         # draws its content and a text in it wraps at the band's edge.
-        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
+        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width,
+                                                                         height = ctx.maximum_height)))
     build = Cell(@computation begin
         box = geometry[]
         content_x, content_y = _get_content_offset(box)
@@ -7578,11 +7655,14 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             content_height = max(content_height, _menu_item_height(cim))
         end
         content_width = max(0, x_cursor - item_gap)
-        elems = Any[]
-        _push_box_parts!(elems, box, _get_box_colors(p, w), content_width, content_height)
         inset_width, inset_height = _get_inset_total(box)
         width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
                                             child_iomaps, _p_measure(p))
+        width = _resolve_width(ctx, 0, width)
+        height = _resolve_height(ctx, 0, height)
+        elems = Any[]
+        _push_box_parts!(elems, box, _get_box_colors(p, w), width - inset_width,
+                         height - inset_height)
         append!(elems, items)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
@@ -7700,13 +7780,15 @@ read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = not
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
 # The extent of a scroll bar on one axis: its authored size, else the extent
-# that its parent offers, else its thickness across and nothing along. `space` is
-# the extent of the space given around the bar on the axis, which an offer holds
+# that its parent offers, else its thickness across and nothing along, raised to
+# `minimum`, the minimum of its range, where it has one. `space` is the extent of
+# the space given around the bar on the axis, which an offer and a minimum hold
 # and an authored size and the thickness do not.
-function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int, space::Int)
+function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int, space::Int,
+                                minimum = nothing)
     authored > 0 && return authored + space
     offered === nothing || return Int(offered[])
-    along ? 0 : thickness + space
+    max(along ? 0 : thickness + space, minimum === nothing ? 0 : Int(minimum[]))
 end
 
 # The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
@@ -7803,10 +7885,14 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     offered_w = ctx === nothing ? nothing : get_exact_width(ctx)
     offered_h = ctx === nothing ? nothing : get_exact_height(ctx)
     space_width, space_height = _get_given_space_extent(ctx, :x), _get_given_space_extent(ctx, :y)
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
     width = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.x[]) : 0,
-                                                           offered_w, horizontal, p.thickness, space_width)))
+                                                           offered_w, horizontal, p.thickness, space_width,
+                                                           minimum_w)))
     height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
-                                                            offered_h, !horizontal, p.thickness, space_height)))
+                                                            offered_h, !horizontal, p.thickness, space_height,
+                                                            minimum_h)))
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     parts = Cell(@computation _get_scroll_bar_thumb(p, geometry[], w, Int(width[]), Int(height[])))
     lit = Cell(@computation _is_under_pointer(w) || w.thumb_drag !== nothing)
@@ -9583,10 +9669,17 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
             y += p.title_gap
-            description_string = string(w.description)
-            description_width, description_height = _text_size(p.measure, description.font, description_string)
-            _push_text!(elements, p.measure, description.font, description_string, content_x, y, description.color)
-            max_content_width = max(max_content_width, description_width); y += description_height
+            # The description breaks at the width that the alert was told, else
+            # at the edge of its range.
+            authored_width = _sc(Int(w.width))
+            edge = ctx === nothing ? nothing : ctx.maximum_width
+            bound = authored_width > 0 ? max(0, authored_width - inset_width) :
+                    edge !== nothing ? max(0, Int(edge[]) - inset_width) : 0
+            for line in _text_lines(p.measure, description.font, string(w.description), bound)
+                line_width, line_height = _text_size(p.measure, description.font, line)
+                _push_text!(elements, p.measure, description.font, line, content_x, y, description.color)
+                max_content_width = max(max_content_width, line_width); y += line_height
+            end
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
         bottom_inset = _get_sides_outside(box, :content)[4]
@@ -10387,8 +10480,8 @@ function _open_select_popup(p::WidgetSelectToGraphicsCanvas, w::WidgetSelect,
                                                  DoNothingOperation()))
                 for opt in opts]
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=WidgetMenu(items)))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=WidgetMenu(items)))
 end
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
@@ -10658,10 +10751,16 @@ function _get_row_side_padding(row_padding::Inset, w, ctx)
     (left > 0 ? left : Int(row_padding.left[]), right > 0 ? right : Int(row_padding.right[]))
 end
 
-# Whether `w` scrolls its rows itself in `ctx`: it gets a slot on the vertical
-# axis, and it does not print as its rows.
+# Whether `w` scrolls its rows itself in `ctx`: it gets an edge, exact or bounded,
+# on an axis that it scrolls, and it does not print as its rows. Its pane then
+# takes the rows up to the edge and scrolls the rest. A list scrolls down; a tree
+# scrolls down and to the side.
 _scrolls_rows_itself(w, ctx) =
-    ctx !== nothing && get_exact_height(ctx) !== nothing && !_is_printed_as_rows(w, ctx)
+    ctx !== nothing && !_is_printed_as_rows(w, ctx) &&
+    (ctx.maximum_height !== nothing || (_scrolls_rows_aside(w) && ctx.maximum_width !== nothing))
+
+_scrolls_rows_aside(w) = false
+_scrolls_rows_aside(w::WidgetTree) = true
 
 # The mouse target of the pane of the rows of `w`: the bar that the mouse target
 # of `w` names, else the content, which is `w`, with the path of `w`.
@@ -10684,10 +10783,10 @@ function _print_rows_pane(p, recursion, w, ctx)
     box = geometry[]
     colors = _get_box_colors(p, w)
     left, top, right, bottom = _get_sides_outside(box, :padding)
-    # Positional: content, position, size, scroll_position, follow_end,
+    # Positional: content, position, size, grows, scroll_position, follow_end,
     # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
-    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(nothing),
+    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), getfield(w, :scroll_position), Cell(nothing),
                             Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
@@ -13062,7 +13161,7 @@ end
     geometry::Cell
     width::Cell
     bare::Bool       # the rows of a tree that scrolls itself, with no box
-    view_height::Any # the height of the view of the rows that a pane offers, or nothing
+    view_height::Any # the height of the rows that can show, or nothing
     box::Any
 end
 
@@ -13120,7 +13219,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     _, line_height = _text_size(p.measure, label_style.font, "M")
     icon_size = scale_length(line_height, p.icon_size)
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    # The rows that show: a lazy list of rows is measured over them.
+    visible_h = get_visible_height(ctx)
 
     # A named icon is a square of one line times `icon_size`. A tree whose roots
     # show one reserves a column that holds it and a gap, and rows as tall as the
@@ -13209,7 +13309,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         g = geometry[]
         if g isa WTreeListGeometry
             top = Int(w.scroll_position.y[])
-            bottom = top + max(avail_h === nothing ? 0 : Int(avail_h[]), g.row_height)
+            bottom = top + max(visible_h === nothing ? 0 : Int(visible_h[]), g.row_height)
             measure_link(link) =
                 measure_row(link.value.row, _get_wtree_row_node(link.value))
             link = g.head
@@ -13391,26 +13491,30 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree.
+    # The tree is at least the minimum of its range on each axis. Its rows in its
+    # own pane are as large as they are: the pane holds the view.
+    least_w = (bare || ctx === nothing) ? nothing : ctx.minimum_width
+    least_h = (bare || ctx === nothing) ? nothing : ctx.minimum_height
+    outer_w = Cell(@computation Int32(max(width[] + inset_width, least_w === nothing ? 0 : Int(least_w[]))))
+    outer_h = Cell(@computation Int32(max(rows_height[] + inset_height, least_h === nothing ? 0 : Int(least_h[]))))
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
-    set_cell_computation!(getfield(hit_target, :w), () -> Int32(width[] + inset_width))
-    set_cell_computation!(getfield(hit_target, :h),
-                          () -> Int32(rows_height[] + inset_height))
+    set_cell_computation!(getfield(hit_target, :w), () -> outer_w[])
+    set_cell_computation!(getfield(hit_target, :h), () -> outer_h[])
 
     elements = CellVector(@computation begin
         # The hit target behind everything, then the box: margin, border, padding
         # and content, from the outside in (transparent and zero-width by default),
         # then the rows.
         result = Any[hit_target]
-        bare || _push_box_parts!(result, box, colors, width[], rows_height[])
+        bare || _push_box_parts!(result, box, colors, Int(outer_w[]) - inset_width, Int(outer_h[]) - inset_height)
         push!(result, rows_canvas)
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(@computation Int32(width[] + inset_width)),
-                            Cell(@computation Int32(rows_height[] + inset_height)),
+                            outer_w, outer_h,
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h, box_geometry)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h, box_geometry)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -13834,7 +13938,7 @@ _has_any_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifier
 
 # How many rows Page Up and Page Down move: the rows that the view of the tree
 # holds, less one, so one row of the page before stays in view. The view is the
-# one that a pane offers, else the canvas of the tree.
+# height of the tree that can show, else the canvas of the tree.
 function _count_wtree_page_rows(iomap::WidgetTreeToGraphicsCanvasIoMap)
     row_height = iomap.geometry.row_height
     row_height > 0 || return 1
@@ -13912,7 +14016,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measure),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measure),
         WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measure),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme; graphics_theme),

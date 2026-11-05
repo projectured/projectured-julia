@@ -38,6 +38,8 @@ Use it to show a document and the documents under it as a tree.
     open_pane!(tree_1; title = "People tree")
 
 See also `Roster` and `open_pane!`.
+
+For the assistant.
 """
 @document struct DocumentTree <: Document
     root::Any

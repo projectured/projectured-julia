@@ -67,7 +67,6 @@ using ..WidgetModule
 import ..DisplayModule: make_workload_file
 import ..LlmModule: stream_turn
 import ..SettingsModule: is_settings_group_read_at_start
-import ..TaskModule: make_task_api
 
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
@@ -82,7 +81,7 @@ export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadT
        WorkloadAgentTurn,
        find_workload_inputs, run_application_workload, run_workload_steps!, run_window_workload, make_workload_llm,
        run_file_workload
-export StartSettings
+export StartSettings, AssistantIndexSettings, describe_api_index
 export make_editor_explorer_content
 
 include("DefaultBackend.jl")

@@ -14,14 +14,13 @@ function test_assistant_api()
             register_assistant_api!([offered => (:first_name,), offered])
             entries = get_registered_assistant_api()
             @test length(entries) == before + 2
-            @test entries[end - 1] == (offered => (:first_name,))
-            @test entries[end] === offered
+            @test entries[end - 1] == ApiEntry(offered, (:first_name,))
+            @test entries[end] == ApiEntry(offered, nothing)
             # The answer is a copy: a caller that changes it changes no registry.
-            push!(entries, :unrelated)
+            push!(entries, ApiEntry(Base, nothing))
             @test length(get_registered_assistant_api()) == before + 2
         finally
-            filter!(e -> !(e === offered || (e isa Pair && first(e) === offered)),
-                    AssistantModule._ASSISTANT_API)
+            filter!(e -> e.module_ !== offered, AssistantModule._ASSISTANT_API)
         end
         @test length(get_registered_assistant_api()) == before
     end

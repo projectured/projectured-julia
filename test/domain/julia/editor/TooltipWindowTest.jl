@@ -52,6 +52,15 @@ _tw_rest!(editor, backend, x, y, time; window = :W) =
 
 _tw_tooltips(scene) = [window for window in scene.windows if window.style === :tooltip]
 
+# Where the window `tip` of `scene` stands on the screen: the place of its output
+# window, which its placement computes.
+function _tw_place(editor, scene, tip)
+    windows = _tw_force(_tw_force(get_iomap_output(editor.iomap)).windows)
+    index = findfirst(window -> window.id === tip.id, collect(scene.windows))
+    shown = _tw_force(windows[index])
+    (Int(shown.x), Int(shown.y))
+end
+
 # Every string a printed window holds, so a case can ask what was drawn rather
 # than what was stored.
 _tw_force(value) = value isa Cell ? _tw_force(value[]) : value
@@ -129,7 +138,7 @@ end
     tip = only(tips)
     # Beside the pointer, in the coordinates of the screen: the window is at
     # (100, 100).
-    @test (tip.x, tip.y) == (100 + 20 + 16, 100 + 10 + 20)
+    @test _tw_place(editor, scene, tip) == (100 + 20 + 16, 100 + 10 + 20)
     @test tip.content isa TooltipContent
     @test tip.content.shown == 1
     title, content = only(tip.content.layers)
@@ -180,7 +189,7 @@ end
     editor, backend, scene = _tw_editor(; other = _tw_labels())
     _tw_rest!(editor, backend, 20, 10, 1.0; window = :V)
     tip = only(_tw_tooltips(scene))
-    @test (tip.x, tip.y) == (600 + 20 + 16, 100 + 10 + 20)
+    @test _tw_place(editor, scene, tip) == (600 + 20 + 16, 100 + 10 + 20)
     @test only(tip.content.layers)[2].text == "what this label is for"
 end
 
@@ -209,7 +218,7 @@ end
     _tw_rest!(editor, backend, 20, 10, 1.0)
     tip = only(_tw_tooltips(scene))
     @test only(tip.content.layers)[2].text == "the lower label"
-    @test (tip.x, tip.y) == (100 + 20 + 16, 100 + 10 + 20)
+    @test _tw_place(editor, scene, tip) == (100 + 20 + 16, 100 + 10 + 20)
 end
 
 @testset "a move on the part keeps the window, and a move off closes it" begin
@@ -258,7 +267,7 @@ end
     tip = only(_tw_tooltips(scene))
     @test tip.content.shown == 2
     # The window stays where it opened.
-    @test (tip.x, tip.y) == (136, 130)
+    @test _tw_place(editor, scene, tip) == (136, 130)
     drawn = _tw_drawn_tooltip(editor)
     @test any(text -> occursin("what this label is for", text), drawn)
     @test any(text -> occursin("the group", text), drawn)
@@ -302,7 +311,22 @@ end
     @test only(tip.content.layers)[2].text == "what this button is for"
     # With no point, the window stands below the button, with the left edges
     # aligned and a gap of 4 pixels.
-    @test (tip.x, tip.y) == (100 + 10, 100 + 30 + 24 + 4)
+    @test _tw_place(editor, scene, tip) == (100 + 10, 100 + 30 + 24 + 4)
+end
+
+@testset "a tooltip with no room below the point goes above it" begin
+    editor, backend, scene = _tw_editor()
+    _tw_rest!(editor, backend, 20, 10, 1.0)
+    tip = only(_tw_tooltips(scene))
+    # The point is at (120, 110) on the screen, and the offset is (16, 20).
+    @test _tw_place(editor, scene, tip) == (136, 130)
+    # The backend fits the size, and writes the areas of the displays.
+    tip.width, tip.height = 200, 50
+    scene.display_areas = [(0, 0, 500, 160)]
+    @test _tw_place(editor, scene, tip) == (136, 110 - 20 - 50)
+    # No room on the right either: it slides left, and stays above the point.
+    scene.display_areas = [(0, 0, 300, 160)]
+    @test _tw_place(editor, scene, tip) == (100, 40)
 end
 
 @testset "a command opens the tooltip below a label, which has the size of its text" begin
@@ -324,7 +348,7 @@ end
                           collect_document_gesture_bindings(WidgetLabel)))
     evaluate_operation(editor, read_rooted_operation(editor, place, binding.operation(label, nothing)))
     tip = only(_tw_tooltips(scene))
-    @test (tip.x, tip.y) == (100 + 10, 100 + 30 + height + 4)
+    @test _tw_place(editor, scene, tip) == (100 + 10, 100 + 30 + height + 4)
 end
 
 @testset "a command opens the signature of a Julia function below the function" begin
@@ -353,17 +377,17 @@ end
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))
-    # The window stands below the function, where the place of the function says:
+    # The window stands below the function, where the box of the function says:
     # the operation carries the path of the function, not of the whole document.
-    # One more hop than `wrapper` used to need, past the drag tracker that now
-    # sits between the gesture tracker and the tooltip wrapper.
+    # The tooltip wrapper sits inside the gesture tracker and the drag tracker.
     wrapper = editor.projection.inner.inner
-    below = find_part_place(wrapper, editor.iomap.child_iomap.child_iomap, from_wrapper)
-    @test below !== nothing
-    @test (tip.x, tip.y) == (below[1], below[2] + 4)
+    box = ProjecturedPlatform.ScreenModule._find_part_box(wrapper, editor.iomap.child_iomap.child_iomap,
+                                                          from_wrapper)
+    @test box !== nothing
+    @test _tw_place(editor, scene, tip) == (box.x, box.y + box.height + 4)
     # And above the bottom of the text, which `x = 1` ends.
     text = find_reference_box(get_iomap_output(editor.iomap.child_iomap), window_content)
-    @test tip.y < text.y + text.height
+    @test _tw_place(editor, scene, tip)[2] < text.y + text.height
 end
 
 @testset "a move names a part that a view made in the form of the answer of that part" begin

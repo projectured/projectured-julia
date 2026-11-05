@@ -65,7 +65,20 @@ How the place of `entry` shows `items`: how many items show, of all, and each
 part of the entry, such as `2 of 3 items: status ≠ "failed", ↑ delay`. A place
 with a group says how many groups show, such as `2 groups of 3 items: by status:
 count`. With `entry === nothing` every item shows, in its own order.
+
+Use it to tell a person how a collection shows after its arrangement changed.
+
+# Example
+
+    found_1 = find_arranged_collection(root_1, reference_1)
+    text_1 = describe_arranged_collection(found_1.entry, found_1.items)
+
+See also `describe_arrangement` and `find_arranged_collection`.
+
+For the assistant.
 """
+function describe_arranged_collection end
+
 function describe_arranged_collection(entry, items)
     total = length(items)
     entry === nothing && return string(total, total == 1 ? " item" : " items", ", all in their own order")
@@ -111,7 +124,19 @@ end
 How each collection that `arrangement` arranges shows, one after the other: its
 path and what [`describe_arranged_collection`](@ref) says of it, such as
 `runs: 2 of 3 items: status ≠ "failed", ↑ delay`.
+
+Use it to tell a person how every collection of an arrangement shows.
+
+# Example
+
+    text_1 = describe_arrangement(arrangement_1)
+
+See also `describe_arranged_collection` and `find_arranged_collection`.
+
+For the assistant.
 """
+function describe_arrangement end
+
 function describe_arrangement(arrangement::ArrangementDocument)
     texts = String[]
     for entry in arrangement.entries
@@ -129,8 +154,10 @@ function describe_arrangement(arrangement::ArrangementDocument)
     join(texts, "; ")
 end
 
+describe_arrangement(arrangement::ReferencedDocument) = describe_arrangement(get_document(arrangement))
+
 """
-    filter_collection!(collection, conditions...; editor = get_evaluation_editor()) -> Text
+    filter_collection!(collection, conditions...; editor = get_evaluation_editor()) -> String
 
 Show only the items of the collection at `collection` for which every condition
 holds, in their order, and answer how the collection shows now. The data does not
@@ -163,14 +190,24 @@ carry the edit of a chip that a person presses. It reads the IoMap that the fram
 prints, so it runs on the editor's task.
 
 See also `sort_collection!`.
+
+For the assistant.
 """
 function filter_collection! end
 
 filter_collection!(collection, conditions...; editor = get_evaluation_editor()) =
-    run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_filter(conditions), "Filter"), editor; description = "filter_collection!")
+    run_on_editor_task!(editor; description = "filter_collection!") do
+        apply_change!(make_change(filter_collection!, collection, conditions...; editor); editor)
+        _describe_collection_at(editor.document, _get_collection_reference(collection))
+    end
+
+make_change(::typeof(filter_collection!), collection, conditions...; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_arrange_change(editor, collection, _make_filter(conditions), "Filter")
+    end
 
 """
-    sort_collection!(collection, keys...; editor = get_evaluation_editor()) -> Text
+    sort_collection!(collection, keys...; editor = get_evaluation_editor()) -> String
 
 Show the items of the collection at `collection` in the order of `keys`, and
 answer how the collection shows now. The data keeps its own order: the sort is a
@@ -191,14 +228,24 @@ order that a person asks for, without a change of the data.
     sort_collection!(runs_1)            # the runs in their own order
 
 See also `filter_collection!`.
+
+For the assistant.
 """
 function sort_collection! end
 
 sort_collection!(collection, keys...; editor = get_evaluation_editor()) =
-    run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_sort(keys), "Sort"), editor; description = "sort_collection!")
+    run_on_editor_task!(editor; description = "sort_collection!") do
+        apply_change!(make_change(sort_collection!, collection, keys...; editor); editor)
+        _describe_collection_at(editor.document, _get_collection_reference(collection))
+    end
+
+make_change(::typeof(sort_collection!), collection, keys...; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_arrange_change(editor, collection, _make_sort(keys), "Sort")
+    end
 
 """
-    group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> Text
+    group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> String
 
 Show one row for each group of the items of the collection at `collection` that
 have the same values at `keys`, with the `aggregates` over the items of each
@@ -222,16 +269,27 @@ runs of each state, without a change of the data.
     group_collection!(runs_1)           # the runs again, one row each
 
 See also `limit_collection!`, `filter_collection!` and `sort_collection!`.
+
+For the assistant.
 """
 function group_collection! end
 
 group_collection!(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_group(keys, aggregates), "Group")
+    run_on_editor_task!(editor; description = "group_collection!") do
+        apply_change!(make_change(group_collection!, collection, keys...; aggregates, editor); editor)
+        _describe_collection_at(editor.document, _get_collection_reference(collection))
+    end
+
+make_change(::typeof(group_collection!), collection, keys...; aggregates = Any[:count],
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_arrange_change(editor, collection, _make_group(keys, aggregates), "Group")
+    end
 
 # @optional: the count is what the call says, and a call with no count takes the first
 # items away, as a call of `filter_collection!` with no condition takes the filter away.
 """
-    limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> Text
+    limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> String
 
 Show only the first `count` items of the collection at `collection`, in the order
 that its filter, its sort and its group give, and answer how the collection shows
@@ -248,11 +306,21 @@ runs after a sort.
     limit_collection!(runs_1)           # every run again
 
 See also `group_collection!` and `sort_collection!`.
+
+For the assistant.
 """
 function limit_collection! end
 
 limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_first(count), "Limit")
+    run_on_editor_task!(editor; description = "limit_collection!") do
+        apply_change!(make_change(limit_collection!, collection, count; editor); editor)
+        _describe_collection_at(editor.document, _get_collection_reference(collection))
+    end
+
+make_change(::typeof(limit_collection!), collection, count = nothing; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_arrange_change(editor, collection, _make_first(count), "Limit")
+    end
 
 """
     make_filter_collection_operation(collection, conditions...; editor = get_evaluation_editor())
@@ -346,31 +414,35 @@ _make_aggregate(aggregate) =
     throw(ArgumentError("An aggregate is :count or key => operator, such as \"delay\" => :mean, not " *
                         repr(aggregate) * "."))
 
-function _arrange_collection!(editor, collection, description, words::String)
-    operation = _make_arrange_operation(editor, collection, description, words)
-    operation === nothing &&
+function _make_arrange_change(editor, collection, description, words::String)
+    change = _find_arrange_change(editor, collection, description, words)
+    change === nothing &&
         throw(ArgumentError("No arrangement and no tab holds the collection at " *
                             string(strip_reference_types(_get_collection_reference(collection))) *
                             ", so it can not be arranged."))
-    evaluate_operation(editor, operation)
-    Text(_describe_collection_at(editor.document, _get_collection_reference(collection)))
+    change
+end
+
+function _make_arrange_operation(editor, collection, description, words::String)
+    change = _find_arrange_change(editor, collection, description, words)
+    change === nothing ? nothing : change.operation
 end
 
 # The edit, read from the collection by the readers of the editor: from the
 # collection itself, or from the deepest place above it that a reader follows a
 # route into. `nothing` when it comes back as it went, because no reader holds an
 # arrangement of the collection or can make one.
-function _make_arrange_operation(editor, collection, description, words::String)
+function _find_arrange_change(editor, collection, description, words::String)
     root = editor.document
     (path, _, _) = _find_arranged_path(root, _get_collection_reference(collection))
     place = annotate_reference_types(root, path)
     log = string(words, " ", describe_reference(place, root))
     operation = read_rooted_operation(editor, place, ArrangeCollectionOperation(EmptyReference(), description);
                                       description = log)
-    operation isa Operation && !_is_arrange_operation(operation) && return operation
+    operation isa Operation && !_is_arrange_operation(operation) && return RootedOperation(operation, log)
     operation = find_rooted_operation(editor, place, relative -> ArrangeCollectionOperation(relative, description);
                                       description = log)
-    (operation === nothing || _is_arrange_operation(operation)) ? nothing : operation
+    (operation === nothing || _is_arrange_operation(operation)) ? nothing : RootedOperation(operation, log)
 end
 
 _is_arrange_operation(operation) = operation isa ArrangeCollectionOperation ||
@@ -405,7 +477,19 @@ entry)`, the path of the collection from `root` with the step `document` of each
 arrangement on it, the collection, and the entry of the nearest arrangement at it
 or `nothing`. A path below an arranged document can leave out the step `document`.
 `nothing` when the path reaches no collection.
+
+Use it to find a collection of a document and the arrangement that shows it.
+
+# Example
+
+    found_1 = find_arranged_collection(root_1, reference_1)
+
+See also `describe_arranged_collection` and `describe_arrangement`.
+
+For the assistant.
 """
+function find_arranged_collection end
+
 function find_arranged_collection(root, reference::Reference)
     (path, arrangement, at) = _find_arranged_path(root, strip_reference_types(reference))
     items = try_evaluate_reference(root, path, nothing)

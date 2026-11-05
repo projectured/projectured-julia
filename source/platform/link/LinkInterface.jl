@@ -14,6 +14,10 @@ Use it to show a link of any domain the same way.
 # Example
 
     is_link(Link(page))    # true
+
+See also `get_link_target` and `describe_link`.
+
+For the assistant.
 """
 function is_link end
 
@@ -30,8 +34,14 @@ Use it to open what a link names, or to read it.
 # Example
 
     get_link_target(Link(page)) === page
+
+See also `is_link` and `is_link_broken`.
+
+For the assistant.
 """
 function get_link_target end
+
+get_link_target(link::ReferencedDocument) = get_link_target(get_document(link))
 
 """
     get_link_content(link) -> nothing, a string or a document
@@ -91,6 +101,10 @@ Use it to tell a person what a click on a link opens before the click.
 # Example
 
     describe_link(Link(DocumentLocator(section, reference)))   # "beta in Inner"
+
+See also `is_link_broken` and `format_tree_node_label`.
+
+For the assistant.
 """
 function describe_link end
 
@@ -117,6 +131,10 @@ Use it to draw a link that opens nothing as muted.
 # Example
 
     is_link_broken(Link(DocumentLocator(section, @reference(section, entries[9]))))
+
+See also `describe_link`.
+
+For the assistant.
 """
 function is_link_broken end
 

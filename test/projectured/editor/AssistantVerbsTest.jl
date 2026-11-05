@@ -3,6 +3,22 @@
 # the text of any part.
 
 using Test
+import ProjecturedKernel, ProjecturedPlatform
+
+# The names that only the person calls, each in the module that defines it. The
+# assistant acts at the person's request, so it never selects, clears the undo
+# history, opens a file dialog or answers a request that an agent made.
+const _PERSON_OWN_NAMES = [
+    (ProjecturedKernel.SelectionModule, :set_selection!),
+    (ProjecturedKernel.SelectionModule, :replace_selection!),
+    (ProjecturedKernel.SelectionModule, :clear_selection!),
+    (ProjecturedPlatform.UndoModule, :clear_undo_history!),
+    (ProjecturedPlatform.ShellModule, :make_file_dialog),
+    (ProjecturedPlatform.ShellModule, :open_file_dialog!),
+    (ProjecturedPlatform.ShellModule, :save_file_dialog!),
+    (ProjecturedPlatform.ConversationModule, :answer_permission_request!),
+    (ProjecturedPlatform.ConversationModule, :answer_question_request!),
+]
 
 function _make_assistant_verbs_application(directory)
     write(joinpath(directory, "people.json"),
@@ -109,11 +125,11 @@ function test_assistant_verbs()
         @test occursin("has no command", string(describe_commands(people[1]["name"]; editor)))
         @test get_selection(editor.document) == selected
         count = length(people)
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 1
         # The part is read again at each call, so a second call sees the first.
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 2
         for _ in 1:2
@@ -173,7 +189,7 @@ function test_assistant_verbs()
         @test [first(split(line, ": ")) for line in described] ==
               ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
                "New section"]
-        @test run_command!(content.entries[k], "Move the entry later"; editor) isa Text
+        @test run_command!(content.entries[k], "Move the entry later"; editor) isa String
         run_frame!(editor)
         @test title_at(k + 1) == "Dashboards"
         @test get_selection(editor.document) == selected
@@ -219,7 +235,7 @@ function test_assistant_verbs()
         selected = get_selection(editor.document)
         titles = [format_tree_node_label(get_document(entry)) for entry in content.entries]
         section = content.entries[findfirst(==("Editor"), titles)]
-        @test open_explorer_page!(section; editor) isa Text
+        @test open_explorer_page!(section; editor) isa String
         run_frame!(editor)
         @test get_navigator_page(navigator) === get_document(section)
         # A node below an entry: the row of its section opens, so its row shows.
@@ -256,7 +272,7 @@ function test_assistant_verbs()
         @test circle.cx == 80
         set_clock_time!(editor.clock, Float64(pi))
         @test circle.cx == 20
-        @test occursin("2pi * get_reactive_clock_time",
+        @test occursin("() -> 100 * get_reactive_clock_time(editor.clock)",
                        _run_assistant_code(editor, "read_function_documentation(\"ClockModule\", \"get_reactive_clock_time\")"))
     end
 
@@ -331,21 +347,91 @@ _has_example_parse_error(expression) =
     test_assistant_documentation(api = make_editor_api())
 
 Every name of `api` from a package of the editor carries what a model reads to use
-it: a "Use it to" line, an example that parses, and a "See also" line. Every name
-that `EDITOR_SYSTEM` and the paragraph of the loaded domains write in backticks is
-a name that the model can write.
+it: a "Use it to" line, an example that parses, and a "See also" line, which names
+only what the model can write. Every name that `EDITOR_SYSTEM` and the paragraph of
+the loaded domains write in backticks is a name that the model can write. The names
+that only the person calls are not offered, and a function of `api` that takes a
+document takes a part of that document too.
 """
 function test_assistant_documentation(api = make_editor_api())
+@testset "the names that only the person calls carry no mark and are not offered" begin
+    set = declare_api!(ToolSet(), api)
+    offered = Set{String}()
+    for entry in set.api
+        union!(offered, String.(get_api_entry_names(entry)))
+    end
+    for (module_, name) in _PERSON_OWN_NAMES
+        @test isdefined(module_, name)
+        @test !ToolModule.has_assistant_mark(ToolModule._binding_doc(module_, name)) ||
+              error(string(nameof(module_), ".", name, " carries the mark, but only the person calls it"))
+        @test !(String(name) in offered) ||
+              error(string(nameof(module_), ".", name, " is offered, but only the person calls it"))
+    end
+end
+@testset "a function that the assistant calls takes each document also as a part" begin
+    # A read of the window answers a part, a document with its place, so each
+    # parameter of a document type takes a part of that type too.
+    set = declare_api!(ToolSet(), api)
+    checked = Set{Any}()
+    for entry in set.api, (name, _) in get_api_entry_bindings(entry)
+        value = getfield(entry.module_, name)
+        (value isa Function && !(value isa Type)) || continue
+        value in checked && continue
+        push!(checked, value)
+        for method in methods(value)
+            parameters = Any[parameter isa TypeVar ? parameter.ub : parameter
+                             for parameter in Base.unwrap_unionall(method.sig).parameters[2:end]]
+            # A method with a trailing Vararg takes the call that gives it no value.
+            !isempty(parameters) && last(parameters) isa Core.TypeofVararg && pop!(parameters)
+            all(parameter -> parameter isa Type, parameters) || continue
+            for (position, parameter) in enumerate(parameters)
+                parameter !== Union{} && parameter <: Document || continue
+                types = copy(parameters)
+                types[position] = ReferencedDocument{parameter}
+                @test hasmethod(value, Tuple{types...}) ||
+                      error(string(nameof(entry.module_), ".", name, " takes a ", parameter, " as argument ",
+                                   position, " and no part: ", method))
+            end
+        end
+    end
+end
 @testset "every declared name carries its use, an example and its neighbours" begin
     set = register_editor_tools!(register_default_tools!(declare_api!(ToolSet(), api)))
+    writable = Set{String}(["editor"])
+    for entry in set.api
+        push!(writable, String(nameof(entry.module_)))
+        union!(writable, String.(get_api_entry_names(entry)))
+    end
+    union!(writable, [tool.name for tool in list_tools(set)])
     for entry in set.api, (name, _) in get_api_entry_bindings(entry)
         _is_documented_module(entry.module_) || continue
         doc = ToolModule._binding_doc(entry.module_, name)
+        # A type that a mark on its supertype offers needs no form of its own.
+        ToolModule.has_assistant_mark(doc) || continue
         example = _documented_example(doc)
         complete = occursin("\nUse it to ", doc) && occursin("\nSee also ", doc) &&
                    !isempty(example) && !_has_example_parse_error(Meta.parseall(example))
         @test complete || error(string(nameof(entry.module_), ".", name,
                                        " lacks a \"Use it to\" line, a \"See also\" line or an example that parses"))
+        # The example is what a model copies, so each function that it calls is one
+        # that the model can write, a function of Base, or one that the example defines.
+        for found in eachmatch(r"(?<![\w.])(@?[A-Za-z_][A-Za-z0-9_]*!?)\(", example)
+            called = String(found.captures[1])
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(called)), set.api)
+            @test called in writable || isdefined(Base, Symbol(called)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " calls `", called,
+                               "` in its example, which no model can write"))
+        end
+        for paragraph in split(doc, "\n\n"), found in eachmatch(r"`(@?[A-Za-z_][A-Za-z0-9_]*!?)", paragraph)
+            startswith(paragraph, "See also ") || continue
+            neighbour = String(found.captures[1])
+            # A word in backticks that no module of the editor defines, such as a
+            # keyword argument, names nothing to call.
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(neighbour)), set.api)
+            @test neighbour in writable || isdefined(Base, Symbol(neighbour)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " names `", neighbour,
+                               "` in its \"See also\" line, which no model can write"))
+        end
         # A function that the assistant calls carries its docstring on the generic
         # function, which the search answers. A macro has no generic form.
         value = getfield(entry.module_, name)
@@ -354,12 +440,6 @@ function test_assistant_documentation(api = make_editor_api())
         @test generic || error(string(nameof(entry.module_), ".", name,
                                       " has no docstring on its generic function"))
     end
-    writable = Set{String}(["editor"])
-    for entry in set.api
-        push!(writable, String(nameof(entry.module_)))
-        union!(writable, String.(get_api_entry_names(entry)))
-    end
-    union!(writable, [tool.name for tool in list_tools(set)])
     for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM * make_domain_system())
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue

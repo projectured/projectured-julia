@@ -28,6 +28,7 @@ module AppearanceModule
 using ..AgentModule
 using ..BackendModule
 using ..CellModule
+using ..CollectionModule: CellVector
 using ..DeviceModule
 using ..DocumentModule
 using ..DomainModule

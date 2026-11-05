@@ -117,6 +117,12 @@ const widget_focus_example       = Example("widget_focus",       make_widget_foc
 const widget_popup_example       = Example("widget_popup",       make_widget_popup_document_example,       make_widget_popup_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
+const layout_text_above_table_example = Example("layout_text_above_table", make_layout_text_above_table_document_example, make_widget_projection_example)
+const layout_scroll_area_in_page_example = Example("layout_scroll_area_in_page", make_layout_scroll_area_in_page_document_example, make_widget_projection_example)
+const layout_fill_in_scroll_area_example = Example("layout_fill_in_scroll_area", make_layout_fill_in_scroll_area_document_example, make_widget_projection_example)
+const layout_shares_example = Example("layout_shares", make_layout_shares_document_example, make_widget_projection_example)
+const layout_row_edge_example = Example("layout_row_edge", make_layout_row_edge_document_example, make_widget_projection_example)
+const layout_rows_in_slot_and_page_example = Example("layout_rows_in_slot_and_page", make_layout_rows_in_slot_and_page_document_example, make_widget_projection_example)
 const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
 const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
 const filtering_example      = Example("filtering",      make_collection_document_example,     make_filtering_projection_example)
@@ -213,6 +219,12 @@ const platform_examples = Example[
     widget_popup_example,
     layout_example,
     constraint_layout_example,
+    layout_text_above_table_example,
+    layout_scroll_area_in_page_example,
+    layout_fill_in_scroll_area_example,
+    layout_shares_example,
+    layout_row_edge_example,
+    layout_rows_in_slot_and_page_example,
     collection_example,
     reversing_example,
     filtering_example,

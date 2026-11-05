@@ -98,7 +98,8 @@ function print_document(p::McpLogToWidget, recursion, log::McpLog, ctx)
         Cell[Cell(_build_mcp_call_block(p, entry)) for entry in shown]
     end)
     root = VerticalLayout(Any[heading, choice,
-                              LayoutConstraint(WidgetScrollPane(calls; follow_end = true);
+                              LayoutConstraint(WidgetScrollPane(calls; follow_end = true,
+                                                               grows = (width = false, height = true));
                                                width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
     ChildrenIoMap(p, log, root, Cell(Any[]))

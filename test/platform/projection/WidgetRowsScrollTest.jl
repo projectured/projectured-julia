@@ -31,6 +31,21 @@ function test_widget_rows_scroll()
     projection = _scroll_pane_projection()
     plain = ModifierKeys()
 
+    @testset "the query that collects the commands passes through the pane of the rows" begin
+        # The query has no place, and the pane passes it on to the widget all the same.
+        collect_commands(iomap) = read_intent(projection, nothing, Intent(CollectIntents()), iomap).operation
+        list = print_document(projection, nothing, _make_rows_test_list(), _make_rows_test_offer())
+        @test list isa WidgetModule.WidgetRowsPaneIoMap
+        # A list has no command of its own to offer.
+        @test collect_commands(list) === nothing
+        tree = print_document(projection, nothing, WidgetTree(Any[("node", Any["leaf"])]),
+                              _make_rows_test_offer())
+        @test tree isa WidgetModule.WidgetRowsPaneIoMap
+        answer = collect_commands(tree)
+        @test answer isa CollectedIntentsOperation
+        @test [intent.description for intent in answer.intents] == ["Show the tooltip"]
+    end
+
     @testset "a list in a slot fills it and scrolls its rows inside its border" begin
         list = _make_rows_test_list()
         iomap = print_document(projection, nothing, list, _make_rows_test_offer())

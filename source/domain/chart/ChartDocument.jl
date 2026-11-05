@@ -75,6 +75,8 @@ Use it to set the range, the title and the grid of a numeric axis of a chart.
     open_pane!(chart_1; title = "Sales")
 
 See also `Chart`, which holds it, and `ChartCategoryAxis`.
+
+For the assistant.
 """
 @document struct ChartAxis <: ChartDocument
     title::String = ""
@@ -100,6 +102,8 @@ Use it to name the groups on the axis of a chart of bars.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartCategoryAxis <: ChartDocument
     title::String = ""
@@ -126,6 +130,8 @@ Use it to place the box that names the series of a chart.
     open_pane!(chart_1; title = "Sales")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartLegend <: ChartDocument
     visible::Bool = true
@@ -165,6 +171,8 @@ mean with its interval.
                                                    lower = means .- 0.01, upper = means .+ 0.01)])
 
 See also `Chart`, which holds it, and `ChartScatterSeries`.
+
+For the assistant.
 """
 @document struct ChartLineSeries <: ChartSeries
     label::String
@@ -224,6 +232,8 @@ Use it to draw a cloud of points: it shows how two measures relate.
     open_pane!(chart_1; title = "Delay")
 
 See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
 """
 @document struct ChartScatterSeries <: ChartSeries
     label::String
@@ -269,6 +279,8 @@ Use it to draw a closed form against measured points.
     open_pane!(chart_1; title = "Sine")
 
 See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
 """
 @document struct ChartFunctionSeries <: ChartSeries
     label::String
@@ -309,6 +321,8 @@ Use it to draw one bar for each category: it compares a value between groups.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, `ChartCategoryAxis` and `ChartHistogramSeries`.
+
+For the assistant.
 """
 @document struct ChartBarSeries <: ChartSeries
     label::String
@@ -334,6 +348,8 @@ Use it to draw the share of each part in a whole.
     open_pane!(chart_1; title = "Share")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartPieSeries <: ChartSeries
     label::String
@@ -365,6 +381,8 @@ Use it to draw how the values of a sample spread over equal bins.
     open_pane!(chart_1; title = "Delays")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartHistogramSeries <: ChartSeries
     label::String
@@ -527,6 +545,8 @@ Use it to draw data for the person: it shows one or more series with a title, ax
     open_pane!(Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))]); title = "Sales")
 
 See also `ChartLineSeries`, `ChartBarSeries` and `ChartAxis`.
+
+For the assistant.
 """
 @document struct Chart <: ChartDocument
     title::String
@@ -682,7 +702,20 @@ _chart_series_reference(chart::Chart, index::Integer) =
 Every selectable part of a chart, in reading order: the title, the x axis, the
 y axis, the legend, then each series. Navigation walks this list, and the
 projection draws whichever entry is selected.
+
+Use it to list the parts of a chart that a person can select or that an edit can act on.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))])
+    parts_1 = collect_chart_parts(chart_1)
+
+See also `Chart` and `ChartAxis`.
+
+For the assistant.
 """
+function collect_chart_parts end
+
 function collect_chart_parts(chart::Chart)
     parts = Reference[_chart_field_reference(chart, "title"),
                       _chart_field_reference(chart, "x_axis"),
@@ -693,6 +726,8 @@ function collect_chart_parts(chart::Chart)
     end
     parts
 end
+
+collect_chart_parts(chart::ReferencedDocument) = collect_chart_parts(get_document(chart))
 
 """
     get_chart_part_index(chart, reference) -> Int
@@ -762,17 +797,23 @@ Reordering *is* the ordering feature: the list order decides both which series
 draws on top and the order the legend lists them in.
 """
 function move_series(chart::Chart, from::Integer, to::Integer)
+    move = _make_series_move(chart, from, to)
+    move === nothing && return nothing
+    landing = concat_references(_chart_field_reference(chart, "series"),
+        ConcreteReference(ElementReferenceStep(to),
+                          EmptyReference(get_reference_node_type(chart.series[from]))))
+    CompoundOperation(Any[move.operations..., ReplaceSelectionOperation(landing)])
+end
+
+# The move of a series in the list, as a delete paired with an insert, or
+# `nothing` when `from` and `to` are not two places of the list.
+function _make_series_move(chart::Chart, from::Integer, to::Integer)
     n = length(chart.series)
     (1 <= from <= n && 1 <= to <= n && from != to) || return nothing
-    moved = chart.series[from]
     field_path = _chart_field_reference(chart, "series")
-    landing = concat_references(field_path,
-        ConcreteReference(ElementReferenceStep(to),
-                          EmptyReference(get_reference_node_type(moved))))
     CompoundOperation(Any[
         make_delete_elements_operation(field_path, from; root=chart),
-        make_insert_elements_operation(field_path, to, Any[moved]; root=chart),
-        ReplaceSelectionOperation(landing)])
+        make_insert_elements_operation(field_path, to, Any[chart.series[from]]; root=chart)])
 end
 
 """
@@ -786,6 +827,99 @@ function remove_series(chart::Chart)
     index == 0 && return nothing
     make_delete_elements_operation(_chart_field_reference(chart, "series"), index;
                                    root=chart)
+end
+
+# ── The verbs of a chart ────────────────────────────────────────────────────
+
+"""
+    move_series!(chart, from, to; editor = get_evaluation_editor()) -> chart
+
+Move the series at the place `from` of the list of `chart` to the place `to`, and
+answer `chart`. The order of the list decides which series draws on top and the
+order in which the legend names them. `chart` is a chart of the window, as a
+part. It is an edit of the editor, so Ctrl+Z undoes it.
+
+Use it to draw a series above the others, or to change the order of the legend.
+
+# Example
+
+    move_series!(chart_1, 3, 1)
+
+See also `remove_series!`, `make_change`.
+
+For the assistant.
+"""
+function move_series! end
+
+move_series!(chart::ReferencedDocument, from::Integer, to::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "move_series!") do
+        apply_change!(make_change(move_series!, chart, from, to; editor); editor)
+        chart
+    end
+
+make_change(::typeof(move_series!), chart::ReferencedDocument, from::Integer, to::Integer;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_chart_document(chart)
+        move = _make_series_move(document, from, to)
+        move === nothing &&
+            throw(ArgumentError(string("A move of a series takes two places of the list, 1 to ",
+                                       length(document.series), ", and not ", from, " and ", to, ".")))
+        _make_chart_change(editor, chart, move, string("Move the series ", from, " of the chart to ", to))
+    end
+
+"""
+    remove_series!(chart, index; editor = get_evaluation_editor()) -> chart
+
+Remove the series at the place `index` of the list of `chart`, and answer `chart`.
+`chart` is a chart of the window, as a part. It is an edit of the editor, so
+Ctrl+Z undoes it.
+
+Use it to take a series out of a chart.
+
+# Example
+
+    remove_series!(chart_1, 2)
+
+See also `move_series!`, `make_change`.
+
+For the assistant.
+"""
+function remove_series! end
+
+remove_series!(chart::ReferencedDocument, index::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "remove_series!") do
+        apply_change!(make_change(remove_series!, chart, index; editor); editor)
+        chart
+    end
+
+make_change(::typeof(remove_series!), chart::ReferencedDocument, index::Integer;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_chart_document(chart)
+        n = length(document.series)
+        1 <= index <= n ||
+            throw(ArgumentError(string("The chart has ", n, " series, so it has no series ", index, ".")))
+        _make_chart_change(editor, chart,
+                           make_delete_elements_operation(_chart_field_reference(document, "series"), index;
+                                                          root = document),
+                           string("Remove the series ", index, " of the chart"))
+    end
+
+function _get_chart_document(chart::ReferencedDocument)
+    document = get_document(chart)
+    document isa Chart ||
+        throw(ArgumentError("The part is a " * string(nameof(typeof(document))) * ", not a chart."))
+    document
+end
+
+# The change of `operation`, which holds the chart of the part `chart`, from the
+# root of the editor's document.
+function _make_chart_change(editor, chart::ReferencedDocument, operation, description)
+    reference = extend_reference(get_reference(chart), FieldReferenceStep("series"))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+    rooted === nothing && throw(ArgumentError("No reader of the window carries an edit of the chart."))
+    RootedOperation(rooted, description)
 end
 
 # Navigation owns the arrow keys, as it does everywhere else in the editor: the

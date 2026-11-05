@@ -2,7 +2,7 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Ten fragments share this namespace:
+be asked to read. Twelve fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
   `ApiEntry` lines of the API that a set declares, the `MeaningModel` and the
@@ -35,6 +35,9 @@ be asked to read. Ten fragments share this namespace:
   meaning rank joins the rank of its words.
 - [`RelevanceSearch.jl`](RelevanceSearch.jl) — how a `RelevanceModel` ranks a
   description, its context and each thing a search could find, read together.
+- [`AssistantMark.jl`](AssistantMark.jl) — `ASSISTANT_MARK`, the line of a docstring
+  that offers a name to a model, and `collect_marked_api`, the declaration that the
+  marks of the loaded modules make.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
@@ -77,7 +80,8 @@ using ..FaultModule
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        RelevanceModel, set_relevance_model!,
        get_api_entry_names,
-       get_api_entry_bindings, get_api_source_name, describe_api, register_guide_root!,
+       get_api_entry_bindings, get_api_source_name, describe_api, API_INDEX_PRESETS, register_guide_root!,
+       ASSISTANT_MARK, has_assistant_mark, collect_marked_api,
        register_tool!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, list_resources, find_resource,
        read_resource, describe_resources,
@@ -113,6 +117,7 @@ include("Documentation.jl")
 include("DocstringSummary.jl")
 include("MeaningSearch.jl")
 include("RelevanceSearch.jl")
+include("AssistantMark.jl")
 include("DefaultTools.jl")
 
 end # module

@@ -108,7 +108,10 @@ function _print_grid_list(p, recursion, doc, ctx)
     policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
     peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
                                                peek(getfield(doc, :column_policy)))
-    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    # The grid divides the edge of its width, exact or bounded, else its minimum,
+    # as the eager grid does; a cell that is not built can not be measured, so a
+    # weighted column is its share.
+    avail_w = ctx === nothing ? nothing : first(_gl_divided_extent(ctx.minimum_width, ctx.maximum_width))
     _check_grid_list(n, peek_column_policy, row_policy, avail_w)
     hgap = getfield(doc, :horizontal_gap)
     vgap = getfield(doc, :vertical_gap)

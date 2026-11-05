@@ -2,17 +2,24 @@
 # windows, and the window document beneath it.
 
 """
-    ScreenDocument(; windows, pointer_shape = nothing)
+    ScreenDocument(; windows, pointer_shape = nothing, display_areas = NTuple{4,Int}[])
 
 The windows that the editor shows, and `pointer_shape`, the shape that the
 pointer keeps over every window while a part says one, or `nothing`. A part says
 the shape of its drag with [`ChangeScreenPointerShapeOperation`](@ref), and the
 screen draws a region of that shape over each window. `pointer_shape` is view
 state: a history does not record it.
+
+`display_areas` is the usable area of each display, `(x, y, width, height)` in
+the coordinates of the place of a window, the main display first. The backend
+writes it, as it writes the place and the size of a window, and a placement reads
+it to keep its window on a display. A backend that knows no displays leaves it
+empty.
 """
 @document struct ScreenDocument
     windows::CellVector = CellVector()
     pointer_shape::Union{Symbol,Nothing} = nothing
+    display_areas::Vector{NTuple{4,Int}} = NTuple{4,Int}[]
 end
 
 # `ScreenDocument()` (empty), `ScreenDocument([w, …])` and `ScreenDocument(w, …)`
@@ -20,7 +27,8 @@ end
 # variadic forms for a struct backed by a single `CellVector`. Only the
 # already-wrapped `CellVector` form needs writing — a `CellVector` is a `Document`,
 # so this more specific method takes it as the *collection*, not as one element.
-ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing), Cell(nothing))
+ScreenDocument(windows::CellVector) =
+    ScreenDocument(windows, Cell(nothing), Cell(NTuple{4,Int}[]), Cell(nothing))
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
@@ -98,6 +106,14 @@ the window, because the place is a computation of the placement, and a write
 would replace it.
 """
 is_window_placed(window::WindowDocument) = getfield(window, :placement)[] !== nothing
+
+"""
+    has_window_frame(window::WindowDocument) -> Bool
+
+Whether `window` has the frame of the window manager, with which a person moves and
+resizes it. A `:popup` and a `:tooltip` have none.
+"""
+has_window_frame(window::WindowDocument) = !(window.style in (:popup, :tooltip))
 
 # A window calls itself by the title it shows.
 get_document_title(window::WindowDocument) = window.title
@@ -182,18 +198,24 @@ OpenWindowOperation(; id::Symbol,
                         style, auto_dismiss, modal, placement, content)
 
 """
-    OpenPopupOperation(; id, x, y, width = 640, height = 800, auto_dismiss, content)
+    OpenPopupOperation(; id, x = 0, y = 0, anchor_size = (0, 0), gap = 0,
+                         width = 640, height = 800, auto_dismiss = true, content)
 
-Request a popup window whose top left is at `(x, y)` in the frame of the reader
-that holds the operation. The window takes the extent of what its content
-draws, as a tooltip does, and `width` and `height` bound that extent; so no
-opener estimates the size of what it opens. The widget that opens a popup answers a position in
-its own frame, so "just below me" is `(0, height + gap)`. Each reader on the way
-up moves the position into its own frame with `map_operation_position`, by the
-place where it put the child that answered, and the layer of the window adds
-the screen origin of the window and answers an `OpenWindowOperation`. So no
-reader needs the screen position of the widget, and the operation does not
-reach `evaluate_operation`.
+Request a popup window below the box of a part. `(x, y)` is the top left corner of
+the box in the frame of the reader that holds the operation, and `anchor_size` is
+its width and height; a point is a box of no size. The window stands `gap` below
+the box with the left edges aligned, as [`compute_anchored_place`](@ref) puts it,
+so it goes above the box when the area of the display has no room below. The window takes the extent of what its content
+draws, as a tooltip does, and `width` and `height` bound that extent; so no opener
+estimates the size of what it opens.
+
+The widget that opens a popup answers the box of its own control, at `(0, 0)` in
+its own frame. Each reader on the way up moves the position into its own frame
+with `map_operation_position`, by the place where it put the child that answered,
+and the layer of the window answers an `OpenWindowOperation` whose placement adds
+the place of that window, so the popup follows its window. No reader needs the
+screen position of the widget, and the operation does not reach
+`evaluate_operation`.
 
 An opener marks it with `ReplaceViewStateOperation`, because to open a popup is
 not an edit, and a history does not record it.
@@ -202,6 +224,8 @@ struct OpenPopupOperation <: Operation
     id::Symbol
     x::Int
     y::Int
+    anchor_size::NTuple{2,Int}
+    gap::Int
     width::Int
     height::Int
     auto_dismiss::Bool
@@ -209,9 +233,11 @@ struct OpenPopupOperation <: Operation
 end
 
 OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
+                     anchor_size = (0, 0), gap::Integer = 0,
                      width::Integer = 640, height::Integer = 800,
                      auto_dismiss::Bool = true, content::Document) =
-    OpenPopupOperation(id, Int(x), Int(y), Int(width), Int(height), auto_dismiss, content)
+    OpenPopupOperation(id, Int(x), Int(y), (Int(anchor_size[1]), Int(anchor_size[2])), Int(gap),
+                       Int(width), Int(height), auto_dismiss, content)
 
 # It carries its content and a position in the frame of the reader that holds
 # it, and names no place in a document. So it passes up through a projection
@@ -219,10 +245,14 @@ OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
 # pane, as it is; a container that places its child moves the position.
 OperationModule.is_self_contained_operation(::OpenPopupOperation) = true
 
+# Both corners of the box move, so a box in a zoomed pane has the size it is drawn
+# at. The gap and the bounds of the window are in the pixels of the window.
 function map_operation_position(operation::OpenPopupOperation, move)
-    x, y = move(operation.x, operation.y)
-    OpenPopupOperation(operation.id, Int(x), Int(y), operation.width, operation.height,
-                       operation.auto_dismiss, operation.content)
+    x1, y1 = move(operation.x, operation.y)
+    x2, y2 = move(operation.x + operation.anchor_size[1], operation.y + operation.anchor_size[2])
+    OpenPopupOperation(operation.id, round(Int, min(x1, x2)), round(Int, min(y1, y2)),
+                       (round(Int, abs(x2 - x1)), round(Int, abs(y2 - y1))), operation.gap,
+                       operation.width, operation.height, operation.auto_dismiss, operation.content)
 end
 
 """

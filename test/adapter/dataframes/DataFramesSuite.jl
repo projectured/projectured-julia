@@ -44,10 +44,11 @@ function test_dataframes()
         test_data_frame_column_width()
         test_data_frame_theme()
         test_data_frame_display()
+        test_data_frame_verbs()
     end
 end
 
-export test_dataframes, test_dataframes_layering, test_data_frame_example, test_data_frame_view,
+export test_dataframes, test_dataframes_layering, test_data_frame_example, test_data_frame_view, test_data_frame_verbs,
        test_data_frame_row_page, test_data_frame_table,
        test_data_frame_columns, test_data_frame_paths, test_data_frame_cells, test_data_frame_row_edits,
        test_data_frame_column_edits, test_data_frame_find, test_data_frame_filter,

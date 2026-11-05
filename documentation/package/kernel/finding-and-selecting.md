@@ -45,24 +45,26 @@ opt out: `search_documents(doc, "Alice"; raw=true)` returns `["Alice"]` (the bar
 ### One walk, two searches
 
 `search_documents` and `search_references` are not two implementations. They are the same
-traversal — `walk_document` in the document layer — run under two `DocumentWalk`s that differ
-in exactly one thing: **what a visited node's *location* is.** `search_documents` uses the
-default, so the location is the node itself; `search_references` (which lives in the reference
-layer, because the document layer cannot name a `Reference`) passes in location functions
-that build the path to the node. Everything else — how to descend a collection, a dict, a
-struct; where to stop; how to fold a scalar match up to its enclosing document — is written
-once, and those location functions are its only parameters.
+traversal — `walk_document` in the document layer — along the same `DocumentWalk`. The walk
+holds the rules of the route: which nodes it opens, which fields it enters, which children it
+enters, in what order, and how often it visits a node that two places share. The search
+decides only how a match is named. `search_documents` answers the node itself, or with
+`places = true` the node with its place, a `ReferencedDocument`; `search_references` answers
+the place alone, a `Reference`. Both live in the reference layer, because the document layer
+cannot name a `Reference`: the walk names a match by a chain of steps (`paths = true`), and the
+search turns the chain into a reference.
 
-That difference has one consequence worth knowing, and it is not a quirk:
+By default the walk visits each node once, at the first path that reaches it, so a node that
+two places share is reported once by both searches, at its first place. A caller that must
+know every place of a node, as the check whether a value stands at one place does, passes
+`walk = DocumentWalk(; policy = :once_per_path)`. That walk visits a shared part once for
+each path, so it costs more as the sharing grows: in a window with a 300-row JSON file and 20
+edits, the old versions that undo keeps share their rows, and a walk that enters them finds
+one row at 441 paths.
 
-> **A node reachable by two paths is reported once by `search_documents` and twice by
-> `search_references`.**
-
-It is *one object* but *two places*, and a place is what a selection names — so both places
-must be reported if you intend to put a cursor in one of them. Conversely, reporting the same
-object twice would tell you nothing new. This is the `policy` each search sets on its
-`DocumentWalk` (`:once_per_object` vs `:once_per_path`), and it is why the two cannot be
-collapsed into one.
+The default walk does not enter the mouse target, the selection, or a field that a document
+keeps out with `is_field_walked`: the node that a link names, and the old versions of an
+undo buffer. To search old versions, search the list of an undo buffer itself.
 
 Struct and collection nodes have no string form, so they never match a string/regex query.
 Reach for a predicate when you need to match by type or shape, or to match a leaf
@@ -72,12 +74,12 @@ Reach for a predicate when you need to match by type or shape, or to match a lea
 ## Searching for references — `search_references`
 
 ```julia
-search_references(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
-                  background=false) -> DocumentMatches{Reference}
+search_references(obj, predicate; walk=DocumentWalk(), maxdepth=64, limit=100, maxvisits=100_000,
+                  raw=false, background=false) -> DocumentMatches{Reference}
 search_references(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches{Reference}
 ```
 
-Walks `obj` and returns a document-rooted `Reference` for **every** node whose
+Walks `obj` and returns a document-rooted `Reference` for each node whose
 (cell-unwrapped) value satisfies the query. With a predicate, a predicate that
 throws on some node is treated as "no match" there, not an error.
 
@@ -86,38 +88,40 @@ By default, when a string/regex query matches a raw scalar leaf (e.g. a `JsonStr
 `Document`** — so the returned path points to the selectable `JsonString` node, not to its
 internal string field. Pass `raw=true` to return the path to the exact matched node instead.
 
-- A node reachable by **several paths** yields **one result per path** — each path
-  is a distinct *location*, hence a distinct selection.
+- A node reachable by **several paths** yields one result, at the first path; with
+  `walk = DocumentWalk(; policy = :once_per_path)` it yields **one result per path**.
 - Paths that **loop back** through an object already on the current path are
   dropped, so cyclic structures (e.g. a doubly-linked list's `prev`/`next`) stay
   finite.
 - `maxdepth` bounds recursion for structures whose nodes are never the *same*
   object — e.g. an infinite lazy list, which the cycle guard alone cannot stop.
-- `include_selection=true` also walks `selection` fields (off by default).
-- `descend(parent, child)` returns whether the walk enters `child` from `parent`;
-  a child that it does not enter is neither matched nor walked. The default
-  enters every child.
+- `maxvisits` bounds the nodes that the walk visits, so a search of a large table
+  stops.
+- A match whose path does not read back to it, such as a match in a dict whose keys
+  are types, is left out and counted.
+- The walk decides the route. `DocumentWalk(; descend = (parent, child) -> …)`
+  enters only the children that it accepts, and
+  `DocumentWalk(; enter_field = (node, name) -> name === :selection || is_field_entered(node, name))`
+  also walks the `selection` fields.
 
 Because the returned paths are document-rooted, they resolve with
 `evaluate_reference` and can be handed straight to `set_selection!` /
-`replace_selection!`.
+`replace_selection!`. A search of a part returns paths from the root of the part.
 
 ## Searching for documents — `search_documents`
 
 ```julia
-search_documents(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
-                 background=false) -> DocumentMatches
+search_documents(obj, predicate; walk=DocumentWalk(), places=obj isa ReferencedDocument,
+                 maxdepth=64, limit=100, maxvisits=100_000, raw=false, background=false) -> DocumentMatches
 search_documents(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches
 ```
 
 Same walk (and the same string/regex shorthand), but returns the matching
-**nodes themselves, each one once** even when a node is shared / reachable by
-several paths. Use it when you want the values, not where they live
-(`search_references` is the one to use when you intend to select).
-
-`descend(parent, child)` returns whether the walk enters `child` from `parent`; a
-child that it does not enter is neither matched nor walked. The default enters
-every child.
+**nodes themselves**. With `places = true` it returns each node with its place, a
+`ReferencedDocument`, which reads like the node and which a verb that needs a place
+takes as it is; a search of a part returns places by default, after the place of the
+part. A search of the editor's document with `places = true` returns places in the
+window.
 
 By default, a string/regex match on a raw scalar leaf **folds up to the nearest enclosing
 `Document`** — so `search_documents(doc, "Alice")` returns the `JsonString` node (whose
