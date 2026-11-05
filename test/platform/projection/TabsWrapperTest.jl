@@ -68,6 +68,14 @@ function test_tabs_wrapper()
         @test counting.count[] >= 1
     end
 
+    @testset "a root TextBlock draws with the caller's projection" begin
+        block = TextBlock(TextLine(TextString("alpha beta gamma", StyleFont("Ubuntu Mono", 20), color_default)))
+        counting = TabsCountingProjection()
+        editor = build_editor(block, counting; backend = TabsProbeBackend(), devices = Device[])
+        _read_graphics(get_iomap_output(editor.iomap).windows[1].content)
+        @test counting.count[] >= 1
+    end
+
     @testset "tabs = false, a pane tree and a screen keep the root" begin
         label = WidgetLabel("hi")
         @test get_wrapped_document(build_editor(label, TabsCountingProjection();

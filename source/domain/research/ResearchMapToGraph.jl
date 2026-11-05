@@ -230,10 +230,7 @@ function make_research_map_projection(; measure, theme = nothing, outline_theme 
     get_style(name) = get_research_style(theme, name)
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch,
-        # The rows of a map show an outline box, whose text wraps.
-        Pair{Type,Any}[TextBlock => ChainingProjection(WordWrapping(; measure),
-                                                        TextToGraphics(; measure))])))
+        WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
     stages = ChainingProjection(GraphGraphToGraphLayout(engine),
                                 GraphLayoutToGraphicsCanvas(edge_shape = :curved))
     ChainingProjection(ResearchMapToGraph(; outline = make_theme_values_field(OutlineTheme, outline_theme)),

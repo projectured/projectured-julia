@@ -23,8 +23,7 @@ function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=defau
         TextToGraphics(measure=measure))
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         Pair{Type,Any}[PrimitiveDocument => primitive,
-                       DocumentNothing   => object,
-                       TextBlock         => TextToGraphics(; measure)],
+                       DocumentNothing   => object],
         LayoutToGraphics().dispatch,
         widget.dispatch,
     )))

@@ -35,6 +35,7 @@ using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
 import ..GraphicsModule: find_first_baseline
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..OperationModule
@@ -47,7 +48,7 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: replace_wrapped_document!
+import ..DocumentModule: replace_wrapped_document!, get_edited_field
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -72,6 +73,7 @@ export WordWrapping, WordWrappingIoMap
 export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
+export TextView, make_text_view, TextViewToGraphics, TextViewToGraphicsIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
@@ -94,6 +96,7 @@ include("FaultToText.jl")
 include("TextLineNumbering.jl")
 include("TextFolding.jl")
 include("WordWrapping.jl")
+include("TextView.jl")
 include("TextPattern.jl")
 include("FilteredTextToText.jl")
 include("TextFirstLine.jl")

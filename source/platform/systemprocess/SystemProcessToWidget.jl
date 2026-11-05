@@ -78,6 +78,6 @@ function make_graphics_projection(::Type{SystemProcess}; measure, appearance)
         RecursiveProjection(FaultCatchingProjection(
             inner = WidgetToGraphics(; measure, theme,
                                      graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
-                                     text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))),
+                                     text_theme = get_scaled_theme!(appearance, TextTheme)),
             substitute = FaultToGraphics())))
 end

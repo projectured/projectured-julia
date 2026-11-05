@@ -12,8 +12,8 @@
 # go to the row drawn at the end.
 
 _scroll_pane_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure(),
-                     text = TextToGraphics(measure = FontFileMeasure())).dispatch))
+    WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+                     measure = FontFileMeasure()).dispatch))
 
 _scroll_pane_list() =
     WidgetList(["row $i" for i in 1:40]; selected = 0, width = 200)

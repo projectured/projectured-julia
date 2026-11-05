@@ -66,8 +66,7 @@ make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(
     RecursiveProjection(TypeDispatchingProjection(vcat(
         WidgetToGraphics(; measure = measure,
                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
-        Pair{Type,Any}[TextBlock => TextToGraphics(; measure,
-                                                   theme = get_scaled_theme!(appearance, TextTheme)),
-                       Any => NestingProjection(projection;
+                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                         text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch,
+        Pair{Type,Any}[Any => NestingProjection(projection;
                                                 recursion = IdentityProjection())])))

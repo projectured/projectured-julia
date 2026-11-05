@@ -6,8 +6,7 @@
 const _SS_MEASURE = FixedMeasure(10, 18, 6, 0)
 const _SS_SPACE = (8, 6, 4, 2)
 
-_ss_projection() = RecursiveProjection(WidgetToGraphics(; measure = _SS_MEASURE,
-                                                        text = TextToGraphics(measure = _SS_MEASURE)))
+_ss_projection() = RecursiveProjection(WidgetToGraphics(; measure = _SS_MEASURE))
 
 # A bounded offer of 600 by 400 with `space` around the child: a widget takes what
 # it needs, so its extent shows the space.
@@ -76,7 +75,9 @@ function test_slot_space()
     print_sample(sample, ctx) = print_document(projection, nothing, sample, ctx)
 
     @testset "each printer of the widget dispatch takes the space or is a part of the frame" begin
+        # A `TextView` is the text of a widget, not a widget: the next test of it.
         types = Set{Symbol}(nameof(first(rule)) for rule in WidgetToGraphics(; measure = _SS_MEASURE).dispatch)
+        delete!(types, :TextView)
         covered = Set{Symbol}(nameof(typeof(sample)) for sample in vcat(_ss_box_samples(), _ss_frame_samples()))
         layouts = Set{Symbol}(nameof(first(rule)) for rule in LayoutToGraphics().dispatch)
         @test setdiff(types, covered, layouts) == Set{Symbol}()
@@ -105,6 +106,15 @@ function test_slot_space()
             @test _ss_space(spaced) == _SS_SPACE
             @test _ss_extent(spaced) == (width + left + right, height + top + bottom)
         end
+    end
+
+    @testset "a text view passes the space on to its text" begin
+        view = make_text_view(TextBlock(TextLine(TextString("abc", StyleFont("Ubuntu Mono", 20), color_default))))
+        bare = print_sample(view, _ss_offer((0, 0, 0, 0)))
+        spaced = print_sample(view, _ss_offer(_SS_SPACE))
+        left, top, right, bottom = _SS_SPACE
+        width, height = _ss_extent(bare)
+        @test _ss_extent(spaced) == (width + left + right, height + top + bottom)
     end
 
     @testset "the frame takes no space: $(nameof(typeof(sample)))" for sample in _ss_frame_samples()

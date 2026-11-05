@@ -165,8 +165,7 @@ end # @testset
     projection = ChainingProjection(
         ObjectToWidget(; is_record = value -> value isa OtwPlainWindow || is_form_record(value)),
         RecursiveProjection(TypeDispatchingProjection(vcat(
-            LayoutToGraphics().dispatch, make_object_field_widget_dispatch(w2g.dispatch),
-            Pair{Type,Any}[TextBlock => TextToGraphics(measure = FontFileMeasure())]))))
+            LayoutToGraphics().dispatch, make_object_field_widget_dispatch(w2g.dispatch)))))
     editor, backend = _otw_editor(holder; projection)
     @test "OtwPlainWindow" in _otw_texts(backend)
     _otw_click!(editor, backend, "Main")

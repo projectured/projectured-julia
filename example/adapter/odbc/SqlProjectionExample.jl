@@ -21,8 +21,7 @@ function make_sql_table_projection_example(; measure=FontFileMeasure(),
     table_renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         w2g.dispatch,
-        Pair{Type,Any}[PrimitiveDocument => primitive,
-                       TextBlock => TextToGraphics(; measure)],
+        Pair{Type,Any}[PrimitiveDocument => primitive],
     )))
     ChainingProjection(
         # SqlSelectStatement → CellTable (executes against the instance via the pool)

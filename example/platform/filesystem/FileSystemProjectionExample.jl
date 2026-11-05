@@ -20,7 +20,6 @@ function make_filesystem_widget_projection_example(; measure=FontFileMeasure())
     font = StyleFont("Ubuntu Mono", 20)
     ChainingProjection(
         RecursiveProjection(FileSystemToWidget(; open_file = nothing)),
-        RecursiveProjection(WidgetToGraphics(font; measure=measure,
-                                             text=TextToGraphics(; measure))),
+        RecursiveProjection(WidgetToGraphics(font; measure=measure)),
     )
 end

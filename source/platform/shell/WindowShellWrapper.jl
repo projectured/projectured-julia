@@ -115,5 +115,6 @@ make_opened_window_projections(; gesture_help::Bool = true,
          Pair{Type,Any}[content...],
          Pair{Type,Any}[WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch...],
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                         text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch...],
          Pair{Type,Any}[Document => NaturalToGraphics(; measure, appearance)])

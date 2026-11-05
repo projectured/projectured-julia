@@ -27,8 +27,8 @@ function make_tabs_projection(projection; appearance::Appearance = Appearance(),
     rows = Pair{Type,Any}[LayoutToGraphics(; theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch;
                           WidgetToGraphics(; measure = measure,
                                            theme = get_scaled_theme!(appearance, WidgetTheme),
-                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch;
-                          TextBlock => TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme));
+                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                           text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch;
                           Any => NestingProjection(projection; recursion = IdentityProjection())]
     ChainingProjection(
         RecursiveProjection(FaultCatchingProjection(inner = PaneToWidget(),

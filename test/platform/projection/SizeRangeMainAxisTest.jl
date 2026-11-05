@@ -2,8 +2,7 @@
 # draws, in order.
 function _range_layout_child_widths(layout, width)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0),
-                         text = TextToGraphics(measure = FixedMeasure(10, 18, 6, 0))).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     ctx = PrinterContext(EmptyReference(), Cell(width), nothing, Dict{Symbol,Any}())
     iomap = print_document(projection, nothing, layout, ctx)
     [Int(last(entry).output.w[]) for entry in getfield(iomap, :child_iomaps)[]]
@@ -13,8 +12,7 @@ end
 # that it draws with the height that each of its children draws, in order.
 function _range_column_heights(column, height)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0),
-                         text = TextToGraphics(measure = FixedMeasure(10, 18, 6, 0))).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     ctx = with_size_range(PrinterContext(EmptyReference(), Cell(400), nothing, Dict{Symbol,Any}());
                           height = height)
     iomap = print_document(projection, nothing, column, ctx)

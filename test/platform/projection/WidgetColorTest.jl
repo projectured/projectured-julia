@@ -152,16 +152,14 @@ function test_widget_colors()
 
 render(projection, widget) = print_document(projection, nothing, widget, PrinterContext()).output
 default_projection = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure,
-                     text = TextToGraphics(measure = _color_test_measure)).dispatch))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure).dispatch))
 theme = make_widget_theme()
 red = StyleColor(1.0, 0.0, 0.0, 1.0)
 
 @testset "every color comes from the theme or from a style" begin
     probe = _make_probe_theme()
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure, theme = probe,
-                         text = TextToGraphics(measure = _color_test_measure)).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure, theme = probe).dispatch))
     allowed = _theme_colors(probe)
     for make in _PROBED_WIDGET_DOCUMENTS
         @testset "$(nameof(make))" begin

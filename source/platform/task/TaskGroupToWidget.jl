@@ -1212,7 +1212,8 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
                                for type in collect_graphics_projection_types()]
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     make_widget_rows() = WidgetToGraphics(; measure = measured, theme = widget_theme,
-                                          graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch
+                                          graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                          text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch
     cells = TaskCells(; (name => unwrap_cell(getproperty(styles, name)) for name in
                          (:success_color, :info_color, :warning_color, :error_color, :running_color, :muted_color))...,
                          picture_height = unwrap_cell(get_widget_style(widget_theme, :table_picture_height)))
@@ -1228,11 +1229,8 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     # A primitive in a document of a result, such as a cell of its table, draws as
     # it draws in a tab.
     primitives = Pair{Type,Any}[make_natural_primitive_row(; measure = measured, appearance)]
-    # The text of the widgets, and of the text documents of a result.
-    texts = Pair{Type,Any}[TextBlock => TextToGraphics(; measure = measured,
-                                                       theme = get_scaled_theme!(appearance, TextTheme))]
     widgets() = RecursiveProjection(make_arranged_dispatch(
-        TypeDispatchingProjection(vcat(tables, make_widget_rows(), texts, documents, primitives));
+        TypeDispatchingProjection(vcat(tables, make_widget_rows(), documents, primitives));
         bar = ArrangementBarProjection))
     # The page of a stream draws the fields of its bar and its lines too. A row of lines is a line of the font of the widgets with the padding of
     # a cell and a rule, as the table draws it.
@@ -1243,7 +1241,7 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
                                     error_color = styles.error_color, info_color = styles.info_color,
                                     running_color = styles.running_color, muted_color = styles.muted_color)
     stream_widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
-        make_object_field_widget_dispatch(make_widget_rows()), texts, documents, Pair{Type,Any}[
+        make_object_field_widget_dispatch(make_widget_rows()), documents, Pair{Type,Any}[
             TaskStreamLines => ChainingProjection(lines, VerticalLayoutToGraphicsCanvas())])))
     Pair{Type,Any}[
         TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),

@@ -68,7 +68,7 @@ end
     set_selection!(doc, ConcreteReference(FieldReferenceStep("content"),
                                           ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    runs = collect(only(iomap.content_iomap.input.elements).elements)
+    runs = collect(only(iomap.content_iomap.input.content.elements).elements)
     @test [run.content for run in runs] == ["a", "bc"]
     @test runs[1].font_color == color_red
     op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
@@ -81,14 +81,14 @@ end
     set_selection!(lines_doc, ConcreteReference(FieldReferenceStep("content"),
                                                 ConcreteReference(RangeReferenceStep(4, 4), EmptyReference())))
     lines_iomap = print_document(_proj(), nothing, lines_doc, PrinterContext())
-    @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.elements] ==
+    @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.content.elements] ==
           [["a", "b"], ["cd"]]
     typed = read_intent(_proj(), lines_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test strip_reference_types(typed.reference) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(4, 4), EmptyReference()))
     # An empty field of code is one line with one empty run.
     empty = print_document(_proj(), nothing, WidgetText(""; language = :widget_text_test_code), PrinterContext())
-    @test [run.content for run in only(empty.content_iomap.input.elements).elements] == [""]
+    @test [run.content for run in only(empty.content_iomap.input.content.elements).elements] == [""]
 end
 
 @testset "an empty field shows its placeholder below its caret, and a press puts the caret at its start" begin

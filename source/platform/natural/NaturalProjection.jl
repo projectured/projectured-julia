@@ -137,8 +137,8 @@ function NaturalToGraphics(; measure::TextMeasure,
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
     tooltip_theme = get_scaled_theme!(appearance, TooltipTheme)
-    w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme)
     text_theme = get_scaled_theme!(appearance, TextTheme)
+    w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme, text_theme)
     # Prose: a text document, at the prose spacing of the text theme.
     text = TextToGraphics(; measure, theme = text_theme,
                           line_spacing = make_style_field(TextTheme, text_theme, LineSpacing;

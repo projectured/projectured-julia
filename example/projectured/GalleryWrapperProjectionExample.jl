@@ -30,7 +30,6 @@ function make_shell_projection(projection; measure=FontFileMeasure(),
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
-            TextBlock => TextToGraphics(; measure),
             Any => NestingProjection(projection; recursion=IdentityProjection()),
         ],
     )))
@@ -60,7 +59,6 @@ function make_introspection_projection(projection; measure=FontFileMeasure())
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
-            TextBlock           => TextToGraphics(; measure),
             EditorIntrospection => object_chain,
             Any                 => NestingProjection(projection; recursion=IdentityProjection()),
         ],
