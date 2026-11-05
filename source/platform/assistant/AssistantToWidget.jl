@@ -98,7 +98,9 @@ function print_document(projection::AssistantToWidgetSplitPane,
     items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
     if a.backend === :acp
         push!(items, _make_assistant_work_button(a))
-        usage = WidgetLabel("")
+        # One line, cut with "…" where the row ends: a narrow pane shows its start,
+        # and the tooltip says the usage in full.
+        usage = WidgetLabel(""; max_lines = 1)
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
         set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
         append!(items, Any[make_agent_option_bar(a), usage])

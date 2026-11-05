@@ -994,12 +994,18 @@ function test_application()
                 @test popup isa WidgetMenu
                 @test [string(item.action.label) for item in popup.elements] == ["✓ High", "   Max"]
                 # The tab shows the title that the agent gives its session, and the
-                # line beside the menus the usage of its context.
+                # line beside the menus the usage of its context. The row is full, so
+                # the line is cut with "…" where the row ends, and stays one line on
+                # the line of the menus.
                 chat.agent_title = "Reply with OK"
                 chat.agent_usage = AgentUsageUpdate(36012, 1000000, nothing, "")
-                texts = [text for (text, _, _) in drawn()]
+                found = drawn()
+                texts = [text for (text, _, _) in found]
                 @test "Reply with OK" in texts
-                @test "36k / 1M" in texts
+                (_, mode_x, mode_y) = only(entry for entry in found if entry[1] == "Mode: Manual")
+                usage = only(text for (text, x, y) in found if x > mode_x && abs(y - mode_y) < 10)
+                @test endswith(usage, "…") && !isempty(chop(usage)) && startswith("36k / 1M", chop(usage))
+                @test !any(text -> text in ("36k", "/", "1M"), texts)
             end
 
             @testset "a press on a menu name opens its menu as a window under the name" begin
