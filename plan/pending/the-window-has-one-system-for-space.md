@@ -1112,7 +1112,7 @@ approval of the user.
         `PivotZoneEditTest.jl:84`: as the baseline.
       - The user looked at the changed images on 2026-11-05 and accepted them
         ("it generally looks good"), with one question, which step 7b answers.
-- [ ] 7b. **A slot of a split pane can take the height of its content.** The
+- [x] 7b. **A slot of a split pane can take the height of its content.** The
       user found it on 2026-11-05, in the images of step 7: under the composer
       of the assistant, the row of the stop and picture buttons has 8 px above
       its buttons and 14 px below them (2 px of shadow and 12 px of space). The
@@ -1139,6 +1139,57 @@ approval of the user.
       share the rest; the images of the assistant and the two window screens
       show 8 px above and 8 px below the border of the buttons; the platform
       suite, part by part, gives the counts of step 7.
+      Done. The facts:
+      - A content slot is a `LayoutConstraint` with no preferred extent and an
+        explicit weight of 0 on the main axis, which is what `height = Content`
+        writes. A bare child, and a constraint with no weight, are not content
+        slots: they keep the present rule (no size and no weight, no room).
+        `_is_split_content_slot` (private, in `WidgetToGraphics.jl`) tells the
+        two apart, so the change adds no public name.
+      - `_split_build` prints a content child with a free main axis, also when
+        it has an offer, and keeps the slot space of step 6 in the offer. The
+        extent of the slot is the extent that the child draws, within the
+        minimum and the maximum of the constraint
+        (`_get_split_content_extent`). In the allocation, the slot has that
+        extent as minimum, maximum and preferred, and no weight, so the other
+        slots share the rest by their sizes and weights. The extent is read in
+        the cell of the allocation, so a change of the child changes the slots.
+        With no offer, a content slot also takes the extent that its child
+        draws and not a size in `sizes`.
+      - A drag: the divider beside a content slot can be grabbed and moves
+        nothing, as before (the row had a minimum and a maximum of one value).
+        `DragMove` holds both limits of a content slot at its extent. A drag
+        writes `sizes` and `pinned` of a content slot, but the allocation
+        ignores both. After a drag, the last slot that is not a content slot
+        takes the rest of the total, so the row stays at its content when the
+        window grows.
+      - Gone: `option_bar_height` of `ConversationTheme`, the field and the
+        keyword of `AssistantToWidgetSplitPane`, and the words in
+        `assistant.md`. The precompile lists keep the name as recorded data.
+        omnet-julia and inet-julia do not use it.
+      - Other split panes in `source/`: `ExplorerToWidget` (slots by
+        `Relative`), `AssistantListToWidget` and `TaskGroupToWidget` (slots by
+        `Fill`), `PaneToWidget` (the sizes of the pane group). None gives a
+        slot a number to fit content. The composer slot of the assistant keeps
+        `composer_min_height`, a least height and not the height of content.
+      - Tests: `WidgetSplitPaneTest` (a content slot at the offers 300 and 500,
+        with a weighted slot and a fixed slot; a bare slot takes no room) and
+        `SplitPaneDragTest` (a drag beside a content slot).
+      - Images: only `assistant` (of the 135 examples) and the two window
+        screens change; the 44 widget images do not. In `settings.png`, column
+        x = 708, the border of the stop button was at rows 576 to 601, with 8
+        rows above it and 14 below it to the line of the panel. It is now at
+        rows 582 to 607, with 8 rows above and 8 below. The shadow of the
+        button has the colour of the ground in this column, so the pixels do
+        not show it. The composer has the 6 px that the row gives up. No image
+        shows a fault.
+      - Counts: `test_platform()` part by part, 179964 Pass, 3 Fail (the known
+        three), 7 Broken, for 179955 before. The change is +9: +11 in
+        `WidgetSplitPaneTest` and +2 in `SplitPaneDragTest`, and -3 in
+        `test_platform_examples` (162314 for 162317): the printer walk of the
+        assistant examples no longer finds the cell of `option_bar_height`,
+        once in each of three tests. One more -1 is not located.
+        `test_dataframes` 603 and `test_research` 382, as before.
 - [ ] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
