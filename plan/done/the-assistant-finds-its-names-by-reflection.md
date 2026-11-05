@@ -459,7 +459,8 @@ the landing. Steps 5 to 7 continue on the branch from there.
      results, study. The study sections stay in it.
    - [x] **6d. The names test.** A text of a window, and a guide for users that
      a window names, names only what the window offers.
-7. **Measure.** Run `tool/assistant/rehearsal.jl` with the local model and the
+7. **Measure.** *Done (2026-11-05); the facts are in §5.8.*
+   Run `tool/assistant/rehearsal.jl` with the local model and the
    compact index. Run ACP sessions on three general tasks: change a value in an
    open file, arrange the panes, and read and plot a result in the IDE. Count
    the calls before the first useful act (6 today) and the failures by cause,
@@ -963,6 +964,61 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   stand-in editor of the test, which has no tools, and many of its tests fail);
   in omnet-julia `test_prompt_names` 3/3, 4/4 and 187/187, `test_ide_documentation`
   973/973 and 52/52, `test_result_verbs` 68/68, `test_ide_assistant_verbs` 10/10.
+
+### 5.8 Facts found in step 7
+
+- **The rule against files and programs.** Since step 6 the built-in loop reads
+  the text of its window and not `DEFAULT_ASSISTANT_SYSTEM`, so its rule against
+  files and shell commands was gone from the built-in path. The owner worded the
+  rule of the native assistant anew on 2026-11-05 (the plan
+  `the-assistant-starts-programs-as-tasks.md`, D7): "NEVER read files or run
+  programs directly in code". It is about code in the window, so it stands in
+  `EDITOR_SYSTEM`, which every path reads, with the verbs that read a file. The
+  sentence about `run_tasks!` waits for that plan, which adds the verb.
+- **The rehearsal** with `qwen3.8:27b` and the compact index, seeds 1 to 10 of
+  S2 and seeds 1 to 3 of the four tasks of one prompt, on the branch and on main
+  `2bbc18fb5` with the old texts:
+
+  | Text | S2 | Tasks | Calls in S2 | Reads of documentation | Failed calls |
+  |---|---|---|---|---|---|
+  | main, the old texts | 5 of 10 | 12 of 12 | 41 | 2 | 4 |
+  | the new texts | 5 of 10 | 12 of 12 | 59 | 11 | 8 |
+  | the new texts, the example adds a record | 7 of 10 | 12 of 12 | 57 | 9 | 5 |
+
+  Main fails five times in the second turn: after the person's undo, the model
+  says that the table shows six people, the count before the undo. The first
+  new text failed that way three times, and twice in the first turn: the model
+  put Frank before the last record once and added nothing once. The old text held
+  the example `insert_elements!(items_1, length(items_1) + 1, [item_1])`; the
+  worked example of the new text now adds a record at the end in the same way,
+  and then the first turn passes on every seed. Two seeds still say the count from
+  before the undo, and one makes no table in 8 rounds. The local model reads the
+  documentation more often with the new text, because its rules say to search
+  before it guesses.
+- **The ACP sessions** with Claude Code, the built-in agent of `ProjecturedACP`,
+  in a headless window, each in a folder of its own (the harness is in the
+  session scratchpad, `step7/acp_editor.jl` and `step7/acp_ide.jl`):
+
+  | Task | Seconds | Calls | Searches and reads of documentation before the first act | Failed calls | Result |
+  |---|---|---|---|---|---|
+  | change a value in an open file | 37 | 3 | 0 | 0 | Ada lives in Berlin |
+  | arrange the panes | 37 | 5 | 2 | 0 | notes.md in a pane of its own to the right |
+  | read and plot a result in the IDE | 37 | 3 | 0 | 0 | a tab with a plot of the 4 vectors of tictoc |
+
+  The first call of each is `ToolSearch`, by which Claude Code loads the schema of
+  a tool of the server. The calls before the first useful act are 0 to 2, against
+  6 in each Aloha session of §2. No call failed, and no session called a name that
+  the window does not offer. None used `combine_changes`, so open item 1 has no
+  evidence yet.
+- **Found on the way, for later plans:**
+  - After `move_pane!` and after `show_pane!`, `show_layout` marks the moved or
+    shown tab "(focused)", and both agents noticed it. The person's focus must
+    stay where it is; whether these verbs move it is not checked.
+  - A search of the whole window, or of a whole conversation, once a second held
+    the editor task for minutes: the walk shows large values. The harness reads
+    the assistant once and the parts of the turns directly.
+  - The IDE process ended with a segmentation fault at its exit, after the
+    session had ended and written its results.
 
 ## 6. What else changes
 
