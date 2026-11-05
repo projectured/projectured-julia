@@ -110,6 +110,22 @@ points to the declaration of the struct: a stack trace, `methods(T)` and the hin
 a `MethodError` name that line, not a file of the kernel. A macro of your own passes
 its `__source__` too, as the keyword `source` of `build_cell_struct_exprs`.
 
+A macro that writes more methods of its own gives each of them the line with
+`set_cell_struct_source!(expression, __source__)`. It goes into a block of many
+methods, gives each method that does not start with a line node the line at the
+start of its body, and does the same for the body of a `struct`, whose default
+constructors take that line. It also puts the line in place of each line node that
+it finds, so give it only the code that the macro writes. A method without a line
+has the place `none:0`, so it names no file.
+`@document` and `@theme` give it each part that they write, and leave the struct of
+the programmer as it is.
+
+```julia
+block = Expr(:block, Expr(:(=), :(area(s)), :(s.w * s.h)))
+set_cell_struct_source!(block, LineNumberNode(12, Symbol("shapes.jl")))
+# the method area(s) names shapes.jl:12
+```
+
 ## A macro of your own
 
 The builders are public, so a macro that makes a struct of cells with parts of its
@@ -143,7 +159,8 @@ own starts from them. `@iomap` and `@projection` call `build_cell_struct_exprs`;
    give the keyword constructor alone.
    `build_cell_struct_positional_constructors(plan, name; each_arity)` gives the
    constructors of Rule Y, and calls `each_arity(k)` for each arity `k` that has
-   one, so a caller can put a part of its own after it.
+   one, so a caller can put a part of its own after it. A macro that returns these
+   parts gives them the line of the declaration with `set_cell_struct_source!`.
 
 ```julia
 macro labeled(definition)
@@ -170,7 +187,8 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 `CellStructPlan.jl` holds `CellStructPlan`, `make_cell_struct_plan`,
 `add_cell_struct_field!`, `retype_cell_struct_fields!` and the questions about the
 fields and the type parameters. `CellStruct.jl` holds the builders, `@cell_struct`,
-`parse_cell_struct_macro_arguments`, `get_cell_struct_argument_type`, which a
+`parse_cell_struct_macro_arguments`, `set_cell_struct_source!`, which gives the
+generated methods the line of the declaration, `get_cell_struct_argument_type`, which a
 generated constructor calls at run time, and `get_cell_struct_kind`.
 
 ## Try it
@@ -194,5 +212,5 @@ Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_fiel
 `get_cell_struct_required_count`, `build_cell_struct_field_type`,
 `build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`,
 `build_cell_struct_positional_constructors`, `build_cell_struct_exprs`,
-`parse_cell_struct_macro_arguments`, `@cell_struct`, `get_cell_struct_argument_type`
-and `get_cell_struct_kind`.
+`set_cell_struct_source!`, `parse_cell_struct_macro_arguments`, `@cell_struct`,
+`get_cell_struct_argument_type` and `get_cell_struct_kind`.

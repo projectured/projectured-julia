@@ -45,7 +45,11 @@ layer's codegen kit for everything that is not document-specific:
   the parameters for a type application (`get_cell_struct_parameter_names`);
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
-  (`build_cell_struct_positional_constructors`).
+  (`build_cell_struct_positional_constructors`);
+- the line of the declaration (`set_cell_struct_source!`). `@document` gives its
+  `__source__` to each method that it writes, so a stack trace, `methods(T)` and a
+  rebuild that finds the methods of a changed type by their files name the line of
+  the struct, and no method has the place `none:0`.
 Rule Y fills a trailing run of defaults positionally. Only `@document` applies it:
 `@cell_struct`, `@iomap` and `@projection` do not, because a generated method with
 the signature of an outer constructor that the programmer wrote would overwrite it

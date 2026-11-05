@@ -1,7 +1,8 @@
 # Fragment of `CellStructModule` — `@cell_struct`, the builders that return the parts
-# of a struct of cells as expressions, the function that gives the type that a
-# constructor argument binds, and the function that reads the kind of a struct of
-# cells at run time.
+# of a struct of cells as expressions, the function that gives the generated methods
+# the line of the declaration, the function that gives the type that a constructor
+# argument binds, and the function that reads the kind of a struct of cells at run
+# time.
 
 """
     build_cell_struct_field_type(kind, value_type) -> Type | Expr
@@ -35,12 +36,13 @@ function _build_cell_struct_autowrap_ctor(plan, field_types)
         :($argument isa $(AbstractCell) ? $argument : $(field_types[i])($argument))
     end
     names = get_cell_struct_parameter_names(plan)
+    line = LineNumberNode(@__LINE__, Symbol(@__FILE__))
     isempty(names) && return Expr(:function, :($(plan.name)($(arguments...))),
-                                  Expr(:block, Expr(:call, :new, values...)))
+                                  Expr(:block, line, Expr(:call, :new, values...)))
     head = Expr(:where, :($(Expr(:curly, plan.name, names...))($(arguments...))),
                 plan.parameters...)
     Expr(:function, head,
-         Expr(:block, Expr(:call, Expr(:curly, :new, names...), values...)))
+         Expr(:block, line, Expr(:call, Expr(:curly, :new, names...), values...)))
 end
 
 # The outer constructor `T(values…)` of a struct with type parameters. It binds each
@@ -200,6 +202,7 @@ The second form takes a plan, so a macro can first change it, for example with
 `source` is the `LineNumberNode` of the declaration, such as `__source__` of the
 macro. The generated methods then point to it, so a stack trace and `methods(T)`
 name the line of the struct and not this file. With `nothing`, they point here.
+`set_cell_struct_source!` gives the line.
 
 Use it to write a macro that makes a struct of cells with parts of its own, such
 as a default supertype. The macro changes the definition or the plan, and then
@@ -244,8 +247,8 @@ function _build_cell_struct_exprs!(plan::CellStructPlan, default, source)
                       for i in eachindex(kinds)]
     retype_cell_struct_fields!(plan, field_types)
     push!(plan.definition.args[3].args,
-          _set_cell_struct_source!(_build_cell_struct_autowrap_ctor(plan, field_types),
-                                   source))
+          set_cell_struct_source!(_build_cell_struct_autowrap_ctor(plan, field_types),
+                                  source))
     inferring = _build_cell_struct_inferring_ctor(plan)
     documented = :(Base.@__doc__ $(plan.definition))
     source === nothing || (documented.args[2] = source)
@@ -260,36 +263,85 @@ function _build_cell_struct_exprs!(plan::CellStructPlan, default, source)
                                                            parameters))
     end
     for i in 2:length(parts)
-        _set_cell_struct_source!(parts[i], source)
+        set_cell_struct_source!(parts[i], source)
     end
     # The code gives `nothing`, as a `struct` definition does.
     Expr(:block, parts..., nothing)
 end
 
-# Put `source` in place of each line node of a generated method, and at the start of
-# a body that has none, so the method points to the declaration. With `nothing`,
-# the method keeps the line nodes of this file.
-_set_cell_struct_source!(expression, ::Nothing) = expression
+"""
+    set_cell_struct_source!(expression, source::Union{Nothing, LineNumberNode})
+        -> expression
 
-function _set_cell_struct_source!(expression::Expr, source::LineNumberNode)
-    if expression.head in (:function, :(=)) && length(expression.args) == 2 &&
-       expression.args[2] isa Expr && expression.args[2].head === :block
-        body = expression.args[2]
-        isempty(body.args) || body.args[1] isa LineNumberNode ||
-            pushfirst!(body.args, source)
-    end
-    _replace_line_nodes!(expression, source)
-end
+Give `source`, the line of a declaration, to each method that `expression`
+defines: each `function`, each short definition `f(x) = …`, each anonymous
+function, each `macro` and each `struct`, whose default constructors take the line
+of its body. The function puts `source` in place of each line node in
+`expression`, and at the start of each such body that does not start with a line
+node. It goes into every part of `expression`, so each method in a block of methods
+gets the line. With `nothing`, or for a value that is not an `Expr`, `expression`
+comes back as it is.
 
-function _replace_line_nodes!(expression::Expr, source::LineNumberNode)
+A method without a line node has the place `none:0`, or an empty file name for a
+default constructor, so a stack trace and `methods(T)` name no file for it. With
+`source`, the method names the line of the declaration. Then a tool that finds the
+methods of a type by their files finds them in the file of the declaration.
+
+Use it to give the methods that a macro writes the line of its declaration: pass
+each method and `__source__` of the macro. Do not pass the code that the programmer
+wrote, because the function replaces the lines of that code.
+
+# Example
+
+    method = Expr(:(=), :(Point(x)), :(Point(x, 0)))
+    set_cell_struct_source!(method, LineNumberNode(3, Symbol("shapes.jl")))
+    # the body of Point(x) starts with the line shapes.jl:3, so the method that it
+    # defines names that line
+
+See also `build_cell_struct_exprs`, which takes the line as `source`.
+"""
+set_cell_struct_source!(expression, ::Nothing) = expression
+set_cell_struct_source!(expression, ::LineNumberNode) = expression
+
+function set_cell_struct_source!(expression::Expr, source::LineNumberNode)
+    index = _find_method_body_index(expression)
+    index === nothing || _start_body_with_line!(expression, index, source)
     for (i, argument) in enumerate(expression.args)
         if argument isa LineNumberNode
             expression.args[i] = source
         elseif argument isa Expr
-            _replace_line_nodes!(argument, source)
+            set_cell_struct_source!(argument, source)
         end
     end
     expression
+end
+
+# The index of the body in a definition of methods: 2 for a `function` definition,
+# an anonymous function, a `macro`, or a short definition `f(x) = …`, also with
+# `where` or a return type, and 3 for a `struct`, which defines its default
+# constructors. An assignment to a name, a field or an index defines no method.
+function _find_method_body_index(expression::Expr)
+    head, arguments = expression.head, expression.args
+    head === :struct && length(arguments) == 3 && return 3
+    length(arguments) == 2 || return nothing
+    head in (:function, :->, :macro) && return 2
+    head === :(=) && _is_method_signature(arguments[1]) && return 2
+    nothing
+end
+
+_is_method_signature(signature) =
+    signature isa Expr &&
+    (signature.head === :call ||
+     signature.head in (:where, :(::)) && _is_method_signature(signature.args[1]))
+
+function _start_body_with_line!(definition::Expr, index::Int, source::LineNumberNode)
+    body = definition.args[index]
+    if !(body isa Expr && body.head === :block)
+        definition.args[index] = Expr(:block, source, body)
+    elseif isempty(body.args) || !(body.args[1] isa LineNumberNode)
+        pushfirst!(body.args, source)
+    end
+    definition
 end
 
 """

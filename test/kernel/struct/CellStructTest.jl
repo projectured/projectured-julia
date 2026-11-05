@@ -218,6 +218,50 @@ end
     @test endswith(String(which(CsBox, (Any,)).file), "CellStructTest.jl")
 end
 
+@testset "the line of a declaration reaches each method of a block" begin
+    source = LineNumberNode(7, Symbol("shapes.jl"))
+    # A `function` with the lines of this file, and without a line: a short
+    # definition, one with `where`, one with a return type, an empty body, an
+    # anonymous function, a macro, and a struct, whose default constructors take
+    # the line of its body.
+    block = Expr(:block,
+                 :(function cs_line_long(x) x + 2 end),
+                 Expr(:(=), :(cs_line_short(x)), :(x + 1)),
+                 Expr(:(=), Expr(:where, :(cs_line_where(x::T)), :T), :x),
+                 Expr(:(=), Expr(:(::), :(cs_line_typed(x)), :Int), :x),
+                 Expr(:function, :(cs_line_empty(x)), Expr(:block)),
+                 Expr(:const, Expr(:(=), :cs_line_lambda, Expr(:->, :x, :x))),
+                 Expr(:macro, :(cs_line_macro(x)), :x),
+                 Expr(:struct, false, :CsLineStruct, Expr(:block, :(x::Int))))
+    @test set_cell_struct_source!(block, source) === block
+    defined = Module()
+    Core.eval(defined, block)
+    defined_names = (:cs_line_long, :cs_line_short, :cs_line_where, :cs_line_typed,
+                     :cs_line_empty, :cs_line_lambda, Symbol("@cs_line_macro"),
+                     :CsLineStruct)
+    places = [(method.file, Int(method.line))
+              for name in defined_names for method in methods(getfield(defined, name))]
+    @test length(places) == 9
+    @test unique(places) == [(Symbol("shapes.jl"), 7)]
+    # An assignment defines no method, so its value gets no line.
+    @test set_cell_struct_source!(Expr(:(=), :x, 1), source) == Expr(:(=), :x, 1)
+    # With `nothing`, and for a value that is not an `Expr`, nothing changes.
+    @test set_cell_struct_source!(Expr(:(=), :(f(x)), :x), nothing) ==
+          Expr(:(=), :(f(x)), :x)
+    @test set_cell_struct_source!(:name, source) === :name
+end
+
+@testset "without a line, the generated methods point to the struct layer" begin
+    defined = Module()
+    definition = :(struct CsNoLine; a::Int; b::Int = 2; end)
+    Core.eval(defined, build_cell_struct_exprs(definition))
+    type = getfield(defined, :CsNoLine)
+    generated = [methods(type)..., which(Base.getproperty, (type, Symbol)),
+                 which(Base.setproperty!, (type, Symbol, Any))]
+    files = unique(basename(String(method.file)) for method in generated)
+    @test files == ["CellStruct.jl"]
+end
+
 @testset "the kind of a struct of cells" begin
     @test get_cell_struct_kind(CsPlain(1, 2)) === ReactiveCell
     @test get_cell_struct_kind(CsMutableKind(1)) === MutableCell

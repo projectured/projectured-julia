@@ -88,6 +88,25 @@ emitters of `@document` return such blocks. After the change, `CellStruct.jl`
 gets the four checks of the seal audit again, and the user decides if it is
 sealed again.
 
+Decisions of the implementation:
+
+- The export of `set_cell_struct_source!` is in `struct/CellStructModule.jl`,
+  which is sealed too. The user allowed that change on 2026-11-05: "yes, I allow
+  it, continue".
+- `build_cell_struct_positional_constructors` takes no `source`. `_document_expr`
+  gives the line to each part that it writes with `set_cell_struct_source!`, so a
+  keyword of each builder repeats it. The struct of the programmer and its lines
+  stay as they are, and only the inner constructor in it gets the line.
+- `set_cell_struct_source!` also gives the line to the body of a `struct`. Julia
+  takes the line of the default constructors from the body. The native struct of
+  `@document` has no line node, so its two default constructors had the place
+  `"":0`. The measurement of 2026-11-05 counted only `none:0`, so it did not see
+  these.
+- `@theme` writes more methods in a quote of `Theme.jl`, such as
+  `make_scaled_theme(::T, …)` and the struct `ScaledT`. They name the type too, so
+  `@theme` gives them the line of the declaration with the same function.
+  `StyleModule` imports it from `CellStructModule`.
+
 ## Steps
 
 The implementation is in two worktrees: one of projectured-julia, and one of the
@@ -95,18 +114,44 @@ Julia fork from `merged-next`. Each step ends with a commit, and the plan is
 marked as each step is done. Nothing lands on `main` or `merged-next` without the
 approval of the user.
 
-- [ ] **Step 1: `@document` gives its methods the line of the struct.** By the
-  decision above: the public setter and `source` of
-  `build_cell_struct_positional_constructors` in `struct/CellStruct.jl`, and
-  `macro document` passes `__source__` to `_document_expr`, which gives it to
-  each emitter. Test: a test of the public setter in the struct suite, and a new
-  test in the document suite of the kernel. For a `@document` struct and a
-  `@theme` struct, every method that names the type has the file of the test and
-  the line of the struct. The measurement of 2026-11-05 (the methods at `none:0`
-  that name `WidgetTheme`, `TaskTheme`, `ConversationTheme`, `HelpEntry` and
-  `Assistant`) gives 0. Then run the suites of the struct layer and of the
+- [x] **Step 1: `@document` gives its methods the line of the struct.** By the
+  decision above: the public setter in `struct/CellStruct.jl`, and
+  `macro document` and `@document_preset` pass `__source__` to `_document_expr`,
+  which gives it to each part that it writes. `@theme` does the same for its own
+  methods. Test: a test of the public setter in the struct suite, a new test in
+  the document suite of the kernel, and a new test in the theme suite of the
+  platform. For a `@document` struct and a `@theme` struct, every method that
+  names the type has the file of the test and the line of the struct. The
+  measurement of the methods that name `WidgetTheme`, `TaskTheme`,
+  `ConversationTheme`, `HelpEntry` and `Assistant` gives no place other than the
+  line of the declaration. Then run the suites of the struct layer and of the
   document layer, and `test_kernel_layering()`. Then report the four checks of
   the seal audit for `CellStruct.jl`.
+
+  Done on 2026-11-05. The suites pass with Julia 1.13: CellStruct 103,
+  CellStructPlan 72, the struct example 2, DocumentMacro 132, DocumentContract
+  154, the kernel layering guard 10, and Theme 87. The measurement (the walk of
+  `rc_methods_on_type`, copied into a script for Julia 1.13) finds each method
+  that the macros write at the line of its declaration: `WidgetTheme.jl:24` ×22,
+  `TaskTheme.jl:12` ×22, `ConversationTheme.jl:30` ×22, `HelpDocument.jl:66` ×9
+  and `AssistantDocument.jl:138` ×9. No method that names one of the five types is
+  at `none:0`, at an empty file, or in a file of a macro.
+
+  The seal audit of `CellStruct.jl` and `CellStructModule.jl`, by an auditor
+  agent: `CellStructModule.jl` passed the four checks. `CellStruct.jl` passed the
+  example check and the guide check, and the fixes of its findings are in this
+  step:
+  - The docstring of `set_cell_struct_source!` names the forms that it handles,
+    and the setter also handles an anonymous function and a `macro`.
+  - `build_cell_struct_exprs` without `source` built the inner constructor with
+    no line, so the promise "they point here" was false. The inner constructor
+    now starts with the line of `CellStruct.jl`, and a test holds the promise.
+  - The tests cover a definition with `where`, with a return type and with an
+    empty body that has no line node.
+  - `StyleModule` takes the module with a bare `using ..CellStructModule`
+    (`PAR-QUALIFIED-EXTENSION`).
+
+  Both files stay 🔒 in `SEALING.md`. The user decides if they are sealed again.
 - [ ] **Step 2: the builder says which includes the walk follows.** The docstring
   of `collect_tracked_sources` in `source/tool/builder/ReactiveBuild.jl` says
   that only a string literal is tracked. That is not true: it must give the rules

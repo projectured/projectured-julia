@@ -736,13 +736,15 @@ construction (`setfield!` throws); all mutation flows through the cells, and
 construction-time cell sharing replaces field-level retargeting.
 """
 macro document(args...)
-    _document_expr(args)
+    _document_expr(args; source = __source__)
 end
 
 # The whole expansion, as a function of the argument list. `@document_preset`
 # calls it too, so a preset is the same expansion with a layout list prepended —
 # not a macro that expands into another macro, which would put the caller's struct
 # definition through a second round of hygiene.
+# `source` is the line of the declaration. Each method that the expansion writes
+# names it, and the struct keeps the lines that the programmer wrote.
 # A kind marker may arrive **qualified** when another macro emits this one —
 # `PacketModule.ImmutableCell` rather than `ImmutableCell`, because hygiene
 # resolves a name the emitting macro wrote. The kind is a name, not a value, and
@@ -753,7 +755,7 @@ _bare_kind(a) = (a isa Expr && a.head === :. && length(a.args) == 2 &&
                  a.args[2] isa QuoteNode && a.args[2].value isa Symbol) ?
                 a.args[2].value : a
 
-function _document_expr(args)
+function _document_expr(args; source = nothing)
     args = isempty(args) ? args :
            (map(_bare_kind, args[1:end-1])..., args[end])
     layouts, rest = _take_layout_list(args)
@@ -780,28 +782,32 @@ function _document_expr(args)
 
     structdef = _emit_stem!(plan)
     inner_ctor, outer_ctor = _emit_autowrap_ctor(plan, arg_names; default = default)
-    push!(structdef.args[3].args, inner_ctor)
+    push!(structdef.args[3].args, set_cell_struct_source!(inner_ctor, source))
+    documented = :(Base.@__doc__ $structdef)
+    source === nothing || (documented.args[2] = source)
     outer_ctor_parts = outer_ctor === nothing ? Any[] : Any[outer_ctor]
     getprop, setprop = _emit_accessors(plan)
 
+    generated = Any[outer_ctor_parts...,
+                    getprop, setprop,
+                    native_parts...,
+                    registry_parts...,
+                    Expr(:export, names.family),
+                    _emit_kind_aliases(plan, arg_names; schema = names.schema,
+                                       default = default)...,
+                    binding_parts...,
+                    _emit_keyword_ctors(plan; schema = names.schema)...,
+                    # Rule Y (the struct layer's, generic over any cell struct), each
+                    # arity followed by its Rule C companion; then Rule C's
+                    # element-sugar tail.
+                    build_cell_struct_positional_constructors(plan, plan.name;
+                        each_arity = k -> _emit_collection_ctor_at(plan, k))...,
+                    _emit_mouse_target_ctor(plan)...,
+                    _emit_collection_ctors(plan)...]
     esc(Expr(:block,
              :(abstract type $(names.family) <: $supertype end),
-             :(Base.@__doc__ $structdef),
-             outer_ctor_parts...,
-             getprop, setprop,
-             native_parts...,
-             registry_parts...,
-             Expr(:export, names.family),
-             _emit_kind_aliases(plan, arg_names; schema = names.schema,
-                                default = default)...,
-             binding_parts...,
-             _emit_keyword_ctors(plan; schema = names.schema)...,
-             # Rule Y (the struct layer's, generic over any cell struct), each arity
-             # followed by its Rule C companion; then Rule C's element-sugar tail.
-             build_cell_struct_positional_constructors(plan, plan.name;
-                 each_arity = k -> _emit_collection_ctor_at(plan, k))...,
-             _emit_mouse_target_ctor(plan)...,
-             _emit_collection_ctors(plan)...))
+             documented,
+             (set_cell_struct_source!(part, source) for part in generated)...))
 end
 
 # ── The names of one schema ───────────────────────────────────────────────────
@@ -1003,5 +1009,6 @@ macro document_preset(name::Symbol, layouts)
         error("@document_preset: expected a layout list, as in `@document_preset name [M, C]`")
     _take_layout_list((layouts,))
     esc(Expr(:macro, Expr(:call, name, Expr(:..., :args)),
-             :($(_document_expr)(($(QuoteNode(layouts)), args...)))))
+             :($(_document_expr)(($(QuoteNode(layouts)), args...);
+                                 source = __source__))))
 end

@@ -53,6 +53,13 @@ end
     gap::Spacing = Spacing(4)
 end
 
+# Each method that `@theme` writes, and each method of the `@document` that it
+# expands to, must name the line of the declaration.
+const th_lines_line = @__LINE__() + 1
+@theme struct ThLines
+    gap::Spacing = Spacing(4)
+end
+
 function test_theme()
 @testset "Theme" begin
 
@@ -183,6 +190,21 @@ end
           StyleText(StyleFont("Liberation Serif", 24), color_red)
     # A role follows a font, not another role.
     @test_throws "a font role follows a font" make_scaled_theme(ThRoleOverRole()).wrong
+end
+
+@testset "each method of a theme names the line of the declaration" begin
+    generated = Method[]
+    for T in (ThLines, ICThLines, MCThLines, MThLines, ScaledThLines)
+        append!(generated, methods(T))
+    end
+    push!(generated, which(make_scaled_theme, (ThLines, Appearance)),
+          which(get_theme_field_names, (Type{ThLines},)),
+          which(get_theme_field_texts, (Type{ThLines},)),
+          which(get_theme_type, (ThLines,)),
+          which(Base.getproperty, (ScaledThLines, Symbol)))
+    places = unique((basename(String(method.file)), Int(method.line))
+                    for method in generated)
+    @test places == [("ThemeTest.jl", th_lines_line)]
 end
 
 @testset "a theme that is not scaled reads as at no scale" begin

@@ -376,8 +376,9 @@ macro theme(definition)
     scaled_fields = [:($f::$Cell) for f in fields]
     document = Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")),
                     __source__, definition)
-    esc(quote
-        $document
+    # Each method that the macro writes names the line of the declaration, as each
+    # method of `@document` does.
+    parts = set_cell_struct_source!(quote
         struct $scaled_name <: $ScaledTheme
             theme::$name
             appearance::$Appearance
@@ -396,5 +397,6 @@ macro theme(definition)
                      $StyleModule.make_style_field($name, theme; name = field))))
         export $style_name
         $name
-    end)
+    end, __source__)
+    esc(Expr(:block, document, parts.args...))
 end

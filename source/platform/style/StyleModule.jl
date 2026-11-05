@@ -7,6 +7,7 @@ appearance of a view. Colors are stored as normalized Float64 components in [0, 
 module StyleModule
 
 using ..CellModule
+using ..CellStructModule
 using ..DocumentModule
 using ..ReferenceModule
 using ..SettingsModule

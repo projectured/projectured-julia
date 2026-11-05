@@ -19,9 +19,9 @@ The module lives in two fragments that share this namespace:
   types, and the functions that give the builders the kinds, the value types, the
   type parameters and their bounds, and the number of required fields.
 - [`CellStruct.jl`](CellStruct.jl) — `@cell_struct`, the builders that return its
-  parts as expressions, the function that gives the type that a constructor
-  argument binds, and the function that reads the kind of a struct of cells at
-  run time.
+  parts as expressions, the function that gives the generated methods the line of
+  the declaration, the function that gives the type that a constructor argument
+  binds, and the function that reads the kind of a struct of cells at run time.
 """
 module CellStructModule
 
@@ -34,7 +34,8 @@ export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!,
        get_cell_struct_required_count
 export build_cell_struct_field_type, build_cell_struct_keyword_parameters,
        build_cell_struct_keyword_constructor, build_cell_struct_positional_constructors,
-       build_cell_struct_exprs, parse_cell_struct_macro_arguments, @cell_struct,
+       build_cell_struct_exprs, set_cell_struct_source!,
+       parse_cell_struct_macro_arguments, @cell_struct,
        get_cell_struct_argument_type, get_cell_struct_kind
 
 include("CellStructPlan.jl")
