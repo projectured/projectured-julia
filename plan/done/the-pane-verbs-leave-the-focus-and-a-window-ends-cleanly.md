@@ -1,6 +1,6 @@
 # The pane verbs leave the focus, and a window ends cleanly
 
-> **Kind:** decision · **For:** developer · **Status:** current · **Stands on:** [pane.md](../../documentation/package/platform/pane/pane.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md)
+> **Kind:** decision · **For:** developer · **Status:** done · **Stands on:** [pane.md](../../documentation/package/platform/pane/pane.md), [assistant.md](../../documentation/package/platform/assistant/assistant.md)
 
 Four faults that the measurement of `the-assistant-finds-its-names-by-reflection.md`
 (step 7) and its test runs found, which the owner asked to fix on 2026-11-05: "Fix
