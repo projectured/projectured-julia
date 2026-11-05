@@ -1201,7 +1201,7 @@ approval of the user.
         `test_assistant_mvp`, `test_assistant_composer_panel` and
         `test_assistant_stream`: 301 Pass, 4 Broken, no Fail. `test_conversation`
         (865) is a part of the platform run.
-- [ ] 8. **The splitter shows a band.** The split pane draws a band of
+- [x] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
       while it is dragged. The band fades in 0.1 s. The split pane reads the
@@ -1336,6 +1336,29 @@ approval of the user.
       application, `precompile/<application>.txt`, that names a changed
       function. Check: a load of each package writes no warning about calls
       that no longer resolve.
+
+      Done (the lists): one process ran `record_repository_calls!()` and then
+      `record_application_calls!("ProjecturedBuild", "projectured")` on the
+      branch, in 26 and 18 minutes, with a peak of 8.6 G. The commit is
+      "precompile: the lists are recorded again, so they hold the calls of the
+      widget printers …".
+      - The 21 lists `workload.txt` and the 27 lists `projectured.txt` are
+        written again; 43 files change, +6930 and −6462 lines. `rebuild.txt` of
+        `ProjecturedBuilder` names no widget function, so it stays.
+      - The large lists keep their size: `ProjecturedPlatform`
+        `workload.txt` goes from 9917 to 10169 lines (+2159, −1907), and
+        `ProjecturedSDL` `workload.txt` from 794 to 807 (+200, −187). A
+        changed call replaces the old call of the same function. Only small lists of `projectured` grow, by 3 to
+        11 lines (`ProjecturedProcess` 12 to 23, `ProjecturedFSM` 12 to 21).
+        Each new line there is a `setindex!` that puts a document type of the
+        domain into a set of types. So the recording took in no stale call of
+        a package below.
+      - The workload of `ProjecturedExample` fails for 3 of its 135 examples
+        (`json_sorted`, `filesystem`, `files`), the same 3 as on `main` since
+        `ca6d48ce4`; the recording keeps the calls that compiled before them.
+      - Check: `Pkg.precompile()` builds 88 images with no failure, and one
+        process loads each of the 35 packages that compile ahead. The log has
+        no warning, so no list has calls that no longer resolve.
 - [ ] 9. **The pages of omnet-julia follow the rules.** This step starts after
       steps 1 to 8 are on `main` of projectured-julia.
       - Each page builder takes the widget theme of its builder, scaled, in
