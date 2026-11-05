@@ -152,10 +152,20 @@ approval of the user.
     (`PAR-QUALIFIED-EXTENSION`).
 
   Both files stay 🔒 in `SEALING.md`. The user decides if they are sealed again.
-- [ ] **Step 2: the builder says which includes the walk follows.** The docstring
+- [x] **Step 2: the builder says which includes the walk follows.** The docstring
   of `collect_tracked_sources` in `source/tool/builder/ReactiveBuild.jl` says
   that only a string literal is tracked. That is not true: it must give the rules
   of `tracked_sources`.
+
+  Done on 2026-11-05. The docstring gives the rules of the docstring of
+  `tracked_sources` in the fork, with the example
+  `include(joinpath(_SOURCE, "View.jl"))` after `const _SOURCE = @__DIR__`. A
+  probe package checked the example: `PackageCompiler.tracked_sources` of
+  `environment/build` tracks that file in the module, as it tracks a plain
+  `include("Plain.jl")`. No other document had the wrong rule; the builder guide
+  says only that `collect_tracked_sources` reads the includes. No builder test
+  calls the function, because the builder test package does not load
+  PackageCompiler.
 - [ ] **Step 3: the compiler takes a new include whose path it can compute.**
   In `rc_classify` of `child.jl`. Test: a check in `rc_warm` with
   `include(joinpath(@__DIR__, "x.jl"))` and with a `const` path of the module.

@@ -45,17 +45,21 @@ const REACTIVE_RECORD_LINE =
 The source files of `package`, each with the dotted name of the module whose
 `include` loads it — the `tracked` list that `materialize_app` takes.
 
-Read from the root file of the package: every literal `include("…")` at the
-top level of a module is a tracked file, evaluated in that module, and a
-`module` block names a deeper module for what it includes. The walk follows
-the included files too.
+Read from the root file of the package: every `include` at the top level of a
+module is a tracked file, evaluated in that module, and a `module` block names a
+deeper module for what it includes. The walk follows the included files too.
+The path of an `include` is a string literal, or a path that the walk computes
+without running the package: `@__DIR__`, `@__FILE__`, a string, and
+`joinpath`, `normpath`, `abspath` and `dirname` of those, or the name of a
+`const` of the same module that holds such a path. So
+`include(joinpath(_SOURCE, "View.jl"))` after `const _SOURCE = @__DIR__` is
+tracked.
 
 The root file comes first, with the empty module path: its top level is the
 `module Pkg … end` block itself, so an `include` or a `using` that joins the
 module body is an edit of a tracked file, and the rebuild applies it or
-refuses it with a reason. An `include` whose argument is not a string literal,
-and one inside a function, are not tracked: the walk names them and tracks
-nothing for them.
+refuses it with a reason. An `include` of another path, and one inside a
+function, are not tracked: the walk names them and tracks nothing for them.
 """
 collect_tracked_sources(context::BuildContext, package::AbstractString) =
     _call_reactive_compiler(:tracked_sources,
