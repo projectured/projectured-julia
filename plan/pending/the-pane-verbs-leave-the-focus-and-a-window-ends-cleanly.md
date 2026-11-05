@@ -69,7 +69,7 @@ narrowest tests that cover it, and ends with a commit.
      that no caller placed does not cover a conversation" fails: the workflow test
      package adds a method `pane_group_to_avoid(tree::PaneTree)`
      (`WorkflowEditsTest.jl`). It passes in the platform suite alone.
-3. [ ] **The divider of the Explorer.** Find why a drag of the divider between
+3. [x] **The divider of the Explorer.** Done. Find why a drag of the divider between
    the groups builds the split of the Explorer again, and fix it so the weight
    that a drag gave the Explorer stays.
    - The cause (found by experiment: a trace of each print of the Explorer, and a
@@ -84,6 +84,18 @@ narrowest tests that cover it, and ends with a commit.
    - The fix: the print passes the cells (`getfield(inner, :w)`), and the extent
      reads them only in its own cells. The same read also froze the extent of a
      tabbed pane with no slot and a minimum at the value of its first print.
+   - A second read, which `d8cb5a156` (2026-11-05) added: the build asks each slot
+     whether it takes the extent of its child (`_is_split_content_slot`), which
+     reads the weight of the slot. A weight of a pane split is a cell that computes
+     from the weights of the split, so each move of a drag built the split again.
+     With the first fix alone the press built nothing, and the move still did.
+   - The second fix: the answers are a tuple of `Bool` in a cell of their own. A
+     tuple of `Bool` is plain data, so a new weight that keeps each answer stops at
+     that cell, and the build stays valid.
+   - The experiment with both fixes: no split builds again at the press, the move or
+     the release, and the dividers end at `[371, 988]`, where the drags put them.
+     `test_application` passes the divider, the split pane, layout and pane tests
+     pass, and the data frame suite passes (608 of 608).
 4. [x] **A window ends cleanly.** Done. At the end of the loop, a stop step stops the
    external agent of each assistant of the window and waits, a bounded time, for
    the stop of its session and of its MCP server. `stop_external_agent!` keeps the

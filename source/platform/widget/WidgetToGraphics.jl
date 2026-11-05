@@ -4548,7 +4548,12 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
     alloc_cell = Cell(nothing)
-    is_content = Bool[_is_split_content_slot(elem, main_axis) for elem in valid_elems]
+    # Whether each slot takes the extent of its child. The weights that it reads are
+    # read in a cell of its own, whose answer is plain data, so a new weight that
+    # keeps each answer, as a drag of a divider of the pane tree writes, builds the
+    # split no new time.
+    content_slots = Cell(@computation Tuple(_is_split_content_slot(elem, main_axis) for elem in valid_elems))
+    is_content = collect(Bool, content_slots[])
     open_cell = Cell(@computation _get_split_open_slots(valid_elems, main_axis))
     slot_main = Cell[]
     if avail_main !== nothing
@@ -5642,15 +5647,19 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         ring,
     ])
     # The pane takes its slot on an axis, else what it holds, raised to the
-    # minimum of its range.
+    # minimum of its range. The extent of what it holds is read only in the cells of
+    # the extent: a read here makes the cell that prints the pane, such as the build
+    # of a split, depend on it, so a change of a size inside the page prints the
+    # pane again, and each view state inside it starts over.
     minimum_w = ctx isa PrinterContext ? ctx.minimum_width : nothing
     minimum_h = ctx isa PrinterContext ? ctx.minimum_height : nothing
     extent(slot, own, minimum) =
         slot !== nothing ? Cell(@computation Int32(max(0, Int(slot[])))) :
-        minimum === nothing ? own : Cell(@computation Int32(max(Int(own[]), Int(minimum[]))))
+        minimum === nothing ? Cell(@computation Int32(own[])) :
+                              Cell(@computation Int32(max(Int(own[]), Int(minimum[]))))
     canvas = (avail_w === nothing && avail_h === nothing && minimum_w === nothing && minimum_h === nothing) ? inner :
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                       extent(avail_w, inner.w, minimum_w), extent(avail_h, inner.h, minimum_h),
+                       extent(avail_w, getfield(inner, :w), minimum_w), extent(avail_h, getfield(inner, :h), minimum_h),
                        CellVector(Cell[Cell(inner)]),
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
