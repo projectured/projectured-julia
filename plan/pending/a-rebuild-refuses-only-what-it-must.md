@@ -166,10 +166,34 @@ approval of the user.
   says only that `collect_tracked_sources` reads the includes. No builder test
   calls the function, because the builder test package does not load
   PackageCompiler.
-- [ ] **Step 3: the compiler takes a new include whose path it can compute.**
+- [x] **Step 3: the compiler takes a new include whose path it can compute.**
   In `rc_classify` of `child.jl`. Test: a check in `rc_warm` with
   `include(joinpath(@__DIR__, "x.jl"))` and with a `const` path of the module.
   An include of a path that it can not compute is still refused.
+
+  Done on 2026-11-05, in the worktree `julia-rebuild-refusals` of the Julia fork,
+  branch `rebuild-refusals` from `merged-next` (cd1d275035). `rc_include_path`
+  and `rc_static_path` in `child.jl` follow `_static_path` of the walk. The one
+  difference: a name is read as a `const` `String` of the loaded module, where
+  the walk reads the definition of the `const`. The module is loaded, so both
+  give the same path. A new `const` in the same edit as its first include is
+  not loaded yet, so that include is still refused.
+
+  Facts found:
+  - The apply evaluates no include item. It evaluates a new tracked file whole,
+    as the added file of the match. So the check is the only change.
+  - `tracked` and `item.path` hold the real paths of the files, not the copies
+    of a snapshot, so `@__DIR__` is `dirname(item.path)`.
+  - The check in `rc_warm` reads a `const` that it defines itself, so it calls
+    `rc_include_path` with `Base.invokelatest`: the function can not see a binding
+    that is newer than its world.
+
+  Test, without a rebuild of Julia: the sources of `ReactiveCompiler` of the
+  worktree, loaded into `Main` of the built Julia of `merged-next` (the same
+  commit before the change), pass `rc_warm()`. The new check takes
+  `include(joinpath(@__DIR__, "warm2.jl"))` as C4 and refuses
+  `include(joinpath(pwd(), "warm2.jl"))`, and the `const` of a module gives the
+  path where a global that is not `const` gives none.
 - [ ] **Step 4: the compiler applies a changed docstring of a module.** In
   `rc_classify` of `child.jl`, and in the apply. Test: a check in `rc_warm`.
   After the apply, `@doc` of the module gives the new text, and the module is the
