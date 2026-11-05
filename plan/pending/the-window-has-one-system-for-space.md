@@ -1229,6 +1229,83 @@ approval of the user.
       C, each divider a document of its own with its own `mouse_target`, which
       changes the children and the paths of every split pane.
 
+      Done (the band): the code is in the commit "widget: a splitter shows a
+      band …".
+      - `WidgetSplitPane.splitter_under_pointer::Int` stands after
+        `active_splitter`; the keyword constructor sets it to 0. No call gives
+        all the fields by position, so no other call changed.
+      - `SetSplitterUnderPointerOperation(split, splitter_index)` is in
+        `WidgetDocument.jl` beside the drag operations. It writes the field only
+        when the value changes. The reader wraps it in
+        `ReplaceViewStateOperation`, as the drag operations are, so undo
+        records nothing. It is in `is_self_contained_operation`, it is exported
+        from `WidgetModule`, and `PaneTreeToWidget` passes it up as it passes
+        `EndSplitterDragOperation`; without that the window drops it.
+      - The reader: `_read_split_move` finds the divider with
+        `_splitter_band_hit`, the band of a press. When the number differs from
+        the field, it joins the write to the answer of the slots
+        (`_read_split_slot_move`, the old body) with `join_move_answers`. The
+        move still goes to the slot under the pointer. A leave reaches the same
+        function with a point outside the split, so it writes 0. No new event,
+        channel or timer.
+      - The print: `_make_splitter_band` makes one `GraphicsRect` for each
+        divider, once for the split, with cells of its own. `_split_build`
+        puts it in the element list above the children and the divider line,
+        before the pointer shapes. A hover change writes the cells of the band,
+        so no child prints again and no slot moves. The share is 1 while
+        `active_splitter == k`. Else it rises from 0 to 1 over `fade_duration`
+        after the pointer rested for `band_delay` on the divider
+        (`_compute_splitter_rise`, `_is_within_duration`). It falls over
+        `fade_duration` after the pointer leaves or the drag ends
+        (`_make_change_time_cell`, `_compute_scroll_bar_share`). A fall starts
+        from 1, also when the pointer left in the middle of the rise. The
+        colour is `_mix_colors(color_transparent, splitter_band_color, share)`.
+      - `WidgetSplitPaneToGraphicsCanvas` has four new fields:
+        `splitter_band_color` (`ring`), `splitter_band_width`, `band_delay`
+        (0.3) and `fade_duration` (0.1). `WidgetTheme.splitter_band_width` is
+        a `ControlSize` with the value 4, so it scales with the theme.
+      - A split at rest or without a pointer on a divider reads no clock. With
+        a clock that no code writes, a hover shows no band and a drag shows it.
+      - Tests: the new `test_split_pane_band` (`SplitPaneBandTest.jl`, 62
+        Pass) checks the write on a grab area, the write once, the leave, the
+        hover of the slot under the pointer, no band before 0.3 s, the band
+        after it, the rise, the band at once in a drag, no band after the
+        release and the fade, two dividers, a vertical split, and that the
+        colour cell stays valid after a write of the clock. Two tests that
+        count rects now skip a rect with no colour, which is a band at rest:
+        `WidgetSplitPaneTest.jl` and `SplitPaneDragTest.jl`.
+        `test_widget_split_pane` 33 Pass, `test_split_pane_drag` 43 Pass and 5
+        Broken, as before.
+      - `test_platform()` by parts: 180363 Pass, 3 Fail, 7 Broken (before:
+        179963 Pass, 4 Fail, 7 Broken). The three Fail are the baseline ones
+        (`CheckLayering.jl:889` and `InterfaceApiTest.jl:46` and `:49`).
+        `test_task_execution` passed this time (the load was low). The new part
+        gives +62. `test_platform_examples` gives +337 (162314 to 162651): the
+        split panes of the examples draw one more rect for each divider; the
+        test walks every graphics node of each example. The other 238 parts
+        are the same. `test_dataframes` and `test_research`: 985 Pass (603 and
+        382).
+      - Images: the 44 widget images and the 135 example images are the same
+        as in `step7b-after`; the window screen at 674 is the same as in
+        `step7b-window`. At rest no image changes.
+      - A band, drawn with a clock that a test writes, in a split of two cards
+        (500 x 240): 4 px across, from 249 to 252 on the line at 250 (the line
+        has 1 px, so the band has 1 px on one side and 2 px on the other), the
+        whole cross length (0 to 239), colour (121, 142, 212), which is `ring`.
+        At 0.2 s the image is the image at rest. At 0.35 s the colour is
+        (168, 178, 217) and (184, 194, 230): the middle of the rise. A vertical
+        split gives the same on the y axis (119 to 122 on the line at 120).
+        After the leave and the fade, the image is the image at rest.
+      - The window screen with the pointer on the divider between the
+        Explorer tab group and the Assistant (x = 680): after 0.8 s the band is
+        at x 679 to 682, y 62 to 615, colour (121, 142, 212), and the line at
+        x = 680 is covered. The offscreen window draws a frame slowly, so after
+        a leave the fade still showed alpha 0.33 after 0.5 s and 0 after 1.5 s.
+      - The compiled calls are stale after this step: a run of the window
+        warns that 1732 of the 11962 calls of `ProjecturedPlatform` and 103 of
+        the 838 of `ProjecturedSDL` no longer resolve. The lists are recorded
+        again in the next part of step 8.
+
       Step 8 is the last code step in this repository, so after it, record the
       lists of compiled calls again with `record_repository_calls!()`.
       Steps 4 to 8 change the signatures of many widget functions, and after
