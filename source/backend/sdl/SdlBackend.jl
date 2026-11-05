@@ -5056,7 +5056,6 @@ Poll the SDL event queue once and return an `WindowInput` wrapping a
 backend-agnostic inner event, with the time that SDL stamped on it:
 - `SDL_QUIT`                           → `WindowInput(:none, WindowQuit(; time))`
 - `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose(; time))`
-- exposure, show, restore, maximize and focus gain request a full repaint of the affected window.
 - `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h; time))`
 - `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape included)
   and, for Return, keypad Enter and Tab, the `KeyPress` of `'\\n'` or `'\\t'` after it
@@ -5068,6 +5067,11 @@ backend-agnostic inner event, with the time that SDL stamped on it:
 - `SDL_MOUSEWHEEL`                     → `WindowInput(<id>, MouseScroll)`
 - a change of the colour settings of the system, which a query found after
   `SDL_WINDOWEVENT_FOCUS_GAINED`, → `WindowInput(:none, SystemColorsChange)`
+
+`SDL_WINDOWEVENT_EXPOSED`, `SDL_WINDOWEVENT_SHOWN`, `SDL_WINDOWEVENT_RESTORED`,
+`SDL_WINDOWEVENT_MAXIMIZED` and `SDL_WINDOWEVENT_FOCUS_GAINED` give no input. Each
+makes the next frame paint the whole window again, because the window system can
+drop the pixels of a window whose canvas did not change.
 
 `<id>` is the `WindowDocument.id` of the originating window (looked up
 in `backend.window_ids`), or `:none` if the SDL event carries no window
@@ -5182,12 +5186,13 @@ _merge_wheel_events(older::MouseScroll, newer::MouseScroll) =
                 time = newer.time, precise_dx = older.precise_dx + newer.precise_dx,
                 precise_dy = older.precise_dy + newer.precise_dy)
 
-# The compositor can discard window pixels while the document stays unchanged. Repaint the affected window after exposure or focus returns.
+# The window system can drop the pixels of a window whose canvas did not change, as
+# after Alt+Tab, so the next frame paints the whole window `id` again. An id that
+# the backend does not hold, such as that of a window that closed, changes nothing.
 function _request_window_repaint!(backend::SdlBackend, id::Symbol)
     res = get(backend.windows, id, nothing)
     res === nothing && return nothing
     res.first_paint = true
-    empty!(res.damage_history)
     nothing
 end
 
@@ -5238,7 +5243,8 @@ function _poll_window_input(backend::SdlBackend)
                 _start_system_colors_query!(backend)
                 continue
             elseif sub in (UInt8(SDL_WINDOWEVENT_EXPOSED), UInt8(SDL_WINDOWEVENT_SHOWN),
-                            UInt8(SDL_WINDOWEVENT_RESTORED), UInt8(SDL_WINDOWEVENT_MAXIMIZED))
+                           UInt8(SDL_WINDOWEVENT_RESTORED),
+                           UInt8(SDL_WINDOWEVENT_MAXIMIZED))
                 _request_window_repaint!(backend, wid)
                 continue
             elseif sub == UInt8(SDL_WINDOWEVENT_LEAVE)
