@@ -1001,7 +1001,7 @@ approval of the user.
         The ring around a child selected as a whole holds the space of the
         child. omnet-julia builds `AssistantToWidgetSplitPane(conversation_theme)`
         with the default `slot_padding`, not the scaled one.
-- [ ] 7. **Every gap of a widget layout has a role.**
+- [x] 7. **Every gap of a widget layout has a role.**
       - These fields of other themes read the role of the widget theme, and go
         away:
         - `ConversationTheme`: `part_gap`, `turn_gap` and `section_gap` →
@@ -1031,6 +1031,85 @@ approval of the user.
       other than 0 as `gap`, `horizontal_gap`, `vertical_gap`, `padding` or
       `margin` of a layout or a widget; `test_platform()` passes with the
       counts of the baseline.
+      **Done.** Facts, as built:
+      - Fields removed, and their readers (each projection holds the role as a
+        field, and its factory takes a `widget_theme`):
+        - `ConversationTheme`: `part_gap`, `turn_gap`, `section_gap`, `role_gap`,
+          `option_gap`, `card_gap`. `ConversationToWidget`,
+          `make_conversation_composer_projection` and
+          `make_evaluator_toplevel_projection` take `widget_theme`; the
+          assistant panes take `widget_theme` too. `AssistantToWidgetCard` lost
+          its field `gap` and puts its halves at gap 0.
+        - `TaskTheme`: `stack_gap`, `inline_gap`. A button row takes
+          `button_gap`; the other rows take `label_gap`.
+        - `OutlineTheme`: `row_padding`, `meta_gap`, `section_gap`.
+          `make_outline_values_field(outline_theme, widget_theme)` adds
+          `tree_row_padding`, `item_gap`, `button_gap` and `section_gap`;
+          `make_workflow_projections`, `make_research_projections` and
+          `make_research_map_projection` take `widget_theme`.
+        - `TooltipTheme`: `padding`, `gap`, `section_gap`, `key_padding`,
+          `key_gap`, `head_gap`, `fact_gap`, `fact_row_gap`. The two tooltip
+          projections take `widget_theme`. `part_gap` stays: it has a job of its
+          own.
+        - `FaultTheme` and `GestureLogTheme`: `panel_padding`. The two overlay
+          projections take `widget_theme`. `GestureHelpTheme` had no
+          `palette_padding` left: the palette is a widget list.
+        - `McpLogTheme`, `TerminalTheme`, `FrameStatisticsTheme`: `gap`.
+        - `DataFrameTheme`: `expression_gap`.
+      - `button_gap` (8) is new. Its users: the band of a file page (was the
+        literal 12), the row of an assistant in the list (had none), the row
+        under the composer, the options of an evaluator, the buttons of a task,
+        of a group, of a list of groups, of a question and of an approval, the
+        buttons of the settings, of the appearance and of a system process, and
+        the decision of a study.
+      - Literals: `FilePageToWidget` `gap = 12` is `button_gap`;
+        `FileSystemChooserToWidget` `vertical_gap = 8` is `section_gap`; the row
+        of chips of `NaturalArrangement` `gap = 4` is `item_gap`. Each is a
+        field of its projection.
+      - The static test is `test_widget_gap_role`
+        (`test/platform/widget/WidgetGapRoleTest.jl`). It found these three
+        literals before the change and none after.
+      - Not changed: `2 * p.gap` and `4 * p.gap` in the pages of the MCP log,
+        the terminal and the statistics are products, not literals. The static
+        test does not see them.
+      - Users outside the repository, for step 9: none reads a removed field.
+        `omnet-julia/source/ide/CampaignWindow.jl` calls
+        `make_conversation_composer_projection(; theme)`,
+        `ConversationToWidget(; theme)` and `AssistantToWidgetSplitPane(theme)`
+        without `widget_theme`; the gaps then take the unscaled defaults.
+        `SimulationTheme` of omnet-julia has its own `stack_gap` and
+        `inline_gap`, which are not the removed fields. inet-julia has none.
+      - Images that changed (reference: the images of `e733e7153`):
+        `conversation_widget` 407 to 405 high: the gap between the form and the
+        result of a part, 10 to 8. `assistant`: the same gap, and the row under
+        the composer, 12 to 8. `assistant_work` 679 to 667 high: `section_gap`
+        10 to 8, six times. The `research*` and `workflow*` images: a row has
+        `tree_row_padding` (2, 2, 8, 8) for (3, 3, 6, 6), so a row is 2 px lower
+        and 4 px wider, and a section gap of the research outline is 8 for 14.
+        The window: the camera button of the assistant moves 4 px left, because
+        the gap of the row is 8 for 12. No image shows a fault.
+      - Tests changed with the mapping: `ConversationThemeTest` (gaps now of the
+        widget theme: 8, 6, 8), `DataFrameThemeTest` (`item_gap` 4 and 6),
+        `OutlineTest` and `OutlineElementsTest` (the outline values come from
+        `make_outline_values_field`).
+      - The slice table of the platform layering test allows `gesturelog` to use
+        `widget`: the overlay reads `container_padding` from the widget theme.
+      - Counts: `test_platform()` part by part: 179954 Pass, 4 Fail, 7 Broken
+        in the run before the table change; the 4th Fail, the slice edge of
+        `gesturelog`, passes after it, so 179955 Pass and the 3 known Fail
+        (`CheckLayering.jl:889`, `InterfaceApiTest.jl:46` and `:49`). The
+        baseline is 179994: `test_platform_examples` has 162317 for 162362.
+        A count of each example on `e733e7153` and on this step finds the 45
+        in three examples, 15 each: `document_tree`, `work_plan` and
+        `system_process_tree`, the three examples of the natural projection.
+        The walk of `test_printer` starts at the IO map, which holds its
+        projection, so it tests the cells of the theme fields that the
+        projection holds, and this step removes such fields. The drop is the
+        same for three documents, and their images do not change, so no part
+        of a document is lost. `test_widget_gap_role` adds 2
+        and `test_outline` 1. `test_dataframes` 603, `test_research` 382,
+        `test_workflow` 314, `test_pivot` 335 Pass with the known Error at
+        `PivotZoneEditTest.jl:84`: as the baseline.
 - [ ] 8. **The splitter shows a band.** The split pane draws a band of
       `splitter_band_width` (a new field, 4) in `ring` on the middle of a
       divider, while the pointer is on its grab area for 0.3 s, and at once
