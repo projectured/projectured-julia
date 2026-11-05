@@ -2812,7 +2812,6 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
 @document struct WidgetFact <: WidgetDocument
     label::Any
     value::Any
-    tooltip::Any = nothing
 end
 
 _as_fact(fact::WidgetFact) = fact

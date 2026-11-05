@@ -11642,7 +11642,7 @@ WidgetFactGroupToGraphicsCanvas(theme; measure,
                                     title_gap, column_gap, row_gap)
 
 # The fact `value` drawn as a string; a document is drawn through the recursion.
-_get_fact_value_string(value) = value === nothing ? "" : string(value)
+_format_fact_value(value) = value === nothing ? "" : string(value)
 
 function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::WidgetFactGroup, ctx)
     w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
@@ -11694,7 +11694,7 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
             row_height = label_height
             if documents[i] === nothing
                 text_width, text_height = _push_text_block!(elements, p.measure, value,
-                                                            _get_fact_value_string(fact.value), value_x, y, bound)
+                                                            _format_fact_value(fact.value), value_x, y, bound)
                 value_width = max(value_width, text_width); row_height = max(row_height, text_height)
             else
                 canvas = documents[i].output
