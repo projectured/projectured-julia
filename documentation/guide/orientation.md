@@ -2,85 +2,66 @@
 
 > **Kind:** reference · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md), [system-anatomy.md](../design/system-anatomy.md)
 
-ProjecturEd is a **projectional editor**: a structured `document` is shown through
-composable, bidirectional `projection`s, and you edit by acting on
-`editor.document`. This page is an **index of the vocabulary** — not an
-explanation. Use it to pick the right *search terms*, then dig in with the
-browsing tools below. Do not guess names — search for them.
+What the assistant of a window can do, each capability in code: find a part, read
+it, change it, show a result, control the window, work with files, and run long
+work. Every example runs in `execute_julia_code`, and every name in it is one that
+the window offers. The text of the window lists the names by module, and
+`search_api` reads the documentation of each.
 
-## Concepts → names to search
+## Find a name and a guide
 
-| Concept | Names to search | Guide |
-|---|---|---|
-| Document & domains | `@document`; `JsonObject`/`JsonString`/`JsonNumber`, `XmlElement`, `TextBlock`/`TextString`, `SyntaxNode`/`SyntaxLeaf`, `GraphicsCanvas`, `WidgetButton`, `JuliaCall` | `design/concepts`, `kernel/architecture`, `kernel/document` |
-| Reactive cell | `Cell`, `set_cell_computation!`, `getfield` (escape hatch), `get_performance_counters` | `kernel/cell` |
-| Macros | `@document`, `@projection`, `@projection_template`, `@iomap` | `kernel/macros` |
-| Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `kernel/projection-system` |
-| Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `projection/higher-order-projections`, `projection/generic-projections` |
-| Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
-| Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `get_parent`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
-| Work beside the person | read: `find_selected_part`, `find_part_under_pointer`, `find_focused_pane`, `describe_undo_history`, `print_pred_text`, `find_explorer_content`; tell: `GraphicsCanvas`, `Chart`, `GraphGraph`, `get_reactive_clock_time`, `open_page!`, `select_part!`, `open_explorer_page!`; control: `change_setting!`, `describe_settings`; change: `describe_commands`, `run_command!`, `parse_natural_text` | `guide/orientation` |
-| Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
-| Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
-| Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `make_replace_document_operation` / `make_insert_elements_operation` / `make_delete_elements_operation`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
-| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `run_read_stage!`/`run_evaluate_stage!`/`run_print_stage!`, `McpServer`, `execute_julia_code!` | `kernel/editor` |
-| Screen / pane tree | `ScreenDocument` → `WindowDocument` → `PaneTree` → `PaneSplit`/`PaneGroup` → `PaneTab`; `ScreenToScreen`, `WindowManagingProjection` | `pane/pane`, `kernel/editor` |
-| Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MouseClick` | `kernel/devices-and-backends` |
+Search before you write code, and never guess a name or a signature:
 
-## How to browse
+- `search_api("open a tab")` finds the name to call: a module, a type or a
+  function. One clear hit comes back with its whole documentation.
+- `search_guides("selection")` finds a section of a guide, with the
+  `resource://guide/<name>#<heading>` name that `read_resource` reads it by. It
+  searches the guides for users; `audience = "developer"` searches the guides
+  about the code of the editor.
+- Both take `mode`: `"keywords"` by default (`+word` must match, `-word` must not,
+  `a|b` is either, `"a phrase"`), `"regex"`, or `"description"` for a sentence
+  that says what you want to do. `detail` is `"names"`, `"summary"` or `"full"`.
+- `read_function_documentation` reads the documentation of one function.
 
-- `search_api("name")` — find the name to call: a module, a type, or a function.
-- `search_guides("topic")` — learn how the parts fit together: a guide section,
-  with the `resource://guide/<name>#<heading>` URI that reads it.
-- Both take `mode`: `"keywords"` by default (`+word` must match, `-word` must
-  not, `a|b` is either, `"a phrase"`), `"regex"`, or `"description"` for a
-  sentence that says what you want to do; and `detail`: `"names"`, `"summary"`
-  or `"full"`.
-- `read_guide("kernel/reference")` / `read_resource(uri)` — read full text on demand.
-- `resource://guides`, `resource://modules` — the full catalogues.
+## Find a part
 
-## Acting on the document (the essentials)
+A part is a place in the window and what is there: a tab, a document in it, or a
+piece of that document. A verb takes a part as it is. Find one with a verb, and do
+not walk the tree of the window:
 
-- **Find** — `search_documents(editor.document, query; places = true)` → each matching
-  document node with its place in the window, a part that a verb takes as it is;
-  `search_documents(...)` → the matching document nodes; `search_references(...)` → their places
-  as paths. `query` is a predicate `node -> Bool`, or a
-  `String`/`Regex` matching leaf text (string/regex matches fold to the enclosing `Document` by
-  default; pass `raw=true` for the exact matched value). A search finds each node once, stops at
-  100 matches and 100,000 visited nodes by default, and the first line of its answer names the
-  limit that stopped it (`limit = nothing`, `maxvisits = nothing` lift them). Both walk **any** graph, so passing an
-  **iomap** (`print_document(proj, doc)`) searches the whole projection
-  pipeline — a debugging move for "where did the value go?" (see `guide/debugging-guide`).
-- **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
-- **Editor** — a verb acts on the editor that runs the code, so the code does not
-  pass `editor` to a verb. `editor` is still bound, and `editor.document` is the
-  root that a path starts at.
-- **Intent** — call a verb that makes an operation, such as
-  `replace_referenced_value!`, `insert_elements!`, `delete_elements!` or
-  `run_command!`. This is how to change the document;
-  operations carry their own target, so they work through any
-  `ScreenDocument`/`WindowDocument` wrapping. Code in a package builds an
-  `Operation` and gives it to `evaluate_operation(editor, op)`, such as
-  `ReplaceSelectionOperation(path)` to select. The assistant has no such call, and
-  `select_part!` selects a part for it. A direct write to a document, such as
-  `part.value = new_value`, works, but the editor does not handle it as an edit:
-  Ctrl+Z can not undo it, and the editor does not check its permissions or
-  transform it, as it does for an operation.
+```julia
+items_tab_1 = find_pane("items.json")      # the tab of that title
+here_1 = find_focused_pane()               # the tab where the person works
+this_1 = find_selected_part()              # what the person selected
+under_1 = find_part_under_pointer()        # what is under the mouse pointer
+```
+
+`search_documents(document, query; places = true)` answers each part of a
+document that matches `query`. `query` is a function of a node that answers
+`true` or `false`, or a `String` or a `Regex` that the text of a leaf matches. A
+search finds each node once, stops at 100 matches and at 100,000 visited nodes,
+and the first line of its answer names the limit that stopped it: `limit =
+nothing` and `maxvisits = nothing` lift them.
+
+Search inside the data of one tab, not inside the whole window. Two tabs can show
+the same value, and a match of a value alone finds both. Match the type of the
+domain too:
+
+```julia
+items_1 = get_edited_document(items_tab_1)
+lamps_1 = search_documents(items_1, node -> node isa JsonString && node.value == "lamp"; places = true)
+```
 
 ## Reach what a tab holds
 
-`find_pane(title)` answers the tab of that title as a
-`ReferencedDocument`: the tab, and the reference to it from the root of
-`editor.document`. A referenced document acts like its document: read a field,
-index it, iterate it. Every document or collection that a read answers is a
-referenced document too, with the reference to its place; a string, a number or a
-`Bool` comes back plain. `get_edited_document(tab)` answers the data that the tab
-shows, through the file and the history that hold it. The pane verbs and
-`print_natural_text` take a referenced document where they take a reference or a
-document.
+`find_pane(title)` answers the tab of that title. `get_edited_document(tab)`
+answers the data that the tab shows, through the file and the history that hold
+it. A part acts like its data: read a field, index it, iterate it. Every document
+or collection that a read answers is a part too; a string, a number or a `Bool`
+comes back plain.
 
 Look at the data first, in one call. Here a tab shows `items.json`, a JSON array
-of records with a `name` and a `price`:
+of records with a name and a price:
 
 ```julia
 items_tab_1 = find_pane("items.json")
@@ -89,9 +70,9 @@ println(print_natural_text(items_1))
 ```
 
 Then use the same variables in the next call. A `JsonArray` acts as a vector, and
-a `JsonObject` as a map from key to value; `.value` is the plain value of a leaf.
-Build the rows of a table and sort them in one call, with a comprehension in its
-brackets, `[… for item in items_1]`: `sort` takes a vector, not a generator.
+a `JsonObject` as a map from key to value; the field value of a leaf is its plain
+value. Build the rows of a table and sort them in one call, with a comprehension
+in its brackets: `sort` takes a vector, not a generator.
 
 ```julia
 rows_1 = sort([[item["name"].value, item["price"].value] for item in items_1]; by = first)
@@ -105,15 +86,8 @@ To change what a tab shows, give the part and its new value to
 replace_referenced_value!(items_1[2]["price"], parse_natural_text(:json, "12"))
 ```
 
-A new value is written in the text of its domain: `parse_natural_text(:json, text)`
-reads one JSON value, `:md` reads Markdown and `:jl` reads Julia. The text of a
-domain is what you know best, so write it rather than the constructors of its
-documents.
-
-and not `items_1[2]["price"].value = 12`, which changes the document outside the
-editor's handling of an edit. To add a record, or to remove one, use
-`insert_elements!` and `delete_elements!`, which take the collection and a
-1-based index:
+To add a record, or to remove one, use `insert_elements!` and `delete_elements!`,
+which take the collection and a 1-based index:
 
 ```julia
 item_1 = parse_natural_text(:json, """{"name": "lamp", "price": 25}""")
@@ -123,47 +97,7 @@ insert_elements!(items_1, length(items_1) + 1, [item_1])
 Each of the three records the edit in the history of the file, so Ctrl+Z in the
 tab of the file takes it back.
 
-`open_pane!` puts the new tab in the group of the documents, behind the tab that
-the group shows, and the focus of the person stays where it is. `show_pane!(tab)`
-brings the tab to the front when the person must look at it. To put it before a
-tab, or at the end of a group, give that tab or group as `target`. To put it in a new pane
-beside or under the group of the target, add `side`: `:left`, `:right`, `:above`
-or `:below`. The new pane is always next to one group.
-`get_parent(editor, items_tab_1)` answers the group that holds the tab, so this
-puts the table in a new pane under the group of `items.json`:
-
-```julia
-table_tab_2 = open_pane!(WidgetTable(["name", "price"], rows_1); title = "Items",
-                         target = get_parent(editor, items_tab_1), side = :below)
-```
-
-Each call runs in the same module, so a variable that one call binds at the top
-level is still there in every later call. Keep each object that you find or make
-in its own variable, named by what it holds and numbered: `items_tab_1`,
-`items_1`, `rows_1`. When you make another object of the same kind, give it the
-next number, `rows_2`, and do not overwrite the first. Use a variable again in a
-later call instead of finding its object again.
-
-### Gotchas
-
-- Property access already unwraps `Cell`s — write `node.field`, **not** `node.field[]`.
-- A pane tree can mirror the **same** document into two tabs at once, so a bare
-  value match hits both — search inside the document of one tab,
-  `get_edited_document(tab)`, not inside the whole window.
-- `execute_julia_code` keeps top-level bindings between calls, so build state up
-  in numbered variables (`items_1 = …` in one call, use `items_1` in the next).
-- A referenced document is not an instance of its document's type.
-  `describe_document(items_1)` says what it is, and `print_natural_text(items_1)`
-  shows its text.
-
-## Work beside the person
-
-The verbs of a window let you read what the person does and sees, tell the
-person something in a tab, control the window, and change a document. No verb but
-`select_part!` moves the selection of the person, so the person goes on where
-they were while you work.
-
-### Read what the person does and what the window shows
+## Read what the person does and what the window shows
 
 "This" in a message is the part that the person selected. Read it, say what it
 is, and print its text:
@@ -174,9 +108,10 @@ println(describe_document(part_1))
 println(print_natural_text(part_1))
 ```
 
-`find_part_under_pointer()` answers the part under the mouse pointer, and
-`find_focused_pane()` the tab where the person works. `describe_undo_history()`
-says what changed last. The logs print as text:
+A part that has no text of its own domain, such as a widget or a chart, prints as
+the constructor that builds it, with `print_pred_text(part)`.
+`describe_undo_history()` says what changed last, and the logs of the session
+print as text:
 
 ```julia
 println(describe_undo_history())
@@ -184,13 +119,63 @@ println(print_natural_text(get_session_gesture_log()))
 println(print_natural_text(get_session_message_log()))
 ```
 
-A part that has no text of its own domain, such as a widget or a chart, prints as
-the constructor that builds it, with `print_pred_text(part)`.
+`read_os_clipboard()` answers the text that the person copied.
 
-### Tell the person in a tab: a drawing, a chart, a graph, a page
+## Change a document
 
-`open_pane!` puts any document in a tab. To draw, put shapes and text on a
-canvas; the coordinates are pixels from the top left of the canvas:
+Change a document only with a verb. A direct write, such as
+`items_1[2]["price"].value = 12`, changes the data outside the edits of the
+editor: Ctrl+Z can not take it back, and the editor does not check it.
+
+- `replace_referenced_value!(part, value)` puts a new value at a part.
+- `insert_elements!(collection, index, values)` and
+  `delete_elements!(collection, index)` add and remove elements.
+- Write a new value as the text of its domain: `parse_natural_text(:json, text)`
+  reads one JSON value, `:md` reads Markdown and `:jl` reads Julia.
+  `describe_natural_formats()` lists the formats.
+
+A part also has the commands that a key or the command palette runs for the
+person. List them, and run one by its words:
+
+```julia
+println(describe_commands(items_1))
+run_command!(items_1, "Insert a new element")
+```
+
+Several edits can be one step of the undo. `make_change` makes the change of a
+verb as a value and changes nothing; `combine_changes` joins changes, and
+`apply_change!` applies the group. Make the changes of one collection from its
+last position to its first, so that one change does not move the place of the
+next:
+
+```julia
+apply_change!(combine_changes(make_change(delete_elements!, items_1, 3),
+                              make_change(delete_elements!, items_1, 1)))
+```
+
+## Show a result in a tab
+
+`open_pane!(document; title)` puts any document in a tab, behind the tab that its
+group shows, and answers the new tab. The focus of the person stays where it is.
+`show_pane!(tab)` brings the tab to the front when the person must look at it:
+
+```julia
+table_tab_2 = open_pane!(WidgetTable(["name", "price"], rows_1); title = "Items")
+show_pane!(table_tab_2)
+```
+
+To put the tab before another tab, or at the end of a group, give that tab or
+group as `target`. To put it in a new pane beside or under the group of the
+target, add `side`: `:left`, `:right`, `:above` or `:below`. `get_parent(editor,
+tab)` answers the group that holds a tab:
+
+```julia
+table_tab_3 = open_pane!(WidgetTable(["name", "price"], rows_1); title = "Items",
+                         target = get_parent(editor, items_tab_1), side = :below)
+```
+
+To draw, put shapes and text on a canvas. The coordinates are pixels from the top
+left of the canvas:
 
 ```julia
 sketch_1 = GraphicsCanvas([
@@ -198,7 +183,7 @@ sketch_1 = GraphicsCanvas([
     GraphicsText("the queue", 20, 40; font = StyleFont("DejaVu Sans", 14)),
     GraphicsLine(170, 35, 230, 35; color = StyleColor(0.0, 0.0, 0.0, 1.0), width = 2),
     GraphicsCircle(250, 35, 15; color = StyleColor(0.85, 0.2, 0.2, 1.0))]; w = 280, h = 70)
-tab_1 = open_pane!(sketch_1; title = "Sketch")
+sketch_tab_1 = open_pane!(sketch_1; title = "Sketch")
 ```
 
 A chart and a graph are documents too:
@@ -223,62 +208,97 @@ orbit_1 = GraphicsCanvas([
 open_pane!(orbit_1; title = "Orbit")
 ```
 
-`open_page!(part)` opens one part of a large document as a page of its own. As
-`open_pane!` does, it answers the new tab and leaves the focus where it is.
-`select_part!(part)` selects a part to show it to the person.
+More ways to show:
 
-### Control the window
+- `open_page!(part)` opens one part of a large document as a page of its own, in
+  a new tab.
+- `select_part!(part)` selects a part to show it to the person. It is the one
+  verb that moves the selection of the person.
+- `show_roster!(source; title, columns)` shows a table of the members of one kind,
+  gathered from the whole window: `TabDocuments(FileDocument)` gives the files of
+  the tabs. `describe_roster_sources()` says which sources exist.
+- `show_document_tree!(root; title)` shows a document as a tree.
+- `write_os_clipboard!(text)` gives the person a text to paste.
 
-`show_layout()` prints what is where, and `show_pane!`, `move_pane!` and
-`close_pane!` arrange the tabs. `focus_pane!` also moves the focus of the person,
-so a program does not call it. `describe_settings()` lists the settings of the
-window, and `change_setting!` changes one:
+## Control the window
+
+`show_layout()` prints each window, split, group and tab, with the path steps
+that reach it. `show_pane!`, `move_pane!` and `close_pane!` arrange the tabs.
+`focus_pane!` also moves the focus of the person, so do not call it: the person
+moves their focus. `describe_settings()` lists the settings of the window, and
+`change_setting!` changes one:
 
 ```julia
+println(show_layout())
 println(describe_settings())
 change_setting!(:partial_render, false)
 ```
 
-The tool `undo` takes back the last change, as Ctrl+Z does, and `take_picture`
-shows you what the window draws.
+The tool `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it
+back. The tool `take_picture` shows you what the window draws.
 
-### Change a document with its text and its commands
+## Work with files
 
-Write a new value as the text of its domain, and give it to a verb, so the change
-is an edit that Ctrl+Z takes back. `describe_natural_formats()` lists the formats:
-
-```julia
-people_1 = get_edited_document(find_pane("people.json"))
-replace_referenced_value!(people_1[2]["age"], parse_natural_text(:json, "31"))
-```
-
-A part also has the commands that a key or the command palette runs for the
-person. List them, and run one by its words:
+`open_file!(path)` opens a file in a tab and answers the tab; a file that is open
+keeps its tab. `save_file_to_disk!(tab)` writes it, as Ctrl+S does, and
+`reload_file_from_disk!(tab)` reads it again, as F5 does:
 
 ```julia
-println(describe_commands(people_1))
-run_command!(people_1, "Insert a new element")
+notes_tab_1 = open_file!("notes.json")
+notes_1 = get_edited_document(notes_tab_1)
+replace_referenced_value!(notes_1["done"], parse_natural_text(:json, "true"))
+save_file_to_disk!(notes_tab_1)
 ```
 
-### Work in the explorer
+`read_document_file(path)` reads a file into a document without a tab, and
+`write_document_file(document, path)` writes a document to a file.
 
 The explorer is a tab of the window: a tree of sections and entries beside the
-page of the selected node. `find_explorer_content()` answers its root section, and
-`format_tree_node_label` gives the label of an entry as the tree shows it. Add a
-document with an insert into the entries, such as a dashboard of cards:
+page of the selected node. `find_explorer_content()` answers its root section,
+and `format_tree_node_label` gives the label of an entry as the tree shows it. Add
+a document with an insert into the entries, such as a dashboard of cards:
 
 ```julia
 content_1 = find_explorer_content()
 println([format_tree_node_label(entry) for entry in content_1.entries])
 study_1 = Dashboard("Queue study", [DashboardCard("Notes", ExplorerSection("Notes"))])
 insert_elements!(content_1.entries, length(content_1.entries) + 1, [study_1])
-```
-
-An entry has the commands of its row, such as a move and a removal, and
-`open_explorer_page!` shows the page of an entry beside the tree:
-
-```julia
-println(describe_commands(content_1.entries[1]))
-run_command!(content_1.entries[1], "Move the entry later")
 open_explorer_page!(content_1.entries[length(content_1.entries)])
 ```
+
+## Run long work and tasks
+
+Code that needs no document of the window, such as a long computation or a wait
+for a process, runs with the argument `background` of `execute_julia_code` set to
+true. The person can use the window while it runs. Code in the background reaches
+a document only through the verbs.
+
+A group of tasks is a set of programs that the window runs and shows.
+`list_task_groups()` answers one line for each group of the session, with its
+identifier and its title. `find_task_group(name)` answers the group of an
+identifier or a title. `describe_task_group(group)` says how far a group has come,
+and `get_task_output`, `stop_tasks!`, `rerun_tasks!` and `close_task_group!` act
+on it:
+
+```julia
+println(list_task_groups())
+build_1 = find_task_group("T1")
+println(describe_task_group(build_1))
+```
+
+## Keep what you found
+
+Each call of `execute_julia_code` runs in the same module, so a variable that one
+call binds at the top level is still there in every later call. Keep each object
+that you find or make in its own variable, named by what it holds and numbered:
+`items_tab_1`, `items_1`, `rows_1`. When you make another object of the same kind,
+give it the next number, `rows_2`, and do not overwrite the first.
+
+The person edits the window between your turns: a key, an undo or a click can
+change what a variable of an earlier turn shows. Read a document again before you
+tell the person what it holds.
+
+- A field of a document reads as its value: write `node.field`, not
+  `node.field[]`.
+- A part is not an instance of the type of its document. `describe_document(part)`
+  says what it is, and `print_natural_text(part)` shows its text.

@@ -343,13 +343,37 @@ _has_example_parse_error(expression) =
     expression isa Expr && (expression.head in (:error, :incomplete) ||
                             any(_has_example_parse_error, expression.args))
 
+# The names of a guide: each name in backticks in its prose, and each function that
+# its code calls.
+function _collect_guide_names(guide::AbstractString)
+    names = String[]
+    fenced = false
+    for line in split(guide, '\n')
+        if startswith(strip(line), "```")
+            fenced = !fenced
+        elseif fenced
+            for found in eachmatch(r"(?<![\w.:])(@?[A-Za-z_][A-Za-z0-9_]*!?)\(", line)
+                push!(names, String(found.captures[1]))
+            end
+        else
+            for found in eachmatch(r"`([^`]+)`", line)
+                head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
+                head === nothing || push!(names, String(head.captures[1]))
+            end
+        end
+    end
+    unique(names)
+end
+
 """
     test_assistant_documentation(api = make_editor_api())
 
 Every name of `api` from a package of the editor carries what a model reads to use
 it: a "Use it to" line, an example that parses, and a "See also" line, which names
-only what the model can write. Every name that `EDITOR_SYSTEM` and the paragraph of
-the loaded domains write in backticks is a name that the model can write. The names
+only what the model can write. Every name that `APPLICATION_SYSTEM` and the paragraph of
+the loaded domains write in backticks is a name that the model can write, or a tool
+or an argument of a tool, and so is every name of the orientation guide, which the
+text names. The names
 that only the person calls are not offered, and a function of `api` that takes a
 document takes a part of that document too.
 """
@@ -403,6 +427,8 @@ end
         union!(writable, String.(get_api_entry_names(entry)))
     end
     union!(writable, [tool.name for tool in list_tools(set)])
+    words = union(writable, [String(parameter.name) for tool in list_tools(set)
+                                                    for parameter in tool.parameters])
     for entry in set.api, (name, _) in get_api_entry_bindings(entry)
         _is_documented_module(entry.module_) || continue
         doc = ToolModule._binding_doc(entry.module_, name)
@@ -440,11 +466,18 @@ end
         @test generic || error(string(nameof(entry.module_), ".", name,
                                       " has no docstring on its generic function"))
     end
-    for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM * make_domain_system())
+    for found in eachmatch(r"`([^`]+)`", APPLICATION_SYSTEM * make_domain_system())
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
         name = String(head.captures[1])
-        @test name in writable || error("the system text names `" * name * "`, which no model can write")
+        @test name in words || error("the system text names `" * name * "`, which no model can write")
+    end
+    # The guide that the text names. A name that no declared module defines, such as
+    # a variable of an example or a keyword, is no name of the editor.
+    for name in _collect_guide_names(ToolModule.read_guide("guide/orientation"))
+        is_binding = any(entry -> isdefined(entry.module_, Symbol(name)), set.api)
+        @test name in words || isdefined(Base, Symbol(name)) || !is_binding ||
+              error("the orientation guide names `" * name * "`, which no model can write")
     end
 end
 end
