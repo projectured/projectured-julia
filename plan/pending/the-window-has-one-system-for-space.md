@@ -487,7 +487,7 @@ approval of the user.
         signature that this step changed (a widget IO map with a new field, a
         reader of a `SimpleIoMap` or a `ChildrenIoMap` of a widget, a helper
         that takes the shape). The lists are recorded again after step 8.
-- [ ] 5. **The text printer takes the line spacing from the context.**
+- [x] 5. **The text printer takes the line spacing from the context.**
       `TextToGraphics` makes no copy of itself: it reads `:line_spacing` from
       the context where it lays out the lines, and its IO map carries the line
       positions and the line height that its readers (`char_to_coord` and the
@@ -498,7 +498,7 @@ approval of the user.
       part, give the counts of the baseline.
 
       - [x] 5a. The text printer makes no copy of itself.
-      - [ ] 5b. No widget printer makes a projection. This part runs after
+      - [x] 5b. No widget printer makes a projection. This part runs after
         step 6, because both change `WidgetToGraphics.jl`.
 
       5a is done in `c5e96d517`. The facts:
@@ -593,6 +593,86 @@ approval of the user.
       that no printer in `source/platform/widget/` calls the constructor of a
       projection inside a print; `test_widget_text_fit`, the text field tests
       and the platform suite, part by part, give the counts before 5b.
+
+      5b is done in `2624e869e` (code) and `73cbcafbc` (tests). The facts:
+      - `_print_plain_text_view` and the view of a tab name print through
+        `print_child(recursion, view, offer)`. No printer in
+        `source/platform/widget/` builds a projection in a print.
+        `_make_text_view_offer(w, ctx; wrap)` makes the offer: it always sets
+        `:line_spacing` (`w.line_spacing`, else `SingleSpacing()`, also when
+        the context is `nothing`, which becomes a `PrinterContext()`); a field
+        with `wrap = false`, and the tab name, offer a free width
+        (`with_free_axis(ctx, :x; space = ctx.space)`, so the space of the
+        offer stays); a field with `wrap = true` passes the bounded width of
+        its box on. `w.line_spacing` is read in the computation of the
+        reconciled cell.
+      - The dispatch of `WidgetToGraphics(...)` has no rule for `TextBlock`.
+        `WidgetToGraphics(...; text)` ends the dispatch with `TextBlock => text`
+        for a projection that stands alone as a table; it is `nothing` by
+        default, so a table that splices `.dispatch` adds its own rule.
+      - `_compute_soft_breaks` returns no break at a free width
+        (`wrap_w >= _NO_WRAP_WIDTH`) before it measures a word. The test
+        uses a measure that fails when it is asked, in `test_word_wrapping`.
+      - The rule of each table, and why (the text theme is the scaled
+        `TextTheme` of the appearance):
+        - `NaturalToGraphics`: keeps `TextDocument => prose_chain`, which wraps
+          (when `wrap`) and takes the text theme. Nothing stands before it for
+          a `TextBlock`. The workflow and research views, and the outline row
+          that sets `wrap = true`, draw through this table or the research
+          one, so their text wraps. The Explorer window opens a workflow or a
+          research document in a tab through this table, and through the
+          application table below.
+        - `make_application_content_projections`: keeps
+          `TextDocument => text_to_graphics`, which wraps. Its two bare widget
+          renderers (the explorer and the workspace) get
+          `text = TextToGraphics(measure, text_theme)`, no wrap: they show the
+          fields of the file tree, which never set `wrap`.
+        - the workspace rows of `FileSystemToSyntax.jl`, the system process
+          page and the document tree: `text = TextToGraphics(measure, text
+          theme)`, no wrap, the same reason.
+        - `make_tabs_projection` and `make_window_shell_projection`:
+          `TextBlock => TextToGraphics(measure, text theme)` before
+          `Any => NestingProjection(projection)`, no wrap. Without the rule
+          the text of a widget of the tab strip or of a bar would go to the
+          projection of the content. `make_opened_window_projections` has
+          `Document => NaturalToGraphics`, which takes a `TextBlock`; kept.
+        - the tables of the task views: one rule `texts` before the
+          documents, no wrap.
+        - `make_research_map_projection`: `WordWrapping` and then
+          `TextToGraphics`, because the rows of a map show the outline box.
+        - the examples and the tests that splice the widget dispatch add
+          `TextBlock => TextToGraphics(measure)` or pass `text`.
+      - The slices `tree`, `systemprocess`, `task` and `pane` use `TextModule`
+        now, and `PLATFORM_SLICE_EDGES` lists `text` for each.
+      - The static test is `test_widget_printer_projection` in
+        `test/platform/widget/WidgetPrinterProjectionTest.jl`. It walks the
+        syntax tree of each file of the slice and reports a call of the
+        constructor of a `Projection` type in a function. A constructor of a
+        projection type may build its own type. The allowed functions, each
+        a factory that runs once when a renderer is built: `WidgetToGraphics`,
+        `make_graphics_projection` (the method for a document type),
+        `make_context_menu_window_projection`,
+        `make_object_field_widget_dispatch` and `_nest_value_widget`. It found
+        no print that builds a projection after the two targets.
+      - The first try (the rule in the widget dispatch) changed 8 images. This
+        design changes none: the 44 widget images and the 135 images of the
+        examples are the same byte for byte (my `all-images.jl` against the
+        set of `9cbe98463`), and `explorer.png` and `settings.png` of the
+        window (`window.jl 674`) are the same pixel for pixel.
+      - Tests: the platform suite, part by part, gives 178571 Pass, 3 Fail
+        (the known `CheckLayering.jl:889`, `InterfaceApiTest.jl:46` and `:49`),
+        0 Error, 7 Broken; the first run of this code had 58 Error, all from
+        a test table with no rule for a `TextBlock`, which nine test files now
+        hold. `test_dataframes` 603 Pass, `test_research` 382 Pass;
+        `test_languageserver`, `test_julia`, `test_workflow`, `test_sql`,
+        `test_chart` and `test_sequencechart` pass; `test_pivot` has 335 Pass
+        and 1 Error at `PivotZoneEditTest.jl:84`, the known failure of main
+        (the text "Rows" is not drawn), which is not from this step.
+      - Found, not changed: a `wrap = true` text in a table whose rule does not
+        wrap stays one line (the user accepted it); in `make_window_shell_projection`
+        and `make_tabs_projection` a `TextBlock` that is a document of the
+        content now goes to the rule of the table and not to the content
+        projection (no example or test image changes).
 - [x] 6. **A slot gives its space once.** `tabbed_pane_padding` becomes 0.
       Add `slot_padding` (8 on each side), and set `tree_row_padding` to
       `Inset(2, 2, 8, 8)`.
