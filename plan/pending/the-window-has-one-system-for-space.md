@@ -1425,6 +1425,57 @@ approval of the user.
       baseline (private names in `assistant.md` and `precompile.md`); a grep
       of `documentation/` finds no field name that step 1, 2 or 7 removes.
 
+      Done (the documentation): in 39b2b1e8a and b4ed10a67. The facts:
+      - New `documentation/rule/spacing-rules.md` (kind rule, stands on
+        `layout-rules.md`) with the six parts: the principles (P0, T1-T4,
+        N1-N3, C1-C4, R1-R5 and the three choices that they leave open); the
+        window with no space and a table of each space with its rule; the
+        roles (each field of `WidgetTheme` that is a spacing, its default, its
+        job and its rule, plus the small offsets); who gives a space (the
+        padding of a box, the gap of a layout, the `space` of the printer
+        context, a table of how each part passes or takes it, the example of
+        a column of three labels, and why the context decides); the table of
+        other tools with their sources; and how to space a new widget, layout
+        or page, with `test_widget_gap_role`, `test_widget_printer_projection`
+        and `test_slot_space`.
+      - `README.md` has the row of `spacing-rules.md`, and also the row of
+        `layout-rules.md`, which the table did not list. `layout-rules.md` has
+        a pointer paragraph, and its three examples read `section_gap` and
+        `form_column_gap` for the numbers 6 and 8; the first worked case now
+        gives the pane 366 (400 less the label and one gap of 8), as the
+        allocator does, where the text said 374.
+      - `widget.md`: the list of spacing fields by role, and fourteen sizes
+        with `splitter_band_width`; the shape of a box (`BoxGeometry`,
+        `WidgetBoxIoMap`, `WidgetChildrenIoMap`); the space of a slot with the
+        tab group and the split pane, the four lines of the shell and the
+        content slot of a split pane; the cut of a scroll pane inside the
+        space with its bars at the outer edge; the side space of the rows of a
+        tree and a list; the band of a splitter with `splitter_under_pointer`.
+      - `tooltip.md`: the frame reads `control_padding`, the note reads
+        `title_gap`, `form_column_gap`, `line_gap`, `item_gap` and
+        `compact_padding`; `TooltipTheme` keeps `part_gap`. `terminal.md`,
+        `mcplog.md` and `statistics.md` say that the gap is `form_row_gap`;
+        `transcript.md` says `section_gap`; `outline.md` names the four roles
+        that its rows read.
+      - `new-domain-guide.md` has the section "The space of a slot", and
+        `architecture-rules.md` the rule that a printer never makes a copy of
+        its projection for a value of one print.
+      - Where the plan and the code differ: step 10 says that each printer to
+        graphics of a domain takes the space, but step 6 found that only the
+        text printer does, and the others sit in a widget box. The documents
+        say what the code does. `part_gap` was a field of `ConversationTheme`
+        (removed) and is a field of `TooltipTheme` (kept), so the grep for it
+        finds the kept field.
+      - `test_documentation()`: baseline on `a4198a677` 0 Pass, 7 Fail, 0
+        Error, 0 Broken; after the change the same, and the same 7 failures,
+        which are the private names at `assistant.md:231` and
+        `precompile.md:84`, `:93` and `:95`. The static check of links and
+        anchors passes.
+      - The grep of `documentation/` for the fields that steps 1, 2 and 7
+        remove finds only `part_gap` of `TooltipTheme`, which stays. Step 1
+        and step 2 remove no field. The grep for the names of the private
+        repositories finds only the five lines of the baseline.
+
 ## Not in this plan
 
 - The spacing inside the drawings of the domains: chart, graph, sequence
