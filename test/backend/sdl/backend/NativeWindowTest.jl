@@ -90,6 +90,43 @@ end
 
 end
 
+@testset "an unchanged window repaints after exposure or focus returns" begin
+    SDL = ProjecturedSDL.SdlModule
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    resources = Any[]
+    try
+        for id in (:exposed_window_test, :other_window_test)
+            window = WindowDocument(; id, title = string(id), width = 200, height = 100, content = canvas)
+            resource = SDL._open_native_window!(backend, window; hidden = true)
+            push!(resources, resource)
+            backend.windows[id] = resource
+            backend.window_ids[resource.sdl_id] = id
+            @test SDL._render_window!(backend, resource, canvas)
+            @test !SDL._render_window!(backend, resource, canvas)
+        end
+        resource, other = resources
+        for kind in (SDL.SDL_WINDOWEVENT_EXPOSED, SDL.SDL_WINDOWEVENT_FOCUS_GAINED,
+                     SDL.SDL_WINDOWEVENT_SHOWN, SDL.SDL_WINDOWEVENT_RESTORED,
+                     SDL.SDL_WINDOWEVENT_MAXIMIZED)
+            _push_sdl_event!(_SDL.SDL_WindowEvent(UInt32(_SDL.SDL_WINDOWEVENT), UInt32(0), resource.sdl_id,
+                UInt8(kind), UInt8(0), UInt8(0), UInt8(0), Int32(0), Int32(0)))
+            while SDL._poll_window_input(backend) != (nothing, nothing)
+            end
+            @test resource.first_paint
+            @test !other.first_paint
+            @test SDL._render_window!(backend, resource, canvas)
+            @test !SDL._render_window!(backend, resource, canvas)
+        end
+        # A late event for a closed window changes no live window.
+        SDL._request_window_repaint!(backend, :closed_window_test)
+        @test !resource.first_paint && !other.first_paint
+    finally
+        quit_backend!(backend)
+    end
+end
+
 @testset "a tooltip or a popup window never takes the key focus" begin
     SDL = ProjecturedSDL.SdlModule
 
