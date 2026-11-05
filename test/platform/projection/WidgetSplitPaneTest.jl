@@ -167,12 +167,14 @@ end
     end
 end
 
-@testset "a slot with no size and no weight takes no room under an offer" begin
+@testset "a slot with no size and no weight takes an equal share of an offer, not its content" begin
     pane = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(_label("fills"); preferred_height = 0, weight_height = 1.0),
         _label("bare")])
     children = getfield(_offered_split(pane, 400, 300), :child_iomaps)[]
-    @test Int(children[2][2][]) == 300
+    # The two slots share the 299 px past the 1 px divider: 150 above it, and the
+    # bare slot starts under it.
+    @test Int(children[2][2][]) == 151
 end
 
 end # testset

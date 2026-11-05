@@ -2044,13 +2044,13 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             end
             total + max(0, lc - 1) * vgap_cell[]
         end))
-        ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
         entries = Tuple{Cell,Cell,Any}[]
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
         outer_w = space_width == 0 ? lines_w : Cell(@computation lines_w[] + space_width)
         outer_h = space_height == 0 ? lines_h : Cell(@computation lines_h[] + space_height)
+        ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
         (w = outer_w, h = outer_h, entries = entries)
     end)
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
