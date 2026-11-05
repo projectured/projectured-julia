@@ -137,7 +137,8 @@ narrowest suites that cover it, and compares the counts with a baseline of clean
 `main`. A test that asserts a font, a size or a position that this plan changes
 gets the new value; the commit names each one.
 
-- [ ] **Step 1. The font theme and the font role.** In `source/platform/style/`:
+- [x] **Step 1. The font theme and the font role.** Done on 2026-11-05, `aa348c026`;
+  see section 5 for what the work found. In `source/platform/style/`:
   add `FontTheme` with the roles of D2; change `FontRole` and `TextRole` to name
   a role of the font theme; resolve and scale a role with one rounding; add
   `font_theme` to `Appearance`; save and load it. The old form of `FontRole` and
@@ -212,6 +213,24 @@ gets the new value; the commit names each one.
   family kind, `:sans` or `:mono`, a size, a weight and a slant. The two family
   fields of the font theme give the family of each kind, as `color_accent`
   gives the hue of the accent ramp.
+- **2026-11-05, step 1.** `@theme` refers to `Appearance` and to
+  `scale_theme_value` when it expands, so `FontTheme.jl` comes after
+  `Appearance.jl` in the include order, as `ColorTheme.jl` does. So the field of
+  the appearance is `font_theme::Theme = FontTheme()`, and `get_font_theme`
+  asserts `::FontTheme`. `FontStep` is in `FontRole.jl`, before `Appearance.jl`,
+  because the decoders of the appearance file need it. `appearance.toml` writes
+  only the fields of the font theme that differ from the default, under
+  `[FontTheme]`, as for the colour themes.
+- **2026-11-05, step 1.** A change of a step or of a family of the font theme
+  reaches every scaled theme: `resolve_font_role` reads `appearance.font_theme`
+  in the computed cell of the scaled theme, as a colour role reads the colour
+  theme. `test_font_theme()` checks it for a step and for `sans_family`.
+- **2026-11-05, step 1, counts.** On the branch, with `environment/all`:
+  `test_font_theme` 70 pass, `test_theme` 86, `test_font_face` 139,
+  `test_appearance_file` 22, `test_appearance_tab` 138, `test_color_theme` 1431.
+  On `main` the same counts, except `test_font_theme`, which `main` does not
+  have, and `test_color_theme`, whose run on `main` did not get memory. No Fail,
+  no Error and no Broken.
 
 ## 6. Not in this plan
 
