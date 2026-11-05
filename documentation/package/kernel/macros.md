@@ -1,6 +1,6 @@
 # Document, Projection, and IoMap Macros
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 `@document`, `@projection`, and `@iomap` generate the boilerplate that makes
 the cell-based code in the rest of the codebase look like ordinary Julia. A

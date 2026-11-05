@@ -1,6 +1,6 @@
 # File system
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
 
 The file-system slice of `ProjecturedPlatform` shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how a folder reads the disk, how the tree shows it, how a file opens, and where its documents differ from the [shape of every domain](../../../design/domain-anatomy.md).
 

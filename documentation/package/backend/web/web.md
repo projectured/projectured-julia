@@ -1,6 +1,6 @@
 # Web backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
 
 `ProjecturedWeb` holds `WebBackend`, which runs the editor in an HTTP and WebSocket server and draws it in a browser. The Julia process keeps the document, the projections, the cells and the editor loop; a small JavaScript client sends the input and paints a draw list on an HTML canvas. This document says how the backend implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), what goes over the socket, and what it does not do yet.
 

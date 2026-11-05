@@ -1,6 +1,6 @@
 # The domain packages
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
 
 This document lists the twenty packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
 

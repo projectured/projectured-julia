@@ -1,6 +1,6 @@
 # Compile ahead
 
-> **Kind:** decision · **Status:** current; in design, not built yet · **Stands on:** [candidate-requirements.md](../requirement/candidate-requirements.md)
+> **Kind:** decision · **For:** developer · **Status:** current; in design, not built yet · **Stands on:** [candidate-requirements.md](../requirement/candidate-requirements.md)
 
 This document is the one design of the compilation ahead of time of the
 packages of this repository, of their binaries, and of each repository that

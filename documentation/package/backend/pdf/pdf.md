@@ -1,6 +1,6 @@
 # PDF export
 
-> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../../platform/graphics/graphics.md), [style.md](../../platform/style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [graphics.md](../../platform/graphics/graphics.md), [style.md](../../platform/style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md)
 
 `ProjecturedPDF` writes a `GraphicsCanvas` as a vector PDF: a shape becomes a PDF path, and a text becomes selectable text in an embedded font. It is a file export and not a `Backend`, and it needs neither SDL nor a third-party package. This document says how the writer maps a canvas to PDF, how it sizes and cuts the pages, and what it does not support.
 

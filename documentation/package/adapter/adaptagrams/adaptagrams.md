@@ -1,6 +1,6 @@
 # Adaptagrams layout engine
 
-> **Kind:** design · **Status:** current · **Stands on:** [graph.md](../../domain/graph/graph.md), [graph-layout.md](../../domain/graph/graph-layout.md), [package-rules.md](../../../rule/package-rules.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [graph.md](../../domain/graph/graph.md), [graph-layout.md](../../domain/graph/graph-layout.md), [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedAdaptagrams` is an opt-in package with one graph layout engine, `AdaptagramsLayout`. It places vertices with libcola and routes edges with libavoid, two C++ libraries of [Adaptagrams](https://github.com/mjwybrow/adaptagrams), through a small C shim. This document says how the shim is built and found, what happens when it is missing, and how a projection uses the engine.
 

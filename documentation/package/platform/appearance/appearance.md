@@ -1,6 +1,6 @@
 # Appearance
 
-> **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [style.md](../style/style.md), [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md)
 
 The appearance slice of `ProjecturedPlatform` connects the `Appearance` of an editor to its view. It holds the `Appearance` in the root document, binds the keys of the zoom and of the scales, and makes the view print again after a change. The editor knows nothing about themes: it gets a document and a projection, as always.
 

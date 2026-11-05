@@ -1,6 +1,6 @@
 # File format
 
-> **Kind:** design · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md), [roster.md](../roster/roster.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md), [roster.md](../roster/roster.md)
 
 The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, how a tab saves and reloads its file, and how the open files of an editor show as a table.
 

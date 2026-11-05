@@ -1,6 +1,6 @@
 # Serialization
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 The serialization slice of `ProjecturedPlatform` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
 

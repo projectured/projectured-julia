@@ -1,6 +1,6 @@
 # Requirements
 
-> **Kind:** what · **Status:** current · **Stands on:** [product-vision.md](product-vision.md)
+> **Kind:** what · **For:** developer · **Status:** current · **Stands on:** [product-vision.md](product-vision.md)
 
 This document states what ProjecturEd is required to do, as capabilities
 observable from the outside — by a person or an AI assistant using the editor,

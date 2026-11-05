@@ -1,6 +1,6 @@
 # Text domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [projection-system.md](../../kernel/projection-system.md), [style.md](../style/style.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [projection-system.md](../../kernel/projection-system.md), [style.md](../style/style.md), [graphics.md](../graphics/graphics.md)
 
 The text slice of `ProjecturedPlatform` holds styled text as a block of lines, each line a sequence of runs, and the projections that lay it out as graphics or change it on the way. Nearly every view reaches the screen through it, because `SyntaxToText` prints to it. This document says how the caret is addressed, how a key becomes an edit, and why the text decorators can map a caret in both directions.
 

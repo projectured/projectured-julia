@@ -1,6 +1,6 @@
 # Inspector
 
-> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [natural.md](../natural/natural.md)
 
 The inspector slice of `ProjecturedPlatform` shows a reference in a form that a person can read: the compact path and a sentence that says what it names. It has two documents, `ReferenceInspector` for one reference and `SelectionInspector` for a selection. This document says how the two parts work and how they share one rendering.
 

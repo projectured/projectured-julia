@@ -1,6 +1,6 @@
 # Code quality
 
-> **Kind:** rule · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
 
 How the code of this repository reads, and what keeps it readable. A human reads
 this code to learn what it does. Every rule here serves that reader.

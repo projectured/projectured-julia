@@ -1,6 +1,6 @@
 # MCP log
 
-> **Kind:** design · **Status:** current · **Stands on:** [log.md](../log/log.md), [mcp.md](../../adapter/mcp/mcp.md), [editor.md](../../kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [log.md](../log/log.md), [mcp.md](../../adapter/mcp/mcp.md), [editor.md](../../kernel/editor.md)
 
 The mcplog slice of `ProjecturedPlatform` shows each call that a client made over MCP, and that the server of the editor answered, as a document in a tab. A person reads in it what an agent did: which tool or resource it used, with which arguments, what it got back, how long the call held the editor, and whether the call was a fault. This document says how a call reaches the document from the task of the server.
 

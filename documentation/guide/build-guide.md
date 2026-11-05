@@ -1,6 +1,6 @@
 # Build a binary
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 A build makes a native binary of this repository: a directory that holds an
 executable, a system image, the shared libraries and the files that the program

@@ -1,6 +1,6 @@
 # The pointer
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
 
 What the program shows where the pointer sits: the shape it takes, the part that lights, the brackets of a tree that light around it, and the tooltip that a rest brings.
 

@@ -1,6 +1,6 @@
 # Roster
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [collection.md](../collection/collection.md), [natural.md](../natural/natural.md), [pane.md](../pane/pane.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [collection.md](../collection/collection.md), [natural.md](../natural/natural.md), [pane.md](../pane/pane.md), [widget.md](../widget/widget.md)
 
 The roster slice of `ProjecturedPlatform` shows the members of one kind, gathered from anywhere in a window or a session, as a table: the files with edits, the documents of each type, the errors of the log. This document says how the rows of a roster follow their items at the cost of what changed, how a slice adds a source and a key, and how code and the assistant make a roster.
 

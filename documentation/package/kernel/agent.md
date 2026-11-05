@@ -1,6 +1,6 @@
 # The agent stack — tool, llm, agent
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Three kernel layers, not one. They are separate because they are separately
 useful, and the shortest way to see that is to notice what each works without:
@@ -152,6 +152,23 @@ code.
 one sentence each, and a miss in one names the other. They rank differently on
 purpose — a name by its name first, a guide section by its heading first — so
 they stay two tools.
+
+**`audience` says whose guides `search_guides` searches.** The header line of a
+guide says who it is for, in its field `**For:**`. A user uses the editor, and
+so does the assistant in a window of the editor; a developer changes the code
+of the editor. `"user"`, the default, searches the guides for users,
+`"developer"` the guides for developers, and `"all"` both. When guides of the
+other audience match too, a line before the hits says how many, and the
+`audience` that finds them:
+
+```
+Searched the documents for users. 3 documents for developers also match: audience = "developer".
+```
+
+A model so learns that the other guides exist, and it reads them only when the
+task needs them. Each hit shows the kind of its guide as a label, such as
+`[procedure]` or `[reference]`. `read_resource` reads a guide of any audience. A
+guide without a header line, such as a slide deck, is for developers.
 
 **`detail` says how much a hit shows**, the same on both: `"names"` is one line
 each, up to 25; `"summary"`, the default, adds the sentence or the excerpt, up

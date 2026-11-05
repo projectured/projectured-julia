@@ -1,6 +1,6 @@
 # Selection
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Selection is the mechanism that tracks the current cursor position or focused
 region within a document — kernel layer 12, `SelectionModule`. A **selection**

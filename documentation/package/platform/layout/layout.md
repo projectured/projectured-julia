@@ -1,6 +1,6 @@
 # Layout
 
-> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../../kernel/cell.md), [layout-rules.md](../../../rule/layout-rules.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../../kernel/cell.md), [layout-rules.md](../../../rule/layout-rules.md)
 
 The layout slice of `ProjecturedPlatform` places documents of any kind next to each other: in a row, a column, a grid, a flow, a stack, relative to an anchor, or by constraints. This document says how a layout measures and places its children with reactive cells, how the available size from a parent reaches a child, and how a press reaches the right child.
 

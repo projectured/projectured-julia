@@ -48,7 +48,7 @@ function _ask_scale_question(set::ToolSet, question, mode::AbstractString)
             search_api(question.sentence; mode = mode, detail = "names",
                        limit = _SCALE_HIT_COUNT, api = set.api, meaning_model = model) :
             search_guides(question.sentence; mode = mode, detail = "names",
-                          limit = _SCALE_HIT_COUNT, meaning_model = model)
+                          limit = _SCALE_HIT_COUNT, audience = "all", meaning_model = model)
     (_get_scale_rank(_get_scale_names(answer, question.kind), question.expected), seconds)
 end
 
@@ -63,7 +63,7 @@ function _await_scale_vectors(set::ToolSet, question, seconds::Real)
             search_api(question.sentence; mode = "description", detail = "names", limit = 1,
                        api = set.api, meaning_model = set.meaning_model) :
             search_guides(question.sentence; mode = "description", detail = "names", limit = 1,
-                          meaning_model = set.meaning_model)
+                          audience = "all", meaning_model = set.meaning_model)
         line = first(split(answer, '\n'))
         startswith(line, "#") && return time() - started
         occursin("not ready", line) || error("The meaning model answered: " * line)

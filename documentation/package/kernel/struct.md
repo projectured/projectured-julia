@@ -1,6 +1,6 @@
 # Structs of cells
 
-> **Kind:** reference · **Status:** current · **Stands on:** [cell.md](cell.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [cell.md](cell.md)
 
 This guide says how the struct layer makes a struct whose fields are cells, and
 which builders it gives to a macro that makes such a struct with parts of its own.

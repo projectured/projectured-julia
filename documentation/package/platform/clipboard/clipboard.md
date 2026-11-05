@@ -1,6 +1,6 @@
 # Clipboard
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
 
 The clipboard slice of `ProjecturedPlatform` adds copy, cut, note and paste to any document, a view of what the clipboard holds, and a bridge to the clipboard of the operating system. It works for every domain without a line of code in the domain. This document says how the wrapper stays out of the view, which rules decide where a paste can go, and why a copy is a deep copy.
 

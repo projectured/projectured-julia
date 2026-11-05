@@ -1,6 +1,6 @@
 # The context menu
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
 
 The menu that a right click opens on the part under the pointer, how to see
 the menus of the parts around it, and the command that opens one with no

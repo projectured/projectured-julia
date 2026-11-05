@@ -1,6 +1,6 @@
 # Link
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [reference.md](../../kernel/reference.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [reference.md](../../kernel/reference.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
 
 The link slice of `ProjecturedPlatform` holds a link as data: a value that refers to a target and has a face. Each domain has link types of its own, such as a link of Markdown or a reference of rst, and the slice gives the general `Link` and the address `Url`. This document says what a link type answers, how a view gives a link its face, what pieces an address holds and how a person edits it, how an address opens outside the editor, and why a search stops at a link.
 

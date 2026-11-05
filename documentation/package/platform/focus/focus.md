@@ -1,6 +1,6 @@
 # Focus
 
-> **Kind:** design · **Status:** current · **Stands on:** [selection.md](../../kernel/selection.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [selection.md](../../kernel/selection.md), [reference.md](../../kernel/reference.md)
 
 The focus slice of `ProjecturedPlatform` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the rule that gives the focus to a pressed control, the Alt+press rule that selects a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which slice applies it, and where the traps are.
 

@@ -1,6 +1,6 @@
 # Research domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [workflow.md](../workflow/workflow.md), [roster.md](../../platform/roster/roster.md), [serialization.md](../../platform/serialization/serialization.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [workflow.md](../workflow/workflow.md), [roster.md](../../platform/roster/roster.md), [serialization.md](../../platform/serialization/serialization.md)
 
 The Research domain, `ProjecturedResearch`, holds the record of a study: the work on one problem by the scientific approach, from the question to the answer. A study holds questions, sources, hypotheses, experiments, analyses, results, evidence, decisions and answers. Each item records who made it, the person or the assistant, and when. A person and the assistant write into the same record. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md).
 

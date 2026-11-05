@@ -1,6 +1,6 @@
 # SDL backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
 
 `ProjecturedSDL` holds `SdlBackend`, which draws native windows with SDL2 and SDL_ttf, and the offscreen renderer behind `write_image` and `record_video`. `default_backend()` picks it first when it is loaded. This document says how it implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), how its windows follow the screen document, and what its caches and its repaint do.
 

@@ -1,6 +1,6 @@
 # The natural notation
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
 
 The natural slice of `ProjecturedPlatform` is the registry through which a domain says what its text looks like, which file extension it owns, and how a document of any domain reaches the screen with no projection written for the caller. It holds two tables: the rung table, which `print_natural_text` and `parse_natural_text` read, and the renderer table, which `NaturalToGraphics` reads. This document says what each table holds, how the second takes the rows of the first, and in which order the renderer tries its rows.
 

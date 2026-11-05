@@ -1,6 +1,6 @@
 # ProjecturedKernel — architecture
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Contributor-facing guide to the **internal** structure of the `ProjecturedKernel`
 package: its layers, what depends on what, and the conventions the code assumes.

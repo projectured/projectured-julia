@@ -1,6 +1,6 @@
 # Architectural requirements — how to develop ProjecturEd
 
-> **Kind:** rule · **Status:** current · **Stands on:** [accepted-requirements.md](../requirement/accepted-requirements.md), [architecture-decisions.md](../design/architecture-decisions.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [accepted-requirements.md](../requirement/accepted-requirements.md), [architecture-decisions.md](../design/architecture-decisions.md)
 
 This document collects the **internal development requirements** the project
 must be built to, so that it stays tractable and maintainable as it grows. It

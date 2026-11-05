@@ -1,6 +1,6 @@
 # The document layer
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Layer 10 of the kernel — the **document contract** every concrete document
 subtypes and every projection consumes. This page is the layer's structural

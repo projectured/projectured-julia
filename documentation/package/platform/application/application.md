@@ -1,6 +1,6 @@
 # Application
 
-> **Kind:** design · **Status:** current · **Stands on:** [shell.md](../shell/shell.md), [assistant.md](../assistant/assistant.md), [fileformat.md](../fileformat/fileformat.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [shell.md](../shell/shell.md), [assistant.md](../assistant/assistant.md), [fileformat.md](../fileformat/fileformat.md)
 
 The application slice of `ProjecturedPlatform` is the window of ProjecturEd: an Explorer, a tab for each open file, and an assistant beside them, built with the wrappers of `build_editor` and the chrome of the shell slice. This document says how the window and its tool set are built, how the command line of the `projectured` binary reads into it, how a build warms it up, and how it finds a backend with no dependency on one.
 

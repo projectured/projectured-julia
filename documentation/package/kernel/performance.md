@@ -1,6 +1,6 @@
 # Performance
 
-> **Kind:** reference · **Status:** current · **Stands on:** [architecture.md](architecture.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [architecture.md](architecture.md)
 
 This guide says how the editor measures itself: the counters that count the work of the cells and time the stages of a frame, and the store that keeps the measurements of the last frames. It describes each fragment of the performance layer, `source/kernel/performance/`, and the main uses of its public names. The [statistics guide of the platform](../platform/statistics/statistics.md) describes the view that draws the measurements.
 

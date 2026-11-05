@@ -1,6 +1,6 @@
 # Screen
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [graphics.md](../graphics/graphics.md)
 
 The screen slice of `ProjecturedPlatform` holds the window model: a screen document with a list of windows, the projection that maps it, and the projection that opens, closes and resizes windows. A backend shows the output screen as native windows. [devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backend side; this document describes the document side.
 

@@ -1,6 +1,6 @@
 # Syntax domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../../kernel/projection-system.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../../kernel/projection-system.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 The syntax slice of `ProjecturedPlatform` holds the generic tree between a structured document and styled text: leaves and compounds with delimiters, separators, indentation and a fold state. Every domain with a text form prints to it, and `SyntaxToText` prints it to a `TextBlock`. This document says how the tree is built, how `SyntaxToText` splices the output of the children, and how the shared insertion leaf and placeholder printer work.
 

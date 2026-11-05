@@ -1,6 +1,6 @@
 # System processes
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md)
 
 The system process slice of `ProjecturedPlatform` shows the processes of the operating system as documents: a tree of the processes below a set of roots, and a page for each process with its facts and the buttons Interrupt and Stop. This document says how a read of `/proc` becomes documents without a cost for a window that shows none, who drains a tree, how the page guards a signal, and what the slice needs from the system. Only Linux has `/proc`.
 

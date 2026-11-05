@@ -1,6 +1,6 @@
 # Markdown domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md), [serialization.md](../../platform/serialization/serialization.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md), [serialization.md](../../platform/serialization/serialization.md)
 
 The Markdown domain, `ProjecturedMarkdown`, holds a Markdown page as a tree of blocks and inlines. It has two presentations of one page, source and rendered, and it can hold a file of another domain as a block of the page. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 

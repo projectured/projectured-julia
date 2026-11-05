@@ -1,6 +1,6 @@
 # Navigator
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md), [pane.md](../pane/pane.md), [context-menu.md](../widget/context-menu.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md), [pane.md](../pane/pane.md), [context-menu.md](../widget/context-menu.md)
 
 The navigator slice of `ProjecturedPlatform` shows one part of a document at a time, as a tab of a browser shows one page of a site, with Back, Forward, Parent, an address and links. This document says how the page, the visits and the open of a page work, how a link reaches the navigator around it, and why the navigator has no reference to the domain of its pages.
 

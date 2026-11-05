@@ -1,6 +1,6 @@
 # Higher-Order Projections
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 Higher-order projections compose other projections. Each one lives in its own
 module under its package's projection folder: the nine domain-independent

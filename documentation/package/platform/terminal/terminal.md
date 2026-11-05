@@ -1,6 +1,6 @@
 # Terminal
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [agent.md](../../kernel/agent.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [agent.md](../../kernel/agent.md)
 
 The terminal slice of `ProjecturedPlatform` runs one program and shows it as a document: the lines that the program writes, a line that the person types and sends with Return, the status of the program, and a stop button. The first use is the sign-in of an agent, whose program prints a URL, reads a code, and ends with the status 0 when the sign-in worked.
 

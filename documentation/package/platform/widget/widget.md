@@ -1,6 +1,6 @@
 # Widget
 
-> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [layout.md](../layout/layout.md), [focus.md](../focus/focus.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [layout.md](../layout/layout.md), [focus.md](../focus/focus.md)
 
 The widget slice of `ProjecturedPlatform` holds the documents of a user interface, such as a button, a card, a table, a split pane and a tab, and the projection that draws them to a `GraphicsCanvas`. It also connects the objects of a domain to widgets, and opens a popup or a dialog as a window. This document says how a widget tree is drawn, how a press and a key reach the right widget, and where the traps are.
 

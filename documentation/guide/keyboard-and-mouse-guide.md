@@ -1,6 +1,6 @@
 # The keyboard and the mouse
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 The keys and the clicks that work everywhere, and the two ways to see the rest: F1 lists what works where the selection is now, and Ctrl+Shift+P runs a command by its name.
 

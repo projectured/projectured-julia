@@ -1,6 +1,6 @@
 # Outlines
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [widget.md](../widget/widget.md), [context-menu.md](../widget/context-menu.md), [style.md](../style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [widget.md](../widget/widget.md), [context-menu.md](../widget/context-menu.md), [style.md](../style/style.md)
 
 The outline slice of `ProjecturedPlatform` holds what an outline of records
 draws: a study of the research domain, a workflow, and any list of records with

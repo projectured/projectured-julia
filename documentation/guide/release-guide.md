@@ -1,6 +1,6 @@
 # Release the packages
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [builder.md](../package/tool/builder/builder.md), [own-project-guide.md](own-project-guide.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [builder.md](../package/tool/builder/builder.md), [own-project-guide.md](own-project-guide.md)
 
 A release gives a new version to each package that changed, and puts the
 versions into the registry `ProjecturedRegistry`. This guide says what to check

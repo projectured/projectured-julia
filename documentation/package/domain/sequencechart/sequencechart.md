@@ -1,6 +1,6 @@
 # Sequence chart domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [chart.md](../chart/chart.md), [plot.md](../../platform/plot/plot.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [chart.md](../chart/chart.md), [plot.md](../../platform/plot/plot.md)
 
 `ProjecturedSequenceChart` draws what happened where, in which order, and what caused what: lanes of occurrences with arrows between them, for any source with participants and messages. This document says how time becomes distance before it becomes pixels, why the window is anchored to an occurrence, how the cost stays bounded, and what the domain leaves to the domains that print into it.
 

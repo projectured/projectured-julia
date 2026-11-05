@@ -1,6 +1,6 @@
 # Design Decisions
 
-> **Kind:** decision · **Status:** current · **Stands on:** [accepted-requirements.md](../requirement/accepted-requirements.md), [system-anatomy.md](system-anatomy.md)
+> **Kind:** decision · **For:** developer · **Status:** current · **Stands on:** [accepted-requirements.md](../requirement/accepted-requirements.md), [system-anatomy.md](system-anatomy.md)
 
 This document explains the *why* behind ProjecturEd's key architectural
 choices. For the *what* (module inventory, package/layer/slice structure) see the

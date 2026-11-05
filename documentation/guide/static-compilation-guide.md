@@ -1,6 +1,6 @@
 # Static compilation with juliac
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 `juliac --trim` builds a small executable from Julia code. It emits only the
 code that it can prove reachable from the entry point. When it meets a call that

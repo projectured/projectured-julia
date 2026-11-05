@@ -1,6 +1,6 @@
 # Undo
 
-> **Kind:** design · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
 
 The undo slice of `ProjecturedPlatform` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
 

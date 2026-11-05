@@ -1,6 +1,6 @@
 # Process domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [fsm.md](../fsm/fsm.md), [julia.md](../julia/julia.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [fsm.md](../fsm/fsm.md), [julia.md](../julia/julia.md)
 
 `ProjecturedProcess` holds an algorithm as a structured flowchart: steps, decisions, loops and jumps that nest and run to completion. A process prints as a notation, draws as a flowchart, becomes a Julia function, and runs under a debugger in the editor. This document says how the tree gives the flowchart, how realized code reports its position, and how the debugger keeps the threads apart.
 

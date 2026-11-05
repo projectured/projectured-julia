@@ -1,6 +1,6 @@
 # Conversation
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [widget.md](../widget/widget.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [widget.md](../widget/widget.md), [natural.md](../natural/natural.md)
 
 The conversation slice of `ProjecturedPlatform` holds a chat with a model as documents: turns of parts, the evaluation of a piece of code with its result, and the draft of the next message. It draws the history as widgets, edits the draft part by part, and evaluates Julia in the running editor. This document says how the parts, the composer and the evaluator work together, and where its documents differ from the [shape of every domain](../../../design/domain-anatomy.md).
 

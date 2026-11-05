@@ -1,6 +1,6 @@
 # Tasks
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [systemprocess.md](../systemprocess/systemprocess.md), [tree.md](../tree/tree.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [systemprocess.md](../systemprocess/systemprocess.md), [tree.md](../tree/tree.md)
 
 The task slice of `ProjecturedPlatform` holds what every kind of work shares
 when it runs as a task, in the words of `opp_repl` (`common/task.py`): a piece of

@@ -1,6 +1,6 @@
 # Faults
 
-> **Kind:** reference · **Status:** current · **Stands on:** [architecture.md](architecture.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [architecture.md](architecture.md)
 
 This guide says what a fault is, how a barrier catches one, how the store keeps it, and how the drain reports it. It describes each fragment of the fault layer, `source/kernel/fault/`, and the main uses of its public names. The [fault guide of the platform](../platform/fault/fault.md) describes the views of a fault: the log, the marks and the safe mode.
 

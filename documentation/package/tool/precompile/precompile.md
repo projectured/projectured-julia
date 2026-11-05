@@ -1,6 +1,6 @@
 # Precompile
 
-> **Kind:** design · **Status:** current · **Stands on:** [compile-ahead.md](../../../design/compile-ahead.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [compile-ahead.md](../../../design/compile-ahead.md)
 
 `ProjecturedPrecompile` is the one mechanism that compiles a package ahead of time, in this repository and in each repository that builds on its packages. [compile-ahead.md](../../../design/compile-ahead.md) holds the requirements and the decisions; this document says how the package carries them out.
 

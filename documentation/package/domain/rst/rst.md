@@ -1,6 +1,6 @@
 # RST domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [markdown.md](../markdown/markdown.md), [natural.md](../../platform/natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [markdown.md](../markdown/markdown.md), [natural.md](../../platform/natural/natural.md)
 
 The RST domain, `ProjecturedRST`, holds reStructuredText as a tree of about forty document types, with a parser, two presentations and a page of blocks. It has the shape of the [Markdown domain](../markdown/markdown.md), and this document says where it differs from Markdown and from the [shape of every domain](../../../design/domain-anatomy.md). It covers the section tree, the written indentation, the parser rules, the reference marker and the round-trip criterion.
 

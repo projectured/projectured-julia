@@ -1,6 +1,6 @@
 # Julia domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [serialization.md](../../platform/serialization/serialization.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [serialization.md](../../platform/serialization/serialization.md)
 
 The Julia domain, `ProjecturedJulia`, holds Julia source code as a tree of reactive documents. Other domains embed its expressions: a state machine guard, a process action and a formula are Julia code. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 

@@ -1,6 +1,6 @@
 # Naming
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [package-rules.md](package-rules.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [package-rules.md](package-rules.md), [system-anatomy.md](../design/system-anatomy.md)
 
 How things are named here — in every package, not only the kernel. The goal is
 guessability in both directions: given a concept, you can derive its name; given

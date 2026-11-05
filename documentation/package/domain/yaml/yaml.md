@@ -1,6 +1,6 @@
 # YAML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
 
 The YAML domain, `ProjecturedYAML`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
 

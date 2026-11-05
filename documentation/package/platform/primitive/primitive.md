@@ -1,6 +1,6 @@
 # Primitive
 
-> **Kind:** design · **Status:** current · **Stands on:** [document.md](../../kernel/document.md), [operation.md](../../kernel/operation.md), [serialization.md](../serialization/serialization.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [document.md](../../kernel/document.md), [operation.md](../../kernel/operation.md), [serialization.md](../serialization/serialization.md)
 
 The primitive slice of `ProjecturedPlatform` holds the editable scalar documents, the `ObjectField` that makes one field of any object a document, and the two operations that edit a range of characters. A domain uses these where it needs a value that you edit and that has a selection of its own. This document says how a range edit finds its target, how it is undone, and why `ObjectField` has the form it has.
 

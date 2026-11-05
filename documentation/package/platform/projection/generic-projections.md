@@ -1,6 +1,6 @@
 # Generic Projections
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 Generic projections are **input-domain-independent**: they operate on any
 document *by structure, not by type*, copying, sorting, reversing, filtering,

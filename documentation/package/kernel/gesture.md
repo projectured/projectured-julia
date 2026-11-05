@@ -1,6 +1,6 @@
 # Gesture
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 The gesture layer of the kernel turns a sequence of events into gestures: a
 click with its count, a key chord and a pointer dwell, each a pattern that a

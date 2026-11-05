@@ -1,6 +1,6 @@
 # Testing in the REPL
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../../plan/done/test-package-split.md)):

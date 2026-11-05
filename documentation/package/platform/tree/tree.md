@@ -1,6 +1,6 @@
 # Tree
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
 
 The tree slice of `ProjecturedPlatform` shows a document of any type, with the documents under it, as a tree. This document says how a document becomes a node, how a tree keeps its open nodes, how a double click or Return on a node opens a page, and how a slice adds its own kind of node.
 

@@ -1,6 +1,6 @@
 # The transcript
 
-> **Kind:** reference · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [concepts.md](../../../design/concepts.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [concepts.md](../../../design/concepts.md)
 
 The transcript is the widget presentation of a `ConversationConversation`: the
 chat a person reads in the assistant pane. It is printed by

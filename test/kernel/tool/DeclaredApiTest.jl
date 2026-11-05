@@ -804,7 +804,8 @@ function test_declared_api()
     @testset "a guide root that an application registers is read" begin
         directory = mktempdir()
         write(joinpath(directory, "toy-guide.md"),
-              "# Toy guide\n\nA toy box keeps its zephyrquartz lid shut.\n")
+              "# Toy guide\n\n> **Kind:** procedure · **For:** user · **Status:** current\n\n" *
+              "A toy box keeps its zephyrquartz lid shut.\n")
         register_guide_root!(directory; prefix = "toyroot/")
         @test occursin("zephyrquartz", read_guide("toyroot/toy-guide"))
         set = register_default_tools!(ToolSet(; api = Module[ToyApi]))

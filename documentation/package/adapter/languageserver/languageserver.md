@@ -1,6 +1,6 @@
 # The language server adapter
 
-> **Kind:** design · **Status:** current · **Stands on:** [text.md](../../platform/text/text.md), [communication-anatomy.md](../../../design/communication-anatomy.md), [filesystem.md](../../platform/filesystem/filesystem.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [text.md](../../platform/text/text.md), [communication-anatomy.md](../../../design/communication-anatomy.md), [filesystem.md](../../platform/filesystem/filesystem.md)
 
 `ProjecturedLanguageServer` opens a C or C++ file as text whose names take the colours of their kinds: a function, a class, a parameter, a field, a macro, a namespace. A language server gives the kinds; the adapter starts `clangd`. This document says how the text goes to the server and how its answer comes back without a wait in the print, which server a file talks to, and what the adapter does not do.
 

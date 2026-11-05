@@ -1,6 +1,6 @@
 # REPL
 
-> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedREPL` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests. This document says what it holds and how it gets its compiled code.
 

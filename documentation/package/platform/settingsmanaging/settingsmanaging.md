@@ -1,6 +1,6 @@
 # Settings in the view
 
-> **Kind:** design · **Status:** current · **Stands on:** [settings.md](../settings/settings.md), [editor.md](../../kernel/editor.md), [appearance.md](../appearance/appearance.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [settings.md](../settings/settings.md), [editor.md](../../kernel/editor.md), [appearance.md](../appearance/appearance.md)
 
 The settingsmanaging slice of `ProjecturedPlatform` connects the `Settings` of an editor to its view. It holds the `Settings` in the root document, turns each normal edit of a setting into an applied setting, and brings the values to the places where they act when the editor starts. The editor holds no setting and reads none: it gets a document and a projection, as always.
 

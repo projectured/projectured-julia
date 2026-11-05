@@ -1,6 +1,6 @@
 # Mouse target
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 The mouse target is the part under the pointer, stored on a document the way the selection is. Each projection acts on the mouse target of its own document: a widget lights, and a list lights the row under the pointer. No central component decides where the pointer is or which part answers it; see [`PAR-DECIDE-LOCALLY`](../../rule/architecture-invariants.md#par-decide-locally) and [`PAR-NO-GLOBAL-ROUTING`](../../rule/architecture-invariants.md#par-no-global-routing).
 

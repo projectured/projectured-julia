@@ -1,6 +1,6 @@
 # The Anthropic model backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md)
 
 `ProjecturedAnthropic` is an `Llm` backend that runs a Claude model over the Anthropic API. It is an opt-in package that implements the `llm` layer of the kernel. This document says how the adapter translates the wire format of the Anthropic API into the events of the kernel, how the backend registers itself, and what it does not do. The other backend is in [ollama.md](../ollama/ollama.md).
 

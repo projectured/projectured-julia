@@ -1,6 +1,6 @@
 # Architecture rules — how the code is divided and where things belong
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
 
 The decision rules behind the package/layer/slice/module structure. The terms
 are defined precisely in [division-terminology.md](division-terminology.md). They apply

@@ -80,7 +80,7 @@ function test_search_ranking()
     end
 
     @testset "the guides are cut into parts of three sizes, and ranked at the size asked" begin
-        section(guide, heading, body) = ToolModule._GuideSection(guide, heading, body)
+        section(guide, heading, body) = ToolModule._GuideSection(guide, heading, body, "procedure", [:user])
         sections = [section("g1", "A", "cells are computed\n\nagain when read"),
                     section("g1", "B", "a selection goes back"), section("g2", "C", "a key press")]
         @test length(make_guide_units(:section; sections = sections)) == 3

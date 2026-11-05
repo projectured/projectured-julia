@@ -1,6 +1,6 @@
 # Tooltip
 
-> **Kind:** design · **Status:** current · **Stands on:** [screen.md](../screen/screen.md), [gesturetracking.md](../gesturetracking/gesturetracking.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [screen.md](../screen/screen.md), [gesturetracking.md](../gesturetracking/gesturetracking.md)
 
 The tooltip slice of `ProjecturedPlatform` shows what a part says about itself in a window of its own. The meaning is in the gesture table of the part: a part answers a dwell with an operation. A wrapper at the screen keeps the one tooltip window. What a part says is a `TooltipNote`, which one projection draws in a frame with the texts and the colors of the theme. This document says how the three meet, and why the tooltip is a binding and not a central lookup.
 

@@ -1,6 +1,6 @@
 # Message log
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 The log slice of `ProjecturedPlatform` shows the messages that the program logs with `@info`, `@warn` and `@error` as a document in a tab. This document says how a message from any task reaches the document without a write to a cell from that task.
 

@@ -1,6 +1,6 @@
 # Examples Tour
 
-> **Kind:** reference · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
+> **Kind:** reference · **For:** user · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
 
 This guide walks through seven ProjecturEd examples in order of complexity.
 For each one: what it demonstrates, how to run it, what to try, and which

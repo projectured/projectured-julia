@@ -1,6 +1,6 @@
 # Tutorial: Adding a New Domain
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
 
 This tutorial walks through adding a complete new domain to ProjecturEd:
 document types, projection to Syntax, reader, example, and test.

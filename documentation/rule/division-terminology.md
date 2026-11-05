@@ -1,6 +1,6 @@
 # Terminology — package, layer, slice, module
 
-> **Kind:** reference · **Status:** current · **Stands on:** nothing; it is the head of the chain
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** nothing; it is the head of the chain
 
 The vocabulary used to describe how the codebase is divided. Four terms, one
 per kind of division. Every architecture document in this repository uses them

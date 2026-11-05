@@ -1,6 +1,6 @@
 # Reflection
 
-> **Kind:** design · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
 
 The reflection slice of `ProjecturedPlatform` shows any Julia value on the screen with no projection written for it. It keeps a bounded shadow of the value, a tree of `ReflectedNode`, and draws the tree as a `WidgetTree` whose chevrons grow the shadow one level at a time. This document says how the shadow, the view and the value viewer fit together, and how this path differs from `ObjectToWidget` and `NaturalToGraphics`; [bounded-sync.md](bounded-sync.md) describes the bounded walk in detail.
 

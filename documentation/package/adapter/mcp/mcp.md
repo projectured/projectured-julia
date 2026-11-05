@@ -1,6 +1,6 @@
 # The MCP server
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [editor.md](../../kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [editor.md](../../kernel/editor.md)
 
 `ProjecturedMCP` lets a client outside the process drive a running editor over the Model Context Protocol (MCP). It renders the tool set of the editor in the form of the protocol and serves it over HTTP on the loopback address. This document says how the server connects to the editor loop, what it serves, where it catches a fault, and what no test covers; [mcp-guide.md](../../../guide/mcp-guide.md) says how a person connects a client.
 

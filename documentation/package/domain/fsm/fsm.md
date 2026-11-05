@@ -1,6 +1,6 @@
 # State machine domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [julia.md](../julia/julia.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [julia.md](../julia/julia.md)
 
 `ProjecturedFSM` holds extended state machines: named states with entry code, transitions on events, timers or conditions, and variables, with all code as embedded Julia documents. A component prints as a notation, draws as a live diagram, and generates a complete Julia module. This document says how the three work, which contract the generated code keeps with a runtime that the embedder supplies, and what the domain leaves out.
 

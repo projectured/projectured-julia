@@ -1,6 +1,6 @@
 # The Projection System
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 A **projection** is a bidirectional transformation between two domains. It is the
 central abstraction of ProjecturEd: every screen the user sees, and every gesture

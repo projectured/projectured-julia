@@ -1,6 +1,6 @@
 # Background work
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [statistics.md](../statistics/statistics.md), [roster.md](../roster/roster.md), [collection.md](../collection/collection.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [statistics.md](../statistics/statistics.md), [roster.md](../roster/roster.md), [collection.md](../collection/collection.md), [widget.md](../widget/widget.md)
 
 The backgroundwork slice of `ProjecturedPlatform` shows the work that the editor does off the loop for its background cells, as a table that a person opens like any other document. This document says how a record of the kernel becomes a row of the table, and why a view costs nothing while it is closed.
 

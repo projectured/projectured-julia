@@ -1,6 +1,6 @@
 # The ACP agent connection
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md), [mcp.md](../mcp/mcp.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md), [mcp.md](../mcp/mcp.md)
 
 `ProjecturedACP` connects the assistant to an external agent that speaks the Agent Client Protocol (ACP), version 1. Its built-in agent runs Claude Code: the package [ClaudeCodeACP.jl](https://github.com/projectured/ClaudeCodeACP.jl) runs in the process of the editor and starts the `claude` program that the person installed. Another agent, such as the adapter `claude-agent-acp`, runs in a child process. The agent owns its model, its tools and its history. It is an opt-in package that implements the external direction of the `agent` layer of the kernel. This document says how the package starts the agent, how it translates the messages of the agent into the events of the kernel, where an event goes during a prompt and between two prompts, how a permission request reaches a person, and why the package is built so.
 

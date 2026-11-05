@@ -191,7 +191,7 @@ function test_meaning_search()
     @testset "the guides are ranked by meaning too" begin
         found = search_guides("close the window"; mode = "description",
                                      meaning_model = toy)
-        @test startswith(found, "# Documentation matches")
+        @test occursin(r"^# Documentation matches"m, found)
         @test occursin("resource://guide/", found)
     end
 
@@ -208,11 +208,12 @@ function test_meaning_search()
     @testset "a guide section longer than a chunk is cut at its paragraphs" begin
         paragraph = repeat("word ", 300)                  # 1500 characters
         section = _MeaningTools._GuideSection("guide", "Heading",
-                                              join([paragraph, paragraph, paragraph], "\n\n"))
+                                              join([paragraph, paragraph, paragraph], "\n\n"),
+                                              "procedure", [:user])
         chunks = _MeaningTools._get_meaning_texts(section)
         @test length(chunks) == 3
         @test all(chunk -> startswith(chunk, "guide › Heading\n\n"), chunks)
-        long = _MeaningTools._GuideSection("guide", "Long", repeat("x", 4500))
+        long = _MeaningTools._GuideSection("guide", "Long", repeat("x", 4500), "procedure", [:user])
         @test length(_MeaningTools._get_meaning_texts(long)) == 3
     end
 

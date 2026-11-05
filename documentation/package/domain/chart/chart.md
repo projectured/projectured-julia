@@ -1,6 +1,6 @@
 # Chart domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
 
 `ProjecturedChart` draws line, scatter, bar, pie, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
 

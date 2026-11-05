@@ -1,6 +1,6 @@
 # Collections
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [reference.md](../../kernel/reference.md)
 
 The collection slice of `ProjecturedPlatform` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. It also holds the table interface, which reads the rows and the columns of any kind of table. This document says which kind of change reaches which reader, how the kernel uses these types without naming them, and what the table interface reads.
 

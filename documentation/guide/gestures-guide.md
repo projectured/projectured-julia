@@ -1,6 +1,6 @@
 # Gestures
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
 
 What the mouse and the keyboard let you do beyond a single key or a single
 click: a double click, a sequence of keys, a rest of the pointer, and a right

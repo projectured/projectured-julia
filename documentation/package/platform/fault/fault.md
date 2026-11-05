@@ -1,6 +1,6 @@
 # Fault
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [projection-system.md](../../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [projection-system.md](../../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
 A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, the projection algebra holds the barrier that a pipeline puts at each recursion point, and the fault slice of `ProjecturedPlatform` holds the log and the safe mode. This document says how they catch, report and repair, and how a fault in a printer reaches the barrier of the part that built the cell that failed.
 

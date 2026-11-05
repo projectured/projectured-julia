@@ -1,6 +1,6 @@
 # Settings
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md), [document.md](../../kernel/document.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md), [document.md](../../kernel/document.md)
 
 The settings slice of `ProjecturedPlatform` holds what a person chooses about how an editor works: whether a window repaints only what changed, how long a double click can take, whether a fault stops the editor. A setting is a field of a document, so a view shows it and an edit changes it, as for any other document. The editor and the kernel read no setting.
 

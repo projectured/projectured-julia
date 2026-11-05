@@ -1,6 +1,6 @@
 # The documentation
 
-> **Kind:** reference · **Status:** current · **Stands on:** every document in this folder
+> **Kind:** reference · **For:** user, developer · **Status:** current · **Stands on:** every document in this folder
 
 This folder holds the documents of the editor, from why it exists to how the
 code is laid out. This file is the map. It draws the chain that derives the code
@@ -95,7 +95,7 @@ In the order of the chain. The kind is the one in the document's header.
 Every document starts with one block-quote line under its title:
 
 ```markdown
-> **Kind:** decision · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
+> **Kind:** decision · **For:** developer · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
 ```
 
 **A slide deck is exempt.** A file under `presentation/` that Marp renders is a
@@ -117,6 +117,13 @@ folder's own [README.md](presentation/README.md) carries the header and says wha
 
 `evidence`, `study` and `history` are three more kinds, which no document here
 carries yet. Add one when the folder that holds it arrives.
+
+**For** says who reads the document: `user`, `developer`, or `user, developer`.
+A user uses the editor, and so does the assistant in a window of the editor. A
+developer changes the code of the editor. The documents under `package/`,
+`design/`, `rule/` and `requirement/` are for developers. `search_guides`
+searches the documents for users, unless its `audience` names the developers or
+all.
 
 **Status** is `current`, `snapshot <date>`, `superseded by <document>`, or
 `generated, do not edit`. A qualifier can follow `current` after a semicolon.

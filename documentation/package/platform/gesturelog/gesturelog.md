@@ -1,6 +1,6 @@
 # Gesture log
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [shell.md](../shell/shell.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [shell.md](../shell/shell.md)
 
 The gesturelog slice of `ProjecturedPlatform` records what a person does in a session: each gesture, and the operation that the projection chain made from it. It shows the record as a panel over a window or in a tab. This document describes the shape that this slice shares with the fault log and the gesture help, and why an entry holds text and not the live values.
 

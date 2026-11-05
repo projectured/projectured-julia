@@ -1,6 +1,6 @@
 # The assistant
 
-> **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [anthropic.md](../../adapter/anthropic/anthropic.md), [ollama.md](../../adapter/ollama/ollama.md), [task.md](../task/task.md), [tree.md](../tree/tree.md), [workplan.md](../workplan/workplan.md), [systemprocess.md](../systemprocess/systemprocess.md), [navigator.md](../navigator/navigator.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [anthropic.md](../../adapter/anthropic/anthropic.md), [ollama.md](../../adapter/ollama/ollama.md), [task.md](../task/task.md), [tree.md](../tree/tree.md), [workplan.md](../workplan/workplan.md), [systemprocess.md](../systemprocess/systemprocess.md), [navigator.md](../navigator/navigator.md)
 
 The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, how the work of an external agent (its subagents, its plans and its background tasks) becomes documents and a page, and what does not work yet. [assistant-guide.md](../../../guide/assistant-guide.md) says how to run it.
 

@@ -1,6 +1,6 @@
 # The package documents
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../design/system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](../design/domain-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../design/system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](../design/domain-anatomy.md)
 
 This folder has one folder for each slice, and each folder has the design document of its package: how the package works, how it fits with the others, why it is built so, and how to use it. The tables below list every document. A few folders also hold a detail guide next to the design document.
 

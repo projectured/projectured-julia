@@ -157,12 +157,15 @@ end
 const _HEADER_KINDS = ["why", "what", "decision", "rule", "design", "reference",
                        "procedure", "evidence", "study", "history"]
 
+# The values of the field `**For:**` that `documentation/README.md` defines.
+const _HEADER_READERS = ["user", "developer", "user, developer"]
+
 """
     header_violations(root) -> Vector{String}
 
 Every document under `documentation/` without the header line, every one whose
-header names a kind outside `_HEADER_KINDS`, and every one whose header is not
-followed by a paragraph. A slide deck is left out: Marp reads its own front
+header names a kind outside `_HEADER_KINDS` or readers outside `_HEADER_READERS`,
+and every one whose header is not followed by a paragraph. A slide deck is left out: Marp reads its own front
 matter and the first slide is its title.
 """
 function header_violations(root::AbstractString)
@@ -183,6 +186,10 @@ function header_violations(root::AbstractString)
         (kind !== nothing && kind.captures[1] in _HEADER_KINDS) ||
             push!(out, "$document has a header line whose Kind is not one of " *
                        join(_HEADER_KINDS, ", "))
+        readers = match(r" · \*\*For:\*\* ([a-z, ]+?) · ", lines[header])
+        (readers !== nothing && readers.captures[1] in _HEADER_READERS) ||
+            push!(out, "$document has a header line whose For is not one of " *
+                       join(repr.(_HEADER_READERS), ", "))
         summary = findfirst(number -> number > header && !isempty(strip(lines[number])),
                             eachindex(lines))
         if summary === nothing || startswith(strip(lines[summary]), "#") ||

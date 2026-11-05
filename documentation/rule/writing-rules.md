@@ -1,6 +1,6 @@
 # Writing
 
-> **Kind:** rule · **Status:** current · **Stands on:** [code-quality-rules.md](code-quality-rules.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [code-quality-rules.md](code-quality-rules.md)
 
 How every document of this repository is written: plain technical English, no
 marketing, no personification, and the present state only. It applies to each

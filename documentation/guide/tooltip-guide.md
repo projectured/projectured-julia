@@ -1,6 +1,6 @@
 # The tooltip
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
 
 The small window that says what a part is, how to see more of what is around
 it, and the ways to close it.

@@ -1,6 +1,6 @@
 # ProjecturEd in your own project
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 How to use ProjecturEd from a project of your own: how to reach the packages, which package to load, and how to open a window from your code.
 

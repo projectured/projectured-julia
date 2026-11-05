@@ -1,6 +1,6 @@
 # Popup window
 
-> **Kind:** design · **Status:** current · **Stands on:** [screen.md](screen.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [screen.md](screen.md), [graphics.md](../graphics/graphics.md)
 
 A popup window is a window that is not the main view of the editor: a menu, the
 list of a select, a dialog, a tooltip and a context menu each open in one,

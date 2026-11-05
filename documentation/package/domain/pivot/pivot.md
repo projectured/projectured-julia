@@ -1,6 +1,6 @@
 # Pivot domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [collection.md](../../platform/collection/collection.md), [widget.md](../../platform/widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [collection.md](../../platform/collection/collection.md), [widget.md](../../platform/widget/widget.md)
 
 `ProjecturedPivot` cuts a table into parts by the values of its dimensions. The values of the row dimensions make the row headers, the values of the column dimensions make the column headers, and each cell shows the part of the table where its row and its column meet. This document says what a pivot holds, how it finds the parts, and what it reads of its source.
 

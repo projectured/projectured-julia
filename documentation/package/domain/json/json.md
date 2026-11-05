@@ -1,6 +1,6 @@
 # JSON domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [reference.md](../../kernel/reference.md)
 
 The JSON domain, `ProjecturedJSON`, holds JSON data as a tree of reactive documents. It is the reference domain: [the shape of every domain](../../../design/domain-anatomy.md) names a JSON file for each part, so this document covers only what is special to JSON. It describes the document types, the gestures and the parser subset, and it shows the reference paths into a JSON tree.
 

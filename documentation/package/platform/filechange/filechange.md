@@ -1,6 +1,6 @@
 # File change
 
-> **Kind:** design · **Status:** current · **Stands on:** [fileformat.md](../fileformat/fileformat.md), [editor.md](../../kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [fileformat.md](../fileformat/fileformat.md), [editor.md](../../kernel/editor.md)
 
 The file-change slice of `ProjecturedPlatform` reports a change of a file on disk to the receiver of the file, and a change of a folder to the receivers that watch the folder. Another program changes a file: a tool in a terminal, a checkout of git, a task that writes a store. A watcher reads the change off the loop, and the receiver of the file takes it on the editor task, with no action of a person. This document says how a change is noticed, how it reaches the receiver, and what happens to edits that are not saved.
 

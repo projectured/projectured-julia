@@ -1,6 +1,6 @@
 # Pane
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
 
 The pane slice of `ProjecturedPlatform` holds the pane tree: tab groups, the splits between them, and the edits that rearrange them. It draws the tree with the split panes and tabbed panes of the widget slice, and it gives a program, such as a language model, a set of verbs over the tree. This document says how the focus, the edits, the drags and the verbs work, and how the whole editor saves to one file.
 

@@ -729,16 +729,39 @@ function _excerpt(body::AbstractString, terms, fold; width::Int = 240)
     (start > 1 ? "…" : "") * snippet * (stop < lastindex(body) ? "…" : "")
 end
 
+# A section of a guide: the name of the guide, the heading and the text of the
+# section, and two fields of the header line of the guide. `kind` is the kind of
+# the guide, such as `procedure` or `reference`. `audiences` holds `:user`,
+# `:developer` or both: a user uses the editor, and a developer changes its code.
 struct _GuideSection
     guide::String
     heading::String
     body::String
+    kind::String
+    audiences::Vector{Symbol}
+end
+
+# The kind and the readers that the header line of a guide names:
+# `> **Kind:** procedure · **For:** user · **Status:** …`. A guide without the
+# line, such as a slide deck, has no kind and is for developers, so a search for
+# users finds only the guides that say they are for users.
+function _read_guide_header(content::AbstractString)
+    for line in Iterators.take(eachline(IOBuffer(content)), 12)
+        startswith(line, "> **Kind:**") || continue
+        kind = match(r"\*\*Kind:\*\*\s*([a-z]+)", line)
+        readers = match(r"\*\*For:\*\*\s*([a-z, ]+?)\s*(?:·|$)", line)
+        audiences = readers === nothing ? [:developer] :
+                    Symbol[Symbol(strip(word)) for word in split(readers.captures[1], ',')]
+        return (kind === nothing ? "" : String(kind.captures[1]), audiences)
+    end
+    ("", [:developer])
 end
 
 function _index_guide_sections()
     sections = _GuideSection[]
     for (guide_name, filepath) in _all_guides()
         content = read(filepath, String)
+        kind, audiences = _read_guide_header(content)
         heading = ""
         buf = String[]
         # A line that starts with `#` inside a code fence is a line of the code,
@@ -749,7 +772,7 @@ function _index_guide_sections()
             if !fenced && startswith(strip(line), "#")
                 body = strip(join(buf, "\n"))
                 (isempty(body) && isempty(heading)) ||
-                    push!(sections, _GuideSection(guide_name, heading, body))
+                    push!(sections, _GuideSection(guide_name, heading, body, kind, audiences))
                 heading = strip(replace(line, r"^\s*#+\s*" => ""))
                 empty!(buf)
             else
@@ -758,7 +781,7 @@ function _index_guide_sections()
         end
         body = strip(join(buf, "\n"))
         (isempty(body) && isempty(heading)) ||
-            push!(sections, _GuideSection(guide_name, heading, body))
+            push!(sections, _GuideSection(guide_name, heading, body, kind, audiences))
     end
     sections
 end
@@ -1066,12 +1089,20 @@ end
 
 """
     search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
-                  meaning_model = nothing, relevance_model = nothing,
+                  audience = "user", meaning_model = nothing, relevance_model = nothing,
                   context = nothing) -> String
 
 Search the guides. They are split into sections at their headings, and the hits
 are sections, each with the URI `read_resource` reads it by:
-`resource://guide/<name>#<heading>`.
+`resource://guide/<name>#<heading>`, and the kind of its guide as a label, such
+as `[procedure]` or `[reference]`.
+
+`audience` says whose guides are searched: `"user"`, the default, searches the
+guides for a person who uses the editor; `"developer"` searches the guides about
+its code; `"all"` searches both. The header line of a guide says who it is for,
+in its field `**For:**`. When guides of the other audience match too, a line
+before the hits says how many, and the `audience` that finds them.
+`read_resource` reads a guide of any audience.
 
 `detail` says how much a hit shows, and sets the `limit` a caller does not:
 `"names"` is one line each, the URI and the heading, 25 of them; `"summary"`, the
@@ -1103,18 +1134,21 @@ model reads it beside the query. A pattern search does not read it.
 A query that can not be read answers the reason as text, and never throws.
 """
 function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
-                       detail = "summary", limit = nothing, meaning_model = nothing,
-                       relevance_model = nothing, context = nothing)
+                       detail = "summary", limit = nothing, audience = "user",
+                       meaning_model = nothing, relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
+    readers = _read_search_audience(audience)
+    readers isa String && return readers
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
     hit_count = _get_hit_count(level, limit)
     hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
-    ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    matches = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    ranked = filter(section -> _is_for_audience(section, readers), matches)
     by_words = ranked
     note = nothing
     context_text = _get_context_text(context)
@@ -1123,7 +1157,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
         by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
                                                            sections, meaning_model)
         by_meaning === nothing ||
-            (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
+            (by_meaning = filter(section -> _is_for_audience(section, readers), by_meaning);
+             ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
     end
     # **Keywords are asked of the relevance model too.** A model searches with
     # keywords far more than with a sentence, and names its intent in them.
@@ -1134,7 +1169,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
             by_meaning, _ = _rank_guide_sections_by_meaning(_add_query_context(described, context_text),
                                                             sections, meaning_model)
             by_meaning === nothing ||
-                (by_meaning = filter(section -> _is_passing(read, fold(section.heading),
+                (by_meaning = filter(section -> _is_for_audience(section, readers) &&
+                                                _is_passing(read, fold(section.heading),
                                                             fold(section.body)), by_meaning))
         end
         pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
@@ -1147,6 +1183,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
             note = nothing
         end
     end
+    other = _say_other_audience_matches(matches, readers; also = !isempty(ranked))
+    note = _join_notes(note, other)
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
                                                  "A verb may do it: `search_api` with the same words.")
     terms = _get_scored_terms(read)
@@ -1156,7 +1194,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     println(io, "# Documentation matches for $(repr(query))\n")
     shown = first(ranked, min(hit_count, length(ranked)))
     for section in shown
-        head = isempty(section.heading) ? "" : " — $(section.heading)"
+        head = (isempty(section.heading) ? "" : " — $(section.heading)") *
+               (isempty(section.kind) ? "" : " [$(section.kind)]")
         if level == "names"
             println(io, "- ", _get_section_uri(section), head)
         elseif level == "summary"
@@ -1171,6 +1210,38 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     body = String(take!(io))
     isempty(shown) && return body
     body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
+end
+
+# The readers a guide search searches the guides of: `[:user]`, `[:developer]` or
+# both, or the reason as text when `audience` names none of them.
+function _read_search_audience(audience)
+    name = audience === nothing || isempty(strip(string(audience))) ? "user" :
+           lowercase(strip(string(audience)))
+    name == "user" && return [:user]
+    name == "developer" && return [:developer]
+    name == "all" && return [:user, :developer]
+    "Unknown audience " * repr(name) * ". The audiences are \"user\", \"developer\" and \"all\"."
+end
+
+# Whether a section is of a guide for one of `readers`.
+_is_for_audience(section::_GuideSection, readers::Vector{Symbol}) =
+    any(in(readers), section.audiences)
+
+# The line that says how many guides of the other audience match, and the
+# `audience` that finds them; `nothing` when the search searched both, or when no
+# guide of the other audience matches. `also` says that guides of the searched
+# audience match too.
+function _say_other_audience_matches(matches::Vector{_GuideSection}, readers::Vector{Symbol};
+                                     also::Bool)
+    length(readers) == 1 || return nothing
+    searched = only(readers)
+    other = searched === :user ? :developer : :user
+    count = length(unique(section.guide for section in matches
+                          if !_is_for_audience(section, readers)))
+    count == 0 && return nothing
+    "Searched the documents for $(searched)s. " * string(count) *
+        (count == 1 ? " document" : " documents") * " for $(other)s " * (also ? "also " : "") *
+        (count == 1 ? "matches" : "match") * ": audience = \"$(other)\"."
 end
 
 # The sections a query finds, best first, each with its two scores.
@@ -1703,15 +1774,15 @@ search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
 
 """
     search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing,
-                  context = nothing) -> String
+                  audience = "user", context = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
 and its relevance model when it has them. This is what the `search_guides` tool
 answers.
 """
 search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-              detail = "summary", limit = nothing, context = nothing) =
-    search_guides(query; mode = mode, detail = detail, limit = limit,
+              detail = "summary", limit = nothing, audience = "user", context = nothing) =
+    search_guides(query; mode = mode, detail = detail, limit = limit, audience = audience,
                   meaning_model = set.meaning_model, relevance_model = set.relevance_model,
                   context = context)
 

@@ -134,6 +134,44 @@ function test_search_answer()
         @test count("\n- `", search_api("verb"; api = api, limit = 2.5)) == 2
     end
 
+    @testset "a guide search searches the guides of one audience, and names the others" begin
+        # A guide says in its header who it is for, and what kind it is.
+        header = "# A guide\n\n> **Kind:** procedure · **For:** user, developer · **Status:** current\n"
+        @test _AnswerTools._read_guide_header(header) == ("procedure", [:user, :developer])
+        @test _AnswerTools._read_guide_header("# A deck\n\nNo header.\n") == ("", [:developer])
+        # The guides of the kernel are for developers, so a search for users finds
+        # none of them, and its first line counts them.
+        for_users = search_guides("selection"; detail = "names", limit = 25)
+        @test !occursin("resource://guide/kernel/", for_users)
+        @test occursin(r"^Searched the documents for users\. \d+ documents for developers also match: audience = \"developer\"\.$"m,
+                       first(split(for_users, '\n')))
+        for_developers = search_guides("selection"; detail = "names", audience = "developer")
+        @test occursin("resource://guide/kernel/selection", for_developers)
+        @test !occursin("resource://guide/guide/keyboard-and-mouse-guide", for_developers)
+        @test startswith(for_developers, "Searched the documents for developers. ")
+        both = search_guides("selection"; detail = "names", limit = 1000, audience = "all")
+        @test startswith(both, "# Documentation matches")
+        @test occursin("resource://guide/kernel/selection", both)
+        @test occursin("resource://guide/guide/keyboard-and-mouse-guide", both)
+        # Each hit shows the kind of its guide as a label.
+        @test occursin(r"^- resource://guide/kernel/selection#\S+ — .+ \[reference\]$"m, both)
+        @test occursin(r"^## resource://guide/\S+ — .+ \[(procedure|reference)\]$"m,
+                       search_guides("selection"))
+        # A search that finds only guides of the other audience says where they are.
+        # Only the guide of the cells says "Solid library".
+        missed = search_guides(r"Solid library")
+        @test startswith(missed, "Searched the documents for users. 1 document for developers " *
+                                 "matches: audience = \"developer\".")
+        @test occursin("No documentation matches", missed)
+        @test startswith(search_guides("selection"; audience = "everyone"),
+                         "Unknown audience \"everyone\".")
+        # `read_resource` reads a guide of any audience.
+        set = register_default_tools!(ToolSet())
+        read = find_tool(set, "read_resource").handler(nothing,
+                   Dict("uri" => "resource://guide/kernel/selection"))
+        @test occursin("**For:** developer", read)
+    end
+
     @testset "a line that starts with # inside a code fence is no heading" begin
         sections = _AnswerTools._guide_index()
         @test !any(section -> startswith(section.heading, "@broken:") ||
@@ -218,6 +256,9 @@ function test_search_answer()
         guides = only(t for t in list_tools(set) if t.name == "search_guides")
         @test search_guides(set, "selection"; limit = 2) ==
               guides.handler(nothing, Dict("query" => "selection", "limit" => 2))
+        @test search_guides(set, "selection"; limit = 2, audience = "developer") ==
+              guides.handler(nothing, Dict("query" => "selection", "limit" => 2,
+                                           "audience" => "developer"))
         @test search_api(set, "box"; detail = "names") ==
               search.handler(nothing, Dict("query" => "box", "detail" => "names"))
         # Without a meaning model, a description says so and never "this editor".

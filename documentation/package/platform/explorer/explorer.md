@@ -1,6 +1,6 @@
 # Explorer
 
-> **Kind:** design · **Status:** current · **Stands on:** [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [domain.md](../domain/domain.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [domain.md](../domain/domain.md)
 
 The explorer slice of `ProjecturedPlatform` shows what an editor holds in one tab: a tree of sections and entries on the left, and the page of the selected node in a navigator on the right. This document says how a section holds its entries, how a person adds, removes, moves and filters them, how a dashboard holds cards, and how the content of a window is kept for the next start.
 

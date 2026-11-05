@@ -431,7 +431,8 @@ the landing. Steps 5 to 7 continue on the branch from there.
 4. **The index.** *Done (2026-11-05); the facts are in §5.4.*
    The generator, its parts, its presets and the setting. Improve
    the first sentence of each module docstring that the index shows.
-5. **The guides.** The `For` field in all 171 headers and in the README rule.
+5. **The guides.** *Done (2026-11-05); the facts are in §5.6.*
+   The `For` field in all 171 headers and in the README rule.
    `audience`, the first line of a result, and the kind label in
    `search_guides`.
 6. **The texts.** One hand-written part for each window, the same on all three
@@ -814,6 +815,67 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   expects that `open_pane!` or Show moves the focus, which the rule of
   2026-10-27 (8a0c14f1e) ended, and no later commit changed the two lines. The
   settings part of `test_application` with the index passes.
+
+### 5.5 Facts found after the landing of steps 1 to 4
+
+- **The rebase on main** had conflicts in 9 places, each kept both sides: the
+  exports `avoids_new_panes` and `compute_document_types` of main beside the
+  removed lists and `is_domain_placeholder`; the field `maximized` of `PaneTree`
+  beside the mark; the count at the start of a word in the search beside the exact
+  hit; and the `grows` of a file tab. Main moved the reload of a file from Ctrl+O
+  to F5, so `reload_file_from_disk!` and the file slice guide say F5. In
+  omnet-julia, main added `open_chart_baseline!` to the hand list of the IDE, so
+  it now carries the mark, and `LegacyTestModule` keeps its new first sentence
+  and the second sentence of main.
+- **The tests after the landing.** Every test that steps 1 to 4 ran passes
+  again, with three exceptions. `test_application` fails at `:682`, `:805` and
+  `:2131`, and main before the landing fails at the same three places: the two
+  of the focus, and the drag of the divider between the groups (`[250, 988] ==
+  [375, 988]`). `test_pivot_zone_edits` keeps its one error. In omnet-julia
+  `test_ide_documentation` passes 973/973 and 52/52, `test_prompt_names` 20/20,
+  the three workbench file tests pass, and `test_pane_program:227` and the two
+  files of `test_ide_file_navigator` fail as before.
+- **Two faults of the branch reached main.** `test_search_ranking` made an API
+  entry without the field of a family member that step 2 added; a commit of the
+  test fixes it. `test_interface_api:92` fails: "a row of widgets side by side"
+  answers `jump_to_row!`, `get_table_row_count` and `get_pivot_row_count` first,
+  because `jump_to_row!` carries the mark since step 3 and a word of a name ranks
+  above the words of a docstring. It waits for the owner's decision.
+- **The recorded precompile calls** resolve less after the landing:
+  ProjecturedPlatform 1618 of 11962 no longer resolve (1233 on main before),
+  and ProjecturedChart, ProjecturedDataFrames, ProjecturedSDL and the result and
+  format packages of omnet-julia warn too. §6 says to record them again.
+
+### 5.6 Facts found in step 5
+
+- **The header.** 170 documents carry `**For:**` after the kind: 161 in
+  projectured-julia, and the 9 guides of omnet-julia. The slide deck has no
+  header line, and a guide without one is for developers. For users: in
+  projectured-julia `assistant-guide`, `context-menu-guide`, `dragging-guide`,
+  `examples-tour`, `gestures-guide`, `keyboard-and-mouse-guide`, `mcp-guide`,
+  `orientation`, `own-project-guide`, `pointer-guide`, `popup-window-guide`,
+  `setup-guide`, `tooltip-guide` and `view-your-data-guide`, and in omnet-julia
+  `assistant-guide` and `vs-code-mcp-guide`. For both: `documentation/README.md`.
+  Every other document is for developers: the 6 other guides of
+  projectured-julia (build, debugging, new domain, release, static compilation,
+  testing), the 7 others of omnet-julia, and every package, design, rule,
+  requirement and presentation document.
+- **The rule.** `documentation/README.md` defines the field, and the header
+  check of `test/suite/documentation.jl` refuses a header without a known value.
+  The README of omnet-julia defines it for the documents in `guide/`, the only
+  ones that a search reads.
+- **The search.** A section of a guide carries the kind and the readers of its
+  header. `search_guides` ranks every section as before and keeps those of the
+  audience, so the meaning vectors of the sections stay as they are. The line of
+  the other audience counts the documents of the other audience that the words
+  match, and it stands after the note of a meaning model, before the hits. The
+  measurement of the search scale searches with `audience = "all"`, so its
+  questions keep their corpus. A test whose answer is a document for developers
+  asks for that audience.
+- **Tests:** `test_search_answer` 102/102, `test_relevance_search` 36/36,
+  `test_meaning_search` 70/70, `test_search_query` 61/61, `test_search_ranking`
+  27/27, `test_declared_api` 175/175, `test_search_guides` 6/6,
+  `test_search_tools_registered` 8/8, the header check of the documentation.
 
 ## 6. What else changes
 

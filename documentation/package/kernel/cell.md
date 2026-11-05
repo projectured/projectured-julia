@@ -1,6 +1,6 @@
 # Reactive cells
 
-> **Kind:** reference · **Status:** current · **Stands on:** [architecture.md](architecture.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [architecture.md](architecture.md)
 
 This guide says what a reactive cell holds, how a read records a dependency and a
 write invalidates the readers, and which invariants the engine relies on. It then

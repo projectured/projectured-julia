@@ -1,6 +1,6 @@
 # Plot arithmetic
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-inventory.md](../../../design/domain-inventory.md), [style.md](../style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-inventory.md](../../../design/domain-inventory.md), [style.md](../style/style.md)
 
 The plot slice of `ProjecturedPlatform` holds the arithmetic that the chart and the sequence chart share: axis scaling, tick selection, the mapping from a data value to a pixel, the decimation that bounds the cost of a drawing, and the colour and marker cycles. It is a framework, not a domain, so it defines no document type. This document says what it holds, why it is pure, and what to check when you change it.
 

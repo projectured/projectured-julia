@@ -1,6 +1,6 @@
 # Vision
 
-> **Kind:** why · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** why · **For:** developer · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 Why ProjecturEd exists: data that is shown and edited as a structure, a user interface you design or get on demand, and a language model that works on the same data as you. It also says where ProjecturEd stands beside the tools a Julia developer already uses.
 

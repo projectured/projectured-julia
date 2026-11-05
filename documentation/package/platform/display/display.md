@@ -1,6 +1,6 @@
 # Display
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
 
 The display slice of `ProjecturedPlatform` shows a value from the REPL in an editor that runs beside the REPL. It shows any value that a loaded package gives a document, and it depends on no such package, on no backend and on no container of documents. This document says how a value becomes a document, where the editor runs, and what the display leaves to other packages.
 

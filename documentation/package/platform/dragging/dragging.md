@@ -1,6 +1,6 @@
 # Dragging
 
-> **Kind:** design · **Status:** current · **Stands on:** [higher-order-projections.md](../projection/higher-order-projections.md), [dragtracking.md](../dragtracking/dragtracking.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [higher-order-projections.md](../projection/higher-order-projections.md), [dragtracking.md](../dragtracking/dragtracking.md)
 
 The dragging slice of `ProjecturedPlatform` adds reorder by drag and drop to any document: a wrapper document, a projection that reads the press and the drop, and the operation that moves elements between collections. The [DraggingProjection section](../projection/higher-order-projections.md#draggingprojection) of the higher-order guide describes the reader step by step; this document says why it is built this way and how to use it.
 

@@ -1,6 +1,6 @@
 # Candidate requirements
 
-> **Kind:** what · **Status:** current; a backlog, not a promise · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
+> **Kind:** what · **For:** developer · **Status:** current; a backlog, not a promise · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
 
 This document holds the proposed product requirements that nobody has reviewed
 yet. A candidate moves to [accepted-requirements.md](accepted-requirements.md)

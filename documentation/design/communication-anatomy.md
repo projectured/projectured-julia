@@ -1,6 +1,6 @@
 # The means of communication
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [architecture-invariants.md](../rule/architecture-invariants.md), [editor.md](../package/kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [architecture-invariants.md](../rule/architecture-invariants.md), [editor.md](../package/kernel/editor.md)
 
 This document names the parts of the editor that run at the same time, and the means by which they give data to each other. It is a map: each means has one section here, and the guide of its slice holds the detail. Read it before you add a part that runs on a task of its own, or that reads the disk, a process or the network.
 

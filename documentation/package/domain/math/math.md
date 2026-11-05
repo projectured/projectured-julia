@@ -1,6 +1,6 @@
 # Math domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md)
 
 The math domain, `ProjecturedMath`, holds a formula as a tree of documents: its structure, not its picture and not its value. Two projections read the tree: `MathToSyntax` prints one line of text, and `MathToGraphics` sets real two-dimensional boxes. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): the vocabulary, the reader of the linear form, the box protocol of the two-dimensional form, and the keys that edit it.
 

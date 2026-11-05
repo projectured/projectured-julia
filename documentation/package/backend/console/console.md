@@ -1,6 +1,6 @@
 # Console backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../../platform/text/text.md), [style.md](../../platform/style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../../platform/text/text.md), [style.md](../../platform/style/style.md)
 
 `ProjecturedConsole` holds `ConsoleBackend`, which draws a text document in a terminal with ANSI colour codes and reads the keys of the terminal. It needs no third-party package, so the umbrella `Projectured` holds it. This document says how the backend implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), and what a console pipeline must look like.
 

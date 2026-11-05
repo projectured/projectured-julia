@@ -1,6 +1,6 @@
 # Context menu
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](widget.md), [tooltip.md](../tooltip/tooltip.md), [screen.md](../screen/screen.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [widget.md](widget.md), [tooltip.md](../tooltip/tooltip.md), [screen.md](../screen/screen.md)
 
 The widget slice of `ProjecturedPlatform` opens the menu of the part under the pointer in a window of its own. The meaning is in the gesture table of the part: a part answers a right click with an operation, and each part around it adds its menu. This document says how a right click becomes a menu, how the window shows more and fewer menus, and why a right click moves no selection.
 

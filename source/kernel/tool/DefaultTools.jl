@@ -167,6 +167,12 @@ const _DETAIL_PARAMETER = (name = "detail", type = "string",
 const _LIMIT_PARAMETER = (name = "limit", type = "number",
     description = "How many hits; the detail decides when absent.", required = false)
 
+# The guide search alone takes it: a guide says in its header who it is for.
+const _AUDIENCE_PARAMETER = (name = "audience", type = "string",
+    description = "Whose guides. \"user\" (the default): how to use the editor. " *
+                  "\"developer\": how its code works. \"all\": both.",
+    required = false)
+
 # What the documentation tools answer: a guide is a Markdown file, a docstring is
 # Markdown, and a list of hits is written as Markdown around them.
 const _DOCUMENTATION_MIME_TYPE = "text/markdown"
@@ -220,11 +226,13 @@ function _register_search_tools!(set::ToolSet)
             _MODE_PARAMETER,
             _DETAIL_PARAMETER,
             _LIMIT_PARAMETER,
+            _AUDIENCE_PARAMETER,
         ],
         handler = (target, args) -> search_guides(set, _get_query_argument(args);
                                         mode = get(args, "mode", nothing),
                                         detail = get(args, "detail", nothing),
-                                        limit = _arg_limit(get(args, "limit", nothing))),
+                                        limit = _arg_limit(get(args, "limit", nothing)),
+                                        audience = get(args, "audience", nothing)),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 

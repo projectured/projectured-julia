@@ -1,6 +1,6 @@
 # Builder
 
-> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md), [build-guide.md](../../../guide/build-guide.md), [release-guide.md](../../../guide/release-guide.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md), [build-guide.md](../../../guide/build-guide.md), [release-guide.md](../../../guide/release-guide.md)
 
 `ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. It also writes the release copy of the packages that a registry serves. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, the choice of what the packages compile ahead, and the release copy. [build-guide.md](../../../guide/build-guide.md) holds the steps and the options.
 

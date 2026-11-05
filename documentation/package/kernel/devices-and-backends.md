@@ -1,6 +1,6 @@
 # Devices and backends
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 ProjecturEd separates the **what** of I/O (a `Device`) from the **how**
 (a `Backend`). A `Device` describes a logical input or output channel; a

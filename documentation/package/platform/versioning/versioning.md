@@ -1,6 +1,6 @@
 # Versioning
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [clipboard.md](../clipboard/clipboard.md), [undo.md](../undo/undo.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [clipboard.md](../clipboard/clipboard.md), [undo.md](../undo/undo.md)
 
 The versioning slice of `ProjecturedPlatform` lets any subtree of a document hold several versions of itself. A `VersionedObject` holds the versions, and `VersioningToAnyProjection` shows one of them in place of the wrapper, so every projection after it sees an ordinary document. This document says how the active version is chosen, how edits reach it, and why versions are documents and not a log of operations.
 

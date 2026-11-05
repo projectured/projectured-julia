@@ -1,6 +1,6 @@
 # Database and catalog
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [sql.md](../sql/sql.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [sql.md](../sql/sql.md)
 
 Two packages carry a database into the editor without a connection. `ProjecturedDatabase` defines the adapter interface and the connection documents, and `ProjecturedDBCatalog` models the catalog of a database as a tree of documents. This document says what each package holds and how the two depend on other packages. `ProjecturedODBC` is the one concrete adapter, and [odbc.md](../../adapter/odbc/odbc.md) describes it and the live queries.
 

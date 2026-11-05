@@ -1,6 +1,6 @@
 # Graph domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md), [graphics.md](../../platform/graphics/graphics.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md), [graphics.md](../../platform/graphics/graphics.md)
 
 `ProjecturedGraph` holds node-and-edge diagrams in which each vertex holds a document of any domain. This document says how a graph becomes a picture in two stages, where a layout engine plugs in and when the engine is chosen, and how the highlight that `fsm` and `process` reuse repaints without a new layout. [graph-layout.md](graph-layout.md) describes the engines themselves.
 

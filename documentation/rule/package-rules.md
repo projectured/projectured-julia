@@ -1,6 +1,6 @@
 # Packages
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [system-anatomy.md](../design/system-anatomy.md)
 
 What a package here is for, what it may depend on, and which one you load.
 

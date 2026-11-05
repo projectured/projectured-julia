@@ -1,6 +1,6 @@
 # Help
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain.md](../domain/domain.md), [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain.md](../domain/domain.md), [tree.md](../tree/tree.md), [navigator.md](../navigator/navigator.md), [widget.md](../widget/widget.md)
 
 The help slice of `ProjecturedPlatform` holds what the Help menu of a window opens: the tree of every document type, the tree of every projection, and the page that says what the program is. This document says how a tree groups the types by package and by module, why a tree stores its groups and builds them at its acquire, and what the page of a group and of a type shows.
 

@@ -1,6 +1,6 @@
 # Video recording
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [sdl.md](../sdl/sdl.md), [editor.md](../../kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [sdl.md](../sdl/sdl.md), [editor.md](../../kernel/editor.md)
 
 `ProjecturedVideo` records a scripted editing session as an `.mp4` file, with no window. It is a file export and not a `Backend`: it runs the session through a small copy of the editor cycle and encodes the frames with `ffmpeg`. This document says how a timeline becomes frames, why the video is the same on every run, and where the recorder differs from the editor.
 

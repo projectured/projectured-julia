@@ -1,6 +1,6 @@
 # Debugging in the REPL
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
 
 Most day-to-day debugging of ProjecturEd is done from a Julia REPL launched
 against the repo's top-level project. The root [Project.toml](../../environment/all/Project.toml)

@@ -1,6 +1,6 @@
 # Projection algebra
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [architecture-invariants.md](../../../rule/architecture-invariants.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [architecture-invariants.md](../../../rule/architecture-invariants.md)
 
 The projection slice of `ProjecturedPlatform` holds the projections that work on any document: the generic ones, which change the shape of a document, and the higher-order ones, which combine other projections. The kernel holds only the framework that they implement. This document says how the package divides the work with the kernel and which combinations carry the rest of the system; two guides describe each projection.
 

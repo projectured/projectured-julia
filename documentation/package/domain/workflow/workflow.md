@@ -1,6 +1,6 @@
 # Workflow domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [widget.md](../../platform/widget/widget.md), [serialization.md](../../platform/serialization/serialization.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [widget.md](../../platform/widget/widget.md), [serialization.md](../../platform/serialization/serialization.md)
 
 The Workflow domain, `ProjecturedWorkflow`, holds the record of a piece of human work: the steps, the decisions and their options, a dated journal on each of them, and the elements of each node: documents of any domain, such as code, a page of text or a table. A person and the assistant write into the same record. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md).
 

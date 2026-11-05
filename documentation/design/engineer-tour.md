@@ -1,6 +1,6 @@
 # Engineer tour
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](concepts.md), [system-anatomy.md](system-anatomy.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](concepts.md), [system-anatomy.md](system-anatomy.md)
 
 This guide is for a software engineer who is new to ProjecturEd. It explains the
 main concepts, how the concepts combine, and what the combinations make

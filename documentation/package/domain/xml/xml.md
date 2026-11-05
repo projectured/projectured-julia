@@ -1,6 +1,6 @@
 # XML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
 
 The XML domain, `ProjecturedXML`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
 

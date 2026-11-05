@@ -1,6 +1,6 @@
 # Tulip constraint solver
 
-> **Kind:** design · **Status:** current · **Stands on:** [layout.md](../../platform/layout/layout.md), [package-rules.md](../../../rule/package-rules.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [layout.md](../../platform/layout/layout.md), [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedTulip` is an opt-in package that solves the relations of a `ConstraintLayout`. It adds one method to the solver seam of the layout slice, and it brings the linear programming packages `Tulip` and `MathOptInterface`. This document says how a layout problem becomes a linear program.
 

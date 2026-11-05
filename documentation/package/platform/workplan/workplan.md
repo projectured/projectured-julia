@@ -1,6 +1,6 @@
 # Work plan
 
-> **Kind:** design · **Status:** current · **Stands on:** [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [natural.md](../natural/natural.md)
 
 The work plan slice of `ProjecturedPlatform` holds the plan of an agent as documents, with more states than "done" and "not done", and shows its progress and its steps. This document says what a plan and a step hold, why blocked is a relation and not a status, why a step holds a link to its plan, how the progress counts, and what the views show.
 

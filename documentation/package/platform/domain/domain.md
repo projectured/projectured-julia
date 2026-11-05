@@ -1,6 +1,6 @@
 # Domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 The domain slice of `ProjecturedPlatform` holds what makes a set of document types a domain: the `@domain` and `@insertion` macros, the empty placeholder and the insertion buffer that every domain shares, the completion of a typed type name, and the verbs that the structural gestures of a domain call. It is not a domain itself. This document says how these parts work and why they work by reflection and not by registration.
 

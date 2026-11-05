@@ -1,6 +1,6 @@
 # Formula domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [julia.md](../julia/julia.md), [math.md](../math/math.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [julia.md](../julia/julia.md), [math.md](../math/math.md)
 
 The Formula domain, `ProjecturedFormula`, holds named formulas that refer to each other and compute a value, as the cells of a spreadsheet do. A formula is a document of its own and is not tied to a grid. Its code is a Julia expression or a math expression. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 

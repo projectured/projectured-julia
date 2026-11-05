@@ -1,6 +1,6 @@
 # Finding and Selecting Nodes
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 How to locate a node in a document by *content* (not by a path you already know),
 turn that into a reference, resolve a reference back to a node, and move the
