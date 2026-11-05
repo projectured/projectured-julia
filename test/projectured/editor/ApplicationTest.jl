@@ -809,8 +809,9 @@ function test_application()
                 opened = open_pane!(PrimitiveString("hello"); title = "Hello", editor)
                 @test startswith(repr(strip_reference_types(get_reference(opened))), ".windows[1].")
                 @test title(opened) == "Hello"
+                # The open places the tab, and the focus stays on the Explorer.
                 @test let (group, index) = get_pane_focus(tree)
-                    get_pane_tab_title_string(group.tabs[index]) == "Hello"
+                    get_pane_tab_title_string(group.tabs[index]) == "Explorer"
                 end
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
                 @test length(history) == steps + 1          # an open is one undo step

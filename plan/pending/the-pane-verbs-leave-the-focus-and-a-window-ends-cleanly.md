@@ -59,9 +59,16 @@ narrowest tests that cover it, and ends with a commit.
      there was none, so the tests focus the closed tab first.
    - The default of each operation stays `focus = true`, because a press of a person
      and the tests of the duplicate of a workspace and of an evaluator expect it.
-2. [ ] **The two focus tests.** The Show of the Assistants list composes the show
+2. [x] **The two focus tests.** Done. The Show of the Assistants list composes the show
    with a focus, as a press of a person does. The test of the pane verbs holds
    that `open_pane!` leaves the focus.
+   - The opener of the list, `_show_and_focus_assistant!`, shows the assistant with
+     `show_document!` and then focuses its tab with `focus_pane!`. `test_application`
+     passes both places.
+   - In a runner that loads every test package in one process, the test "a pane
+     that no caller placed does not cover a conversation" fails: the workflow test
+     package adds a method `pane_group_to_avoid(tree::PaneTree)`
+     (`WorkflowEditsTest.jl`). It passes in the platform suite alone.
 3. [ ] **The divider of the Explorer.** Find why a drag of the divider between
    the groups builds the split of the Explorer again, and fix it so the weight
    that a drag gave the Explorer stays.

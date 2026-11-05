@@ -195,8 +195,19 @@ its window, and every other list that a tab of the tree holds.
 """
 function link_assistant_list!(list::AssistantList, tree::PaneTree)
     set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
-    set_assistant_list_opener!(list, (editor, assistant) ->
-        show_document!(assistant; title = get_document_title(assistant), editor))
+    set_assistant_list_opener!(list, _show_and_focus_assistant!)
+end
+
+# What a press of Show does: the tab of `assistant`, or a new one, comes to the
+# front, and as a press of the person it also takes the focus.
+function _show_and_focus_assistant!(editor, assistant::Assistant)
+    show_document!(assistant; title = get_document_title(assistant), editor)
+    found = search_references(editor.document,
+                              node -> node isa PaneTab &&
+                                      PaneModule.find_pane_tab_layer(node, layer -> layer === assistant) !== nothing;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
+    isempty(found) || focus_pane!(first(found); editor)
+    nothing
 end
 
 """

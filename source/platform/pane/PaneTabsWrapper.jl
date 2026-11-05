@@ -75,8 +75,9 @@ is_wrapper_default(::Val{:tabs}) = true
 """
     show_document!(editor, content::PaneTree, document; title) -> nothing
 
-Show `document` in a tab of the pane tree: the tab that shows it already, with
-the focus, or a new tab named `title`. A tab shows `document` when its content
+Show `document` in a tab of the pane tree: the tab that shows it already, or a
+new tab named `title`, comes to the front, and the focus of the person stays where
+it is. A tab shows `document` when its content
 or a layer that the content holds is `document` ([`find_pane_tab_layer`](@ref)),
 whatever its title, so two tabs with the same title are no problem.
 """
