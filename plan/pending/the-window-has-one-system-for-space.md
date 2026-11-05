@@ -1359,7 +1359,7 @@ approval of the user.
       - Check: `Pkg.precompile()` builds 88 images with no failure, and one
         process loads each of the 35 packages that compile ahead. The log has
         no warning, so no list has calls that no longer resolve.
-- [ ] 9. **The pages of omnet-julia follow the rules.** This step starts after
+- [x] 9. **The pages of omnet-julia follow the rules.** This step starts after
       steps 1 to 8 are on `main` of projectured-julia.
       - Each page builder takes the widget theme of its builder, scaled, in
         place of `get_theme_defaults(WidgetTheme)`.
@@ -1375,6 +1375,60 @@ approval of the user.
       Check: the presentation tests of omnet-julia pass; `OmnetIdeApp`
       compiles ahead; a pixel scan of an image of the IDE finds each details
       page 8 px from the edges of its tab.
+
+      Done (the pages of omnet-julia): on the branch `one-system-for-space`
+      of omnet-julia, in 6bb3d5aae, cdfe5bda6, 014daa462 and 86110100b. The
+      facts:
+      - `SimulationTheme` has no `stack_gap`, `inline_gap` and `label_gap`.
+        The projections hold the roles that they use (`section_gap`,
+        `label_gap`, `button_gap`, `form_column_gap`, `form_row_gap`) and read
+        them with `get_widget_style(widget_theme, :role)`. The factories take a
+        keyword `widget_theme`, and each builder gives it
+        `get_scaled_theme!(appearance, WidgetTheme)`.
+      - A row of buttons reads `button_gap`, not `label_gap` as the list above
+        says, because the rule "one value for each relation" gives the gap
+        between two buttons its own role. A heading and its badge read
+        `label_gap`, and the label column of the runner form reads
+        `form_column_gap`.
+      - The fact grid of the part page had `2 * inline_gap` (20 px) between
+        its columns and `stack_gap` (8 px) between its rows. It now reads
+        `form_column_gap` (8 px) and `form_row_gap` (6 px): the value column
+        starts 12 px further left, and the rows are 22 px apart, not 24.
+      - The cards of lines of facts read `line_gap` (12 places), the rows of
+        a form read `form_row_gap`, and the caption of the timeline reads
+        `title_gap`. Ten panes of `EmbedPanes.jl` give the widget theme of the
+        page to their card.
+      - `build_qtenv_widget_theme` no longer sets `control_padding` and
+        `item_gap`. No page of omnet-julia sets a padding at its root.
+      - What stays, with no clear role: the 20 views that
+        `register_view_projection!` registers, and `SessionView.jl:271`,
+        print with no context, so they read `get_theme_defaults(WidgetTheme)`.
+        To give them the scaled theme needs a new way to pass it, and that is
+        a decision of the owner. The vertical lists of buttons of `FindView`,
+        of the pane chooser and of the event buttons of `EmbedPanes.jl`, and
+        `SessionView.jl:294`, keep `item_gap`. `grid_vertical_gap`,
+        `flag_gap` and `action_row_gap` of `SimulationTheme`, and
+        `ResultTheme.gap`, are not in this plan.
+      - Tests, by parts, against a worktree of `main` of omnet-julia:
+        `test_presentation` 1794 Pass, 12 Fail, 3 Error, 1 Broken on both;
+        `test_ide` 2518 Pass, 16 Fail, 18 Error on both (without
+        `test_ide_gestures_compile_little`, which builds an image);
+        `test_legacy` 2650 Pass, 23 Fail, 64 Error on `main` and 2652 Pass,
+        22 Fail, 64 Error on the branch. One Pass is the new assertion of
+        `SimulationThemeTest`, and one assertion of `test_task_group_pane`
+        that fails on `main` passes on the branch. No part has more
+        failures.
+      - The lists of compiled calls of the omnet packages are recorded again.
+        On `main` they already had calls that no longer resolve, above 10 %
+        (`OmnetLegacyFormat` 659 of 3311, `OmnetIde` 853 of 5238). The
+        workload of `OmnetIde` fails at the step that waits for the text
+        "DONE", as on `main`, so the lists hold the calls before that step.
+        `Pkg.precompile()` then builds 57 packages with no warning.
+      - The pixel scan of eight pages of the IDE at 1280 x 800, before and
+        after: each details page starts 8 px from the left edge and from the
+        top edge of its tab. Only the fact grids moved. On five pages the
+        row of the navigator is wider than the tab, and the tab cuts it at
+        the right edge, the same on `main`.
 - [x] 10. **Write the spacing documentation.** The guides say what the code
       does after steps 1 to 9. They follow
       [writing-rules.md](../../documentation/rule/writing-rules.md), and they
@@ -1486,6 +1540,29 @@ approval of the user.
         terminal example did not say that it leaves out the fields of the
         texts. `test_documentation()` after the correction: the same 7
         failures.
+
+## The landing
+
+- `main` of projectured-julia had 69 commits that the branch did not have.
+  The merge commit 660b68779 kept both sides of 33 conflicts in 14 files, and
+  `main` moved to it.
+- Code that merged with no conflict can still read a removed field. The code
+  of `main` read `item_gap` (the context menu, now `popup_gap`), `stack_gap`
+  and `inline_gap` (the facts of a task, now `section_gap` and
+  `button_gap`), `item_gap` in the lazy Appearance card (now
+  `form_row_gap`), and `_get_box_insets` in the toolbar (now the `box` of the
+  item). The merge commit corrects them.
+- `main` decides that a slot of a split pane that declares no size and no
+  weight takes an equal share of the offer. The test of the split pane and
+  `widget.md` say so.
+- The flow layout of the merge read `outer_h` before it set it (27 errors in
+  the suites). fb9e8a171 corrects it: a flow adds the space of its slot to
+  its extent, then raises it to the minimum of its range.
+- Tests on 660b68779 against `main` before the merge (fcf25b3a2): the data
+  frames 608 Pass on both. After fb9e8a171, the parts that failed and the
+  research suite give 204516 Pass and 1 Fail (research 386 Pass, as before).
+  The Fail is `SystemProcessTest.jl:332`, which fails in the first cold run
+  of a process under load and passes in a second run, on both commits.
 
 ## Not in this plan
 
