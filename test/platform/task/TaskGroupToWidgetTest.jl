@@ -424,11 +424,15 @@ function test_task_views()
             # In a tall window the facts show whole above the table.
             tall = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
             @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout · empty")
-            # In a short window the table keeps its least height.
+            # In a short window the table keeps its least height, and the output
+            # below it is still in the window: the header and the buttons are short
+            # enough to stay whole above the table, and the process facts, which
+            # scroll in a part with no weight, give up their height.
             short = _collect_task_view_texts(last(_print_task_view(document; height = 800)).output)
             @test find_y(short, "stdout · empty") - find_y(short, "scalar") >= least
+            @test find_y(short, "stdout · empty") < 800
             header_y = maximum(t[2] for t in short if t[3] == "delta")
-            @test header_y < find_y(short, "scalar")
+            @test header_y < find_y(short, "Run again") < find_y(short, "scalar")
         end
 
         @testset "a path into the document of a result goes to its place and back" begin

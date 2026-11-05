@@ -540,11 +540,12 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                                      min_height = p.document_minimum_height)
             push!(parts, _follow_detail_part!(detail, place, length(parts)))
         end
-        # What every task has, in a part with no weight: its process and its
-        # earlier executions.
-        push!(parts, VerticalLayout(Any[_make_task_process_group(doc, document),
-                                        _build_earlier_executions(p, document)];
-                                    gap = p.section_gap, child_width = Fill))
+        # What every task has: its process and its earlier executions. They
+        # scroll in a part with no weight too, so in a short detail they give up
+        # their height before the streams leave the window.
+        push!(parts, WidgetScrollPane(VerticalLayout(Any[_make_task_process_group(doc, document),
+                                                         _build_earlier_executions(p, document)];
+                                                     gap = p.section_gap, child_width = Fill)))
         append!(parts, _build_stream_parts(p, document, :output; weight = 2))
         append!(parts, _build_stream_parts(p, document, :error_output; weight = 1))
         Cell[Cell(x) for x in parts]
@@ -588,9 +589,13 @@ _make_task_action_button(p, label, action, task) =
     WidgetButton(label; size = p.button_size,
                  action = editor -> _run_guarded(label, () -> action(editor, task)))
 
+# How many lines the stream `field` of the current execution of a task holds: none
+# before the first start and while the task waits to start again.
+_get_stream_line_count(document::TaskDocument, field::Symbol) =
+    (current = get_current_task_execution(document); current === nothing ? 0 : getproperty(current, field).count)
+
 # Whether the stream `field` of the current execution of a task holds a line.
-_has_stream_lines(document::TaskDocument, field::Symbol) =
-    (current = get_current_task_execution(document); current !== nothing && getproperty(current, field).count > 0)
+_has_stream_lines(document::TaskDocument, field::Symbol) = _get_stream_line_count(document, field) > 0
 
 # The words over a stream: its name and the count of its lines, or its name and
 # `empty`.
@@ -605,8 +610,7 @@ function _build_stream_parts(p, document::TaskDocument, field::Symbol; weight)
     name = field === :output ? "stdout" : "stderr"
     has_lines = Cell(@computation _has_stream_lines(document, field))
     has_lines[] || return Any[_make_label(name * " · empty", p.muted_color)]
-    Any[_make_label(() -> _format_stream_count(name, getproperty(get_current_task_execution(document), field).count),
-                    p.muted_color),
+    Any[_make_label(() -> _format_stream_count(name, _get_stream_line_count(document, field)), p.muted_color),
         _build_output_pane(() -> collect_task_document_lines(document, field); weight)]
 end
 
