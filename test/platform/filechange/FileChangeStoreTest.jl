@@ -260,6 +260,25 @@ function test_file_change_store()
             @test make_inverse_operation(nothing, KeepFilePageEditsOperation(page, hash(""))) isa DoNothingOperation
         end
 
+        @testset "a save of a holder writes only the holder, and a held page keeps its hash, its band and its edits" begin
+            (held_path, held) = _make_watched_text_file("one\n")
+            _edit_watched_text!(held, "mine\n")
+            held.band = FileBand(message = "watched.txt changed on disk.")
+            held_hash = held.file_hash
+            folder = dirname(held_path)
+            holder_path = joinpath(folder, "work.pred")
+            @test save_file!(PredFile(holder_path, Dashboard("work")), folder)
+            holder = make_file_tab_content(holder_path, UndoBuffer)
+            dashboard = get_wrapped_document(get_file_content(find_page_file(holder)))
+            push!(dashboard.cards, DashboardCard("notes", held))
+            @test evaluate_operation(nothing, SaveFilePageOperation(holder)) === true
+            @test occursin("content = file(\"watched.txt\")", read(holder_path, String))
+            @test sort(readdir(folder)) == ["watched.txt", "work.pred"]
+            @test read(held_path, String) == "one\n"
+            @test held.file_hash == held_hash && held.band !== nothing
+            @test _get_watched_text(held) == "mine\n"
+        end
+
         @testset "the feed drains the store, and a change wakes the editor" begin
             store = FileChangeStore()
             feed = FileChangeFeed(; store)

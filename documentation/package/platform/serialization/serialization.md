@@ -70,6 +70,7 @@ More have a default that fits most formats:
 | `is_file_domain_node(file, node)` | `node isa get_file_domain(typeof(file))` | the domain of the file is not one type |
 | `is_written_in_file(file, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
 | `is_written_inline(file, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
+| `find_held_file(node)` | `node` for a file document, else `nothing` | a document shows a file and keeps the state of that showing, as the page of a file does, so a holder must save it as `file("…")` and write none of that state |
 | `is_editable_file_type(::Type{T})` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
 | `read_file_content(::Type{T}, path)` | the text of the file through `parse_file_content` | the type does not edit, and its file is too large to read whole, so it reads only what it needs |
 

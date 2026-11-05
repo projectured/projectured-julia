@@ -1225,6 +1225,23 @@ function test_explorer()
         end
         @test folder.state === :unread && folder.read_count == 0 && isempty(search.result.matches)
     end
+
+    @testset "a dashboard saved alone writes the page in a card as the file that it shows" begin
+        root = mktempdir()
+        try
+            path = joinpath(root, "notes.txt")
+            write(path, "hello")
+            page = make_file_tab_content(path)
+            @test page isa FilePage
+            dashboard = Dashboard("work", Any[DashboardCard("notes", page)])
+            text = cut_file_text(PredFile(joinpath(root, "work.pred"), dashboard), root)
+            @test occursin("content = file(\"notes.txt\")", text)
+            @test !occursin("hello", text)
+            @test !occursin("FilePage", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
 end
 end
 

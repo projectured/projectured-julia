@@ -84,6 +84,10 @@ function find_page_file(page::FilePage)
     nothing
 end
 
+# A holder saves a page as the file that it shows, so a save writes `file("…")`
+# for the page and none of its band, its hash or its scroll pane.
+find_held_file(page::FilePage) = find_page_file(page)
+
 """
     FileBand(; message, choices = Pair{String,Any}[])
 

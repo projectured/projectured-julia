@@ -508,7 +508,7 @@ through the reload (D7), so no test can check the open without the reload.
      is named relative to the working folder. No document makes that case now.
    - Results: the sets of step 1 and `test_text_file()` pass, 475 tests, with the error that main
      has at `MarkerVocabularyTest.jl:88` and the known broken set of a Julia file.
-3. **A page saves as the file that it shows (D4).** `find_held_file` with its default in
+3. **A page saves as the file that it shows (D4).** **Done on 2026-11-05.** `find_held_file` with its default in
    `FileCut.jl`, its export in `SerializationModule.jl`, and its row in the table of defaults of
    `serialization.md`. The walks `_own_walk!` (`:189`), `_own_inline_walk!` (`:169`),
    `_collect_fixed_nodes!` (`:226`) and `_cut_copy` (`:269`) ask it in place of
@@ -520,6 +520,18 @@ through the reload (D7), so no test can check the open without the reload.
    for D15: the save of the page of the holder writes only the holder, the held page keeps its hash
    and its band, the held file keeps its bytes on disk, and its history keeps the edits that no save
    wrote. A page that is not read yet comes with G4 step 2, and step 5 tests its save.
+
+   What the implementation found:
+   - The module `FileChangeTests` of `ProjecturedPlatformTest` imports `Dashboard` and
+     `DashboardCard`, because the new set holds the page in a card.
+   - Between this step and step 5, `save_user_interface` writes a tab that holds a page as
+     `file("…")`, and `load_user_interface` gives that tab the file document with no page. No code of
+     projectured-julia or omnet-julia calls the two functions; only tests and scripts do.
+   - Results: the sets of step 2, `test_explorer()`, `test_filechange()` and `test_file_tab()` pass,
+     964 tests. `test_platform_layering()` fails at "every file imports what it extends"
+     (`CheckLayering.jl:889`), as on main since `550163da1` and in the baseline of main `6e482a59c`;
+     no entry of its list names a file of this step. The error of `MarkerVocabularyTest.jl:88` and
+     the broken set of a Julia file are the known ones.
 4. **A held file in a tuple or a named tuple (D5).** `FileCut.jl`: `_cut_field` (`:329-349`) and
    `_cut_copy` go into a tuple and a named tuple for a held file. `FileSplice.jl`:
    `_collect_references!` (`:137-160`) and `_splice_walk!` (`:195-226`) go into them and build them

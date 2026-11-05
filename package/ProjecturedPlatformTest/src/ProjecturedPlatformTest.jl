@@ -601,6 +601,7 @@ using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumen
     is_document_held
 using ProjecturedPlatform.PaneModule: PaneTab
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane
+using ProjecturedPlatform.ExplorerModule: Dashboard, DashboardCard
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

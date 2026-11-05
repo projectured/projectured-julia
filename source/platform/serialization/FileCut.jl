@@ -117,6 +117,17 @@ The file's own spelling of `node`, a document that it writes inline, as
 """
 function make_inline_leaf end
 
+"""
+    find_held_file(node) -> file document or nothing
+
+The file document that `node` stands for when another document holds it, or
+`nothing`. A save writes `file("…")` there and walks no further into `node`. The
+default answers `node` for a file document. A document that shows a file and
+keeps the state of that showing, such as the page of a file, answers that file,
+so a holder saves it as the file and writes none of that state.
+"""
+find_held_file(node) = is_file_document(node) ? node : nothing
+
 # ── Ownership ────────────────────────────────────────────────────────────────
 
 # `owner[node] = (file, path)` for every document node some file writes. A file
@@ -166,7 +177,7 @@ end
 # what it holds.
 function _own_inline_walk!(owner, file, node, path::Reference, visited::IdDict)
     node isa Document || return
-    is_file_document(node) && node !== get_file_content(file) && return
+    find_held_file(node) !== nothing && node !== get_file_content(file) && return
     haskey(visited, node) && return
     visited[node] = true
     entry = get(owner, node, nothing)
@@ -186,7 +197,7 @@ end
 # `path` is such a slot.
 function _own_walk!(owner, file, node, path::Reference, kept, leaf_type, at_fixed::Bool)
     node isa Document || return
-    is_file_document(node) && return
+    find_held_file(node) === nothing || return
     is_file_domain_node(file, node) || return
     haskey(owner, node) && return
     !at_fixed && haskey(kept, node) && return
@@ -223,7 +234,7 @@ end
 # Every node of the file's domain that `node` reaches and that a typed slot holds.
 function _collect_fixed_nodes!(fixed, file, leaf_type, node, visited)
     node isa Document || return
-    is_file_document(node) && return
+    find_held_file(node) === nothing || return
     haskey(visited, node) && return
     visited[node] = true
     for (steps, child) in _child_slots(node)
@@ -277,7 +288,8 @@ end
 # names it by a marker into the file itself.
 function _cut_copy(cut::_FileCut, node, path::Reference)
     node isa Document || return node
-    is_file_document(node) && return _make_held_file_leaf(cut, node, path)
+    held = find_held_file(node)
+    held === nothing || return _make_held_file_leaf(cut, held, path)
     entry = get(cut.owner, node, nothing)
     entry === nothing &&
         throw(FileCutException(_orphan_message(cut.file, path, node, cut.strict)))

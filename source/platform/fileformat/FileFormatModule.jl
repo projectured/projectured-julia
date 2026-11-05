@@ -48,7 +48,7 @@ using ..TreeModule
 # Imported to extend: this module adds a method to each of them.
 import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate
 import ..DomainModule: get_document_decoration, accepts_pasted_document
-import ..SerializationModule: pred_arguments, make_pred_document
+import ..SerializationModule: pred_arguments, make_pred_document, find_held_file
 import ..TreeModule: get_tree_children_steps
 using ..TextModule
 using ..WidgetModule

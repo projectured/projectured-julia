@@ -55,7 +55,7 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ### The page of a file
 
-`FilePage` is what a tab shows for a file. It holds `content` (the file in its scroll pane), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page.
+`FilePage` is what a tab shows for a file. It holds `content` (the file in its scroll pane), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page. `find_held_file(page)` answers the same file, so a document that holds a page, such as a card of a dashboard, saves it as `file("…")` and writes none of the band, the hash or the scroll pane.
 
 The page holds the state of its file against the disk. `file_hash` is the hash of the text of the last load or save. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash.
 
