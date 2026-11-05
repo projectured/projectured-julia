@@ -109,7 +109,10 @@ menu window, so its keys, F2 and its close are those of every menu
 `OutlineTheme` holds the sizes and the type of a row. The widths of the columns
 are control sizes, the gaps and the line heights are spacings, and the type is
 a text role of the colour theme, so the scale of the appearance and the palette
-apply to an outline as to any other view. A projection holds the values with
+apply to an outline as to any other view. The padding of a row and the gaps between
+the facts of a line, between two buttons and between two sections are roles of the
+widget theme (`tree_row_padding`, `item_gap`, `button_gap` and `section_gap`), which a
+builder gives with the values of the theme. A projection holds the values with
 `make_theme_values_field(OutlineTheme, theme)` and reads them at a print with
 `unwrap_cell`; each builder takes them as `outline`. The light of a row takes the
 colours of a row of a list from the widget theme.

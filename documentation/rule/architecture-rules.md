@@ -233,6 +233,14 @@ can express them.
   field of its theme, of a kind that a scale scales, never a number that the
   projection scales itself. See
   [style.md](../package/platform/style/style.md#themes-and-the-appearance).
+- **A printer never makes a copy of its projection for a value of one print.**
+  A value that holds for one print, such as the line spacing or the space that a
+  slot gives, comes in through the printer context. What a reader needs of that
+  value goes out through the IO map. So the projection that a dispatch gives to a
+  reader is the projection that the IO map holds. The projection is fixed
+  configuration, and a printer builds none inside a print.
+  `test_widget_printer_projection()` checks the widget slice. See
+  [spacing-rules.md](spacing-rules.md#a-printer-makes-no-copy-of-itself).
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
 - **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted

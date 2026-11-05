@@ -125,7 +125,7 @@ A space has three givers. Each space has one giver, so no space is given twice.
 
 `PrinterContext` holds the space as a field `space`, a tuple `(left, top, right, bottom)` of pixels, next to the range of each axis ([layout-rules.md](layout-rules.md) §1). The functions that make an offer for a child (`with_exact_size`, `with_bounded_size`, `with_size_range`, `with_inner_size` and `with_free_axis`) take the keyword `space`. Where a caller gives none, the space is 0. `make_child_context` keeps the space of its parent, so a wrapper that passes its offer on gives its child the same space. The ranges hold the space: an exact width is the width of the child with its space.
 
-The first box in a slot that has an edge takes the space. A box computes its shape once, and the shape holds the space outside its margin: from the outside in, the space, the margin, the border and the padding. The extent of the box holds the space, as it holds a margin, and the box draws nothing in it. The box then offers 0 to what it holds. So a page in a card, a card in a page, a dialog and a cell never get the space a second time, and no page adds a padding of its own. A widget that holds nothing, such as a label, takes the space around itself.
+The first box in a slot that has an edge takes the space. A box computes its shape once, and the shape holds the space outside its margin: from the outside in, the space, the margin, the border and the padding. The extent of the box holds the space, as it holds a margin, and the box draws nothing in it. The box then gives 0 to what it holds. So a page in a card, a card in a page, a dialog and a cell never get the space a second time, and no page adds a padding of its own. A widget that holds nothing, such as a label, takes the space around itself.
 
 ### How each part passes or takes the space
 
@@ -158,7 +158,7 @@ A tab page holds a column of three labels. The tab group gives `slot_padding` to
 
 Each label takes its space around itself, so the first line of the page is 8 px from the top edge of the page, and the last line is 8 px from the bottom edge. The labels stand `gap` apart in the column, and the gap reads a role. If a card held the column, the card would take the 8 px outside its margin and give 0 to its column.
 
-### Why the printer context decides
+### Why the space is in the printer context
 
 Three other inputs can decide the space at an edge, and each fails where the printer context holds.
 
@@ -166,7 +166,7 @@ Three other inputs can decide the space at an edge, and each fails where the pri
 - **The child.** A slot could look at what its document becomes. The slot learns that only after the child prints, and the print needs the space.
 - **The printer context.** The slot gives a space, so it puts the amount into the offer, and the amount goes down with the print. Each function that makes an offer states the space, and where it states none, the space is 0. So a printer that does not know the space cannot pass it one level too deep. A chain of projections is one print, so each stage sees the same offer.
 
-The type of a box decides how the box takes the space. An alert pads itself by its type, because the amount does not say that a tinted fill lies there.
+The type of a box sets how the box takes the space. An alert pads itself by its type, because the amount does not say that a tinted fill lies there.
 
 ### A printer makes no copy of itself
 
@@ -212,7 +212,7 @@ This system follows Compose and Flutter in how it passes the edge space: a paren
        TerminalToWidget(; gap = get_widget_style(widget_theme, :form_row_gap))
    ```
 
-3. **Take the space of the slot into the box.** A printer that draws a box takes `ctx.space` into its shape and offers 0 to what it holds. A printer that passes its offer on gives the space to the child at the side that the child stands. A printer that draws a canvas of its own, as the text printer does, puts the space into its extent.
+3. **Take the space of the slot into the box.** A printer that draws a box takes `ctx.space` into its shape and gives 0 to what it holds. A printer that passes its offer on gives the space to the child at the side that the child stands. A printer that draws a canvas of its own, as the text printer does, puts the space into its extent.
 4. **Add a role when the job is new.** A job that no role names gets a field in `WidgetTheme`, with a docstring that says what it changes on the screen. Do not reuse a role of another job to avoid a field.
 
 A builder must not do these:
@@ -220,6 +220,6 @@ A builder must not do these:
 - **A number as a gap or a padding.** `gap = 6` and `padding = Inset(4, 4, 8, 8)` in a layout or a widget break R4, because the value does not follow the theme or the scale. `test_widget_gap_role()` parses `source/platform` and reports each number other than 0 as `gap`, `horizontal_gap`, `vertical_gap`, `padding` or `margin` of a layout or a widget. A product of a role and a number, such as `2 * p.gap`, is not a literal, and the test does not see it.
 - **A padding of its own at the root of a page.** The slot gives the space of the page (R1). A page that pads its root adds a second space.
 - **A copy of the projection for a value of one print.** `test_widget_printer_projection()` reports a call of a projection constructor inside a print in `source/platform/widget/`.
-- **A printer that reads the space and passes it one level too deep.** A box offers 0 to what it holds. `test_slot_space()` prints each widget of the dispatch as the page of a tab and as the body of a card, and checks that the space reaches the first box once.
+- **A printer that reads the space and passes it one level too deep.** A box gives 0 to what it holds. `test_slot_space()` prints each widget of the dispatch as the page of a tab and as the body of a card, and checks that the space reaches the first box once.
 
 The examples in [layout-rules.md](layout-rules.md) write a number as a gap to show the size rules. A real builder writes a role there.

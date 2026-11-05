@@ -315,6 +315,16 @@ julia> iomap.output.selection   # forward-mapped with no mapper of your own
   full marker-word table (`bound`, `project`, `collection`, `tokens`,
   `sections`) and [the projection system guide](../package/kernel/projection-system.md).
 
+### The space of a slot
+
+A printer that draws a canvas of its own, with no widget around it, takes the space that its slot gives into its shape. The slot of a tab page and of a split pane gives the space in the printer context, as `ctx.space`, a tuple `(left, top, right, bottom)` of pixels. A printer that does not read it draws at the edge of its slot, with no space, where a widget has 8 px. So such a printer does three things:
+
+1. It reads `ctx.space`, and 0 on each side where the context is `nothing`.
+2. It draws its content inside the space, and its extent holds the space on each side, as it holds a margin.
+3. It puts the space into its IO map, so a reader that maps a point to a reference takes the space off the point first.
+
+`TextToGraphics` does this: [source/platform/text/TextToGraphics.jl](../../source/platform/text/TextToGraphics.jl) keeps `space` in `TextToGraphicsIoMap`. A printer that passes a context to a child prints the child with the same context, and the child takes the space once. A printer that draws graphics of its own with a context that it received gives them 0, so the space does not reach them a second time. A printer that sits inside a widget box, as the printers of the chart and the graph domains do, takes no space, because the widget box holds it. [spacing-rules.md](../rule/spacing-rules.md#4-who-gives-a-space) says who gives the space and how each part passes it.
+
 ### When the template is not enough
 
 A projection writes a hand-rolled `print_document`/`map_reference_forward`/

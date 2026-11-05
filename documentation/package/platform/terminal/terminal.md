@@ -30,7 +30,7 @@ A key reaches the input line by selection. The view maps `input.<rest>` to the p
 
 ### The theme
 
-`TerminalTheme` holds the font (Ubuntu Mono), the texts of the four kinds of line, the height of the pane of the lines and of the pane of the input line, and the gap between the parts. `make_terminal_projection(; theme)` fills the styles of the projection with `get_terminal_style`.
+`TerminalTheme` holds the font (Ubuntu Mono), the texts of the four kinds of line, and the height of the pane of the lines and of the pane of the input line. The gap between the parts is `form_row_gap` of the widget theme. `make_terminal_projection(; theme, widget_theme)` fills the styles of the projection with `get_terminal_style`.
 
 ## How it fits
 

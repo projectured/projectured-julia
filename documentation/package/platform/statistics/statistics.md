@@ -45,7 +45,7 @@ The rows of the frames move with each flush, because a row is a place counted fr
 
 ### The theme
 
-`FrameStatisticsTheme` holds the text of the head line and the titles, of a cell, of a cell of a slow frame (`:warning_text` by default) and of the empty line, and the gap between the parts. Each value has the default that the slice draws with no
+`FrameStatisticsTheme` holds the text of the head line and the titles, of a cell, of a cell of a slow frame (`:warning_text` by default) and of the empty line. The gap between the parts is `form_row_gap` of the widget theme. Each value has the default that the slice draws with no
 appearance. The borders, the header rows and the scroll of the tables come from the widget theme. `FrameStatisticsToWidget` holds its styles and no theme. `make_frame_statistics_projection(; theme, measure, widget_theme)`
 fills them with `get_frame_statistics_style`, from a `FrameStatisticsTheme` scaled or not, or the default values for
 `nothing`. With a `measure`, a row of the table of the frames is a line of the font of a cell tall, and a column as wide as its content. The widget theme gives the padding of a cell, which the step of a row adds, and the width of the scroll bar. The registration of the statistics gives the scaled themes of the `Appearance` and the measure of the renderer.

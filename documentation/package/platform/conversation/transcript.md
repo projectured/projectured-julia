@@ -23,8 +23,8 @@ a question of the agent, there. The rest of the part, and the rest of the transc
 
 A turn is a `WidgetCard` that fills the width it is offered. The user's turn is
 tinted and the model's is plain; a colored mark and the role word say who spoke.
-The parts of a turn stack inside it with a small gap, and a small gap separates
-two turns on top of the padding each turn card keeps.
+The parts of a turn stack inside it at the `section_gap` of the widget theme, and
+the same gap separates two turns, on top of the padding each turn card keeps.
 
 ## What a part draws
 
