@@ -497,4 +497,3 @@ end
 # between the gesture and the editor passes it up unchanged.
 OperationModule.is_self_contained_operation(::Union{SaveFileOperation,
                                                     ReloadFileOperation}) = true
-

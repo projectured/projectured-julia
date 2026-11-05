@@ -255,7 +255,7 @@ _make_file_save(::Nothing) = throw(ArgumentError("That part shows no file, so th
 """
     reload_file_from_disk!(file; editor = get_evaluation_editor()) -> file
 
-Read the open file again from the disk, as Ctrl+O does, so it holds what the disk
+Read the open file again from the disk, as F5 does, so it holds what the disk
 holds now, and answer `file`. `file` is the tab of the file, as `open_file!`
 answers it, its page or the file itself. The edits that were not saved are lost.
 A file that is not on the disk any more holds the empty document of its
