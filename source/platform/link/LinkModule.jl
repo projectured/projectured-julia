@@ -1,7 +1,7 @@
 """
     LinkModule
 
-A link as data: a value that refers to a target and has a face. Each domain has
+A link as data: a value that refers to a target and shows a label. Each domain has
 link types of its own, such as a link of Markdown, and this slice gives the general
 `Link`, which any document can hold. A link type answers `is_link`,
 `get_link_target` and `get_link_content`. A view gives a link its face with

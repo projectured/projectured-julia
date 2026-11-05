@@ -812,55 +812,136 @@ function _rename_signature_paragraph(doc::AbstractString, source::AbstractString
 end
 
 """
-    describe_api(api; signatures = true) -> String
+    describe_api(api; preset = :full, module_sentences = nothing, function_names = nothing,
+                 function_sentences = nothing, types = nothing, signatures = false) -> String
 
-Every name a declaration gives, grouped by module: one signature line each, or
-just the names when `signatures` is false.
+The index of the names that a declaration gives, grouped by module. Each part is
+a switch:
+
+- `module_sentences`: after the name of each module, the first sentence of its
+  docstring;
+- `function_names`: the names of each module that are no type, its functions
+  and its values;
+- `function_sentences`: after each of those names, the first sentence of what
+  it does;
+- `types`: the type names of each module (`:names`), how many it has
+  (`:count`), or nothing of them (`:none`).
+
+A part that is `nothing` takes the value of `preset`, one of the
+`API_INDEX_PRESETS`: `:full` gives the module sentences, the function names
+and the type names, and `:compact` gives the function names and a count of the
+types. With `signatures`, each function is the first line of its signature, as
+a search hit shows it.
 
 **It is what a search answers when it matched nothing**, while the declaration
-is small. A search that says only "no match" costs a round and teaches nothing,
-and the round after it is a guess. The names are short, and they are the answer
-to "then what may I write?". A declaration of thousands of names is not listed:
-the miss names its modules instead.
-
-**It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
-and it grows with the application; a menu in every round is a cost that never
-stops. The lookup it would save is bought instead by `search_api` answering one
-clear hit in full — one round, paid only by the turn that asks.
+is small: the names, so the round after it is no guess. **And it is the index
+of a window**, which tells a model at the start what it can write; the preset of
+a window follows its model and a setting.
 
 **It is generated from the declaration**, so what it says cannot drift from what
 a model may write.
 """
-function describe_api(api; signatures::Bool = true)
-    entries = _api_entries(api)
+function describe_api(api; preset::Symbol = :full,
+                      module_sentences::Union{Bool,Nothing} = nothing,
+                      function_names::Union{Bool,Nothing} = nothing,
+                      function_sentences::Union{Bool,Nothing} = nothing,
+                      types::Union{Symbol,Nothing} = nothing, signatures::Bool = false)
+    haskey(API_INDEX_PRESETS, preset) ||
+        throw(ArgumentError("The preset of an index is :full or :compact, not " * repr(preset) * "."))
+    parts = API_INDEX_PRESETS[preset]
+    module_sentences = something(module_sentences, parts.module_sentences)
+    function_names = something(function_names, parts.function_names)
+    function_sentences = something(function_sentences, parts.function_sentences)
+    types = something(types, parts.types)
+    types in (:names, :count, :none) ||
+        throw(ArgumentError("The types of an index are :names, :count or :none, not " * repr(types) * "."))
     lines = String[]
-    for entry in entries
-        mod = entry.module_
-        own = String[]
-        for (source, name) in get_api_entry_bindings(entry)
-            name === nameof(mod) && continue
-            isdefined(mod, source) || continue
-            text = String(name)
-            if !signatures
-                push!(own, text)
-                continue
+    for (mod, bindings) in _group_api_bindings(api)
+        functions = String[]
+        type_names = String[]
+        for (source, name) in bindings
+            if getfield(mod, source) isa Type
+                push!(type_names, String(name))
+            elseif function_names
+                push!(functions, _describe_api_function(mod, source, name; function_sentences, signatures))
             end
-            signature = first(_read_doc_heading(_binding_doc(mod, source), String(source), text))
-            # A name whose documentation opens with its own signature says it
-            # once; anything else is named with what it is.
-            push!(own, isempty(signature) ? text :
-                       startswith(strip(signature), text) ? strip(signature) :
-                       text * " — " * strip(signature))
         end
-        isempty(own) && continue
-        if signatures
-            push!(lines, String(nameof(mod)))
-            append!(lines, ("  " * one for one in own))
+        sentence = module_sentences ? _get_first_sentence(compute_docstring_summary(mod)) : ""
+        type_part = types === :names && !isempty(type_names) ? "types: " * join(type_names, ", ") :
+                    types === :count && !isempty(type_names) ?
+                        string(length(type_names), length(type_names) == 1 ? " type" : " types") : ""
+        isempty(functions) && isempty(type_part) && isempty(sentence) && continue
+        head = String(nameof(mod))
+        if module_sentences || function_sentences || signatures
+            # A block: the module, then one line for the names or one for each.
+            push!(lines, isempty(sentence) ? head : head * " — " * sentence)
+            if function_sentences || signatures
+                append!(lines, ("  " * one for one in functions))
+            elseif !isempty(functions)
+                push!(lines, "  " * join(functions, ", "))
+            end
+            isempty(type_part) || push!(lines, "  " * type_part)
         else
-            push!(lines, String(nameof(mod)) * ": " * join(own, ", "))
+            # One line: the module, its names, and its types after them.
+            names = join(functions, ", ")
+            push!(lines, head * ": " * (isempty(type_part) ? names :
+                                        isempty(names) ? type_part :
+                                        types === :count ? names * " (" * type_part * ")" :
+                                        names * "; " * type_part))
         end
     end
     isempty(lines) ? "" : join(lines, "\n")
+end
+
+"""
+    API_INDEX_PRESETS
+
+The parts of each preset of [`describe_api`](@ref): `:full`, for a model with a
+large context, and `:compact`, for a small local model.
+"""
+const API_INDEX_PRESETS = Dict{Symbol,NamedTuple}(
+    :full => (module_sentences = true, function_names = true, function_sentences = false, types = :names),
+    :compact => (module_sentences = false, function_names = true, function_sentences = false, types = :count))
+
+# The names that `api` declares, each with the name its module knows it by,
+# grouped by module in the order of their first entry: two entries of one module
+# are one group. The name of the module itself is no name of the group.
+function _group_api_bindings(api)
+    groups = Pair{Module,Vector{Any}}[]
+    for entry in _api_entries(api)
+        mod = entry.module_
+        index = findfirst(group -> first(group) === mod, groups)
+        index === nothing && (push!(groups, mod => Any[]); index = length(groups))
+        for (source, name) in get_api_entry_bindings(entry)
+            (name === nameof(mod) || !isdefined(mod, source)) && continue
+            any(binding -> last(binding) === name, last(groups[index])) && continue
+            push!(last(groups[index]), (source, name))
+        end
+    end
+    groups
+end
+
+# A function of an index: its name, or the first line of its signature, with the
+# first sentence of what it does after it.
+function _describe_api_function(mod::Module, source::Symbol, name::Symbol;
+                                function_sentences::Bool, signatures::Bool)
+    text = String(name)
+    (function_sentences || signatures) || return text
+    signature, summary = _read_doc_heading(_binding_doc(mod, source), String(source), text)
+    # A name whose documentation opens with its own signature says it once;
+    # anything else is named with what it is.
+    shown = !signatures || isempty(signature) ? text :
+            startswith(strip(signature), text) ? String(strip(signature)) :
+            text * " — " * strip(signature)
+    sentence = function_sentences ? _get_first_sentence(summary) : ""
+    isempty(sentence) ? shown : shown * " — " * sentence
+end
+
+# The first sentence of `text`: up to the first full stop that ends a word and
+# is followed by a space, or all of it.
+function _get_first_sentence(text::AbstractString)
+    found = match(r"^(.*?[.!?])(?=\s|$)", strip(text))
+    found === nothing ? String(strip(text)) : String(found.captures[1])
 end
 
 # A name that opens with an underscore is the module's own business, whatever it
@@ -1580,7 +1661,7 @@ const _MISS_NAME_LIMIT = 300
 function _describe_api_for_miss(api)
     entries = _api_entries(api)
     count = sum(length(get_api_entry_bindings(entry)) for entry in entries; init = 0)
-    count <= _MISS_NAME_LIMIT && return describe_api(api; signatures = false)
+    count <= _MISS_NAME_LIMIT && return describe_api(api; preset = :compact, types = :names)
     modules = unique(String(nameof(entry.module_)) for entry in entries)
     "The declaration gives " * string(count) * " names in " * string(length(modules)) *
     " modules, too many to list. The modules: " * join(modules, ", ") *

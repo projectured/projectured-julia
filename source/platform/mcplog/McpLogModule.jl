@@ -2,8 +2,8 @@
     McpLogModule
 
 The MCP log: one entry for each call that a client made over MCP and the server
-answered — the time, the method, the tool or the URI, the arguments, the answer,
-how long the call held the editor, and whether it was a fault.
+answered. An entry holds the time, the method, the tool or the URI, the arguments,
+the answer, how long the call held the editor, and whether it was a fault.
 
 The server task writes a [`McpLogStore`](@ref) with no cell; a
 [`McpLogFeed`](@ref) moves the calls into the [`McpLog`](@ref) document of the

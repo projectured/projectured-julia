@@ -1,7 +1,8 @@
 """
     DbCatalogModule
 
-Document hierarchy modelling the PostgreSQL catalog tree:
+PostgreSQL catalog documents: a database system, its databases, schemas, tables and
+columns, in one tree:
 `DbCatalogRdbms → DbCatalogDatabase → DbCatalogSchema → DbCatalogTable → DbCatalogColumn`
 
 No global state — constructors are plain wrappers with no side effects.

@@ -1,8 +1,8 @@
 """
     UndoModule
 
-**The way back.** An `UndoBuffer` is a document that holds another document and
-the steps that take it back, and `UndoBufferToAnyProjection` is the transparent
+Undo and redo: an `UndoBuffer` is a document that holds another document and
+the steps that take it back. `UndoBufferToAnyProjection` is the transparent
 projection that makes the buffer invisible and records what passes through it.
 
 The buffer is a document and not a field of the editor, so a window can have one

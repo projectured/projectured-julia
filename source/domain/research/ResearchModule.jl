@@ -1,12 +1,12 @@
 """
     ResearchModule
 
-The research document domain: the record of a study, the work on one problem by
-the scientific approach, from the question to the answer. A study holds nine
-kinds of item: questions, sources, hypotheses, experiments, analyses, results,
-evidence, decisions and answers. Each item records who made it, the person or the
-assistant, and when. An item holds the items that it links to, and only a
-decision changes the status of an item.
+Research documents: the record of a study of one problem, from the question to the
+answer, by the scientific approach. A study holds nine kinds of item: questions,
+sources, hypotheses, experiments, analyses, results, evidence, decisions and
+answers. Each item records who made it, the person or the assistant, and when. An
+item holds the items that it links to, and only a decision changes the status of an
+item.
 
 The domain includes:
 - **The study**: `ResearchStudy`, which owns each item in the list of its kind

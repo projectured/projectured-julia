@@ -1,8 +1,8 @@
 """
     GestureLogModule
 
-A record of what the user did — a document that holds the last N gestures and
-the operation that the projection pipeline made from each one.
+The gesture log: a document that holds the last gestures of the user and the
+operation that each gesture made.
 
 The buffer has a fixed size. `record_gesture!` appends one entry and deletes the
 oldest entry when the buffer is full. The entries live in a `CellVector`, so an

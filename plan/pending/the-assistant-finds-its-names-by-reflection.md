@@ -221,6 +221,22 @@ other preset, or sets each part.
 The weak first sentences of the module docstrings must improve, because the
 index shows them. An example is `JsonModule`: "The JSON slice."
 
+**Decided by the owner (2026-11-05): the setting has one field for each part.**
+A settings group of its own, "Assistant index", which the window reads when it
+starts, holds the preset (automatic, full or compact) and one field for each
+part. Each part field has the value "as the preset" first, so a person changes
+one part and keeps the preset of the others, for example the compact index with
+the type names. Automatic gives the compact index to a local model and the full
+index to every other backend. The other ways were one preset field and no part
+fields, or a fourth preset "custom" that alone makes the part fields count.
+
+Measured on the surface after step 3 (2026-11-05), with a draft of the
+generator: the editor has 56 modules, 251 functions and 469 types, and its full
+index is about 5,100 tokens and its compact one about 1,500. The IDE has 92
+modules, 335 functions and 406 types: about 7,100 and 2,200 tokens. The
+generator is `describe_api`, which makes the answer of a search with no hit
+today; it gets one keyword for each part and a preset.
+
 ### 4.5 The guides
 
 - Every document gets the field `**For:** user`, `**For:** developer` or both
@@ -406,7 +422,9 @@ ends with a commit in each repository that it changes.
    editing verb becomes make plus apply. Check the 73 operations for edits,
    files and tabs. Tests: `test_assistant_verbs`,
    `test_referenced_document_editor`.
-4. **The index.** The generator, its parts, its presets and the setting. Improve
+4. **The index.** *Done (2026-11-05), but for the first sentence of the sealed
+   `ClockModule.jl`; the facts are in §5.4.*
+   The generator, its parts, its presets and the setting. Improve
    the first sentence of each module docstring that the index shows.
 5. **The guides.** The `For` field in all 171 headers and in the README rule.
    `audience`, the first line of a result, and the kind label in
@@ -753,6 +771,42 @@ A survey (an agent (Sonnet), read only, 2026-11-04) of both repositories:
   file fails on main since 2026-10-08; the Markdown file was not checked on a
   base. `open_pane!` evaluates the same operation as before step 3, and the new
   tab stays behind the tab that its group shows.
+
+### 5.4 Facts found in step 4
+
+- **The generator is `describe_api`.** It takes one keyword for each part
+  (`module_sentences`, `function_names`, `function_sentences`, `types`) and a
+  `preset`, `:full` or `:compact`, from `API_INDEX_PRESETS`; a part that is
+  `nothing` takes the value of the preset. `signatures` writes each function as
+  its signature, as the search hits do. Two entries of one module are one group.
+  A search with no hit answers the compact index with the type names, where it
+  answered all names on one line before.
+- **The setting is the group `AssistantIndexSettings`,** "Assistant index" in
+  the settings tab, read at the start, in the start settings of the
+  application. `describe_api_index(api, backend; settings)` gives the index of a
+  window: the automatic preset gives the compact index to `:ollama` and the full
+  index to any other backend, and a part that the settings set wins over the
+  preset. Step 6 puts it into the texts; step 4 changes no text.
+- **The settings tab orders its groups by name,** so "Assistant index" is its
+  first group. Two tests of the tab followed: the test of Tab counts the stops of
+  the groups before the faults (a control and a Reset for each setting), and the
+  test of the scroll turns the wheel over a label of a setting that is in the
+  window.
+- **78 module sentences are new** (by an agent (Sonnet), each one read here),
+  and 15 were kept. The agent did not wrap its new lines, so a script wrapped the
+  paragraph of each new sentence, and only that paragraph. The first sentence of
+  `ClockModule`, "The animation clock.", stays until the owner allows a change
+  of the sealed `ClockModule.jl`.
+- **The sizes after the new sentences:** the editor's full index is about 4,900
+  tokens and its compact one about 1,500; the IDE's about 6,300 and 2,200. In
+  omnet-julia, `test_ide_documentation` passes 967/967 and 52/52, and
+  `test_prompt_names` 20/20, with the new sentences.
+- **Tests:** `test_declared_api` 175/175, `test_search_answer` 85/85,
+  `test_settings_tab` 55/55, `test_assistant_documentation` 2756/2756, both
+  naming guards. `test_application` has 2 failures (lines 677 and 800): each
+  expects that `open_pane!` or Show moves the focus, which the rule of
+  2026-10-27 (8a0c14f1e) ended, and no later commit changed the two lines. The
+  settings part of `test_application` with the index passes.
 
 ## 6. What else changes
 

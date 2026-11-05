@@ -767,6 +767,17 @@ function test_application()
                 given = make_application_settings(path; assistant = :anthropic, mcp = true)
                 start = get_settings_group!(given, StartSettings)
                 @test (start.assistant, start.model, start.mcp) == (:anthropic, "small", true)
+                # The index of the assistant: the automatic preset follows the backend,
+                # and a part that the settings set wins over the preset.
+                write(path, "[assistant_index]\ntypes = \"names\"\n")
+                index_settings = get_settings_group!(make_application_settings(path), AssistantIndexSettings)
+                @test (index_settings.preset, index_settings.types) == (:automatic, :names)
+                api = make_editor_api()
+                @test describe_api_index(api, :anthropic) == describe_api(api; preset = :full)
+                @test describe_api_index(api, :ollama) == describe_api(api; preset = :compact)
+                @test describe_api_index(api, :ollama; settings = index_settings) ==
+                      describe_api(api; preset = :compact, types = :names)
+                @test length(describe_api_index(api, :ollama)) < length(describe_api_index(api, :anthropic))
                 # The history of a file tab keeps the steps of the setting.
                 document = make_application_document(paths[1:1]; root = dir, settings)
                 buffer = first(search_documents(document, node -> node isa UndoBuffer))

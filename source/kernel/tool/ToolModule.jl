@@ -80,7 +80,7 @@ using ..FaultModule
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        RelevanceModel, set_relevance_model!,
        get_api_entry_names,
-       get_api_entry_bindings, get_api_source_name, describe_api, register_guide_root!,
+       get_api_entry_bindings, get_api_source_name, describe_api, API_INDEX_PRESETS, register_guide_root!,
        ASSISTANT_MARK, has_assistant_mark, collect_marked_api,
        register_tool!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, list_resources, find_resource,

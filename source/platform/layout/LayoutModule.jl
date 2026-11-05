@@ -1,10 +1,10 @@
 """
     LayoutModule
 
-Generic, content-driven layout documents. Each layout type holds an
-ordered `children::CellVector` of arbitrary `Document`s and a few
-axis-specific knobs (alignment, gap, max extent). Layouts are *not*
-tied to widgets — children can be any document type that has a
+Layout documents that arrange child documents in a row, a column, a grid, a flow, a
+stack or at anchors. Each layout type holds an ordered `children::CellVector` of
+arbitrary `Document`s and a few axis-specific knobs (alignment, gap, max extent).
+Layouts are *not* tied to widgets — children can be any document type that has a
 projection to `GraphicsCanvas`.
 
 Layouts have no `position`/`size` of their own; their projected

@@ -1,9 +1,10 @@
 """
     ChartModule
 
-The chart domain: a chart document, the plot it becomes, the projection that
-draws the plot, and the reference step that names one sample inside it. This
-file holds the step, because the rest of the slice is written in terms of it.
+Chart documents: a chart, the plot that it becomes, the projection that draws the
+plot, and a reference to one sample. A reference step names one sample inside a
+chart. This file holds the step, because the rest of the slice is written in terms
+of it.
 
 The `ChartSampleReferenceStep` step type — a reference step naming one sample
 inside a chart series.

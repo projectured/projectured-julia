@@ -1,8 +1,9 @@
 """
     JsonModule
 
-The JSON slice. One namespace holds the whole round trip for `.json`: the
-document types, the parser that reads the text, the projection that renders and
+JSON documents: objects, arrays, strings, numbers, true, false and null, read from a
+file and written back as text. One namespace holds the whole round trip for `.json`:
+the document types, the parser that reads the text, the projection that renders and
 edits the tree, and the file wrapper that writes it back.
 
 Four fragments share the namespace:

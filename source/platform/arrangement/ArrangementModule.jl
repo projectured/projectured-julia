@@ -1,7 +1,8 @@
 """
     ArrangementModule
 
-What a person arranges in how a document shows, apart from the document: the
+Filters and sorts of a collection that a person sets in a view, apart from the
+document, and the verbs that set them from code. The module holds the
 `ArrangementDocument` that holds a document and the projections that a person
 placed at its parts, such as a filter or a sort of a collection, the projection
 that prints it, the dispatch that puts those projections at their places in a

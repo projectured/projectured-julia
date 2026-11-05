@@ -1,10 +1,11 @@
 """
     SequenceChartModule
 
-The sequence chart domain: the chart document, the plot it becomes, the
-projection that draws the plot, the reference step that names one row, and the
-arithmetic the rest of it rests on. This file holds the arithmetic, because
-every other part is written in terms of it.
+Sequence chart documents: lanes of events and the arrows between them over a
+timeline, the plot that a chart becomes, and the projection that draws the plot. A
+reference step names one row, and the arithmetic is what the rest of the chart rests
+on. This file holds the arithmetic, because every other part is written in terms of
+it.
 
 The arithmetic is: the timeline mapping that turns times
 into a monotone coordinate, the conversions back and forth, tick selection for a

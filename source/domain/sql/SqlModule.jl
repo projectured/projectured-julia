@@ -1,9 +1,9 @@
 """
     SqlModule
 
-The SQL statement document model (ANSI/PostgreSQL conventions). The AST is
-database-agnostic; `SqlToSyntax` renders it and `SqlToCellTable` executes it
-against a `DatabaseInstance`.
+SQL statement documents: select, insert, update and other statements, after the ANSI
+and PostgreSQL conventions. The AST is database-agnostic; `SqlToSyntax` renders it
+and `SqlToCellTable` executes it against a `DatabaseInstance`.
 """
 module SqlModule
 

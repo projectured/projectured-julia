@@ -1,10 +1,10 @@
 """
     FormulaModule
 
-The Formula domain — named, cross-referencing, evaluated formulas whose code
-is a Julia expression (the spreadsheet idea generalised). Each formula stores the
-value that its code last computed, which the formula task of the editor computes
-off the loop; a formula refers to another by its name.
+Formula documents: named formulas whose code is a Julia expression and that refer to
+each other by name, as in a spreadsheet. Each formula stores the value that its code
+last computed, which the formula task of the editor computes off the loop; a formula
+refers to another by its name.
 """
 module FormulaModule
 

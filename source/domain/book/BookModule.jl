@@ -1,8 +1,7 @@
 """
     BookModule
 
-The book document domain. Models structured prose: books, chapters,
-paragraphs, lists, and pictures.
+Book documents: structured prose in books, chapters, paragraphs, lists and pictures.
 
 The domain includes:
 - **Structure**: `BookBook`, `BookChapter`

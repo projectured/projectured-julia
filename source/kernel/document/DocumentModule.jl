@@ -1,10 +1,11 @@
 """
     DocumentModule
 
-The **document contract**: the `Document` abstract type, the `@document`
-codegen, the protocol forward/adapt macros, and the shared value protocol every
-concrete document reuses (`copy_document`, `sync_document!`).
-It also carries the reflection walk over a document tree (`walk_document` along a
+The base of every document: the `Document` type and the `@document` macro that
+defines a document type. The module holds the macros that forward or adapt a
+protocol, and the shared value protocol that every concrete document reuses
+(`copy_document`, `sync_document!`). It also carries the reflection walk over a
+document tree (`walk_document` along a
 `DocumentWalk`, with the `is_element_collection` / `is_walk_opaque` /
 `is_field_walked` traits that its default rules ask). The searches that answer
 nodes and places, `search_documents` and `search_references`, are in the

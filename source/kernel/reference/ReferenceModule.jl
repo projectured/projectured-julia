@@ -1,9 +1,9 @@
 """
     ReferenceModule
 
-**Paths into documents**. A reference is a linked list
-of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, …),
-forming a `Reference` (an `EmptyReference` or a
+References: paths into documents, and the searches that find a document or the place
+of one. A reference is a linked list of typed steps (`RangeReferenceStep`,
+`FieldReferenceStep`, …), forming a `Reference` (an `EmptyReference` or a
 `ConcreteReference`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
 navigation and DSL behaviours through this module's extension seams. The two

@@ -1,10 +1,11 @@
 """
     RstModule
 
-The reStructuredText document domain — inlines (text, literal, emphasis,
+reStructuredText documents: sections that hold paragraphs, lists, tables and other
+blocks, with inline markup in the text. They hold inlines (text, literal, emphasis,
 strong, role, reference, substitution, footnote reference), blocks (section,
-paragraph, list, literal block, line block, table, quote, transition,
-comment, target), and directives.
+paragraph, list, literal block, line block, table, quote, transition, comment,
+target), and directives.
 
 **Sections nest.** The RST source is flat: a title line followed by an
 adornment line, where the adornment character alone decides the depth. The

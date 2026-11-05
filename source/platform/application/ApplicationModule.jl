@@ -81,7 +81,7 @@ export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadT
        WorkloadAgentTurn,
        find_workload_inputs, run_application_workload, run_workload_steps!, run_window_workload, make_workload_llm,
        run_file_workload
-export StartSettings
+export StartSettings, AssistantIndexSettings, describe_api_index
 export make_editor_explorer_content
 
 include("DefaultBackend.jl")

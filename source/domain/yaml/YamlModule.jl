@@ -1,8 +1,9 @@
 """
     YamlModule
 
-The YAML document domain. YAML is a JSON superset; the value model mirrors it —
-scalars, block/flow sequences, ordered mappings.
+YAML documents: scalars, sequences and ordered mappings, read from a file and
+written back as text. YAML is a JSON superset; the value model mirrors it — scalars,
+block/flow sequences, ordered mappings.
 """
 module YamlModule
 

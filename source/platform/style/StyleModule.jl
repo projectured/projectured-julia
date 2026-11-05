@@ -1,9 +1,8 @@
 """
     StyleModule
 
-Color style value type and named color constants, the palettes and the colour
-theme, the fonts, the geometry, the themes and the appearance. Colors are stored
-as normalized Float64 components in [0, 1].
+Colors with named constants, palettes, color themes, fonts, geometry and the
+appearance of a view. Colors are stored as normalized Float64 components in [0, 1].
 """
 module StyleModule
 

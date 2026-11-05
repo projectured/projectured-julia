@@ -1,11 +1,12 @@
 """
     EditorModule
 
-The generalised Read-Eval-Print loop. Each frame: poll input via the
-backend, call run_read_stage! to produce a domain operation, apply the operation to
-the document via run_evaluate_stage!, call run_print_stage! and render the updated canvas.
-The latest IoMap is retained between frames so the reader has access to
-the current coordinate mapping.
+The editor loop: it reads input, evaluates the operation that the input makes on the
+document, and prints the result. Each frame: poll input via the backend, call
+run_read_stage! to produce a domain operation, apply the operation to the document
+via run_evaluate_stage!, call run_print_stage! and render the updated canvas. The
+latest IoMap is retained between frames so the reader has access to the current
+coordinate mapping.
 
 The module lives in eleven fragments that share this namespace:
 

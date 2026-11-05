@@ -1,8 +1,8 @@
 """
     FileFormatModule
 
-Reading and writing a document **as a file** — `import_document` /
-`export_document` — and the two editor operations that do it.
+The functions `import_document` and `export_document` read a document from a file
+and write it to a file, and two editor operations call them.
 
 What a natural notation *is* lives in the natural slice (`NaturalModule`): a
 domain declares the rung it starts at, the format it is written in, the

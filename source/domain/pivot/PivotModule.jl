@@ -1,7 +1,7 @@
 """
     PivotModule
 
-The pivot domain: a table cut into parts by the values of its dimensions, and a
+Pivot tables: a table cut into parts by the values of its dimensions, and a
 view of each part. The source is any table of the table interface of the
 collection slice, so a data frame, a vector of named tuples and a named tuple of
 vectors pivot alike, and a part of a data frame is a `SubDataFrame`.

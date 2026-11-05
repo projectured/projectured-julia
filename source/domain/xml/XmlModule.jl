@@ -1,8 +1,9 @@
 """
     XmlModule
 
-The XML document domain. Attributes are first-class documents, so the selection
-mechanism can descend into attribute values as well as element children and text.
+XML documents: elements with attributes and text, read from a file and written back
+as text. Attributes are first-class documents, so the selection mechanism can
+descend into attribute values as well as element children and text.
 
 The domain includes:
 - **Node types**: `XmlText`, `XmlElement`, `XmlInsertion`

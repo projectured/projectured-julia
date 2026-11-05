@@ -1,7 +1,8 @@
 """
     NaturalModule
 
-What a document's **natural notation** is, and how two notations combine.
+The natural notation of a document: the form in which it prints as text and as
+graphics, and how two notations combine.
 
 A notation is a rung on one ladder:
 

@@ -1,7 +1,8 @@
 """
     RosterModule
 
-A list of all the members of one kind, gathered from anywhere in a session: the
+A list of all the members of one kind, gathered from anywhere in a session. The
+module holds the
 `Roster`, its rows, the sources that give its items, the facets that name the
 values of an item, and the projection that shows a roster as a table. A filter, a
 sort and the other steps of an arrangement act on the rows of a roster as on any

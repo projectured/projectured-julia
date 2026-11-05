@@ -1,9 +1,9 @@
 """
     GestureHelpModule
 
-The gesture help domain: the gesture map, the command palette, the projections
-that draw them, and the two decorators that put them on screen. This file holds
-the map, which the rest of the slice is written in terms of.
+Gesture help: the gesture map, the command palette, and the projections and
+decorators that put them on screen. This file holds the map, which the rest of the
+slice is written in terms of.
 
 A `GestureMap` is a read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)

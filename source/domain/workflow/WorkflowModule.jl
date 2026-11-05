@@ -1,10 +1,11 @@
 """
     WorkflowModule
 
-The workflow document domain: the record of a piece of human work. A workflow is
-an AND/OR tree. A step holds its sub-steps, which all belong to it; a decision
-holds its options, of which one is chosen. Each node keeps a dated journal and
-the documents of any domain that the work needs, as its elements.
+Workflow documents: the record of a piece of human work, as a tree of steps and
+decisions. A workflow is an AND/OR tree. A step holds its sub-steps, which all
+belong to it; a decision holds its options, of which one is chosen. Each node keeps
+a dated journal and the documents of any domain that the work needs, as its
+elements.
 
 The domain includes:
 - **The tree**: `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`

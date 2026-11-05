@@ -72,6 +72,21 @@ const toy_limit = 3
 _toy_inside() = "inside"
 end
 
+"""
+Toys that an index lists. A second sentence that the index leaves out.
+"""
+module ToyIndexed
+export toy_index_verb, ToyIndexedBox, ToyIndexedCrate
+"""
+    toy_index_verb(toy)
+
+Index a toy. Then put it back.
+"""
+toy_index_verb(toy) = toy
+struct ToyIndexedBox end
+struct ToyIndexedCrate end
+end
+
 # A docstring shaped the way this repository writes one: an indented signature
 # block, a blank line, then the sentence that says what the thing does. Julia
 # strips a docstring's common indentation before storing it, so that block
@@ -487,7 +502,7 @@ function test_declared_api()
     # lines are what a search hit shows anyway, so a prompt that carries them
     # spends no round on the lookup.
     @testset "the declaration renders as the lines a prompt carries" begin
-        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)])
+        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)]; signatures = true)
         @test occursin("ToyApi", text)
         # The name the MODEL writes, with its signature on one line.
         @test occursin("say_toy", text)
@@ -499,6 +514,29 @@ function test_declared_api()
 
         # A name the declaration left out is not in it either.
         @test !occursin("toy_count", describe_api(Any[ToyApi => (:toy_verb,)]))
+    end
+
+    # The index of a window: each part is a switch, and a preset sets the parts
+    # that a caller does not set.
+    @testset "the index has a part for each kind of line, and two presets" begin
+        api = Any[ToyIndexed => (:toy_index_verb, :ToyIndexedBox, :ToyIndexedCrate), ToyApi => (:toy_count,)]
+        full = describe_api(api)
+        @test split(full, "\n") == ["ToyIndexed — Toys that an index lists.",
+                                     "  toy_index_verb",
+                                     "  types: ToyIndexedBox, ToyIndexedCrate",
+                                     "ToyApi",
+                                     "  toy_count"]
+        @test describe_api(api; preset = :compact) ==
+              "ToyIndexed: toy_index_verb (2 types)\nToyApi: toy_count"
+        @test describe_api(api; preset = :compact, types = :names) ==
+              "ToyIndexed: toy_index_verb; types: ToyIndexedBox, ToyIndexedCrate\nToyApi: toy_count"
+        @test occursin("  toy_index_verb — Index a toy.", describe_api(api; function_sentences = true))
+        @test describe_api(api; preset = :compact, function_names = false, types = :none) == ""
+        # Two entries of one module are one group.
+        @test describe_api(Any[ToyApi => (:toy_count,), ToyApi => (:toy_verb,)]; preset = :compact) ==
+              "ToyApi: toy_count, toy_verb"
+        @test_throws ArgumentError describe_api(api; preset = :small)
+        @test_throws ArgumentError describe_api(api; types = :all)
     end
 
     @testset "a name its module does not have is refused" begin

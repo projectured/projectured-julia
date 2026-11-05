@@ -1,10 +1,11 @@
 """
     WidgetModule
 
-The widget document domain. Widgets are UI-layer documents that sit above
-the graphics domain and below application-specific projections. Each widget
-type subtypes the abstract WidgetDocument base (itself a Document) and
-carries reactive Cell fields for all mutable properties.
+Widget documents: labels, buttons, checkboxes, lists, tables, trees, menus, dialogs,
+tabs and other parts of a screen. Widgets are UI-layer documents that sit above the
+graphics domain and below application-specific projections. Each widget type
+subtypes the abstract WidgetDocument base (itself a Document) and carries reactive
+Cell fields for all mutable properties.
 """
 module WidgetModule
 

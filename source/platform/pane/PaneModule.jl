@@ -1,8 +1,7 @@
 """
     PaneModule
 
-The **pane tree** — a layout of tab groups and splits, and the generic way to
-organize documents on the screen.
+The pane tree: tab groups and splits that place documents on the screen.
 
 A pane tree has four node kinds:
 
