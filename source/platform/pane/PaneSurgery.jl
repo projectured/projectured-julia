@@ -180,6 +180,32 @@ function get_pane_focus(tree::PaneTree)
     found === nothing ? nothing : (found[1], found[2])
 end
 
+# Whether the focus is on the tab `index` of `group`, or on `group` itself, which a
+# change that takes the tab or the group away must move.
+function _is_focus_in(tree::PaneTree, group::PaneGroup, index::Integer)
+    focus = get_pane_focus(tree)
+    focus !== nothing && focus[1] === group && focus[2] in (0, index)
+end
+
+# `operation`, and after it the operations that keep the focus and the tab that each
+# group shows, as the change leaves the tree (`_make_kept_view_operation`).
+function _with_kept_view(tree::PaneTree, operation, swaps; subs = _NO_SUBSTITUTIONS)
+    kept = _make_kept_view_operation(tree, swaps; subs)
+    kept === nothing ? operation : CompoundOperation(Any[operation, kept])
+end
+
+# The shape that the removal of the emptied `group` leaves, as `(swaps, subs)` for
+# `_make_kept_view_operation`: the root group stays, empty; a split of three or more
+# loses it; a split of two is replaced by the other element.
+function _find_removal_shape(tree::PaneTree, group::PaneGroup)
+    parent = get_pane_parent(tree, group)
+    (parent === nothing || parent[1] === tree) && return (Any[group => Any[]], _NO_SUBSTITUTIONS)
+    split, k = parent
+    survivors = Any[split.elements[i] for i in eachindex(split.elements) if i != k]
+    length(survivors) > 1 && return (Any[], Pair{Any,Any}[split => PaneSplit(split.orientation, survivors)])
+    (Any[], Pair{Any,Any}[split => only(survivors)])
+end
+
 """
     get_pane_focus_title(tree) -> (group, index) | Nothing
 
@@ -615,9 +641,11 @@ _get_refused_word(value::AbstractCell) = "cell"
 _get_refused_word(value) = String(nameof(typeof(value)))
 
 """
-    make_pane_duplicate_tab_operation(tree, group, index) -> Operation | Nothing
+    make_pane_duplicate_tab_operation(tree, group, index; focus = true) -> Operation | Nothing
 
-Put a duplicate of tab `index` of `group` right after it, and focus it. The
+Put a duplicate of tab `index` of `group` right after it, and with `focus` focus
+it; without, the focus and the tab that the group shows stay, as an open without
+the focus leaves them. The
 content is copied by `make_document_duplicate`, so what the duplicate owns and
 what it shares is for the kind of the content to say, and the title gets a
 number.
@@ -625,7 +653,8 @@ number.
 `nothing` when there is no such tab, or when the content has no duplicate; the
 refusal is logged with its reason.
 """
-function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer;
+                                           focus::Bool = true)
     (1 <= index <= length(group.tabs)) || return nothing
     tab = group.tabs[index]
     duplicate = try
@@ -635,7 +664,7 @@ function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, ind
         @warn "The pane has no duplicate" kind = nameof(typeof(tab.content)) reason = _format_duplicate_refusal(tab.content, e)
         return nothing
     end
-    make_pane_open_tab_operation(tree, group, duplicate; index = index + 1)
+    make_pane_open_tab_operation(tree, group, duplicate; index = index + 1, focus)
 end
 
 # ── Close a tab ────────────────────────────────────────────────────────────
@@ -650,13 +679,58 @@ stays, because a tree always has a root. Then the tab is released with
 `ReleaseDocumentOperation`, each layer of what it shows, so what a layer holds
 outside the tree, such as the agent of an assistant or the watch of a file, ends.
 An undo of the close acquires the tab again.
+
+The focus moves only when the closed tab has it: to the next tab of the group, or
+to the neighbouring group when the group goes. Otherwise the focus stays on its
+tab, and each group shows the tab that it showed.
 """
 function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
-    close = n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
+    close = if _is_focus_in(tree, group, index)
+        n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
+    else
+        n > 1 ? _close_unfocused_tab(tree, group, index) : _close_unfocused_group(tree, group)
+    end
     close === nothing && return nothing
     CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index])])
+end
+
+# The close of tab `index` of `group`, which does not have the focus.
+function _close_unfocused_tab(tree::PaneTree, group::PaneGroup, index::Integer)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    tabs_path === nothing && return nothing
+    after = collect(Any, group.tabs)
+    deleteat!(after, index)
+    _with_kept_view(tree, make_delete_elements_operation(tabs_path, index), Any[group => after])
+end
+
+# The close of the last tab of `group`, which does not have the focus: the group
+# goes too, unless it is the root.
+function _close_unfocused_group(tree::PaneTree, group::PaneGroup)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    parent = get_pane_parent(tree, group)
+    (tabs_path === nothing || parent === nothing) && return nothing
+    writes = Any[make_delete_elements_operation(tabs_path, 1)]
+    owner, k = parent
+    if owner !== tree
+        split = owner::PaneSplit
+        if length(split.elements) > 2
+            elements_path = get_pane_collection_path(tree, split, :elements)
+            elements_path === nothing && return nothing
+            weights = get_pane_weights(split)
+            deleteat!(weights, k)
+            append!(writes, filter(!isnothing, Any[make_delete_elements_operation(elements_path, k),
+                                                   _write_weights(tree, split, weights)]))
+        else
+            slot = _slot_write(tree, split, split.elements[k == 1 ? 2 : 1])
+            slot === nothing && return nothing
+            push!(writes, slot)
+        end
+    end
+    tree.maximized === group && push!(writes, _make_maximized_write(nothing))
+    swaps, subs = _find_removal_shape(tree, group)
+    _with_kept_view(tree, CompoundOperation(writes), swaps; subs)
 end
 
 function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Integer)
@@ -816,7 +890,7 @@ end
 # ── Move a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_move_tab_operation(tree, source; source_index, target, target_index) -> Operation | Nothing
+    make_pane_move_tab_operation(tree, source; source_index, target, target_index, focus = true) -> Operation | Nothing
 
 Move one tab from `source` to `target`. `target_index` names the slot the tab is
 inserted **before**, in the target's numbering as it stands now — which is what a
@@ -829,10 +903,13 @@ keeps its iomap.
 
 When the move empties the source group, the group is closed the same way
 [`make_pane_close_tab_operation`](@ref) closes it.
+
+With `focus` the moved tab takes the focus, as a drag of a person gives it. Without
+it the focus stays on its tab, at the place that the move leaves that tab.
 """
 function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
                                       source_index::Integer, target::PaneGroup,
-                                      target_index::Integer)
+                                      target_index::Integer, focus::Bool = true)
     n = length(source.tabs)
     (1 <= source_index <= n) || return nothing
     tab = source.tabs[source_index]
@@ -844,6 +921,27 @@ function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
     # same vector, so the landing index does too.
     landed = (same && at > source_index) ? at - 1 : at
     landed = clamp(landed, 1, same ? n : length(target.tabs) + 1)
+
+    # Without the focus, the focus stays on its tab and each group shows what it
+    # showed, unless the focus is on the moved tab or on the group that the move
+    # takes away: then the focus goes with the tab, as a drag gives it.
+    if !focus && !_is_focus_in(tree, source, source_index)
+        after_source = collect(Any, source.tabs)
+        deleteat!(after_source, source_index)
+        if same
+            insert!(after_source, landed, tab)
+            return _with_kept_view(tree, move, Any[source => after_source])
+        end
+        after_target = collect(Any, target.tabs)
+        insert!(after_target, landed, tab)
+        n > 1 && return _with_kept_view(tree, move, Any[source => after_source, target => after_target])
+        collapse = _collapse_writes(tree, source, target, landed, tab)
+        collapse === nothing && return move
+        swaps, subs = _find_removal_shape(tree, source)
+        return _with_kept_view(tree,
+            CompoundOperation(Any[move, filter(write -> !(write isa ReplaceSelectionOperation), collapse)...]),
+            vcat(swaps, Any[target => after_target]); subs)
+    end
 
     if same || n > 1
         cursor = _element_path(tree, target, :tabs, landed, tab)
@@ -914,7 +1012,7 @@ end
 # ── Drop a tab on a group's edge ───────────────────────────────────────────
 
 """
-    make_pane_drop_split_operation(tree, source; source_index, target, orientation, side) -> Operation | Nothing
+    make_pane_drop_split_operation(tree, source; source_index, target, orientation, side, focus = true) -> Operation | Nothing
 
 Split `target` and put `source`'s `source_index`-th tab in the new pane — what a
 drop on a group's edge band means. The tab keeps its identity: it is moved, not
@@ -937,10 +1035,14 @@ other leaves behind. Four shapes, and each names its paths accordingly:
 `source` and `target` can be the same group, which is a tab that takes half of
 its own pane. That is the first shape above, because a group that splits itself
 must keep a tab behind; the drop answers `nothing` when the tab is its last.
+
+With `focus` the moved tab takes the focus, as a drag of a person gives it. Without
+it the focus stays on its tab and each group shows what it showed, unless the
+focus is on the moved tab or on the group that the drop takes away.
 """
 function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
                                         source_index::Integer, target::PaneGroup,
-                                        orientation::Symbol, side::Symbol)
+                                        orientation::Symbol, side::Symbol, focus::Bool = true)
     (1 <= source_index <= length(source.tabs)) || return nothing
     # A group that drops its only tab on its own edge changes nothing: the tab
     # would take the new pane and leave the old half empty. With another tab
@@ -960,6 +1062,15 @@ function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
 
     writes, subs = _drop_split_writes(tree, source, target, split)
     writes === nothing && return nothing
+    if !focus && !_is_focus_in(tree, source, source_index)
+        swaps = Any[new_group => Any[tab]]
+        if length(source.tabs) > 1
+            after_source = collect(Any, source.tabs)
+            deleteat!(after_source, source_index)
+            push!(swaps, source => after_source)
+        end
+        return _with_kept_view(tree, CompoundOperation(vcat(writes, Any[move])), swaps; subs)
+    end
 
     pairs = _pairs_to(tree, new_group; subs)
     pairs === nothing && return CompoundOperation(vcat(writes, Any[move]))

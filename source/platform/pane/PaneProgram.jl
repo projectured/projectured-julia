@@ -740,25 +740,38 @@ _shown_tabs(tree::PaneTree) =
         for group in get_pane_groups(tree) if length(group.tabs) > 0]
 
 # The operations that keep, after the write of `value` at `path` of `tree`, the tab
-# that each group shows and the tab that has the focus: a write of the dormant
-# selection of each group that would show another tab, and a move of the focus
-# when its tab gets another path. `nothing` when the write moves no tab.
+# that each group shows and the tab that has the focus. `nothing` when the write
+# moves no tab.
 function _make_kept_view_operation(tree::PaneTree, path::Reference, value)
     swap = _find_layout_swap(tree, path, value)
-    swap === nothing && return nothing
+    swap === nothing ? nothing : _make_kept_view_operation(tree, Any[first(swap) => last(swap)])
+end
+
+# The operations that keep the tab that each group shows and the tab that has the
+# focus, after a change that replaces each list of `swaps`, `owner => list`, and
+# puts each node of `subs` in the place of another, `old => new`: a write of the
+# dormant selection of each group that would show another tab, and a move of the
+# focus, with the rest of the selection inside its tab, when its tab gets another
+# path. `nothing` when the change moves no tab.
+function _make_kept_view_operation(tree::PaneTree, swaps; subs = _NO_SUBSTITUTIONS)
     focused = _focused_tab(tree)
     shown = _shown_tabs(tree)
     focus_path = focused === nothing ? nothing : get_pane_path(tree, focused)
+    live = get_selection(tree)
+    inside = (focus_path === nothing || live === nothing) ? nothing :
+        _find_path_after(strip_reference_types(live), strip_reference_types(focus_path))
     operations = Any[]
     focus = nothing
-    _visit_groups_after(tree, swap) do group, pairs, tabs
+    _visit_groups_after(tree, swaps; subs) do group, pairs, tabs
         # The group of the focused tab shows that tab; any other group the first
         # tab that a group showed before.
         index = focused === nothing ? nothing : findfirst(tab -> tab === focused, tabs)
         if index !== nothing
             moved = _reference_from(vcat(pairs, Any[(group, FieldReferenceStep("tabs")),
                                                     (tabs, ElementReferenceStep(index))]), focused)
-            _has_same_steps(moved, focus_path) || (focus = ReplaceSelectionOperation(moved))
+            _has_same_steps(moved, focus_path) ||
+                (focus = ReplaceSelectionOperation(inside isa ConcreteReference ?
+                                                   concat_references(moved, copy_reference(inside)) : moved))
         else
             index = findfirst(tab -> any(other -> other === tab, shown), tabs)
         end
@@ -798,26 +811,36 @@ function _find_layout_swap(tree::PaneTree, path::Reference, value)
     (owner, vcat(Any[old[1:range.start]...], items, Any[old[(range.stop + 1):end]...]))
 end
 
-# Calls `visit(group, pairs, tabs)` for each group of `tree` as the write that
-# `swap` names leaves it, with the pairs from the tree down to the group and the
-# tabs the group has then.
-function _visit_groups_after(visit, tree::PaneTree, swap)
-    owner, replacement = swap
-    root = owner === tree ? replacement : tree.root
-    _visit_groups_after!(visit, root, Any[(tree, FieldReferenceStep("root"))], owner === tree ? nothing : swap)
+# Calls `visit(group, pairs, tabs)` for each group of `tree` as a change leaves it,
+# with the pairs from the tree down to the group and the tabs the group has then.
+# The change replaces each list of `swaps`, `owner => list`, where an owner of the
+# tree itself names its root, and puts each node of `subs` in the place of
+# another, `old => new`.
+function _visit_groups_after(visit, tree::PaneTree, swaps; subs = _NO_SUBSTITUTIONS)
+    lists = Pair{Any,Any}[swaps...]
+    nodes = Pair{Any,Any}[subs...]
+    root = _take_after!(lists, tree, tree.root)
+    _visit_groups_after!(visit, root, Any[(tree, FieldReferenceStep("root"))], lists, nodes)
 end
 
-# The write replaces a list once, so the walk below the owner of the list reads
-# the lists as they are.
-function _visit_groups_after!(visit, node, pairs, swap)
-    replaced = swap !== nothing && first(swap) === node
+# What `owner` holds after the change: the replacement of its entry in `pending`,
+# which is then gone, or `current`. Each replacement fires once, because a
+# replacement can hold the node that it replaces, as a split holds the group that
+# it splits.
+function _take_after!(pending, owner, current)
+    index = findfirst(pair -> first(pair) === owner, pending)
+    index === nothing ? current : last(popat!(pending, index))
+end
+
+function _visit_groups_after!(visit, node, pairs, lists, nodes)
+    node = _take_after!(nodes, node, node)
     if node isa PaneGroup
-        visit(node, pairs, replaced ? last(swap) : node.tabs)
+        visit(node, pairs, _take_after!(lists, node, node.tabs))
     elseif node isa PaneSplit
-        elements = replaced ? last(swap) : node.elements
+        elements = _take_after!(lists, node, node.elements)
         for index in eachindex(elements)
             push!(pairs, (node, FieldReferenceStep("elements")), (elements, ElementReferenceStep(index)))
-            _visit_groups_after!(visit, elements[index], pairs, replaced ? nothing : swap)
+            _visit_groups_after!(visit, elements[index], pairs, lists, nodes)
             pop!(pairs)
             pop!(pairs)
         end
@@ -1144,7 +1167,8 @@ See also `find_pane_reference`, `open_pane!`, `show_layout`.
 
 The reference is complete: it starts at the root of the editor's document. The
 close is made through the readers of the editor and evaluated at once, as the
-close button of the tab does it, so the person undoes it with one press.
+close button of the tab does it, so the person undoes it with one press. The
+focus moves only when the closed tab has it; otherwise it stays on its tab.
 
 For the assistant.
 """
@@ -1390,9 +1414,9 @@ reads what the original reads.
 # Example
 
     delay_tab_2 = duplicate_pane!(find_pane("Delay"))
-    focus_pane!(delay_tab_2)
+    show_pane!(delay_tab_2)
 
-See also `open_pane!`, `focus_pane!`, `find_pane_reference`, `show_layout`.
+See also `open_pane!`, `show_pane!`, `find_pane_reference`, `show_layout`.
 
 The reference it takes and the reference of the pane it answers are complete:
 they start at the root of the editor's document.
@@ -1402,7 +1426,8 @@ caller made, and a correct duplicate is not a value a caller can make: a copy of
 a pane can share an action with the original and act on it. The kind of the
 content decides what its duplicate owns.
 
-The duplicate is the next tab of the original's group, with the focus. When that
+The duplicate is the next tab of the original's group, behind the tab that the
+group shows, and the focus of the person stays where it is. When that
 group is the one [`pane_group_to_avoid`](@ref) names, the duplicate goes where
 [`open_pane!`](@ref) puts a pane, so the conversation stays in view. A pane
 whose content has no duplicate, such as a set of runs that goes on, raises an
@@ -1464,8 +1489,8 @@ function _make_duplicate_pane(editor, reference::Reference)
     end
     target = group === pane_group_to_avoid(tree) ? _find_placement_group(tree) : group
     operation = target === group ?
-        make_pane_open_tab_operation(tree, group, duplicate; index = index + 1) :
-        make_pane_open_tab_operation(tree, target, duplicate)
+        make_pane_open_tab_operation(tree, group, duplicate; index = index + 1, focus = false) :
+        make_pane_open_tab_operation(tree, target, duplicate; focus = false)
     change = _make_rooted_pane_change(editor, route, tree, operation,
                                       "Duplicate the pane " * get_pane_tab_title_string(source))
     change === nothing && error("The window has no group to open the duplicate in.")
@@ -1498,7 +1523,8 @@ pane goes before that tab. With `side` — `:left`, `:right`, `:above` or `:belo
 — the pane goes beside the target's group, in a new split. Both references are
 complete, and both name parts of one pane tree. The move is made through the
 readers of the editor and evaluated at once, so the person undoes it with one
-press.
+press. The focus of the person stays on its tab, and each group shows the tab
+that it showed; a tab with the focus takes the focus with it.
 
 For the assistant.
 """
@@ -1560,13 +1586,14 @@ function _make_move_pane_change(editor, reference::Reference, target::Reference,
         throw(ArgumentError("The target names no group or tab of the pane's tree."))
     end
     operation = if side === nothing
-        make_pane_move_tab_operation(tree, source; source_index, target = group, target_index = index)
+        make_pane_move_tab_operation(tree, source; source_index, target = group, target_index = index,
+                                     focus = false)
     else
         side in (:left, :right, :above, :below) ||
             throw(ArgumentError("`side` is :left, :right, :above or :below."))
         make_pane_drop_split_operation(tree, source; source_index, target = group,
                                        orientation = side in (:left, :right) ? :vertical : :horizontal,
-                                       side)
+                                       side, focus = false)
     end
     _make_rooted_pane_change(editor, route, tree, operation,
                              "Move the pane " * get_pane_tab_title_string(source.tabs[source_index]))

@@ -43,12 +43,22 @@ the pane verbs, the 3 failures and the crash, skip the recording".
 Each step is done in the worktree `projectured-julia-pane-fixes`, runs the
 narrowest tests that cover it, and ends with a commit.
 
-1. [ ] **The pane verbs leave the focus.** The move and the drop on an edge take
+1. [x] **The pane verbs leave the focus.** Done. The move and the drop on an edge take
    `focus`, as the open does; without the focus, the focused tab keeps the focus at
    the place that the move leaves it. The duplicate takes `focus` and passes it to
    the open. A close moves the focus only when the closed tab had it. The program
    verbs pass `focus = false`; a press of a person keeps its focus. Tests of the
    surgery and of each verb.
+   - Without the focus, the operation writes the change and after it the kept view
+     (`_make_kept_view_operation` with `swaps`, `owner => list after`, and `subs`,
+     `old node => new node`): the focus stays on its tab, with the rest of the live
+     selection inside it, and each group keeps the tab that it showed. The removal
+     of an emptied group (`_find_removal_shape`) gives the shape for the kept view.
+   - Two old tests of the close had a tree with no focus and expected that the close
+     gives the focus to the neighbour. With the rule a close leaves no focus where
+     there was none, so the tests focus the closed tab first.
+   - The default of each operation stays `focus = true`, because a press of a person
+     and the tests of the duplicate of a workspace and of an evaluator expect it.
 2. [ ] **The two focus tests.** The Show of the Assistants list composes the show
    with a focus, as a press of a person does. The test of the pane verbs holds
    that `open_pane!` leaves the focus.

@@ -152,6 +152,109 @@ end
     @test get_pane_shown_tab_index(tree.root.elements[2]) == 1
 end
 
+# Two groups side by side: `left` with the tabs a, b and c, which shows c, and
+# `right` with x and y, where the focus is on y.
+function _two_groups_with_focus()
+    left = PaneGroup(PaneTab[_tab("a"), _tab("b"), _tab("c")])
+    right = PaneGroup(PaneTab[_tab("x"), _tab("y")])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_show_operation(tree, left, 3))
+    _apply!(editor, make_pane_focus_operation(tree, right, 2))
+    (tree, editor, left, right)
+end
+
+# The tab that has the focus, read back through the selection.
+_focused_pane_tab(tree) = evaluate_reference(tree, get_selection(tree))
+
+@testset "move without the focus: the focus stays on its tab, and each group shows what it showed" begin
+    tree, editor, left, right = _two_groups_with_focus()
+    focused, shown = right.tabs[2], left.tabs[3]
+    # A reorder in the group that has no focus.
+    _apply!(editor, make_pane_move_tab_operation(tree, left; source_index = 1, target = left,
+                                                 target_index = 4, focus = false))
+    @test [get_pane_tab_title_string(tab) for tab in left.tabs] == ["b", "c", "a"]
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    @test _focused_pane_tab(tree) === focused
+    # A move into the group of the focus, before the focused tab.
+    _apply!(editor, make_pane_move_tab_operation(tree, left; source_index = 1, target = right,
+                                                 target_index = 1, focus = false))
+    @test get_pane_focus(tree) == (right, 3)
+    @test _focused_pane_tab(tree) === focused
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    # A move that empties its group: the split goes, and the focus stays.
+    tree, editor, left, right = _two_groups_with_focus()
+    focused = right.tabs[2]
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    _apply!(editor, make_pane_move_tab_operation(tree, left; source_index = 1, target = right,
+                                                 target_index = 1, focus = false))
+    @test tree.root === right
+    @test _focused_pane_tab(tree) === focused
+    # The focused tab takes the focus with it.
+    tree, editor, left, right = _two_groups_with_focus()
+    focused = right.tabs[2]
+    _apply!(editor, make_pane_move_tab_operation(tree, right; source_index = 2, target = left,
+                                                 target_index = 1, focus = false))
+    @test _focused_pane_tab(tree) === focused
+end
+
+@testset "a drop on an edge without the focus: the focus stays on its tab" begin
+    tree, editor, left, right = _two_groups_with_focus()
+    focused, shown = right.tabs[2], left.tabs[3]
+    _apply!(editor, make_pane_drop_split_operation(tree, left; source_index = 1, target = right,
+                                                   orientation = :horizontal, side = :below, focus = false))
+    @test length(left.tabs) == 2
+    @test _focused_pane_tab(tree) === focused
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    # A drop that empties its group: the group goes, and the focus stays.
+    tree, editor, left, right = _two_groups_with_focus()
+    focused = right.tabs[2]
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    _apply!(editor, make_pane_drop_split_operation(tree, left; source_index = 1, target = right,
+                                                   orientation = :vertical, side = :right, focus = false))
+    @test _focused_pane_tab(tree) === focused
+    @test !any(group -> group === left, get_pane_groups(tree))
+end
+
+@testset "close a tab without the focus: the focus stays, and the group shows what it showed" begin
+    tree, editor, left, right = _two_groups_with_focus()
+    focused, shown = right.tabs[2], left.tabs[3]
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    @test length(left.tabs) == 2
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    @test get_pane_focus(tree) == (right, 2)
+    # The shown tab itself: the group shows the tab before it, and the focus stays.
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 2))
+    @test length(left.tabs) == 1
+    @test _focused_pane_tab(tree) === focused
+    # The last tab of a group: the split goes, and the focus stays.
+    _apply!(editor, make_pane_close_tab_operation(tree, left, 1))
+    @test tree.root === right
+    @test _focused_pane_tab(tree) === focused
+    # A group out of a three-way split.
+    first_group = PaneGroup(PaneTab[_tab("p")])
+    second_group = PaneGroup(PaneTab[_tab("q")])
+    third_group = PaneGroup(PaneTab[_tab("r"), _tab("s")])
+    tree = PaneTree(PaneSplit(:vertical, Any[first_group, second_group, third_group]))
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, third_group, 2))
+    focused = third_group.tabs[2]
+    _apply!(editor, make_pane_close_tab_operation(tree, first_group, 1))
+    @test length(tree.root.elements) == 2
+    @test _focused_pane_tab(tree) === focused
+end
+
+@testset "duplicate without the focus: the focus and the shown tab stay" begin
+    tree, editor, left, right = _two_groups_with_focus()
+    focused, shown = right.tabs[2], left.tabs[3]
+    _apply!(editor, make_pane_duplicate_tab_operation(tree, left, 1; focus = false))
+    @test length(left.tabs) == 4
+    @test left.tabs[get_pane_shown_tab_index(left)] === shown
+    @test _focused_pane_tab(tree) === focused
+end
+
 @testset "a pane that no caller placed goes to the documents, not to a side area" begin
     documents = PaneGroup(PaneTab[_tab("study")])
     side = PaneGroup(PaneTab[PaneTab("plan", _PaneSideProbe())])
@@ -222,6 +325,7 @@ end
 @testset "close a tab, others remain" begin
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, 2))
     _apply!(editor, make_pane_close_tab_operation(tree, group, 2))
     @test length(group.tabs) == 2
     @test group.tabs[1] === tabs[1]
@@ -258,6 +362,7 @@ end
 @testset "close the last tab of the root group: the empty group stays" begin
     tree, group, tabs = _flat(1)
     editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, 1))
     _apply!(editor, make_pane_close_tab_operation(tree, group, 1))
     @test tree.root === group
     @test isempty(group.tabs)
