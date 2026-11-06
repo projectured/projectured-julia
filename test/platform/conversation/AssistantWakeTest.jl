@@ -42,6 +42,10 @@ _make_wake_answer_round(text) =
 _collect_wake_notes(a) =
     [only(collect(turn.parts)).content for turn in collect(a.conversation.turns) if is_note_turn(turn)]
 
+# The kinds of the notes inside the parts of `turn`.
+_collect_turn_note_parts(turn) =
+    [part.content for part in collect(turn.parts) if part.content isa ConversationNote]
+
 function test_assistant_wake()
     @testset "the wake of an assistant" begin
         @testset "a group that a turn started wakes the assistant when it ends" begin
@@ -149,6 +153,85 @@ function test_assistant_wake()
             a.wakes_left = 9
             @test !occursin("wakes_left", print_pred_text(a))
             @test parse_pred_text(print_pred_text(a)).wakes_left == 0
+        end
+
+        @testset "a turn that used its rounds goes on by itself while wakes are left" begin
+            llm = ScriptedLlm([_make_rounds_call_round(), _make_rounds_answer_round("Done.")])
+            a = Assistant(; llm, max_rounds = 1)
+            editor = (document = a, tools = _make_rounds_tools(2))
+            a.input.value = "Probe it."
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test timedwait(() -> length(a.conversation.turns) == 4 && a.status !== :streaming,
+                            30.0; pollint = 0.01) === :ok
+            first_answer = collect(a.conversation.turns)[2]
+            note = only(_collect_turn_note_parts(first_answer))
+            @test note.text == "The turn reached its 1 rounds. Wakes left: 1." && isempty(note.action_label)
+            @test a.wakes_left == 1
+        end
+
+        @testset "a turn that used its rounds with no wake left keeps its button" begin
+            llm = ScriptedLlm([_make_rounds_call_round(), _make_rounds_answer_round("Done.")])
+            a = Assistant(; llm, max_rounds = 1)
+            editor = (document = a, tools = _make_rounds_tools(0))
+            a.input.value = "Probe it."
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test timedwait(() -> a.status !== :streaming, 30.0; pollint = 0.01) === :ok
+            sleep(0.2)
+            @test length(a.conversation.turns) == 2
+            @test only(_collect_turn_note_parts(last(collect(a.conversation.turns)))).action_label == "Go on"
+        end
+
+        @testset "a group that ends while a turn runs and a message is typed holds the wake" begin
+            group = _make_wake_group(0)
+            start_task_group_document!(group)
+            wait_task_group_document(group)
+            editor = (document = nothing, tools = register_default_tools!(ToolSet()))
+            a = Assistant(; llm = FakeLlm("no"), wake = true,
+                          conversation = ConversationConversation([
+                              ConversationTurn(:user, [ConversationPart("Run it.")])]))
+            a.wakes_left = 5
+            a.status = :streaming
+            control = AssistantModule.AssistantTurnControl()
+            control.seen_turn_count = 1
+            a.draft.parts[1] = ConversationPart(PrimitiveString("typing"))
+            wake_assistant!(editor, a, group)
+            note = only(_collect_wake_notes(a)[1:1])
+            @test note.kind === :wake_held
+            @test endswith(note.text, "The assistant does not wake: you have a message that you did not send.")
+            @test note.action_label == "Go on" && a.wakes_left == 5
+            # The turn that ends does not start a turn with the held note.
+            @test !AssistantModule._has_waiting_message(a, control)
+        end
+
+        @testset "a stopped group holds the wake with its reason" begin
+            group = _make_wake_group(5)
+            start_task_group_document!(group)
+            stop_task_group!(get_task_group(group))
+            wait_task_group_document(group)
+            editor = (document = nothing, tools = register_default_tools!(ToolSet()))
+            a = Assistant(; llm = FakeLlm("no"), wake = true,
+                          conversation = ConversationConversation([
+                              ConversationTurn(:user, [ConversationPart("Run it.")])]))
+            a.wakes_left = 5
+            wake_assistant!(editor, a, group)
+            note = only(_collect_wake_notes(a))
+            @test note.kind === :wake_held && endswith(note.text, "a stop ended the group.")
+            @test length(a.conversation.turns) == 2 && a.status === :idle && a.wakes_left == 5
+        end
+
+        @testset "each wake note names the count" begin
+            group = _make_wake_group(0)
+            start_task_group_document!(group)
+            wait_task_group_document(group)
+            editor = (document = nothing, tools = register_default_tools!(ToolSet()))
+            a = Assistant(; llm = FakeLlm("ok"), wake = true,
+                          conversation = ConversationConversation([
+                              ConversationTurn(:user, [ConversationPart("Run it.")])]))
+            a.wakes_left = 4
+            wake_assistant!(editor, a, group)
+            @test timedwait(() -> a.status !== :streaming && length(a.conversation.turns) == 3, 30.0;
+                            pollint = 0.01) === :ok
+            @test endswith(first(_collect_wake_notes(a)).text, " Wakes left: 3.")
         end
 
         @testset "the person keeps the word" begin

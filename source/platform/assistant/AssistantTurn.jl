@@ -426,10 +426,12 @@ function _send_user_turn!(editor, a::Assistant, turn::ConversationTurn)
 end
 
 # Whether the conversation ends with a message that the turn of `control` did not
-# take: a user turn after the turns that it read.
+# take: a user turn after the turns that it read. A note of a held wake is no such
+# message: the model reads it with the next message.
 function _has_waiting_message(a::Assistant, control::AssistantTurnControl)
     turns = collect(a.conversation.turns)
-    !isempty(turns) && last(turns).role === :user && length(turns) > control.seen_turn_count
+    index = findlast(turn -> !_is_held_wake_turn(turn), turns)
+    index !== nothing && turns[index].role === :user && index > control.seen_turn_count
 end
 
 
@@ -1037,18 +1039,30 @@ end
 # A turn that used its budget of rounds ends with a note that says so, and the
 # button of the note tells the model to go on.
 function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
+    goes_on = stop_reason === :round_limit && a.wakes_left > 0
     stop_reason === :round_limit &&
         push!(turn.parts, Cell(ConversationPart(_make_round_limit_note(a))))
     _finish_turn!(a.conversation, turn, stop_reason)
+    # With wakes left the turn goes on by itself: the user turn after it is a
+    # message that waits, and the next turn starts with it.
+    goes_on && push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(GO_ON_PROMPT)]))
+    nothing
 end
 
 # What the button under a turn that used its rounds sends as the person.
 const GO_ON_PROMPT = "Go on."
 
-_make_round_limit_note(a::Assistant) =
-    ConversationNote("The turn reached its " * string(a.max_rounds) * " rounds.";
-                     kind = :round_limit, action_label = "Go on",
+# With wakes left the turn goes on by itself and takes one, and the note says how
+# many are left; with none, the note offers the button.
+function _make_round_limit_note(a::Assistant)
+    text = "The turn reached its " * string(a.max_rounds) * " rounds."
+    if a.wakes_left > 0
+        a.wakes_left -= 1
+        return ConversationNote(string(text, " Wakes left: ", a.wakes_left, "."); kind = :round_limit)
+    end
+    ConversationNote(text; kind = :round_limit, action_label = "Go on",
                      action = editor -> send_go_on!(editor, a))
+end
 
 """
     send_go_on!(editor, assistant) -> nothing

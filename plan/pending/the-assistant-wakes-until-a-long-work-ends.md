@@ -168,7 +168,7 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
         only while no message of the person follows the stopped turn, so a raise of the
         count by the person is not held again by an old stop.
       - A stop sets 0 only while a turn runs (the operation does nothing otherwise).
-- [ ] **2. The note says the count or why.** `:wake_held`, the four reasons, **Go on**, the
+- [x] **2. The note says the count or why.** `:wake_held`, the four reasons, **Go on**, the
       check of `stopping`, "Wakes left: N.", and the skip in `_has_waiting_message`. Test:
       `test_assistant_wake()`. New cases: a group ends while a turn runs and the draft has
       text, and no turn starts after that turn ends; a stopped group adds a held note with
@@ -177,6 +177,16 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
       D11 is in this step too: `_finish_turn!` with `:round_limit` and wakes left starts the
       next turn and takes one wake. New cases: a turn at its rounds with 2 wakes left goes
       on and leaves 1; with 0 left, the note keeps **Go on** and no turn starts.
+      What the implementation found:
+      - D11 continues with a user turn "Go on." pushed after the turn (the model needs a
+        user turn to answer, and `_has_waiting_message` starts the next turn with it). The
+        turn takes one wake in `_make_round_limit_note`, which now words "Wakes left: N." and
+        has no button; with 0 left the note keeps **Go on**. The continuation is not a
+        message of the person, so it does not raise the count.
+      - Because a message now gives 3 wakes, `test_assistant_rounds` zeroes `wakes_left` in
+        its `probe` tool to get the note with its button.
+      - `_has_waiting_message` looks for the last turn that is not a held-wake note.
+      - The hold reasons live in the tuple `_WAKE_HOLD_REASONS`.
 - [ ] **3. The count under the composer.** A `WidgetSpinBox` over `wakes_left` in the row of
       `AssistantToWidget.jl`, `SetAssistantWakesOperation`, and D7. Test:
       `test_assistant_wake()`. New cases: the spin box follows the count as wakes take it; an

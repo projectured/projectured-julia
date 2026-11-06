@@ -2,11 +2,13 @@
 # that uses it ends with a note under the answer, and the button of the note
 # sends "Go on." as the person.
 
-# A tool set with one tool, `probe`, that answers "ran".
-function _make_rounds_tools()
+# A tool set with one tool, `probe`, that answers "ran" and leaves `wakes_left`
+# wakes to the assistant of the editor. A message gives the assistant wakes, so
+# a test that wants the note with its button takes them away here.
+function _make_rounds_tools(wakes_left = 0)
     set = register_default_tools!(ToolSet())
     register_tool!(set, Tool("probe"; description = "a tool of the test", parameters = NamedTuple[],
-                             handler = (target, arguments) -> "ran"))
+                             handler = (target, arguments) -> (target.document.wakes_left = wakes_left; "ran")))
     set
 end
 
