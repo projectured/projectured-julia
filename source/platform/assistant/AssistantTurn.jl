@@ -369,6 +369,7 @@ function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
     is_assistant_turn_running(a) || return nothing
     control = a.turn_control
     control isa AssistantTurnControl && (control.is_cancelled = true)
+    a.wakes_left = 0
     a.backend === :acp ? _cancel_external_agent_turn!(a) : _decline_open_questions!(a)
     # The stop of the work of the turn stops the work of its tool call.
     control isa AssistantTurnControl && _stop_turn_work!(control)
@@ -381,6 +382,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
     isempty(strip(text)) && return nothing
     turn = _make_instant_turn(:user, [ConversationPart(text)])
     push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
     _set_input!(a, "")
     _send_user_turn!(editor, a, turn)
 end
@@ -406,6 +408,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     _make_part_pictures!(draft)
     turn = _make_instant_turn(:user, collect(draft.parts))
     push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
     _send_user_turn!(editor, a, turn)
@@ -473,6 +476,7 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     evaluate_operation(editor, ComposerEvaluateOperation(draft))
     finalize_draft!(draft) || return nothing
     push!(a.conversation.turns, _make_instant_turn(:user, collect(draft.parts)))
+    _raise_wakes_left!(a)
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
 end
@@ -1056,6 +1060,7 @@ function send_go_on!(editor, a::Assistant)
     is_assistant_turn_running(a) && return nothing
     turn = _make_instant_turn(:user, [ConversationPart(GO_ON_PROMPT)])
     push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
     _send_user_turn!(editor, a, turn)
     nothing
 end

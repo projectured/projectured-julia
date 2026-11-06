@@ -62,6 +62,7 @@ function test_assistant_wake()
             @test note.kind === :wake
             @test startswith(note.text, "The task group \"the sleep\" ended: ")
             @test after.role === :assistant
+            @test a.wakes_left == ASSISTANT_WAKE_LIMIT - 1
             @test occursin("It ended.", AssistantModule._text_to_string(last(collect(after.parts)).content))
             # The model reads the note as the words of a turn of the person.
             messages = build_messages(a.conversation)
@@ -110,11 +111,44 @@ function test_assistant_wake()
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")]),
                               ConversationTurn(:assistant, [ConversationPart("It runs.")])]))
+            a.wakes_left = 1
             wake_assistant!((document = a,), a, group)
             @test timedwait(() -> a.status !== :streaming && length(a.conversation.turns) == 4, 10.0;
                             pollint = 0.01) === :ok
             prompt = only(connection.prompts)
             @test length(prompt) == 1 && startswith(only(prompt).text, "The task group \"the sleep\" ended: ")
+        end
+
+        @testset "a message gives at least the limit, and keeps a larger count" begin
+            a = Assistant(; llm = FakeLlm("ok"))
+            editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+            @test a.wakes_left == 0
+            a.input.value = "One."
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test a.wakes_left == ASSISTANT_WAKE_LIMIT
+            @test timedwait(() -> a.status === :idle, 30.0; pollint = 0.05) === :ok
+            a.wakes_left = 70
+            a.input.value = "Two."
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test a.wakes_left == 70
+            @test timedwait(() -> a.status === :idle, 30.0; pollint = 0.05) === :ok
+        end
+
+        @testset "a stop of a turn sets the count to 0" begin
+            a = Assistant(; llm = FakeLlm("ok"))
+            a.wakes_left = 5
+            evaluate_operation((document = a,), CancelAssistantTurnOperation(a))
+            @test a.wakes_left == 5          # no turn runs: nothing stops
+            a.status = :streaming
+            evaluate_operation((document = a,), CancelAssistantTurnOperation(a))
+            @test a.wakes_left == 0
+        end
+
+        @testset "a file keeps no count of wakes, and a fork starts at 0" begin
+            a = Assistant(; wake = true)
+            a.wakes_left = 9
+            @test !occursin("wakes_left", print_pred_text(a))
+            @test parse_pred_text(print_pred_text(a)).wakes_left == 0
         end
 
         @testset "the person keeps the word" begin
@@ -140,15 +174,11 @@ function test_assistant_wake()
             wake_assistant!(editor, a, group)
             @test length(a.conversation.turns) == 2 && a.status === :idle
 
-            # The limit of wakes after one turn of the person.
-            turns = Any[ConversationTurn(:user, [ConversationPart("Run it.")])]
-            for _ in 1:ASSISTANT_WAKE_LIMIT
-                push!(turns, ConversationTurn(:user, [ConversationPart(ConversationNote("ended"; kind = :wake))]))
-                push!(turns, ConversationTurn(:assistant, [ConversationPart("Again.")]))
-            end
-            a = Assistant(; llm = FakeLlm("no"), wake = true, conversation = ConversationConversation(turns))
+            # No wake left.
+            a = Assistant(; llm = FakeLlm("no"), wake = true,
+                          conversation = ConversationConversation([person]))
             wake_assistant!(editor, a, group)
-            @test length(a.conversation.turns) == length(turns) + 1 && a.status === :idle
+            @test length(a.conversation.turns) == 2 && a.status === :idle && a.wakes_left == 0
 
             # Off, a wake does nothing.
             a = Assistant(; llm = FakeLlm("no"))

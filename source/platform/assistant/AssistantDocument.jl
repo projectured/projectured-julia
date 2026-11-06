@@ -118,6 +118,12 @@ one of its turns started ends, with a note that says why; it is off by default.
 A window that serves long work sets both. They are settings that a person or a
 window chose, so a `.pred` file keeps them.
 
+`wakes_left` is how many turns the assistant may still start without a message of
+the person: a wake takes one, a stop of a turn sets 0, and a message of the person
+raises it to at least [`ASSISTANT_WAKE_LIMIT`](@ref). Only the person sets it to
+another value. It is live state, like `status`: a `.pred` file does not keep it,
+and a fork starts at 0.
+
 `number` tells the assistant from the other assistants of its window while it has
 no title: with no title, 1 is "Assistant" and 2 is "Assistant (2)". `Ctrl+T` with
 the name "assistant" and a duplicate give the lowest number that no assistant in a
@@ -166,6 +172,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     work_state::Symbol
     max_rounds::Int
     wake::Bool
+    wakes_left::Int
     number::Int
 end
 
@@ -259,7 +266,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(AgentWork("")), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
-                           Cell(Int(max_rounds)), Cell(wake), Cell(Int(number)),
+                           Cell(Int(max_rounds)), Cell(wake), Cell(0), Cell(Int(number)),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -352,7 +359,7 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
                                 agent_commands = AgentCommand[],
-                                agent_work = AgentWork(""),
+                                agent_work = AgentWork(""), wakes_left = 0,
                                 number = _compute_assistant_number(find_evaluation_editor()))
     draft.assistant = fork
     turns = fork.conversation.turns

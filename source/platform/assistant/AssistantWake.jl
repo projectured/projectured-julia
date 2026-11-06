@@ -11,11 +11,17 @@
 """
     ASSISTANT_WAKE_LIMIT
 
-How many turns an assistant starts on its own after one turn of the person:
-three. A note that comes after the limit still shows, and starts no turn, so a
-model that starts a run at each wake does not go on for ever.
+How many turns an assistant may start on its own after a message of the person
+when the person allows no more: three. A message raises `wakes_left` of the
+assistant to at least this count, and each wake takes one. A note that comes with
+no wake left still shows, and starts no turn, so a model that starts a run at each
+wake does not go on for ever.
 """
 const ASSISTANT_WAKE_LIMIT = 3
+
+# A message of the person gives the assistant at least the wakes that
+# `ASSISTANT_WAKE_LIMIT` names, and never takes any away.
+_raise_wakes_left!(a::Assistant) = (a.wakes_left = max(a.wakes_left, ASSISTANT_WAKE_LIMIT); nothing)
 
 # The groups of the session of `editor` that started while `turn` ran and still
 # run.
@@ -56,21 +62,21 @@ end
 
 Tell `assistant` that the task group `group` ended: add a turn of the editor
 with a `:wake` note that names the group and sums it up, and start a turn with
-it. A turn that runs reads the note in its next round, as a message that a
-person typed during the turn.
+it, which takes one of the `wakes_left` of the assistant. A turn that runs reads
+the note in its next round, as a message that a person typed during the turn.
 
 The note shows and starts no turn when the person must keep the word: the
 person stopped the last turn, the person is typing a message, or the assistant
-already woke [`ASSISTANT_WAKE_LIMIT`](@ref) times since the last turn of the
-person. An assistant whose `wake` is off does nothing.
+has no wake left. An assistant whose `wake` is off does nothing.
 """
 function wake_assistant!(editor, a::Assistant, group::TaskGroupDocument)
     a.wake || return nothing
+    reason = _find_wake_hold_reason(a)
     note = ConversationNote(_describe_task_group_end(group); kind = :wake)
     turn = _make_instant_turn(:user, [ConversationPart(note)])
-    allowed = _is_wake_allowed(a)
+    reason === nothing && (a.wakes_left -= 1)
     push!(a.conversation.turns, turn)
-    allowed && _send_user_turn!(editor, a, turn)
+    reason === nothing && _send_user_turn!(editor, a, turn)
     nothing
 end
 
@@ -80,17 +86,22 @@ _describe_task_group_end(group::TaskGroupDocument) =
     string("The task group \"", get_document_title(group), "\" ended: ",
            compute_task_group_summary(get_task_group(group)).summary, ".")
 
-# Whether a wake may start a turn now.
-function _is_wake_allowed(a::Assistant)
-    _has_draft_text(a) && return false
+# The reason why a wake of `a` may not start a turn now, or `nothing` when it may.
+function _find_wake_hold_reason(a::Assistant)
+    _has_draft_text(a) && return :draft
+    _is_last_turn_stopped(a) && return :stopped_turn
+    a.wakes_left > 0 || return :no_wakes_left
+    nothing
+end
+
+# Whether the last turn of the assistant ended by a stop of the person, and the
+# person did not write since.
+function _is_last_turn_stopped(a::Assistant)
     turns = collect(a.conversation.turns)
-    # The turns since the last turn of the person.
-    last_person = findlast(turn -> turn.role === :user && !is_note_turn(turn), turns)
-    since = last_person === nothing ? turns : turns[(last_person + 1):end]
-    # A stop of the person keeps the word with the person.
-    any(turn -> turn.role === :assistant && turn.stop_reason === :cancelled, since) && return false
-    count(turn -> is_note_turn(turn) && any(part -> part.content.kind === :wake, turn.parts), since) <
-        ASSISTANT_WAKE_LIMIT
+    last_assistant = findlast(turn -> turn.role === :assistant, turns)
+    last_assistant === nothing && return false
+    turns[last_assistant].stop_reason === :cancelled &&
+        !any(turn -> turn.role === :user && !is_note_turn(turn), turns[(last_assistant + 1):end])
 end
 
 # Whether the person has typed into the composer of `a`.

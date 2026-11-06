@@ -154,13 +154,20 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
 Each step is one commit with its test. No step changes a sealed file: SEALING.md covers
 only `source/kernel/`, and every file here is under `source/platform/` or `test/platform/`.
 
-- [ ] **1. The count of wakes left.** `wakes_left` in `AssistantDocument.jl`, out of
+- [x] **1. The count of wakes left.** `wakes_left` in `AssistantDocument.jl`, out of
       `pred_arguments` and out of a fork. `SubmitDraftTurnOperation`, `SubmitProseOperation`,
       `EvaluateDraftTurnOperation` and `send_go_on!` raise it. `wake_assistant!` takes one.
       `CancelAssistantTurnOperation` sets 0. `_is_wake_allowed` becomes a function that finds
       the reason of a hold, or `nothing`. Test: `test_assistant_wake()`. The case of the
       limit starts from a message. New cases: a message keeps a count above 3; a stop sets
       0; a `.pred` round trip has no `wakes_left`.
+      What the implementation found:
+      - `wakes_left` has no constructor keyword: no caller sets it, and a test writes the field.
+      - `_is_wake_allowed` became `_find_wake_hold_reason`, which answers `:draft`,
+        `:stopped_turn`, `:no_wakes_left` or `nothing`. "The last turn was stopped" holds
+        only while no message of the person follows the stopped turn, so a raise of the
+        count by the person is not held again by an old stop.
+      - A stop sets 0 only while a turn runs (the operation does nothing otherwise).
 - [ ] **2. The note says the count or why.** `:wake_held`, the four reasons, **Go on**, the
       check of `stopping`, "Wakes left: N.", and the skip in `_has_waiting_message`. Test:
       `test_assistant_wake()`. New cases: a group ends while a turn runs and the draft has
