@@ -414,27 +414,27 @@ function test_task_views()
             end
         end
 
-        @testset "in a short detail the facts scroll and the document keeps its least height" begin
+        @testset "in a short detail the header and the buttons stay whole and the document keeps its least height" begin
             document = wrap_task_group_document(
                 TaskGroup([_TaskViewTableProbeTask("delta")]; name = "short detail", jobs = 1))
             wait_task_group_document(start_task_group_document!(document))
             select_task_document!(document, 1)
             least = Int(TaskModule.get_task_style(nothing, :document_minimum_height))
             find_y(texts, text) = only(t for t in texts if t[3] == text)[2]
-            # In a tall window the facts show whole above the table.
+            # In a tall window everything shows: the buttons, the table, the output.
             tall = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
-            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout · empty")
-            # In a short window the table keeps its least height, and the output
-            # below it is still in the window: the header and the buttons are short
-            # enough to stay whole above the table, and the process facts, which
-            # scroll in a part with no weight, give up their height.
+            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout · empty") < 1200
+            # At 900 the output word is still in the window.
+            medium = _collect_task_view_texts(last(_print_task_view(document; height = 900)).output)
+            @test find_y(medium, "stdout · empty") < 900
+            # In a short window the header line and the buttons stay whole above
+            # the table, and the table keeps its least height: the body below the
+            # buttons gives up its height, and the output words go below the edge
+            # first.
             short = _collect_task_view_texts(last(_print_task_view(document; height = 800)).output)
-            @test find_y(short, "stdout · empty") - find_y(short, "scalar") >= least
-            @test find_y(short, "stdout · empty") < 800
             header_y = maximum(t[2] for t in short if t[3] == "delta")
-            # @broken: the summary card is taller (a line of the description, two rows of time
-            # facts), so at 800 the detail is too short and the buttons scroll out of the header part.
-            @test_broken header_y < find_y(short, "Run again") < find_y(short, "scalar")
+            @test header_y < find_y(short, "Run again") < find_y(short, "scalar")
+            @test find_y(short, "stdout · empty") - find_y(short, "scalar") >= least
         end
 
         @testset "a path into the document of a result goes to its place and back" begin
@@ -451,12 +451,14 @@ function test_task_views()
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
             result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("kind_document"))
-            # The place is the second part of the detail, below the scroll area of
-            # the facts, in the second pane of the split below the card of the
-            # group; it holds the document itself.
+            # The place is the first part of the body of the detail, which is the
+            # second part, below the header line and the buttons, in the second
+            # pane of the split below the card of the group; it holds the document
+            # itself.
             place = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                    FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+                    FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+                    FieldReferenceStep("children"), RangeReferenceStep(0, 1), FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [place..., FieldReferenceStep("line")]

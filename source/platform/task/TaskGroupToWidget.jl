@@ -155,12 +155,13 @@ function _make_task_header_note(p, document::TaskDocument)
 end
 
 # The error message of a task that ended with `ERROR`, in the error colour; no
-# line while the task has none.
-_make_task_error_line(p, document::TaskDocument) = _make_live_label(() -> begin
+# line while the task has none. With `max_lines` above 0 it shows at most that
+# many lines, cut with "…".
+_make_task_error_line(p, document::TaskDocument; max_lines::Integer = 0) = _make_live_label(() -> begin
     result = get_task_document_result(document)
     (result !== nothing && result.result == "ERROR") ? (get_error_message(result), p.error_color) :
                                                        ("", p.error_color)
-end)
+end; max_lines)
 
 # The `Process` group of a task: its process and the time it took or takes,
 # each when it has a value. The elapsed time counts on with each drain of the
@@ -481,9 +482,13 @@ const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeRef
                        FieldReferenceStep("child"))
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
-# The parts of the detail of a task before its documents: the scroll area of its
-# header, its error line, its lines of facts and its buttons.
-const _PARTS_BEFORE_DOCUMENTS = 1
+# The steps from the detail of a task to its body, the part below its header
+# line, its error line and its buttons.
+const _BODY_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+
+# The parts of the body of the detail of a task before its documents: the scroll
+# area of the lines of facts of a kind that gives no document.
+_get_parts_before_documents(document::TaskDocument) = getfield(document, :kind_document)[] === nothing ? 1 : 0
 
 # The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
@@ -517,12 +522,13 @@ function _find_document_places(doc::TaskGroupDocument)
                         FieldReferenceStep("kind_document")), _PLACE_STEPS))
         return places
     end
+    before = _get_parts_before_documents(documents[index])
     for field in _DOCUMENT_FIELDS
         getfield(documents[index], field)[] === nothing && continue
-        position = _PARTS_BEFORE_DOCUMENTS + length(places)
+        position = before + length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
-                       (_get_detail_steps(doc)..., FieldReferenceStep("children"),
+                       (_get_detail_steps(doc)..., _BODY_STEPS..., FieldReferenceStep("children"),
                         RangeReferenceStep(position, position + 1), FieldReferenceStep("child"))))
     end
     places
@@ -556,14 +562,13 @@ _is_followed_by_selection(node) =
     (node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint) &&
     !(node isa WidgetTable)
 
-# A part that the detail builds holds its part of the paths of the detail, so a
-# key reaches the document after the person picks another task: the walk of the pane
-# reaches only the parts that were there when the pane was drawn.
-function _follow_detail_part!(detail, part, position::Int)
-    steps = (FieldReferenceStep("children"), RangeReferenceStep(position, position + 1))
+# A part that the detail builds, at `steps` from the detail, holds its part of
+# the paths of the detail, so a key reaches the document after the person picks
+# another task: the walk of the pane reaches only the parts that were there when
+# the pane was drawn. `is_followed` leaves out a node and what is below it.
+function _follow_detail_part!(detail, part, steps::Tuple; is_followed = _is_followed_by_selection)
     below(field) = () -> _find_path_below(getfield(detail, field)[], steps)
-    follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target),
-                             is_followed = _is_followed_by_selection)
+    follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target), is_followed)
 end
 
 # The share of the height that the place of a document takes against the two output
@@ -586,16 +591,13 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
             return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
-        # The header, the error line, the lines of a kind that gives no document,
-        # and the buttons scroll in a part with no weight, so a short detail keeps
-        # the least height of the place of a document and gives up the height of
-        # the facts.
-        shown = getfield(document, :kind_document)[]
-        facts = Any[HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
-                                         _make_task_header_note(p, document)];
-                                     vertical_align = :center, gap = p.label_gap),
-                    _make_task_error_line(p, document)]
-        shown === nothing && push!(facts, _build_task_details(p, task, document))
+        # The header line, the error line and the buttons stand whole at the
+        # top: they have no weight, and the body below them declares no minimum.
+        # The body shares the rest of the height, so in a short detail the body
+        # gives up its height, and the buttons stay.
+        header = HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+                                      _make_task_header_note(p, document)];
+                                  vertical_align = :center, gap = p.label_gap)
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = editor -> _run_guarded("stop",
                                 () -> evaluate_operation(editor, StopTaskOperation(doc, index))))
@@ -609,21 +611,28 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                       for (label, action) in get_task_actions(task)]
         page = WidgetButton("Open the task page"; size = p.button_size,
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
-        push!(facts, HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center,
-                                      gap = p.button_gap))
-        parts = Any[WidgetScrollPane(VerticalLayout(facts; gap = p.section_gap, child_width = Fill))]
-        # The document that the kind gives and the tree of the processes of the
-        # task while it runs, each in a place that gives it a share of the height
-        # and at least `document_minimum_height`, between the facts and the
-        # output. The maps of the pane find each document by its place.
-        length(parts) == _PARTS_BEFORE_DOCUMENTS ||
+        buttons = HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)
+        top = VerticalLayout(Any[header, _make_task_error_line(p, document; max_lines = 2), buttons];
+                             gap = p.section_gap, child_width = Fill)
+        # The body, top to bottom: the lines of a kind that gives no document,
+        # which scroll in a part with no weight; the document that the kind
+        # gives and the tree of the processes of the task while it runs, each in
+        # a place that gives it a share of the height and at least
+        # `document_minimum_height`; the process facts; the streams. The maps of
+        # the pane find each document by its place.
+        parts = Any[]
+        getfield(document, :kind_document)[] === nothing &&
+            push!(parts, WidgetScrollPane(_build_task_details(p, task, document)))
+        length(parts) == _get_parts_before_documents(document) ||
             error("the documents of the task are not where the maps of the pane find them")
         for field in _DOCUMENT_FIELDS
             shown = getfield(document, field)[]
             shown === nothing && continue
             place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill,
                                      min_height = p.document_minimum_height)
-            push!(parts, _follow_detail_part!(detail, place, length(parts)))
+            steps = (_BODY_STEPS..., FieldReferenceStep("children"),
+                     RangeReferenceStep(length(parts), length(parts) + 1))
+            push!(parts, _follow_detail_part!(detail, place, steps))
         end
         # What every task has: its process and its earlier executions. They
         # scroll in a part with no weight too, so in a short detail they give up
@@ -633,7 +642,14 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                                                      gap = p.section_gap, child_width = Fill)))
         append!(parts, _build_stream_parts(p, document, :output; weight = 2))
         append!(parts, _build_stream_parts(p, document, :error_output; weight = 1))
-        Cell[Cell(x) for x in parts]
+        stack = VerticalLayout(parts; gap = p.section_gap, child_width = Fill)
+        body = LayoutConstraint(stack; width = Fill, height = Fill)
+        # The body and its stack hold their part of the paths too, so a key goes
+        # through them to a place; the walk stops there, because each place
+        # follows on its own, and a walk into the streams would build the
+        # detail again at each line.
+        _follow_detail_part!(detail, body, _BODY_STEPS[1:2]; is_followed = node -> node === body || node === stack)
+        Cell[Cell(top), Cell(body)]
     end)
     detail
 end
