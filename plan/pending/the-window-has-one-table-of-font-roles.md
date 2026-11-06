@@ -485,6 +485,19 @@ gets the new value; the commit names each one.
   `AppearanceTabTest.jl` reads the IO map of the card as
   `WidgetCardToGraphicsCanvasIoMap`.
 
+- **2026-11-06, the landing.** The owner said "land it" before steps 6 to 8
+  were all done. The branch was rebased onto `main` `e30b59b5e` with no
+  conflict and landed by fast-forward. The 28 commits of `main` add no use of a
+  removed name: their new code calls only `WidgetLabel("Wakes left:")` and
+  `WidgetLabel(""; max_lines = 1)`. The package `Project.toml` files of
+  omnet-julia point to the main checkout of projectured-julia, and omnet-julia
+  calls `TextRole(...; base = :code_font)` in its result theme, so omnet-julia
+  does not load against `main` until step 8 lands. The lists of compiled calls
+  on `main` hold the calls of the old font code until `record_package_calls!`
+  of step 6 runs. The next release of `ProjecturedPlatform` takes a minor step,
+  because `apply_font_role` and `get_role_base` are no longer exported; the
+  generator of step B7 finds a removed name by itself.
+
 ## 6. Not in this plan
 
 Letter spacing, small capitals, a switch for tabular figures and a line height
