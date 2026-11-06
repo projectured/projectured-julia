@@ -278,6 +278,13 @@ approval of the user.
   `bin/build_omnet_ide --found`. Then add a field to `WidgetTheme` in a copy of
   the change, and run `bin/build_omnet_ide`. The rebuild must apply it. Do not
   commit the field.
+  - 2026-11-06: the `+merged` Julia is rebuilt. The founding (omnet main
+    b8878b93a, projectured main d4ee8153d) stops after 15 min at 3.8 GB in the
+    workload of the IDE: "The window did not draw the target of
+    WorkloadWait(DrawnText("DONE", :first))", the `Run` of the `Runner` page.
+    This failure is on `main` without this plan (`IdeWorkloadTest.jl:17`, seen
+    the same day on omnet 21ec66b1e). The old store and binary stay. The step
+    waits for a fix of that workload step.
 
 ## Not in this plan
 
