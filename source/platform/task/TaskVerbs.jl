@@ -261,6 +261,54 @@ get_task_output(group::ReferencedDocument, index::Integer; keywords...) =
 # ── Acting on a group ───────────────────────────────────────────────────────
 
 """
+    run_tasks!(group; title = group.name, editor = get_evaluation_editor()) -> TaskGroupDocument
+
+**Start a group of tasks** and answer its document at once. The group joins the
+list of the session, so the Tasks pane shows it with its progress, each task has
+its log, exit status and stop, and a person can stop it. The answer goes to
+`describe_task_group`, `get_task_output`, `wait_for_tasks!`, `stop_tasks!`,
+`stop_task!`, `rerun_tasks!` and `close_task_group!`. It places no tab and moves
+no selection: `open_pane!(answer)` places one when the person asks. A group that
+started before throws an `ArgumentError`: run it again with `rerun_tasks!`.
+
+The group is a `TaskGroup` of `ProgramTask`s, or of any kind of task, and a task
+of a group can be a group. **For a chain, pass `jobs = 1` and
+`stop_at_failure = true`**: each step then starts only after the step before it
+ended as expected, and the steps after a failed one end `CANCEL` with
+`Not started: …`. The default of `jobs` is the count of processor threads, so
+the steps would run at once. End the turn after the start when the group runs for
+minutes: an assistant whose wake is on starts a turn when the group ends.
+
+Use it to run programs, such as a checkout, a build and an export, as tasks
+that the person sees and can stop.
+
+# Example
+
+    w = "/work/inet"
+    g = run_tasks!(TaskGroup([ProgramTask(`git checkout --detach 3fa2c1d`; working_directory = w,
+                                          name = "checkout"),
+                              ProgramTask(`make -j8`; working_directory = w,
+                                          environment = Dict("MODE" => "release"), name = "build")];
+                             name = "commit 3fa2c1d", jobs = 1, stop_at_failure = true);
+                   title = "commit 3fa2c1d")
+
+See also `wait_for_tasks!`, `describe_task_group`, `stop_tasks!`, `rerun_tasks!`.
+
+For the assistant.
+"""
+function run_tasks! end
+
+function run_tasks!(group::TaskGroup; title::AbstractString = group.name, editor = get_evaluation_editor())
+    lock(() -> group.start_time, group.runtime.lock) === nothing ||
+        throw(ArgumentError("the group " * repr(group.name) * " started before: run it again with rerun_tasks!"))
+    run_on_editor_task!(editor; description = "run_tasks!") do
+        document = wrap_task_group_document(group; title = String(title))
+        evaluate_operation(editor, StartTaskGroupOperation(document))
+        document
+    end
+end
+
+"""
     wait_for_task_group!(editor, group; timeout = nothing) -> group
 
 Wait for `group` to end, and then copy what its tasks said into their documents.

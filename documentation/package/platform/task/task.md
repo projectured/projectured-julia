@@ -513,7 +513,7 @@ A person at the REPL and a model through `execute_julia_code` read and act on
 the groups of the session with the verbs of the slice: `list_task_groups`,
 `find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
 `wait_for_tasks!`, `stop_tasks!`, `stop_task!`, `rerun_tasks!`,
-`wait_for_task_group!` and `close_task_group!`. Each but `wait_for_task_group!` takes the keyword
+`wait_for_task_group!`, `close_task_group!` and `run_tasks!`. Each but `wait_for_task_group!` takes the keyword
 `editor = get_evaluation_editor()`, so the code of a model names no editor;
 `wait_for_task_group!` takes `editor` first. Each does its document work on the
 task of the editor through `run_on_editor_task!`, so a person at the REPL, who
@@ -544,6 +544,19 @@ whose list the group joins. The inverse of each is `DoNothingOperation`, because
 process that ran can not be undone. A close removes the row from the list only;
 `close_task_group!` closes the panes of the group first.
 
+**`run_tasks!(group; title, editor)` starts a group.** It wraps the `TaskGroup` with
+`wrap_task_group_document`, makes a `StartTaskGroupOperation` and has the editor
+evaluate it, so the group joins the list of the session, the Tasks pane shows it,
+and `_find_turn_task_groups` finds it at the end of a turn for the wake. It
+answers the document at once, places no tab and moves no selection;
+`open_pane!(answer)` places one. A group that started before throws an
+`ArgumentError` that names `rerun_tasks!`. It takes a group of any kind of task,
+and the answer goes to the other verbs as it is. It has no `wait` keyword:
+`wait_for_tasks!` waits a short time, and a person at the REPL calls
+`wait_for_task_group!(editor, group)`. A chain of programs is
+`TaskGroup([ProgramTask(…), …]; jobs = 1, stop_at_failure = true)`; the default of
+`jobs` is the count of processor threads.
+
 The verbs of the slice that a model may call carry the mark `For the assistant.`
 in their docstrings, beside the verbs of the domain that start the groups.
 
@@ -561,8 +574,11 @@ A domain adds a kind of task in five steps. The example is a build that runs
 4. If the views must show more than every task has, answer the functions of the
    views: `get_task_columns`, `format_task_column`, `format_task_details`,
    `get_task_actions`, `get_task_links` and `get_task_result_document`.
-5. Give a model the verbs: the verbs of the domain that start a group, each
-   with the mark `For the assistant.` in its docstring; the verbs of the slice carry it already.
+5. Give a model the kind and the verbs: the kind itself carries the mark
+   `For the assistant.` in its docstring (with "Use it to", an example and "See
+   also"), as `ProgramTask` and `TaskGroup` do, when a model builds it into a
+   group that `run_tasks!` starts; a domain whose verbs start the group of its
+   own kind marks those verbs; the verbs of the slice carry it already.
 
 ```julia
 struct BuildTask <: AbstractTask

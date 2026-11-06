@@ -194,6 +194,21 @@ is not one of the tasks: the counts, the codes, the result and the places of
 the group are those of its tasks. `runtime.preparation_run` is its execution of
 the last start, and `runtime.on_preparation`, when it is set, is called with
 that execution when the preparation starts.
+
+Use it to build the work that `run_tasks!` starts: a chain of programs, each of
+which needs the one before it, or a set of programs that run at once. The default
+of `jobs` is the count of processor threads, so the tasks of a chain would run at
+once: give `jobs = 1` and `stop_at_failure = true`.
+
+# Example
+
+    TaskGroup([ProgramTask(`make cleanall`; working_directory = "/work/inet", name = "clean"),
+               ProgramTask(`make -j8`; working_directory = "/work/inet", name = "build")];
+              name = "rebuild", jobs = 1, stop_at_failure = true)
+
+See also `run_tasks!`, `ProgramTask`.
+
+For the assistant.
 """
 @document [M, C] struct TaskGroup <: AbstractTask
     tasks::Vector{AbstractTask}

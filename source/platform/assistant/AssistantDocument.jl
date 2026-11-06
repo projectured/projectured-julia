@@ -20,7 +20,8 @@ const DEFAULT_ASSISTANT_SYSTEM =
     "to the running editor. Before you write code, find the names with `search_api` and the " *
     "guides with `search_guides`, and read a guide with `read_resource`. NEVER guess a name " *
     "or a signature: search for it.\n\n" *
-    "NEVER read files or run programs directly in code. Read a file with the verbs of the editor."
+    "NEVER read files or run programs directly in code. Read a file with the verbs of the editor. " *
+    "Start a program as a task with `run_tasks!`, so that the person sees it and can stop it."
 
 """
     DEFAULT_AGENT_INSTRUCTIONS
@@ -30,8 +31,8 @@ agent runs inside the editor of the person, the MCP server controls that editor,
 and a request about what the editor shows goes through its tools. The session
 gets these and then the `system` of the assistant in its system prompt, so an
 agent and the built-in loop read the same text of the window. The text of the
-window forbids files and programs in the code that runs in the window; these
-instructions add that the agent uses its own file and shell tools only when the
+window forbids reading files and running programs directly in the code that runs in
+the window, and names `run_tasks!` for a program; these instructions add that the agent uses its own file and shell tools only when the
 person asks for work on files.
 """
 const DEFAULT_AGENT_INSTRUCTIONS =

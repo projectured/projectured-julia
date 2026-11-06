@@ -177,6 +177,36 @@ function test_task_group_verbs()
             @test build_task_group_document_counts(slow)[:cancelled] == 2
         end
 
+        @testset "a verb starts a group of programs, and its answer goes to the other verbs" begin
+            folder = mktempdir()
+            program(script, name) = ProgramTask(`sh -c $script`; working_directory = folder, name)
+            chain = TaskGroup([program("echo one", "one"), program("exit 4", "two"),
+                               program("echo three", "three")];
+                              name = "chain", jobs = 1, stop_at_failure = true)
+            tabs_before = length(get_pane_groups(editor.document)[1].tabs)
+            selection_before = string(strip_reference_types(get_selection(editor.document)))
+            answer = run_tasks!(chain; title = "the chain", editor)
+            @test answer isa TaskGroupDocument && get_task_group(answer) === chain
+            @test any(g -> g === answer, collect_work_items(get_session_task_group_list(; editor)))
+            @test occursin("the chain", string(list_task_groups(; editor)))
+            @test length(get_pane_groups(editor.document)[1].tabs) == tabs_before
+            @test string(strip_reference_types(get_selection(editor.document))) == selection_before
+            @test startswith(string(wait_for_tasks!(answer; timeout = 20, editor)), "Ended: ")
+            text = string(describe_task_group(answer; tasks = :all, editor))
+            @test occursin("1. one — DONE", text) && occursin("2. two — ERROR (unexpected)", text)
+            @test occursin("3. three — CANCEL (unexpected) (Not started: two ended ERROR)", text)
+            @test string(get_task_output(answer, 1; editor)) == "one"
+            @test_throws ArgumentError run_tasks!(chain; editor)
+
+            slow = run_tasks!(TaskGroup([program("sleep 30", "sleep")]; name = "slow"); editor)
+            started = time()
+            @test occursin("Stopping", string(stop_tasks!(slow; editor)))
+            wait_for_task_group!(editor, slow)
+            @test time() - started < 5
+            @test occursin("Closed the group", string(close_task_group!(slow; editor)))
+            @test length(get_pane_groups(editor.document)[1].tabs) == tabs_before
+        end
+
         @testset "a group is stopped, run again and closed" begin
             @test string(stop_task!(group, 1; editor)) == "Stopping task 1."
             @test rerun_tasks!(group; which = :all, wait = true, editor) === group
@@ -211,6 +241,7 @@ function test_task_group_verbs()
                 only(entry for entry in ProjecturedKernel.ToolModule.collect_marked_api()
                      if entry.module_ === TaskModule))
             @test :describe_task_group in names && :close_task_group! in names
+            @test :run_tasks! in names && :ProgramTask in names && :TaskGroup in names
             @test all(name -> isdefined(TaskModule, name), names)
         end
     end

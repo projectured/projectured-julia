@@ -24,10 +24,17 @@ not exist makes the start throw, and the group ends the task as a
 [`TaskStartFailure`](@ref). Each line that holds `error:` or `fatal:` is marked
 `:error`, and each that holds `warning:` is marked `:warning`.
 
+Use it to run a program that the person sees in the Tasks pane and can stop, as
+a task of a `TaskGroup` that `run_tasks!` starts.
+
 # Example
 
     ProgramTask(`git checkout --detach 3fa2c1d`; working_directory = "/work/inet",
                 name = "checkout")
+
+See also `run_tasks!`, `TaskGroup`.
+
+For the assistant.
 """
 struct ProgramTask <: AbstractTask
     arguments::Vector{String}

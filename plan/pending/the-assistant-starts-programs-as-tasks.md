@@ -255,7 +255,7 @@ in `environment/all`.
      the effect of each verb, since a verb needs a real editor for `run_on_editor_task!`.
    - `test_task_views()`, `test_task_group_verbs()`, `test_task_group_table()` and
      `test_task_group()` pass together (315 Pass).
-4. **The verb.** `run_tasks!` in `TaskVerbs.jl` makes `StartTaskGroupOperation`. The three names
+4. **The verb.** **Done on 2026-11-06.** `run_tasks!` in `TaskVerbs.jl` makes `StartTaskGroupOperation`. The three names
    `run_tasks!`, `ProgramTask` and `TaskGroup` carry the mark `For the assistant.` (D6). The
    docstrings of `run_tasks!`, `ProgramTask` and `TaskGroup`, with the mark. The `run_tasks!` sentence of D7
    in the rule of `EDITOR_SYSTEM` and in the fallback `DEFAULT_ASSISTANT_SYSTEM`, with the mark on
@@ -267,6 +267,18 @@ in `environment/all`.
    selection do not change; "a model may call every verb" holds `:run_tasks!`. Then
    `test_assistant_documentation()`, `test_assistant_verbs()` and
    `test_referenced_document_editor()`, because new docstrings can move the rank of `search_api`.
+   What the implementation found:
+   - The system text of the native assistant lives in `source/platform/assistant/AssistantDocument.jl`
+     (the plan says `conversation/`); the rule in `EDITOR_SYSTEM` and the fallback
+     `DEFAULT_ASSISTANT_SYSTEM` both carry the `run_tasks!` sentence, and the docstring of
+     `DEFAULT_AGENT_INSTRUCTIONS` names it.
+   - `run_tasks!` checks the start time of the group on the calling task, so the `ArgumentError`
+     reaches the caller and not the task of the editor.
+   - The new testset of `test_task_group_verbs()` runs a chain of three programs whose second
+     fails, and asserts the answer in the list, the unchanged tabs and selection, `Ended: …`,
+     the `Not started: two ended ERROR` line, the second start that throws, and a stop and a close.
+   - `test_task_group_verbs()` (83 Pass); `test_assistant_documentation()`,
+     `test_assistant_verbs()` and `test_referenced_document_editor()` together (3268 Pass).
 5. **The wake and the window.** Test: a new testset in `test_assistant_wake()`
    (`test/platform/conversation/AssistantWakeTest.jl`). A tool calls `run_tasks!` with a
    `ProgramTask` that sleeps 1 s, and the note says `The task group "the sleep" ended: `. Then a
