@@ -361,6 +361,14 @@ end
     @test _rules_drawn(table(2), :height, 300, 300) == 300
 end
 
+@testset "a Content row of a grid gives its cells its edge, as a Content column does" begin
+    # A scroll pane in the second `Content` row stops at the edge less the first row.
+    grid = GridLayout(Any[WidgetLabel("title"), WidgetScrollPane(_rules_lines(40))], 1; vertical_gap = 0)
+    (title, pane) = _rules_child_extents(grid, :height, nothing, 300)
+    @test title > 0
+    @test pane == 300 - title
+end
+
 @testset "a lazy grid in an area that grows builds the rows that show" begin
     built = Ref(0)
     grid = GridLayout(_rules_lazy_rows(10_000_000, built), 3;

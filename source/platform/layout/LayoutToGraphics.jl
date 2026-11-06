@@ -1693,6 +1693,25 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         end)
     end
     column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
+    # The edge of a `Content` row, as the edge of a `Content` column: the grid's
+    # edge, less the gaps, less what the `Content` rows above it drew, less the
+    # minimums of the other rows.
+    is_content_row(k::Int) = !_gl_offers(peek_row_policy(k))
+    edge_h = ctx === nothing ? nothing : ctx.maximum_height
+    function make_row_edge(row::Int)
+        edge_h === nothing && return nothing
+        Cell(@computation begin
+            c = row_count_cell[]
+            r = Int(edge_h[]) - sum((gap_above(k) for k in 2:c); init = 0)
+            for k in 1:c
+                k == row && continue
+                r -= (k < row && is_content_row(k)) ? Int(content_row_h[k][]) :
+                     something(policy_of_row(k).min, 0)
+            end
+            Int32(max(0, r))
+        end)
+    end
+    row_edges = Union{Nothing,Cell}[make_row_edge(row) for row in 1:n]
     span_w = Cell[_gl_span_w_cell(i, places, col_w, hgap) for i in 1:n]
     col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
     # The columns that child `i` spans, at the column count of this print.
@@ -1723,11 +1742,12 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
     # slot — and a weighted one that shares a minimum gives its share as a
-    # minimum. A `Content` column gives its cells its edge, so a cell draws its
-    # content up to it; a row that does not hand out its extent keeps the height
-    # free, because no content reflows with its height. A child that spans
-    # columns is given their width exactly when each of them hands out its
-    # extent, and as a bound otherwise.
+    # minimum. A `Content` column and a `Content` row give their cells their
+    # edge, so a cell draws its content up to it: a text wraps at the edge of its
+    # column, and a part that scrolls stops at the edge of its row. A sized row
+    # that keeps its extent from its cells (`row_offers`) clips them instead, and
+    # gives them no edge. A child that spans columns is given their width exactly
+    # when each of them hands out its extent, and as a bound otherwise.
     for i in 1:n
         row, col, span = places_now[i]
         cctx = ctx
@@ -1746,6 +1766,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                                                          space = get_cell_space(i)) :
                    offers_to_row_cells(row) ? with_exact_size(cctx; height = _gl_int32_cell(row_h[row]),
                                                               space = get_cell_space(i)) :
+                   is_content_row(row) && row_edges[row] !== nothing ?
+                       with_bounded_size(cctx; height = row_edges[row], space = get_cell_space(i)) :
                    with_free_axis(cctx, :y; space = get_cell_space(i))
         end
         cim = _recurse_child(recursion, doc.children[i],

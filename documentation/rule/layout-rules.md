@@ -358,7 +358,9 @@ room_i       = edge − gaps − Σ(j < i, unweighted) eⱼ − Σ(j > i or weig
 allocation reads the unweighted children after they are drawn, so no child's
 extent depends on the allocation or on itself. `WidgetSplitPane` works the same
 way. A viewport with no weight takes its content up to its room and scrolls the
-rest (§1).
+rest (§1). A `Content` row of a grid gets the edge of the grid less the gaps, less
+what the `Content` rows above it drew and less the minimums of the other rows, as
+a `Content` column gets its width.
 
 **A child after the others counts only by its minimum.** A label after a
 scroll pane declares no minimum, so the room of the pane leaves no space for it.
