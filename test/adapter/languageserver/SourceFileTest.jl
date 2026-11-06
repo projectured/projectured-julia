@@ -212,19 +212,19 @@ end
     @test any(entry -> entry[1] == "int main() {", drawn)
 end
 
-@testset "a page that only its holder acquires gives its source file the server" begin
-    # The navigator of an explorer holds the page of a file, and nothing acquires
-    # the file itself: the page holds it.
+@testset "a view that only its holder acquires gives the source file of its page the server" begin
+    # The navigator of an explorer holds the view of the page of a file, and nothing
+    # acquires the file itself: the view holds the page, and the page holds it.
     server, connection = start_fake_language_server(token_types = ["variable", "function"], tokens = _sf_tokens)
     directory = mktempdir()
     path = joinpath(directory, "shown.c")
     write(path, _SF_SOURCE)
-    page = make_file_tab_content(path)
-    file = find_page_file(page)
+    view = make_file_tab_content(path)
+    file = find_page_file(view.page)
     @test file isa SourceFile
-    editor, backend = _sf_editor(page)
+    editor, backend = _sf_editor(view)
     _sf_give_server!(editor, path, connection)
-    evaluate_operation(editor, AcquireDocumentOperation(page))
+    evaluate_operation(editor, AcquireDocumentOperation(view))
     @test file.server_text.server === connection
     expected = [(4, 8, _SF_FUNCTION), (21, 26, _SF_VARIABLE), (43, 48, _SF_VARIABLE)]
     @test _sf_wait(() -> _sf_spans(file.content.marks) == expected, editor, backend)

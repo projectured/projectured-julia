@@ -90,12 +90,14 @@ function _app_make_window(paths; files::Bool = false, focus_file::Bool = false, 
     (document, projection)
 end
 
-# The selection on the content of the first file of the window of `document`, as a
-# press on its tab gives it: the window opens on the Explorer, the tab before it.
+# The selection on the content of the first file of the window of `document`: the
+# file that the page of its tab holds, as a press on its tab gives it: the window
+# opens on the Explorer, the tab before it.
 function _app_focus_first_file!(document)
     steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
     at = findlast(==(FieldReferenceStep("tabs")), steps)
-    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("content"))
+    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("page"),
+                 FieldReferenceStep("content"))
     set_selection!(document, extend_reference(EmptyReference(), steps...))
     document
 end
@@ -1159,10 +1161,10 @@ function test_application()
                 # A tab of its own, and not a page in the navigator of the explorer.
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
                 # The group of the files, where a file from the explorer opens too. A
-                # file tab shows the page of its file, which holds the file in a
-                # scroll pane.
-                @test any(tab -> tab.content isa FilePage && tab.content.content isa WidgetScrollPane &&
-                                 is_file_document(find_page_file(tab.content)),
+                # file tab shows a view of the page of its file, which holds the file
+                # in a scroll pane.
+                @test any(tab -> tab.content isa FilePageView && tab.content.scroll isa WidgetScrollPane &&
+                                 is_file_document(find_page_file(tab.content.page)),
                           group.tabs)
             end
 

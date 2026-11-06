@@ -1,17 +1,21 @@
-# Fragment of `FileFormatModule` — the page of a file in a tab: the file in its
-# scroll pane, and a band above it while the file and its copy on disk disagree.
-# The band is a document of the page, and each of its buttons answers an
-# operation.
+# Fragment of `FileFormatModule` — the page of a file: the file, and a band above
+# it while the file and its copy on disk disagree. The band is a document of the
+# page, and each of its buttons answers an operation.
 
 """
     FilePage(content)
     FilePage(; content, band = nothing, file_hash = nothing)
 
-What a tab shows for a file: `content`, the file in its scroll pane, and `band`,
-a [`FileBand`](@ref) that stands above the content, or `nothing`. The band stays
-at the top of the tab while a long file scrolls. `file_hash` is the hash of the
-text of the file on disk at the last load or save of the page
-([`compute_file_text_hash`](@ref)), or `nothing` when the page does not know it.
+What an editor holds for a file: `content`, the file, or what an opener put around
+it, such as a history, and `band`, a [`FileBand`](@ref) that stands above the
+content, or `nothing`. `file_hash` is the hash of the text of the file on disk at
+the last load or save of the page ([`compute_file_text_hash`](@ref)), or `nothing`
+when the page does not know it.
+
+A page shows through a view of its own at each place, a tab or a card
+([`FilePageView`](@ref)), so one watch, one hash and one band serve every place.
+The view keeps the scroll pane and draws the band above it, so the band stays at
+the top while a long file scrolls.
 
 The page holds the state of its file against the disk, and the watcher of the
 file knows nothing of it. A save of the page checks the disk first
@@ -19,13 +23,13 @@ file knows nothing of it. A save of the page checks the disk first
 write over a newer file, and when the file changed on disk under edits that are
 not saved.
 
-A walk from the tab reaches the file through `content` (`get_edited_field`),
-and the tab takes its title from the file. [`make_file_tab_content`](@ref) makes
-the page of a file.
+A walk reaches the file through `content` (`get_edited_field`), and the page takes
+its title from the file. [`make_file_tab_content`](@ref) makes the view of the
+page of a file.
 
 # Example
 
-    page = make_file_page(WidgetScrollPane(make_file_tab("notes.txt")))
+    page = make_file_page(make_file_tab("notes.txt"))
 """
 @document struct FilePage
     content::Any
@@ -85,7 +89,7 @@ function find_page_file(page::FilePage)
 end
 
 # A holder saves a page as the file that it shows, so a save writes `file("…")`
-# for the page and none of its band, its hash or its scroll pane.
+# for the page and none of its band or its hash.
 find_held_file(page::FilePage) = find_page_file(page)
 
 """
@@ -108,7 +112,7 @@ end
 """
     make_file_page(content) -> FilePage
 
-The page of `content`, a file in its scroll pane, with the hash of the text of its
+The page of `content`, a file or what wraps it, with the hash of the text of its
 file on disk now, as the file was just read. A file that a person does not edit
 is not read for a hash: a save never writes it, and its file can be large.
 """

@@ -38,7 +38,7 @@ A path that does not exist opens as `make_document_seed(Val(extension))`. A doma
 
 `make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`) has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file.
 
-`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: a `FilePage` (see the next section) around the file document of `make_file_tab` in a `WidgetScrollPane`, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it.
+`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the view (`FilePageView`, see the next section) of a new `FilePage` of the file document of `make_file_tab`. The view keeps the scroll pane, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it, and `open_file!` opens a tab with the view of the page of an open file, so each tab keeps its own place in a file that another place shows too.
 
 `FileToContent` is the projection of a `FileDocument` in the general renderer. It prints `content` through the recursion, so a tab with a `JsonFile` shows the JSON document exactly as a bare `JsonDocument` would show. The forward map passes the path below `content` to the child. The backward map puts the `content` step in front with `concat_references`. The `^` splice of `@reference` would move the type checkpoints of the path, and the selection would then match no document. `FileToContent(; content, accepts)` prints and reads a content that `accepts` answers `true` for with the projection `content` in place of the recursion: the view of a file of a domain, which a document of that domain inside another document does not have. Any other content, such as one that an opener wraps in a document of its own, prints through the recursion. The Julia domain gives `JuliaFile` such a view through `make_graphics_projection`, whose rows come before the row of `FileDocument`.
 
@@ -55,7 +55,9 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ### The page of a file
 
-`FilePage` is what a tab shows for a file. It holds `content` (the file in its scroll pane), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page. `find_held_file(page)` answers the same file, so a document that holds a page, such as a card of a dashboard, saves it as `file("…")` and writes none of the band, the hash or the scroll pane.
+`FilePage` is what an editor holds for a file. It holds `content` (the file, or what an opener put around it, such as a history), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page. The page holds the file, the hash and the band once, so one watch, one hash and one band serve every place that shows the file.
+
+Each place that shows a page shows a view of it. `make_document_view(page)` makes a `FilePageView(page, scroll)`: the `page` and the `scroll` pane of this place, which keeps where this place is scrolled to. `make_file_page_view(page)` makes it for a new place, with the selection of the view following the selection of the page. A tab keeps a view, a card of a dashboard keeps a view in its slot, and a navigator keeps the view of its page, so a scroll in the tab leaves the card where it is. The view names the page with `get_edited_field`, so a walk and a tab reach the file through the page, and not through the scroll pane, which a walk does not enter (`is_field_walked`). A view says the title and the decoration of its page. A holder holds the view, and the view holds the page, which holds the file. `find_held_file(view)` and `find_held_file(page)` answer the file, so a document that holds a view or a page saves it as `file("…")` and writes none of the band, the hash or the scroll pane.
 
 The page holds the state of its file against the disk. `file_hash` is the hash of the text of the last load or save. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash.
 
@@ -67,7 +69,7 @@ The page holds the state of its file against the disk. `file_hash` is the hash o
 
 "Save as" (`save_file_dialog!` with a page) writes with `force = true`. A history above the page adds no step for a save or for `KeepFilePageEditsOperation`, because their way back is `DoNothingOperation`.
 
-`FileBand` holds a `message` and `choices`, each a label with an operation. `FilePageToWidget` draws it above the file. After a change on disk, the band says "<name> changed on disk." and offers two choices:
+`FileBand` holds a `message` and `choices`, each a label with an operation. `FilePageToWidget` draws the band of the page of a view above the scroll pane of the view, so the band stays at the top while a long file scrolls, in each view of the page. After a change on disk, the band says "<name> changed on disk." and offers two choices:
 
 | Choice | Operation | What it does |
 | --- | --- | --- |
@@ -105,7 +107,7 @@ The file verbs that a language model can call carry the mark `For the assistant.
 
 The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) offers its marked names to the assistant.
 
-It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FilePage` with `FilePageToWidget`; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
+It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FilePageView` with `FilePageToWidget`, so a page shows through its view; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
 
 ## Design decisions
 

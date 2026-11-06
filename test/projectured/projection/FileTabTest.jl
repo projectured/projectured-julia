@@ -90,19 +90,20 @@ mktempdir() do dir
         @test read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) isa SaveFileOperation
     end
 
-    # The page of a file draws its band above the file, a click on a button of the
-    # band answers the operation of its choice, and a press in the file reaches the
-    # content of the file through the page.
+    # The view of the page of a file draws the band of the page above the file, a
+    # click on a button of the band answers the operation of its choice, and a press
+    # in the file reaches the content of the file through the page.
     @testset "a page draws its band above its file, and the file still takes a press" begin
         write(path, "{\"greeting\": \"hello\"}")
         file = make_file(get_file_document_type(path), path, read(path, String))
-        page = FilePage(; content = WidgetScrollPane(file),
+        page = FilePage(; content = file,
                           band = FileBand(; message = "a.json changed on disk.",
                                             choices = ["Load it" => _FileBandChoiceProbe()]))
+        view = make_file_page_view(page)
         @test find_page_file(page) === file
-        @test get_document_title(page) == "a.json"
+        @test get_document_title(page) == "a.json" && get_document_title(view) == "a.json"
         renderer = NaturalToGraphics(measure = _stub)
-        print_page() = print_document(renderer, nothing, page,
+        print_page() = print_document(renderer, nothing, view,
                                       PrinterContext(EmptyReference(), Cell(600), Cell(400),
                                                      Dict{Symbol,Any}()))
         iomap = print_page()
@@ -115,9 +116,9 @@ mktempdir() do dir
         @test click(load_x, load_y) isa _FileBandChoiceProbe
         answer = click(hello_x, hello_y)
         @test answer isa ReplaceSelectionOperation
-        @test occursin(r"^\.content\.content\.content\.entries\[1\]\.value\.value\{\d+\}$",
+        @test occursin(r"^\.page\.content\.content\.entries\[1\]\.value\.value\{\d+\}$",
                        repr(strip_reference_types(answer.path)))
-        # With no band, the page draws the file alone.
+        # With no band, the view draws the file alone.
         page.band = nothing
         texts = _app_drawn_at(get_iomap_output(print_page()))
         @test !any(entry -> occursin("changed on disk", entry[1]), texts)
@@ -128,17 +129,18 @@ mktempdir() do dir
     # save checks the disk first, and both keep the hash of the text of the file.
     @testset "Ctrl+S and F5 in a page answer the save and the load of the page" begin
         write(path, "{\"greeting\": \"hello\"}")
-        page = make_file_tab_content(path)
+        view = make_file_tab_content(path)
+        page = view.page
         @test page.file_hash == hash(read(path, String))
         renderer = NaturalToGraphics(measure = _stub)
-        print_page() = print_document(renderer, nothing, page,
+        print_page() = print_document(renderer, nothing, view,
                                       PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))
         iomap = print_page()
         # A key reaches the file where the caret is: a click puts it in the file.
         (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
                       if occursin("hello", text))
         click = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
-        replace_selection!(page, click.path)
+        replace_selection!(view, click.path)
         iomap = print_page()
         save = read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
         @test save isa SaveFilePageOperation && save.page === page && !save.force

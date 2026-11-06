@@ -49,7 +49,8 @@ using ..TreeModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
+import ..DocumentModule: get_document_title, has_document_duplicate, copy_document, get_view_state_fields,
+                         is_field_walked
 import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file,
                        acquire_document!, release_document!, get_document_decoration
 import ..FileChangeModule: receive_folder_change!

@@ -186,7 +186,7 @@ end
 const _CARDS_STEP = FieldReferenceStep("cards")
 
 function read_intent(p::DashboardToWidget, recursion, change::Intent, iomap)
-    route = change.route isa ConcreteReference ? get_reference_steps(strip_reference_types(change.route)) : ()
+    route = change.route isa ConcreteReference ? Tuple(get_reference_steps(strip_reference_types(change.route))) : ()
     (change.operation !== nothing && route == (_CARDS_STEP,)) ||
         return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     operation = _add_card_holds(iomap.input, reroot_operation(change.operation, route))

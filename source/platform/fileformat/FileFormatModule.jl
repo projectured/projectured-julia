@@ -46,8 +46,9 @@ using ..TooltipModule
 using ..TreeModule
 
 # Imported to extend: this module adds a method to each of them.
-import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate
-import ..DomainModule: get_document_decoration, accepts_pasted_document
+import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate, is_field_walked
+import ..DomainModule: get_document_decoration, accepts_pasted_document, make_document_view, acquire_document!,
+                       release_document!
 import ..SerializationModule: pred_arguments, make_pred_document, find_held_file
 import ..TreeModule: get_tree_children_steps
 using ..TextModule
@@ -69,8 +70,8 @@ export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOper
        compute_file_text, compute_file_text_hash, read_file_content_again
 export get_file_icon, make_file_note
 export FileToContent
-export FilePage, FileBand, find_page_file, make_file_page, FilePageToWidget,
-       SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
+export FilePage, FileBand, find_page_file, make_file_page, FilePageView, make_file_page_view,
+       FilePageToWidget, SaveFilePageOperation, LoadFilePageOperation, KeepFilePageEditsOperation,
        receive_file_change!
 export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!,
        collect_open_file_paths, find_shown_file_path,
@@ -80,6 +81,7 @@ export OpenFileList, get_session_open_file_list, find_open_file_document, add_op
 include("NaturalFormat.jl")
 include("DocumentFile.jl")
 include("FilePage.jl")
+include("FilePageView.jl")
 include("FilePageToWidget.jl")
 include("OpenFileList.jl")
 include("OpenFileListToWidget.jl")

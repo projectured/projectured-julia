@@ -586,7 +586,8 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
-using ProjecturedKernel.ReferenceModule: Reference
+using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep,
+    annotate_reference_types, extend_reference, strip_reference_types
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
 import ProjecturedPlatform.SerializationModule
@@ -594,7 +595,10 @@ using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
-using ProjecturedKernel.EditorModule: Editor, build_editor
+using ProjecturedKernel.EditorModule: Editor, build_editor, run_frame!, insert_elements!
+using ProjecturedKernel.ProjectionModule: print_document
+using ProjecturedPlatform.FileSystemModule: open_file!
+using ProjecturedPlatform.SettingsManagingModule: Settings
 using ProjecturedKernel.DeviceModule: Device
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
@@ -602,8 +606,10 @@ using ProjecturedKernelExample: HeadlessBackend
 using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation, ChangeHeldDocumentsOperation,
     is_document_held
 using ProjecturedPlatform.PaneModule: PaneTab
-using ProjecturedPlatform.WidgetModule: WidgetScrollPane
+using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D
 using ProjecturedPlatform.ExplorerModule: Dashboard, DashboardCard
+using ProjecturedPlatform.NaturalModule: NaturalToGraphics
+using ProjecturedPlatform.StyleModule: FixedMeasure
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

@@ -321,7 +321,7 @@ step saves one.
         first window of a screen.
       - The explorer suite passes with the new sets (330 Pass), `test_filechange()` passes (126
         Pass), and `test_dashboard_render()` passes (4 Pass).
-- [ ] **1a. Each place that shows a page shows its own view of it (D2).** A method of
+- [x] **1a. Each place that shows a page shows its own view of it (D2).** **Done on 2026-11-06.** A method of
       `make_document_view` for `FilePage` and its view document in `source/platform/fileformat/`.
       The scroll pane leaves the page, `make_file_page` takes the file, and `make_file_tab_content`
       answers the view of a new page. `open_file!` and `OpenFileOperation` show a view in a tab,
@@ -337,6 +337,50 @@ step saves one.
       `test_file_watch_window()`, `test_assistant_documentation()` and
       `test_referenced_document_editor()`, because the marked docstring of `make_file_tab_content`
       changes.
+      What the implementation found:
+      - The view type is `FilePageView(page, scroll)`, in `FilePageView.jl`, with the constructor
+        `make_file_page_view(page)`; both are exported, because `filesystem` and the tests make
+        a view too. `FilePageToWidget` draws the view: the band of the page above `view.scroll`,
+        and `scroll.content` is the file, which `page.content` holds too. A walk does not enter
+        `scroll` (`is_field_walked`), so the file has one path, `page.content…`. The view answers
+        the title and the decoration of its page, holds its page (`acquire_document!`), and
+        answers `find_held_file` with the file of its page. A `FilePage` has no projection of
+        its own: a page shows only through a view.
+      - `make_file_page(content)` takes the file, or what an opener put around it. `make_file_tab_content`
+        answers `make_file_page_view(make_file_page(make_file_tab(path, wrap)))`.
+        `_make_opened_file_page` in `FileSystemDocument.jl` is the one place that makes the page of
+        an open (with the history of the settings), and `_read_file_page` of a file in the Files
+        tree calls it.
+      - `open_file!` and `OpenFileOperation` give a tab the view of the page, a new view each time,
+        also for a page that an explorer or a card holds; they find the tab of an open file through
+        its view (`_is_document_in_tab`).
+      - The plan did not name the page of a file in the Files tree. The navigator of an explorer
+        shows the `FileSystemFile` of a file, and that file draws its page, so a bare page would
+        draw with no scroll pane. `FileSystemFile` gets a view-state field `document_view`, set
+        by its acquire as a card sets its slot, and draws that view. It holds the view directly:
+        the filesystem slice has no navigator slot to put it in, and a walk skips the field.
+      - The page reader of step 1 compared the route of the change with a tuple and the route
+        is a vector, so its branch (a verb that routes to `cards` of a dashboard outside an explorer)
+        never ran. It is fixed here, and the new set runs it: the dashboard is the tab of the
+        editor, and `insert_elements!` holds the view of the page in the card.
+      - A duplicate of a tab shares the view of the tab. No step asks for a view of its own for a
+        duplicate, so none is made.
+      - Tests that took a tab content for a page now take its view (`.page`, `.scroll`):
+        `FileTabTest`, `ReferencedDocumentEditorTest`, `ApplicationTest`, `WorkflowListTest`,
+        `SourceFileTest`, `ExplorerTest`; `_app_focus_first_file!` selects the file through `page`.
+        The sets of `test_filechange()` build their page with `make_file_page`.
+      - The new set of `test_filechange()` opens a file with `open_file!`, puts its page in a card
+        with `insert_elements!`, and asserts: one watch, a scroll pane for each place over one file,
+        a scroll in the tab leaves the card at its place, a second open finds the tab, a rewrite
+        loads the page once, and after an edit the next rewrite shows the band in both views.
+      - Results: `test_filechange()` 142 Pass, `test_explorer()` 333 Pass, `test_file_tab()` 33,
+        `test_file_watch_window()` 16, `test_user_interface_file()` 22, `test_assistant_documentation()`
+        27 + 196 + 2828, `test_referenced_document_editor()` 134, all Pass. The tests that this step edited pass too:
+        `test_document_decoration()` 57, `test_text_file()` 40, `test_roster_facets()` 30,
+        `test_workflow_list()` 27 and `test_source_file()` 51. `test_scroll_work()` fails
+        2 of 16 (copies and drawn share of a Julia file in a tab) and fails the same way at the
+        commit of step 1. `test_application()` has 1 failure at `ApplicationTest.jl:1008` (the
+        usage text of an agent bar), which no file code touches.
 - [ ] **2. The text of a page is a background cell (D4).** The page in `FilePage.jl` gets the cell,
       its `BackgroundSource`, and an `apply` that loads with the check of today
       (`receive_file_change!`, `FilePage.jl:324-345`). The watch in `FileChangeStore.jl` reports

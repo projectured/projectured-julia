@@ -13,7 +13,7 @@ function _make_watched_text_file(text::AbstractString; wrap = UndoBuffer)
     folder = mktempdir()
     path = joinpath(folder, "watched.txt")
     write(path, text)
-    (path, make_file_tab_content(path, wrap))
+    (path, make_file_page(make_file_tab(path, wrap)))
 end
 
 # Watch the file of a page, with the page as the receiver, as the tab of a page does.
@@ -268,7 +268,7 @@ function test_file_change_store()
             folder = dirname(held_path)
             holder_path = joinpath(folder, "work.pred")
             @test save_file!(PredFile(holder_path, Dashboard("work")), folder)
-            holder = make_file_tab_content(holder_path, UndoBuffer)
+            holder = make_file_page(make_file_tab(holder_path, UndoBuffer))
             dashboard = get_wrapped_document(get_file_content(find_page_file(holder)))
             push!(dashboard.cards, DashboardCard("notes", held))
             @test evaluate_operation(nothing, SaveFilePageOperation(holder)) === true
@@ -425,6 +425,55 @@ function test_file_change_store()
             evaluate_operation(editor, ReleaseDocumentOperation(page))
             @test !is_document_held(editor, file)
             @test !is_document_file_watched(file; store)
+        end
+
+        @testset "a tab and a card show one page, each with a view of its own" begin
+            folder = mktempdir()
+            path = joinpath(folder, "shared.txt")
+            write(path, "one\n")
+            dashboard = Dashboard("Study")
+            editor = build_editor(dashboard, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend = HeadlessBackend(), devices = Device[], window = false, tabs = true,
+                                  appearance = false, settings = Settings(), file_change = true)
+            run_frame!(editor)
+            store = get_session_file_change_store(; editor)
+            evaluate_operation(editor, AcquireDocumentOperation(dashboard))
+            tab = open_file!(path; editor)
+            run_frame!(editor)
+            page = find_open_file_document(path; editor)
+            tab_view = get_document(tab).content
+            @test page isa FilePage && tab_view isa FilePageView && tab_view.page === page
+            cards = ReferencedDocument(dashboard.cards, annotate_reference_types(
+                editor.document, extend_reference(strip_reference_types(find_document_path(editor.document, dashboard)),
+                                                  FieldReferenceStep("cards"))))
+            insert_elements!(cards, 1, Any[DashboardCard("Shared", page)]; editor)
+            card_view = dashboard.cards[1].content_view.view
+            @test card_view isa FilePageView && card_view !== tab_view && card_view.page === page
+            # One page has one watch, and each place has a scroll pane of its own over
+            # the one file.
+            file = find_page_file(page)
+            @test only(store.files).receiver === page
+            @test card_view.scroll !== tab_view.scroll
+            @test card_view.scroll.content === file && tab_view.scroll.content === file
+            tab_view.scroll.scroll_position = Point2D(0, -40)
+            @test tab_view.scroll.scroll_position.y[] == -40
+            @test card_view.scroll.scroll_position.y[] == 0
+            # An open of the file finds the tab that shows it through its view.
+            @test get_document(open_file!(path; editor)) === get_document(tab)
+            # A rewrite loads the page once, and both views show the file of the page.
+            shown_children(view) = length(print_document(FilePageToWidget(), nothing, view, nothing).output.children)
+            write(path, "two\n")
+            @test _wait_for_file_change(store)
+            @test drain_file_changes!(; store) == 1
+            @test _get_watched_text(page) == "two\n" && page.band === nothing
+            @test shown_children(tab_view) == 1 && shown_children(card_view) == 1
+            # After an edit the next rewrite shows the band above the file, in both views.
+            _edit_watched_text!(page, "mine\n")
+            write(path, "three\n")
+            @test _wait_for_file_change(store)
+            @test drain_file_changes!(; store) == 0
+            @test page.band isa FileBand && _get_watched_text(page) == "mine\n"
+            @test shown_children(tab_view) == 2 && shown_children(card_view) == 2
         end
 
         @testset "the wrapper file_change adds a feed, and the end of the loop stops its watchers" begin

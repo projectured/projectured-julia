@@ -306,7 +306,7 @@ function test_referenced_document_editor()
     @testset "an operation routed into a file tab is recorded in the file's history" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))   # the history of the file of the page
+        file_history = get_file_content(find_page_file(get_document(people_tab).content.page))   # the history of the file of the page
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         name = extend_reference(EmptyReference(), ElementReferenceStep(2), FieldReferenceStep("entries"),
                                 ElementReferenceStep(1), FieldReferenceStep("value"))
@@ -322,7 +322,7 @@ function test_referenced_document_editor()
     @testset "the editing verbs record an edit in the history of the file, and an undo takes it back" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        file_history = get_file_content(find_page_file(get_document(people_tab).content.page))
         count = length(get_document(people))
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
@@ -350,7 +350,7 @@ function test_referenced_document_editor()
     @testset "a group of changes applies as one step, and one undo takes it back" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        file_history = get_file_content(find_page_file(get_document(people_tab).content.page))
         count = length(get_document(people))
         second = get_document(people)[2]["name"].value
         steps = (length(history.undo_entries), length(file_history.undo_entries))
@@ -377,7 +377,7 @@ function test_referenced_document_editor()
         run_frame!(editor)
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        file_history = get_file_content(find_page_file(get_document(people_tab).content.page))
         count = length(get_document(people))
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         apply_change!(combine_changes(make_change(close_pane!, note; editor),
@@ -425,9 +425,9 @@ function test_referenced_document_editor()
         long_editor = _make_referenced_application(long_directory; paths = [long_path],
                                                    focus_file = true)
         long_tab = find_pane("long.json"; editor = long_editor)
-        page = get_document(long_tab).content
-        @test page isa FilePage
-        pane = page.content
+        view = get_document(long_tab).content
+        @test view isa FilePageView && view.page isa FilePage
+        pane = view.scroll
         @test pane isa WidgetScrollPane && is_file_document(pane.content)
         items = get_edited_document(long_tab)
         @test get_document(items) isa JsonArray

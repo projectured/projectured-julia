@@ -338,7 +338,7 @@ function test_explorer()
         (_, x, y) = texts[argmax([entry[2] for entry in texts])]
         _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
         file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
-        place = file * ".document.content.content.content.entries[1].value.value{0}"
+        place = file * ".document.content.content.entries[1].value.value{0}"
         @test selected() == place
         # The row of another file takes the keys, then a double press on the row of
         # the file puts them back: the file, its document and the place in the JSON.
@@ -509,7 +509,7 @@ function test_explorer()
         run_frame!(editor)
         @test tabs() == before + 1
         shown = [tab.content for group in get_pane_groups(get_window_tree(editor.document)) for tab in group.tabs]
-        @test any(content -> content === file.document, shown)
+        @test any(content -> content isa FilePageView && content.page === file.document, shown)
         @test count(listed -> listed isa FilePage, open.files) == 1
         # A second open focuses that tab, and opens no other.
         evaluate_operation(editor, OpenFileOperation(path))
@@ -1259,13 +1259,16 @@ function test_explorer()
         try
             path = joinpath(root, "notes.txt")
             write(path, "hello")
-            page = make_file_tab_content(path)
-            @test page isa FilePage
-            dashboard = Dashboard("work", Any[DashboardCard("notes", page)])
-            text = cut_file_text(PredFile(joinpath(root, "work.pred"), dashboard), root)
-            @test occursin("content = file(\"notes.txt\")", text)
-            @test !occursin("hello", text)
-            @test !occursin("FilePage", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
+            view = make_file_tab_content(path)
+            @test view isa FilePageView && view.page isa FilePage
+            # A card that holds the page, and a card that holds its view, write the file.
+            for held in (view.page, view)
+                dashboard = Dashboard("work", Any[DashboardCard("notes", held)])
+                text = cut_file_text(PredFile(joinpath(root, "work.pred"), dashboard), root)
+                @test occursin("content = file(\"notes.txt\")", text)
+                @test !occursin("hello", text)
+                @test !occursin("FilePage", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
+            end
         finally
             rm(root; recursive = true, force = true)
         end
@@ -1274,7 +1277,7 @@ function test_explorer()
     @testset "a dashboard holds the content of its cards, and a page in a card watches its file" begin
         root = mktempdir()
         try
-            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_tab_content(path))
+            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_page(make_file_tab(path)))
             (first_page, inserted, pasted) = (make_page("first.txt"), make_page("inserted.txt"), make_page("pasted.txt"))
             dashboard = Dashboard("Study", Any[DashboardCard("First", first_page)])
             explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))

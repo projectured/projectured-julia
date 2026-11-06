@@ -125,7 +125,7 @@ function test_document_decoration()
         # A file page whose band shows says that the file changed on disk.
         path = joinpath(mktempdir(), "notes.txt")
         write(path, "hello")
-        page = make_file_page(WidgetScrollPane(make_file_tab(path)))
+        page = make_file_page(make_file_tab(path))
         @test get_document_decoration(page).icon === :pilcrow
         @test isempty(get_document_decoration(page).conditions)
         page.band = FileBand(; message = "notes.txt changed on disk.")
