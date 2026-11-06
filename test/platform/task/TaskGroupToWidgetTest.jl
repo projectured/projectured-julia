@@ -591,7 +591,8 @@ function test_task_views()
             value(label) = first(sort([t for t in texts if t[2] == label[2] && t[1] > label[1]]; by = first))
             @test value(finished)[3] == "3 of 3" && value(finished)[1] == value(elapsed)[1]
             @test occursin(r"^\d+ s$", value(elapsed)[3])
-            @test occursin(r"^(ok|fail|first), \d+\.\d s$", value(slowest)[3])
+            # A time of 0 has no digit after the point.
+            @test occursin(r"^(ok|fail|first), \d+(\.\d)? s$", value(slowest)[3])
             @test occursin(r"^\d+(\.\d)? a minute$", value(rate)[3])
             # A slow group says one digit after the point, and below one a minute its rate in an hour.
             @test TaskModule._format_task_rate(72.4) == "72 a minute"
