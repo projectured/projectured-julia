@@ -281,6 +281,11 @@ The dependencies: step 1a needs step 1. Step 4 needs step 5 of the save plan, wh
 main since `0836ec536`. A saved dashboard with a page in a card needs the save plan (D7), and no
 step saves one.
 
+**Order:** step 5 of the save plan needs step 2 of this plan on main, and step 4 of this plan needs
+step 5 of the save plan. The owner decided the order on 2026-11-06 ("Yes"): steps 1 to 3 of this
+plan land, then step 5 of the save plan, then step 4 of this plan. Step 6 of the save plan keeps
+its place after the plan of the layouts.
+
 - [x] **1. A dashboard holds the content of its cards (D3).** **Done on 2026-11-06.** `acquire_document!` and
       `release_document!` of `Dashboard`, and a `read_intent` of `DashboardToWidget` that adds the
       change of what is held (`source/platform/explorer/Dashboard.jl`, `DashboardToWidget.jl`).
