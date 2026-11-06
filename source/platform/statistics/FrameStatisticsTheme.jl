@@ -22,8 +22,12 @@ its styles with `get_frame_statistics_style`, from a theme scaled or not; a
 projection built with no styles holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
-    "The head line, the titles of the tables and the headers of their columns."
+    "The headers of the columns of the tables."
     header_text::ThemeText = TextRole(:text_muted; font_role = :column)
+    "The title of a section of the panel."
+    section_text::ThemeText = TextRole(:text_muted; font_role = :section)
+    "The line that counts the frames."
+    count_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "A cell of a table: a measurement, a number or a frame number."
     row_text::ThemeText = TextRole(:text; font_role = :text)
     "The line the panel shows while it holds no frame."

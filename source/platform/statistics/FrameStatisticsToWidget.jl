@@ -4,8 +4,8 @@
 # the other measurements, and a table of the recent frames, newest first.
 
 """
-    FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0,
-                              measure = nothing, row_step = 0)
+    FrameStatisticsToWidget(; header_text, section_text, count_text, row_text, empty_text, slow_text,
+                              gap, row_height = 0, measure = nothing, row_step = 0)
 
 Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
@@ -59,6 +59,8 @@ Read only: no caret goes into a table.
 """
 @projection UntrackedCell struct FrameStatisticsToWidget <: Projection
     header_text::StyleText = get_frame_statistics_style(nothing, :header_text)
+    section_text::StyleText = get_frame_statistics_style(nothing, :section_text)
+    count_text::StyleText = get_frame_statistics_style(nothing, :count_text)
     row_text::StyleText = get_frame_statistics_style(nothing, :row_text)
     empty_text::StyleText = get_frame_statistics_style(nothing, :empty_text)
     slow_text::StyleText = get_frame_statistics_style(nothing, :slow_text)
@@ -100,7 +102,8 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing,
     row_step = (measure === nothing || widget_theme === nothing) ? 0 :
         UntrackedCell{Int}(@computation row_height[] + Int(widget_theme.control_padding.top[]) +
                                         Int(widget_theme.control_padding.bottom[]) + 1)
-    FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
+    FrameStatisticsToWidget(; header_text = get_style(:header_text),
+                            section_text = get_style(:section_text), count_text = get_style(:count_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
                             gap = get_widget_style(widget_theme, :form_row_gap), row_height, measure, row_step)
 end
@@ -120,7 +123,7 @@ const _FRAME_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 0.0)
 
 function print_document(p::FrameStatisticsToWidget, recursion, statistics::FrameStatistics, ctx)
     head = HorizontalLayout(Any[
-            WidgetLabel(() -> _format_head_line(statistics); text_style = p.header_text),
+            WidgetLabel(() -> _format_head_line(statistics); text_style = p.count_text),
             _make_pause_toggle(statistics)];
         vertical_align = :center, gap = 4 * p.gap)
     bar = _make_frame_scroll_bar(p, statistics, get_visible_height(ctx))
@@ -144,12 +147,12 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
         end
         if !isempty(layout.other)
             title = isempty(layout.parts) ? "Summary" : "Other measurements"
-            push!(children, Cell(WidgetLabel(title; text_style = p.header_text)),
+            push!(children, Cell(WidgetLabel(title; text_style = p.section_text)),
                   Cell(_make_summary_table(p, [rows[k] for k in layout.other])))
         end
         choices = _collect_frame_measures(layout)
         frame_title = length(choices) < 2 ?
-            WidgetLabel("Frames, newest first"; text_style = p.header_text) :
+            WidgetLabel("Frames, newest first"; text_style = p.section_text) :
             _make_title_line(p, "Frames, newest first",
                              _make_table_choice(statistics, :frame_measure, choices,
                                                 map(_format_measure_name, choices),
@@ -211,7 +214,7 @@ _format_measure_name(measure::Symbol) = replace(String(measure), "cell_" => "")
 
 # A title of a table with the choice of what the table shows beside it.
 _make_title_line(p::FrameStatisticsToWidget, title::AbstractString, choice) =
-    HorizontalLayout(Any[WidgetLabel(title; text_style = p.header_text), choice];
+    HorizontalLayout(Any[WidgetLabel(title; text_style = p.section_text), choice];
                      vertical_align = :center, gap = 4 * p.gap)
 
 # A choice of what a table shows: one segment for each value, which a pick writes
