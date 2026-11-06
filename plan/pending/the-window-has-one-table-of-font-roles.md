@@ -413,6 +413,36 @@ gets the new value; the commit names each one.
   - a `WidgetLabel` title keeps its own style;
   - the ten cards take a `String`, or a `PrimitiveString` where the title is
     live.
+- **2026-11-06, step 6, card titles** (049dd1815, 40d8549ce). The card has an
+  IO map of its own, `WidgetCardToGraphicsCanvasIoMap`: the fields of
+  `WidgetChildrenIoMap` and `header = (height, title_box)`. The reader needs the
+  height of the header and the box of a `String` title, and only the print knows
+  them. The fold box takes the height of the header for every title. An
+  Alt+press in the box of a `String` title answers the selection of `title`, and
+  the band behind the text is a cell that reads
+  `is_whole_selected_field(w.selection, "title")`, as the band of a `:row` card
+  does. A `PrimitiveString` title prints with `:text_style` in its own context
+  only. Nine cards take a `String`; no card title is live. The heading of a task
+  group keeps its `WidgetLabel`, because the heading is a row of a label, a badge
+  and a state, and `:text_style` reaches only a title that is the
+  `PrimitiveString` itself.
+- **2026-11-06, open, found in step 6.** Inside a container, an Alt+press on a
+  `String` title selects the card as a whole. `read_child_event` calls
+  `convert_to_whole_selection`, which keeps a path only when it names a
+  document, and the field `title` names a `String`. The press selects the title
+  where the card answers directly, and a `PrimitiveString` title everywhere. The
+  owner decides.
+- **2026-11-06, step 6, card titles, counts.** Before → after:
+  `test_widget_card_fold` 46 → 68, `test_platform_examples` 203796 → 203700, all
+  pass in both; the 96 that went are not checked one by one. The same before
+  and after: `test_widget_selection` 95, `test_find_bar_view_to_widget` 50,
+  `test_object_to_widget` 60, `test_appearance_tab` 159, `test_settings` 107,
+  `test_settings_tab` 55, `test_widget_forms` 97, `test_task_views` 82,
+  `test_task_group_table` 65, `test_task_pages` 48, `test_dataframes` 608,
+  `test_conversation` 552/75/51 (the known failures). Two assertions changed:
+  `ObjectToWidgetTest.jl` reads the title as the `String` "WindowSettings", and
+  `AppearanceTabTest.jl` reads the IO map of the card as
+  `WidgetCardToGraphicsCanvasIoMap`.
 
 ## 6. Not in this plan
 
