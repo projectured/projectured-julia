@@ -124,6 +124,14 @@ function test_chart_projection()
             @test "time (s)" in labels
             @test "value" in labels
             @test any(l -> l == "0", labels)
+            # The title takes the title font and colour of the theme, and an axis
+            # title the font of a column header in the muted colour.
+            defaults = get_theme_defaults(ChartTheme)
+            title = only(t for t in texts if String(t.text) == "Signal")
+            axis_title = only(t for t in texts if String(t.text) == "value")
+            @test (title.font, title.color) == (defaults.title_font, defaults.title_color)
+            @test (axis_title.font, axis_title.color) == (defaults.axis_title_font, defaults.text_color)
+            @test title.color != axis_title.color
 
             vp = _viewport_of(canvas)
             # The plot rectangle sits inside the canvas with room for the labels.

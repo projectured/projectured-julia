@@ -33,8 +33,10 @@ plain values of the default theme.
     body_background::ThemeColor = ColorRole(:surface)
     "A lane's line, when the lane names no color of its own."
     axis::ThemeColor = ColorRole(:border_strong)
-    "A tick, a lane name, a title, a readout, and a label."
+    "A tick, a lane name, a readout, and a label."
     text_color::ThemeColor = ColorRole(:text_muted)
+    "The chart's own title."
+    title_color::ThemeColor = ColorRole(:text)
     "The time-scale strip, when the chart names no color of its own."
     gutter::ThemeColor = ColorRole(:surface_sunken)
     "The border of the gutter strip."

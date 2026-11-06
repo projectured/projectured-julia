@@ -238,7 +238,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
        body_x, body_y, body_w, body_h,
        measure = p.measure,
        background = t.background, body_background = t.body_background,
-       axis = t.axis, text_color = t.text_color,
+       axis = t.axis, text_color = t.text_color, title_color = t.title_color,
        gutter = t.gutter, gutter_border = t.gutter_border,
        hairline = t.hairline, zero_time = t.zero_time,
        arrow = t.arrow, event = t.event, series_colors = t.series_colors,
@@ -373,11 +373,10 @@ function _frame_elements!(out, g)
                             round(Int, g.body_w), round(Int, g.body_h);
                             color = g.body_background))
 
-    text_color = _or(style.tick_color, g.text_color)
     isempty(g.title) || begin
         title_line = compute_line_box(g.measure, g.title, g.title_font)
         push!(out, GraphicsText(g.title, g.padding, g.padding + title_line.text_y;
-                                font = g.title_font, color = text_color))
+                                font = g.title_font, color = _or(style.tick_color, g.title_color)))
     end
 
     _gutter_elements!(out, g)

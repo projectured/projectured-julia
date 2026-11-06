@@ -520,6 +520,7 @@ function _legend_elements!(out, g)
     style = g.style
     t = g.theme_values
     text_color = _or(style.title_color, t.text_color)
+    label_color = _or(style.title_color, t.legend_color)
     box = plan.box
 
     # Opaque, because a bordered rect paints the border colour underneath its
@@ -549,7 +550,7 @@ function _legend_elements!(out, g)
         line = g.measure_legend_label(label)
         th = line.height
         push!(out, GraphicsText(label, x + t.swatch + t.legend_gap, cy - th ÷ 2 + line.text_y;
-                                font = plan.font, color = text_color))
+                                font = plan.font, color = label_color))
     end
 
     # Whatever did not fit is accounted for rather than silently dropped.
@@ -790,7 +791,8 @@ function _frame_elements!(out, g)
     _selection_elements!(out, g)
 
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font, color = text_color))
+        push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font,
+                                color = _or(style.title_color, t.title_color)))
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.

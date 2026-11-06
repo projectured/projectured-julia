@@ -31,8 +31,12 @@ default theme. A value that a chart's own
     axis::ThemeColor            = ColorRole(:border_strong)
     "A gridline."
     grid::ThemeColor            = ColorRole(:grid)
-    "The title, the axis titles, the tick labels and the legend's \"and N more\" line."
+    "The axis titles, the tick labels and the legend's \"and N more\" line."
     text_color::ThemeColor      = ColorRole(:text_muted)
+    "The chart's own title."
+    title_color::ThemeColor     = ColorRole(:text)
+    "The label of a legend item."
+    legend_color::ThemeColor    = ColorRole(:text)
     "The fill of a selected part."
     selected_fill::ThemeColor   = ColorRole(:selection_band)
     "The outline of a selected part."
