@@ -20,13 +20,13 @@ no styles holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
     "The level of a message of information, such as `Info`."
-    level_text::ThemeText = TextRole(:info_text; font_role = :badge)
+    level_text::ThemeText = TextRole(:info_text; font_role = :code, weight = 700)
     "The level of an error, such as `Error`."
-    error_level_text::ThemeText = TextRole(:error_text; font_role = :badge)
+    error_level_text::ThemeText = TextRole(:error_text; font_role = :code, weight = 700)
     "The level of a warning, such as `Warn`."
-    warning_level_text::ThemeText = TextRole(:warning_text; font_role = :badge)
+    warning_level_text::ThemeText = TextRole(:warning_text; font_role = :code, weight = 700)
     "The level of a message for debugging, such as `Debug`."
-    debug_level_text::ThemeText = TextRole(:text_muted; font_role = :badge)
+    debug_level_text::ThemeText = TextRole(:text_muted; font_role = :code, weight = 700)
     "The text of the message."
     message_text::ThemeText = TextRole(:text; font_role = :text)
     "The line the log shows while it holds no message."

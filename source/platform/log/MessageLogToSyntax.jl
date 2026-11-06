@@ -42,8 +42,8 @@ function make_message_log_projection(; theme = nothing)
                        message_text = get_style(:message_text), empty_text = get_style(:empty_text))
 end
 
-# The width of the level column, in characters. The font is monospaced, so a
-# padded string aligns the messages of every line.
+# The width of the level column, in characters. The level is in the code font,
+# which is monospaced, so the padded level lines up the messages.
 const _LEVEL_WIDTH = 7
 
 """
