@@ -34,4 +34,32 @@ function test_dashboard_render()
     SDL._compute_dirty_region(res, iomap.output)
     @test built() == rendered
 end
+@testset "a dashboard in a scroll area that grows builds the rows of the cards it draws" begin
+    SDL = ProjecturedSDL.SdlModule
+    projection_module = ProjecturedKernel.ProjectionModule
+    card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+    dashboard = Dashboard("Many", Any[card("Card $k") for k in 1:60])
+    natural = RecursiveProjection(NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0)))
+    offer = projection_module.with_exact_size(projection_module.PrinterContext();
+                                              width = ProjecturedKernel.CellModule.Cell(Int32(1100)),
+                                              height = ProjecturedKernel.CellModule.Cell(Int32(500)))
+    # A pane that grows on its height offers no exact height to the page in it, only
+    # the part that shows.
+    scroll = WidgetScrollPane(dashboard; grows = (width = false, height = true))
+    iomap = print_document(natural, nothing, scroll, offer)
+    grids = search_documents(iomap, x -> x isa GridLayoutListIoMap; raw = true, limit = nothing,
+                             walk = DocumentWalk(;
+                                 descend = (parent, child) -> !(child isa ListNode || child isa GraphicsDocument)))
+    @test length(grids) == 1
+    built() = sort(collect(keys(only(grids).state.built)))
+    off = SDL.open_offscreen_renderer(1100, 500; supersample = 1)
+    try
+        SDL._render_canvas_offscreen!(off, iomap.output, 1100, 500, (0xff, 0xff, 0xff, 0xff))
+    finally
+        SDL.close_offscreen_renderer(off)
+    end
+    rendered = built()
+    @test first(rendered) == 1 && rendered == collect(1:length(rendered))
+    @test 2 <= length(rendered) < 20
+end
 end

@@ -51,6 +51,29 @@ function _explorer_click(backend, text; side = :tree, count = 1, ctrl = false)
     MouseClick(:left, x + 2, y + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0)
 end
 
+# An editor of `document` in a window, so that its pages have a size, and the
+# events that a window takes: a page of a list has no height in an editor with no
+# window.
+function _explorer_window_editor(document; width = 1100, height = 500)
+    backend = HeadlessBackend()
+    editor = build_editor(document, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "W", width, height), tabs = false, appearance = false,
+                          settings = false)
+    run_frame!(editor)
+    (editor, backend)
+end
+
+_explorer_window_press!(editor, backend, events...) =
+    _nav_press!(editor, backend, (WindowInput(:W, event) for event in events)...)
+
+# A press on the title of the page of a document, below the bar of the navigator.
+function _explorer_click_page_title(backend, title)
+    back_x = only(entry[2] for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
+    titles = [entry for entry in _nav_texts(backend) if entry[1] == title && entry[2] > back_x]
+    (_, x, y) = titles[argmax([entry[3] for entry in titles])]
+    MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0)
+end
+
 # The glyph of a closed chevron of a node.
 const _EXPLORER_CLOSED_CHEVRON = string(Char(0xe06f))
 
@@ -981,9 +1004,16 @@ function test_explorer()
         # width at its print, and the cards stand in one column.
         ys = [only(entry[3] for entry in _nav_texts(backend) if entry[1] == title) for title in ("First", "Second", "Third")]
         @test ys[1] < ys[2] < ys[3]
-        # A press in the content of a card puts the caret in that document.
-        _nav_press!(editor, backend, _explorer_click(backend, "two"; side = :page))
-        selection = getfield(explorer, :selection)[]
+        # A press in the content of a card puts the caret in that document. The rows of
+        # the grid are a list, which needs a page with a size: a window gives it.
+        window_dashboard = Dashboard("Queue study", Any[DashboardCard("First", PrimitiveString("one")),
+                                                       DashboardCard("Second", PrimitiveString("two")),
+                                                       DashboardCard("Third", PrimitiveString("three"))])
+        window_explorer = Explorer(ExplorerSection("Explorer", Any[window_dashboard]))
+        window_editor, window_backend = _explorer_window_editor(window_explorer)
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "Queue study"))
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "two"; side = :page))
+        selection = getfield(window_explorer, :selection)[]
         @test selection isa ConcreteReference
         @test _nav_steps(selection)[1:5] == [FieldReferenceStep("navigator"), FieldReferenceStep("content"),
                                              FieldReferenceStep("entries"), ElementReferenceStep(1), FieldReferenceStep("cards")]
@@ -1021,22 +1051,20 @@ function test_explorer()
             run_frame!(live)
             @test rows() == expected
         end
-        # The path of a card in the grid names it back, whether the rows are a list,
-        # `children[r][c]`, or the cards a vector, `children[k]`.
-        for rows_are_list in (true, false), k in 1:7
-            steps = (ExplorerModule._make_card_steps(k, 3, rows_are_list)..., FieldReferenceStep("content"),
-                     FieldReferenceStep("rest"))
-            @test ExplorerModule._find_card_below(steps, 3, rows_are_list) == (k, (FieldReferenceStep("rest"),))
+        # The path of a card in the grid names it back: `children[r][c]`.
+        for k in 1:7
+            steps = (ExplorerModule._make_card_steps(k, 3)..., FieldReferenceStep("content"), FieldReferenceStep("rest"))
+            @test ExplorerModule._find_card_below(steps, 3) == (k, (FieldReferenceStep("rest"),))
         end
-        @test ExplorerModule._make_card_steps(5, 3, true)[2:3] == (RangeReferenceStep(1, 2), RangeReferenceStep(1, 2))
+        @test ExplorerModule._make_card_steps(5, 3)[2:3] == (RangeReferenceStep(1, 2), RangeReferenceStep(1, 2))
         # Insert on the page adds a card at the end, whose content takes a name.
-        _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
-        @test length(dashboard.cards) == 4 && dashboard.cards[4].content isa DocumentInsertion
-        @test _nav_has_text(backend, "New card")
+        _explorer_window_press!(window_editor, window_backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+        @test length(window_dashboard.cards) == 4 && window_dashboard.cards[4].content isa DocumentInsertion
+        @test _nav_has_text(window_backend, "New card")
         # F2 on its node puts the caret in its title.
-        _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
-        _nav_press!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
-        @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "Queue study"))
+        _explorer_window_press!(window_editor, window_backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
+        @test _nav_steps(getfield(window_explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
     end
 
     @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
@@ -1241,6 +1269,73 @@ function test_explorer()
         finally
             rm(root; recursive = true, force = true)
         end
+    end
+
+    @testset "a dashboard holds the content of its cards, and a page in a card watches its file" begin
+        root = mktempdir()
+        try
+            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_tab_content(path))
+            (first_page, inserted, pasted) = (make_page("first.txt"), make_page("inserted.txt"), make_page("pasted.txt"))
+            dashboard = Dashboard("Study", Any[DashboardCard("First", first_page)])
+            explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+            editor, backend = _nav_editor(explorer; tabs = true, clipboard = true, undo = true, file_change = true)
+            store = get_session_file_change_store(; editor)
+            watched(page) = is_document_file_watched(find_page_file(page); store)
+            # A page that no holder shows holds nothing.
+            @test !is_document_held(editor, first_page) && !watched(first_page)
+            evaluate_operation(editor, AcquireDocumentOperation(explorer))
+            _nav_press!(editor, backend, _explorer_click(backend, "Study"))
+            @test get_navigator_page(explorer.navigator) === dashboard
+            @test is_document_held(editor, dashboard)
+            @test is_document_held(editor, first_page) && watched(first_page)
+            cards = ReferencedDocument(dashboard.cards, annotate_reference_types(
+                editor.document, extend_reference(strip_reference_types(find_document_path(editor.document, dashboard)),
+                                                  FieldReferenceStep("cards"))))
+            # Insert on the page adds a card whose content is held.
+            _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+            _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+            @test length(dashboard.cards) == 2 && is_document_held(editor, dashboard.cards[2].content)
+            # A paste at the caret on the page holds the content of the card.
+            _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+            editor.document.slice = pasted
+            _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+            @test length(dashboard.cards) == 3 && dashboard.cards[3].content === pasted
+            @test is_document_held(editor, pasted) && watched(pasted)
+            # An insert of a verb holds it too, and an undo takes the insert back.
+            insert_elements!(cards, 4, Any[DashboardCard("Inserted", inserted)]; editor)
+            @test length(dashboard.cards) == 4
+            @test is_document_held(editor, inserted)
+            @test watched(inserted)
+            history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+            evaluate_operation(editor, UndoOperation(history))
+            @test length(dashboard.cards) == 3
+            @test !is_document_held(editor, inserted) && !watched(inserted)
+            evaluate_operation(editor, RedoOperation(history))
+            @test length(dashboard.cards) == 4 && is_document_held(editor, inserted) && watched(inserted)
+            # A removal releases the content of the card.
+            delete_elements!(cards, 3; editor)
+            @test length(dashboard.cards) == 3
+            @test !is_document_held(editor, pasted) && !watched(pasted)
+            @test is_document_held(editor, first_page) && is_document_held(editor, inserted)
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a dashboard bounds its pane by the part of the page that shows" begin
+        study = Dashboard("Study", Any[DashboardCard(string("Card ", k), PrimitiveString(string("text of ", k)))
+                                       for k in 1:60])
+        # The visible height of a scroll area that grows on its height, or the exact
+        # height of its slot; with neither, no bound. The rows of the grid are a list,
+        # which a renderer reads down to the bottom of the pane
+        # (`test_dashboard_render()`).
+        pane_of(context) = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, study,
+                                          context).output.children[2].max_height
+        @test pane_of(with_visible_size(PrinterContext(); height = Cell(500))) == 500
+        @test pane_of(with_exact_size(PrinterContext(); width = Cell(300), height = Cell(600))) == 600
+        @test pane_of(PrinterContext()) === nothing
+        @test print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, study,
+                             PrinterContext()).output.children[2].child.content.children isa ListNode
     end
 end
 end

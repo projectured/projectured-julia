@@ -316,8 +316,8 @@ function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::Expl
         own === nothing || return Intent(answer.gesture, own, answer.description, answer.domain)
     end
     converted = something(_convert_explorer_answer(iomap, operation, gesture), operation)
-    Intent(answer.gesture, _add_tree_reveal(explorer, _mark_filter_edits(converted)), answer.description,
-           answer.domain)
+    Intent(answer.gesture, _add_tree_reveal(explorer, _add_card_holds(explorer, _mark_filter_edits(converted))),
+           answer.description, answer.domain)
 end
 
 # An answer that makes the navigator visit a page below the root section, such as a

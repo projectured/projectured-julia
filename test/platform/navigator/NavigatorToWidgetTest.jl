@@ -48,7 +48,9 @@ function _nav_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     found
 end
 
-_nav_texts(backend) = _nav_drawn(last(rendered_output(backend)))
+# The frame of an editor with a window is the screen, whose first window holds the page.
+_nav_texts(backend) = (frame = last(rendered_output(backend));
+                       _nav_drawn(hasproperty(frame, :windows) ? frame.windows[1].content : frame))
 _nav_has_text(backend, text) = any(entry -> occursin(text, entry[1]), _nav_texts(backend))
 
 # Whether the frame draws `texts` one after the other, as the items of an address.

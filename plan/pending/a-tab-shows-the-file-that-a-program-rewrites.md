@@ -281,7 +281,7 @@ The dependencies: step 1a needs step 1. Step 4 needs step 5 of the save plan, wh
 main since `0836ec536`. A saved dashboard with a page in a card needs the save plan (D7), and no
 step saves one.
 
-- [ ] **1. A dashboard holds the content of its cards (D3).** `acquire_document!` and
+- [x] **1. A dashboard holds the content of its cards (D3).** **Done on 2026-11-06.** `acquire_document!` and
       `release_document!` of `Dashboard`, and a `read_intent` of `DashboardToWidget` that adds the
       change of what is held (`source/platform/explorer/Dashboard.jl`, `DashboardToWidget.jl`).
       The print of the dashboard reads `get_visible_height` and always makes the grid of a list
@@ -291,6 +291,36 @@ step saves one.
       watches its file. The hold stops after `delete_elements!` and after the undo of the insert.
       A dashboard of 60 cards in a scroll area that grows prints only the cards on the screen.
       Then `test_dashboard_render()`.
+      What the implementation found:
+      - A card keeps the view of its content in a new field `content_view` of `DashboardCard`, a
+        `NavigatorViewSlot` of the navigator slice (the slice already uses it). The field is view
+        state (`get_view_state_fields`), so a save leaves it out and a walk does not enter it. The
+        helpers `_get_card_view` and `_make_card_view_slot` repeat the shape of the private helpers
+        of `NavigatorVisits.jl`, which another module cannot call.
+      - The reader of `DashboardToWidget` alone does not see the edits. `insert_elements!` and
+        `delete_elements!` reach the dashboard of the explorer by the path of its node in the tree,
+        `tree.root.entries[k].cards`, and that route goes through the tree and never through the
+        page; Insert and a paste on the row of the tree do not pass the page either (Insert on the
+        row opens the menu of the kinds). So one function, `_add_card_holds(root, operation)`,
+        adds the change of what is held, at four places: the answer to Insert and the answer to a
+        paste, which are built in `Dashboard.jl`; the reader of `ExplorerToWidget`, for an edit that
+        a verb routes through the tree; and the reader of `DashboardToWidget`, for an edit that a
+        verb routes to `cards` of a dashboard outside an explorer. A dashboard whose hold an
+        answer changes already is left alone, so a paste at the caret on the page adds one change.
+        The slot that a new card needs is view state, and the change of the hold is recorded, so
+        an undo of the insert releases the view and a redo acquires it.
+      - The grid is a list in every place. `_make_card_steps` and `_find_card_below` lost the
+        argument `rows_are_list`, and `_get_grid_shape` became `_get_grid_columns`. The print
+        reads `get_visible_height` and gives it to the pane as the `max_height` of its constraint.
+        The growing-area case of `test_dashboard_render()` builds the rows that show with or
+        without that bound, because the list form is what limits the rows; the bound is asserted
+        by `max_height` in `ExplorerTest.jl`.
+      - In an editor with no window size a press in a card reaches no card, because the page has
+        no height. The first set of the dashboard in `ExplorerTest.jl` now runs its press and its
+        Insert in an editor with a window (`_explorer_window_editor`); `_nav_texts` reads the
+        first window of a screen.
+      - The explorer suite passes with the new sets (330 Pass), `test_filechange()` passes (126
+        Pass), and `test_dashboard_render()` passes (4 Pass).
 - [ ] **1a. Each place that shows a page shows its own view of it (D2).** A method of
       `make_document_view` for `FilePage` and its view document in `source/platform/fileformat/`.
       The scroll pane leaves the page, `make_file_page` takes the file, and `make_file_tab_content`
