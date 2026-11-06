@@ -67,7 +67,10 @@ printer context, which the roster gives, or else from the first row.
 
 Where the context gives the rows a height, as a tab does, the body of the table
 is a list of the rows from the row at its head, so the table builds only the
-rows that it shows, fills the height and scrolls its rows. Every column then
+rows that it shows, fills the height and scrolls its rows. Where the context
+gives an edge and no slot, the body is a list too, and the table takes its rows
+up to the edge, so a short list leaves the rest of the edge to the parts after
+it. Every column then
 takes an equal share of the width, and the width of its header at least, because
 a table of a list measures no cell for a column. Where no height is given, as in
 a print with no window, the body is a vector of every row, and a column is as
@@ -190,12 +193,15 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
               CellVector(@computation Any[_make_filter_header(p, rows, entry, ctx, key, c)
                                           for (c, key) in enumerate(columns)])
     roster = ctx === nothing ? nothing : get_property(ctx, :roster, nothing)
-    view = (ctx !== nothing && get_exact_height(ctx) !== nothing) ? _RosterTableView(1) : nothing
+    # A slot or an edge on the height makes a table of a list. The table fills a
+    # slot, and its `Content` row gives it an edge.
+    is_edge = ctx !== nothing && get_exact_height(ctx) === nothing && ctx.maximum_height !== nothing
+    view = (ctx !== nothing && (get_exact_height(ctx) !== nothing || is_edge)) ? _RosterTableView(1) : nothing
     head = view === nothing ? nothing : Cell(@computation _compute_head_row(rows, roster, view))
     table = view === nothing ?
         WidgetTable(headers, CellVector(Computation(() -> _collect_row_cells(p, rows, made)))) :
         _make_roster_list_table(p, rows, made, headers, head)
-    layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[Fill])
+    layout = GridLayout(Any[table], 1; column_policies = Any[Fill], row_policies = Any[is_edge ? Content : Fill])
     iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns, table, view, head, roster, entry !== nothing, entry)
     _set_column_shares!(table, roster, length(columns))
     # The layout and the table hold their part of the selection and of the part
