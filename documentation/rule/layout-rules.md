@@ -362,6 +362,13 @@ rest (§1). A `Content` row of a grid gets the edge of the grid less the gaps, l
 what the `Content` rows above it drew and less the minimums of the other rows, as
 a `Content` column gets its width.
 
+**A slot of a split can take its content up to its share.** A slot with a weight
+and no preferred extent, `height = Content, weight_height = 1.0`, is offered its
+share as an edge and keeps what its child draws there; the other slots share the
+rest. The child reads only the share, so no extent reads itself. A table of a few
+rows in such a slot gives its empty height to the slots beside it. A drag pins it
+as it pins any slot.
+
 **A child after the others counts only by its minimum.** A label after a
 scroll pane declares no minimum, so the room of the pane leaves no space for it.
 In a column of 300 that cuts:

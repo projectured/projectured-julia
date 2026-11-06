@@ -4471,6 +4471,19 @@ function _is_split_content_slot(elem, axis::Symbol)
     preferred === nothing && weight !== nothing && iszero(weight)
 end
 
+# Whether a slot takes the extent of its content on the main axis up to its share:
+# the child is wrapped in a `LayoutConstraint` that writes no preferred extent there
+# and a weight above 0, as `height = Content, weight_height = 1.0` does. When the
+# split has an extent to divide, the slot is offered its share as an edge, and the
+# open slots that take no content share what it leaves. A drag pins it as it pins
+# any other slot.
+function _is_split_share_slot(elem, axis::Symbol)
+    elem isa LayoutConstraint || return false
+    preferred = axis === :x ? elem.preferred_width : elem.preferred_height
+    weight = axis === :x ? elem.weight_width : elem.weight_height
+    preferred === nothing && weight !== nothing && weight > 0
+end
+
 # The extent that the child of a content slot draws on the main axis, within the
 # minimum and the maximum of the slot.
 function _get_split_content_extent(elem, cim, axis::Symbol)
@@ -4570,11 +4583,21 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # split no new time.
     content_slots = Cell(@computation Tuple(_is_split_content_slot(elem, main_axis) for elem in valid_elems))
     is_content = collect(Bool, content_slots[])
+    # Whether each slot takes the extent of its child up to its share, read as the
+    # content slots are.
+    share_slots = Cell(@computation Tuple(_is_split_share_slot(elem, main_axis) for elem in valid_elems))
+    is_share = collect(Bool, share_slots[])
     open_cell = Cell(@computation _get_split_open_slots(valid_elems, main_axis))
     slot_main = Cell[]
+    # The share of each slot, `alloc_cell`, which a slot that takes its content up
+    # to its share is offered as an edge; and the extent of each slot after such a
+    # slot took what its child draws, `taken_cell`, which places the slots.
+    taken_cell = Cell(nothing)
+    share_main = Cell[]
     if avail_main !== nothing
         for i in 1:n
-            push!(slot_main, Cell(@computation begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
+            push!(slot_main, Cell(@computation begin v = taken_cell[]; v === nothing ? 0 : Int(v[i]) end))
+            push!(share_main, Cell(@computation begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
         end
     else
         # No main-axis offer: there is nothing to divide, so each slot is the
@@ -4600,8 +4623,11 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # tells the child it has no room at all, and it draws nothing; withholding
         # the axis lets the child size itself, which is what the slot then is.
         # Each slot gives `slot_padding` to what it holds, so the first box in it
-        # stands that far from the dividers and the edges.
+        # stands that far from the dividers and the edges. A slot that takes its
+        # content up to its share offers its share as an edge.
         cctx  = avail_main === nothing || is_content[i] ? with_free_axis(ctx, main_axis; space = slot_space) :
+                is_share[i] ? (main_axis === :x ? with_bounded_size(ctx; width = share_main[i], space = slot_space) :
+                                                  with_bounded_size(ctx; height = share_main[i], space = slot_space)) :
                 main_axis === :x ? with_exact_size(ctx; width = cell, space = slot_space) :
                                    with_exact_size(ctx; height = cell, space = slot_space)
         cim = print_child(recursion, inner, cctx)
@@ -4636,7 +4662,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         local_cims  = inner_iomaps
         axis        = main_axis
         n_local     = n
-        set_cell_computation!(alloc_cell, function ()
+        # The minimum, the maximum, the preferred extent and the weight of each
+        # slot, and whether a drag pinned a slot.
+        function compute_slot_inputs()
             sizes_local = w.sizes
             pinned_cv   = w.pinned
             mins  = Vector{Int}(undef, n_local)
@@ -4673,6 +4701,10 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                     intrinsic == 0 && wts[i] == 0.0 && (wts[i] = 1.0)
                 end
             end
+            (mins, maxs, prefs, wts, has_pinned)
+        end
+        # The extent of each slot. A slot in `fixed` keeps its preferred extent.
+        function allocate_slots(mins, maxs, prefs, wts, has_pinned, fixed)
             # Only the open slots share the extent, and only the splitters between
             # two of them take a part of it.
             open = open_cell[]
@@ -4681,7 +4713,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             isempty(shown) && return result
             # A drag pins every slot but the last, and the last takes the rest of
             # the total, also when it has no weight of its own.
-            last_sized = findlast(i -> !is_content[i], shown)
+            last_sized = findlast(i -> !fixed[i], shown)
             has_pinned && last_sized !== nothing && wts[shown[last_sized]] == 0.0 &&
                 (wts[shown[last_sized]] = 1.0)
             gaps = count(i -> _has_split_gap(open, i), 1:n_local) * splitter_thickness
@@ -4689,6 +4721,29 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                                           maxs = maxs[shown], prefs = prefs[shown],
                                           weights = wts[shown], gap = 0, n = length(shown))
             result
+        end
+        set_cell_computation!(alloc_cell, () -> allocate_slots(compute_slot_inputs()..., is_content))
+        # Each open slot that takes its content up to its share, and that no drag
+        # pinned, keeps what its child draws within its share, and the other
+        # slots share the rest. Its child reads only the share, so no extent reads
+        # itself.
+        set_cell_computation!(taken_cell, function ()
+            shares = alloc_cell[]
+            (shares === nothing || !any(is_share)) && return shares
+            (mins, maxs, prefs, wts, has_pinned) = compute_slot_inputs()
+            pinned_cv = w.pinned
+            sizes_local = w.sizes
+            open = open_cell[]
+            fixed = copy(is_content)
+            for i in 1:n_local
+                (is_share[i] && open[i]) || continue
+                (i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)) && continue
+                extent = min(_get_split_content_extent(local_elems[i], local_cims[i], axis), Int(shares[i]))
+                mins[i] = maxs[i] = prefs[i] = extent
+                wts[i] = 0.0
+                fixed[i] = true
+            end
+            allocate_slots(mins, maxs, prefs, wts, has_pinned, fixed)
         end)
     end
 

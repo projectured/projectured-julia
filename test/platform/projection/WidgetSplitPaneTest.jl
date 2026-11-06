@@ -177,5 +177,24 @@ end
     @test Int(children[2][2][]) == 151
 end
 
+@testset "a slot with a weight and no preferred height takes its child up to its share" begin
+    # A short child keeps its height, and the slot after it takes the rest.
+    short = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(_label("short"); height = Content, weight_height = 1.0),
+        LayoutConstraint(_label("rest"); height = Fill)])
+    children = getfield(_offered_split(short, 400, 300), :child_iomaps)[]
+    drawn = Int(children[1][3].output.h[])
+    @test 0 < drawn < 150
+    @test Int(children[2][2][]) == drawn + 1
+    # A child taller than its share keeps the share, as a weighted slot does: the
+    # two slots share the 299 px past the 1 px divider.
+    tall = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(VerticalLayout(Any[_label("line $k") for k in 1:30]); height = Content, weight_height = 1.0),
+        LayoutConstraint(_label("rest"); height = Fill)])
+    children = getfield(_offered_split(tall, 400, 300), :child_iomaps)[]
+    @test Int(children[1][3].output.h[]) > 150
+    @test Int(children[2][2][]) == 151
+end
+
 end # testset
 end # function
