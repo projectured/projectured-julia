@@ -1,7 +1,9 @@
 # A tab shows the file that a program rewrites
 
-> **Kind:** design · **Status:** a plan, 2026-11-05, revised at `main` `6b93bfcf3`. Nothing is
-> built. · **Sibling plan:** G3
+> **Kind:** design · **Status:** a plan, 2026-11-05, revised at `main` `6b93bfcf3`, and revised
+> again on 2026-11-06 after the owner's decision D10: the file document watches its file and keeps
+> the hash and the band, and the page goes away. Steps 1 and 1a are built on the branch
+> `file-rewrites`; step 1b changes the view of step 1a into the view of a file. · **Sibling plan:** G3
 > [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md) · **Stands on:**
 > [a-window-watches-its-open-files.md](../done/a-window-watches-its-open-files.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
@@ -16,8 +18,9 @@ close G4 before step 1 of the parent plan, in a plan of its own.
 
 ## 1. The goal
 
-1. The assistant opens a page in a tab with `open_file!`, and puts the same page in a card of a
-   dashboard.
+1. The assistant opens a file in a tab with `open_file!`, and puts the same file in a card of a
+   dashboard. A tab pane alone shows and edits the file: no explorer is needed, and the explorer
+   has no code of its own for a file (the owner, 2026-11-06).
 2. A script rewrites the page and its PNG pictures many times, for about 5 hours.
 3. After each rewrite, the tab and the card show the new text and the new pictures. No band shows,
    because the person made no edit.
@@ -54,6 +57,17 @@ close G4 before step 1 of the parent plan, in a plan of its own.
 | A background cell computes a value off the loop, and its `apply` stores the answer by an operation. A folder reads its entries so, with the source of the folder that holds it, so one task reads every folder that one frame asks for. A change of the folder adds one to its read count. | `source/kernel/editor/BackgroundCells.jl:182-232`; `FileSystemDocument.jl:305-321`, `:556-560` |
 | omnet-julia opens an INI file from a link as a file document with no page and no history. Its project page watches the file of its fingerprint store with the file as the receiver. | omnet-julia `source/ide/LegacyIniFileEntryToWidget.jl:150-156`; omnet-julia `source/legacy/simulator/presentation/LegacySimulationProjectPage.jl:583` |
 
+Facts found on 2026-11-06 at the branch `file-rewrites` (`0c1a04a23`), for D10:
+
+| Fact | Where |
+| --- | --- |
+| 17 types are file documents: 11 in projectured-julia (`TextFile`, `PredFile`, `SourceFile`, `JsonFile`, `MarkdownFile`, `JuliaFile`, `XmlFile`, `MathFile`, `YamlFile`, `SqlFile`, `RstFile`) and 6 in omnet-julia (`LegacyResultFile`, `LegacyFingerprintStoreFile`, `LegacyEventLogFile`, `LegacyTestFile`, `IniFile`, `NedFile`). Each has the fields `filename` and `content`, and the generic code reads both with `getfield`. 7 test types are file documents too. | `source/platform/serialization/FileProject.jl:64`, `:92`, `:122-123`; the inventory of 2026-11-06 |
+| The page holds what the file document does not: the band, the hash of the last load or save, the conditions `:conflict` and `:changed_on_disk` of its decoration, the facets of the roster of open files, the save with the check of the disk, the load and the keep. Its reader turns `SaveFileOperation` into `SaveFilePageOperation` and `ReloadFileOperation` into `LoadFilePageOperation`. The open files of the editor list a page in place of its file. | `source/platform/fileformat/FilePage.jl`; `FilePageToWidget.jl:151-156`; `OpenFileList.jl:115-168` |
+| In the default open the history sits inside the file document, around its content, so the file reads it with `has_unsaved_edits(get_file_content(file))`. An open from a link of a navigator (`file_wrap = Navigator`) puts the history around the navigator around the file, so the file has no history inside and every rewrite shows the band. The navigator writes its own changes as view state, so that history records only the edits of the file. | `source/platform/filesystem/FileSystemDocument.jl:244-250`; `source/platform/navigator/NavigatorAddressEdits.jl`, `NavigatorVisits.jl:253-257` |
+| No file type in `source/` answers `true` to `is_own_content`. | `FileProject.jl:142`, `DocumentFile.jl:170` |
+| omnet-julia reads a page in three places: `LegacyBaselineFileView.jl:60` and `LegacyResultFile.jl:237` unwrap an open page with `find_page_file`, and `IdeNavigatorTest.jl` finds the file of a tab with it. | omnet-julia `source/ide/`, `source/legacy/result/presentation/`, `test/ide/` |
+| A holder changes what it holds only on the paths that add the change. The pane tree adds it when it opens or closes a tab. After `replace_referenced_value!(tab, :content, view_of_b)` the new file is not held and not watched, and the old one stays held and watched. After `replace_referenced_value!(card, :content, page)` a card gets no view and the dashboard does not hold the page. | `source/platform/pane/PaneSurgery.jl:567`, `:696`; two probes of 2026-11-06 at `0c1a04a23` |
+
 ## 3. What the code does not do yet
 
 - The open of a file gives a history only when the editor has settings. A page with no history
@@ -66,39 +80,59 @@ close G4 before step 1 of the parent plan, in a plan of its own.
   pane.
 - A page that comes back into the window shows the text of before, until the next rewrite.
 - A load can leave the selection on a part that the new document does not have.
+- A file document does not know its state against the disk. A page around it knows, so code that
+  shows a file must make a page, and a file that no page holds is not watched (D10 changes this).
 - A picture path of a page resolves against the current folder of the process. The printer reads
   the disk, and a computation decodes the picture on the loop. A rewrite of a picture does not
   reach a page whose text stays the same.
 
 ## 4. The design
 
-**Only the history of a page answers whether the page has edits (D1).** The owner decided this on
+**Only the history of a file answers whether the file has edits (D1).** The owner decided this on
 2026-10-15 (D15e of the done plan) and again on 2026-11-05. Every open of a file by a person or by
-the assistant gives the file a history: `OpenFileOperation`, `open_file!` and the page of a file in
-the Files tree. With no settings, the history keeps the default capacity of `UndoBuffer`, 100
-steps. The window of the application gives its file tabs a history already. The assistant opens a
+the assistant gives the file a history: `OpenFileOperation`, `open_file!` and a file of the Files
+tree. With no settings, the history keeps the default capacity of `UndoBuffer`, 100
+steps. The history sits inside the file document, around its content, in every open, also in an
+open from a link of a navigator, so the file reads its own history (D13). The window of the application gives its file tabs a history already. The assistant opens a
 file as a person does, with `open_file!`. `make_file_tab` and `make_file_tab_content` lose the mark,
 because they make a file or a page with no history, and no gesture of a person does that.
 
-**One file is one page in the window, and each place shows its own view of it (D2).** The tab and
-the card show the same `FilePage`, as a tab and the navigator share a page now. One watch, one hash
-and one band serve every view. `make_document_view(::FilePage)` makes a view document that keeps the
-scroll place of that one view. The scroll pane moves from the page into the view: the page holds
-its file directly, and the view draws the band of the page above the file in its scroll pane.
-`make_file_tab_content` answers the view of a new page, so each tab gets a view, and the navigator
-makes a view at each visit already. The assistant gets the page with `find_open_file_document(path)`
-after `open_file!`, and puts it in a card with `insert_elements!`.
+**The file document watches its file, and keeps the hash and the band (D10, D11).** The owner
+decided this on 2026-11-06. A file document that is held watches its file and is the receiver of
+the changes that the watch reports. It keeps its state against the disk in one field `disk` of type
+`FileDiskState`, which every file type has, as it has `filename` and `content`: the hash of the
+text at the last load or save and the band, and after step 2 the text cell of D4. The field is view
+state, so a save writes none of it and a walk does not enter it. The file decides what a change
+means, with the check of today: it loads when it has no edits, and it shows the band when it has.
+`SaveFileOperation` checks the disk before it writes, `ReloadFileOperation` takes the hash of the
+text that it loads, and `KeepFileEditsOperation` keeps the edits. The decoration and the facets of
+the roster say that the file changed on disk. `FilePage` goes away, with its operations and its
+reader, and the open files of the editor list file documents only.
+
+**One file is one file document in the window, and each place shows its own view of it (D2, D12).**
+The tab and the card show the same file document, as a tab and the navigator share it.
+One watch, one hash and one band serve every view. `make_document_view(::FileDocument)` answers a
+`FileView(file, scroll)`, which keeps the scroll place of one place and draws the band of the file
+above the file in its scroll pane. A tab, a card, the navigator and a file of the Files tree all
+make their view with `make_document_view`, so no place has code of its own for a file, and the
+explorer has none. `make_file_tab_content` answers the view of a new file. The assistant gets the
+file with `find_open_file_document(path)` after `open_file!`, and puts it in a card with
+`insert_elements!`.
 
 **A dashboard holds what its cards show (D3).** Each card keeps the view of its content in a slot
 that a walk does not enter, as a navigator keeps the view of its page, so a path into a card goes
 through its content. The acquire of a dashboard makes the view of a card that has none, and holds
-the view of each card. The view holds the page, and the page holds its file. The reader of the
+the view of each card. The view holds the file. The reader of the
 dashboard adds a `ChangeHeldDocumentsOperation` to each edit of `cards`, as the tree adds one to
 the open of a node. The Insert key, a paste, `insert_elements!`,
 `delete_elements!` and an undo must all pass that reader, and the test of step 1 checks each one. A
-picture of G3 in a card follows its file in the same way.
+picture of G3 in a card follows its file in the same way. Step 1 found that an edit of a dashboard
+in an explorer does not pass that reader, so the change of the hold is added at four places, and an
+edit of the content of one card adds none (§2). A tab has the same gap. Open question 10 asks for
+one rule for every holder.
 
-**The text of a page is a background cell (D4).** A page reads its file as a folder reads its
+**The text of a file is a background cell (D4).** The cell is in the `disk` field of the file
+document (D11), and below "page" means that file. A page reads its file as a folder reads its
 entries and a picture reads its pixels (`BackgroundCells.jl`). The input of the cell is the path
 and a count of changes. Each change that the watch reports adds one to the count, as for a folder
 (`FileSystemDocument.jl:556-560`). A read of the cell never waits. When the page is drawn and the
@@ -114,24 +148,25 @@ Only a page on the screen is read. A page that the save plan opens and that is n
 D6) is the same cell with no answer: it shows that it reads, and it refuses a save until the
 answer comes.
 
-No bare file is watched (D8). Each watched file is the editor's one page of that file, so the
-`apply` of the cell always has a page and its history.
+Each held file document is watched (D10, which replaces D8). Each watched file is the editor's one
+file document of its path, so the `apply` of the cell always has the file and its history. The
+project page of omnet-julia holds the editor's one file document of its fingerprint store file.
 
 **A load keeps the selection, or the deepest part of it that remains (D6).** After
-`LoadFilePageOperation` puts the new document in the file, a selection that names no part becomes
+`ReloadFileOperation` puts the new document in the file, a selection that names no part becomes
 the longest start of its path that names a part.
 
-**A page keeps the editor's one page of each picture of its file (D5, D8).**
+**A file keeps the editor's one file document of each picture that it shows (D5, D10).**
 `collect_shown_file_paths(document)` answers the paths that a document writes for the files that it
 shows, such as the images of a Markdown page. It reads no disk, and the default answers none. The
-page resolves each path against the folder of its file. It keeps the editor's one page of each path
-in the view state field `shown_files`, not a bare file (D8). `open_file_page!(path; editor)` of the
-plan of the save answers that page: the page that the editor has open for the path, or else a new
-page of a file that a person does not edit, which reads nothing when it is made. So a picture that
-a page and a tab show is one page, with one watch. Each picture has a `BackgroundSource` of
-its own (G3 D10). The page holds each
-of these pages, so each watches its file while the page is held. A load of the page that changes
-the paths changes `shown_files` and what the page holds.
+file resolves each path against its own folder. It keeps the editor's one file document of each
+path in the field `shown_files` of its `disk` state. `open_file_document!(path; editor)` of the
+plan of the save answers that file: the file that the editor has open for the path, or else a new
+file that a person does not edit, which reads nothing when it is made. So a picture that
+a page and a tab show is one file document, with one watch. Each picture has a `BackgroundSource` of
+its own (G3 D10). The file holds each
+of these files, so each watches its file while the holder is held. A load that changes
+the paths changes `shown_files` and what the file holds.
 
 **A picture is read only where it is drawn on the screen.** The pixels of a picture are a background
 cell (`BackgroundCells.jl`). Each picture has a `BackgroundSource` of its own (G3 D10). A
@@ -145,15 +180,16 @@ the screen is never read. A picture on the screen shows a box with its path in i
 its pixels in the next. When a program rewrites a picture, the watch reports a new time and size,
 the input of its cell changes, and only a picture on the screen is read again.
 
-**The image of a page draws the picture that its page keeps.** The view of the page prints the file
+**The image of a page draws the picture that its file keeps.** The view of the file prints the file
 as its own child, with the context property `:shown_files`. The image printer takes the picture of
 its path from that property and puts the cell of its pixels into the graphics. It reads no disk.
 
-**A dashboard with a page in a card saves through the plan of the save of a file alone (D7).** That
+**A dashboard with a file in a card saves through the plan of the save of a file alone (D7).** That
 plan makes a file saved alone write `file("…")` for each opened file that it holds, with no throw.
 Another agent writes it as a plan of its own on 2026-11-05. G4 does not change the save. Until that
-plan lands, the explorer content file writes a page in a card whole, with a copy of the text of its
-file (§2).
+plan lands, the explorer content file writes a file in a card whole, with a copy of its text (§2).
+The view of a file answers `find_held_file` with its file, and the `disk` state is view state, so
+the save of that plan writes `file("…")` and no band and no hash.
 
 ## 5. Decisions
 
@@ -174,7 +210,8 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   both views, so that a scroll in the tab moves the card. B, rejected: a page for each view over
   one file document. The store has one receiver for each file,
   and two pages keep two hashes of one fact. C, rejected: a file document for each view. An edit in
-  one view does not reach the other, and a save of one writes over the other.
+  one view does not reach the other, and a save of one writes over the other. D10 keeps the choice
+  and drops the page: one file document, and each place shows its own view of it (D12).
 - **D3. How a dashboard holds its cards.** A, proposed by the assistant: the acquire and the reader
   of the dashboard, as above. Each card keeps the view of its content as a navigator keeps the view
   of its page (`NavigatorDocument.jl:12-16`, `:128-136`). B, rejected: each gesture and each verb
@@ -192,7 +229,9 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   acquire, a second read beside the watcher. Rejected: a watch of every page that the document
   holds, also in a Back list or in the undo history, so that the count of watches grows with no
   limit.
-- **D8. No bare file is watched.** Decided by the owner on 2026-11-05 (open question 7, option A).
+- **D8. No bare file is watched.** Replaced by D10 on 2026-11-06: each held file document is
+  watched, and no page exists. The text below is the decision of 2026-11-05.
+  Decided by the owner on 2026-11-05 (open question 7, option A).
   Each watched file is the editor's one page of that file: a holder finds the opened page
   (`find_open_file_document`) or opens a new one, and holds it. The holders of a document are
   counted (`add_document_holder!`), so the watch of a file stops at the release of its last holder.
@@ -223,6 +262,39 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   list. In a scroll area that grows, the dashboard takes the height of the view and scrolls by
   itself, as a `WidgetTable` whose rows are a list does. Rejected: a grid of a vector in a place
   with no height. Its print reads the text of the page of each card, also below the screen.
+- **D10. The file document watches its file, and the page goes away.** Decided by the owner on
+  2026-11-06 ("Yes"), after the owner asked why the file document does not watch its file. The page
+  came from D15b of the done plan (2026-10-15) for two reasons: the band had to stay above a file
+  that scrolls, and the scroll pane was then around the file in the tab; and one layer served
+  every file type with no change to any. Step 1a moved the scroll pane into the view, so the view
+  draws the band above its scroll pane for any file, and the first reason is gone. The second is an
+  amount of code, which is no reason (the owner, 2026-11-04). So the file document watches its
+  file, keeps the hash and the band, and decides what a change means; each held file document is
+  watched (in place of D8). Rejected: the page as today, a layer that every place must make around
+  a file, so code that shows a file must know of it, and a file that no page holds is not watched.
+- **D11. Where a file keeps its state against the disk.** Proposed by the assistant: one field
+  `disk::FileDiskState` in every file type, read by `get_file_disk_state(file)`, as `filename` and
+  `content` are read by every file type. `FileDiskState` is a document with `file_hash` and `band`
+  in step 1b; step 2 adds the stamp, the counts and the text cell, and step 4 adds `shown_files`.
+  The field is view state for every file document (`get_view_state_fields`), so a save writes none
+  of it and a walk does not enter it. Rejected: the fields themselves in every type, which repeats
+  five or more fields in 17 types and their tests. Rejected: one concrete file type with the kind
+  of file as a value, because each kind of file is a document type with its own fields and methods,
+  such as `SourceFile.server_text` and `LegacyResultFile.tables`.
+- **D12. The view of a file.** Proposed by the assistant: `FileView(file, scroll)` in
+  `source/platform/fileformat/FileView.jl`, the view of step 1a with the file in place of the page.
+  `make_document_view(::FileDocument)` answers it, `make_file_view(file)` makes one that follows the
+  selection of the file, and `FileViewToWidget` draws the band of the file above the scroll pane. The
+  view holds its file and answers `find_held_file` with it. A tab, a card, the navigator and a file
+  of the Files tree make the view with `make_document_view`, and the finder of the tab of an open
+  file follows the edited fields of the content of a tab to the file, with no test of a type.
+- **D13. Where the history of a file sits.** Proposed by the assistant: inside the file document,
+  around its content, in every open. An open from a link of a navigator makes
+  `Navigator(file)`, and the file has the history inside, so the file reads it and each file that
+  the navigator visits has a history of its own. The history around the navigator records only the
+  edits of the file today (§2), so nothing that it records is lost. Rejected: the history around
+  the navigator, as today, where the file can not read it, so every rewrite of such a file shows the
+  band.
 
 ## 6. How the names reach the assistant, and the order of the plans
 
@@ -238,8 +310,10 @@ these carries the mark on main (§2).
   function answers a view. Step 6 removes the mark from `make_file_tab` and
   `make_file_tab_content`. It changes the marked docstrings that name them, `get_file_content` and
   `Workspace`, so that their example and their "See also" line name only offered names. It changes
-  the marked docstring of `open_file!`: the tab follows a rewrite while it has no edits. `FilePage`
-  and `collect_shown_file_paths` carry no mark.
+  the marked docstring of `open_file!`: the tab follows a rewrite while it has no edits. Step 1b
+  changes the marked docstring of `make_file_tab_content` again, because it answers the view of a
+  file, and of `find_open_file_document`, which answers a file document and never a page.
+  `FileView`, `FileDiskState` and `collect_shown_file_paths` carry no mark.
 - **Order.** The owner decided the order on 2026-11-05: steps 1 to 4 of `reflection-api` land on
   main first, after a rebase, its tests and the approval of the owner. They landed at `2bbc18fb5`
   (omnet-julia `991a89b4f`), and `origin/main` holds them. G4 starts from main. Steps 5 to 7 of the
@@ -276,15 +350,17 @@ Each step is one commit with its test. `SEALING.md` lists only files under `sour
 `workspace/bin/bounded-run` runs each test: a test under `test/platform/` in
 `package/ProjecturedPlatformTest`, any other in `environment/all`.
 
-The dependencies: step 1a needs step 1. Step 4 needs step 5 of the save plan, which adds
-`open_file_page!`. Step 5 needs G3 on main. Step 6 needs step 6 of the reflection plan, which is on
+The dependencies: step 1a needs step 1, and step 1b needs step 1a. Step 2 needs step 1b. Step 4
+needs step 5 of the save plan, which adds `open_file_document!` (its `open_file_page!` before D10).
+Step 5 needs G3 on main. Step 6 needs step 6 of the reflection plan, which is on
 main since `0836ec536`. A saved dashboard with a page in a card needs the save plan (D7), and no
 step saves one.
 
 **Order:** step 5 of the save plan needs step 2 of this plan on main, and step 4 of this plan needs
 step 5 of the save plan. The owner decided the order on 2026-11-06 ("Yes"): steps 1 to 3 of this
 plan land, then step 5 of the save plan, then step 4 of this plan. Step 6 of the save plan keeps
-its place after the plan of the layouts.
+its place after the plan of the layouts. Steps 1a and 1b belong to the steps that land first.
+Open question 10 can put a plan of its own before that landing.
 
 - [x] **1. A dashboard holds the content of its cards (D3).** **Done on 2026-11-06.** `acquire_document!` and
       `release_document!` of `Dashboard`, and a `read_intent` of `DashboardToWidget` that adds the
@@ -386,44 +462,95 @@ its place after the plan of the layouts.
         2 of 16 (copies and drawn share of a Julia file in a tab) and fails the same way at the
         commit of step 1. `test_application()` has 1 failure at `ApplicationTest.jl:1008` (the
         usage text of an agent bar), which no file code touches.
-- [ ] **2. The text of a page is a background cell (D4).** The page in `FilePage.jl` gets the cell,
-      its `BackgroundSource`, and an `apply` that loads with the check of today
-      (`receive_file_change!`, `FilePage.jl:324-345`). The watch in `FileChangeStore.jl` reports
-      only a change and adds one to the count of the page, and it reads no text and computes no
+- [ ] **1b. The file document watches its file, and the page goes away (D10 to D13).** One commit
+      in each repository, which land together, because omnet-julia does not load with a file type
+      that has no `disk` field. Before it starts, the uncommitted work of the first try of steps 2
+      and 3 on the page (2026-11-06, in both worktrees) goes into a named stash, `g4-step2-on-page`,
+      so the step starts from `0c1a04a23`; step 2 takes what it can from that stash.
+      - `FileDiskState` (`file_hash`, `band`) and `get_file_disk_state` in
+        `source/platform/serialization/FileProject.jl`, the field `disk` in each of the 17 file
+        types and the 7 test types, and `get_view_state_fields(::Type{<:FileDocument}) = (:disk,)`.
+        Check that two new files get two states, not one shared default.
+      - From `FilePage.jl` to the file document: the decoration with `:conflict` and
+        `:changed_on_disk`, the facets, the band and its choices, `receive_file_change!(editor,
+        file::FileDocument, file_hash, content)` with the check of today, the check of the disk in
+        `SaveFileOperation` (with `force`), the hash in `ReloadFileOperation`, and
+        `KeepFileEditsOperation`. The hash of a file that a person edits is set where its file is
+        read, as `make_file_page` sets it today. `FilePage`, `FileBand` in its old place,
+        `make_file_page`, `find_page_file`, `SaveFilePageOperation`, `LoadFilePageOperation`,
+        `KeepFilePageEditsOperation` and the reader that turns the save and the load go away.
+      - `FilePageView.jl` and `FilePageToWidget.jl` become `FileView.jl` and `FileViewToWidget.jl`
+        (D12). `make_document_view(::FileDocument)`, `make_file_view`, and `make_file_tab_content`
+        answers `make_file_view(make_file_tab(path, wrap))`.
+      - The watch: the acquire of a file document watches its file with the file as the receiver,
+        and holds nothing (`FileChangeStore.jl`). The open files list file documents only
+        (`OpenFileList.jl`).
+      - The open (D13): `_make_opened_file` in `FileSystemDocument.jl` puts the history inside the
+        file also for `file_wrap`; `OpenFileOperation` and `open_file!` show `make_file_view(file)`,
+        or the wrap of the file, whose own view shows it; the finder of the tab of a file follows the
+        edited fields of the content of a tab. `FileSystemFile` holds `make_document_view` of its
+        file. The save as of `FileDialog.jl` and `WorkflowList.jl:125` take the file.
+      - omnet-julia: the field `disk` in its 6 file types; `LegacyBaselineFileView.jl:60` and
+        `LegacyResultFile.jl:237` take the open file as it is; `IdeNavigatorTest.jl` finds the file
+        of a tab through its view. The project page keeps its watch of the store file as on main.
+      - The example `make_file_page_document_example` becomes an example of a view of a file, and
+        its row in `PlatformExamples.jl` follows.
+      - Update `fileformat.md`, `filechange.md`, `filesystem.md`, `explorer.md`, `roster.md` and
+        `architecture-rules.md`, and the docstrings that name the page.
+      Tests: `test_filechange()`, `test_file_tab()`, `test_file_watch_window()`,
+      `test_user_interface_file()`, `test_explorer()`, `test_roster_facets()`,
+      `test_document_decoration()`, `test_text_file()`, `test_workflow_list()`, `test_source_file()`,
+      `test_open_page_operation()` (the navigator open of a file), `test_referenced_document_editor()`,
+      `test_assistant_documentation()` and `test_application()`, against the counts of `19e56d912`
+      (`test_application()` 399/1/2, `test_scroll_work()` 14/2). In omnet-julia, through the scratch
+      environment of the two worktrees: `test_ide_file_navigator()`, `test_project_page()`,
+      `test_fingerprint_store_document()`, and a load of every package. A new set of
+      `test_filechange()`: a tab pane with no explorer opens a file, a program rewrites it and the
+      tab shows the new text, the person types a letter and the next rewrite shows the band, and the
+      file document is the receiver of the watch (`===`).
+- [ ] **2. The text of a file is a background cell (D4).** The `disk` state of the file gets the
+      cell, its `BackgroundSource`, and an `apply` that loads with the check of today
+      (`receive_file_change!`). The watch in `FileChangeStore.jl` reports
+      only a change and adds one to the count of the file, and it reads no text and computes no
       hash (`FileChangeStore.jl:44-49`, `:476-487`). The reload of the save plan goes through the
-      same cell. Update `filechange.md` and `fileformat.md`. Test: `test_filechange()`, a new set
-      with an editor. A page is released, its file changes, and the page loads the change at its
+      same cell. The first try on the page, in the stash `g4-step2-on-page`, has the watch that
+      compares time and size, the cell, the operation that applies its answer, the make of a file
+      that is not read yet, and its tests; the step moves them to the file. Update `filechange.md`
+      and `fileformat.md`. Test: `test_filechange()`, a new set
+      with an editor. A file is released, it changes on disk, and the file loads the change at its
       next draw. An explorer visits a file and puts the caret in it, visits another file, the first
-      file changes, and Back shows the new text. A page below the screen of a dashboard reads
-      nothing until a scroll shows it. A page that is not read yet refuses a save. A change with an
+      file changes, and Back shows the new text. A file below the screen of a dashboard reads
+      nothing until a scroll shows it. A file that is not read yet refuses a save. A change with an
       equal hash changes nothing and logs nothing. In omnet-julia, in the same landing, the project
-      page holds the page of its fingerprint store file (D8). Then, in omnet-julia, `test_project_page()` and
-      `test_fingerprint_store_document()`, because the project page watches a file with no page.
-- [ ] **3. A load keeps the selection where it can (D6).** `LoadFilePageOperation` in
-      `FilePage.jl`. Remove the limit from `filechange.md`. Test: `test_filechange()`, a new set
+      page holds the editor's one file document of its fingerprint store file, and its facts demand
+      the text of that file (D10). Then, in omnet-julia, `test_project_page()` and
+      `test_fingerprint_store_document()`.
+- [ ] **3. A load keeps the selection where it can (D6).** The evaluation of `ReloadFileOperation`
+      in `DocumentFile.jl`. Remove the limit from `filechange.md`. Test: `test_filechange()`, a new set
       with an editor. The caret is in the third paragraph, and the file loses two paragraphs. After
       the drain, the selection names a part, and the fault log has no new entry.
-- [ ] **4. A page keeps the editor's one page of each picture of its file (D5, D8).** Needs step 5
-      of the plan of the save, which adds `open_file_page!`. `collect_shown_file_paths` in
-      `FileFormatModule`, the field `shown_files` of `FilePage` as view state with the page of each
-      path, which `open_file_page!(path; editor)` answers, and the hold of each of these pages. The view of the page prints the
+- [ ] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).**
+      Needs step 5 of the plan of the save, which adds `open_file_document!`.
+      `collect_shown_file_paths` in `FileFormatModule`, the field `shown_files` of `FileDiskState`
+      with the file of each path, which `open_file_document!(path; editor)` answers, and the hold of
+      each of these files. The view of the file prints the
       file as a child with `:shown_files`. Update `fileformat.md`. Test: `test_filechange()`, a new
       set with a test file type that a person does not edit, as `_ReadOnlyProbeFile` is, which keeps
-      a background cell, as the picture of G3 does, and a work that counts its reads. A page of 60
+      a background cell, as the picture of G3 does, and a work that counts its reads. A file of 60
       pictures with 3 on the screen reads 3 files, and a scroll reads the pictures that come on the
-      screen. A picture that a tab shows already is the page of that tab (`===`). The page holds the
-      page of each picture, and a rewrite of one picture on the screen reads only that picture
-      again. The release stops the watch of each picture page that no other holder holds. Then
-      `test_explorer()`, which saves and reads a content with such a page: `shown_files` and the
-      view of a card stay out of the file.
-- [ ] **5. The image of a Markdown page draws the picture of its page.** Needs G3 on main.
+      screen. A picture that a tab shows already is the file of that tab (`===`). The file holds the
+      file of each picture, and a rewrite of one picture on the screen reads only that picture
+      again. The release stops the watch of each picture that no other holder holds. Then
+      `test_explorer()`, which saves and reads a content with such a file: `shown_files` and the
+      view of a card stay out of the saved content.
+- [ ] **5. The image of a Markdown page draws the picture that its file keeps.** Needs G3 on main.
       `collect_shown_file_paths(::MarkdownRoot)` gives the path of each image that names no web
       address, and `_md_image_value` takes its picture from `:shown_files` and reads no disk.
       Update `markdown.md`. Test: `test_markdown_image_leaf()` in
       `test/domain/markdown/MarkdownImageLeafTest.jl`, with the document in a page. A new set: a
       relative path names the picture beside the page, and a rewrite of the PNG gives the new size
       of the picture. Then `test_markdown()`.
-- [ ] **5a. The images of Book and RST draw the picture of their page.** Needs step 5. The same
+- [ ] **5a. The images of Book and RST draw the picture that their file keeps.** Needs step 5. The same
       model for `BookToSyntax.jl` and `RstToSyntax.jl`: a method of `collect_shown_file_paths` for
       each root, and the image span takes its picture from `:shown_files` and calls no `isfile`.
       Update `book.md` and `rst.md`. Test: the image tests of each domain, then `test_book()` and
@@ -431,7 +558,7 @@ its place after the plan of the layouts.
       reads no disk; G3 open question 10.)
 - [ ] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan
       on main. The open of a file always gives a history, with the default capacity when the
-      editor has no settings: `_make_opened_file_content` and `_read_file_page` in
+      editor has no settings: `_make_opened_file` and `_read_file_page` in
       `FileSystemDocument.jl`. The window of the application gives one already
       (`Application.jl:116-117`), so that call does not change. `make_file_tab` and
       `make_file_tab_content` lose their mark. The docstrings of `get_file_content`
@@ -460,6 +587,16 @@ its place after the plan of the layouts.
   inside a `FilePage` fails. The tab finder of `open_file!` compares `tab.content` with the page
   (`FileSystemDocument.jl:262-288`). Step 1a runs `test_filechange()`, `test_file_tab()`,
   `test_explorer()`, `test_file_watch_window()` and `test_referenced_document_editor()`.
+- **The page goes away (D10).** Step 1b changes 17 file types, the open, the watch, the open files,
+  about 60 test lines in 11 test files, and five places in omnet-julia (the inventory of
+  2026-11-06). A caller that is missed fails at its load or at its first call, so step 1b loads
+  every package of both repositories. The recorded lists of the compiled calls
+  (`package/*/precompile/`) name `FilePage` about 190 times; they are recorded again as
+  `documentation/design/compile-ahead.md` says before the landing, not edited by hand.
+- **The history inside the file of a navigator (D13).** An open from a link of a navigator had one
+  history around the navigator. Each file that the navigator visits now has a history of its own,
+  so an undo after a visit undoes only the edits of the file on the screen. Step 1b runs
+  `test_open_page_operation()` and the navigator tests of the explorer.
 - **The cost of a rewrite.** A page reads again only when it is drawn, and only the pictures on the
   screen (D4, D5), so a timeline page of 60 pictures with 4 on the screen costs 4 decodes. A dashboard on a page with a height reads
   only the cards on the screen already (measured by the layout plan: 6 of 60). A dashboard on a page
@@ -480,13 +617,14 @@ its place after the plan of the layouts.
   the Markdown print, which another agent writes in the Markdown domain, fixes this (Q6). G4 does
   not change it.
 
-- **A page that is not read yet** (the save plan, D6, decided by the owner on 2026-11-05). The open
-  of a saved holder makes the page of each held file and reads nothing. The background cell of its
-  text (D4) reads it when the page is drawn. Until then the page shows that it reads and refuses a
-  save. Today a page with no hash saves with no check (`FilePage.jl:191-192`), so step 2 must close
-  that. Step 2 must also give a way to make a page that reads nothing, with the history of the
-  settings, which step 5 of the save plan uses. Step 2 tests it: an unread page reads at its first
-  draw, and a save before that read writes nothing.
+- **A file that is not read yet** (the save plan, D6, decided by the owner on 2026-11-05). The open
+  of a saved holder makes the file document of each held file and reads nothing. The background
+  cell of its text (D4) reads it when its view is drawn. Until then the view shows that the file
+  reads, and the file refuses a save. Today a page with no hash saves with no check
+  (`FilePage.jl:191-192`), so step 2 must close that for the file. Step 2 must also give a way to
+  make a file that reads nothing, with the history of the settings, which step 5 of the save plan
+  uses. Step 2 tests it: an unread file reads at its first draw, and a save before that read writes
+  nothing.
 
 ## 9. Open questions for the owner
 
@@ -528,3 +666,14 @@ its place after the plan of the layouts.
    that it opens through `OpenFileOperation` and gets a page and a history. The question was: the INI link of omnet-julia opens a file with no page and no history. Must
    a plan of omnet-julia open it through `OpenFileOperation`, so that it gets a page and a
    history? Recommended by the assistant: yes, in a plan of omnet-julia after G4 step 6.
+10. **One rule for what a holder holds.** Open, asked on 2026-11-06. Step 1 found that a holder
+    changes what it holds only on the paths that add the change (§2): a dashboard at four places,
+    the pane tree when it opens or closes a tab. An edit of the content of a card or of a tab adds
+    no change, so the new file is not watched and the old one stays watched. The question: one
+    rule for every holder, by which each holder answers what it holds now and the editor makes the
+    holds match that answer after each edit inside the holder, written as a plan of its own before
+    steps 1 to 3 land? Recommended by the assistant: yes. The four places of step 1 and the hold
+    code of the pane tree then go away.
+11. **The file document as the watcher.** Answered by the owner on 2026-11-06: yes (D10). The
+    question was: change this plan so that the file document watches its file and keeps the hash
+    and the band, the view draws the band, and the page goes away?
