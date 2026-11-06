@@ -122,7 +122,7 @@ function _build_work_page_card(p, work::AssistantWork, part, clock)
                  Any[WidgetLabel("The agent gives no process.";
                                  text_style = p.muted_color)] :
              Any[_build_notice_lines(p, work)]
-    WidgetCard(; title = WidgetLabel(_WORK_CARD_TITLES[kind]),
+    WidgetCard(; title = _WORK_CARD_TITLES[kind],
                content = VerticalLayout(labels; child_width = Fill))
 end
 

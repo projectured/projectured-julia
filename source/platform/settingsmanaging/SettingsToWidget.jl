@@ -133,7 +133,7 @@ function _make_group_card(settings::Settings, group, controls, styles, gaps)
     end
     grid = GridLayout(cells, 3; horizontal_gap = gaps.column, vertical_gap = gaps.row,
                       vertical_align = :center, row_gaps)
-    card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
+    card = WidgetCard(; title = _make_group_title(T),
                       content = WidgetComposite(Any[grid]))
     summary = strip_code_marks(compute_docstring_summary(T))
     note = is_settings_group_read_at_start(T) ?

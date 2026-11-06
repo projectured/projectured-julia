@@ -68,7 +68,7 @@ function _build_agent_page_card(p, work::AgentWork, part, children)
     lines = part.kind === :header ? _build_agent_header_lines(work) :
             _build_agent_link_lines(p, work, children...)
     title = part.kind === :header ? "Subagent" : "Subagents and background tasks"
-    WidgetCard(; title = WidgetLabel(title),
+    WidgetCard(; title = title,
                content = VerticalLayout(lines; child_width = Fill))
 end
 

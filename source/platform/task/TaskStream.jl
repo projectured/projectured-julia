@@ -158,7 +158,7 @@ function _make_task_stream_bar(lines::TaskStreamLines)
         GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> something(make(), DoNothingOperation());
                        description = text, domain = "stream")])
     matches = WidgetLabel(() -> _format_stream_matches(lines))
-    WidgetCard(; title = WidgetLabel("Find"), collapsible = false,
+    WidgetCard(; title = "Find", collapsible = false,
                content = HorizontalLayout(Any[
                    ObjectField(lines, "find_text"),
                    button("‹", () -> make_task_stream_find_operation(lines, -1);

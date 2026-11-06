@@ -20,7 +20,7 @@ card's paths (its selection, its mouse target) are the document's own, under the
 card's `content` step, so a key the page routes to the card reaches the document.
 """
 function make_embed_card(document, title::AbstractString)
-    card = WidgetCard(; title = WidgetLabel(String(title)),
+    card = WidgetCard(; title = String(title),
                       content = document, collapsible = true)
     set_output_path_computations!(card, document,
                                   path -> ConcreteReference(FieldReferenceStep("content"), path))

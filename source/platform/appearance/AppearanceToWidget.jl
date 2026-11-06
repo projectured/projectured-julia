@@ -248,7 +248,7 @@ const _COLOR_SETTINGS_SUMMARY = "The mode, the contrast and the palette of the c
 # A card of settings of the appearance: its title, its summary, and under its rows
 # a button "Reset all" that answers `reset`. It does not fold.
 function _make_settings_card(controls, title::String, summary::String, rows, reset)
-    WidgetCard(; title = WidgetLabel(title), description = summary,
+    WidgetCard(; title = title, description = summary,
                content = VerticalLayout(Any[rows, controls.button("Reset all", reset)];
                                         gap = controls.theme.section_gap))
 end
@@ -333,7 +333,7 @@ function _make_theme_section(controls, theme)
     set_cell_computation!(body, () -> _follow_section_body_paths!(children,
                                           _make_theme_section_content(controls, theme)))
     summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
+    card = WidgetCard(; title = _get_section_title(T),
                       description = isempty(summary) ? nothing : summary,
                       content = VerticalLayout(children, Cell(:left), Cell(controls.theme.form_row_gap),
                                                Cell(nothing), Cell(nothing), Cell(nothing)),

@@ -235,7 +235,7 @@ end
 # `card.collapsed`. The card reads that cell as it draws: it turns the chevron and
 # drops the body, so the toggle re-renders without reprinting the projection.
 _collapsible_card(p::ObjectToWidget, title::AbstractString, body) =
-    WidgetCard(; title = WidgetLabel(title),
+    WidgetCard(; title = String(title),
                content = body, collapsible = true)
 
 _type_title(obj) = String(nameof(typeof(obj)))

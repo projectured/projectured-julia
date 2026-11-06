@@ -217,7 +217,7 @@ end # @testset
     # expanded. Its body is the window's own grid composite.
     @test window_card.collapsible == true
     @test window_card.collapsed == false
-    @test window_card.title isa WidgetLabel
+    @test window_card.title == "WindowSettings"
     @test window_card.content isa WidgetComposite
 
     # The vector card holds a VerticalLayout of its (read-only) elements.
