@@ -484,16 +484,19 @@ _make_field_control(controls, theme, field::Symbol, value::AbstractVector{<:Them
     HorizontalLayout(Any[WidgetSwatch(resolve_theme_color(color, controls.appearance)) for color in value];
                      gap = controls.theme.item_gap, vertical_align = :center)
 
-# A text role has the controls of its colour over those of its font role.
+# A text role has the controls of its colour over those of its font role, or over
+# those of its exact font.
 function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     read = () -> getproperty(theme, field)
     default = _get_default_field(controls, theme, field)
+    font_control = value.font isa StyleFont ? _make_font_control : (controls, read, write) ->
+        _make_role_control(controls, theme, read, write)
     VerticalLayout(Any[
         _make_theme_color_control(controls, () -> read().color,
                                   color -> _write_theme_field(theme, field, TextRole(read().font, color)),
                                   default isa TextRole ? default.color : nothing),
-        _make_role_control(controls, theme, () -> read().font,
-                           role -> _write_theme_field(theme, field, TextRole(role, read().color))),
+        font_control(controls, () -> read().font,
+                     font -> _write_theme_field(theme, field, TextRole(font, read().color))),
     ]; gap = controls.theme.item_gap)
 end
 

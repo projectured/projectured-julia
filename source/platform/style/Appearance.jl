@@ -521,13 +521,19 @@ function _decode_appearance_value(current::FontRole, saved)
      (italic === nothing || italic isa Bool)) || return nothing
     FontRole(; base = Symbol(base), family, weight, italic, relative_size)
 end
+# A text field holds a text role or a text that a person set as it is. The table of an
+# exact font with a fixed colour is that text; the table of an exact font with a role
+# of the colour theme is a text role with an exact font; the table of a font role is a
+# text role.
 function _decode_appearance_value(current::TextRole, saved)
     saved isa AbstractDict || return nothing
-    _is_absolute_font_table(get(saved, "font", nothing)) &&
+    saved_font = get(saved, "font", nothing)
+    if _is_absolute_font_table(saved_font) && get(saved, "color", nothing) isa AbstractString
         return _decode_appearance_value(StyleText(StyleFont(_DEFAULT_FONT_FAMILY, 1),
                                                   current.color isa StyleColor ? current.color : color_default),
                                         saved)
-    font = _decode_appearance_value(current.font, get(saved, "font", nothing))
+    end
+    font = _decode_appearance_value(current.font isa FontRole ? current.font : FontRole(:text), saved_font)
     color = _decode_appearance_value(current.color, get(saved, "color", nothing))
     TextRole(something(font, current.font), something(color, current.color))
 end

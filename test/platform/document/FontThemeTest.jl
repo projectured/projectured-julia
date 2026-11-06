@@ -16,6 +16,10 @@ using ProjecturedPlatform.StyleModule
     with_base::ThemeFont = FontRole(base = :base, weight = 700, relative_size = 1.5)
 end
 
+@theme struct ThIconed
+    mark::ThemeText = TextRole(:warning_text; font = StyleFont("Lucide", 13))
+end
+
 function test_font_theme()
 @testset "Font theme" begin
 
@@ -96,6 +100,24 @@ end
     @test text.color == resolve_theme_color(ColorRole(:text_muted), appearance)
 end
 
+@testset "a text role with an exact font" begin
+    mark = TextRole(:warning_text; font = StyleFont("Lucide", 13))
+    @test mark.font == StyleFont("Lucide", 13)
+    @test mark.color == ColorRole(:warning_text)
+    for keywords in ((font_role = :quiet,), (base = :font,), (family = "Ubuntu",),
+                     (relative_size = 0.8,), (weight = 700,), (italic = true,))
+        @test_throws ArgumentError TextRole(:warning_text; font = StyleFont("Lucide", 13), keywords...)
+    end
+    appearance = Appearance(font_scale = 1.5)
+    scaled = scale_theme_value(mark, nothing, appearance)
+    @test scaled.font == StyleFont("Lucide", 20)
+    @test scaled.color == resolve_theme_color(ColorRole(:warning_text), appearance)
+    # No font role changes it.
+    get_font_theme(appearance).text = FontStep(:sans, 30)
+    @test scale_theme_value(mark, nothing, appearance).font.size == 20
+    @test make_scaled_theme(ThIconed(), appearance).mark.font == StyleFont("Lucide", 20)
+end
+
 @testset "a scaled theme follows the font theme and the font scale" begin
     appearance = Appearance()
     scaled = make_scaled_theme(ThFonted(), appearance)
@@ -143,6 +165,17 @@ end
         @test fonts.page_title == FontTheme().page_title
         @test get_theme(loaded, ThFonted).quiet == FontRole(:section; weight = 500)
         @test get_theme(loaded, ThFonted).note == TextRole(:accent_text; font_role = :badge, italic = false)
+
+        # A text role with an exact font keeps its font and its colour role.
+        set_theme!(appearance, ThIconed(mark = TextRole(:error_text; font = StyleFont("Lucide", 17; weight = 700))))
+        save_appearance!(appearance, path)
+        text = read(path, String)
+        @test occursin("Lucide", text) && occursin("error_text", text)
+        loaded_mark = Appearance()
+        set_theme!(loaded_mark, ThIconed())
+        load_appearance!(loaded_mark, path)
+        @test get_theme(loaded_mark, ThIconed).mark ==
+              TextRole(:error_text; font = StyleFont("Lucide", 17; weight = 700))
 
         # A table with a base reads as the form with a base.
         write(path, "[ThFonted.with_base]\nbase = \"base\"\nrelative_size = 2.0\n" *

@@ -79,12 +79,22 @@ FontRole(role::Symbol; weight::Union{Nothing,Integer} = nothing,
     FontRole(:font, nothing, weight === nothing ? nothing : Int16(weight), italic, 1.0, role)
 
 """
+    ThemeFont
+
+What a font field of a theme holds: a [`FontRole`](@ref), which follows a base font
+of the theme or a role of the font theme of the appearance, or a fixed `StyleFont`,
+which the appearance tab can set in place of the role.
+"""
+const ThemeFont = Union{StyleFont, FontRole}
+
+"""
     TextRole(color; base = :font, family = nothing, weight = nothing, italic = nothing,
                     relative_size = 1.0)
     TextRole(color; font_role, weight = nothing, italic = nothing)
+    TextRole(color; font)
 
-A text of a theme: a [`FontRole`](@ref) and a colour of any kind of
-[`ThemeColor`](@ref). It is to `StyleText` what a font role is to `StyleFont`,
+A text of a theme: a [`ThemeFont`](@ref), which is a [`FontRole`](@ref) or an exact
+`StyleFont`, and a colour of any kind of [`ThemeColor`](@ref). It is to `StyleText` what a font role is to `StyleFont`,
 and the scaled theme holds the `StyleText` that it gives. A symbol names a role
 of the colour theme: `TextRole(:keyword; weight = 700)` is
 `TextRole(ColorRole(:keyword); weight = 700)`.
@@ -94,9 +104,15 @@ font theme of the appearance: `TextRole(:text_muted; font_role = :quiet)`. The
 keywords `base`, `family` and `relative_size` belong to the font that follows a
 base font of its theme, so giving one of them with `font_role` throws an
 `ArgumentError`.
+
+With `font`, an exact `StyleFont`, the text keeps that font and takes the colour
+from the role: `TextRole(:warning_text; font = StyleFont("Lucide", 13))`. The scaled
+theme scales the font with the font scale and no role changes its size, so it is the
+form of an icon. Every other font keyword (`font_role`, `base`, `family`,
+`relative_size`, `weight`, `italic`) throws an `ArgumentError` with it.
 """
 struct TextRole
-    font::FontRole
+    font::ThemeFont
     color::ThemeColor
 end
 
@@ -104,7 +120,15 @@ function TextRole(color::ThemeColor; base::Union{Nothing,Symbol} = nothing,
                   family::Union{Nothing,AbstractString} = nothing,
                   weight::Union{Nothing,Integer} = nothing, italic::Union{Nothing,Bool} = nothing,
                   relative_size::Union{Nothing,Real} = nothing,
-                  font_role::Union{Nothing,Symbol} = nothing)
+                  font_role::Union{Nothing,Symbol} = nothing,
+                  font::Union{Nothing,StyleFont} = nothing)
+    if font !== nothing
+        (base === nothing && family === nothing && weight === nothing && italic === nothing &&
+         relative_size === nothing && font_role === nothing) ||
+            throw(ArgumentError("`font` is an exact font, so `font_role`, `base`, `family`, " *
+                                "`relative_size`, `weight` and `italic` do not apply to it"))
+        return TextRole(font, color)
+    end
     if font_role !== nothing
         (base === nothing && family === nothing && relative_size === nothing) ||
             throw(ArgumentError("`font_role` names a role of the font theme, so `base`, " *
@@ -154,12 +178,3 @@ theme of the appearance, or a fixed `StyleText`, which the appearance tab can se
 in place of the role.
 """
 const ThemeText = Union{StyleText, TextRole}
-
-"""
-    ThemeFont
-
-What a font field of a theme holds: a [`FontRole`](@ref), which follows a base font
-of the theme or a role of the font theme of the appearance, or a fixed `StyleFont`,
-which the appearance tab can set in place of the role.
-"""
-const ThemeFont = Union{StyleFont, FontRole}
