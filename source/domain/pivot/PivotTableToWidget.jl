@@ -8,7 +8,7 @@
 # for its part.
 
 """
-    PivotTableToWidget(; row_height, zone_gap, chip_gap)
+    PivotTableToWidget(; row_height, zone_gap, chip_gap, header_font, header_color)
 
 Projects a [`PivotTable`](@ref) to a `GridLayout` of two rows: the bar of the
 zones, and a `WidgetTable` of the cross table.
@@ -46,6 +46,8 @@ projection introduced, and its selection shows in the table.
     row_height::Int = 0
     zone_gap::Int = get_widget_style(nothing, :section_gap)
     chip_gap::Int = get_widget_style(nothing, :item_gap)
+    header_font::StyleFont = get_widget_style(nothing, :column_font)
+    header_color::StyleColor = get_widget_style(nothing, :muted_foreground)
 end
 
 @iomap struct PivotTableToWidgetIoMap
@@ -203,11 +205,11 @@ _describe_pivot_zone_item(item) = string(item)
 # of the source in their groups (`PivotGroupView`).
 function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
     grouped() = _is_pivot_group_layout(pivot)
-    headers = CellVector(@computation grouped() ? _make_pivot_group_column_headers(pivot) :
-                                                  _make_pivot_column_headers(pivot))
+    headers = CellVector(@computation grouped() ? _make_pivot_group_column_headers(p, pivot) :
+                                                  _make_pivot_column_headers(p, pivot))
     rows = Cell(@computation grouped() ? _make_pivot_group_row_list(pivot) : _make_pivot_row_list(pivot))
-    row_headers = Cell(@computation grouped() ? _make_pivot_group_header_list(pivot) :
-                                                _make_pivot_row_header_list(pivot))
+    row_headers = Cell(@computation grouped() ? _make_pivot_group_header_list(p, pivot) :
+                                                _make_pivot_row_header_list(p, pivot))
     corner = Cell(@computation grouped() ? _make_pivot_group_corner(pivot) : _make_pivot_corner(pivot))
     columns = Cell(@computation grouped() ?
         Any[WidgetTableColumn(; policy = _PIVOT_COLUMN_POLICY) for _ in _get_pivot_group_columns(pivot)] :
@@ -234,21 +236,28 @@ end
 # The labels of a key, one for each level. Each label is a `WidgetLabel`, a
 # document: a layout keeps the answer of an Alt+press of its child only when the
 # answer names a document, so an Alt+press selects a label of the table, and its run.
-_make_pivot_key_labels(key::Tuple) = CellVector(Any[WidgetLabel(format_pivot_value(value)) for value in key])
+_make_pivot_key_labels(p, key::Tuple) =
+    CellVector(Any[_make_pivot_header_label(p, format_pivot_value(value)) for value in key])
+
+# A label of a header: the column font and the muted colour of the widget theme, as the
+# header of a column of a data frame has them. `p` holds `header_font` and `header_color`.
+_make_pivot_header_label(p, text::AbstractString) =
+    WidgetLabel(text; text_style = StyleText(p.header_font, p.header_color))
 
 # The header of each column: the labels of its key, or the names of the measures
 # for the one column of a pivot with no column dimension.
-function _make_pivot_column_headers(pivot::PivotTable)
+function _make_pivot_column_headers(p, pivot::PivotTable)
     cross = pivot.cross_table
     isempty(pivot.column_dimensions) &&
-        return Any[WidgetLabel(join((describe_pivot_measure(measure) for measure in get_pivot_measures(pivot)), "  "))]
-    Any[_make_pivot_key_labels(key) for key in cross.column_keys]
+        return Any[_make_pivot_header_label(
+            p, join((describe_pivot_measure(measure) for measure in get_pivot_measures(pivot)), "  "))]
+    Any[_make_pivot_key_labels(p, key) for key in cross.column_keys]
 end
 
 # The header of each row as a list that moves in step with the rows: the labels
 # of its key, or `all` for the one row of a pivot with no row dimension. A pivot
 # with no row has an empty vector.
-function _make_pivot_row_header_list(pivot::PivotTable)
+function _make_pivot_row_header_list(p, pivot::PivotTable)
     # A new view of the cells changes the height of the rows, which a row reads
     # when it is built, so the list is built again.
     get_pivot_cell_view(pivot)
@@ -256,12 +265,13 @@ function _make_pivot_row_header_list(pivot::PivotTable)
     count = get_pivot_row_count(cross)
     count == 0 && return CellVector()
     leveled = !isempty(pivot.row_dimensions)
-    make_index_list(count, 1, k -> leveled ? _make_pivot_row_labels(pivot, cross.row_keys[k]) : WidgetLabel("all"))
+    make_index_list(count, 1, k -> leveled ? _make_pivot_row_labels(p, pivot, cross.row_keys[k]) :
+                                         _make_pivot_header_label(p, "all"))
 end
 
 # The labels of the key of a row.
-_make_pivot_row_labels(pivot::PivotTable, key::Tuple) =
-    CellVector(Any[WidgetLabel(label) for label in _format_pivot_row_labels(pivot, key)])
+_make_pivot_row_labels(p, pivot::PivotTable, key::Tuple) =
+    CellVector(Any[_make_pivot_header_label(p, label) for label in _format_pivot_row_labels(pivot, key)])
 
 # The text of each label of the key of a row. The label of a closed run or group
 # starts with ▸.
@@ -544,5 +554,7 @@ function make_pivot_table_projection(; measure::TextMeasure, appearance::Appeara
     row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
     ChainingProjection(PivotTableToWidget(; row_height, zone_gap = get_widget_style(theme, :section_gap),
-                                          chip_gap = get_widget_style(theme, :item_gap)), grid)
+                                          chip_gap = get_widget_style(theme, :item_gap),
+                                          header_font = get_widget_style(theme, :column_font),
+                                          header_color = get_widget_style(theme, :muted_foreground)), grid)
 end

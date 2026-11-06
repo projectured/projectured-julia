@@ -20,26 +20,24 @@ theme scaled or not; a projection built with no styles holds the plain values
 of the default theme.
 """
 @theme struct MathTheme
-    "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable."
-    variable_text::ThemeText = TextRole(:variable; base = :code_font)
+    variable_text::ThemeText = TextRole(:variable; font_role = :document_code)
     "An operator, and the `/` of a fraction."
-    operator_text::ThemeText = TextRole(:operator; base = :code_font)
+    operator_text::ThemeText = TextRole(:operator; font_role = :document_code)
     "A parenthesis, a brace, a bracket and the insertion leaf."
-    chrome_text::ThemeText = TextRole(:punctuation; base = :code_font)
+    chrome_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "A symbol."
-    symbol_text::ThemeText = TextRole(:constant; base = :code_font)
+    symbol_text::ThemeText = TextRole(:constant; font_role = :document_code)
     "The name of a function, a radical, a big operator, a differential, a derivative, an accent, a matrix or a case list."
-    name_text::ThemeText = TextRole(:function_name; base = :code_font)
+    name_text::ThemeText = TextRole(:function_name; font_role = :document_code)
     "A run of plain text."
-    word_text::ThemeText = TextRole(:text; base = :code_font)
+    word_text::ThemeText = TextRole(:text; font_role = :document_code)
     "The `=` of an assignment."
-    equals_text::ThemeText = TextRole(:operator; base = :code_font)
+    equals_text::ThemeText = TextRole(:operator; font_role = :document_code)
     "The upright face: a number, an operator, a function name, a symbol."
-    font::StyleFont = StyleFont("DejaVu Sans", 14)
+    font::ThemeFont = FontRole(:document_text)
     "The oblique face: a variable."
-    slanted_font::ThemeFont = FontRole(italic = true)
+    slanted_font::ThemeFont = FontRole(:document_text; italic = true)
     "The color of every part."
     ink::ThemeColor = ColorRole(:text)
     "The color of an empty slot."

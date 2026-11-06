@@ -21,48 +21,46 @@ from a theme scaled or not; a projection built with no styles holds the plain
 values of the default theme.
 """
 @theme struct JuliaTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable, a name whose kind the place does not give, and the label of an object that stands in the code, such as a widget pasted into a form."
-    identifier_text::ThemeText = TextRole(:variable)
+    identifier_text::ThemeText = TextRole(:variable; font_role = :document_code)
     "A string, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
-    string_text::ThemeText = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal; font_role = :document_code)
     "A character."
-    char_text::ThemeText = TextRole(:character_literal)
+    char_text::ThemeText = TextRole(:character_literal; font_role = :document_code)
     "An integer and a float."
-    number_text::ThemeText = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal; font_role = :document_code)
     "`true` and `false`."
-    bool_text::ThemeText = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal; font_role = :document_code)
     "`nothing`."
-    nothing_text::ThemeText = TextRole(:null_literal)
+    nothing_text::ThemeText = TextRole(:null_literal; font_role = :document_code)
     "A quote, a delimiter, a separator, a brace and a fence."
-    punctuation_text::ThemeText = TextRole(:punctuation)
+    punctuation_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "A comment."
-    comment_text::ThemeText = TextRole(:comment)
+    comment_text::ThemeText = TextRole(:comment; font_role = :document_code)
     "A keyword."
-    keyword_text::ThemeText = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText = TextRole(:keyword; font_role = :document_code, weight = 700)
     "A symbol, such as `:name`."
-    symbol_text::ThemeText = TextRole(:symbol_literal)
+    symbol_text::ThemeText = TextRole(:symbol_literal; font_role = :document_code)
     "An operator, the dot of a field access, a range, `::`, `=`, `?:`, `<:`, `->`, and the dollar sign of a string interpolation."
-    operator_text::ThemeText = TextRole(:operator)
+    operator_text::ThemeText = TextRole(:operator; font_role = :document_code)
     "The called function."
-    callee_text::ThemeText = TextRole(:function_name)
+    callee_text::ThemeText = TextRole(:function_name; font_role = :document_code)
     "The name of a function, at its definition."
-    function_definition_text::ThemeText = TextRole(:function_name; weight = 700)
+    function_definition_text::ThemeText = TextRole(:function_name; font_role = :document_code, weight = 700)
     "The name of a macro."
-    macro_text::ThemeText = TextRole(:macro_name)
+    macro_text::ThemeText = TextRole(:macro_name; font_role = :document_code)
     "A type after `::`, after `<:`, and before `{`."
-    type_text::ThemeText = TextRole(:type_name)
+    type_text::ThemeText = TextRole(:type_name; font_role = :document_code)
     "The name of a struct and of an abstract type, at its definition."
-    type_definition_text::ThemeText = TextRole(:type_name; weight = 700)
+    type_definition_text::ThemeText = TextRole(:type_name; font_role = :document_code, weight = 700)
     "A field after a dot."
-    field_text::ThemeText = TextRole(:field)
+    field_text::ThemeText = TextRole(:field; font_role = :document_code)
     "The name of a module."
-    module_text::ThemeText = TextRole(:module_name; weight = 700)
+    module_text::ThemeText = TextRole(:module_name; font_role = :document_code, weight = 700)
     "The path of a `using`, and the typed text of the insertion."
-    plain_text::ThemeText = TextRole(:text)
+    plain_text::ThemeText = TextRole(:text; font_role = :document_code)
     "The completion that the insertion offers."
-    hint_text::ThemeText = TextRole(:text_faint)
+    hint_text::ThemeText = TextRole(:text_faint; font_role = :document_code)
     "The color of the typed text of the insertion while it names nothing."
     wrong_color::ThemeColor = ColorRole(:error_text)
     "The color of the typed text of the insertion while it names one thing."

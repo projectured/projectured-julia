@@ -7,10 +7,9 @@ function test_math_to_graphics()
 _projection() = RecursiveProjection(MathToGraphics(measure = FontFileMeasure()))
 _print(doc) = print_document(_projection(), doc)
 
-# The metrics the rules are derived from, at the default face and size.
-_config() = MathConfig(font = StyleFont("DejaVu Sans", 14),
-                       slanted = StyleFont("DejaVu Sans", 14; italic = true),
-                       measure = FontFileMeasure())
+# The metrics the rules are derived from, at the default face and size: the
+# `document_text` role of the font theme, upright and slanted.
+_config() = MathConfig(measure = FontFileMeasure())
 _metrics(style = :display) = compute_math_metrics(_config(), style)
 
 # Element 1 of every box is the selection wash, so the content starts at 2.

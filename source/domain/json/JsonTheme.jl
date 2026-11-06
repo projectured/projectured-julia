@@ -19,22 +19,20 @@ from a theme scaled or not, and with no theme it holds the plain values of the
 default theme.
 """
 @theme struct JsonTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
-    null_text::ThemeText = TextRole(:null_literal)
+    null_text::ThemeText = TextRole(:null_literal; font_role = :document_code)
     "A boolean value."
-    bool_text::ThemeText = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal; font_role = :document_code)
     "A number value."
-    number_text::ThemeText = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal; font_role = :document_code)
     "A string value."
-    string_text::ThemeText = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal; font_role = :document_code)
     "The quotes around a string."
-    quote_text::ThemeText = TextRole(:punctuation)
+    quote_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "The key of an object member, with its quotes."
-    key_text::ThemeText = TextRole(:field)
+    key_text::ThemeText = TextRole(:field; font_role = :document_code)
     "The brackets of an array and the braces of an object."
-    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
     "A comma, and the colon of a member."
-    separator_text::ThemeText = TextRole(:punctuation)
+    separator_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
 end

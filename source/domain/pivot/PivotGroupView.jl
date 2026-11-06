@@ -83,8 +83,8 @@ function _get_pivot_group_columns(pivot::PivotTable)
     String[name for name in get_table_column_names(pivot.source) if !(name in grouped)]
 end
 
-_make_pivot_group_column_headers(pivot::PivotTable) =
-    Any[WidgetLabel(column) for column in _get_pivot_group_columns(pivot)]
+_make_pivot_group_column_headers(p, pivot::PivotTable) =
+    Any[_make_pivot_header_label(p, column) for column in _get_pivot_group_columns(pivot)]
 
 # The rows of the table as a list: a row of the source shows its values, and a
 # row that holds a group shows the count of its rows.
@@ -105,15 +105,15 @@ end
 
 # The header of each row of the table: the labels of the key of its group, and
 # the number of its row in the source, or nothing for a row that holds a group.
-function _make_pivot_group_header_list(pivot::PivotTable)
+function _make_pivot_group_header_list(p, pivot::PivotTable)
     groups = _get_pivot_group_rows(pivot)
     count = isempty(groups.ends) ? 0 : last(groups.ends)
     count == 0 && return CellVector()
     keys = pivot.cross_table.row_keys
     make_index_list(count, 1, k -> begin
         r, row = _find_pivot_group_row(groups, k)
-        labels = collect(_make_pivot_row_labels(pivot, keys[r]))
-        CellVector(Any[labels..., WidgetLabel(row === nothing ? "" : string(row))])
+        labels = collect(_make_pivot_row_labels(p, pivot, keys[r]))
+        CellVector(Any[labels..., _make_pivot_header_label(p, row === nothing ? "" : string(row))])
     end)
 end
 

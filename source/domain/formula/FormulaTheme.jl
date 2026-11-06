@@ -23,15 +23,15 @@ values of the default theme.
 """
 @theme struct FormulaTheme
     "The \"insert formula\" placeholder."
-    insertion_text::ThemeText = TextRole(:text_faint; base = :plain_font)
+    insertion_text::ThemeText = TextRole(:text_faint; font_role = :document_code)
     "A reference to another formula, by its current name."
-    reference_text::ThemeText = TextRole(:link; base = :plain_font, weight = 700)
+    reference_text::ThemeText = TextRole(:link; font_role = :document_code, weight = 700)
     "The name of a formula."
-    name_text::ThemeText = TextRole(:variable; base = :plain_font, weight = 700)
+    name_text::ThemeText = TextRole(:variable; font_role = :document_code, weight = 700)
     "The `=` and the `⇒` of a formula's line."
-    operator_text::ThemeText = TextRole(:operator; base = :plain_font)
+    operator_text::ThemeText = TextRole(:operator; font_role = :document_code)
     "The value of a formula."
-    result_text::ThemeText = TextRole(:constant; base = :plain_font)
+    result_text::ThemeText = TextRole(:constant; font_role = :document_code)
     "The font the lines of an environment separate on."
-    plain_font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    plain_font::ThemeFont = FontRole(:document_code)
 end

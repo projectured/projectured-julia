@@ -22,20 +22,18 @@ from a theme scaled or not; a projection built with no styles holds the plain
 values of the default theme.
 """
 @theme struct ProcessTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "`process`, `step`, `if`, `else`, `while`, `for`, `in`, `break`, `continue` and `return`, and the keyword of a diagram label."
-    keyword_text::ThemeText    = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText    = TextRole(:keyword; font_role = :document_code, weight = 700)
     "The name of a process."
-    name_text::ThemeText       = TextRole(:function_name; weight = 700)
+    name_text::ThemeText       = TextRole(:function_name; font_role = :document_code, weight = 700)
     "The description of a step, and the text of a step label in a diagram."
-    action_text::ThemeText     = TextRole(:text)
+    action_text::ThemeText     = TextRole(:text; font_role = :document_code)
     "The punctuation around a part, an unrefined `<condition>`, `<variable>` or `<iterable>` marker, the chrome of a diagram label, and an edge label."
-    chrome_text::ThemeText     = TextRole(:punctuation)
+    chrome_text::ThemeText     = TextRole(:punctuation; font_role = :document_code)
     "The keyword of the node where a debug session stops."
-    current_text::ThemeText    = TextRole(:warning_text; weight = 700)
+    current_text::ThemeText    = TextRole(:warning_text; font_role = :document_code, weight = 700)
     "The keyword of a node that holds a breakpoint."
-    breakpoint_text::ThemeText = TextRole(:error_text; weight = 700)
+    breakpoint_text::ThemeText = TextRole(:error_text; font_role = :document_code, weight = 700)
     "The label of the start or the stop terminal in a diagram."
-    terminal_text::ThemeText   = TextRole(:keyword; weight = 700)
+    terminal_text::ThemeText   = TextRole(:keyword; font_role = :document_code, weight = 700)
 end

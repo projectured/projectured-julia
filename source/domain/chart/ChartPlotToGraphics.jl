@@ -574,6 +574,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     style = chart.style
     title_font = _or(style.title_font, t.title_font)
     axis_font = _or(style.axis_font, t.axis_font)
+    axis_title_font = _or(style.axis_font, t.axis_title_font)
     legend_font = _or(style.legend_font, t.legend_font)
 
     view = resolve_view(plot)
@@ -597,7 +598,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         y_title_h = 0
         y_title_text_y = 0
     else
-        y_title_line = compute_line_box(p.measure, y_title, axis_font)
+        y_title_line = compute_line_box(p.measure, y_title, axis_title_font)
         y_title_h = y_title_line.height + t.axis_title_gap
         y_title_text_y = y_title_line.text_y
     end
@@ -606,7 +607,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         x_title_h = 0
         x_title_text_y = 0
     else
-        x_title_line = compute_line_box(p.measure, x_title, axis_font)
+        x_title_line = compute_line_box(p.measure, x_title, axis_title_font)
         x_title_h = x_title_line.height + t.axis_title_gap
         x_title_text_y = x_title_line.text_y
     end
@@ -696,7 +697,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        point_cache, function_samples, strip_spans, strip_rows, strip_count, strip_only, pie,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
-       title, title_font, axis_font, legend_font, title_h, title_text_y,
+       title, title_font, axis_font, axis_title_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
 end
 
@@ -795,10 +796,10 @@ function _frame_elements!(out, g)
     # running up its side.
     isempty(g.y_title) ||
         push!(out, GraphicsText(g.y_title, px, t.padding + g.title_h + g.y_title_text_y;
-                                font = g.axis_font, color = text_color))
+                                font = g.axis_title_font, color = text_color))
     isempty(g.x_title) ||
         push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - t.padding - g.x_title_h + 2 + g.x_title_text_y;
-                                font = g.axis_font, color = text_color))
+                                font = g.axis_title_font, color = text_color))
     out
 end
 

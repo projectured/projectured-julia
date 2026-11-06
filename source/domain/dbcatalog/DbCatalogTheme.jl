@@ -21,16 +21,14 @@ The builder gives each DbCatalog projection its styles with
 styles holds the plain values of the default theme.
 """
 @theme struct DbCatalogTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A column, with its type."
-    column_text::ThemeText   = TextRole(:field)
+    column_text::ThemeText   = TextRole(:field; font_role = :document_code)
     "The name of a table."
-    table_text::ThemeText    = TextRole(:type_name; weight = 700)
+    table_text::ThemeText    = TextRole(:type_name; font_role = :document_code, weight = 700)
     "The name of a schema."
-    schema_text::ThemeText   = TextRole(:module_name; weight = 700)
+    schema_text::ThemeText   = TextRole(:module_name; font_role = :document_code, weight = 700)
     "The name of a database and of an RDBMS."
-    database_text::ThemeText = TextRole(:module_name; weight = 700)
+    database_text::ThemeText = TextRole(:module_name; font_role = :document_code, weight = 700)
     "The keyword that opens a group of children, such as \"Columns\", \"Tables\", \"Schemas\" or \"Databases\"."
-    keyword_text::ThemeText  = TextRole(:text_muted)
+    keyword_text::ThemeText  = TextRole(:text_muted; font_role = :document_code)
 end

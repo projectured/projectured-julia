@@ -19,20 +19,18 @@ theme scaled or not; a projection built with no styles holds the plain values
 of the default theme.
 """
 @theme struct YamlTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
-    null_text::ThemeText      = TextRole(:null_literal)
+    null_text::ThemeText      = TextRole(:null_literal; font_role = :document_code)
     "A boolean value."
-    bool_text::ThemeText      = TextRole(:boolean_literal)
+    bool_text::ThemeText      = TextRole(:boolean_literal; font_role = :document_code)
     "A number value."
-    number_text::ThemeText    = TextRole(:number_literal)
+    number_text::ThemeText    = TextRole(:number_literal; font_role = :document_code)
     "A string value."
-    string_text::ThemeText    = TextRole(:string_literal)
+    string_text::ThemeText    = TextRole(:string_literal; font_role = :document_code)
     "The key of a mapping entry."
-    key_text::ThemeText       = TextRole(:field)
+    key_text::ThemeText       = TextRole(:field; font_role = :document_code)
     "The brackets of a flow sequence, the braces of a flow mapping, and the `- ` marker of a block sequence."
-    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
     "A comma, and the colon of a mapping entry."
-    separator_text::ThemeText = TextRole(:punctuation)
+    separator_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
 end

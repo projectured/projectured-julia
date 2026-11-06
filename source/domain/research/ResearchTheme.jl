@@ -15,15 +15,15 @@ the outline its styles with `get_research_style`, from a theme scaled or not.
 """
 @theme struct ResearchTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 14)
+    font::ThemeFont = FontRole(:text)
     "The id of an item, and the title of a section of the outline."
-    heading_text::ThemeText = TextRole(:heading; weight = 700)
+    heading_text::ThemeText = TextRole(:heading; font_role = :strong_text)
     "The name of a link, the name of a field, and the time of an item."
-    muted_text::ThemeText = TextRole(:text_muted)
+    muted_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The author of an item that the assistant made."
-    assistant_text::ThemeText = TextRole(:info_text; weight = 700)
+    assistant_text::ThemeText = TextRole(:info_text; font_role = :strong_text)
     "The author of an item that the person made."
-    person_text::ThemeText = TextRole(:text; weight = 700)
+    person_text::ThemeText = TextRole(:text; font_role = :strong_text)
     "The gap between the parts of an item."
     gap::Spacing = Spacing(6)
 end

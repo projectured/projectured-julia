@@ -20,30 +20,28 @@ theme scaled or not; a projection built with no styles holds the plain values
 of the default theme.
 """
 @theme struct SqlTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
-    keyword_text::ThemeText = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText = TextRole(:keyword; font_role = :document_code, weight = 700)
     "A raw expression, and any other text that is not a keyword, a name or a value."
-    plain_text::ThemeText   = TextRole(:text)
+    plain_text::ThemeText   = TextRole(:text; font_role = :document_code)
     "A column, and the qualifier before it."
-    column_text::ThemeText  = TextRole(:field)
+    column_text::ThemeText  = TextRole(:field; font_role = :document_code)
     "An alias of a column or of a table."
-    alias_text::ThemeText   = TextRole(:variable)
+    alias_text::ThemeText   = TextRole(:variable; font_role = :document_code)
     "A data type."
-    type_text::ThemeText    = TextRole(:type_name)
+    type_text::ThemeText    = TextRole(:type_name; font_role = :document_code)
     "A boolean value: `TRUE` and `FALSE`."
-    bool_text::ThemeText    = TextRole(:boolean_literal)
+    bool_text::ThemeText    = TextRole(:boolean_literal; font_role = :document_code)
     "A number value."
-    number_text::ThemeText  = TextRole(:number_literal)
+    number_text::ThemeText  = TextRole(:number_literal; font_role = :document_code)
     "A string value, with its quotes."
-    string_text::ThemeText  = TextRole(:string_literal)
+    string_text::ThemeText  = TextRole(:string_literal; font_role = :document_code)
     "A table, with its schema and its alias."
-    table_text::ThemeText   = TextRole(:type_name)
+    table_text::ThemeText   = TextRole(:type_name; font_role = :document_code)
     "The name of a schema."
-    schema_text::ThemeText  = TextRole(:module_name)
+    schema_text::ThemeText  = TextRole(:module_name; font_role = :document_code)
     "The brackets, the commas, the spaces and the semicolons between the parts of a statement."
-    punctuation_text::ThemeText = TextRole(:punctuation; weight = 700)
+    punctuation_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
 end
 
 # The plain font of a SQL projection that holds only a `StyleFont`, not a full

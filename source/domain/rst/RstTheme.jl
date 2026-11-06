@@ -24,54 +24,50 @@ of the default theme. A section title holds the font of each level and its
 color, picked by the level while it prints.
 """
 @theme struct RstTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 14)
-    "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A marker: an insertion placeholder, a tick, an emphasis or strong mark, a bullet, a transition, a comment, a directive's chrome, or any other marker."
-    marker_text::ThemeText          = TextRole(:markup; base = :code_font)
+    marker_text::ThemeText          = TextRole(:markup; font_role = :document_code)
     "The text, the root, a value and an argument, in the source form."
-    source_text::ThemeText          = TextRole(:text; base = :code_font)
+    source_text::ThemeText          = TextRole(:text; font_role = :document_code)
     "A literal, a literal block, and a code block's code."
-    literal_text::ThemeText         = TextRole(:string_literal; base = :code_font)
+    literal_text::ThemeText         = TextRole(:string_literal; font_role = :document_code)
     "A role name, a target, a path, and a role definition."
-    target_text::ThemeText          = TextRole(:link; base = :code_font)
+    target_text::ThemeText          = TextRole(:link; font_role = :document_code)
     "A role's value and a math block."
-    value_text::ThemeText           = TextRole(:string_literal; base = :code_font)
+    value_text::ThemeText           = TextRole(:string_literal; font_role = :document_code)
     "A reference, a footnote label, a toctree entry, and a section's adornment."
-    reference_text::ThemeText       = TextRole(:link; base = :code_font)
+    reference_text::ThemeText       = TextRole(:link; font_role = :document_code)
     "The name of a field of a field list."
-    field_text::ThemeText           = TextRole(:field; base = :code_font)
+    field_text::ThemeText           = TextRole(:field; font_role = :document_code)
     "The name of an option of a directive."
-    option_text::ThemeText          = TextRole(:parameter; base = :code_font)
+    option_text::ThemeText          = TextRole(:parameter; font_role = :document_code)
     "A substitution reference and the name of a substitution definition."
-    substitution_text::ThemeText    = TextRole(:constant; base = :code_font)
+    substitution_text::ThemeText    = TextRole(:constant; font_role = :document_code)
     "The name of a directive and the language of a code block."
-    directive_text::ThemeText       = TextRole(:keyword; base = :code_font)
+    directive_text::ThemeText       = TextRole(:keyword; font_role = :document_code)
     "The `.. kind::` marker of an admonition."
-    admonition_text::ThemeText      = TextRole(:keyword; base = :code_font, weight = 700)
+    admonition_text::ThemeText      = TextRole(:keyword; font_role = :document_code, weight = 700)
     "The title of a section, in the source form."
-    title_text::ThemeText           = TextRole(:heading; base = :code_font, weight = 700)
+    title_text::ThemeText           = TextRole(:heading; font_role = :document_code, weight = 700)
     "The plain prose of the rendered form."
-    body_text::ThemeText            = TextRole(:text)
+    body_text::ThemeText            = TextRole(:text; font_role = :document_text)
     "The font a bold run takes in the rendered form."
-    bold_font::ThemeFont            = FontRole(weight = 700)
+    bold_font::ThemeFont            = FontRole(:document_text; weight = 700)
     "The font an italic run takes in the rendered form."
-    italic_font::ThemeFont          = FontRole(italic = true)
+    italic_font::ThemeFont          = FontRole(:document_text; italic = true)
     "The font of a level 1 section title in the rendered form."
-    title_1_font::ThemeFont         = FontRole(weight = 700, relative_size = 1.8)
+    title_1_font::ThemeFont         = FontRole(:heading_1)
     "The font of a level 2 section title in the rendered form."
-    title_2_font::ThemeFont         = FontRole(weight = 700, relative_size = 1.2)
+    title_2_font::ThemeFont         = FontRole(:heading_2)
     "The font of a level 3 section title in the rendered form."
-    title_3_font::ThemeFont         = FontRole(weight = 700, relative_size = 1.1)
+    title_3_font::ThemeFont         = FontRole(:heading_3)
     "The font of a section title past the third level, in the rendered form."
-    title_font::ThemeFont           = FontRole(weight = 700, relative_size = 0.9)
+    title_font::ThemeFont           = FontRole(:heading_4)
     "The color of a section title in the rendered form."
     title_color::ThemeColor         = ColorRole(:heading)
     "The caption under a rendered figure."
-    caption_text::ThemeText         = TextRole(:text_muted; italic = true)
+    caption_text::ThemeText         = TextRole(:text_muted; font_role = :quiet, italic = true)
     "A marker of the rendered form: a transition rule, and the arrow of a literal include."
-    rendered_marker_text::ThemeText = TextRole(:markup; base = :code_font, family = "DejaVu Sans Mono")
+    rendered_marker_text::ThemeText = TextRole(:markup; font = StyleFont("DejaVu Sans Mono", 14))
     "The gap between the blocks of an RST page."
     block_gap::Spacing              = Spacing(8)
 end

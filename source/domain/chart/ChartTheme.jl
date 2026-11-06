@@ -1,5 +1,5 @@
 # Fragment of `ChartModule` — the theme of the chart renderer: the frame's
-# colors, the three fonts a chart draws with, the lengths of its layout, and
+# colors, the four fonts a chart draws with, the lengths of its layout, and
 # the dash and the opacity of what it draws.
 
 """
@@ -11,7 +11,7 @@ its gridlines, its series and its legend.
 The theme of the Chart projections. `@theme` declares it, so `ScaledChartTheme`
 holds each value times its scale, and `ChartTheme()` is the default theme.
 
-The fields are in groups: the colors, the three fonts, the lengths of the
+The fields are in groups: the colors, the four fonts, the lengths of the
 layout and the look of a drawn line: its dash and its opacity. Each field has
 a docstring that says what it draws, which the appearance tab shows under its
 name.
@@ -52,11 +52,13 @@ default theme. A value that a chart's own
     "The rubber band of a zoom drag."
     band_fill::ThemeColor       = ColorRole(:selection_band)
     "The font of the chart's own title."
-    title_font::ThemeFont       = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
-    "The font of an axis title, a tick label and a strip's segment name."
-    axis_font::StyleFont        = StyleFont("Ubuntu", 12)
+    title_font::ThemeFont       = FontRole(:document_text; weight = 500)
+    "The font of an axis title."
+    axis_title_font::ThemeFont  = FontRole(:column)
+    "The font of a tick label, a strip's segment name, the readout of the pointer and the empty-chart placeholder."
+    axis_font::ThemeFont        = FontRole(:quiet)
     "The font of a legend item's label."
-    legend_font::ThemeFont      = FontRole(base = :axis_font)
+    legend_font::ThemeFont      = FontRole(:quiet)
     "The space around the whole chart."
     padding::Spacing            = Spacing(8)
     "The length a tick mark reaches outside the plot frame."

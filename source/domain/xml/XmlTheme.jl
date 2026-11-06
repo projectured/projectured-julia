@@ -19,18 +19,16 @@ from a theme scaled or not, and with no theme it holds the plain values of the
 default theme.
 """
 @theme struct XmlTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The text of a text node."
-    content_text::ThemeText         = TextRole(:text)
+    content_text::ThemeText         = TextRole(:text; font_role = :document_code)
     "The name of an element's opening and closing tag."
-    tag_text::ThemeText             = TextRole(:tag; weight = 700)
+    tag_text::ThemeText             = TextRole(:tag; font_role = :document_code, weight = 700)
     "The angle brackets of a tag."
-    delimiter_text::ThemeText       = TextRole(:punctuation)
+    delimiter_text::ThemeText       = TextRole(:punctuation; font_role = :document_code)
     "The name of an attribute."
-    attribute_name_text::ThemeText  = TextRole(:field)
+    attribute_name_text::ThemeText  = TextRole(:field; font_role = :document_code)
     "The quotes around an attribute value."
-    quote_text::ThemeText           = TextRole(:punctuation)
+    quote_text::ThemeText           = TextRole(:punctuation; font_role = :document_code)
     "The value of an attribute."
-    attribute_value_text::ThemeText = TextRole(:string_literal)
+    attribute_value_text::ThemeText = TextRole(:string_literal; font_role = :document_code)
 end
