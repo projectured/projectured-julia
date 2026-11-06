@@ -1,6 +1,6 @@
-# Fragment of `AssistantModule` — the wake: an assistant whose `wake` is on
-# starts a turn of its own when a group of tasks that one of its turns started
-# ends, with a note that says why.
+# Fragment of `AssistantModule` — the wake: an assistant starts a turn of its own
+# when a group of tasks that one of its turns started ends, with a note that says
+# why.
 #
 # A group belongs to the turn during which it started: the group joined the list
 # of the session after the start of the turn, and it still runs when the turn
@@ -41,7 +41,6 @@ end
 # when the scheduler of the group ends, the assistant wakes on the task of the
 # editor. A waiter task waits for the scheduler, so nothing holds the editor.
 function _watch_turn_task_groups!(editor, a::Assistant, turn::ConversationTurn)
-    a.wake || return nothing
     for group in _find_turn_task_groups(editor, turn)
         scheduler = get_task_group(group).runtime.scheduler
         errormonitor(@async begin
@@ -74,10 +73,9 @@ The note shows, starts no turn and takes no wake when the person must keep the
 word. It is a `:wake_held` note then, it says why in its last sentence, and its
 button **Go on** starts a turn. The reasons, in this order: the person is typing
 a message, the person stopped the group, the person stopped the last turn, and
-the assistant has no wake left. An assistant whose `wake` is off does nothing.
+the assistant has no wake left.
 """
 function wake_assistant!(editor, a::Assistant, group::TaskGroupDocument)
-    a.wake || return nothing
     reason = _find_wake_hold_reason(a, group)
     description = _describe_task_group_end(group)
     if reason === nothing

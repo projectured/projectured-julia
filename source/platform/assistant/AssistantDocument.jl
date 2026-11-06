@@ -113,14 +113,13 @@ them for every backend, and a fork copies them.
 `max_rounds` is how many rounds a turn of a model may run, eight by default
 ([`DEFAULT_ASSISTANT_ROUNDS`](@ref)). A turn that reaches it ends with the stop
 reason `:round_limit`, and a note under the answer says so and offers to go on.
-`wake` says that the assistant starts a turn of its own when a task group that
-one of its turns started ends, with a note that says why; it is off by default.
-A window that serves long work sets both. They are settings that a person or a
-window chose, so a `.pred` file keeps them.
+A window that serves long work gives its assistant more rounds. The budget is a
+setting that a person or a window chose, so a `.pred` file keeps it.
 
-`wakes_left` is how many turns the assistant may still start without a message of
-the person: a wake takes one, a stop of a turn sets 0, and a message of the person
-raises it to at least [`ASSISTANT_WAKE_LIMIT`](@ref). Only the person sets it to
+An assistant starts a turn of its own when a task group that one of its turns
+started ends, with a note that says why. `wakes_left` is how many turns it may
+still start without a message of the person: a wake takes one, a stop of a turn
+sets 0, and a message of the person raises it to at least [`ASSISTANT_WAKE_LIMIT`](@ref). Only the person sets it to
 another value. It is live state, like `status`: a `.pred` file does not keep it,
 and a fork starts at 0.
 
@@ -171,7 +170,6 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     comment::PrimitiveString
     work_state::Symbol
     max_rounds::Int
-    wake::Bool
     wakes_left::Int
     number::Int
 end
@@ -245,7 +243,6 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               comment::Union{AbstractString,PrimitiveString} = "",
                               work_state::Symbol = :pending,
                               max_rounds::Integer = DEFAULT_ASSISTANT_ROUNDS,
-                              wake::Bool = false,
                               number::Integer = 1)
     max_rounds >= 1 ||
         throw(ArgumentError("an assistant runs at least one round in a turn, not $(max_rounds)"))
@@ -266,7 +263,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(AgentWork("")), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
-                           Cell(Int(max_rounds)), Cell(wake), Cell(0), Cell(Int(number)),
+                           Cell(Int(max_rounds)), Cell(0), Cell(Int(number)),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -312,10 +309,9 @@ function pred_arguments(a::Assistant)
     isempty(a.description.value) || push!(keywords, :description => a.description.value)
     isempty(a.comment.value) || push!(keywords, :comment => a.comment.value)
     a.work_state === :pending || push!(keywords, :work_state => a.work_state)
-    # How long a turn may run and whether the assistant wakes are what a person
-    # or a window chose for the work, so the file keeps them when they differ.
+    # How long a turn may run is what a person or a window chose for the work, so
+    # the file keeps it when it differs.
     a.max_rounds == DEFAULT_ASSISTANT_ROUNDS || push!(keywords, :max_rounds => a.max_rounds)
-    a.wake && push!(keywords, :wake => true)
     if a.backend === :acp && !isempty(a.agent_session_id)
         append!(keywords, Pair{Symbol,Any}[
             :conversation             => a.conversation,

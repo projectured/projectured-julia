@@ -11,11 +11,15 @@ _make_wake_group(seconds) =
                                        name = "sleep", jobs = 1); title = "the sleep")
 
 # A tool set whose tool `start` starts `group` in the session of the editor.
-function _make_wake_tools(group)
+# The tool leaves `wakes_left` wakes to the assistant when that is not `nothing`.
+function _make_wake_tools(group; wakes_left = nothing)
     set = register_default_tools!(ToolSet())
     register_tool!(set, Tool("start"; description = "a tool of the test", parameters = NamedTuple[],
-                             handler = (editor, arguments) -> (start_task_group_document!(group; editor);
-                                                               "started")))
+                             handler = (editor, arguments) -> begin
+                                 wakes_left === nothing || (editor.document.wakes_left = wakes_left)
+                                 start_task_group_document!(group; editor)
+                                 "started"
+                             end))
     set
 end
 
@@ -52,7 +56,7 @@ function test_assistant_wake()
             group = _make_wake_group(1)
             llm = ScriptedLlm([_make_wake_call_round(), _make_wake_answer_round("It runs."),
                                _make_wake_answer_round("It ended.")])
-            a = Assistant(; llm, wake = true)
+            a = Assistant(; llm)
             editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
                             tools = _make_wake_tools(group))
             a.input.value = "Start it."
@@ -77,7 +81,7 @@ function test_assistant_wake()
         @testset "a group that run_tasks! started wakes the assistant when it ends" begin
             llm = ScriptedLlm([_make_wake_call_round(), _make_wake_answer_round("It runs."),
                                _make_wake_answer_round("It ended.")])
-            a = Assistant(; llm, wake = true)
+            a = Assistant(; llm)
             editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
                             tools = _make_wake_program_tools())
             a.input.value = "Start it."
@@ -89,21 +93,24 @@ function test_assistant_wake()
             note = only(collect(wake.parts)).content
             @test note.kind === :wake
             @test startswith(note.text, "The task group \"the sleep\" ended: ")
+            @test endswith(note.text, " Wakes left: 2.")
         end
 
-        @testset "an assistant whose wake is off does not wake" begin
+        @testset "an assistant with no wake left adds a held note and starts no turn" begin
             group = _make_wake_group(0.2)
             llm = ScriptedLlm([_make_wake_call_round(), _make_wake_answer_round("It runs.")])
             a = Assistant(; llm)
             editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
-                            tools = _make_wake_tools(group))
+                            tools = _make_wake_tools(group; wakes_left = 0))
             a.input.value = "Start it."
             evaluate_operation(editor, SubmitProseOperation(a))
-            @test timedwait(() -> a.status === :idle && length(a.conversation.turns) == 2, 30.0;
+            @test timedwait(() -> a.status === :idle && length(a.conversation.turns) == 3, 30.0;
                             pollint = 0.05) === :ok
             wait_task_group_document(group)
             sleep(0.3)
-            @test length(a.conversation.turns) == 2
+            @test length(a.conversation.turns) == 3
+            note = only(_collect_wake_notes(a))
+            @test note.kind === :wake_held && endswith(note.text, "it has no wakes left.")
         end
 
         @testset "an external agent gets the note as the prompt of a turn" begin
@@ -111,7 +118,7 @@ function test_assistant_wake()
             start_task_group_document!(group)
             wait_task_group_document(group)
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Seen."), LlmTextStop()]])
-            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection), wake = true,
+            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")]),
                               ConversationTurn(:assistant, [ConversationPart("It runs.")])]))
@@ -149,7 +156,7 @@ function test_assistant_wake()
         end
 
         @testset "a file keeps no count of wakes, and a fork starts at 0" begin
-            a = Assistant(; wake = true)
+            a = Assistant()
             a.wakes_left = 9
             @test !occursin("wakes_left", print_pred_text(a))
             @test parse_pred_text(print_pred_text(a)).wakes_left == 0
@@ -186,7 +193,7 @@ function test_assistant_wake()
             start_task_group_document!(group)
             wait_task_group_document(group)
             editor = (document = nothing, tools = register_default_tools!(ToolSet()))
-            a = Assistant(; llm = FakeLlm("no"), wake = true,
+            a = Assistant(; llm = FakeLlm("no"),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")])]))
             a.wakes_left = 5
@@ -209,7 +216,7 @@ function test_assistant_wake()
             stop_task_group!(get_task_group(group))
             wait_task_group_document(group)
             editor = (document = nothing, tools = register_default_tools!(ToolSet()))
-            a = Assistant(; llm = FakeLlm("no"), wake = true,
+            a = Assistant(; llm = FakeLlm("no"),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")])]))
             a.wakes_left = 5
@@ -224,7 +231,7 @@ function test_assistant_wake()
             start_task_group_document!(group)
             wait_task_group_document(group)
             editor = (document = nothing, tools = register_default_tools!(ToolSet()))
-            a = Assistant(; llm = FakeLlm("ok"), wake = true,
+            a = Assistant(; llm = FakeLlm("ok"),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")])]))
             a.wakes_left = 4
@@ -259,7 +266,7 @@ function test_assistant_wake()
             group = _make_wake_group(0)
             start_task_group_document!(group)
             wait_task_group_document(group)
-            a = Assistant(; llm = FakeLlm("ok"), wake = true,
+            a = Assistant(; llm = FakeLlm("ok"),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")])]))
             editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
@@ -282,14 +289,14 @@ function test_assistant_wake()
 
             # A stop of the person: the note shows, and no turn starts.
             stopped = ConversationTurn(:assistant, [ConversationPart("Half")]; stop_reason = :cancelled)
-            a = Assistant(; llm = FakeLlm("no"), wake = true,
+            a = Assistant(; llm = FakeLlm("no"),
                           conversation = ConversationConversation([person, stopped]))
             wake_assistant!(editor, a, group)
             @test length(_collect_wake_notes(a)) == 1 && a.status === :idle
             @test length(a.conversation.turns) == 3
 
             # A message that the person types.
-            a = Assistant(; llm = FakeLlm("no"), wake = true,
+            a = Assistant(; llm = FakeLlm("no"),
                           conversation = ConversationConversation([
                               ConversationTurn(:user, [ConversationPart("Run it.")])]))
             a.draft.parts[1] = ConversationPart(PrimitiveString("I am typing"))
@@ -297,15 +304,11 @@ function test_assistant_wake()
             @test length(a.conversation.turns) == 2 && a.status === :idle
 
             # No wake left.
-            a = Assistant(; llm = FakeLlm("no"), wake = true,
+            a = Assistant(; llm = FakeLlm("no"),
                           conversation = ConversationConversation([person]))
             wake_assistant!(editor, a, group)
             @test length(a.conversation.turns) == 2 && a.status === :idle && a.wakes_left == 0
 
-            # Off, a wake does nothing.
-            a = Assistant(; llm = FakeLlm("no"))
-            wake_assistant!(editor, a, group)
-            @test isempty(collect(a.conversation.turns))
         end
     end
 end

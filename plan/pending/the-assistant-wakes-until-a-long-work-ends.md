@@ -202,13 +202,23 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
       - The reader takes a typed number as a string too.
       - `test_assistant_mvp()` (4 broken, as on main) and `test_external_agent_turn()` pass
         with no change of their count.
-- [ ] **3a. The switch goes (D12).** Remove the field `wake` from `AssistantDocument.jl`, its
+- [x] **3a. The switch goes (D12).** Remove the field `wake` from `AssistantDocument.jl`, its
       default and its `pred_arguments` keyword, and the check of the switch in
       `wake_assistant!`. In omnet-julia, remove `wake = true` from `IdeWindow.jl` (two places)
       and `IdeWorkload.jl`, in the same landing. Test: `test_assistant_wake()`, whose case
       "the switch off" becomes "an assistant with 0 wakes left adds a held note"; then
       `test_conversation()`, and in omnet-julia the IDE assistant tests. A test that starts a
       group and expects no turn after it now gets a wake: such a test sets the count to 0.
+      What the implementation found:
+      - omnet-julia also had the keyword `wake` in `CampaignWindow.jl` (`run_campaign_window`,
+        `campaign_assistant`), which the plan did not list; it goes too, since the `Assistant`
+        no longer has the keyword. `test/ide/AssistantStudyWindowTest.jl` drops its check of
+        `assistant.wake`.
+      - A message gives 3 wakes, so `test_aloha_study_by_hand` (scripted model answers in order)
+        sets `wakes_left = 0` in the block of each message, and counts the turns that are not
+        notes: a run that ends adds a held note, which is a turn of notes.
+      - `test_ide_window_workload` errors on main too ("the window did not draw DONE"); it is
+        not caused by this plan (same error on main `9a0656026`/`4c8d27962` and on the branches).
 - [ ] **4. The texts.** The docstrings of `ASSISTANT_WAKE_LIMIT`, `wake_assistant!`, the
       `Assistant` and `ConversationNote`. The docstring of `wait_for_tasks!` gets one
       sentence: for work of many groups, tell the person how many wakes it needs; the

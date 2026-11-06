@@ -25,15 +25,14 @@ _collect_turn_notes(turn) =
 
 function test_assistant_rounds()
     @testset "the budget of rounds of a turn" begin
-        @testset "an assistant keeps its budget and its wake in its file" begin
+        @testset "an assistant keeps its budget in its file" begin
             a = Assistant()
             @test a.max_rounds == DEFAULT_ASSISTANT_ROUNDS == 8
-            @test a.wake === false
-            @test !occursin(r"\b(max_rounds|wake) =", print_pred_text(a))
+            @test !occursin(r"\bmax_rounds =", print_pred_text(a))
             @test_throws ArgumentError Assistant(; max_rounds = 0)
-            a = Assistant(; max_rounds = 40, wake = true)
+            a = Assistant(; max_rounds = 40)
             loaded = parse_pred_text(print_pred_text(a))
-            @test (loaded.max_rounds, loaded.wake) == (40, true)
+            @test loaded.max_rounds == 40
         end
 
         @testset "a turn that uses its rounds ends with a note that offers to go on" begin
