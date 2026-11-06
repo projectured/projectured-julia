@@ -11,8 +11,8 @@ function test_outline()
         text = get_outline_style(nothing, :text)
         id = get_outline_style(nothing, :id_text)
         @test title isa StyleText && title.font.size > text.font.size > id.font.size
-        @test title.font.weight == 700
-        @test id.font.family == "Ubuntu Mono"
+        @test title.font.weight == 500
+        @test id.font.family == "Ubuntu" && id.font.weight == 700
         # A scaled theme gives the same values at the scale of 1, each read from a cell.
         scaled = get_scaled_theme!(Appearance(), OutlineTheme)
         values = unwrap_cell(make_outline_values_field(scaled, get_scaled_theme!(Appearance(), WidgetTheme)))

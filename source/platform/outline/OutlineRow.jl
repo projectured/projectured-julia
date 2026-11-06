@@ -166,7 +166,7 @@ end
     make_outline_section(outline, title; compute_menu = nothing) -> Widget
 
 The label of a section of an outline, such as a kind of record or a day: small
-bold capitals, with the gap of a section above it, in line with the facts of the
+bold text, with the gap of a section above it, in line with the facts of the
 rows under it.
 
 With `compute_menu`, the section has a menu, a `WidgetMenu` that `compute_menu()`
@@ -174,7 +174,7 @@ makes at the time it opens: the header is a `:row` card whose "⋯" shows under 
 pointer, and the "⋯", a right click and Shift+F10 open the menu.
 """
 function make_outline_section(outline, title::AbstractString; compute_menu = nothing)
-    label = WidgetLabel(uppercase(title); text_style = outline.section_text, margin = inset_default,
+    label = WidgetLabel(String(title); text_style = outline.section_text, margin = inset_default,
                         border = inset_default,
                         padding = Inset(outline.section_gap, outline.item_gap, outline.tree_row_padding.left[], 0))
     compute_menu === nothing && return label

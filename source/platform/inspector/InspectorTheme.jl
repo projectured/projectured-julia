@@ -23,9 +23,9 @@ default theme.
 """
 @theme struct InspectorTheme
     "The body: the compact reference and the human-readable narrative."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    font::ThemeFont = FontRole(:code)
     "The \"Compact\" and \"Human-readable\" section headers."
-    header_font::ThemeFont = FontRole(family = "Liberation Sans", weight = 700, relative_size = 1.5)
+    header_font::ThemeFont = FontRole(:title)
     "The \"Compact\" and \"Human-readable\" section headers."
     header_color::ThemeColor = ColorRole(:heading)
 end

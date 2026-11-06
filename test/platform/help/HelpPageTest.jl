@@ -108,9 +108,9 @@ end
     table = only(part for part in page.children[1].child.content.children if part isa WidgetTable)
     @test [column.policy for column in table.columns] == [Content, Content, Fill]
     texts = _collect_help_label_texts(table)
-    at = findfirst(==("font"), texts)
-    @test texts[at + 1] == "StyleFont"
-    @test startswith(texts[at + 2], "The font that the texts of this theme follow")
+    at = findfirst(==("heading_text"), texts)
+    @test texts[at + 1] == "ThemeText"
+    @test startswith(texts[at + 2], "The line that says what a tree or a group holds")
     # A document type that needs arguments says so.
     group = _find_help_child(help, "HelpGroup")
     texts = _collect_help_label_texts(print_document(make_help_entry_projection(), nothing, group, nothing).output)

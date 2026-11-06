@@ -282,38 +282,54 @@ end
     @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
     @test format_theme_color(syntax.bool_text.color) == "@boolean_literal"
     @test "@boolean_literal" in texts
-    # The base font of the theme shows its family once; a role shows its size in
-    # percent of the base.
-    @test count(==("Ubuntu Mono"), texts) == 1
-    @test "% of font" in texts
+    # A text role that names a role of the font theme shows the name of the role and
+    # has no size, because a role never changes its size.
+    @test "document_code" in texts
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     before = syntax.bool_text
+    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                           op.reference.head == FieldReferenceStep("bool_text")
     # The button › of the colour of `bool_text` writes a text role with the next
     # role of the colour theme and the same font role.
     next_role = only(op for (action, op) in tab.commands if action.label == "›" &&
-                     op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                     op.reference.head == FieldReferenceStep("bool_text"))
+                     writes_bool_text(op) && op.value.color != before.color)
     @test next_role.value isa TextRole && next_role.value.font == before.font
     @test next_role.value.color == ColorRole(:null_literal)
+    # The button › of the font role writes the next role of the font theme and keeps the colour.
+    next_font = only(op for (action, op) in tab.commands if action.label == "›" &&
+                     writes_bool_text(op) && op.value.color == before.color)
+    @test next_font.value.font isa FontRole && next_font.value.font.role !== :document_code
     # The button "Step" writes the step of a ramp that the role names, so the field
     # leaves the role and keeps its colour, and still follows the mode.
-    to_step = only(op for (action, op) in tab.commands if action.label == "Step" &&
-                   op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                   op.reference.head == FieldReferenceStep("bool_text"))
+    to_step = only(op for (action, op) in tab.commands if action.label == "Step" && writes_bool_text(op))
     @test to_step.value.color == get_color_theme(appearance).boolean_literal
     @test to_step.value.color isa PaletteColor && to_step.value.font == before.font
     # The step to a heavier weight sets the weight of the role and keeps the colour.
-    step = only(op for (action, op) in tab.commands if action.label == "+" &&
-                op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                op.reference.head == FieldReferenceStep("bool_text"))
-    @test step.value.font.weight == 700 && step.value.font.relative_size == 1.0
+    step = only(op for (action, op) in tab.commands if action.label == "+" && writes_bool_text(op))
+    @test step.value.font.weight == 700 && step.value.font.role === :document_code
     @test step.value.color == before.color
-    # The size of the role in percent writes its relative size.
-    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                           op.reference.head == FieldReferenceStep("bool_text")
-    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 100 &&
-               writes_bool_text(write(150)))
-    @test tab.writes[box](150).value.font.relative_size == 1.5
+    @test !any(w isa WidgetSpinBox && writes_bool_text(write(150)) for (w, write) in tab.writes)
+end
+
+@testset "a text role with an exact font has the controls of its colour and of an exact font" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, TooltipTheme)
+    tooltip = get_theme(appearance, TooltipTheme)
+    appearance.open_sections = ["TooltipTheme"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    @test "Lucide" in texts
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    before = tooltip.warning_mark
+    writes_mark(op) = op isa ReplaceReferencedValueOperation && op.document === tooltip &&
+                      op.reference.head == FieldReferenceStep("warning_mark")
+    # The size of the exact font writes a text role that keeps the font family and the colour.
+    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 13 &&
+               writes_mark(write(20)))
+    written = tab.writes[box](20).value
+    @test written isa TextRole && written.font == StyleFont("Lucide", 20)
+    @test written.color == before.color
 end
 
 @testset "the font card has a control for each step, and the two families step through the font families" begin

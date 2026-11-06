@@ -21,30 +21,28 @@ line, `button_gap` between two buttons and `section_gap` between two sections. [
 gives them with the values of this theme.
 """
 @theme struct OutlineTheme
-    "The font that the texts of an outline follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 14)
     "The title of the document."
-    title_text::ThemeText = TextRole(:text; weight = 700, relative_size = 24 / 14)
+    title_text::ThemeText = TextRole(:text; font_role = :page_title)
     "The label of a section: a group of rows of one kind or of one day."
-    section_text::ThemeText = TextRole(:text_muted; weight = 700, relative_size = 11 / 14)
+    section_text::ThemeText = TextRole(:text_muted; font_role = :section)
     "The text of a row: a statement, a title or a citation."
-    text::ThemeText = TextRole(:text; weight = 500, relative_size = 15 / 14)
+    text::ThemeText = TextRole(:text; font_role = :text)
     "The text of a row that is settled out of the way, such as a done step."
-    quiet_text::ThemeText = TextRole(:text_muted; relative_size = 15 / 14)
+    quiet_text::ThemeText = TextRole(:text_muted; font_role = :text)
     "The value of a field of a row."
-    field_text::ThemeText = TextRole(:text; relative_size = 13 / 14)
+    field_text::ThemeText = TextRole(:text; font_role = :text)
     "The word before the value of a field, and before the chips of a link."
-    word_text::ThemeText = TextRole(:text_muted; relative_size = 13 / 14)
+    word_text::ThemeText = TextRole(:text_muted; font_role = :text)
     "The words of the links of a row, and the facts of the header."
-    relation_text::ThemeText = TextRole(:text_muted; relative_size = 12 / 14)
+    relation_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The id of a row."
-    id_text::ThemeText = TextRole(:text_muted; family = "Ubuntu Mono", weight = 700, relative_size = 12 / 14)
+    id_text::ThemeText = TextRole(:text_muted; font_role = :quiet, weight = 700)
     "The time and the date of a row."
-    time_text::ThemeText = TextRole(:text_muted; family = "Ubuntu Mono", relative_size = 11 / 14)
+    time_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The id in a chip."
-    chip_text::ThemeText = TextRole(:text; family = "Ubuntu Mono", weight = 700, relative_size = 12 / 14)
+    chip_text::ThemeText = TextRole(:text; font_role = :badge)
     "A pale text that stands in an empty place, such as the first row of an empty document."
-    placeholder_text::ThemeText = TextRole(:text_faint; relative_size = 15 / 14)
+    placeholder_text::ThemeText = TextRole(:text_faint; font_role = :text)
     "The ground of a chip."
     chip_fill::ThemeColor = ColorRole(:surface_sunken)
     "The ground of a document inside a row."

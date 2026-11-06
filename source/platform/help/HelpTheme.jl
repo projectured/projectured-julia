@@ -23,18 +23,16 @@ projection its styles with `get_help_style`, from a theme scaled or not; a
 projection built with no styles holds the plain values of the default theme.
 """
 @theme struct HelpTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans", 13)
     "The line that says what a tree or a group holds, over its table."
-    heading_text::ThemeText = TextRole(:text_muted)
+    heading_text::ThemeText = TextRole(:text_muted; font_role = :section)
     "The name of a type, on its page."
-    name_text::ThemeText = TextRole(:heading; weight = 700, relative_size = 1.125)
+    name_text::ThemeText = TextRole(:heading; font = StyleFont("Ubuntu Mono", 20; weight = 700))
     "The module and the names to type of a type, on its page; the version, the Julia version and the home page, on the about page."
-    detail_text::ThemeText = TextRole(:text_muted)
+    detail_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The docstring of a type, on its page; the sentence of the about page."
-    description_text::ThemeText = TextRole(:text)
+    description_text::ThemeText = TextRole(:text; font_role = :document_text)
     "The line that the page of a type with no docstring shows."
-    muted_text::ThemeText = TextRole(:text_faint; italic = true)
+    muted_text::ThemeText = TextRole(:text_faint; font_role = :quiet, italic = true)
     "The name of the program, on the about page."
-    title_text::ThemeText = TextRole(:heading; weight = 700, relative_size = 1.5)
+    title_text::ThemeText = TextRole(:heading; font_role = :page_title)
 end

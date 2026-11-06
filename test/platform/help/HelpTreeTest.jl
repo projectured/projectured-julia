@@ -78,10 +78,9 @@ end
     @test [(field.name, field.type) for field in documents.fields] == [("children", "CellVector"), ("world", "UInt64")]
     theme = _find_help_child(help, "HelpTheme")
     @test !occursin("AHelpTheme", theme.supertypes) && endswith(theme.supertypes, "Document")
-    font = only(field for field in theme.fields if field.name == "font")
-    @test font.type == "StyleFont"
-    @test startswith(font.description, "The font that the texts of this theme follow")
-    @test only(field for field in theme.fields if field.name == "heading_text").type == "ThemeText"
+    heading = only(field for field in theme.fields if field.name == "heading_text")
+    @test heading.type == "ThemeText"
+    @test startswith(heading.description, "The line that says what a tree or a group holds")
     # A projection keeps each field in a cell, and the type is the type of the
     # value.
     projections = update_help_groups!(ProjectionList())

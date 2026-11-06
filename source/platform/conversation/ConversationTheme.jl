@@ -13,7 +13,7 @@ The theme of the conversation projections. `@theme` declares it, so
 `ScaledConversationTheme` holds each value times its scale, and
 `ConversationTheme()` is the default theme.
 
-The fields are in groups: the base fonts, the label and the glyph of each
+The fields are in groups: the font of the code, the label and the glyph of each
 role, the plain text of a message, the tag and the sections of a part, the
 prompts of a form, the colors
 the composer draws a typed part with, and the gaps of a REPL and of a prompt.
@@ -28,34 +28,32 @@ between the parts from the widget theme; a projection built
 with no styles holds the plain values of the default theme.
 """
 @theme struct ConversationTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 14)
     "The font that the code and the prompts of this theme follow: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    code_font::ThemeFont = FontRole(:code)
     "The label beside a turn whose role is the user."
-    user_role_text::ThemeText = TextRole(:accent_text; weight = 700, relative_size = 0.9)
+    user_role_text::ThemeText = TextRole(:accent_text; font_role = :strong_text)
     "The label beside a turn whose role is the assistant."
-    assistant_role_text::ThemeText = TextRole(PaletteColor(:teal, 11; minimum_contrast = 4.5); weight = 700, relative_size = 0.9)
+    assistant_role_text::ThemeText = TextRole(PaletteColor(:teal, 11; minimum_contrast = 4.5); font_role = :strong_text)
     "The label beside a turn whose role is neither the user nor the assistant."
-    other_role_text::ThemeText = TextRole(:text_muted; weight = 700, relative_size = 0.9)
+    other_role_text::ThemeText = TextRole(:text_muted; font_role = :strong_text)
     "The glyph beside a turn whose role is the user."
-    user_role_icon::ThemeText = TextRole(:accent_text; family = "Lucide")
+    user_role_icon::ThemeText = TextRole(:accent_text; font = StyleFont("Lucide", 14))
     "The glyph beside a turn whose role is the assistant."
-    assistant_role_icon::ThemeText = TextRole(PaletteColor(:teal, 11; minimum_contrast = 4.5); family = "Lucide")
+    assistant_role_icon::ThemeText = TextRole(PaletteColor(:teal, 11; minimum_contrast = 4.5); font = StyleFont("Lucide", 14))
     "The glyph beside a turn whose role is neither the user nor the assistant."
-    other_role_icon::ThemeText = TextRole(:text_muted; family = "Lucide")
+    other_role_icon::ThemeText = TextRole(:text_muted; font = StyleFont("Lucide", 14))
     "The plain text of a message, in the composer and in the transcript: a typed message, an answer while it streams, a thought and an error."
-    message_text::ThemeText = TextRole(:text)
+    message_text::ThemeText = TextRole(:text; font_role = :document_text)
     "The tag that names a part's kind: a code's language, \"thinking\", or the name of a tool."
-    kind_text::ThemeText = TextRole(:text_muted; weight = 700, relative_size = 0.8)
+    kind_text::ThemeText = TextRole(:text_muted; font_role = :label)
     "The title of a section of an evaluation: its code or its result."
-    section_text::ThemeText = TextRole(:text_muted; relative_size = 0.8)
+    section_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The title of a section of an evaluation whose result is an error."
-    error_text::ThemeText = TextRole(:error_text; weight = 700, relative_size = 0.8)
+    error_text::ThemeText = TextRole(:error_text; font_role = :quiet, weight = 700)
     "The `>`/`=` prompt before the code or the result of a form."
-    prompt_text::ThemeText = TextRole(:text_muted; base = :code_font)
+    prompt_text::ThemeText = TextRole(:text_muted; font_role = :code)
     "The `=` prompt before the result of a form whose evaluation failed."
-    error_prompt_text::ThemeText = TextRole(:error_text; base = :code_font)
+    error_prompt_text::ThemeText = TextRole(:error_text; font_role = :code)
     "The typed text of an editable part of the composer."
     plain_color::ThemeColor = ColorRole(:text)
     "The placeholder of an empty part, and the static words of a kind chooser."

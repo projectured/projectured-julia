@@ -57,9 +57,9 @@ end
     plain = ConversationPartToWidget()
     @test plain.message_text.font == StyleFont("Ubuntu", 14)
     @test is_color_equal(plain.message_text.color, get_theme_value(defaults, :message_text).color)
-    @test plain.kind_text.font.size == 11 && plain.kind_text.font.weight == 700
-    @test plain.section_text.font.size == 11 && plain.section_text.font.weight == 400
-    @test plain.error_text.font.size == 11 && plain.error_text.font.weight == 700
+    @test plain.kind_text.font.size == 13 && plain.kind_text.font.weight == 500
+    @test plain.section_text.font.size == 12 && plain.section_text.font.weight == 400
+    @test plain.error_text.font.size == 12 && plain.error_text.font.weight == 700
     @test is_color_equal(plain.error_text.color, get_theme_value(defaults, :error_text).color)
     @test plain.section_gap == 8
     @test (plain.section_padding.top[], plain.section_padding.bottom[],
@@ -67,7 +67,7 @@ end
 
     scaled = _find_conversation_rule(ConversationToWidget(; theme, widget_theme), ConversationPart)
     @test scaled.message_text.font.size == round(Int, 14 * 1.5)
-    @test scaled.kind_text.font.size == round(Int, 11 * 1.5)
+    @test scaled.kind_text.font.size == round(Int, 13 * 1.5)
     @test scaled.section_gap == round(Int, 8 * 1.5)
     @test scaled.section_padding.left[] == round(Int, 12 * 1.5)
     @test scaled.section_padding.top[] == 0
@@ -76,13 +76,13 @@ end
 @testset "EvaluatorFormToVerticalLayout reads the prompts, and EvaluatorToplevelToWidgetComposite its gaps" begin
     plain = EvaluatorFormToVerticalLayout()
     @test (plain.row_gap, plain.prompt_gap) == (4, 8)
-    @test plain.prompt_text.font.size == 14 && plain.prompt_text.font.family == "Ubuntu Mono"
+    @test plain.prompt_text.font.size == 13 && plain.prompt_text.font.family == "Ubuntu Mono"
     @test plain.prompt_text.font.weight == 400
     @test is_color_equal(plain.prompt_text.color, get_theme_value(defaults, :prompt_text).color)
     @test is_color_equal(plain.error_prompt_text.color, get_theme_value(defaults, :error_prompt_text).color)
 
     scaled = make_evaluator_form_projection(; theme)
-    @test scaled.prompt_text.font.size == round(Int, 14 * 1.5)
+    @test scaled.prompt_text.font.size == round(Int, 13 * 1.5)
     @test scaled.row_gap == round(Int, 4 * 1.5)
 
     top_plain = EvaluatorToplevelToWidgetComposite()
@@ -94,7 +94,7 @@ end
 
 @testset "ConversationComposerToWidget reads the composer's fonts, its gap and its colors" begin
     plain = ConversationComposerToWidget()
-    @test plain.code_font == StyleFont("Ubuntu Mono", 14)
+    @test plain.code_font == StyleFont("Ubuntu Mono", 13)
     # A typed message draws in the font that the transcript draws it in when it is sent.
     @test plain.message_text.font == ConversationPartToWidget().message_text.font
     @test plain.section_gap == 8
@@ -110,8 +110,8 @@ end
     scaled = make_conversation_composer_projection(; theme, widget_theme)
     # A theme that is not scaled reads as at no scale.
     @test make_conversation_composer_projection(; theme = ConversationTheme()).code_font ==
-          StyleFont("Ubuntu Mono", 14)
-    @test scaled.code_font == StyleFont("Ubuntu Mono", 21)
+          StyleFont("Ubuntu Mono", 13)
+    @test scaled.code_font == StyleFont("Ubuntu Mono", round(Int, 13 * 1.5))
     @test scaled.message_text.font == StyleFont("Ubuntu", 21)
     @test scaled.section_gap == round(Int, 8 * 1.5)
 end
