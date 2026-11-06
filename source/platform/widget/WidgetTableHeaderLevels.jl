@@ -379,10 +379,11 @@ function _print_level_corner(recursion, w::WidgetTable, inner, sizes::_LevelColu
     corner
 end
 
-# The pane of a header column with levels, `height` tall: a grid of one column
-# for each level over the row headers, which scrolls with the `y` of the offset.
+# The pane of a header column with levels, offered `height_range` as the pane of
+# the cells is (`_make_rows_range`): a grid of one column for each level over the
+# row headers, which scrolls with the `y` of the offset.
 function _print_level_header_column(recursion, w::WidgetTable, inner, sizes::_LevelColumnSizes,
-                                    height::Cell, pad_x::Int, pad_y::Int, bw::Int)
+                                    height_range::Tuple, pad_x::Int, pad_y::Int, bw::Int)
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
     rows = Cell(@computation (headers = w.row_headers;
@@ -394,7 +395,7 @@ function _print_level_header_column(recursion, w::WidgetTable, inner, sizes::_Le
     offset = getfield(w, :scroll_position)
     pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
-    iomap = print_child(recursion, pane, with_exact_size(with_free_axis(inner, :x); height))
+    iomap = print_child(recursion, pane, with_size_range(with_free_axis(inner, :x); height = height_range))
     sizes.grid[] = iomap.content_iomap
     iomap
 end

@@ -450,11 +450,12 @@ function _make_header_row_node(header_node::ListNode, rows::_HeaderRows)
     node
 end
 
-# The pane of the header column, `height` tall, or `nothing` with no row
-# headers: a grid of one column over the row headers as rows of one cell, which
-# scrolls with the `y` of the offset. The column is as wide as `corner` and as
-# the header of the head row, which the grid measures once it prints.
-function _print_header_column(recursion, w::WidgetTable, inner, corner, height::Cell,
+# The pane of the header column, offered `height_range` as the pane of the cells
+# is (`_make_rows_range`), or `nothing` with no row headers: a grid of one column
+# over the row headers as rows of one cell, which scrolls with the `y` of the
+# offset. The column is as wide as `corner` and as the header of the head row,
+# which the grid measures once it prints.
+function _print_header_column(recursion, w::WidgetTable, inner, corner, height_range::Tuple,
                               pad_x::Int, pad_y::Int, bw::Int)
     # A move of the head writes the row headers, and the parts do not depend on
     # it. A corner makes a header column, which holds no rows while the rows are
@@ -481,9 +482,24 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
     pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
     iomap = print_child(recursion, pane,
-                        with_exact_size(with_free_axis(inner, :x); height))
+                        with_size_range(with_free_axis(inner, :x); height = height_range))
     grid_iomap[] = iomap.content_iomap
     iomap
+end
+
+# The range of the height of the rows of a table of a list, the pane of its cells
+# and its header column: the range of the table, `height` at most, less the
+# header row. A table that fills a slot gives its rows the slot exactly. A table
+# that is offered an edge and no slot gives its rows the edge, so a list that
+# ends before the edge takes only its rows, as a scroll pane takes its content
+# up to its room.
+function _make_rows_range(inner, height::Cell, header_height::Cell)
+    rows_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
+    (get_exact_height(inner) !== nothing || inner.maximum_height === nothing) &&
+        return (rows_height, rows_height)
+    minimum = inner.minimum_height
+    minimum === nothing && return (nothing, rows_height)
+    (Cell(@computation Int32(max(0, Int(minimum[]) - Int(header_height[])))), rows_height)
 end
 
 # The band of the light or of the selection in row `k` of the header column:
@@ -965,14 +981,14 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     grid = GridLayout(_get_row_list(w), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       Cell(aligns), getfield(w, :column_policy), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
-    cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
+    rows = _make_rows_range(inner, height, header_height)
     row_header_pane = level_sizes === nothing ?
-        _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw) :
-        _print_level_header_column(recursion, w, inner, level_sizes, cells_height, pad_x, pad_y, bw)
+        _print_header_column(recursion, w, inner, corner, rows, pad_x, pad_y, bw) :
+        _print_level_header_column(recursion, w, inner, level_sizes, rows, pad_x, pad_y, bw)
     row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
-                             with_exact_size(beside; height = cells_height))
+                             with_size_range(beside; height = rows))
     cells_grid = cells_pane.content_iomap
     for c in 1:n
         set_cell_computation!(widths[c], () -> Int(cells_grid.col_w[c][]))
@@ -1249,12 +1265,12 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     grid = GridLayout(_get_row_list(w), Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       aligns, Cell(Fixed(width)), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
-    cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
-    row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
+    rows = _make_rows_range(inner, height, header_height)
+    row_header_pane = _print_header_column(recursion, w, inner, corner, rows, pad_x, pad_y, bw)
     row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
-                             with_exact_size(beside; height = cells_height))
+                             with_size_range(beside; height = rows))
     cells_grid = cells_pane.content_iomap
     (_get_row_header_level_count(w.row_headers) == 0 && !(w.column_headers.value isa CellVector)) ||
         error("WidgetTable: headers with levels need columns that are a vector")

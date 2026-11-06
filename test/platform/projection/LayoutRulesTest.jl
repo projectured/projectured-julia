@@ -348,6 +348,19 @@ end
     @test Int(pane.h[]) == 0
 end
 
+@testset "a table of a list takes its rows up to an edge with no slot" begin
+    columns = Any[WidgetTableColumn(; policy = Fixed(120)), WidgetTableColumn(; policy = Fixed(80))]
+    table(count) = WidgetTable(; column_headers = Any["name", "value"], columns,
+                               cells = make_index_list(count, 1, k -> make_widget_table_row(Any["a$k", "b$k"])))
+    # A list that ends before the edge: the table is its header and its rows.
+    two = _rules_drawn(table(2), :height, nothing, 300)
+    @test 0 < two < _rules_drawn(table(3), :height, nothing, 300) < 300
+    # A list that reaches the edge: the table stops there and scrolls the rest.
+    @test _rules_drawn(table(100), :height, nothing, 300) == 300
+    # A slot: the table fills it.
+    @test _rules_drawn(table(2), :height, 300, 300) == 300
+end
+
 @testset "a lazy grid in an area that grows builds the rows that show" begin
     built = Ref(0)
     grid = GridLayout(_rules_lazy_rows(10_000_000, built), 3;
