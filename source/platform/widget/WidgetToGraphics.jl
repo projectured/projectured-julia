@@ -429,8 +429,23 @@ end
     header::Any
 end
 
+# The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, and
+# for each fact the transparent node that covers its row and the `(top, bottom)`
+# of the row in the frame of the group. The printer derives both in the build
+# that draws the rows. PAR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetFactGroupToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    row_nodes::Any
+    row_bounds::Any
+    box::Any
+end
+
 # An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
-const _ChildEntriesIoMap = Union{WidgetChildrenIoMap, WidgetCardToGraphicsCanvasIoMap}
+const _ChildEntriesIoMap = Union{WidgetChildrenIoMap, WidgetCardToGraphicsCanvasIoMap,
+                                WidgetFactGroupToGraphicsCanvasIoMap}
 
 # The shape of the box of a widget, from its IO map.
 _get_box_geometry(iomap) = iomap.box
@@ -11762,6 +11777,7 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
         bound = edge === nothing ? 0 : max(0, Int(edge[]) - inset_width - column - p.column_gap)
         elements = Any[]
         child_iomaps = Any[]
+        row_bounds = Tuple{Int, Int}[]
         content_width = 0
         y = content_y
         if w.title !== nothing
@@ -11774,6 +11790,7 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
         documents = values[]
         for (i, fact) in enumerate(w.facts)
             i > 1 && (y += p.row_gap)
+            row_top = y
             label_string = string(fact.label)
             _, label_height = _text_size(p.measure, label.font, label_string)
             _push_text!(elements, p.measure, label.font, label_string, content_x, y, label.color)
@@ -11789,31 +11806,67 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
                 value_width = max(value_width, Int(canvas.w[])); row_height = max(row_height, Int(canvas.h[]))
             end
             y += row_height
+            push!(row_bounds, (row_top, y))
         end
         content_width = max(content_width, column + (value_width > 0 ? p.column_gap + value_width : 0))
         group_width = _resolve_width(ctx, 0, content_width + inset_width)
         group_height = _resolve_height(ctx, 0, y + _get_sides_outside(box, :content)[4])
         surface = Any[]
         _push_box_parts!(surface, box, colors, group_width - inset_width, group_height - inset_height)
+        row_nodes = Any[GraphicsRect(content_x, top, group_width - inset_width, bottom - top;
+                                     color = color_transparent, radius = 0)
+                        for (top, bottom) in row_bounds]
+        append!(surface, row_nodes)
         append!(surface, elements)
-        (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps)
+        (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps,
+         row_nodes = row_nodes, row_bounds = row_bounds)
     end)
-    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                        Cell(@computation build[].child_iomaps), geometry)
+    WidgetFactGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                                         Cell(@computation build[].child_iomaps),
+                                         Cell(@computation build[].row_nodes),
+                                         Cell(@computation build[].row_bounds), geometry)
 end
 
-map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) =
+# `facts[i]` is the node that covers the row of fact `i`; a part inside the value
+# of a fact is found through the child that draws it.
+function map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetFactGroupToGraphicsCanvasIoMap,
+                               reference)
+    reference isa Reference || return nothing
+    stripped = strip_reference_types(reference)
+    if stripped isa ConcreteReference && stripped.head isa FieldReferenceStep && stripped.head.name == "facts"
+        rest = stripped.tail
+        if rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference
+            row_nodes = unwrap_cell(iomap.row_nodes)
+            i = rest.head.start + 1
+            1 <= i <= length(row_nodes) || return nothing
+            return find_node_reference(iomap.output, row_nodes[i]; depth = 1)
+        end
+    end
     _map_child_forward(iomap, reference)
+end
 map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
-map_reference_backward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) =
-    _map_child_point(iomap, reference)
+# A point on the value of a fact that is a document maps into the document; any
+# other point of a row maps to the fact, `facts[i]`.
+function map_reference_backward(::WidgetFactGroupToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa WidgetFactGroupToGraphicsCanvasIoMap)) && return nothing
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    inside = _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
+    inside === nothing || return inside
+    fact = _find_row_index(unwrap_cell(iomap.row_bounds), point.y)
+    fact === nothing && return nothing
+    annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("facts"),
+                                          ConcreteReference(RangeReferenceStep(fact - 1, fact))))
+end
 
 # A press, a dwell, a turn of the wheel and a move go to the value under the pointer,
 # and the answer is rooted at `facts[i].value`. A dwell and a right click then
 # read the stretch of the group (`_read_children_outward`).
-function read_intent(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
-    evt isa MouseMove && return _read_children_move(iomap, evt)
+function read_intent(::WidgetFactGroupToGraphicsCanvas,
+                     iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, evt)
+    evt isa MouseMove && return _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
+                                                    !_outside_widget(iomap, evt))
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
     is_outward_gesture(evt) && return _read_children_outward(iomap.input, entries, evt)
