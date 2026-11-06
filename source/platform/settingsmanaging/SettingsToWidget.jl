@@ -39,6 +39,7 @@ normal edit of a group, a `ReplaceReferencedValueOperation` of one setting, and
 the `settings` wrapper turns it into an applied setting.
 """
 struct SettingsToWidget <: Projection
+    name_text::Any      # the style of the name of a setting: a `StyleText` or a cell of one
     caption::Any        # the style of a summary and a description: a `StyleText` or a cell of one
     button_gap::Any     # between the buttons under the cards: a number or a cell of one
     section_gap::Any    # between the cards
@@ -46,18 +47,22 @@ struct SettingsToWidget <: Projection
     row_gap::Any        # between the rows of a card
 end
 
-SettingsToWidget(; theme = nothing, caption = _make_caption_style(theme),
+SettingsToWidget(; theme = nothing, name_text = _make_text_style(theme, _compute_name_style),
+                 caption = _make_text_style(theme, _compute_caption_style),
                  button_gap = get_widget_style(theme, :button_gap),
                  section_gap = get_widget_style(theme, :section_gap),
                  column_gap = get_widget_style(theme, :form_column_gap),
                  row_gap = get_widget_style(theme, :form_row_gap)) =
-    SettingsToWidget(caption, button_gap, section_gap, column_gap, row_gap)
+    SettingsToWidget(name_text, caption, button_gap, section_gap, column_gap, row_gap)
 
-# The style of a summary and a description: the quiet font and the muted color of
-# the widget theme `theme`, scaled or not, as the description of a card, or of the
-# default theme for `nothing`.
-_make_caption_style(::Nothing) = _compute_caption_style(get_theme_defaults(WidgetTheme))
-_make_caption_style(theme) = make_theme_cell(StyleText, theme, _compute_caption_style)
+# A text style that `compute` makes from the values of the widget theme `theme`,
+# scaled or not, or of the default theme for `nothing`. The name of a setting takes
+# the label font and the text color, as the name of a field of a form. A summary
+# and a description take the quiet font and the muted color, as the description
+# of a card.
+_make_text_style(::Nothing, compute) = compute(get_theme_defaults(WidgetTheme))
+_make_text_style(theme, compute) = make_theme_cell(StyleText, theme, compute)
+_compute_name_style(values) = StyleText(values.label_font, values.foreground)
 _compute_caption_style(values) = StyleText(values.quiet_font, values.muted_foreground)
 
 # `controls` holds `(control, group, name, convert)` for each control of a setting,
@@ -78,9 +83,9 @@ const _DESCRIPTION_GAP = 0
 function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     controls = Tuple{Any,Any,Symbol,Any}[]
     groups = get_settings_groups(settings)
-    caption = unwrap_cell(p.caption)
+    styles = (name = unwrap_cell(p.name_text), caption = unwrap_cell(p.caption))
     gaps = (column = unwrap_cell(p.column_gap), row = unwrap_cell(p.row_gap))
-    cards = Any[_make_group_card(settings, group, controls, caption, gaps) for group in groups]
+    cards = Any[_make_group_card(settings, group, controls, styles, gaps) for group in groups]
     reset = _make_command_button("Reset all", "Give every setting its default.",
                                () -> _make_reset_operation(groups))
     save = _make_command_button("Save", "Write the settings to their file.",
@@ -105,7 +110,7 @@ end
 # across the three columns. The note and the state of the controls follow the
 # unused types of the settings, which the start step of the editor finds after the
 # first print.
-function _make_group_card(settings::Settings, group, controls, caption::StyleText, gaps)
+function _make_group_card(settings::Settings, group, controls, styles, gaps)
     T = get_settings_group_type(group)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
@@ -113,7 +118,7 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
     for description in get_setting_descriptions(T)
         control, convert = _make_setting_control(group, description, is_used)
         push!(controls, (control, group, description.name, convert))
-        push!(cells, WidgetLabel(description.label))
+        push!(cells, WidgetLabel(description.label; text_style = styles.name))
         push!(cells, control)
         reset = _make_command_button("Reset", "Give \"$(description.label)\" its default.",
                                    () -> _make_reset_operation(group, description))
@@ -122,7 +127,7 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
         push!(row_gaps, nothing)
         text = uppercasefirst(strip_code_marks(description.text))
         if !isempty(text)
-            push!(cells, LayoutConstraint(WidgetLabel(text; text_style = caption); column_span = 3))
+            push!(cells, LayoutConstraint(WidgetLabel(text; text_style = styles.caption); column_span = 3))
             push!(row_gaps, _DESCRIPTION_GAP)
         end
     end

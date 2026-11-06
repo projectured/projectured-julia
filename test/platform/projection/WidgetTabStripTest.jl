@@ -178,5 +178,42 @@ end
     @test any(op -> op isa DragTabOperation && op.tab_index == 1, last.(downs))
 end
 
+# Every text of a printed strip, as (x, y, text, font), through its canvases and
+# viewports.
+function _strip_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String,StyleFont}[])
+    if node isa GraphicsCanvas
+        for e in node.elements
+            _strip_texts(e, ox + Int(node.x), oy + Int(node.y), found)
+        end
+    elseif node isa GraphicsViewport
+        _strip_texts(node.content, ox + Int(node.x), oy + Int(node.y), found)
+    elseif node isa GraphicsText
+        push!(found, (ox + Int(node.x), oy + Int(node.y), string(node.text), node.font))
+    end
+    found
+end
+
+@testset "the name of the selected tab ends before its close button" begin
+    # The selected tab draws its name in a heavier face than the other tabs. With the
+    # real faces a long heavier name is wider by more than the gap before the button,
+    # so the strip must give each name the width of its heavier face. The default
+    # theme draws every tab in the text role, so no other size hides the difference.
+    measure = FontFileMeasure()
+    name = "The selected tab draws its long name in the medium face"
+    pane = WidgetTabbedPane(Any[(name, WidgetLabel("1")), ("two", WidgetLabel("2"))];
+                            closable = true)
+    proj = RecursiveProjection(WidgetToGraphics(; measure))
+    iomap = print_document(proj, pane)
+    x, y, _, font = only(t for t in _strip_texts(iomap.output) if t[3] == name)
+    regular = StyleFont(font.family, font.size; weight = 400)
+    width = measure_string(measure, name, font).width
+    @test font.weight > 400
+    @test width - measure_string(measure, name, regular).width > get_theme_defaults(WidgetTheme).label_gap
+    close = [px for py in 0:2:40, px in x:(x + ceil(Int, width) + 200)
+             if read_intent(proj, iomap, _press(px, py)) isa CloseTabOperation]
+    @test !isempty(close)
+    @test x + width <= minimum(close)
+end
+
 end # testset
 end # function

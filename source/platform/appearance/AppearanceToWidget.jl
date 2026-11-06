@@ -253,6 +253,11 @@ function _make_settings_card(controls, title::String, summary::String, rows, res
                                         gap = controls.theme.section_gap))
 end
 
+# The name of a row of a card: a scale, a colour setting, a field of a theme. It
+# takes the label font of the widget theme, as the name of a field of a form.
+_make_name_label(controls, name) =
+    WidgetLabel(name; text_style = StyleText(controls.theme.label_font, controls.theme.foreground))
+
 # The card "Scale": a row for the zoom and one for each scale, each with its name,
 # a − button, its value in percent, a + button and a reset button.
 function _make_scale_card(controls)
@@ -261,7 +266,7 @@ function _make_scale_card(controls)
     for (field, name) in _APPEARANCE_ROWS
         word = lowercase(name)
         current = () -> "Now" => _get_percent_text(getproperty(appearance, field))
-        push!(cells, WidgetLabel(name),
+        push!(cells, _make_name_label(controls, name),
               controls.button("−", _make_step_operation(appearance, field, -1);
                               tooltip = _make_setting_note("Smaller", "Make the $word smaller by one step.",
                                                            () -> [current()])),
@@ -373,7 +378,7 @@ function _make_theme_section_content(controls, theme)
     # above, and its docstring follows its row with no gap, as a part of it.
     row_gaps = Any[]
     for field in get_theme_field_names(T)
-        push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
+        push!(cells, _make_name_label(controls, replace(String(field), "_" => " ")),
               _make_field_control(controls, theme, field, getproperty(theme, field)))
         push!(row_gaps, nothing)
         text = something(find_theme_field_text(T, field), "")
@@ -790,7 +795,7 @@ function _make_color_settings(controls)
         note(title, delta) = _make_setting_note(title, "Use the $(lowercase(title)) value of the $word in its list.",
                                                 () -> ["Now" => _format_color_setting(appearance, field),
                                                        "Becomes" => string(_step_color_setting(appearance, field, delta))])
-        push!(cells, WidgetLabel(name),
+        push!(cells, _make_name_label(controls, name),
               controls.button("‹", _write_color_setting(appearance, field,
                                                         _step_color_setting(appearance, field, -1));
                               tooltip = note("Previous", -1)),

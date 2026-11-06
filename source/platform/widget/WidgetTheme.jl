@@ -95,6 +95,8 @@ builder fills them from a theme, scaled or not.
     # ── Fonts ──
     "The font of the text of a widget: a control, a row, a cell. It is an exact font where a builder passes one."
     font::ThemeFont = FontRole(:text)
+    "The font of the name of a field of a form: the name of a setting, of a scale, of a field of a theme."
+    label_font::ThemeFont = FontRole(:label)
     "The font of the title of a card, of a dialog and of a title pane."
     title_font::ThemeFont = FontRole(:title)
     "The font of the head of a small box or of a row: the title of an accordion item and of an alert."

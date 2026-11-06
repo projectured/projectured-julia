@@ -5256,11 +5256,15 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     new_side = w.new_tab === true ? scale_length(em_h, p.icon_size) : 0
     tab_h = max(em_h, new_side)
     x = cox
+    # A name takes the wider of the font of a tab and the font of the selected tab,
+    # so the name of the selected tab fits, and no tab moves when the selection does.
+    name_fonts = (_get_state_text(p, w, :tab).font, _get_state_text(p, w, :tab; state = :selected).font)
     for pair in w.selector_element_pairs
         selector = pair.selector
         label = _get_tab_selector_text(selector)
         icon  = _get_tab_icon(selector, pair.icon)
-        tw, th = _text_size(p.measure, p.font, label)
+        _, th = _text_size(p.measure, p.font, label)
+        tw = maximum(first(_text_size(p.measure, font, label)) for font in name_fonts)
         iw  = icon_width(icon, scale_length(th, p.icon_size))
         gap = iw > 0 ? p.label_gap : 0
         badges = Any[]
