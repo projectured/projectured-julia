@@ -19,6 +19,19 @@ function _make_wake_tools(group)
     set
 end
 
+# A tool set whose tool `start` starts a program that sleeps for a second, with
+# the verb `run_tasks!`.
+function _make_wake_program_tools()
+    set = register_default_tools!(ToolSet())
+    register_tool!(set, Tool("start"; description = "a tool of the test", parameters = NamedTuple[],
+                             handler = (editor, arguments) -> begin
+        program = ProgramTask(`sh -c "sleep 1"`; working_directory = tempdir(), name = "sleep")
+        run_tasks!(TaskGroup([program]; name = "sleep", jobs = 1); title = "the sleep", editor)
+        "started"
+    end))
+    set
+end
+
 _make_wake_call_round() =
     make_scripted_turn(make_scripted_run(""; tool_id = "tu_1", tool_name = "start");
                        stop_reason = "tool_use")
@@ -54,6 +67,23 @@ function test_assistant_wake()
             messages = build_messages(a.conversation)
             @test any(message -> message.role === :user && occursin("ended: ", string(message.content)),
                       messages)
+        end
+
+        @testset "a group that run_tasks! started wakes the assistant when it ends" begin
+            llm = ScriptedLlm([_make_wake_call_round(), _make_wake_answer_round("It runs."),
+                               _make_wake_answer_round("It ended.")])
+            a = Assistant(; llm, wake = true)
+            editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                            tools = _make_wake_program_tools())
+            a.input.value = "Start it."
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test timedwait(() -> length(a.conversation.turns) >= 4 && a.status === :idle, 30.0;
+                            pollint = 0.05) === :ok
+            wake = collect(a.conversation.turns)[3]
+            @test is_note_turn(wake)
+            note = only(collect(wake.parts)).content
+            @test note.kind === :wake
+            @test startswith(note.text, "The task group \"the sleep\" ended: ")
         end
 
         @testset "an assistant whose wake is off does not wake" begin

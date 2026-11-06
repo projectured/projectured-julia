@@ -279,7 +279,7 @@ in `environment/all`.
      the `Not started: two ended ERROR` line, the second start that throws, and a stop and a close.
    - `test_task_group_verbs()` (83 Pass); `test_assistant_documentation()`,
      `test_assistant_verbs()` and `test_referenced_document_editor()` together (3268 Pass).
-5. **The wake and the window.** Test: a new testset in `test_assistant_wake()`
+5. **The wake and the window.** **The automated test is done on 2026-11-06; the live check in `omnet_ide` and the move to `plan/done/` are open** (the MCP connection of `omnet_ide` was down). Test: a new testset in `test_assistant_wake()`
    (`test/platform/conversation/AssistantWakeTest.jl`). A tool calls `run_tasks!` with a
    `ProgramTask` that sleeps 1 s, and the note says `The task group "the sleep" ended: `. Then a
    live check in `omnet_ide` through its MCP connection, with a chain of four programs whose third
@@ -287,6 +287,14 @@ in `environment/all`.
    the second step must show its lines while it runs. The fourth step must show `CANCEL` with
    `Not started: …`. `stop_tasks!` must end a `sleep 600` in less than 5 s. Then
    `Pkg.precompile()` runs in omnet-julia, and this plan moves to `plan/done/`.
+
+
+   What the implementation found:
+   - The new testset of `test_assistant_wake()` has a tool that calls `run_tasks!` with a
+     `ProgramTask` that sleeps 1 s; the note says `The task group "the sleep" ended: `
+     (21 Pass for the whole function).
+   - `Pkg.precompile()` and `test_prompt_names()` ran in a scratch environment of omnet-julia that
+     points at these worktrees: 194 Pass. omnet-julia needed no change.
 
 ## 6. Risks
 
