@@ -529,8 +529,10 @@ when the group ends or when `timeout` seconds have passed, and the group goes
 on; `is_task_group_running(group)` tells the two ends apart. `wait_for_tasks!(group;
 timeout = 30)` is the wait that a model may call: it waits a short while and
 answers how the group stands, "Ended: …" or "Still running after …: …". For a
-group that runs for minutes, a model ends its turn, and an assistant whose wake
-is on starts a turn when the group ends ([assistant.md](../assistant/assistant.md)).
+group that runs for minutes, a model ends its turn, and the assistant starts a turn
+when the group ends, as long as it has wakes left ([assistant.md](../assistant/assistant.md)).
+For a work of many groups, the model tells the person how many wakes it needs, and
+the person allows them in the spin box under the message box.
 
 **The actions of a group are operations.** A start, a stop of the group, a stop of
 one task, a rerun and a close are `StartTaskGroupOperation`,

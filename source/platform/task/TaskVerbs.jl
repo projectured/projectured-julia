@@ -470,8 +470,9 @@ with what is done so far.
 
 **The wait holds the window**, as every call of `execute_julia_code` does, so
 keep it short. For a group that runs for minutes, say how long it takes and end
-the turn: an assistant whose wake is on starts a turn of its own when a group
-that its turn started ends.
+the turn: the assistant starts a turn of its own when a group that its turn
+started ends. For work of many groups, tell the person how many wakes it needs;
+the person allows them under the message box.
 
 Use it to wait for runs, a build or a test that end within seconds, before you
 read what they wrote.

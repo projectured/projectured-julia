@@ -219,7 +219,7 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
         notes: a run that ends adds a held note, which is a turn of notes.
       - `test_ide_window_workload` errors on main too ("the window did not draw DONE"); it is
         not caused by this plan (same error on main `9a0656026`/`4c8d27962` and on the branches).
-- [ ] **4. The texts.** The docstrings of `ASSISTANT_WAKE_LIMIT`, `wake_assistant!`, the
+- [x] **4. The texts.** The docstrings of `ASSISTANT_WAKE_LIMIT`, `wake_assistant!`, the
       `Assistant` and `ConversationNote`. The docstring of `wait_for_tasks!` gets one
       sentence: for work of many groups, tell the person how many wakes it needs; the
       person allows them under the message box. The guides: "The wake" in assistant.md and
@@ -228,6 +228,11 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
       it needs. Test: `test_referenced_document_editor()`,
       because the docstring of a declared verb can move the rank of `search_api`;
       `test_assistant_documentation()`; `test_documentation()`.
+      What the implementation found:
+      - Also updated: the `ConversationNote` docstring and conversation.md (kind `:wake_held`),
+        the paragraph of the `.pred` file in assistant.md (no `wake`), and study.md in omnet-julia.
+      - `test_referenced_document_editor` (rank of `search_api`), `test_assistant_documentation`
+        and `test_documentation` pass together: 3170 tests.
 - [ ] **5. A live check in omnet_ide, with no code.** Run the window with an external
       agent through `workspace/bin/bounded-run` on a copy of a small project. Ask for six
       stages, each a run card of a short configuration, and allow 10 wakes. Check six wake

@@ -198,7 +198,8 @@ A quiet line that the editor writes into a turn, neither the person nor the
 model: why a turn ended before the model was done, or why the assistant started
 a turn that no person asked for. `kind` names the cause: `:round_limit` when a
 turn used its budget of rounds, `:wake` when a task group that the assistant
-started ended, and `:note` for any other line.
+started ended, `:wake_held` when such a group ended and the assistant did not
+wake, and `:note` for any other line.
 
 `action_label` and `action` give the line one button: `action(editor)` runs when
 a person presses it, such as the one that tells the model to go on. `action` is a
