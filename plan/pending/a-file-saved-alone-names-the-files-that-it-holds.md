@@ -8,7 +8,9 @@
 > **Needed by:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md),
 > G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
-> step 2 for steps 5 and 6 · **Stands on:**
+> step 2 for steps 5 and 6 · **Order:** the owner moved step 5 forward on 2026-11-06 ("Yes"): it
+> runs after G4 steps 1 to 3 land and before G4 step 4, which needs `open_file_page!`. Step 6
+> keeps its place after the layout plan · **Stands on:**
 > [serialization.md](../../documentation/package/platform/serialization/serialization.md),
 > [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
