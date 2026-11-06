@@ -48,6 +48,37 @@ end
 _fold_title() = WidgetLabel("Details")
 _fold_title_x(iomap) = getfield(iomap, :child_iomaps)[][1][1]
 
+# A dispatch that prints a `PrimitiveString` as the editor's does: through the text
+# domain, so a title that is a `PrimitiveString` has a printer to draw it.
+_title_proj() = RecursiveProjection(TypeDispatchingProjection(vcat(
+    WidgetToGraphics(_fold_font; measure = _fold_stub).dispatch,
+    Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(),
+                                                           TextToGraphics(; measure = _fold_stub))])))
+
+# The card printer of the dispatch, whose `title_text` and `row_selected_color` a title draws with.
+_title_printer() = WidgetCardToGraphicsCanvas(make_widget_theme(font = _fold_font); measure = _fold_stub)
+
+# The font of the first text `text` under a canvas, or `nothing`.
+function _find_text_font(canvas, text)
+    for elem in canvas.elements
+        elem isa GraphicsText && String(elem.text) == text && return elem.font
+        if elem isa GraphicsCanvas
+            found = _find_text_font(elem, text)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
+# The rects under a canvas that are filled with `color`.
+function _find_rects_with_color(canvas, color, found = [])
+    for elem in canvas.elements
+        elem isa GraphicsRect && elem.color == color && push!(found, elem)
+        elem isa GraphicsCanvas && _find_rects_with_color(elem, color, found)
+    end
+    found
+end
+
 function test_widget_card_fold()
     @testset "a collapsible card shows its fold state" begin
         body = "the body of the card"
@@ -253,5 +284,90 @@ function test_widget_card_fold()
         @test strip_reference_types(answer.path) ==
               ConcreteReference(FieldReferenceStep("content"), EmptyReference())
         @test click(500, 500) === nothing                         # off the card
+    end
+
+    @testset "a String title draws in the title style, folds, and is selected as the part title" begin
+        printer = _title_printer()
+        title_font = printer.title_text.font
+        proj = _title_proj()
+        label_font = _find_text_font(print_document(proj, proj,
+            WidgetCard(; title = WidgetLabel("Details"), content = "x"), PrinterContext()).output, "Details")
+        @test label_font != title_font
+        card = WidgetCard(; title = "Details", content = "the body", collapsible = true)
+        iomap = print_document(proj, proj, card, PrinterContext())
+        @test _find_text_font(iomap.output, "Details") == title_font
+        @test _find_text_font(iomap.output, "the body") != title_font
+
+        # The chevron folds the card, as it does for a document title.
+        press(x, y; modifiers = ModifierKeys(), button = :left) =
+            read_intent(proj, iomap, MouseClick(button, x, y, modifiers; time = 0.0))
+        title_x = iomap.header.title_box[1]
+        on_chevron = press(_fold_pad + 8, _fold_pad + 8)
+        @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
+        @test !(press(title_x + 2, _fold_pad + 8) isa ToggleCollapseOperation)
+        @test iomap.header.height > 0
+
+        # An Alt+press on the title selects its field, and no other press does.
+        title = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+        selected = press(title_x + 2, _fold_pad + 8; modifiers = ModifierKeys(alt = true))
+        @test selected isa ReplaceSelectionOperation && strip_reference_types(selected.path) == title
+        @test !(press(title_x + 2, _fold_pad + 8) isa ReplaceSelectionOperation)
+        @test !(press(title_x + 2, _fold_pad + 8; button = :right,
+                      modifiers = ModifierKeys(alt = true)) isa ReplaceSelectionOperation &&
+                strip_reference_types(press(title_x + 2, _fold_pad + 8; button = :right,
+                                            modifiers = ModifierKeys(alt = true)).path) == title)
+
+        # The selected title draws the band of a selected part over its box, and no band before.
+        band = printer.row_selected_color
+        @test isempty(_find_rects_with_color(iomap.output, band))
+        evaluate_operation((document = card,), selected)
+        bands = _find_rects_with_color(iomap.output, band)
+        @test length(bands) == 1
+        box = iomap.header.title_box
+        @test (Int(bands[1].x), Int(bands[1].y), Int(bands[1].w), Int(bands[1].h)) == box
+        # A card that holds no selection of its title draws no band.
+        set_selection!(card, nothing)
+        @test isempty(_find_rects_with_color(iomap.output, band))
+    end
+
+    @testset "a PrimitiveString title draws in the title style, and its Alt+press selects it" begin
+        title_font = _title_printer().title_text.font
+        proj = _title_proj()
+        text = PrimitiveString("Details")
+        card = WidgetCard(; title = text, content = PrimitiveString("the body"), collapsible = true)
+        iomap = print_document(proj, proj, card, PrinterContext())
+        @test _find_text_font(iomap.output, "Details") == title_font
+        # The property is in the context of the title only: the content keeps the style of its own printer.
+        @test _find_text_font(iomap.output, "the body") != title_font
+        # The card folds from the height of the canvas of the title.
+        title_x = _fold_title_x(iomap)
+        folds = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0))
+        @test folds isa ToggleCollapseOperation
+        @test iomap.header.height == Int(iomap.child_iomaps[1][3].output.h)
+        # Its own printer reads a press with Alt: the answer names the string.
+        selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8,
+                                                       ModifierKeys(alt = true); time = 0.0))
+        @test selected isa ReplaceSelectionOperation
+        @test evaluate_reference(card, selected.path) === text
+    end
+
+    @testset "a title that is a WidgetLabel keeps the style of the label" begin
+        proj = _title_proj()
+        label = WidgetLabel("Details")
+        alone = _find_text_font(print_document(proj, proj, label, PrinterContext()).output, "Details")
+        card = WidgetCard(; title = label, content = "x")
+        @test _find_text_font(print_document(proj, proj, card, PrinterContext()).output, "Details") == alone
+    end
+
+    @testset "an Alt+press on a PrimitiveString title inside a container selects the string" begin
+        proj = _title_proj()
+        text = PrimitiveString("Details")
+        card = WidgetCard(; title = text, content = "x")
+        composite = WidgetComposite(Any[card])
+        iomap = print_document(proj, proj, composite, PrinterContext())
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8,
+                                                     ModifierKeys(alt = true); time = 0.0))
+        @test answer isa ReplaceSelectionOperation
+        @test evaluate_reference(composite, answer.path) === text
     end
 end

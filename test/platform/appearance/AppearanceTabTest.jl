@@ -61,7 +61,7 @@ function _at_collect_card_widths(value; found = Int[])
     value isa Cell && (value = value[])
     if value isa AbstractVector || value isa Tuple
         foreach(child -> _at_collect_card_widths(child; found), value)
-    elseif value isa WidgetModule.WidgetChildrenIoMap && value.input isa WidgetCard
+    elseif value isa WidgetModule.WidgetCardToGraphicsCanvasIoMap
         output = value.output isa Cell ? value.output[] : value.output
         push!(found, Int(output.w))
     elseif value isa IoMap

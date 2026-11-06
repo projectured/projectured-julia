@@ -1956,10 +1956,23 @@ is collapsed, and the chevron is the fold target. A click on the title is a clic
 on the title. The chevron takes a column of its own, as tall as the title, and
 the title, the body and the footer all start past it, so the body lines up under
 the title's word. A card that folds without saying so is a card a person can not
-read, so a card that is not collapsible does not fold from a click. It needs a
-`Document` title, because the chevron's column is as tall as the title's own
-box. A producer whose fold state lives elsewhere — a domain node's flag — makes
-`collapsed` a computed cell that reads it.
+read, so a card that is not collapsible does not fold from a click. The
+chevron's column is as tall as the header row that the card drew, whatever the
+title is. A producer whose fold state lives elsewhere — a domain node's flag —
+makes `collapsed` a computed cell that reads it.
+
+`title` is a `String`, a `PrimitiveString` or any other document, and each draws
+as follows:
+
+| title | style | a press with Alt |
+| --- | --- | --- |
+| a `String` | the title style of the card | selects the field `title` of the card as a part, and the selected title draws the band of a selected part |
+| a `PrimitiveString` | the title style of the card, which the card gives to the print of the title only, so the content, the description and the footer keep theirs | selects the `PrimitiveString` |
+| a `WidgetLabel` or any other document | its own | selects that document |
+
+A `PrimitiveString` title is a document, so its caret and its edits work through
+its own printer, and a live title is a `PrimitiveString` whose value is a
+computed cell.
 
 `padding` is the card's own padding: an `Inset` with a number of pixels per
 side. `nothing`, the default, means the theme's. A `:plain` card with
@@ -2080,7 +2093,7 @@ back where it was.
 # Example
 
     text = HighlightedText(text = block, pattern = "dolor")
-    bar = WidgetCard(; title = WidgetLabel("Find"), collapsible = true,
+    bar = WidgetCard(; title = "Find", collapsible = true,
                      content = FormLayout([(WidgetLabel("Find"), ObjectField(text, "pattern"))]))
     FindBarView(; bar, content = text)
 

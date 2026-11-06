@@ -207,6 +207,16 @@ end
 
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
 
+"""
+    PrimitiveStringToTextBlock(; theme = nothing, style, placeholder = "", placeholder_style = style)
+
+Print a `PrimitiveString` as a `TextBlock` with a line for each line of its
+value, in `style`. A container that sets the style of the string inside it, as a
+card sets its title style for a title that is a `PrimitiveString`, puts the
+property `:text_style`, a `StyleText`, in the printer context. A print draws in
+the style of its context where the context sets one, and else in `style`. The
+projection does not change: the style is read from the context of each print.
+"""
 @projection UntrackedCell struct PrimitiveStringToTextBlock <: Projection
     style::StyleText
     # Hint shown when the value is empty. `placeholder == ""` disables it, so
@@ -219,12 +229,20 @@ PrimitiveStringToTextBlock(; theme = nothing,
                             placeholder = "", placeholder_style = style) =
     PrimitiveStringToTextBlock(style, placeholder, placeholder_style)
 
+# The style of one print of `p`: the one that the property `:text_style` of the
+# context sets, as a card sets its title style for a title, or else the style of `p`.
+function _get_text_style(p::PrimitiveStringToTextBlock, ctx)
+    style = ctx === nothing ? nothing : get_property(ctx, :text_style, nothing)
+    style === nothing ? p.style : style
+end
+
 map_reference_forward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
     _backward_string(iomap.output, reference)
 
 function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveString, ctx)
+    style = _get_text_style(p, ctx)
     # A line for each line of the value, so no run holds a break, and the flat
     # string of the block is the value. When the value is empty and a placeholder
     # is configured, the block is one muted hint line instead, the same object each
@@ -242,12 +260,12 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     tail = Cell(@computation value()[(last_break[] + 1):end])
     is_empty = Cell(@computation isempty(value()))
     previous = Ref(Pair{String, TextLine}[])
-    last_line = TextLine(TextString(Cell(@computation tail[]), p.style.font, Cell(p.style.color),
+    last_line = TextLine(TextString(Cell(@computation tail[]), style.font, Cell(style.color),
                                     nothing, nothing, nothing, nothing))
     placeholder_line = TextLine(TextString(p.placeholder, p.placeholder_style))
     show_placeholder() = !isempty(p.placeholder) && is_empty[]
     head_lines() = last_break[] == 0 ? TextDocument[] :
-                   _compute_text_block_lines!(previous, head[], p.style)
+                   _compute_text_block_lines!(previous, head[], style)
     lines() = show_placeholder() ? TextDocument[placeholder_line] :
               push!(head_lines(), last_line)
     paths = make_output_path_cells(s, _forward_value)

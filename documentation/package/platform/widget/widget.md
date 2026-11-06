@@ -144,7 +144,7 @@ The focus moves on the down, and the control acts on the press that a gesture tr
 
 ### Selecting a whole widget
 
-A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected.
+A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected. A card with a `String` title answers an Alt+press on the title with the selection of its field `title`, and a card whose selection names its title draws the band of a selected part on the box of the title. A container above the card keeps a selection only where it names a document, so the press on a `String` title selects the card as a whole when the card is inside a container; a `PrimitiveString` title is a document and is selected there.
 
 A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`, in the color of the `GraphicsTheme` of the same appearance. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
 
@@ -167,7 +167,7 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | `WidgetSpinBox` | a left press on a stepper steps the value | Up, Down |
 | `WidgetList` | a left press on a row selects it | Up and Down select the row before and after |
 | `WidgetText`, `WidgetTextarea` | a press puts the caret into the text | the keys of the text domain. In a textarea, Return types a line break. |
-| `WidgetCard` | a press on the chevron folds the card | none |
+| `WidgetCard` | a press on the chevron folds the card, whatever the title is; an Alt+press on a title that is a `String` selects the field `title` of the card | none |
 | `WidgetAccordion` | a left press on the header of an item opens that item, or closes it when it is open. A press on an open body that is a document goes to the body. | the keys of an open body that is a document, while the selection is in it |
 
 A `WidgetText` has room around its text by default: the `control_padding` of the theme, as a tooltip and an option of a select have. A `WidgetText` that gives its own `padding` keeps it.

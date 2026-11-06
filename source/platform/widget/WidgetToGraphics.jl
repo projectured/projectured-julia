@@ -416,11 +416,27 @@ end
     box::Any
 end
 
+# The IO map of a card: the fields of a `WidgetChildrenIoMap`, and `header`, the
+# header row that the card drew, as `(height, title_box)`. `height` is the
+# height of the row, and `title_box` is `(x, y, width, height)` of a title that
+# is a `String` in the frame of the card, or `nothing` for any other title.
+@iomap struct WidgetCardToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+    header::Any
+end
+
+# An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
+const _ChildEntriesIoMap = Union{WidgetChildrenIoMap, WidgetCardToGraphicsCanvasIoMap}
+
 # The shape of the box of a widget, from its IO map.
 _get_box_geometry(iomap) = iomap.box
 
 # What a route reaches through a container: see `_collect_child_iomaps`.
-ProjectionModule.get_child_iomaps(iomap::WidgetChildrenIoMap) =
+ProjectionModule.get_child_iomaps(iomap::_ChildEntriesIoMap) =
     _collect_child_iomaps(iomap.child_iomaps...)
 
 # A widget with no child answers the baseline of its text by a method for its
@@ -430,7 +446,7 @@ find_first_baseline(projection, iomap::WidgetBoxIoMap) = nothing
 
 # A container answers the baseline of its first child that has one, offset by the
 # place of that child.
-function find_first_baseline(iomap::WidgetChildrenIoMap)
+function find_first_baseline(iomap::_ChildEntriesIoMap)
     for entry in iomap.child_iomaps
         (entry isa Tuple && length(entry) == 3) || continue
         baseline = find_first_baseline(entry[3])
@@ -1562,7 +1578,7 @@ end
 # the child drawn at it; any other reference maps to nothing.
 function _map_child_point(iomap, reference)
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa WidgetChildrenIoMap)) && return nothing
+    (point === nothing || !(iomap isa _ChildEntriesIoMap)) && return nothing
     _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
 end
 
@@ -8475,10 +8491,10 @@ _card_chevron_column(p, w::WidgetCard) =
 
 # The box a card of shape `box` folds from, as `(x0, y0, x1, y1)`: the chevron's
 # column, as tall as the header row. `nothing` for a card that does not fold from a
-# click. Only a collapsible card with a Document title folds, and only from its
-# chevron, so a click on the title is a click on the title.
+# click. Only a collapsible card with a title folds, and only from its chevron, so
+# a click on the title is a click on the title.
 function _card_fold_box(p, w::WidgetCard, box::BoxGeometry, header_h::Integer)
-    (w.collapsible === true && w.title isa Document) || return nothing
+    (w.collapsible === true && w.title !== nothing) || return nothing
     content_x, content_y = _get_content_offset(box)
     (content_x, content_y, content_x + _card_chevron_column(p, w), content_y + Int(header_h))
 end
@@ -8520,6 +8536,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
                  edge_w !== nothing ? max(0, Int(edge_w[]) - pad_x) : 0
     header_top = y
     header_h = 0
+    title_box = nothing
     title_text = _get_state_text(p, w, :title)
     if tim !== nothing
         push!(child_iomaps, (padding, y, tim))
@@ -8533,8 +8550,11 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
             y += p.title_gap
         end
     elseif w.title !== nothing
+        band_index = length(header_elements) + 1
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
                                                       string(w.title), padding, y, text_bound)
+        title_box = (padding, y, title_width, title_height)
+        insert!(header_elements, band_index, _make_title_band(p, w, title_box))
         header_h = title_height
         max_content_width = max(max_content_width, title_width); y += title_height + p.title_gap
     end
@@ -8640,8 +8660,24 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     _push_panel!(surface, content_x, footer_top, region_width, footer_bottom - footer_top;
                 fill = _get_state_color(p, w, :footer))
     append!(surface, footer_elements)
-    (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
+    (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps,
+     header = (height = header_h, title_box = title_box))
 end
+
+# The band of a title that is a `String` while the selection names the title
+# of the card as a part, `title`, over the box of the title; no colour else. The
+# colour is a cell of its own, so a move of the selection builds no card.
+function _make_title_band(p, w::WidgetCard, title_box)
+    x, y, width, height = title_box
+    band = GraphicsRect(x, y, width, height; color = color_transparent, radius = p.corner_radius)
+    selected = p.row_selected_color
+    set_cell_computation!(getfield(band, :color), () ->
+        is_whole_selected_field(w.selection, "title") ? selected : color_transparent)
+    band
+end
+
+# The reference of the title of a card as a part: the field `title`.
+_card_title_reference() = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
 
 # The band of a `:row` card inside its margin: the selection band while the
 # selection is in the card, the hover layer while the pointer is on it, and no
@@ -8673,7 +8709,9 @@ function _card_body(content, inner_ctx)
 end
 
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
-    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    w.visible == false &&
+        return WidgetCardToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY,
+                                               Cell((height = 0, title_box = nothing)))
     position = w.position::Point2D
     ox, oy = _origin(position)
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
@@ -8701,7 +8739,8 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
                 with_exact_size(ctx; width = Cell(Int32(max(0, authored_width + space_width - pad_x)))) :
                 with_inner_size(ctx; width = pad_x)
     inner_ctx = with_free_axis(inner_ctx, :y)
-    tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
+    tim = w.title isa Document ? print_child(recursion, w.title, _card_title_context(p, w, inner_ctx)) :
+          nothing
     # A `LayoutConstraint` around the content is how a caller pins the body's
     # height — a collapsed card showing one row of what it holds. The card does
     # the clipping rather than the caller, because the caller does not know the
@@ -8728,8 +8767,15 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
                            Cell(@computation Int32(build[].h)),
                            CellVector(@computation vcat(build[].elements, Any[ring])),
                            layout_none, true, Cell(nothing))
-    WidgetChildrenIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry)
+    WidgetCardToGraphicsCanvasIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry,
+                                    Cell(@computation build[].header))
 end
+
+# The context that the title of a card is printed in. A `PrimitiveString` title
+# draws in the title style of the card, which the property `:text_style` of the
+# context carries to its printer; any other document draws in its own style.
+_card_title_context(p, w::WidgetCard, ctx) =
+    w.title isa PrimitiveString ? with_property(ctx, :text_style, _get_state_text(p, w, :title)) : ctx
 
 # ── The card's two document slots ───────────────────────────────────────────
 #
@@ -8810,7 +8856,7 @@ end
 # card, such as the text under the bar of a find bar view. The bindings of the
 # card answer such a click first. Any other click goes on, to the menus of the
 # parts around the card and to a whole selection.
-function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt::MouseClick)
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     answer = _read_card_click(p, iomap, evt)
     answer === nothing || return answer
     _outside_widget(iomap, evt) && return nothing
@@ -8818,19 +8864,20 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, 
     something(read_bound_gesture(iomap.input, evt), DoNothingOperation())
 end
 
-function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt::MouseClick)
+function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
-    if w.title isa Document && !isempty(entries)
-        _, _, tim = entries[1]
-        tcanvas = tim.output
-        box = tcanvas isa GraphicsCanvas ? _card_fold_box(p, w, _get_box_geometry(iomap), Int(tcanvas.h)) :
-              nothing
-        if box !== nothing
-            x0, y0, x1, y1 = box
-            (x0 <= evt.x < x1 && y0 <= evt.y < y1) && return ToggleCollapseOperation(w)
-        end
+    header = iomap.header
+    box = _card_fold_box(p, w, _get_box_geometry(iomap), header.height)
+    if box !== nothing
+        x0, y0, x1, y1 = box
+        (x0 <= evt.x < x1 && y0 <= evt.y < y1) && return ToggleCollapseOperation(w)
+    end
+    if header.title_box !== nothing && is_whole_selection_press(evt)
+        x0, y0, width, height = header.title_box
+        (x0 <= evt.x < x0 + width && y0 <= evt.y < y0 + height) &&
+            return ReplaceSelectionOperation(_card_title_reference())
     end
     _read_card_hit(w, evt, _find_child_hit(entries, evt,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
@@ -8848,7 +8895,7 @@ end
 # card's CONTENT selection-directed: forwarded only when the card's `selection`
 # actually points inside it, so a card onto which nothing projects (every card in
 # a plain display, where `selection === nothing`) behaves exactly as it did before.
-function read_intent(::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
+function read_intent(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt)
     # A move that is off the card still goes to the slot the pointer leaves.
     _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
     w = iomap.input
@@ -8883,7 +8930,7 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, e
     read_bound_gesture(w, evt)
 end
 
-map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The body slot, for a caller that re-roots a path out of the card without having
