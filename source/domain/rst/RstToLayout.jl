@@ -64,8 +64,11 @@ map_reference_backward(::RstRootToVerticalLayout, iomap, reference) =
     title_1_font::StyleFont  = get_rst_style(nothing, :title_1_font)
     title_2_font::StyleFont  = get_rst_style(nothing, :title_2_font)
     title_3_font::StyleFont  = get_rst_style(nothing, :title_3_font)
-    title_font::StyleFont    = get_rst_style(nothing, :title_font)
+    title_4_font::StyleFont  = get_rst_style(nothing, :title_4_font)
+    title_5_font::StyleFont  = get_rst_style(nothing, :title_5_font)
+    title_6_font::StyleFont  = get_rst_style(nothing, :title_6_font)
     title_color::StyleColor  = get_rst_style(nothing, :title_color)
+    minor_title_color::StyleColor = get_rst_style(nothing, :minor_title_color)
 end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
@@ -93,7 +96,7 @@ end
 # The title as one prose line in the level's font, read from the projection's
 # own fields.
 _title_block(p, section::RstSection) =
-    TextBlock(TextLine(TextString(_title_text(section), StyleText(_get_title_font(p, section.level), unwrap_cell(p.title_color)))))
+    TextBlock(TextLine(TextString(_title_text(section), StyleText(_get_title_font(p, section.level), _get_title_color(p, section.level)))))
 
 function _title_text(section::RstSection)
     buffer = IOBuffer()

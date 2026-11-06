@@ -101,8 +101,9 @@ function __init__()
         theme = get_scaled_theme!(appearance, RstTheme)
         get_style(name) = get_rst_style(theme, name)
         title_styles = (title_1_font = get_style(:title_1_font), title_2_font = get_style(:title_2_font),
-                        title_3_font = get_style(:title_3_font), title_font = get_style(:title_font),
-                        title_color = get_style(:title_color))
+                        title_3_font = get_style(:title_3_font), title_4_font = get_style(:title_4_font),
+                        title_5_font = get_style(:title_5_font), title_6_font = get_style(:title_6_font),
+                        title_color = get_style(:title_color), minor_title_color = get_style(:minor_title_color))
         Pair{Type,Any}[
             RstRoot    => ChainingProjection(RstRootToVerticalLayout(; gap = get_style(:block_gap)),
                                              VerticalLayoutToGraphicsCanvas()),

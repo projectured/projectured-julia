@@ -1007,12 +1007,17 @@ end
                                 Cell(@computation _role_color(prj, doc.name)),
                                 Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))))
 
-# The font of a section title at `level` (1-based; every level past the third
-# takes `title_font`), read from the projection's own field for that level.
-_get_title_font(p, level::Int) =
-    unwrap_cell(level <= 1 ? p.title_1_font :
-                level == 2 ? p.title_2_font :
-                level == 3 ? p.title_3_font : p.title_font)
+# The font of a section title at `level` (1-based; a level past the sixth takes
+# the sixth), read from the projection's own field for that level.
+function _get_title_font(p, level::Int)
+    fonts = (p.title_1_font, p.title_2_font, p.title_3_font,
+             p.title_4_font, p.title_5_font, p.title_6_font)
+    unwrap_cell(fonts[clamp(level, 1, 6)])
+end
+
+# The colour of a section title at `level`: levels 5 and 6 are muted.
+_get_title_color(p, level::Int) =
+    unwrap_cell(level >= 5 ? p.minor_title_color : p.title_color)
 
 # ── RstSectionToStyledNode (rendered section; a large title, no adornment) ────
 # The title children are projected under a heading ambient and the body children
@@ -1024,13 +1029,16 @@ _get_title_font(p, level::Int) =
     title_1_font::StyleFont = get_rst_style(nothing, :title_1_font)
     title_2_font::StyleFont = get_rst_style(nothing, :title_2_font)
     title_3_font::StyleFont = get_rst_style(nothing, :title_3_font)
-    title_font::StyleFont   = get_rst_style(nothing, :title_font)
+    title_4_font::StyleFont = get_rst_style(nothing, :title_4_font)
+    title_5_font::StyleFont = get_rst_style(nothing, :title_5_font)
+    title_6_font::StyleFont = get_rst_style(nothing, :title_6_font)
     title_color::StyleColor = get_rst_style(nothing, :title_color)
+    minor_title_color::StyleColor = get_rst_style(nothing, :minor_title_color)
 end
 
 function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
-    title_style = StyleText(_get_title_font(p, doc.level), unwrap_cell(p.title_color))
+    title_style = StyleText(_get_title_font(p, doc.level), _get_title_color(p, doc.level))
     child_iomaps = Cell(@computation begin
         maps = Any[]
         for (i, child) in enumerate(doc.title)
@@ -1401,8 +1409,9 @@ function RstToSyntax(; style::Symbol = :source, theme = nothing)
     reference       = get_style(:reference_text)
     directive       = get_style(:directive_text)
     title_styles    = (title_1_font = get_style(:title_1_font), title_2_font = get_style(:title_2_font),
-                       title_3_font = get_style(:title_3_font), title_font = get_style(:title_font),
-                       title_color = get_style(:title_color))
+                       title_3_font = get_style(:title_3_font), title_4_font = get_style(:title_4_font),
+                       title_5_font = get_style(:title_5_font), title_6_font = get_style(:title_6_font),
+                       title_color = get_style(:title_color), minor_title_color = get_style(:minor_title_color))
     role_styles     = (reference_style = reference, target_style = target, literal_style = literal,
                        value_style = value, directive_style = directive,
                        substitution_style = get_style(:substitution_text))

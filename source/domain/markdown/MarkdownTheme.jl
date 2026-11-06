@@ -20,8 +20,8 @@ the appearance tab shows under its name.
 
 The builder gives each Markdown projection its styles with `get_markdown_style`,
 from a theme scaled or not; a projection built with no styles holds the plain
-values of the default theme. A heading holds the four fonts of its levels,
-`heading_1_font` through `heading_font`, as its own fields.
+values of the default theme. A heading holds the six fonts of its levels,
+`heading_1_font` through `heading_6_font`, as its own fields.
 """
 @theme struct MarkdownTheme
     "A marker: an insertion placeholder, a tick, a break, an emphasis mark, a quote mark, a bullet, a pipe, a bracket, a fence."
@@ -50,10 +50,16 @@ values of the default theme. A heading holds the four fonts of its levels,
     heading_2_font::ThemeFont       = FontRole(:heading_2)
     "The font of a level 3 heading in the rendered form."
     heading_3_font::ThemeFont       = FontRole(:heading_3)
-    "The font of a heading past the third level, in the rendered form."
-    heading_font::ThemeFont         = FontRole(:heading_4)
+    "The font of a level 4 heading in the rendered form."
+    heading_4_font::ThemeFont       = FontRole(:heading_4)
+    "The font of a level 5 heading in the rendered form."
+    heading_5_font::ThemeFont       = FontRole(:heading_5)
+    "The font of a level 6 heading in the rendered form."
+    heading_6_font::ThemeFont       = FontRole(:heading_6)
     "The color of a heading in the rendered form."
     heading_color::ThemeColor       = ColorRole(:heading)
+    "The colour of a level 5 and a level 6 heading in the rendered form."
+    minor_heading_color::ThemeColor = ColorRole(:text_muted)
     "The color of a link in the rendered form."
     link_color::ThemeColor          = ColorRole(:link)
     "The caption under a rendered image."

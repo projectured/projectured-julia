@@ -348,24 +348,35 @@ struct MarkdownHeadingToStyledNode <: MarkdownStyledInline
     heading_1_font::Any
     heading_2_font::Any
     heading_3_font::Any
-    heading_font::Any
+    heading_4_font::Any
+    heading_5_font::Any
+    heading_6_font::Any
     heading_color::Any
+    minor_heading_color::Any
     body_text::Any
 end
 MarkdownHeadingToStyledNode(; theme = nothing) =
     MarkdownHeadingToStyledNode(get_markdown_style(theme, :heading_1_font),
                                 get_markdown_style(theme, :heading_2_font),
                                 get_markdown_style(theme, :heading_3_font),
-                                get_markdown_style(theme, :heading_font),
+                                get_markdown_style(theme, :heading_4_font),
+                                get_markdown_style(theme, :heading_5_font),
+                                get_markdown_style(theme, :heading_6_font),
                                 get_markdown_style(theme, :heading_color),
+                                get_markdown_style(theme, :minor_heading_color),
                                 get_markdown_style(theme, :body_text))
 
-# The font that `p` holds for a heading at `level` (1-based; every level past
-# the third takes `heading_font`).
+# The font that `p` holds for a heading at `level` (1-based, 1 to 6).
 _get_heading_font(p::MarkdownHeadingToStyledNode, level::Int) =
     unwrap_cell(level <= 1 ? p.heading_1_font :
                 level == 2 ? p.heading_2_font :
-                level == 3 ? p.heading_3_font : p.heading_font)
+                level == 3 ? p.heading_3_font :
+                level == 4 ? p.heading_4_font :
+                level == 5 ? p.heading_5_font : p.heading_6_font)
+
+# The colour that `p` holds for a heading at `level`: levels 5 and 6 are muted.
+_get_heading_color(p::MarkdownHeadingToStyledNode, level::Int) =
+    unwrap_cell(level >= 5 ? p.minor_heading_color : p.heading_color)
 
 # Augment the ambient style with what this container's mode draws. There is no
 # bold-italic face, so nesting keeps the innermost weight (a documented v1
@@ -382,7 +393,8 @@ _mode_style(p::MarkdownLinkToStyledNode, ambient::StyleText, doc) =
 _mode_pointer_shape(::MarkdownLinkToStyledNode, ambient) = :pointing_hand
 _mode_pointer_shape(::MarkdownStyledInline, ambient) = ambient
 _mode_style(p::MarkdownHeadingToStyledNode, ambient::StyleText, doc) =
-    StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)), unwrap_cell(p.heading_color))
+    StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)),
+              _get_heading_color(p, clamp(doc.level, 1, 6)))
 
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, unwrap_cell(p.body_text))

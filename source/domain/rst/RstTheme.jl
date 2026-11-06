@@ -60,10 +60,16 @@ color, picked by the level while it prints.
     title_2_font::ThemeFont         = FontRole(:heading_2)
     "The font of a level 3 section title in the rendered form."
     title_3_font::ThemeFont         = FontRole(:heading_3)
-    "The font of a section title past the third level, in the rendered form."
-    title_font::ThemeFont           = FontRole(:heading_4)
+    "The font of a level 4 section title in the rendered form."
+    title_4_font::ThemeFont         = FontRole(:heading_4)
+    "The font of a level 5 section title in the rendered form."
+    title_5_font::ThemeFont         = FontRole(:heading_5)
+    "The font of a level 6 section title in the rendered form."
+    title_6_font::ThemeFont         = FontRole(:heading_6)
     "The color of a section title in the rendered form."
     title_color::ThemeColor         = ColorRole(:heading)
+    "The colour of a level 5 and a level 6 section title in the rendered form."
+    minor_title_color::ThemeColor   = ColorRole(:text_muted)
     "The caption under a rendered figure."
     caption_text::ThemeText         = TextRole(:text_muted; font_role = :quiet, italic = true)
     "A marker of the rendered form: a transition rule, and the arrow of a literal include."
