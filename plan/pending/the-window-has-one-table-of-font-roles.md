@@ -162,7 +162,7 @@ gets the new value; the commit names each one.
   the platform, and `test_dataframes()`, because a change of the widget layout
   broke data frame edits before.
 - [x] **Step 4. The tool panels.** (Done: 294834aeb, b3a7d3fef, 05cd9cf19,
-  6ffa040ba and the review commit; facts in section 5.) The themes of the tooltip, help, message log,
+  6ffa040ba, 03a01bd03; facts in section 5.) The themes of the tooltip, help, message log,
   faults, statistics, undo, gesture log, gesture map, inspector, outline,
   conversation, MCP log, explorer, terminal, reference, text, syntax, graphics,
   settings and task panes name roles. DejaVu Sans, DejaVu Sans Mono and Liberation
@@ -172,7 +172,8 @@ gets the new value; the commit names each one.
   printer. If the printer can draw it with the `document_code` role of its theme,
   it does. If the font is a value in the document, it stays, and the plan records
   why. Tests: the suite of each panel that the step changes.
-- [ ] **Step 5. The domains and adapters.** The 16 domain themes with fonts name
+- [x] **Step 5. The domains and adapters.** (Done: 45a91bb99, ce6265373,
+  065dfd6f1, eb851e0b0; facts in section 5.) The 16 domain themes with fonts name
   roles. Markdown, RST and Book headings take `heading_1` to `heading_6`; captions
   and other quiet text take `quiet`; code domains take `document_code`, with
   weight 700 where they are bold now; chart and sequence chart titles take
@@ -329,6 +330,56 @@ gets the new value; the commit names each one.
   `heading_text`. In the review: `test_json` 245 on `main` and on the branch,
   because a code domain draws through the text and syntax themes;
   `test_platform_examples` 203763 → 203772 with no failure.
+- **2026-11-06, step 5.** Code text that is bold keeps weight 700 over
+  `document_code`. The rendered markers of Markdown and RST are
+  `TextRole(:markup; font = StyleFont("DejaVu Sans Mono", 14))`. The base fonts
+  that no code read left the themes of json, julia, sql, xml, yaml, fsm, process,
+  dbcatalog, markdown, rst, book and the `code_font` of math. Formula keeps
+  `plain_font` (`document_code`), research keeps `font` (`text`), and math keeps
+  `font` (`document_text`) and `slanted_font` (`document_text`, italic).
+- **2026-11-06, step 5.** The math typesetter needs no change for its script
+  sizes: `compute_math_metrics` (`domain/math/MathToGraphics.jl`) multiplies the
+  size of the resolved font by 0.7 and 0.5, so they follow the role.
+- **2026-11-06, step 5.** The chart had one `axis_font` for the axis titles, the
+  ticks, the segment names, the readout and the placeholder. The axis title now
+  has `axis_title_font` (`column`), and the rest keeps `axis_font` (`quiet`). The
+  chart had one `text_color` for every text, so the title and the legend label
+  got fields of their own, `title_color` and `legend_color` (text colour), and the
+  sequence chart a `title_color`. The `title_color` of a chart's own style still
+  colours every text of that chart. `test_chart` checks the font and the colour of
+  the title and of an axis title.
+- **2026-11-06, step 5.** Markdown and RST had one font for every heading past
+  the third level. Each level from 1 to 6 now has its field and its role, and
+  levels 5 and 6 draw in `minor_heading_color` and `minor_title_color` (muted), as
+  D2 says.
+- **2026-11-06, step 5.** The pivot tables take `header_font` and `header_color`
+  from `column_font` and the muted colour, as the data frame does: the column and
+  row labels, the measure header, `all`, the row numbers of a group, and the
+  header of a part table. The names of the dimensions in the corner stay plain
+  text.
+- **2026-11-06, step 5.** The old form is gone: the `base`, `family` and
+  `relative_size` of `FontRole` and `TextRole`, `get_role_base`,
+  `apply_font_role`, their save and load, and their controls in the appearance
+  tab. A saved entry with `base` or `relative_size` does not load, and the field
+  keeps its default. omnet-julia still uses the old form, so it does not build
+  against the branch until step 8.
+- **2026-11-06, step 5.** More builders and documents take an exact font, which
+  the open question above also covers: `MathToGraphics(; font, slanted)`,
+  `MathConfig(; font, slanted)`, `FormulaEnvironmentToSyntaxNode(; font)`, and
+  the fonts of `ChartStyle`, which a chart document holds as its own style.
+- **2026-11-06, step 5, counts.** The same before and after: markdown 274, rst
+  115, book 33, chart 429 (432 with the new title check), sequencechart 326, math
+  215, json 245, julia 774 with 1 fail, sql 671, xml 86, yaml 64 with 2 broken,
+  fsm 273, process 316, formula 309, dbcatalog 74, research 386, pivot 334 with 1
+  fail and 1 error, dataframes 608, `test_appearance_file` 22,
+  `test_appearance_tab` 159, `test_tool_themes` 113, `test_color_theme` 1431,
+  `test_platform_examples` 203772. The failures of julia (`TooltipWindowTest:179`)
+  and pivot (`PivotZoneEditTest:84`, `PivotModuleTest:21`) are on the tip before
+  the step. `test_font_theme` 84 → 74 and `test_theme` 86 → 85: the tests of the
+  old form left. Changed assertions: `MathToGraphicsTest.jl` 9 to 12 read the
+  faces of the default theme; `PivotGroupViewTest.jl` 18, 40 and
+  `PivotTotalsTest.jl` 34, 35 pass the projection to the helpers; `ThemeTest.jl`
+  and `FontThemeTest.jl` test the new form only.
 
 ## 6. Not in this plan
 
