@@ -532,6 +532,18 @@ answers how the group stands, "Ended: …" or "Still running after …: …". Fo
 group that runs for minutes, a model ends its turn, and an assistant whose wake
 is on starts a turn when the group ends ([assistant.md](../assistant/assistant.md)).
 
+**The actions of a group are operations.** A start, a stop of the group, a stop of
+one task, a rerun and a close are `StartTaskGroupOperation`,
+`StopTaskGroupOperation`, `StopTaskOperation`, `RerunTaskGroupOperation` and
+`CloseTaskGroupOperation`, in `TaskGroupDocument.jl`. The buttons of the card, of
+the table and of the Tasks list, and the verbs `stop_tasks!`, `stop_task!`,
+`rerun_tasks!` and `close_task_group!`, make them, and the editor evaluates them
+(`evaluate_operation(editor, operation)`), so the person and the assistant act on
+a group through one path, and the editor that evaluates a start is the editor
+whose list the group joins. The inverse of each is `DoNothingOperation`, because a
+process that ran can not be undone. A close removes the row from the list only;
+`close_task_group!` closes the panes of the group first.
+
 The verbs of the slice that a model may call carry the mark `For the assistant.`
 in their docstrings, beside the verbs of the domain that start the groups.
 

@@ -142,9 +142,11 @@ function _build_task_page_actions(p, document::TaskDocument, task, place)
     else
         (group, index) = place
         stop = WidgetButton("Stop"; size = p.button_size,
-                            action = _ -> _run_guarded("stop", () -> _stop_task(get_task_group(group), index)))
+                            action = editor -> _run_guarded("stop",
+                                () -> evaluate_operation(editor, StopTaskOperation(group, index))))
         again = WidgetButton("Run again"; size = p.button_size,
-                             action = _ -> _run_guarded("run again", () -> rerun_task_group_document!(group, [index])))
+                             action = editor -> _run_guarded("run again",
+                                () -> evaluate_operation(editor, RerunTaskGroupOperation(group, [index]))))
         set_cell_computation!(getfield(again, :enabled), () -> !(getfield(group, :status)[] in (:running, :stopping)))
     end
     set_cell_computation!(getfield(stop, :enabled), () -> get_task_document_status(document) === :running)

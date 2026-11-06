@@ -236,13 +236,25 @@ in `environment/all`.
      a limit and that a program that ends before its limit ends `DONE`. It does not read the
      timer itself, because no handle of it is kept anywhere that a test can reach.
    - The new test also runs `test_task_views()` (115 Pass together).
-3. **The actions of a group are operations (D4).** The five operations in `TaskGroupDocument.jl`,
+3. **The actions of a group are operations (D4).** **Done on 2026-11-06.** The five operations in `TaskGroupDocument.jl`,
    each with `evaluate_operation`, `make_inverse_operation` that answers `DoNothingOperation`, and
    `is_self_contained_operation`. The buttons of the card in `TaskGroupToWidget.jl` and the four
    verbs of today in `TaskVerbs.jl` make them. The section "The verbs" of `task.md`. Test:
    `test_task_views()` and `test_task_group_verbs()`. A new testset asserts that a press of
    **Run all**, **Stop** and **Run again** and each verb makes its operation, that the editor
    evaluates it, and that an undo after it changes nothing. Each case of today keeps its result.
+   What the implementation found:
+   - `CloseTaskGroupOperation(list, item)` removes the row from the list only. The Close button
+     of the list did only that, and `close_task_group!` closes the panes first and then evaluates
+     the operation, so each case of today keeps its result. It takes any work item, so the row of
+     a search closes through it too; the Stop of a search row stays `stop_work_item!`.
+   - The buttons pass the editor of the press (`editor -> evaluate_operation(editor, …)`); a
+     press with `nothing` as the editor starts a group that joins no list.
+   - No hook observes an evaluated operation, so the test puts a spy in the place of the editor
+     for the buttons (it records the operation and evaluates it as the real editor), and asserts
+     the effect of each verb, since a verb needs a real editor for `run_on_editor_task!`.
+   - `test_task_views()`, `test_task_group_verbs()`, `test_task_group_table()` and
+     `test_task_group()` pass together (315 Pass).
 4. **The verb.** `run_tasks!` in `TaskVerbs.jl` makes `StartTaskGroupOperation`. The three names
    `run_tasks!`, `ProgramTask` and `TaskGroup` carry the mark `For the assistant.` (D6). The
    docstrings of `run_tasks!`, `ProgramTask` and `TaskGroup`, with the mark. The `run_tasks!` sentence of D7

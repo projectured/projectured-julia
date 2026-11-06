@@ -571,6 +571,109 @@ end
 """The state of the whole group, as its own cell holds it."""
 get_task_group_document_status(doc::TaskGroupDocument) = getfield(doc, :status)[]
 
+# ── The actions of a group as operations ─────────────────────────────────────
+
+# The press of a button of a group and each verb of a group make one of these
+# operations, and the editor evaluates it, so the person and the assistant act on
+# a group through one path. A process that ran can not be undone, so the inverse
+# of each is `DoNothingOperation`, and each names its documents, so each goes up
+# through every projection as it is.
+
+"""
+    StartTaskGroupOperation(document)
+
+Start every task of the group of `document`, as [`start_task_group_document!`](@ref)
+does it for the editor that evaluates the operation: the group joins the list of
+the session of that editor. A group that runs goes on as it is.
+"""
+struct StartTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+end
+
+evaluate_operation(editor, operation::StartTaskGroupOperation) =
+    (start_task_group_document!(operation.document; editor); nothing)
+
+describe_operation(operation::StartTaskGroupOperation) =
+    string("Start the tasks of ", getfield(operation.document, :title)[])
+
+"""
+    StopTaskGroupOperation(document)
+
+Stop every task of the group of `document` and start no more
+([`stop_task_group_document!`](@ref)).
+"""
+struct StopTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+end
+
+evaluate_operation(editor, operation::StopTaskGroupOperation) =
+    (stop_task_group_document!(operation.document); nothing)
+
+describe_operation(operation::StopTaskGroupOperation) =
+    string("Stop the tasks of ", getfield(operation.document, :title)[])
+
+"""
+    StopTaskOperation(document, index)
+
+Stop the task at `index` of the group of `document`, and let the others go on. A
+task that did not start, or has ended, is left as it is.
+"""
+struct StopTaskOperation <: Operation
+    document::TaskGroupDocument
+    index::Int
+end
+
+function evaluate_operation(editor, operation::StopTaskOperation)
+    run = get_task_group(operation.document).runs[operation.index]
+    run === nothing || stop_task_execution!(run)
+    nothing
+end
+
+describe_operation(operation::StopTaskOperation) =
+    string("Stop task ", operation.index, " of ", getfield(operation.document, :title)[])
+
+"""
+    RerunTaskGroupOperation(document, which)
+
+Run part of the group of `document` again, in place: `which` is what
+[`rerun_task_group_document!`](@ref) understands, a word or the places of the
+tasks.
+"""
+struct RerunTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+    which::Any
+end
+
+evaluate_operation(editor, operation::RerunTaskGroupOperation) =
+    (rerun_task_group_document!(operation.document, operation.which; editor); nothing)
+
+describe_operation(operation::RerunTaskGroupOperation) =
+    string("Run tasks of ", getfield(operation.document, :title)[], " again")
+
+"""
+    CloseTaskGroupOperation(list, item)
+
+Close the row of the work item `item`, a group or a search, in the task list
+`list`. A group that runs goes on, and its panes stay: the verb that closes the
+panes closes them first.
+"""
+struct CloseTaskGroupOperation <: Operation
+    list::Any
+    item::Any
+end
+
+evaluate_operation(editor, operation::CloseTaskGroupOperation) =
+    (remove_task_group!(operation.list, operation.item); nothing)
+
+describe_operation(::CloseTaskGroupOperation) = "Close the row of a task group"
+
+const _TaskGroupOperation = Union{StartTaskGroupOperation,StopTaskGroupOperation,StopTaskOperation,
+                                  RerunTaskGroupOperation,CloseTaskGroupOperation}
+
+make_inverse_operation(document, ::_TaskGroupOperation) = DoNothingOperation()
+
+is_self_contained_operation(::_TaskGroupOperation) = true
+
 # A group drives a pool of processes. A pasted document replaces neither the
 # group nor anything in it.
 accepts_pasted_document(::TaskGroupDocument) = false

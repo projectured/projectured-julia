@@ -164,11 +164,12 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     end)
 
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    run_all = _make_action_button(p, "Run all", () -> is_going() ? nothing : start_task_group_document!(doc);
+    run_all = _make_action_button(p, "Run all", editor -> evaluate_operation(editor, StartTaskGroupOperation(doc));
                                   enabled = () -> !is_going(), tooltip = "Start every task of the group.")
-    stop = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
-                               tooltip = "Stop the tasks that run and start no more.")
-    again = _make_action_button(p, "Run unexpected again", () -> rerun_task_group_document!(doc, :unexpected);
+    stop = _make_action_button(p, "Stop", editor -> evaluate_operation(editor, StopTaskGroupOperation(doc));
+                               enabled = is_going, tooltip = "Stop the tasks that run and start no more.")
+    again = _make_action_button(p, "Run unexpected again",
+                   editor -> evaluate_operation(editor, RerunTaskGroupOperation(doc, :unexpected));
                    enabled = () -> !is_going() && !get_summary().is_expected,
                    tooltip = _make_rerun_note(doc))
     rows = WidgetToggleGroup(Any["all", "running", "unexpected"];
@@ -457,10 +458,12 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         end))
         push!(facts, _build_earlier_executions(p, document))
         stop = WidgetButton("Stop"; size = p.button_size,
-                            action = _ -> _run_guarded("stop", () -> _stop_task(group, index)))
+                            action = editor -> _run_guarded("stop",
+                                () -> evaluate_operation(editor, StopTaskOperation(doc, index))))
         set_cell_computation!(getfield(stop, :enabled), () -> get_task_document_status(document) === :running)
         again = WidgetButton("Run again"; size = p.button_size,
-                             action = _ -> _run_guarded("run again", () -> rerun_task_group_document!(doc, [index])))
+                             action = editor -> _run_guarded("run again",
+                                () -> evaluate_operation(editor, RerunTaskGroupOperation(doc, [index]))))
         set_cell_computation!(getfield(again, :enabled),
                               () -> !(getfield(doc, :status)[] in (:running, :stopping)))
         actions = Any[_make_task_action_button(p, label, action, task)
@@ -542,8 +545,6 @@ function _build_output_pane(lines; weight)
     end)
     LayoutConstraint(WidgetScrollPane(area; follow_end = true); height = Relative(weight), width = Fill)
 end
-
-_stop_task(group, index) = (run = group.runs[index]; run === nothing || stop_task_execution!(run); nothing)
 
 # ── A group as a task ────────────────────────────────────────────────────────
 
@@ -1073,13 +1074,14 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
     title = WidgetLink(() -> getfield(doc, :title)[],
                        DocumentLocator(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(index - 1, index))))
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going,
+    stop_button = _make_action_button(p, "Stop", editor -> evaluate_operation(editor, StopTaskGroupOperation(doc));
+                                      enabled = is_going,
                                       tooltip = "Stop the tasks that run and start no more.")
     again_button = _make_action_button(p, "Run unexpected again",
-                                       () -> rerun_task_group_document!(doc, :unexpected);
+                                       editor -> evaluate_operation(editor, RerunTaskGroupOperation(doc, :unexpected));
                                        enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected,
                                        tooltip = _make_rerun_note(doc))
-    close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, doc);
+    close_button = _make_action_button(p, "Close", editor -> evaluate_operation(editor, CloseTaskGroupOperation(list, doc));
                                        enabled = () -> !is_going(),
                                        tooltip = "Close the group: its tasks and their output are gone, and its summary stays.")
     Any[WidgetLabel(getfield(doc, :identifier)[]),
@@ -1102,7 +1104,7 @@ function _build_list_row(p, list::TaskGroupList, item, index::Int)
     is_going() = _is_work_item_running(item)
     stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going,
                                       tooltip = "Stop this work before it ends.")
-    close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, item);
+    close_button = _make_action_button(p, "Close", editor -> evaluate_operation(editor, CloseTaskGroupOperation(list, item));
                                        enabled = () -> !is_going(),
                                        tooltip = "Close the row: a summary of the work takes its place.")
     Any[WidgetLabel(get_work_item_identifier(item)),

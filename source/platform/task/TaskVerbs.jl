@@ -347,7 +347,8 @@ function stop_tasks! end
 
 function stop_tasks!(group; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_tasks!") do
-        stop_work_item!(group)
+        group isa TaskGroupDocument ? evaluate_operation(editor, StopTaskGroupOperation(group)) :
+                                      stop_work_item!(group)
         string("Stopping the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), ".")
     end
 end
@@ -371,9 +372,8 @@ function stop_task! end
 
 function stop_task!(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_task!") do
-        run = get_task_group(group).runs[index]
-        run === nothing && return "Task $(index) has not started."
-        stop_task_execution!(run)
+        get_task_group(group).runs[index] === nothing && return "Task $(index) has not started."
+        evaluate_operation(editor, StopTaskOperation(group, index))
         "Stopping task $(index)."
     end
 end
@@ -404,7 +404,7 @@ For the assistant.
 function rerun_tasks! end
 
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
-    run_on_editor_task!(() -> rerun_task_group_document!(group, which; editor), editor;
+    run_on_editor_task!(() -> evaluate_operation(editor, RerunTaskGroupOperation(group, which)), editor;
                         description = "rerun_tasks!")
     wait && wait_for_task_group!(editor, group)
     group
@@ -480,7 +480,7 @@ function close_task_group!(group; editor = get_evaluation_editor())
         for reference in found
             close_pane!(reference; editor)
         end
-        remove_task_group!(get_session_task_group_list(; editor), group)
+        evaluate_operation(editor, CloseTaskGroupOperation(get_session_task_group_list(; editor), group))
         string("Closed the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), ".")
     end
 end

@@ -53,6 +53,8 @@ import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_it
 import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,
                        make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation,
+                          is_self_contained_operation
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
@@ -101,7 +103,9 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        describe_task_group_preparation, start_task_group_document!,
        rerun_task_group_document!, stop_task_group_document!, wait_task_group_document,
        select_task_document!, build_task_group_document_counts,
-       measure_task_group_document_progress, get_task_group_document_status
+       measure_task_group_document_progress, get_task_group_document_status,
+       StartTaskGroupOperation, StopTaskGroupOperation, StopTaskOperation,
+       RerunTaskGroupOperation, CloseTaskGroupOperation
 export get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
        collect_work_items, add_task_group!, remove_task_group!
