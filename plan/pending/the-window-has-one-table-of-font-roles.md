@@ -398,6 +398,21 @@ gets the new value; the commit names each one.
   (appearance tab, settings tab, task, assistant work, embed card, find bar,
   object view); most are built as documents, with no theme at hand. The printer
   context carries no text style to a child. The owner decides.
+- **2026-11-06, decided by the owner, step 6.** "The title could be a String, a
+  PrimitiveString or a WidgetLabel, the two former can get the style from the
+  WidgetCardToGraphicsCanvas projection, the title could still be selected." The
+  design that follows from it:
+  - a `String` title draws in the title style of the card, as before; a
+    collapsible card folds with it too, and an Alt+press on it selects the field
+    `title` of the card as a part, as a table selects a header;
+  - a `PrimitiveString` title is a document: the card prints it through the
+    dispatch and offers its title style in the printer context, with the
+    property `:text_style`, as a text view offers `:line_spacing`; the printer of
+    a `PrimitiveString` draws with that style when the context holds one. A caret,
+    an edit and an Alt+press work through its own printer;
+  - a `WidgetLabel` title keeps its own style;
+  - the ten cards take a `String`, or a `PrimitiveString` where the title is
+    live.
 
 ## 6. Not in this plan
 
