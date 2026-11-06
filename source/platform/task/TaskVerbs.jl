@@ -277,7 +277,7 @@ of a group can be a group. **For a chain, pass `jobs = 1` and
 ended as expected, and the steps after a failed one end `CANCEL` with
 `Not started: …`. The default of `jobs` is the count of processor threads, so
 the steps would run at once. End the turn after the start when the group runs for
-minutes: an assistant whose wake is on starts a turn when the group ends.
+minutes: the assistant starts a turn when the group ends, while it has wakes left.
 
 Use it to run programs, such as a checkout, a build and an export, as tasks
 that the person sees and can stop.

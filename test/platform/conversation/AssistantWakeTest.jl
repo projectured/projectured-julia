@@ -1,6 +1,6 @@
-# An assistant whose wake is on starts a turn of its own when a group of tasks
-# that one of its turns started ends, with a note that says why; three rules keep
-# the word with the person.
+# An assistant starts a turn of its own when a group of tasks that one of its
+# turns started ends, with a note that says why, while it has wakes left; the
+# reasons of a hold keep the word with the person.
 
 # A group of one shell command that sleeps for `seconds`.
 _make_wake_group(seconds) =
