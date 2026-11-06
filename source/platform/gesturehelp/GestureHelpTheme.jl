@@ -15,16 +15,14 @@ is a list of the widget slice, and the widget theme draws it.
 styles holds the plain values of the default theme.
 """
 @theme struct GestureHelpTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 14)
     "The heading of a domain's group of rows in the gesture map."
-    map_header_text::ThemeText = TextRole(:heading; family = "Ubuntu Mono", weight = 700)
+    map_header_text::ThemeText = TextRole(:text_muted; font_role = :section)
     "A gesture that can fire."
-    map_gesture_text::ThemeText = TextRole(:accent_text; family = "Ubuntu Mono", weight = 700)
+    map_gesture_text::ThemeText = TextRole(:accent_text; font_role = :label)
     "What a gesture does."
-    map_description_text::ThemeText = TextRole(:text; family = "Ubuntu Mono")
+    map_description_text::ThemeText = TextRole(:text; font_role = :text)
     "A row that cannot fire for the current selection."
-    map_muted_text::ThemeText = TextRole(:text_faint; family = "Ubuntu Mono")
+    map_muted_text::ThemeText = TextRole(:text_faint; font_role = :text)
 end
 
 # The themes that a wrapper of the gesture help gives its chains: the gesture help

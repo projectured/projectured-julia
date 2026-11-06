@@ -19,18 +19,16 @@ it draws, which the appearance tab shows under its name.
 holds the plain values of the default theme.
 """
 @theme struct FaultTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The count of the occurrences of a fault."
-    count_text::ThemeText = TextRole(:text_muted)
+    count_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The barrier that catches a fault, such as `print`, `device` or `tool`."
-    site_text::ThemeText = TextRole(:text_muted)
+    site_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The name of the type or the function whose code fails."
-    origin_text::ThemeText = TextRole(:error_text; weight = 700)
+    origin_text::ThemeText = TextRole(:error_text; font_role = :strong_text)
     "The message of the first occurrence of a fault."
-    message_text::ThemeText = TextRole(:text)
+    message_text::ThemeText = TextRole(:text; font_role = :text)
     "The line the log shows while it holds no fault."
-    empty_text::ThemeText = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, with a red cast, so the content stays readable and the panel says that it is not chrome."
     panel_background::ThemeColor = ColorRole(:error_fill; alpha = 0.92)
     "The space between the panel and the edges of the window."
@@ -46,9 +44,11 @@ The fault theme of the panel over a window: the text that reads on a solid fill,
 on the red of an error of the panel.
 """
 make_fault_log_panel_theme() =
-    FaultTheme(count_text = TextRole(:text_on_accent), site_text = TextRole(:text_on_accent),
-               origin_text = TextRole(:text_on_accent; weight = 700),
-               message_text = TextRole(:text_on_accent), empty_text = TextRole(:text_on_accent))
+    FaultTheme(count_text = TextRole(:text_on_accent; font_role = :quiet),
+               site_text = TextRole(:text_on_accent; font_role = :quiet),
+               origin_text = TextRole(:text_on_accent; font_role = :strong_text),
+               message_text = TextRole(:text_on_accent; font_role = :text),
+               empty_text = TextRole(:text_on_accent; font_role = :quiet))
 
 # The two presets, for the appearance tab: the log on a surface, and on its panel.
 get_theme_presets(::Type{FaultTheme}) =

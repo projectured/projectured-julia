@@ -20,18 +20,16 @@ under its name.
 holds the plain values of the default theme.
 """
 @theme struct UndoTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The label and the number of a step."
-    index_text::ThemeText = TextRole(:text_muted)
+    index_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "A step that can be taken back."
-    step_text::ThemeText = TextRole(:text)
+    step_text::ThemeText = TextRole(:text; font_role = :text)
     "A step that can be put back."
-    ahead_text::ThemeText = TextRole(:text_faint)
+    ahead_text::ThemeText = TextRole(:text_faint; font_role = :text)
     "The line the history shows while it holds no step."
-    empty_text::ThemeText = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "The line for where the document stands now."
-    marker_text::ThemeText = TextRole(:accent_text; weight = 700)
+    marker_text::ThemeText = TextRole(:accent_text; font_role = :strong_text)
     "A step the history stops at, because it can not be undone."
-    barrier_text::ThemeText = TextRole(:warning_text; weight = 700)
+    barrier_text::ThemeText = TextRole(:warning_text; font_role = :strong_text)
 end

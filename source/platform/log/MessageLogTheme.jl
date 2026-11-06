@@ -19,18 +19,16 @@ with `get_message_log_style`, from a theme scaled or not; a projection built wit
 no styles holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The level of a message of information, such as `Info`."
-    level_text::ThemeText = TextRole(:info_text; weight = 700)
+    level_text::ThemeText = TextRole(:info_text; font_role = :badge)
     "The level of an error, such as `Error`."
-    error_level_text::ThemeText = TextRole(:error_text; weight = 700)
+    error_level_text::ThemeText = TextRole(:error_text; font_role = :badge)
     "The level of a warning, such as `Warn`."
-    warning_level_text::ThemeText = TextRole(:warning_text; weight = 700)
+    warning_level_text::ThemeText = TextRole(:warning_text; font_role = :badge)
     "The level of a message for debugging, such as `Debug`."
-    debug_level_text::ThemeText = TextRole(:text_muted; weight = 700)
+    debug_level_text::ThemeText = TextRole(:text_muted; font_role = :badge)
     "The text of the message."
-    message_text::ThemeText = TextRole(:text)
+    message_text::ThemeText = TextRole(:text; font_role = :text)
     "The line the log shows while it holds no message."
-    empty_text::ThemeText = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
 end

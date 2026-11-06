@@ -22,14 +22,12 @@ its styles with `get_frame_statistics_style`, from a theme scaled or not; a
 projection built with no styles holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The head line, the titles of the tables and the headers of their columns."
-    header_text::ThemeText = TextRole(:heading; weight = 700)
+    header_text::ThemeText = TextRole(:text_muted; font_role = :column)
     "A cell of a table: a measurement, a number or a frame number."
-    row_text::ThemeText = TextRole(:text)
+    row_text::ThemeText = TextRole(:text; font_role = :text)
     "The line the panel shows while it holds no frame."
-    empty_text::ThemeText = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "A cell of a slow frame: its frame time is more than two times the median of the frames of the table."
-    slow_text::ThemeText = TextRole(:warning_text)
+    slow_text::ThemeText = TextRole(:warning_text; font_role = :text)
 end

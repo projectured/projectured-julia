@@ -19,18 +19,16 @@ with `get_gesture_log_style`, from a theme scaled or not; a projection built
 with no styles holds the plain values of the default theme.
 """
 @theme struct GestureLogTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The number of the entry."
-    index_text::ThemeText = TextRole(:text_muted)
+    index_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The gesture that the entry records."
-    gesture_text::ThemeText = TextRole(:accent_text; weight = 700)
+    gesture_text::ThemeText = TextRole(:accent_text; font_role = :label)
     "The operation the gesture makes."
-    operation_text::ThemeText = TextRole(:text)
+    operation_text::ThemeText = TextRole(:text; font_role = :text)
     "A line that records a selection, which is context and not a change."
-    muted_text::ThemeText = TextRole(:text_faint)
+    muted_text::ThemeText = TextRole(:text_faint; font_role = :text)
     "The line the log shows while it holds no gesture."
-    empty_text::ThemeText = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, so the content stays readable and the light text of the log reads over any content."
     panel_background::ThemeColor = ColorRole(:surface_inverse)
     "The space between the panel and the edges of the window."
@@ -46,10 +44,11 @@ The gesture log theme of the panel over a window: the texts of the inverse
 surface of the panel, dark in the light mode and light in the dark mode.
 """
 make_gesture_log_panel_theme() =
-    GestureLogTheme(index_text = TextRole(:text_inverse_muted),
-                    gesture_text = TextRole(:text_inverse; weight = 700),
-                    operation_text = TextRole(:text_inverse), muted_text = TextRole(:text_inverse_muted),
-                    empty_text = TextRole(:text_inverse_muted))
+    GestureLogTheme(index_text = TextRole(:text_inverse_muted; font_role = :quiet),
+                    gesture_text = TextRole(:text_inverse; font_role = :label),
+                    operation_text = TextRole(:text_inverse; font_role = :text),
+                    muted_text = TextRole(:text_inverse_muted; font_role = :text),
+                    empty_text = TextRole(:text_inverse_muted; font_role = :quiet))
 
 # The two presets, for the appearance tab: the log on a surface, and on its panel.
 get_theme_presets(::Type{GestureLogTheme}) =
