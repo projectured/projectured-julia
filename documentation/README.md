@@ -58,6 +58,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [writing-rules.md](rule/writing-rules.md) | rule | How is a document written, and what does `test_documentation()` check? |
 | [layout-rules.md](rule/layout-rules.md) | rule | How does a widget or a layout get its size? |
 | [spacing-rules.md](rule/spacing-rules.md) | rule | How much space goes where in a window, and who gives it? |
+| [type-rules.md](rule/type-rules.md) | rule | Which font does each text of a window take, and why? |
 | [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
 | [concepts.md](design/concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
 | [engineer-tour.md](design/engineer-tour.md) | design | How do the concepts combine into a system, each one with its real code? |

@@ -60,8 +60,8 @@ the window (`find_editor_appearance`).
   it, as "system (dark)". Under the rows, "Reset all" writes the default of the
   five of them. These two cards do not fold, and each has a fixed summary.
 - The themes in three groups, each a heading over its cards: "Editor" holds the
-  colour theme of the present mode and contrast, then the widget, the text, the
-  syntax, the reference, the graphics and the tooltip themes, in this order,
+  colour theme of the present mode and contrast, then the font theme, then the
+  widget, the text, the syntax, the reference, the graphics and the tooltip themes, in this order,
   because every view draws with them; "Tools" holds the other themes of
   `ProjecturedPlatform`; "Documents" holds the themes of the other packages. A
   group shows its themes in the order of their names. Two groups are further
@@ -70,10 +70,19 @@ the window (`find_editor_appearance`).
   the card: the presets as a radio group, which writes every field of the preset
   into the theme in place, so the views that read the theme follow; a spin box
   for each part of a size; buttons that step through the font files and a spin
-  box for the size of a font; a spin box in percent for a multiple line
+  box for the size of an exact font; a spin box in percent for a multiple line
   spacing; the swatch of a color and its text, `#rrggbbaa`,
   which a person edits; and for a text style, the controls of its color over
   those of its font, each of which writes a new style and keeps the other part.
+  The fonts have controls of their own:
+  - in the font theme, buttons that step through the families for `sans_family`
+    and `mono_family`, and for each role a choice of the kind of family, buttons
+    that step through the weights, a checkbox for italic and a spin box for the
+    size;
+  - in any other theme, a field that names a role has buttons that step through
+    the roles of the font theme, buttons that step through the weights, and a
+    checkbox for italic. It has no size, because a role never changes its size.
+
   Under the row of the name and the control of a field, a row of its own holds
   the docstring of the field, across the card, in the small font and the muted
   color of the widget theme (`LayoutConstraint(…; column_span = 2)`). The card
@@ -118,7 +127,11 @@ open cards.
 
 `save_appearance!(appearance, path)` writes the zoom, the scales and the base
 value of each field of each theme into a TOML file, by default
-`~/.config/projectured/appearance.toml` (`get_appearance_file`).
+`~/.config/projectured/appearance.toml` (`get_appearance_file`). The colour
+themes and the font theme write only the fields that differ from the default,
+under a table of the name of their type, such as `[FontTheme]`. A field that names
+a font role is written as the name of the role, and its weight and its slant
+where the field sets them.
 `load_appearance!(appearance, path)` reads it back in place: a held theme takes
 its values at once, and the table of a theme that a builder makes later waits in
 `saved_themes`. A main builder, such as `run_application`, loads the file before

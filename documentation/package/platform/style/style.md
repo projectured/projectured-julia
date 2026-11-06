@@ -68,7 +68,7 @@ field says which scale applies to it:
 | Type of the field | Scale |
 | --- | --- |
 | `StyleFont`, and the font of a `StyleText` | font scale |
-| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its base |
+| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its font from the font theme |
 | `StyleStroke`, its width | line scale |
 | `Spacing` | spacing scale |
 | `Radius` | radius scale |
@@ -84,34 +84,47 @@ kind: a write of a bare number into a field declared `Radius` converts it to a
 check off, so it scales as a radius. `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
 
-**Base fonts and roles.** A theme holds its fonts as base fonts and roles. A base
-font is a `StyleFont` field, usually `font`, and `code_font` in a theme that draws
-both prose and code. Every other font of the theme is a role over a base: a
-[`FontRole`](../../../../source/platform/style/FontRole.jl) names the field of its
-base, and sets only what differs from it: a family, a weight, a slant, and a size
-relative to the base. A `TextRole` is a font role and a color.
+**Font roles.** A font field of a theme names a role of the font theme, as a
+colour field names a role of the colour theme. The
+[`FontTheme`](../../../../source/platform/style/FontTheme.jl) holds the roles: two
+families, `sans_family` and `mono_family`, and one `FontStep` for each role, which
+gives a kind of family (`:sans` or `:mono`), a size, a weight and a slant. The
+appearance holds one font theme for every colour mode, and `get_font_theme(appearance)`
+gives it. A [`FontRole`](../../../../source/platform/style/FontRole.jl) names a role,
+and can set its own weight and slant over those of the step: `FontRole(:quiet)`,
+`FontRole(:document_code; weight = 700)`. A `TextRole` is a font role and a colour.
+[type-rules.md](../../../rule/type-rules.md) says which text takes which role.
 
 ```julia
 @theme struct JsonTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The key of an object member, with its quotes."
-    key_text::ThemeText = TextRole(:field)
+    key_text::ThemeText = TextRole(:field; font_role = :document_code)
     "The brackets of an array and the braces of an object."
-    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
 end
 ```
 
-`TextRole(:field)` is `TextRole(ColorRole(:field))`: the colour of the role `field` of the colour theme, under ["Colours"](#colours) below. A field of a theme can also hold a fixed colour, such as a constant of [Color.jl](../../../../source/platform/style/Color.jl), for a colour that no colour setting changes.
+`TextRole(:field; font_role = :document_code)` is
+`TextRole(ColorRole(:field); font_role = :document_code)`: the colour of the role
+`field` of the colour theme, under ["Colours"](#colours) below, and the font of
+the role `document_code`. With no `font_role`, the font is the role `text`. A field
+of a theme can also hold a fixed colour, such as a constant of
+[Color.jl](../../../../source/platform/style/Color.jl), for a colour that no colour
+setting changes.
 
-The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
-`apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
-so a person who changes the family or the size of the base changes every role of
-the theme, and a heading of `relative_size = 1.8` stays 1.8 times the body. A
-role field can also hold a `StyleFont` or a `StyleText` as it is, which takes the
-font scale; the appearance tab and an appearance file accept both forms. So a
-field that holds a text role declares the union `ThemeText`, a `StyleText` or a
-`TextRole`, a field that holds a font role declares `ThemeFont`, a `StyleFont` or a
+The scaled theme holds the `StyleFont` or the `StyleText` that each role gives.
+`resolve_font_role(role, appearance)` takes the family, the size, the weight and the
+slant from the font theme, and puts the weight and the slant of the field over
+them. The font scale then multiplies the size, and the size rounds once. The cell
+reads the font theme, so a change of a step or of a family in the appearance tab
+changes every text that names that role. A role never changes its size.
+
+A field that needs another size or another family holds an exact `StyleFont`,
+which takes only the font scale. An icon in Lucide is such a text:
+`TextRole(:warning_text; font = StyleFont("Lucide", 13))` keeps the font and takes
+the colour from the role. The appearance tab and an appearance file accept both
+forms. So a field that holds a text declares the union `ThemeText`, a `StyleText`
+or a `TextRole`, a field that holds a font declares `ThemeFont`, a `StyleFont` or a
 `FontRole`, and a colour field declares `ThemeColor`. The check of declared types
 then admits both forms.
 
@@ -263,7 +276,7 @@ hues: `macro_name` and `event` take the colour of `function_name`,
 Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
 such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
 A field of every theme other than `ColorTheme` names a role with a `ColorRole`,
-so it follows the colour settings: `key_text::ThemeText = TextRole(:field)` of
+so it follows the colour settings: `key_text::ThemeText = TextRole(:field; font_role = :document_code)` of
 `JsonTheme` draws with the colour that the role `field` gives,
 `PaletteColor(:blue, 11; minimum_contrast = 4.5)` by default, which resolves to
 step 11 of the blue ramp of the palette of the appearance, in its mode — Radix

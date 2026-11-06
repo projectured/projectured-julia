@@ -296,7 +296,8 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
   `LineWidth`, `ControlSize` or `IconSize`. Any other value takes no scale. A bare
   number in a field declared with a kind of length takes that kind, so
   `T(radius = 2)` scales as a radius. A `FontRole` or a `TextRole` takes the font
-  that it gives over its base font in `T`, so its cell follows the base too.
+  that its role gives in the font theme of the appearance, so its cell follows the
+  font theme too.
 - `make_scaled_theme(theme::T, appearance)` makes a `ScaledT`,
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.

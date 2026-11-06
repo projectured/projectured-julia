@@ -80,8 +80,6 @@ field of [`FontTheme`](@ref) throws an `ArgumentError`.
 """
 function resolve_font_role(role::FontRole, appearance::Appearance)
     name = role.role
-    name === nothing &&
-        throw(ArgumentError("a font role with a base follows the font of a theme, not the font theme"))
     theme = get_font_theme(appearance)
     step = name in get_theme_field_names(FontTheme) ? getproperty(theme, name) : nothing
     step isa FontStep || throw(ArgumentError("the font theme has no role $(repr(name))"))
