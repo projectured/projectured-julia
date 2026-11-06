@@ -150,7 +150,8 @@ gets the new value; the commit names each one.
   role: the family, the size, the weight and the slant. A field of a theme shows
   whether it names a role or holds an exact font, as a color field shows a role
   or a fixed color. Test: `AppearanceTabTest.jl`.
-- [ ] **Step 3. The widgets.** `WidgetTheme`: `font` becomes `FontRole(:text)`;
+- [x] **Step 3. The widgets.** (Done: b91624435, 2eda752d3; facts in section 5.)
+  `WidgetTheme`: `font` becomes `FontRole(:text)`;
   `font_bold` and `font_small` give way to the roles that each part takes. The
   parts and their roles, as on the page: a card, dialog and title pane title
   `title`; an accordion item, alert and tooltip title `strong_text`; a caption,
@@ -177,7 +178,10 @@ gets the new value; the commit names each one.
   `document_text` at weight 500 in the text color, axis titles `column`, ticks
   `quiet`. The math typesetter keeps its script sizes, 0.7 and 0.5 of the font of
   its role, because they are a rule of the typesetting. The markers in DejaVu Sans
-  Mono become exact fonts (D4). When no theme uses the old form any more, remove
+  Mono become exact fonts (D4). The header labels of the pivot tables
+  (`domain/pivot/PivotTableToWidget.jl`, `PivotPartTableToWidget.jl`) take the
+  `column_font` and the muted color of the widget theme, as the data frame does.
+  When no theme uses the old form any more, remove
   it: the `base`, `family` and `relative_size` of `FontRole`, `get_role_base` and
   the ratio of `apply_font_role`. Tests: `test_markdown()`, `test_rst()`,
   `test_book()`, `test_chart()`, `test_sequencechart()`, `test_math()` and one
@@ -186,7 +190,9 @@ gets the new value; the commit names each one.
   the editor, on `main` and on the branch, with `write_image` and no window on
   the desktop, and put them side by side on the page. The owner looks at them
   before the branch goes further. Then compare every suite that steps 1 to 5
-  touched with the baseline of `main`.
+  touched with the baseline of `main`. Record the precompile calls again
+  (`record_package_calls!`) for each package whose load warns that recorded calls
+  no longer resolve, and check that the load of the branch gives no such warning.
 - [ ] **Step 7. The documentation.** Write `documentation/rule/type-rules.md`:
   the six differences, the roles, the exceptions, and how a new widget, panel or
   domain gets its fonts. Change `documentation/package/platform/style/style.md`
@@ -238,6 +244,44 @@ gets the new value; the commit names each one.
   before. A role with a role name has its own control, `_make_font_theme_role_control`,
   with no size. Counts on the branch: `test_appearance_tab` 138 before, 156 after;
   `test_appearance_file` 22; `test_font_theme` 70.
+- **2026-11-06, step 3.** The widget theme has `font = FontRole(:text)` and one
+  field for each role that a part takes: `label_font`, `title_font`,
+  `strong_font`, `quiet_font`, `badge_font`, `column_font`, `section_font` and
+  `selected_tab_font = FontRole(:text; weight = 500)`. `font_bold` and
+  `font_small` are gone. The tooltip title is in the tooltip theme, so step 4
+  gives it `strong_text`.
+- **2026-11-06, step 3.** `WidgetTable` takes the header widgets that its caller
+  builds, so the table needs no style of its own for the header row. The maker of
+  a header label gives it `column_font` and the muted color: the data frame view
+  (`header_font`, `header_color`) and the roster. The pivot tables follow in step 5.
+- **2026-11-06, step 3.** No widget draws a form label. The `label` role goes to
+  the name of a setting (`SettingsToWidget`, field `name_text`) and to the name of
+  a row of the appearance tab: a scale, a colour setting, a field of a theme
+  (`_make_name_label`).
+- **2026-11-06, step 3.** The strip measures every tab name in one font, but the
+  selected tab draws its name at weight 500, which is wider. So a tab takes the
+  width of its name in the wider of the two fonts: the medium name ends before its
+  badges and its close button, and no tab moves when the selection does.
+  `test_widget_tab_strip` checks it with the real faces.
+- **2026-11-06, step 3, counts.** `test_dataframes` 608 before and after. The
+  platform suite in one call passes the 9.3G cap, so it ran as its 242 parts in one
+  process: no count moved, except `test_platform_examples` (203654 → 203763) and
+  `test_widget_tab_strip` (29 → 33). The failures in `test_conversation` (75 fail,
+  51 error), `test_pane_surgery`, `test_platform_layering`,
+  `test_platform_slice_edges`, `test_work_plan` and `test_mcp_log_pane` are the
+  same on `main` 4c8d27962. One assertion group of `AppearanceTabTest.jl` (lines
+  196 to 208) reads the role of the `font` field now, not its size and family.
+- **2026-11-06, found in step 3.** The load of the branch warns that recorded
+  precompile calls no longer resolve: 1406 of 12310 in `ProjecturedPlatform`, 69
+  in `ProjecturedChart`, 73 in `ProjecturedDataFrames`, 3 in
+  `ProjecturedLanguageServer`. `main` gives no such warning. The calls name types
+  and fields that the branch changes. Step 6 records them again, after the last
+  theme change.
+- **2026-11-06, open, found in step 3.** About 100 examples and tests build a
+  widget projection with an exact font, mostly `WidgetToGraphics(StyleFont("Ubuntu", 20))`
+  or `StyleFont("Ubuntu Mono", 20)`. That font now sets only the `font` field,
+  so such a projection draws a control at 20 px, a card title at 16, the selected
+  tab at 13 and a badge at 12. The owner decides what a passed font means.
 
 ## 6. Not in this plan
 
