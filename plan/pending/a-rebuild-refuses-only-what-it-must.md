@@ -194,10 +194,38 @@ approval of the user.
   `include(joinpath(@__DIR__, "warm2.jl"))` as C4 and refuses
   `include(joinpath(pwd(), "warm2.jl"))`, and the `const` of a module gives the
   path where a global that is not `const` gives none.
-- [ ] **Step 4: the compiler applies a changed docstring of a module.** In
+- [x] **Step 4: the compiler applies a changed docstring of a module.** In
   `rc_classify` of `child.jl`, and in the apply. Test: a check in `rc_warm`.
   After the apply, `@doc` of the module gives the new text, and the module is the
   same object as before.
+
+  Done on 2026-11-06, in the Julia worktree (the commit after cd1d275035). The
+  change has the id H2, the docstring category of the catalog of change ids.
+  - `rc_split_module_doc` splits a header into its docstring (`Core.@doc` or
+    `@doc`) and the module with the empty body. Two headers are a docstring
+    change when their modules are equal without line nodes, also when one of
+    them has no docstring.
+  - The H2 change takes no old method. The old methods of a change are deleted
+    after the apply, and the methods at the line of the old header must stay.
+  - The evaluation loop does not evaluate the header of an H2 module change,
+    because that makes a new, empty module. It resolves the module by its full
+    path, so a root module of a package works too. `rc_set_module_doc!` deletes
+    the old entry of `Base.Docs.meta`, so `doc!` prints no "Replacing docs"
+    warning, and evaluates in the module the expression that
+    `Base.Docs.moduledoc` gives for a module that exists
+    (`Base.Docs.docm(…, false)`). So the binding and the metadata are the ones of
+    the definition. A header without a docstring removes it.
+
+  Test, without a rebuild of Julia: `rc_warm()` passes with a new check, which
+  classifies a changed, an added-away and a `baremodule` header (H2, H2,
+  refused C5) and replaces and removes the docstring of a module in place.
+  A probe ran `rc_apply_tracked` on a small loaded package, with a new
+  `include(joinpath(_SOURCE, "View.jl"))` and a new docstring of its submodule.
+  With the changed sources it applies C4, H2 and the new file, with no refusal:
+  the submodule is the same object, its docstring is the new text, and `view()`
+  gives 42. With the sources of `merged-next` before the change, the same apply
+  is refused with the two reasons of the IDE build: C4 "includes a file that is
+  not tracked" and C5 "the header of a module changed".
 - [ ] **Step 5: one rebuild of Julia, and the gate.** Build the Julia of the
   worktree with step 3 and step 4. The gate is a small app that depends on
   `ProjecturedKernel`. It has a `@document` struct, a module with a docstring,
