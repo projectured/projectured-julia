@@ -270,6 +270,32 @@ command ends `ERROR` with what it printed on stderr as its error message. A
 domain computes the command lines and puts the steps in groups: a build of a
 project is a sequential group of phases, each a concurrent group of steps.
 
+## A program as a task
+
+`ProgramTask(command; working_directory, environment, time_limit, name)` is one
+program that a person or a model starts: it has its folder, the variables that it
+adds, a log, an exit status and a stop. It is no step of a build: it has no input
+files and no output files, and no check of what is up to date, so it runs each
+time. `command` is a `Cmd` or a vector of strings; a `Cmd` that carries a folder
+or an environment of its own throws an `ArgumentError`, because the keywords say
+them. `environment` adds its variables to the environment of the editor process
+(`addenv`), so the program keeps `PATH` and `HOME`; a `BuildCommandTask` takes a
+full environment instead. `start_task` starts the words with `start_process_task!`.
+
+The result is a `ProgramResult`: the five fields of a result and `exit_code`.
+It is `DONE` on exit code 0, `CANCEL` after a stop, and else `ERROR` with the
+reason `Non-zero exit code: 3` or `Ended by signal 15`. With `time_limit` seconds,
+a timer stops the process as a stop does, the task ends `ERROR` with the reason
+`Time limit of 1800 s`, and the end of the process closes the timer. No check reads
+the disk before the start: a folder that does not exist makes `run` throw, and the
+group ends the task as a `TaskStartFailure`.
+
+The views of the kind: the columns `name` and `command`, the facts `command:`,
+`folder:`, `environment:` (the added variables only) and `exit code:`, and the
+marks of a line: `error:` or `fatal:` in any case is `:error`, `warning:` is
+`:warning`, so the button First error of the stream page and the counts of the
+marks work.
+
 ## The documents and the feed
 
 `TaskDocument` is one task on the screen: the task, the native layout of its

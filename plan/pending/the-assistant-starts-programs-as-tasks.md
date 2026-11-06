@@ -218,7 +218,7 @@ in `environment/all`.
      tasks that did not start keep no run, as before.
    - The new testset is in `test_task_group()`; `test_task_group()`, `test_task_views()` and
      `test_build_step()` pass together (213 Pass).
-2. **A program is a task.** The file `ProgramTask.jl`, included after `BuildStep.jl`, its exports,
+2. **A program is a task.** **Done on 2026-11-06.** The file `ProgramTask.jl`, included after `BuildStep.jl`, its exports,
    and a section "A program as a task" in `task.md`. Test: the new `test_program_task()`
    (`test/platform/task/ProgramTaskTest.jl`), registered in `ProjecturedPlatformTest.jl` and
    `PlatformSuite.jl`. With real `sh` processes it asserts: `DONE` and `exit_code == 0`; `exit 3`
@@ -227,6 +227,15 @@ in `environment/all`.
    with `time_limit = 1` ends `ERROR` with its reason in less than 5 s; the line
    `fatal: bad revision` gets `:error`; a `Cmd` with its own folder throws; a folder that does not
    exist ends `ERROR`.
+   What the implementation found:
+   - `ProgramTask` is a struct of `arguments`, `working_directory`, `environment`, `time_limit`
+     and `name`; `exit_code` of `ProgramResult` is `nothing` when a signal ends the process.
+     The reason of a stop by the person is `Cancel by user`, as for a build step.
+   - The timer is a `Timer` that the end of the process closes; a process that ended before the
+     timer was kept closes it at once. The test asserts the result, the reason and the time of
+     a limit and that a program that ends before its limit ends `DONE`. It does not read the
+     timer itself, because no handle of it is kept anywhere that a test can reach.
+   - The new test also runs `test_task_views()` (115 Pass together).
 3. **The actions of a group are operations (D4).** The five operations in `TaskGroupDocument.jl`,
    each with `evaluate_operation`, `make_inverse_operation` that answers `DoNothingOperation`, and
    `is_self_contained_operation`. The buttons of the card in `TaskGroupToWidget.jl` and the four

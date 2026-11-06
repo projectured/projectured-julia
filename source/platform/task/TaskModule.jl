@@ -86,6 +86,7 @@ export get_default_job_count, start_task, TaskStartFailure, TaskNotStarted,
        compute_task_group_summary, get_task_group_counts, make_task_group_shadow
 export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildStepResult,
        read_dependency_file, find_build_step_input_files, is_build_step_up_to_date
+export ProgramTask, ProgramResult
 export TaskFeedStore, get_session_task_feed_store, register_task_execution!,
        record_task_execution_sync!, has_task_feed_entries, drain_task_feed!, TaskFeed,
        make_task_feeds
@@ -120,6 +121,7 @@ include("TaskExecution.jl")
 include("TaskStream.jl")
 include("TaskGroup.jl")
 include("BuildStep.jl")
+include("ProgramTask.jl")
 include("TaskFeed.jl")
 include("TaskDocument.jl")
 include("TaskGroupDocument.jl")
