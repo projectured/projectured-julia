@@ -72,17 +72,24 @@ function _make_live_label(f)
     label
 end
 
-# The word of the state of a group, and its color: running or stopping while it
-# goes, cancelled after a stop, else its worst code. It reads the counts, which
-# change only when a task starts or ends.
-function _get_group_state(p, doc::TaskGroupDocument, group)
+# The word of the state of a group, and its role: running or stopping while it
+# goes (`:accent`), not started (no role), cancelled after a stop (`:warning`),
+# else its worst code in the role of the code. It reads the counts, which change
+# only when a task starts or ends.
+function _get_group_state_role(doc::TaskGroupDocument, group)
     status = getfield(doc, :status)[]
     counts = get_task_group_document_counts(doc)
-    status === :running && return ("running", p.running_color)
-    status === :stopping && return ("stopping", p.running_color)
-    counts.finished == 0 && return ("not started", p.muted_color)
-    group.stopping && return ("cancelled", p.warning_color)
-    (counts.result, _get_role_color(p, get_result_role(group.codes, counts.result)))
+    status === :running && return ("running", :accent)
+    status === :stopping && return ("stopping", :accent)
+    counts.finished == 0 && return ("not started", nothing)
+    group.stopping && return ("cancelled", :warning)
+    (counts.result, get_result_role(group.codes, counts.result))
+end
+
+# The word of the state of a group, and its color.
+function _get_group_state(p, doc::TaskGroupDocument, group)
+    (word, role) = _get_group_state_role(doc, group)
+    (word, role === :accent ? p.running_color : role === nothing ? p.muted_color : _get_role_color(p, role))
 end
 
 # What a task document says in the column `state`: its result code once it has
@@ -181,51 +188,103 @@ end
 
 # ── The summary card ─────────────────────────────────────────────────────────
 
-# The card of a group. An inner group shows no actions of its own: its row in
-# the outer group stops it and runs it again.
+# A group of facts whose rows follow `f`, a function of `label => value` pairs
+# where a value of `nothing` leaves its fact out. A group with no fact is not
+# visible.
+function _make_computed_fact_group(f)
+    group = WidgetFactGroup(Any[])
+    facts = group.facts
+    set_cell_computation!(getfield(facts, :elements), () -> Cell[
+        Cell(WidgetFact(label, value)) for (label, value) in f() if value !== nothing])
+    set_cell_computation!(getfield(group, :visible), () -> !isempty(getfield(facts, :elements)[]))
+    group
+end
+
+# The time facts of a group in two groups side by side, which follow the summary
+# with each drain: what is done and how long, then the slowest task and the rate.
+function _make_group_time_facts(p, doc::TaskGroupDocument)
+    get_summary() = get_task_group_document_summary(doc)
+    done = _make_computed_fact_group(() -> begin
+        s = get_summary()
+        Pair{String,Any}["finished" => string(s.finished, " of ", s.total),
+                         "elapsed" => s.elapsed === nothing ? nothing :
+                                      _format_duration(s.elapsed; precision = 0),
+                         "left" => s.remaining === nothing ? nothing :
+                                   "about " * _format_duration(s.remaining; precision = 0)]
+    end)
+    pace = _make_computed_fact_group(() -> begin
+        s = get_summary()
+        Pair{String,Any}["slowest" => s.slowest === nothing ? nothing :
+                                      s.slowest[1] * ", " * _format_duration(s.slowest[2]; precision = 1),
+                         "rate" => s.rate === nothing ? nothing : string(round(Int, s.rate), " a minute")]
+    end)
+    HorizontalLayout(Any[done, pace]; vertical_align = :top, gap = p.section_gap)
+end
+
+# The most reasons that the card lists; the rest are counted in a line.
+const _SUMMARY_REASON_ROWS = 5
+
+# The table of the reasons of the unexpected results of a group: a row for each
+# reason, with its count and the tasks that gave it, and a muted line that counts
+# the reasons beyond the first rows. Neither is visible while no result is
+# unexpected.
+function _make_group_reason_table(p, doc::TaskGroupDocument)
+    reasons() = get_task_group_document_counts(doc).reasons
+    rows = CellVector(Computation(() -> Any[
+        CellVector(Cell[Cell(WidgetLabel(string(count))), Cell(WidgetLabel(reason)),
+                        Cell(WidgetLabel(join(names, ", ")))])
+        for (reason, count, names) in first(reasons(), _SUMMARY_REASON_ROWS)]))
+    headers = CellVector(Cell[Cell(WidgetLabel(name)) for name in ("count", "reason", "tasks")])
+    table = WidgetTable(headers, rows)
+    # The count is as narrow as its numbers; the reasons and the tasks share the rest and wrap.
+    columns = Any[WidgetTableColumn(; align = :right),
+                  WidgetTableColumn(; policy = Relative(2.0), cell_policy = :wrap),
+                  WidgetTableColumn(; policy = Relative(3.0), cell_policy = :wrap)]
+    set_cell_computation!(getfield(table, :columns), () -> columns)
+    set_cell_computation!(getfield(table, :visible), () -> !isempty(reasons()))
+    more = _make_live_label(() -> begin
+        left = length(reasons()) - _SUMMARY_REASON_ROWS
+        (left > 0 ? string("+", left, " more ", left == 1 ? "reason" : "reasons") : "", p.muted_color)
+    end)
+    (table, more)
+end
+
+# The card of a group, top to bottom: the title with the identifier and the
+# state, the words that chose the tasks and the jobs, the preparation, a badge
+# for each count, the progress, the time facts, the reasons of the unexpected
+# results, and the buttons. An inner group shows no actions of its own: its row
+# in the outer group stops it and runs it again.
 function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     group = get_task_group(doc)
     get_summary() = get_task_group_document_summary(doc)
-    title = WidgetLabel(() -> getfield(doc, :title)[])
+    title = WidgetLabel(uppercasefirst(group.name))
     identifier = WidgetBadge(getfield(doc, :identifier)[]; variant = :outline)
-    state = _make_live_label(() -> _get_group_state(p, doc, group))
+    state = WidgetBadge("")
+    set_cell_computation!(getfield(state, :content), () -> _get_group_state_role(doc, group)[1])
+    set_cell_computation!(getfield(state, :role), () -> _get_group_state_role(doc, group)[2])
     heading = HorizontalLayout(Any[title, identifier, state]; vertical_align = :center, gap = p.label_gap)
 
-    # One chip for each code that has a result, and the tasks that run and wait.
-    chips = HorizontalLayout(Any[]; vertical_align = :center, gap = p.label_gap)
-    set_cell_computation!(getfield(chips.children, :elements), () -> begin
-        s = get_summary()
-        parts = Any[]
-        for (code, expected, unexpected) in s.counts
-            color = _get_role_color(p, get_result_role(group.codes, code))
-            expected > 0 && push!(parts, _make_label(string(expected, " ", code), color))
-            unexpected > 0 && push!(parts, _make_label(string(unexpected, " ", code, " unexpected"), color))
-        end
-        s.running > 0 && push!(parts, _make_label(string(s.running, " running"), p.running_color))
-        s.pending > 0 && push!(parts, _make_label(string(s.pending, " waiting"), p.muted_color))
-        Cell[Cell(x) for x in parts]
+    selection = _make_live_label(() -> begin
+        parts = String[]
+        description = getfield(doc, :description)[]
+        isempty(description) || push!(parts, description)
+        push!(parts, string(group.jobs, " at a time"))
+        (join(parts, " · "), p.muted_color)
     end)
 
-    timing = WidgetLabel(() -> begin
-        s = get_summary()
-        parts = String[string(s.finished, " of ", s.total, " finished"),
-                       string(group.jobs, " at a time")]
-        s.elapsed === nothing || push!(parts, _format_duration(s.elapsed; precision = 0) * " elapsed")
-        s.remaining === nothing || push!(parts, "about " * _format_duration(s.remaining; precision = 0) * " left")
-        s.rate === nothing || push!(parts, string(round(s.rate; digits = 1), " tasks a minute"))
-        s.slowest === nothing ||
-            push!(parts, "slowest " * s.slowest[1] * " (" * _format_duration(s.slowest[2]; precision = 1) * ")")
-        join(parts, " · ")
-    end)
-    words = WidgetLabel(() -> begin
-        s = get_summary()
-        heading = getfield(doc, :status)[] === :finished ? format_task_group_close_description(group) :
-                                                          format_task_group_description(group)
-        isempty(s.summary) ? heading : heading * ": " * s.summary
-    end)
-    reason = _make_live_label(() -> begin
-        s = get_summary()
-        (something(s.reason, ""), s.is_expected ? p.muted_color : _get_role_color(p, get_result_role(group.codes, s.result)))
+    # One badge for each code that has a result, and the tasks that run and wait.
+    badges = HorizontalLayout(Any[]; vertical_align = :center, gap = p.label_gap)
+    set_cell_computation!(getfield(badges.children, :elements), () -> begin
+        counts = get_task_group_document_counts(doc)
+        parts = Any[]
+        for (code, expected, unexpected) in counts.counts
+            role = get_result_role(group.codes, code)
+            expected > 0 && push!(parts, WidgetBadge(string(expected, " ", code); role))
+            unexpected > 0 && push!(parts, WidgetBadge(string(unexpected, " ", code, " unexpected"); role))
+        end
+        counts.running > 0 && push!(parts, WidgetBadge(string(counts.running, " running"); role = :accent))
+        counts.pending > 0 && push!(parts, WidgetBadge(string(counts.pending, " waiting")))
+        Cell[Cell(x) for x in parts]
     end)
 
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
@@ -244,8 +303,10 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
                            vertical_align = :center, gap = p.button_gap)
     progress = make_task_progress_bar(() -> get_summary().progress)
     preparation = _build_preparation_line(p, doc)
-    lines = preparation === nothing ? Any[chips, progress, timing, words, reason, row] :
-                                      Any[preparation, chips, progress, timing, words, reason, row]
+    (table, more) = _make_group_reason_table(p, doc)
+    lines = Any[selection]
+    preparation === nothing || push!(lines, preparation)
+    append!(lines, Any[badges, progress, _make_group_time_facts(p, doc), table, more, row])
     WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill))
 end
 

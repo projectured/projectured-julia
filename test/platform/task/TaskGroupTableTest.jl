@@ -274,8 +274,11 @@ function test_task_group_table()
         (editor, backend, window) = make_editor(group)
         glyphs = sort([(x, y) for (text, x, y) in drawn(window) if text in string.(Char.((0xe37d, 0xe04a, 0xe042)))])
         names = [text for (text, _, _) in drawn(window)]
-        elapsed = findfirst(==("elapsed"), [text for (text, _, _) in sort(filter(e -> e[1] in ("state", "test",
-            "configuration", "progress", "elapsed", "process", "processor", "memory", "result", "expected", "reason"),
+        # The headers of the table stand in one row, under the card, whose time facts say `elapsed` too.
+        header_y = only(y for (text, _, y) in drawn(window) if text == "state")
+        elapsed = findfirst(==("elapsed"), [text for (text, _, _) in sort(filter(e -> e[3] == header_y &&
+            e[1] in ("state", "test", "configuration", "progress", "elapsed", "process", "processor", "memory",
+                     "result", "expected", "reason"),
             drawn(window)); by = e -> e[2])])
         @test elapsed == 5 && length(glyphs) >= 5
         press!(editor, backend, window, glyphs[elapsed][1] + 2, glyphs[elapsed][2] + 2)

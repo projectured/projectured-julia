@@ -195,7 +195,8 @@ sync. A `TaskGroupRuntime` holds what no view shows: the lock of the tally, the
 scheduler, `finish`, `on_start`, `on_preparation` and `preparation_run`. The
 `TaskGroupTally` counts the tasks of the group that are no groups: the finished
 ones, the places that run, the counts of each code, the unexpected details by
-place, the durations and the slowest. The construction and each start build it
+place, the unexpected leaf results by place (below), the durations and the
+slowest. The construction and each start build it
 once from the executions; the scheduler adds each start and each end. So
 `compute_task_group_summary` costs the codes, the inner groups and the running
 tasks, and not a walk of every task. `make_task_group_shadow` makes the shadow
@@ -225,6 +226,22 @@ expected and unexpected, and the worst case. `format_task_group_summary` and
 `compute_task_group_summary` answers a `TaskGroupSummary`, what a group looks
 like at one moment for a reader of the screen: the counts, the progress, the
 time that went and an estimate of the time left, the rate and the slowest task.
+
+**The leaf results.** `get_inner_task_results(result)` answers the results that a
+result is made of, and an empty vector by default: a `TaskGroupResult` answers
+its `results`, and the result of a fingerprint test answers the results of its
+fingerprints. A leaf is a result with no inner results, so a result that is
+made of none is its own leaf. The tally keeps, for each task whose result is
+unexpected, its unexpected leaves, each as `(reason, name)`: the reason of the
+leaf, or its code when it gives none, and `format_task_parameters` of the task
+of the leaf, or of the task that ended with the result when the leaf has no
+task. The summary counts them in `reasons`, a row `(reason, count, names)` for
+each reason: the leaves that gave it, and the names of their tasks, each once,
+in the order of the tasks, the most frequent reason first and reasons of equal
+count in the order they came in. `reasons` is also a field of
+`get_task_group_counts`, so the card changes only when a task starts or ends.
+The `reason` of the summary keeps the words of `opp_repl`, counted over the
+results of the tasks, because the text for the assistant reads it.
 
 A start that throws ends its task as `ERROR`, a `TaskStartFailure` with the
 exception in its reason, and the group goes on with its other tasks, so one bad
@@ -354,7 +371,9 @@ started names that editor: `wait_task_group_document(doc; editor)`.
 
 `TaskGroupDocument` is a group on the screen: the native `TaskGroup`, its
 shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
-never changes. A roster reads the group and its tasks by facets. A task has the
+never changes, a `title` that the tab shows, and a `description`, the words that
+chose the tasks (`wrap_task_group_document(group; description)`, an empty string
+by default). A roster reads the group and its tasks by facets. A task has the
 facets `name`, `status`, `result`, `expected` and `reason`; a group has `kind`,
 the name of its `TaskGroup`. The `:tasks` source of the roster slice lists the
 tasks of the open groups of the session, each with its group as `within`
@@ -413,9 +432,7 @@ runs again goes back into its place.
 
 ## The views
 
-`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card with the
-counts of each code, a bar of the progress, the time, the reason of what was not
-expected and the actions on the whole group; a table with one row for each task;
+`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card (below); a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
 buttons and its two streams. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, with the code word nowhere else; the error message of an `ERROR` is a line in the error colour under it. Below the buttons come the document of the kind, in a place of its own (a kind with no document shows the lines of `format_task_details` above the buttons), and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
@@ -429,6 +446,23 @@ list, so a group of 22,731 tasks costs what a group of twenty costs. The head of
 the list is the task that the `anchor` of the group names. A scroll far from the
 head writes the head of the list of the table, and the pane writes the anchor
 instead, as the owner of a list does; the list then starts again from that task.
+
+**The card of a group** reads top to bottom: the title, the name of the group with
+a capital first letter, with the identifier as an outline badge and a badge of
+the state (the word of the state in the accent role while the group runs or
+stops, no role before it started, the warning role after a stop, else the worst
+code in the role of the code); the words that chose the tasks (`description` of
+the document) and `4 at a time`, joined by ` · ` in muted text; the line of the
+preparation; a badge for each count, `2 FAIL unexpected` in the role of its code,
+`1 running` in the accent role and `3 waiting` with no role; the bar of the
+progress; the time facts in two groups side by side, `finished`, `elapsed` and
+`left`, then `slowest` and `rate`, a fact with no value left out; a table of
+the reasons of the unexpected results with the columns `count`, `reason` and
+`tasks` (five rows at most, then a muted `+3 more reasons`), which is not shown
+while no result is unexpected; and the actions on the whole group. The badges and
+the table read the counts of the group, so they are not built again at each
+tick of the clock; the time facts follow the summary. The line of `opp_repl` is
+no part of the card, and the text for the assistant keeps it.
 
 **The links.** The row is what a person presses, and no cell of it. The table
 gives a press on a row back as the selection of the row, and the pane turns it
@@ -626,5 +660,5 @@ open_pane!(group; title = "Builds")
 ```
 
 The group then reports into its pane, its tab says how far it is, the Tasks pane
-lists it, and when it ends, the card of its pane starts with `Built builds` and
-the summary line of `opp_repl`.
+lists it, and when it ends, the card of its pane shows its
+counts, its time and the reasons of what was not expected.

@@ -85,6 +85,16 @@ end
 is_expected(r::TaskResult) = r.result == r.expected_result
 
 """
+    get_inner_task_results(result) -> Vector
+
+The results that `result` is made of: those of the tasks of a group, those of
+the fingerprints of a fingerprint test. A result with none answers an empty
+vector and is a leaf. The summary of a group counts its unexpected leaves by
+reason.
+"""
+get_inner_task_results(::TaskResult) = TaskResult[]
+
+"""
     get_error_message(result) -> String
 
 What a result that is `ERROR` says about the error, such as the error line that

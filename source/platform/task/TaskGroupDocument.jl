@@ -27,6 +27,9 @@ See also `find_task_group`, `list_task_groups`, `TaskDocument` and `TaskGroupLis
 # Fields
 - `title::String` — what the pane is called, such as the words that chose the
   tasks, or the name of the group.
+- `description::String` — the words that chose the tasks, such as the selection
+  of a run, or an empty string. The summary card shows it beside the number of
+  jobs.
 - `jobs::Int` — how many tasks go at once.
 - `status::Symbol` — `:pending`, `:running`, `:stopping` or `:finished`.
 - `tasks::CellVector` — one [`TaskDocument`](@ref) for each task, in the order
@@ -69,6 +72,7 @@ For the assistant.
 """
 @document struct TaskGroupDocument <: Document
     title::String
+    description::String
     jobs::Int
     status::Symbol
     tasks::CellVector
@@ -118,12 +122,14 @@ get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)
 get_task_group_document_counts(doc::TaskGroupDocument) = getfield(doc, :shadow)[].counts
 
 """
-    wrap_task_group_document(group; title = group.name, identifier = make_task_group_identifier())
+    wrap_task_group_document(group; title = group.name, description = "",
+                             identifier = make_task_group_identifier())
 
 Wrap a `TaskGroup` as a document, with one [`TaskDocument`](@ref) for each of
-its tasks. Nothing runs yet.
+its tasks. `description` is the words that chose the tasks. Nothing runs yet.
 """
 function wrap_task_group_document(group::TaskGroup; title::AbstractString = group.name,
+                                  description::AbstractString = "",
                                   identifier::AbstractString = make_task_group_identifier())
     documents = TaskDocument[TaskDocument(task) for task in group.tasks]
     # An inner group is a document of its own, which its task holds, named by its
@@ -139,7 +145,7 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                       wrap_task_group_document(group.preparation; title = group.preparation.name,
                                                identifier = string(identifier, ".0")) :
                       TaskDocument(group.preparation)
-    doc = TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
+    doc = TaskGroupDocument(Cell(String(title)), Cell(String(description)), Cell(group.jobs), Cell(:pending),
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),

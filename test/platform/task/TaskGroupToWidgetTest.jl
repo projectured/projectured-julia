@@ -363,7 +363,7 @@ function test_task_views()
         end
 
         @testset "the Process group holds the facts that have a value" begin
-            pending = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("p", "exit 0")]; name = "process", jobs = 1))
+            pending = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("p", "exit 0")]; name = "pending process", jobs = 1))
             task = only(getfield(pending, :tasks)[])
             group = TaskModule._make_task_process_group(pending, task)
             @test !group.visible && isempty(group.facts)
@@ -428,9 +428,9 @@ function test_task_views()
             # below it is still in the window: the header and the buttons are short
             # enough to stay whole above the table, and the process facts, which
             # scroll in a part with no weight, give up their height.
-            short = _collect_task_view_texts(last(_print_task_view(document; height = 800)).output)
+            short = _collect_task_view_texts(last(_print_task_view(document; height = 850)).output)
             @test find_y(short, "stdout · empty") - find_y(short, "scalar") >= least
-            @test find_y(short, "stdout · empty") < 800
+            @test find_y(short, "stdout · empty") < 850
             header_y = maximum(t[2] for t in short if t[3] == "delta")
             @test header_y < find_y(short, "Run again") < find_y(short, "scalar")
         end
@@ -521,7 +521,7 @@ function test_task_views()
             words = _collect_task_view_words(document)
             # The card of the phase, under the card of the build, with no actions
             # of its own.
-            @test "phase 1" in words && "4 DONE" in words && "1 ERROR unexpected" in words
+            @test "Phase 1" in words && "4 DONE" in words && "1 ERROR unexpected" in words
             @test count(==("Run all"), words) == 1
         end
 
@@ -537,8 +537,83 @@ function test_task_views()
             words = _collect_task_view_words(document)
             # The card of the build, under the card of the group, with no actions
             # of its own.
-            @test "stub" in words && "1 ERROR unexpected" in words
+            @test "Stub" in words && "1 ERROR unexpected" in words
             @test count(==("Run all"), words) == 1
+        end
+
+        @testset "the card of a group names its kind, its state and its counts" begin
+            group = TaskGroup(AbstractTask[_TaskNestedTask("first", [("a1", "ERROR", "boom")]),
+                                           _TaskGroupProbeTask("ok", "exit 0"),
+                                           _TaskGroupProbeTask("fail", "exit 1")];
+                              name = "nested test", jobs = 2)
+            document = wrap_task_group_document(group; description = "the selection")
+            @test getfield(document, :description)[] == "the selection"
+            @test getfield(wrap_task_group_document(
+                TaskGroup(_make_task_group_probe_tasks(0.0); name = "probe")), :description)[] == ""
+            @test TaskModule._get_group_state_role(document, group) == ("not started", nothing)
+            projection = TaskModule.TaskGroupDocumentToWidgetPane()
+            badges(card) = [(badge.content, badge.role) for badge in search_documents(card, part -> part isa WidgetBadge)]
+            @test ("3 waiting", nothing) in badges(TaskModule._build_summary_card(projection, document))
+            wait_task_group_document(start_task_group_document!(document))
+            @test TaskModule._get_group_state_role(document, group) == ("ERROR", :error)
+            getfield(document, :status)[] = :running
+            @test TaskModule._get_group_state_role(document, group) == ("running", :accent)
+            getfield(document, :status)[] = :finished
+
+            card = TaskModule._build_summary_card(projection, document)
+            @test Set(badges(card)) == Set([("1 DONE", :success), ("2 ERROR unexpected", :error),
+                                            ("ERROR", :error), (getfield(document, :identifier)[], nothing)])
+            texts = _collect_task_view_texts(last(_print_task_view(document)).output)
+            words = [t[3] for t in texts]
+            # The card is the topmost: the table of the tasks has an `elapsed` header too.
+            at(text) = first(sort([t for t in texts if t[3] == text]; by = t -> t[2]))
+            @test "Nested test" in words && !("nested test" in words)
+            @test "the selection · 2 at a time" in words
+            @test !any(startswith("Tested"), words) && !any(occursin("tasks a minute", w) for w in words)
+            @test !any(w -> occursin("/3 unexpected", w), words)
+
+            # The time facts: two groups side by side, a row at the same height, and the values of a
+            # group in one column.
+            finished, slowest = at("finished"), at("slowest")
+            elapsed, rate = at("elapsed"), at("rate")
+            @test finished[1] < slowest[1] && finished[2] == slowest[2] && elapsed[2] == rate[2]
+            @test finished[1] == elapsed[1] && slowest[1] == rate[1] && finished[2] < elapsed[2]
+            value(label) = first(sort([t for t in texts if t[2] == label[2] && t[1] > label[1]]; by = first))
+            @test value(finished)[3] == "3 of 3" && value(finished)[1] == value(elapsed)[1]
+            @test occursin(r"^\d+ s$", value(elapsed)[3])
+            @test occursin(r"^(ok|fail|first), \d+\.\d s$", value(slowest)[3])
+            @test occursin(r"^\d+ a minute$", value(rate)[3])
+            @test !("left" in words)
+
+            # The table of reasons: the headers on one line, a row for each reason below them.
+            count, reason, tasks = at("count"), only(t for t in texts if t[3] == "reason" && t[2] == at("count")[2]),
+                                   at("tasks")
+            @test count[1] < reason[1] < tasks[1] && count[2] == reason[2] == tasks[2]
+            first_row = only(t for t in texts if t[3] == "boom")
+            @test first_row[2] > count[2] && first_row[1] == reason[1]
+            @test only(t for t in texts if t[3] == "a1")[1] == tasks[1]
+            @test only(t for t in texts if t[3] == "1" && t[2] == first_row[2])[1] <= first_row[1]
+            # The table of the tasks below says the reason of the failed task too.
+            second_row = first(sort([t for t in texts if t[3] == "Non-zero exit code: 1"]; by = t -> t[2]))
+            @test second_row[2] > first_row[2] && second_row[1] == reason[1]
+            @test only(t for t in texts if t[3] == "fail" && t[2] == second_row[2])[1] == tasks[1]
+            @test !any(startswith("+"), words)
+        end
+
+        @testset "the card lists five reasons and counts the rest" begin
+            leaves = [("l$i", "ERROR", "reason $i") for i in 1:7]
+            group = TaskGroup(AbstractTask[_TaskNestedTask("many", leaves)]; name = "many")
+            document = wrap_task_group_document(group)
+            wait_task_group_document(start_task_group_document!(document))
+            words = _collect_task_view_words(document)
+            @test all(i -> "reason $i" in words, 1:5) && !("reason 6" in words)
+            @test "+2 more reasons" in words
+            # A group whose results were all expected shows neither the table nor the line.
+            ok = wrap_task_group_document(TaskGroup(AbstractTask[_TaskGroupProbeTask("ok", "exit 0")]; name = "ok"))
+            wait_task_group_document(start_task_group_document!(ok))
+            words = _collect_task_view_words(ok)
+            @test "Ok" in words && "1 DONE" in words
+            @test !("count" in words) && !any(startswith("+"), words)
         end
 
         @testset "a row, the detail and the Tasks pane open pages" begin

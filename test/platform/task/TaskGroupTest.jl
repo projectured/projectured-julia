@@ -47,6 +47,57 @@ _make_task_group_probe_tasks(seconds = 0.3) =
                                "exit $(name == "fail" ? 1 : 0)")
      for name in ("a", "b", "fail", "c", "d")]
 
+# A kind of task whose result is made of the results of smaller tasks, as the
+# result of a fingerprint test is made of its fingerprints. A leaf is
+# `(name, code, reason)`; a name of `nothing` is a leaf with no task.
+struct _TaskNestedTask <: AbstractTask
+    name::String
+    leaves::Vector{Tuple{Union{String,Nothing},String,Union{String,Nothing}}}
+end
+TaskModule.get_result_codes(::_TaskNestedTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskNestedTask) = task.name
+
+struct _TaskNestedLeafResult <: TaskResult
+    task::Union{_TaskGroupProbeTask,Nothing}
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+end
+
+struct _TaskNestedResult <: TaskResult
+    task::_TaskNestedTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+    results::Vector{_TaskNestedLeafResult}
+end
+TaskModule.get_inner_task_results(result::_TaskNestedResult) = result.results
+
+function TaskModule.start_task(task::_TaskNestedTask; on_finish = nothing)
+    execution = TaskExecution(task)
+    finish = function (process, cancelled, elapsed)
+        leaves = [_TaskNestedLeafResult(name === nothing ? nothing : _TaskGroupProbeTask(name, ""),
+                                        code, "DONE", reason) for (name, code, reason) in task.leaves]
+        code = all(leaf -> leaf.result == "DONE", leaves) ? "DONE" : "ERROR"
+        finish_task_execution!(execution, _TaskNestedResult(task, code, "DONE", nothing, elapsed, leaves);
+                               finish = on_finish)
+    end
+    start_process_task!(execution, `sh -c "exit 0"`; finish, on_finish)
+end
+
+# Two tasks of nested results, a plain task that fails, and a group of one task
+# that fails, all with a reason that the first of them shares.
+function _make_task_nested_group()
+    first_task = _TaskNestedTask("first", [("a1", "ERROR", "boom"), ("a2", "ERROR", nothing),
+                                           ("a3", "DONE", nothing), ("a4", "ERROR", "zap"),
+                                           (nothing, "ERROR", "boom")])
+    second_task = _TaskNestedTask("second", [("b1", "ERROR", "boom"), ("b2", "ERROR", "boom")])
+    inner = TaskGroup(AbstractTask[_TaskGroupProbeTask("inner fail", "exit 1")]; name = "inner")
+    TaskGroup(AbstractTask[first_task, second_task, _TaskGroupProbeTask("fail", "exit 1"), inner];
+              name = "nested", jobs = 2)
+end
+
 function test_task_group()
     @testset "task group" begin
         @testset "the pool holds the job count" begin
@@ -241,6 +292,42 @@ function test_task_group()
             sync_document!(shadow, group)
             @test counts[].finished == 2 && reads[] == 2
             @test shadow.summary.result == "ERROR"
+        end
+
+        @testset "the unexpected leaves of the results are counted by reason, and a leaf is named by its task" begin
+            leaf = _TaskGroupProbeResult(_TaskGroupProbeTask("x", ""), "ERROR", "DONE", "bad", nothing)
+            @test get_inner_task_results(leaf) == TaskResult[]
+            group = run_task_group(_make_task_nested_group())
+            result = compute_task_group_result(group)
+            @test result isa TaskGroupResult && get_inner_task_results(result) === result.results
+            @test length(get_inner_task_results(result.results[1])) == 5
+            summary = compute_task_group_summary(group)
+            # A leaf with no task is named by the task that ended with it; a leaf that gives no
+            # reason gives its code; reasons of equal count keep the order in which they came.
+            @test summary.reasons == [("boom", 4, ["a1", "first", "b1", "b2"]),
+                                      ("Non-zero exit code: 1", 2, ["fail", "inner fail"]),
+                                      ("ERROR", 1, ["a2"]), ("zap", 1, ["a4"])]
+            # `reason` keeps the words of opp_repl, counted over the results of the tasks.
+            @test summary.reason == "4/4 unexpected: 2x ERROR, 2x Non-zero exit code: 1"
+            counts = get_task_group_counts(summary)
+            @test counts.reasons == summary.reasons
+            @test compute_task_group_summary(TaskGroup(_make_task_group_probe_tasks(0.0); jobs = 4)).reasons == []
+            @test compute_task_group_summary(run_task_group(
+                TaskGroup(AbstractTask[_TaskGroupProbeTask("ok", "exit 0")]))).reasons == []
+        end
+
+        @testset "a sync with no start and no end writes the counts no more" begin
+            group = run_task_group(_make_task_nested_group())
+            shadow = make_task_group_shadow(group)
+            before = shadow.counts
+            @test !isempty(before.reasons)
+            reads = Ref(0)
+            counts = Cell(nothing)
+            set_cell_computation!(counts, () -> (reads[] += 1; shadow.counts))
+            @test counts[].reasons == before.reasons && reads[] == 1
+            sync_document!(shadow, group)
+            sync_document!(shadow, group)
+            @test shadow.counts === before && counts[].reasons == before.reasons && reads[] == 1
         end
 
         @testset "an end that throws ends its task as an error, and the group ends" begin
