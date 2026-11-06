@@ -20,10 +20,8 @@ built with no styles holds the plain values of the default theme. The widget
 tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The basename of a file."
-    file_text::ThemeText = TextRole(:text)
+    file_text::ThemeText = TextRole(:text; font_role = :text)
     "The name of a directory."
-    directory_text::ThemeText = TextRole(:module_name; weight = 700)
+    directory_text::ThemeText = TextRole(:module_name; font_role = :text, weight = 400)
 end

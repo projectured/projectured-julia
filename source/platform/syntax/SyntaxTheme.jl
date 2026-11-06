@@ -23,49 +23,48 @@ that prints its own leaves styles them with a theme of its own.
 """
 @theme struct SyntaxTheme
     "A boolean value."
-    bool_text::ThemeText = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal; font_role = :document_code)
     "A number value."
-    number_text::ThemeText = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal; font_role = :document_code)
     "A string value."
-    string_text::ThemeText = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal; font_role = :document_code)
     "A character, in the reflected display of an object."
-    char_text::ThemeText = TextRole(:character_literal)
+    char_text::ThemeText = TextRole(:character_literal; font_role = :document_code)
     "The quotes around a string or a character."
-    quote_text::ThemeText = TextRole(:punctuation)
+    quote_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "A symbol, in the reflected display of an object."
-    symbol_text::ThemeText = TextRole(:symbol_literal)
+    symbol_text::ThemeText = TextRole(:symbol_literal; font_role = :document_code)
     "The value `nothing`, in the reflected display of an object."
-    nothing_text::ThemeText = TextRole(:null_literal)
+    nothing_text::ThemeText = TextRole(:null_literal; font_role = :document_code)
     "A boolean value, in the reflected display of an object."
-    reflected_bool_text::ThemeText = TextRole(:boolean_literal)
+    reflected_bool_text::ThemeText = TextRole(:boolean_literal; font_role = :document_code)
     "The name of the type of an object."
-    type_name_text::ThemeText = TextRole(:type_name; weight = 700)
+    type_name_text::ThemeText = TextRole(:type_name; font_role = :document_code, weight = 700)
     "The name of a field."
-    field_name_text::ThemeText = TextRole(:field)
+    field_name_text::ThemeText = TextRole(:field; font_role = :document_code)
     "The muted italic text of an undefined field, of a cycle and of an empty placeholder."
-    note_text::ThemeText = TextRole(:text_muted; italic = true)
+    note_text::ThemeText = TextRole(:text_muted; font_role = :document_code, italic = true)
     "A bracket."
-    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
     "A comma."
-    separator_text::ThemeText = TextRole(:punctuation)
+    separator_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "The prefix and the suffix, and the placeholder of an empty buffer, of the insertion."
-    label_text::ThemeText = TextRole(:text_faint)
+    label_text::ThemeText = TextRole(:text_faint; font_role = :document_code)
     "The typed text of the insertion while it names nothing yet."
-    typed_text::ThemeText = TextRole(:text)
+    typed_text::ThemeText = TextRole(:text; font_role = :document_code)
     "The continuation that a completion offers."
-    hint_text::ThemeText = TextRole(:text_faint)
+    hint_text::ThemeText = TextRole(:text_faint; font_role = :document_code)
     "The color of the typed text of the insertion while it names nothing."
     wrong_color::ThemeColor = ColorRole(:error_text)
     "The color of the typed text of the insertion while it names one thing."
     found_color::ThemeColor = ColorRole(:success_text)
     "The font of the indentation and the line breaks of a node with no delimiter of its own, such as the body of a block."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    font::ThemeFont = FontRole(:document_code)
     "A bracket and a space of a reflected object, in the font of its field names."
-    object_delimiter_text::ThemeText = TextRole(:punctuation)
+    object_delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code)
     "The ellipsis that stands in for the children of a folded node, in the size of the text around it."
-    ellipsis_text::ThemeText = TextRole(:text_muted; family = "DejaVu Sans Mono")
+    ellipsis_text::ThemeText = TextRole(:text_muted; font_role = :document_code)
     "The mark of a part whose projection failed, in place of that part."
-    fault_text::ThemeText = TextRole(:error_text; family = "DejaVu Sans Mono", weight = 700,
-                                    relative_size = 0.8)
+    fault_text::ThemeText = TextRole(:error_text; font_role = :quiet, weight = 700)
 end
 

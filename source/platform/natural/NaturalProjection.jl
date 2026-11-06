@@ -116,7 +116,7 @@ layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 
 - `font`    — base font for text that no domain styles: the line of prose of a
               placeholder, and the fallback. `nothing`, the default, is the
-              `font` of the `TextTheme` of `appearance`, which follows its scale.
+              `plain_text` font of the `TextTheme` of `appearance`, which follows its scale.
 - `appearance` — the `Appearance` of the editor. Every widget draws with its
               `WidgetTheme`, the text with its `TextTheme`, and every registered
               row takes the scaled theme of its domain from it. The default is a

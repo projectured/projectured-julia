@@ -4,14 +4,14 @@
 """
     TextTheme
 
-The font, the caret and the highlight of text in a document, the colors of a
+The caret and the highlight of text in a document, the colors of a
 boolean, a number and a string, and of a type-in that is no value yet and of its
 placeholder.
 
 The theme of the text projections. `@theme` declares it, so `ScaledTextTheme`
 holds each value times its scale, and `TextTheme()` is the default theme.
 
-The fields are the font of unstyled text, the caret, the highlight, and the
+The fields are the caret, the highlight, and the
 text styles of a boolean, a number and a string. Each field has a docstring
 that says what it draws, which the appearance tab shows under its name.
 
@@ -21,8 +21,6 @@ A text projection holds its styles and no theme; its builder gives them with
 colors and fonts as keywords: no view of the platform builds them.
 """
 @theme struct TextTheme
-    "The font of a text that no document styles, such as the line of a placeholder."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The caret of the text that holds the keyboard."
     caret::ThemeColor = ColorRole(:caret)
     "The caret of a text that keeps its place while another holds the keyboard."
@@ -40,19 +38,19 @@ colors and fonts as keywords: no view of the platform builds them.
     "The distance between the lines of prose, as a multiple of the natural line height of its font."
     prose_line_spacing::LineSpacing = MultipleSpacing(1.3)
     "A boolean that a primitive projection prints as text."
-    bool_text::ThemeText = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal; font_role = :document_code)
     "A number that a primitive projection prints as text."
-    number_text::ThemeText = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal; font_role = :document_code)
     "A string that a primitive projection prints as text."
-    string_text::ThemeText = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal; font_role = :document_code)
     "The text of a type-in that is no value yet, such as `1e` on the way to a number."
     wrong_color::ThemeColor = ColorRole(:error_text)
     "What an empty type-in shows, such as `missing` in a cell of a data frame."
-    placeholder_text::ThemeText = TextRole(:text_faint)
+    placeholder_text::ThemeText = TextRole(:text_faint; font_role = :document_code)
     "A text that no other field styles, such as the name of an empty document."
-    plain_text::ThemeText = TextRole(:text)
+    plain_text::ThemeText = TextRole(:text; font_role = :document_code)
     "The number before each line of a text with line numbers."
-    line_number_text::ThemeText = TextRole(:text_muted)
+    line_number_text::ThemeText = TextRole(:text_muted; font_role = :document_code)
     "The surface behind each match of a search in a text."
     match_highlight::ThemeColor = ColorRole(:search_match)
     "The surface of the character under a block caret, which shows inverted."
@@ -60,7 +58,6 @@ colors and fonts as keywords: no view of the platform builds them.
     "The character under a block caret, which shows inverted."
     inverted_foreground::ThemeColor = ColorRole(:background)
     "The mark of a part whose projection failed, in place of that part."
-    fault_text::ThemeText = TextRole(:error_text; family = "DejaVu Sans Mono", weight = 700,
-                                    relative_size = 0.8)
+    fault_text::ThemeText = TextRole(:error_text; font_role = :quiet, weight = 700)
 end
 
