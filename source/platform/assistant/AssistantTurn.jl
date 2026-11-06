@@ -79,6 +79,31 @@ struct CancelAssistantTurnOperation <: Operation
 end
 
 """
+    SetAssistantWakesOperation(assistant, count)
+
+Set `wakes_left` of `assistant` to `count`, at least 0: the person allows the wakes
+that a long work needs, or stops them with 0. When the count rises while no turn
+runs and the conversation ends with a note of a held wake, a turn starts with the
+note, and it takes no wake: the raise is the act of the person.
+"""
+struct SetAssistantWakesOperation <: Operation
+    assistant::Assistant
+    count::Int
+end
+
+OperationModule.is_self_contained_operation(::SetAssistantWakesOperation) = true
+
+function evaluate_operation(editor, operation::SetAssistantWakesOperation)
+    a = operation.assistant
+    before = a.wakes_left
+    a.wakes_left = max(0, operation.count)
+    a.wakes_left > before && !is_assistant_turn_running(a) || return nothing
+    turns = collect(a.conversation.turns)
+    !isempty(turns) && _is_held_wake_turn(last(turns)) && _send_user_turn!(editor, a, last(turns))
+    nothing
+end
+
+"""
     is_assistant_turn_running(assistant) -> Bool
 
 Whether a turn of `assistant` runs now, with a model or with an external agent.

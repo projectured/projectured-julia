@@ -102,6 +102,7 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
 export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
+export SetAssistantWakesOperation, make_assistant_wakes_box
 export send_go_on!, GO_ON_PROMPT, wake_assistant!, ASSISTANT_WAKE_LIMIT
 export AddDraftPictureOperation, register_picture_tools!
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,

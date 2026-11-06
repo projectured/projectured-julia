@@ -187,12 +187,21 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
         its `probe` tool to get the note with its button.
       - `_has_waiting_message` looks for the last turn that is not a held-wake note.
       - The hold reasons live in the tuple `_WAKE_HOLD_REASONS`.
-- [ ] **3. The count under the composer.** A `WidgetSpinBox` over `wakes_left` in the row of
+- [x] **3. The count under the composer.** A `WidgetSpinBox` over `wakes_left` in the row of
       `AssistantToWidget.jl`, `SetAssistantWakesOperation`, and D7. Test:
       `test_assistant_wake()`. New cases: the spin box follows the count as wakes take it; an
       edit to 70 sets 70; an edit to 0 stops the wakes; a raise with a held last note starts a
       turn and takes no wake; every assistant has the spin box. Also
       `test_external_agent_turn()` and `test_assistant_mvp()`, which read the row.
+      What the implementation found:
+      - The row shows the label "Wakes left:" and the spin box (`make_assistant_wakes_box`).
+        The split pane gets its own IO map, `AssistantToWidgetSplitPaneIoMap`, which keeps
+        the box, so the reader turns a write of that box, and no other spin box, into
+        `SetAssistantWakesOperation`. Only the split pane has the box, as it is the only view
+        with the row; the card has no row.
+      - The reader takes a typed number as a string too.
+      - `test_assistant_mvp()` (4 broken, as on main) and `test_external_agent_turn()` pass
+        with no change of their count.
 - [ ] **3a. The switch goes (D12).** Remove the field `wake` from `AssistantDocument.jl`, its
       default and its `pred_arguments` keyword, and the check of the switch in
       `wake_assistant!`. In omnet-julia, remove `wake = true` from `IdeWindow.jl` (two places)

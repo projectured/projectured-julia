@@ -63,6 +63,15 @@ AssistantToWidgetCard(; title::AbstractString = ASSISTANT_TITLE,
                                cell_height::Integer = 120) =
     AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height))
 
+# The IO map of the split pane: `wakes` is the spin box of the count of wakes, so
+# the reader turns its write into the operation that sets the count.
+@iomap struct AssistantToWidgetSplitPaneIoMap
+    projection::Any
+    input::Any
+    output::Any
+    wakes::Any
+end
+
 function print_document(projection::AssistantToWidgetSplitPane,
                            recursion, a::Assistant, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
@@ -95,7 +104,9 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # uses. The row is the last child, so the maps below, which name the first
     # two, stay as they are, and a click on it is a click on a part that the view
     # drew. The row is a slot of the height of its content.
-    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
+    wakes = make_assistant_wakes_box(a)
+    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a),
+             WidgetLabel("Wakes left:"), wakes]
     if a.backend === :acp
         push!(items, _make_assistant_work_button(a))
         # One line, cut with "…" where the row ends: a narrow pane shows its start,
@@ -108,7 +119,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     row = HorizontalLayout(items; gap = projection.button_gap)
     push!(panes, LayoutConstraint(row; height = Content))
     column = WidgetSplitPane(:vertical, panes)
-    iomap = SimpleIoMap(projection, a, column)
+    iomap = AssistantToWidgetSplitPaneIoMap(projection, a, column, wakes)
     # A key is routed by selection: the split pane sends it to the pane that the
     # assistant's selection names. The part under the pointer follows the same map.
     set_output_path_computations!(column, a, path -> map_reference_forward(projection, iomap, path);
@@ -275,6 +286,18 @@ function map_reference_backward(p::AssistantToWidgetSplitPane,
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
+# The write of the spin box of the wakes sets the count; any other operation takes
+# the way below.
+function read_intent(p::AssistantToWidgetSplitPane, iomap::AssistantToWidgetSplitPaneIoMap,
+                     op::ReplaceReferencedValueOperation)
+    count = op.document === iomap.wakes ? _parse_wake_count(op.value) : nothing
+    count === nothing ? invoke(read_intent, Tuple{AssistantToWidgetSplitPane,Any,Any}, p, iomap, op) :
+                        SetAssistantWakesOperation(iomap.input, count)
+end
+
+_parse_wake_count(value::Real) = isfinite(value) ? Int(round(value)) : nothing
+_parse_wake_count(value) = tryparse(Int, strip(string(value)))
+
 function read_intent(p::AssistantToWidgetSplitPane,
                           iomap, op)
     # The specific KeyPress / KeyDown handlers live in
@@ -365,6 +388,20 @@ end
 
 function __init__()
     register_natural_graphics!(:assistant, build_assistant_graphics_entry)
+end
+
+"""
+    make_assistant_wakes_box(assistant) -> WidgetSpinBox
+
+The spin box of the wakes that `assistant` has left, "Wakes left: [ 3 ]". It
+follows `wakes_left`; an edit makes `SetAssistantWakesOperation`, and 0 stops the
+wakes.
+"""
+function make_assistant_wakes_box(a::Assistant)
+    box = WidgetSpinBox(a.wakes_left; min = 0, width = 56,
+                        tooltip = "How many turns the assistant may start on its own, such as when a task group that it started ends. A message of yours gives at least three; 0 stops them.")
+    set_cell_computation!(getfield(box, :value), () -> a.wakes_left)
+    box
 end
 
 # ── The options of an external agent ───────────────────────────────────────

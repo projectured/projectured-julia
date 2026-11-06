@@ -234,6 +234,45 @@ function test_assistant_wake()
             @test endswith(first(_collect_wake_notes(a)).text, " Wakes left: 3.")
         end
 
+        @testset "the spin box under the composer shows and sets the count" begin
+            for backend in (:ollama, :acp)
+                a = Assistant(; backend, llm = FakeLlm("ok"))
+                projection = AssistantToWidgetSplitPane()
+                iomap = print_document(projection, nothing, a, nothing)
+                box = iomap.wakes
+                @test box isa WidgetSpinBox && box.value == 0 && box.min == 0
+                a.wakes_left = 2
+                @test box.value == 2
+                a.wakes_left -= 1
+                @test box.value == 1
+                write(value) = read_intent(projection, iomap, ReplaceReferencedValueOperation(box, "value", value))
+                operation = write(70)
+                @test operation isa SetAssistantWakesOperation && operation.count == 70
+                evaluate_operation((document = a,), operation)
+                @test a.wakes_left == 70
+                evaluate_operation((document = a,), write("0"))
+                @test a.wakes_left == 0
+            end
+        end
+
+        @testset "a raise while the last note is held starts a turn and takes no wake" begin
+            group = _make_wake_group(0)
+            start_task_group_document!(group)
+            wait_task_group_document(group)
+            a = Assistant(; llm = FakeLlm("ok"), wake = true,
+                          conversation = ConversationConversation([
+                              ConversationTurn(:user, [ConversationPart("Run it.")])]))
+            editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+            wake_assistant!(editor, a, group)
+            @test only(_collect_wake_notes(a)).kind === :wake_held && a.status === :idle
+            evaluate_operation(editor, SetAssistantWakesOperation(a, 0))
+            @test length(a.conversation.turns) == 2
+            evaluate_operation(editor, SetAssistantWakesOperation(a, 4))
+            @test timedwait(() -> length(a.conversation.turns) == 3 && a.status === :idle, 30.0;
+                            pollint = 0.01) === :ok
+            @test a.wakes_left == 4
+        end
+
         @testset "the person keeps the word" begin
             group = _make_wake_group(0)
             start_task_group_document!(group)
