@@ -180,8 +180,10 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
       What the implementation found:
       - D11 continues with a user turn "Go on." pushed after the turn (the model needs a
         user turn to answer, and `_has_waiting_message` starts the next turn with it). The
-        turn takes one wake in `_make_round_limit_note`, which now words "Wakes left: N." and
-        has no button; with 0 left the note keeps **Go on**. The continuation is not a
+        turn takes one wake in `_finish_turn!`, and `_make_round_limit_note(a, goes_on)`
+        words "Wakes left: N." with no button; with 0 left the note keeps **Go on**. The
+        note function changes no state: the review moved the take of the wake out of it,
+        because a `make_` function must not change the assistant. The continuation is not a
         message of the person, so it does not raise the count.
       - Because a message now gives 3 wakes, `test_assistant_rounds` zeroes `wakes_left` in
         its `probe` tool to get the note with its button.
