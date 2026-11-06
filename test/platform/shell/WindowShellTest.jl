@@ -404,7 +404,7 @@ end
 @testset "the status line keeps its text off the edges" begin
     measure = FontFileMeasure()
     recursion = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch))
+        WidgetToGraphics(; measure = measure).dispatch))
     bar = make_window_status_bar(PrimitiveString("x"); extra = ["ready"])
     output = print_document(recursion, nothing, bar, PrinterContext()).output
     value(v) = v isa Cell ? v[] : v

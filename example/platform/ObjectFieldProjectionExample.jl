@@ -5,8 +5,7 @@
 # asks the field for the operation that stores a new value. The labels and the
 # layout are drawn as they are.
 function make_object_field_form_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g  = WidgetToGraphics(font; measure=measure)
+    w2g  = WidgetToGraphics(; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         make_object_field_widget_dispatch(w2g.dispatch),
@@ -23,7 +22,7 @@ function make_object_field_form_chosen_widgets_projection_example(; measure=Font
     choose(field) = get_object_field_name(field) == "capacity" ? WidgetSpinBox(field; min = 1, max = 16) :
                     get_object_field_name(field) == "enabled"  ? WidgetSwitch(; checked = field) :
                     make_object_field_widget(field)
-    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         make_object_field_widget_dispatch(w2g.dispatch; make_widget = choose),

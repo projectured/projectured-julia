@@ -10,7 +10,7 @@ _scale_test_measure = FixedMeasure(8, 12, 4, 0)
 # `appearance`.
 _make_scaled_widget_projection(appearance::Appearance) =
     RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _scale_test_measure,
+        WidgetToGraphics(; measure = _scale_test_measure,
                          theme = make_scaled_theme(WidgetTheme(), appearance),
                          graphics_theme = make_scaled_theme(GraphicsTheme(), appearance)).dispatch)))
 

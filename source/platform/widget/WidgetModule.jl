@@ -80,7 +80,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme, make_widget_theme,
+       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
        WidgetSliderToGraphicsCanvasIoMap,

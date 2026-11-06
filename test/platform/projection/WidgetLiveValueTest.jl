@@ -9,7 +9,7 @@ end
 
 _print_live_widget(widget) = print_document(
     RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch)),
+        WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch)),
     nothing, widget, PrinterContext())
 
 """

@@ -162,7 +162,7 @@ end
     # A recursive projection, so a print answers the IO map of the grid.
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+        WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
     cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
     # A column that is its content and has a minimum is at least that wide,
     # in a grid with no weight as in one with a weight.
@@ -220,8 +220,9 @@ end
 @testset "a container places a new output of a child, and prints no child again" begin
     measure = FixedMeasure(8, 12, 4, 0)
     layouts = LayoutToGraphics().dispatch
-    plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 20); measure).dispatch))
-    large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 40); measure).dispatch))
+    plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure).dispatch))
+    large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure,
+        theme = make_scaled_theme(WidgetTheme(), Appearance(font_scale = 2.0))).dispatch))
     choice = _LC_Cell(:plain)
     # Every place reads the choice, and only the second child changes with it.
     function choose(reference)

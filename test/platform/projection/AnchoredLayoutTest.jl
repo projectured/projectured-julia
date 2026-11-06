@@ -32,7 +32,7 @@ _al_measure = FixedMeasure(10, 15, 5, 0)
 
 _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = _al_measure).dispatch)))
+    WidgetToGraphics(; measure = _al_measure).dispatch)))
 
 _al_label(text) = VerticalLayout(Any[WidgetLabel(text)]; gap = 0)
 
@@ -163,7 +163,7 @@ function test_anchored_layout()
         renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
             Pair{Type,Any}[VerticalLayout => _AlBoxes()],
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+            WidgetToGraphics(;
                              measure = _al_measure).dispatch)))
         output = print_document(renderer, AnchoredLayout(content, Any[note])).output
 

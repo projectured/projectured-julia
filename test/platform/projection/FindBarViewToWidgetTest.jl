@@ -25,7 +25,7 @@ end
 
 function _fb_projection()
     measure = FontFileMeasure()
-    w2g = WidgetToGraphics(_fb_font; measure)
+    w2g = WidgetToGraphics(; measure)
     stage = RecursiveProjection(TypeDispatchingProjection(HighlightedText => HighlightedTextToText(),
                                                           TextBlock => IdentityProjection()))
     RecursiveProjection(TypeDispatchingProjection(vcat(

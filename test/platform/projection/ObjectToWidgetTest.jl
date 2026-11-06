@@ -161,7 +161,7 @@ end # @testset
 @testset "a plain value that a document holds opens with is_record and edits through a copy" begin
 
     holder = OtwPlainHolder("gateway", OtwPlainWindow("Main", 800), nothing)
-    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure())
+    w2g = WidgetToGraphics(; measure = FontFileMeasure())
     projection = ChainingProjection(
         ObjectToWidget(; is_record = value -> value isa OtwPlainWindow || is_form_record(value)),
         RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -180,8 +180,7 @@ end # @testset
 @testset "WidgetCheckbox click emits the toggle convention operation" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g  = WidgetToGraphics(font; measure=stub)
+    w2g  = WidgetToGraphics(; measure=stub)
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
 
     cb = WidgetCheckbox(false)
@@ -274,7 +273,7 @@ end # @testset
     # The card's own IO map, not the example chain's: the fold is asserted on the
     # card's child entries.
     proj = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+        WidgetToGraphics(;
                          measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     button = WidgetButton("Go"; size = Point2D(120, 40))
     card = WidgetCard(; title="t", content=button, width=240)

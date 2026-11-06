@@ -340,7 +340,7 @@ function test_document_tree()
         # The chain of a window: each widget behind a fault barrier, as
         # `make_graphics_projection(DocumentTree)` builds it.
         widgets = RecursiveProjection(FaultCatchingProjection(
-            inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)),
+            inner = WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)),
             substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
         chain = ChainingProjection(projection, widgets)
         context = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(200)))

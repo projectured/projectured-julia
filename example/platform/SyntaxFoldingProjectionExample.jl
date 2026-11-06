@@ -10,5 +10,5 @@ function make_syntax_folding_projection_example(; measure = FontFileMeasure())
             TextBlock => TextToGraphics(; measure),
             TextGutter => TextGutterToGraphics(),
             GraphicsCanvas => GraphicsToGraphics()],
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure).dispatch)))
+        WidgetToGraphics(; measure).dispatch)))
 end

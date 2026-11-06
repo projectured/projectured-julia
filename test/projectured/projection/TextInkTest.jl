@@ -36,7 +36,7 @@ function test_text_ink_inside_viewports()
 
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch)))
+        WidgetToGraphics(; measure = measure).dispatch)))
     print_widget(widget; width = 600) =
         print_document(widgets, nothing, widget,
                        with_exact_size(PrinterContext(); width = Cell(Int32(width)))).output

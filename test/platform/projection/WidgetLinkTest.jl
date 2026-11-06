@@ -49,13 +49,12 @@ end
 function test_widget_link()
 @testset "WidgetLink" begin
 
-font = StyleFont("Ubuntu Mono", 20)
 measure = FixedMeasure(10, 18, 6, 0)
-link_color = WidgetLinkToGraphicsCanvas(make_widget_theme(font = font); measure).link_text.color
+link_color = WidgetLinkToGraphicsCanvas(WidgetTheme(); measure).link_text.color
 
 make_projection() = ChainingProjection(
     FocusCyclingProjection(inner =
-        RecursiveProjection(TypeDispatchingProjection(WidgetToGraphics(font; measure).dispatch))))
+        RecursiveProjection(TypeDispatchingProjection(WidgetToGraphics(; measure).dispatch))))
 
 # The elements that a canvas draws, through the canvases inside it.
 function collect_elements(canvas)

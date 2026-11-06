@@ -93,7 +93,7 @@ builder fills them from a theme, scaled or not.
     "The knob of a switch and of a slider."
     knob::ThemeColor = ColorRole(:text_on_accent)
     # ── Fonts ──
-    "The font of the text of a widget: a control, a row, a cell. It is an exact font where a builder passes one."
+    "The font of the text of a widget: a control, a row, a cell."
     font::ThemeFont = FontRole(:text)
     "The font of the name of a field of a form: the name of a setting, of a scale, of a field of a theme."
     label_font::ThemeFont = FontRole(:label)
@@ -247,20 +247,6 @@ builder fills them from a theme, scaled or not.
     "The smallest size of the + and − marks of a spin box."
     stepper_glyph_minimum::IconSize = IconSize(8)
 end
-
-# ── The theme with a font ───────────────────────────────────────────────────
-
-"""
-    make_widget_theme(; font = nothing) -> WidgetTheme
-
-The default widget theme. With a `font`, the `font` field of the theme, the text of
-a control, a row and a cell, is that exact [`StyleFont`](@ref); every other font
-of the theme is a role of the font theme of the appearance. Its colours are roles
-of the colour theme, so the colour settings of the appearance choose the palette,
-the mode and the contrast.
-"""
-make_widget_theme(; font::Union{Nothing,StyleFont} = nothing) =
-    font === nothing ? WidgetTheme() : WidgetTheme(; font)
 
 # ── Values that a widget derives from a theme ───────────────────────────────
 

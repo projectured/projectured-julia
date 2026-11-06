@@ -32,7 +32,7 @@ make_object_to_widget_plain_record_projection_example(; measure=FontFileMeasure(
 # LayoutToGraphics, and the widgets and their fields to the rows of
 # `make_object_field_widget_dispatch`.
 function _make_object_form_chain(stage; measure)
-    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     ChainingProjection(
         stage,
         RecursiveProjection(TypeDispatchingProjection(vcat(

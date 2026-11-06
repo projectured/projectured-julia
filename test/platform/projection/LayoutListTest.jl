@@ -20,7 +20,7 @@ function test_layout_list()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+    WidgetToGraphics(; measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 alt = ModifierKeys(alt = true)
 
@@ -230,7 +230,7 @@ label_rows(count) = [Any[WidgetLabel("r$(i) c$(c)") for c in 1:3] for i in 1:cou
 # the place, so a test reads the path of a cell.
 barred = RecursiveProjection(FaultCatchingProjection(inner = TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch))))
+    WidgetToGraphics(; measure = det).dispatch))))
 # The IO map of the cell in column 1 of row `k`, and the count in its path.
 first_cell(grid_io, k) = find_grid_list_row(grid_io, k)[2][1][3]
 path_count(cim) = get_reference_steps(strip_reference_types(cim.context.reference[]))[end - 1].stop

@@ -15,7 +15,7 @@ function test_widget_tree()
 
 # Deterministic measure ⇒ row_height = 16 + 2*2 = 20, indent 12, chevron column 16.
 _det = FixedMeasure(8, 12, 4, 0)
-_w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
+_w2g = WidgetToGraphics(; measure = _det)
 _treeproj = nothing
 for (T, pr) in _w2g.dispatch
     T === WidgetTree && (_treeproj = pr)
@@ -461,7 +461,7 @@ end
     # Through the fault barriers of a window, a wheel turn writes the rows of the
     # view, and a far scroll moves the head of a lazy list of rows.
     barrier = RecursiveProjection(FaultCatchingProjection(
-        inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det),
+        inner = WidgetToGraphics(; measure = _det),
         substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
     items = make_index_list(10_000_000, 1, k -> "Run $k")
     deep = WidgetTree(Any[WidgetTreeNode("", "Sweep", items; has_children = () -> true)];

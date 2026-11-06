@@ -25,7 +25,7 @@ function test_outline()
         outline = make_outline_values_field(nothing, nothing)
         measure = FixedMeasure(8, 12, 4, 0)
         projection = RecursiveProjection(TypeDispatchingProjection(
-            WidgetToGraphics(StyleFont("Ubuntu", 14); measure).dispatch))
+            WidgetToGraphics(; measure).dispatch))
         menu = make_outline_control(outline, :ellipsis, "The menu of Q1", () -> nothing)
         row = make_outline_row(outline; facts = make_outline_facts(outline, [Any[make_outline_label(outline, "Q1", :id_text)]]),
                                body = make_outline_label(outline, "Which capacity?", :text), menu,

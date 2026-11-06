@@ -216,23 +216,22 @@ function _make_map_row!(slots, embedded, outline, item::ResearchItem, study, pre
 end
 
 """
-    make_research_map_projection(; measure, theme = nothing, outline_theme = nothing,
-                                 widget_theme = nothing, engine = make_deferred_layout_engine()) -> Projection
+    make_research_map_projection(; measure, outline_theme = nothing, widget_theme = nothing,
+                                 engine = make_deferred_layout_engine()) -> Projection
 
 The projection that draws a `ResearchMap`: `ResearchMapToGraph` with the values of
 the `OutlineTheme` `outline_theme` and the `WidgetTheme` `widget_theme`, then the stages of the Graph domain with the
 layout `engine`, which draw the row of each vertex and the label of each edge
-through the layout and widget projections with the font of the `ResearchTheme`
-`theme`, so a vertex needs no other row of the renderer. The edges are curves, and
-the map is in a scroll pane of its own, which scrolls a map that is larger than
-the room that its host gives it.
+through the layout and widget projections with `widget_theme`, or the default
+widget theme for `nothing`, so a vertex needs no other row of the renderer. The
+edges are curves, and the map is in a scroll pane of its own, which scrolls a map
+that is larger than the room that its host gives it.
 """
-function make_research_map_projection(; measure, theme = nothing, outline_theme = nothing,
-                                      widget_theme = nothing, engine = make_deferred_layout_engine())
-    get_style(name) = get_research_style(theme, name)
+function make_research_map_projection(; measure, outline_theme = nothing, widget_theme = nothing,
+                                      engine = make_deferred_layout_engine())
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(unwrap_cell(get_style(:font)); measure).dispatch)))
+        WidgetToGraphics(; measure, theme = something(widget_theme, WidgetTheme())).dispatch)))
     stages = ChainingProjection(GraphGraphToGraphLayout(engine),
                                 GraphLayoutToGraphicsCanvas(edge_shape = :curved))
     ChainingProjection(ResearchMapToGraph(; outline = make_outline_values_field(outline_theme, widget_theme)),

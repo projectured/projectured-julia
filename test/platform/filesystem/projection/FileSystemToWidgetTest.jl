@@ -37,7 +37,7 @@ end
         folder = read_filesystem_folder!(make_filesystem_pathname(dir); depth = typemax(Int))
         tree = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         @test tree.expanded == Set([[1]])
-        widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
+        widgets = WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
         iomap = print_document(tree_projection, tree)
         @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]

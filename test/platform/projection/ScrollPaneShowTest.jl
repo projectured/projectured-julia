@@ -2,7 +2,7 @@
 # identity, selects it, and scrolls the least that brings it into view.
 
 _scroll_show_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
 
 # Every operation of type `T` that `operation` holds, inside compounds and wrappers.
 function _find_shown_members(operation, T)

@@ -14,8 +14,6 @@ and `ResearchTheme()` is the default theme. The builder gives each projection of
 the outline its styles with `get_research_style`, from a theme scaled or not.
 """
 @theme struct ResearchTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::ThemeFont = FontRole(:text)
     "The id of an item, and the title of a section of the outline."
     heading_text::ThemeText = TextRole(:heading; font_role = :strong_text)
     "The name of a link, the name of a field, and the time of an item."

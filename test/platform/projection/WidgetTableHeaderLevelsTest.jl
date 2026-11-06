@@ -12,7 +12,7 @@ function test_widget_table_header_levels()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+    WidgetToGraphics(; measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(300)))
 mods = ModifierKeys()
 

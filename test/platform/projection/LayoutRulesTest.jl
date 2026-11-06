@@ -19,7 +19,7 @@
 # instead of a sample, and a guard fails for a type that has neither.
 
 _rules_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
 
 _rules_cell(value) = value === nothing ? nothing : Cell(Int32(value))
 

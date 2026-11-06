@@ -15,7 +15,7 @@ function test_widget_table()
 @testset "WidgetTable hover" begin
 
 _det = FixedMeasure(8, 12, 4, 0)
-_w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
+_w2g = WidgetToGraphics(; measure = _det)
 # A recursive dispatcher so the table's cell content is recursed (and so a nested
 # layout/tab/shell dispatches too), and reads reach the table's readers.
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
@@ -138,7 +138,7 @@ function test_widget_table_fills_offer()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     table = WidgetTable(Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
                         columns = Any[WidgetTableColumn(; policy = Fill), WidgetTableColumn(; policy = Fixed(80))])
     for width in (400, 600)
@@ -161,7 +161,7 @@ function test_widget_table_content_floor()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     long = "a cell that is wider than the header"
     table = WidgetTable(Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
@@ -185,7 +185,7 @@ end
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     # The header of the first column is wider than its cell, and the cell of
     # the second wider than its header. The header row and the cells are two
     # grids, and the cells take the width of the header as a floor.
@@ -207,7 +207,7 @@ function test_shell_offers_only_its_size()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     pane() = WidgetScrollPane(WidgetLabel("a label"); size = Point2D(0, 0))
     function viewport_of(shell; offered = true)
         ctx = offered ?
@@ -242,7 +242,7 @@ function test_scroll_pane_axis_size()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     # A label and not a table: a table freezes its header, and a pane over it
     # draws one viewport for each region.
     content() = WidgetLabel("a label")
@@ -280,7 +280,7 @@ function test_widget_table_column_align()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     ctx = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
     # The left edge of the first text a canvas drew with each content.
     function lefts(node, ox = 0, found = Dict{String,Int}())
@@ -334,7 +334,7 @@ function test_widget_table_cell_policy()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     long = "a value that is far too wide for eighty pixels"
     # The header names are chosen so that neither is a piece of the long cell.
     make(cell_policies = Any[nothing, nothing]; kw...) =
@@ -385,7 +385,7 @@ function test_widget_table_cell_policy()
         @test op.path.tail.tail isa EmptyReference
     end
     @testset "the padding around a cell is the theme's, one token per axis" begin
-        scaled = make_scaled_theme(make_widget_theme(font = StyleFont("Ubuntu", 20)))
+        scaled = make_scaled_theme(WidgetTheme())
         geometry = clipped.geometry
         @test geometry.pad_x == scaled.control_padding.left[]
         @test geometry.pad_y == scaled.control_padding.top[]
@@ -400,7 +400,7 @@ function test_frozen_table_headers()
 @testset "a table's header strips do not scroll" begin
 
 _det = FixedMeasure(8, 12, 4, 0)
-_w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
+_w2g = WidgetToGraphics(; measure = _det)
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
 
 # Both strips: three columns named, and an ordinal beside each of six rows.

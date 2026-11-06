@@ -14,7 +14,7 @@ end
 # The assistant alone, its transcript and its draft each through its chain of
 # widgets to graphics.
 function _make_draft_press_projection(; measure = FontFileMeasure())
-    widget_graphics = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure)
+    widget_graphics = WidgetToGraphics(; measure)
     rows = RecursiveProjection(TypeDispatchingProjection(vcat(widget_graphics.dispatch,
         Pair{Type,Any}[make_conversation_draft_row(; measure), make_conversation_row(; measure)])))
     ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()), rows)

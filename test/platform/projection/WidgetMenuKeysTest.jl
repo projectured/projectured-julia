@@ -34,7 +34,7 @@ function test_widget_menu_keys()
 @testset "a menu that the keys drive" begin
     measure = FixedMeasure(8, 12, 4, 0)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure).dispatch))
+        WidgetToGraphics(; measure).dispatch))
     key(name) = KeyDown(name, ModifierKeys(); time = 0.0)
     make_menu() = WidgetMenu(Any[WidgetMenuItem("Accept"; operation = DoNothingOperation()),
                                  WidgetMenuItem("Reject"; enabled = false),

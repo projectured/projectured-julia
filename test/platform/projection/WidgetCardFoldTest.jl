@@ -5,12 +5,11 @@
 # draws with it. A card takes a plain left click on its own area. A WidgetAccordion
 # opens and closes an item from its header.
 
-_fold_font = StyleFont("Ubuntu Mono", 20)
 _fold_stub = FixedMeasure(10, 18, 6, 0)
 # The padding of a card in the default theme: a click at `_fold_pad + 16` is on the title row.
 _fold_pad = get_theme_defaults(WidgetTheme).container_padding
 _fold_proj() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(_fold_font; measure=_fold_stub).dispatch))
+    WidgetToGraphics(; measure=_fold_stub).dispatch))
 
 # The text of every GraphicsText under a canvas, the fold mark's glyph among them.
 function _fold_texts(canvas, texts = String[])
@@ -51,12 +50,12 @@ _fold_title_x(iomap) = getfield(iomap, :child_iomaps)[][1][1]
 # A dispatch that prints a `PrimitiveString` as the editor's does: through the text
 # domain, so a title that is a `PrimitiveString` has a printer to draw it.
 _title_proj() = RecursiveProjection(TypeDispatchingProjection(vcat(
-    WidgetToGraphics(_fold_font; measure = _fold_stub).dispatch,
+    WidgetToGraphics(; measure = _fold_stub).dispatch,
     Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(),
                                                            TextToGraphics(; measure = _fold_stub))])))
 
 # The card printer of the dispatch, whose `title_text` and `row_selected_color` a title draws with.
-_title_printer() = WidgetCardToGraphicsCanvas(make_widget_theme(font = _fold_font); measure = _fold_stub)
+_title_printer() = WidgetCardToGraphicsCanvas(WidgetTheme(); measure = _fold_stub)
 
 # The font of the first text `text` under a canvas, or `nothing`.
 function _find_text_font(canvas, text)
@@ -202,7 +201,7 @@ function test_widget_card_fold()
                                      ("Plain title", "the plain body")]; expanded = 1)
         proj = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(_fold_font; measure = _fold_stub).dispatch)))
+            WidgetToGraphics(; measure = _fold_stub).dispatch)))
         iomap = print_document(proj, proj, accordion, PrinterContext())
         texts = _fold_texts(iomap.output)
         # Each document draws its own text, and no document is drawn as its string.

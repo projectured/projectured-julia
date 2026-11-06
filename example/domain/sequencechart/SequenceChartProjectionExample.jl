@@ -44,8 +44,7 @@ make_sequencechart_pair_projection_example(; measure=FontFileMeasure()) =
 # lane's own cells. Two projections over one document, which is what makes a
 # chart's properties editable without a bespoke property editor.
 function make_sequencechart_inspector_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g = WidgetToGraphics(font; measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     form = ChainingProjection(
         ObjectToWidget(fields=[:label, :visible]),
         RecursiveProjection(TypeDispatchingProjection(vcat(

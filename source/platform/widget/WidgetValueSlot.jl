@@ -94,7 +94,7 @@ const _VALUE_WIDGET_TYPES = (WidgetCheckbox, WidgetSwitch, WidgetToggle, WidgetS
 
 A table for a form whose fields are `ObjectField`s: the row of a bare field,
 `ObjectField => ObjectFieldToWidget(; make_widget)`, then the rows of `dispatch`,
-a table of widget projections such as `WidgetToGraphics(font).dispatch`, with the
+a table of widget projections such as `WidgetToGraphics(; measure).dispatch`, with the
 row of each value widget nested so that a document in its value slot prints
 through `ObjectFieldToValue`:
 
@@ -111,7 +111,7 @@ in its slot, and only the nesting keeps that slot from making a widget again.
 
     RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        make_object_field_widget_dispatch(WidgetToGraphics(font).dispatch),
+        make_object_field_widget_dispatch(WidgetToGraphics(; measure).dispatch),
         Pair{Type,Any}[TextBlock => TextToGraphics()])))
 """
 make_object_field_widget_dispatch(dispatch; make_widget = make_object_field_widget) =

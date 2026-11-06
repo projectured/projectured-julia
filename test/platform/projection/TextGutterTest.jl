@@ -30,7 +30,7 @@ _gt_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
         TextGutter => TextGutterToGraphics(),
         PrimitiveNumber => ChainingProjection(PrimitiveNumberToText(), TextToGraphics(; measure = _gt_measure())),
         GraphicsCanvas => GraphicsToGraphics()],
-    WidgetToGraphics(_GT_SMALL; measure = _gt_measure()).dispatch)))
+    WidgetToGraphics(; measure = _gt_measure()).dispatch)))
 
 # A marker: a canvas of 10 by 10, filled.
 _gt_marker() = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(10)), Cell(Int32(10)),

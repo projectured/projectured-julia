@@ -4,11 +4,10 @@
 # Every press lands on a coordinate found in the drawn tree, by the text a
 # widget draws, and every assertion names the node the selection resolves to.
 
-_selection_font = StyleFont("Ubuntu Mono", 20)
 _selection_measure = FixedMeasure(10, 18, 6, 0)
 _selection_projection() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(_selection_font; measure = _selection_measure).dispatch)))
+    WidgetToGraphics(; measure = _selection_measure).dispatch)))
 
 const _ALT = ModifierKeys(alt = true)
 

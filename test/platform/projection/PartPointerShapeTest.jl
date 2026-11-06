@@ -89,7 +89,7 @@ function test_part_pointer_shape()
     @testset "the edge of a column is a double arrow where a press starts its drag" begin
         tables = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+            WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
         context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
         rows = _make_pointer_part_list([make_widget_table_row(Any["row $(i)", string(i)]) for i in 1:5])
         vector_columns = WidgetTable(; column_headers = Any["name", "value"], cells = rows,

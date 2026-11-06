@@ -12,7 +12,7 @@
 # go to the row drawn at the end.
 
 _scroll_pane_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+    WidgetToGraphics(;
                      measure = FontFileMeasure()).dispatch))
 
 _scroll_pane_list() =

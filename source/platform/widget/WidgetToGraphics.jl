@@ -14038,8 +14038,6 @@ end
 
 """
     WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing, text_theme = nothing)
-    WidgetToGraphics(font; measure, theme = make_widget_theme(font = font),
-                     graphics_theme = nothing, text_theme = nothing)
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is used for all
@@ -14048,10 +14046,9 @@ text sizing. `theme` is a [`WidgetTheme`](@ref) and `graphics_theme` a
 theme. Every widget printer holds the styles that it reads from them, and none
 holds a theme. A builder of an editor passes the scaled themes of its
 `Appearance`, so every widget of the editor follows its scales; an interface with
-no scales passes a theme as it is. A projection built on its own can pass a `font`,
-which sets the `font` field of the default theme to that exact [`StyleFont`](@ref), the
-text of a control, a row and a cell; every other font of the theme is a role of the
-font theme of the default appearance.
+no scales passes a theme as it is. The fonts of the widgets come only from the
+theme: each is a role of the font theme of the appearance, so a projection that
+needs larger text scales the fonts of its appearance.
 
 `text_theme` is a [`TextTheme`](@ref), scaled or not, whose caret and band the text of
 a widget draws with; `nothing` takes the default text theme.
@@ -14062,10 +14059,6 @@ nests the printer of the view over a word wrapping and a text printer of
 `text_theme`. No document of an editor is a `TextView`, so the rule takes no document
 from the table that holds the dispatch.
 """
-WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                 theme = make_widget_theme(font = font), graphics_theme = nothing, text_theme = nothing) =
-    WidgetToGraphics(; measure, theme, graphics_theme, text_theme)
-
 function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing,
                           text_theme = nothing)
     widgets = TypeDispatchingProjection(

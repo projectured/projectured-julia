@@ -31,7 +31,7 @@ does not show read no clock.
 function test_split_pane_band()
 @testset "the band of a splitter" begin
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     clock = Clock()
     set_time!(seconds) = ProjecturedKernel.ClockModule.set_clock_time!(clock, seconds)
     offer = ProjecturedKernel.ProjectionModule.with_clock(PrinterContext(), clock)

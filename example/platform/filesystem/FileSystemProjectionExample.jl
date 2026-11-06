@@ -17,9 +17,8 @@ end
 # shows the tree alone, with no pane tree to open a file in, so Return and a double
 # click on a file open nothing.
 function make_filesystem_widget_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
     ChainingProjection(
         RecursiveProjection(FileSystemToWidget(; open_file = nothing)),
-        RecursiveProjection(WidgetToGraphics(font; measure=measure)),
+        RecursiveProjection(WidgetToGraphics(; measure=measure)),
     )
 end

@@ -37,7 +37,7 @@ function test_widget_shell_layout()
     det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     offer(w, h) = with_exact_size(PrinterContext();
                                   width = Cell(Int32(w)), height = Cell(Int32(h)))
     shell() = WidgetShell(WidgetScrollPane(WidgetLabel("body");
@@ -100,7 +100,7 @@ function test_widget_shell_pointer()
     det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     offer(w, h) = with_exact_size(PrinterContext();
                                   width = Cell(Int32(w)), height = Cell(Int32(h)))
     # A menu bar and a toolbar above the content, so the content's frame starts

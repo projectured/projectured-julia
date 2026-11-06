@@ -19,7 +19,7 @@ _slot_settings() = SlotSettings("gateway", 4, 0.5, true, :b, nothing)
 # `ObjectFieldToValue`, in an undo buffer.
 function _slot_projection()
     measure = FontFileMeasure()
-    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure)
+    w2g = WidgetToGraphics(; measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         Pair{Type,Any}[UndoBuffer => UndoBufferToAnyProjection()],
         LayoutToGraphics().dispatch,

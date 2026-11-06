@@ -13,8 +13,7 @@ the widget tree (and the part-content documents it embeds — text, Julia, JSON,
 XML) to graphics.
 """
 function make_assistant_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g  = WidgetToGraphics(font; measure=measure)
+    w2g  = WidgetToGraphics(; measure=measure)
     # Route the conversation history and the draft through their widget chains.
     # `ConversationDraft` precedes `ConversationDocument` (its subtype).
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(

@@ -39,8 +39,7 @@ end
 # back to the series' own cells. Two projections over one document — which is
 # what makes a chart property editable without a bespoke property editor.
 function make_chart_inspector_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g = WidgetToGraphics(font; measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     # Named fields, not reflection over everything: the data columns are not
     # properties, and a form with one row per sample would be both useless and,
     # at a million samples, unusable.
