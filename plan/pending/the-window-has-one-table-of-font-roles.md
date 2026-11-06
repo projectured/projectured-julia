@@ -161,7 +161,8 @@ gets the new value; the commit names each one.
   header row, `column`, which it does not have now. Tests: the widget suite of
   the platform, and `test_dataframes()`, because a change of the widget layout
   broke data frame edits before.
-- [ ] **Step 4. The tool panels.** The themes of the tooltip, help, message log,
+- [x] **Step 4. The tool panels.** (Done: 294834aeb, b3a7d3fef, 05cd9cf19,
+  6ffa040ba and the review commit; facts in section 5.) The themes of the tooltip, help, message log,
   faults, statistics, undo, gesture log, gesture map, inspector, outline,
   conversation, MCP log, explorer, terminal, reference, text, syntax, graphics,
   settings and task panes name roles. DejaVu Sans, DejaVu Sans Mono and Liberation
@@ -282,6 +283,52 @@ gets the new value; the commit names each one.
   or `StyleFont("Ubuntu Mono", 20)`. That font now sets only the `font` field,
   so such a projection draws a control at 20 px, a card title at 16, the selected
   tab at 13 and a badge at 12. The owner decides what a passed font means.
+- **2026-11-06, step 4.** The form of the exception of D4 in section 3,
+  `StyleText(StyleFont(…), ColorRole(…))`, does not build: a `StyleText` holds a
+  fixed colour. So a `TextRole` holds a `ThemeFont`, a font role or an exact font,
+  as it holds a colour role or a fixed colour: `TextRole(:warning_text; font = StyleFont("Lucide", 13))`.
+  The scaled theme scales the exact font once. The appearance file saves it with
+  its colour role and loads it back; the appearance tab shows the controls of an
+  exact font for it. The exact fonts of step 4: the marks of the tooltip (Lucide
+  13), the role icons of the conversation (Lucide 14), and the type name of a help
+  page (Ubuntu Mono 20 bold, because Ubuntu Mono has no medium face).
+- **2026-11-06, step 4.** No code read the base `font` of 15 tool themes once
+  their texts named roles, so it left the tooltip, undo, statistics, fault, log,
+  gesture log, gesture map, help, MCP log, conversation, outline, explorer,
+  terminal, text and graphics themes. The inspector (`code`), reference and
+  syntax (`document_code`) themes keep it, and the conversation keeps
+  `code_font` (`code`), because printers read them. No caller set a removed field.
+- **2026-11-06, step 4.** Each colour stays as it was, except the headers of the
+  statistics, of the gesture map and of the MCP log, which take `text_muted` as
+  the roles `column` and `section` say. The outline row is 13 regular, and a
+  section label of the outline keeps the case it was written in. The help theme
+  has no field for the field names of a type, so nothing takes `code` there.
+- **2026-11-06, step 4.** `UNSTYLED_TEXT_FONT` stays. A `TextString` made with no
+  font stores that font in the document, and the printer draws each span with the
+  font that the span holds. To draw it with a role, a font would have to reach the
+  printer by a new channel, which this plan does not make.
+- **2026-11-06, step 4.** More builders take an exact font, which the open
+  question above also covers: `ReferenceInspectorToText(font)` (1 caller),
+  `ReferenceToText(font)` (3), `ReferenceToHumanReadableText(font)` (2),
+  `SelectionInspectorToText(font)` (0), `SyntaxCompoundToText(decoration_font)` (2),
+  `ConversationComposerToWidget(code_font)` (4).
+- **2026-11-06, step 4, counts.** Before → after on the branch: `test_font_theme`
+  70 → 84, `test_appearance_tab` 156 → 159, `test_help` 97 → 96 (three
+  assertions became two). The same counts: `test_theme` 86, `test_appearance_file`
+  22, `test_settings` 107, `test_tool_themes` 113, `test_outline` 26,
+  `test_help_themes` 81, `test_text_and_syntax_themes` 21, `test_tooltip` 57,
+  `test_tooltip_note` 44, `test_undo` 130, `test_fault` 118, `test_filesystem` 142,
+  `test_explorer` 313, `test_terminal` 53, `test_text_folding` 20,
+  `test_text_gutter` 47, `test_builder_appearance` 7; `test_conversation` and
+  `test_mcp_log_pane` keep the failures of `main`. Changed assertions:
+  `ToolThemeTest.jl` compares each field with the size of the default theme, not
+  with one base size; `AppearanceTabTest.jl` 273 to 330 checks the role controls
+  and a text role with an exact font; `OutlineTest.jl` 14 and 15;
+  `ConversationThemeTest.jl` (kind 13/500, section 12, error 12/700, prompt and
+  `code_font` 13 mono); `HelpTreeTest.jl` 81 and `HelpPageTest.jl` 112 read
+  `heading_text`. In the review: `test_json` 245 on `main` and on the branch,
+  because a code domain draws through the text and syntax themes;
+  `test_platform_examples` 203763 → 203772 with no failure.
 
 ## 6. Not in this plan
 
