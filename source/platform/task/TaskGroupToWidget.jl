@@ -881,12 +881,14 @@ get_document_decoration(group::ClosedTaskGroup) =
 # ── The pane ─────────────────────────────────────────────────────────────────
 
 # The card of a group, and below it its table above the detail of the task that
-# a person picked, in a split a person can drag. While `is_detail_alone` is set, the
-# place of the split holds the document of the kind of the selected task and
-# nothing else, or the detail alone when the task has no such document.
+# a person picked, in a split a person can drag. The table takes its rows up to
+# half of the split, and the detail takes the rest, so a group of a few tasks
+# gives the detail the height that its rows leave. While `is_detail_alone` is
+# set, the place of the split holds the document of the kind of the selected task
+# and nothing else, or the detail alone when the task has no such document.
 function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
     card = _build_summary_card(p, doc; actions)
-    table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Fill)
+    table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Content, weight_height = 1.0)
     detail = _build_detail(p, doc, bounded)
     split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
     place = LayoutConstraint(split; width = Fill, height = Fill)

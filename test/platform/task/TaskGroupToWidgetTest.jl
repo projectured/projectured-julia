@@ -424,6 +424,12 @@ function test_task_views()
             # In a tall window everything shows: the buttons, the table, the output.
             tall = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
             @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout · empty") < 1200
+            # The table of one task takes its row, and the detail starts under it:
+            # the header line of the detail is less than 100 px below the state
+            # word of the row.
+            header_y = find_y(tall, "delta")
+            row_y = maximum(t[2] for t in tall if t[3] == "DONE" && t[2] < header_y)
+            @test 0 < header_y - row_y < 100
             # At 900 the output word is still in the window.
             medium = _collect_task_view_texts(last(_print_task_view(document; height = 900)).output)
             @test find_y(medium, "stdout · empty") < 900
