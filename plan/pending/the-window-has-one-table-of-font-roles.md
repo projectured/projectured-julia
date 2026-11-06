@@ -380,6 +380,24 @@ gets the new value; the commit names each one.
   faces of the default theme; `PivotGroupViewTest.jl` 18, 40 and
   `PivotTotalsTest.jl` 34, 35 pass the projection to the helpers; `ThemeTest.jl`
   and `FontThemeTest.jl` test the new form only.
+- **2026-11-06, step 6, the screens.** One script draws 17 parts on `main` and
+  on the branch with the default appearance, through the application window and
+  `write_window_picture`, and names no font
+  (`scratchpad/screens/draw.jl` of the session). The page has them side by side,
+  version 4. The parts of omnet-julia wait for step 8.
+- **2026-11-06, step 6, faults that the screens showed.** The message log lined
+  up its messages with spaces, which needs a monospaced level: the level is in
+  `code` at 700, not `badge` (3bd5c31c6); the text of the editor has no column
+  of a fixed width. The frame statistics drew its section titles in the style of
+  its table headers: it has `section_text` (`section`) and `count_text`
+  (`quiet`) (34cf3ce1d). The gesture map never drew a key in its own style: a
+  row is two leaves now, the key in `label` and the accent colour (d770d5d59).
+- **2026-11-06, open, found in step 6.** A card prints a title that is a
+  document as a child, so a `WidgetLabel` title draws in its own style, 13
+  regular, and only a string title takes `title`. Ten cards have a label title
+  (appearance tab, settings tab, task, assistant work, embed card, find bar,
+  object view); most are built as documents, with no theme at hand. The printer
+  context carries no text style to a child. The owner decides.
 
 ## 6. Not in this plan
 
