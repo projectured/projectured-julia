@@ -10,7 +10,13 @@
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
 > step 2 for steps 5 and 6 · **Order:** the owner moved step 5 forward on 2026-11-06 ("Yes"): it
 > runs after G4 steps 1 to 3 land and before G4 step 4, which needs `open_file_page!`. Step 6
-> keeps its place after the layout plan · **Stands on:**
+> keeps its place after the layout plan · **G4 D10:** on 2026-11-06 the owner decided in G4 that
+> the file document watches its file and keeps the hash and the band, and that `FilePage` goes away
+> (G4 D10 to D13, G4 step 1b). Below, "the page of a file" reads "the file document", and a view of
+> it is a `FileView`. G4 step 1b removes `find_held_file(page::FilePage)` of step 3 here, and the
+> view of a file answers `find_held_file` with its file. Step 5 adds `open_file_document!(path;
+> editor)` in place of `open_file_page!`, and it makes a file document that reads nothing. The text
+> of steps 5 and 6 is revised to these names before step 5 starts · **Stands on:**
 > [serialization.md](../../documentation/package/platform/serialization/serialization.md),
 > [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
