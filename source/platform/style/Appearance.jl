@@ -158,18 +158,14 @@ scale_theme_value(length::IconSize, appearance::Appearance) =
     scale_theme_value(value, theme, appearance)
 
 `value` of a field of `theme` times the scale of its kind in `appearance`. A
-[`FontRole`](@ref) that has a base takes the font that it gives over its base font in
-`theme`, and then the font scale; one that names a role takes the font that
-[`resolve_font_role`](@ref) gives, scaled once; a [`TextRole`](@ref) does the same for its font, and takes the
+[`FontRole`](@ref) takes the font that [`resolve_font_role`](@ref) gives, scaled once; a
+[`TextRole`](@ref) does the same for its font, and takes the
 colour that [`resolve_theme_color`](@ref) gives its colour. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
-says. The scaled theme reads the base font or the font theme, so a role follows a
-change of either.
+says. The scaled theme reads the font theme, so a role follows a change of it.
 """
 scale_theme_value(value, theme, appearance::Appearance) = scale_theme_value(value, appearance)
 scale_theme_value(role::FontRole, theme, appearance::Appearance) =
-    role.role === nothing ?
-        scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance) :
-        scale_theme_value(resolve_font_role(role, appearance), appearance)
+    scale_theme_value(resolve_font_role(role, appearance), appearance)
 scale_theme_value(role::TextRole, theme, appearance::Appearance) =
     StyleText(scale_theme_value(role.font, theme, appearance),
               resolve_theme_color(role.color, appearance))
@@ -191,7 +187,7 @@ end
 The value of the field `name` of `theme` that a projection draws with. Of a
 scaled theme it is the scaled value. Of a theme it is the value at no scale: a
 length is its number, and a font role and a text role are the font and the text
-that they give over their base. So a builder can give a projection either, and an
+that they give. So a builder can give a projection either, and an
 interface with no scales gives a theme as it is.
 """
 get_theme_value(theme::ScaledTheme, name::Symbol) = getproperty(theme, name)
@@ -427,10 +423,7 @@ _encode_appearance_value(step::FontStep) =
     Dict{String,Any}("family" => String(step.family), "size" => step.size,
                      "weight" => Int(step.weight), "italic" => step.italic)
 function _encode_appearance_value(role::FontRole)
-    table = role.role === nothing ?
-        Dict{String,Any}("base" => String(role.base), "relative_size" => role.relative_size) :
-        Dict{String,Any}("role" => String(role.role))
-    role.family === nothing || (table["family"] = role.family)
+    table = Dict{String,Any}("role" => String(role.role))
     role.weight === nothing || (table["weight"] = Int(role.weight))
     role.italic === nothing || (table["italic"] = role.italic)
     table
@@ -502,24 +495,12 @@ function _decode_appearance_value(current::FontRole, saved)
     _is_absolute_font_table(saved) &&
         return _decode_appearance_value(StyleFont(_DEFAULT_FONT_FAMILY, 1), saved)
     name = get(saved, "role", nothing)
-    if name !== nothing
-        weight = get(saved, "weight", nothing)
-        italic = get(saved, "italic", nothing)
-        (name isa AbstractString && !isempty(name) &&
-         (weight === nothing || weight isa Integer && 1 <= weight <= 1000) &&
-         (italic === nothing || italic isa Bool)) || return nothing
-        return FontRole(Symbol(name); weight, italic)
-    end
-    base = get(saved, "base", String(current.base))
-    relative_size = get(saved, "relative_size", current.relative_size)
-    family = get(saved, "family", nothing)
     weight = get(saved, "weight", nothing)
     italic = get(saved, "italic", nothing)
-    (base isa AbstractString && relative_size isa Real && relative_size > 0 &&
-     (family === nothing || family isa AbstractString) &&
+    (name isa AbstractString && !isempty(name) &&
      (weight === nothing || weight isa Integer && 1 <= weight <= 1000) &&
      (italic === nothing || italic isa Bool)) || return nothing
-    FontRole(; base = Symbol(base), family, weight, italic, relative_size)
+    FontRole(Symbol(name); weight, italic)
 end
 # A text field holds a text role or a text that a person set as it is. The table of an
 # exact font with a fixed colour is that text; the table of an exact font with a role

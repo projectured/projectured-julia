@@ -9,11 +9,9 @@ using Test
 using ProjecturedPlatform.StyleModule
 
 @theme struct ThFonted
-    base::StyleFont = StyleFont("DejaVu Sans", 10)
     quiet::ThemeFont = FontRole(:quiet)
     code::ThemeFont = FontRole(:document_code; weight = 700)
     note::ThemeText = TextRole(:text_muted; font_role = :quiet, italic = true)
-    with_base::ThemeFont = FontRole(base = :base, weight = 700, relative_size = 1.5)
 end
 
 @theme struct ThIconed
@@ -58,7 +56,6 @@ end
     @test resolve_font_role(FontRole(:quiet; italic = false), appearance).italic == false
     @test_throws "no_such_role" resolve_font_role(FontRole(:no_such_role), appearance)
     @test_throws "sans_family" resolve_font_role(FontRole(:sans_family), appearance)
-    @test_throws ArgumentError resolve_font_role(FontRole(weight = 700), appearance)
 end
 
 @testset "a change of a family or of a step moves every role that names it" begin
@@ -75,7 +72,7 @@ end
 
 @testset "the font scale rounds the size once" begin
     appearance = Appearance(font_scale = 1.1)
-    # 12 × 1.1 = 13.2 → 13; a role of a base that is rounded twice would differ.
+    # 12 × 1.1 = 13.2 → 13.
     @test scale_theme_value(FontRole(:quiet), nothing, appearance).size == 13
     @test scale_theme_value(FontRole(:document_code), nothing, appearance).size == 15
     appearance.font_scale = 1.0
@@ -85,15 +82,11 @@ end
     @test scale_theme_value(FontRole(:quiet), nothing, appearance).size == 8
 end
 
-@testset "the two forms of a text role" begin
+@testset "a text role with a role of the font theme" begin
     new = TextRole(:text_muted; font_role = :quiet, weight = 700)
     @test new.font == FontRole(:quiet; weight = 700)
     @test new.color == ColorRole(:text_muted)
-    @test TextRole(:keyword; weight = 700).font == FontRole(; weight = 700)
-    @test TextRole(:keyword; relative_size = 0.8).font.role === nothing
-    @test_throws ArgumentError TextRole(:text; font_role = :quiet, base = :font)
-    @test_throws ArgumentError TextRole(:text; font_role = :quiet, family = "Ubuntu")
-    @test_throws ArgumentError TextRole(:text; font_role = :quiet, relative_size = 0.8)
+    @test TextRole(:keyword; weight = 700).font == FontRole(:text; weight = 700)
     appearance = Appearance()
     text = scale_theme_value(new, nothing, appearance)
     @test text.font == StyleFont("Ubuntu", 12; weight = 700)
@@ -104,8 +97,7 @@ end
     mark = TextRole(:warning_text; font = StyleFont("Lucide", 13))
     @test mark.font == StyleFont("Lucide", 13)
     @test mark.color == ColorRole(:warning_text)
-    for keywords in ((font_role = :quiet,), (base = :font,), (family = "Ubuntu",),
-                     (relative_size = 0.8,), (weight = 700,), (italic = true,))
+    for keywords in ((font_role = :quiet,), (weight = 700,), (italic = true,))
         @test_throws ArgumentError TextRole(:warning_text; font = StyleFont("Lucide", 13), keywords...)
     end
     appearance = Appearance(font_scale = 1.5)
@@ -124,7 +116,6 @@ end
     @test scaled.quiet == StyleFont("Ubuntu", 12)
     @test scaled.code == StyleFont("Ubuntu Mono", 14; weight = 700)
     @test scaled.note.font == StyleFont("Ubuntu", 12; italic = true)
-    @test scaled.with_base == StyleFont("DejaVu Sans", 15; weight = 700)
     get_font_theme(appearance).quiet = FontStep(:sans, 20)
     @test scaled.quiet.size == 20
     @test scaled.note.font.size == 20
@@ -132,7 +123,6 @@ end
     @test scaled.quiet.family == "DejaVu Sans"
     appearance.font_scale = 2.0
     @test scaled.quiet.size == 40
-    @test scaled.with_base.size == 30
     # A theme read at no scale takes the default font theme.
     @test get_theme_value(ThFonted(), :quiet) == StyleFont("Ubuntu", 12)
     @test get_theme_value(ThFonted(), :note).font == StyleFont("Ubuntu", 12; italic = true)
@@ -177,20 +167,23 @@ end
         @test get_theme(loaded_mark, ThIconed).mark ==
               TextRole(:error_text; font = StyleFont("Lucide", 17; weight = 700))
 
-        # A table with a base reads as the form with a base.
-        write(path, "[ThFonted.with_base]\nbase = \"base\"\nrelative_size = 2.0\n" *
+        # A table of the old form, with a base, does not load: the field keeps its default.
+        write(path, "[ThFonted.quiet]\nbase = \"font\"\nrelative_size = 2.0\n" *
                     "[FontTheme.quiet]\nfamily = \"serif\"\nsize = 12\n" *
                     "[FontTheme.text]\nfamily = \"mono\"\nsize = 17\n")
         load_appearance!(loaded, path)
-        @test get_theme(loaded, ThFonted).with_base == FontRole(base = :base, relative_size = 2.0)
+        fresh = Appearance()
+        set_theme!(fresh, ThFonted())
+        load_appearance!(fresh, path)
+        @test get_theme(fresh, ThFonted).quiet == FontRole(:quiet)
         # An invalid step keeps the default; a valid one is read; a field not named takes its default.
         @test get_font_theme(loaded).quiet == FontTheme().quiet
         @test get_font_theme(loaded).text == FontStep(:mono, 17)
         @test get_font_theme(loaded).sans_family == "Ubuntu"
-        # A table of a role read onto a field that holds the form with a base.
-        write(path, "[ThFonted.with_base]\nrole = \"title\"\nweight = 500\n")
+        # A table of a role is read.
+        write(path, "[ThFonted.quiet]\nrole = \"title\"\nweight = 500\n")
         load_appearance!(loaded, path)
-        @test get_theme(loaded, ThFonted).with_base == FontRole(:title; weight = 500)
+        @test get_theme(loaded, ThFonted).quiet == FontRole(:title; weight = 500)
     end
 end
 

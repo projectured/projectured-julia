@@ -475,8 +475,8 @@ function _make_field_control(controls, theme, field::Symbol, value::StyleText)
 end
 
 _make_field_control(controls, theme, field::Symbol, value::FontRole) =
-    _make_role_control(controls, theme, () -> getproperty(theme, field),
-                       role -> _write_theme_field(theme, field, role))
+    _make_font_theme_role_control(controls, () -> getproperty(theme, field),
+                                  role -> _write_theme_field(theme, field, role))
 
 # A list of colours, such as the colours of the series of a chart, has a swatch
 # for each, in the colour that it gives; a person changes them in the colour theme.
@@ -489,8 +489,7 @@ _make_field_control(controls, theme, field::Symbol, value::AbstractVector{<:Them
 function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     read = () -> getproperty(theme, field)
     default = _get_default_field(controls, theme, field)
-    font_control = value.font isa StyleFont ? _make_font_control : (controls, read, write) ->
-        _make_role_control(controls, theme, read, write)
+    font_control = value.font isa StyleFont ? _make_font_control : _make_font_theme_role_control
     VerticalLayout(Any[
         _make_theme_color_control(controls, () -> read().color,
                                   color -> _write_theme_field(theme, field, TextRole(read().font, color)),
@@ -510,13 +509,9 @@ _make_field_control(controls, theme, field::Symbol, value::MultipleSpacing) =
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
-# `role` with its weight, its slant or its relative size replaced. A role that
-# names a role of the font theme keeps its name and has no relative size.
-_with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
-                relative_size = role.relative_size) =
-    role.role === nothing ?
-        FontRole(; base = role.base, family = role.family, weight, italic, relative_size) :
-        FontRole(role.role; weight, italic)
+# `role` with its weight or its slant replaced; it keeps its name.
+_with_font_role(role::FontRole; weight = role.weight, italic = role.italic) =
+    FontRole(role.role; weight, italic)
 
 # `step` with its kind of family, its size, its weight or its slant replaced.
 _with_font_step(step::FontStep; family = step.family, size = step.size, weight = step.weight,
@@ -545,33 +540,6 @@ _make_weight_note(title, font::StyleFont, delta::Integer) =
     _make_setting_note(title, "Use a $(delta < 0 ? "lighter" : "heavier") weight of the font family.",
                        () -> ["Now" => _get_font_weight_name(font.weight),
                               "Becomes" => _get_font_weight_name(_step_font_weight(font, delta).weight)])
-
-# The controls of the font role that `read()` answers, in one row. A role that names
-# a role of the font theme has `_make_font_theme_role_control`. A role with a base
-# has its family when it sets one, the steps through the weights of the family of
-# the font that it gives, a checkbox for italic, and its size in percent of its
-# base font. A step or a check sets the weight or the slant of the role, which then
-# no longer follows the base in it. `write(role)` is the operation that sets a new
-# role.
-function _make_role_control(controls, theme, read, write)
-    role = read()
-    role.role === nothing || return _make_font_theme_role_control(controls, read, write)
-    font = apply_font_role(role, get_role_base(role, theme))
-    parts = Any[]
-    role.family === nothing || push!(parts, WidgetLabel(role.family))
-    append!(parts, Any[
-        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight));
-                        tooltip = _make_weight_note("Lighter", font, -1)),
-        WidgetLabel(_get_font_weight_name(font.weight)),
-        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight));
-                        tooltip = _make_weight_note("Heavier", font, 1)),
-        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
-        controls.spin_box(round(Int, role.relative_size * 100),
-                          v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
-        WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
-    ])
-    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
-end
 
 # The controls of the font role that `read()` answers and that names a role of the
 # font theme, in one row: buttons that step through the roles and name the role,
