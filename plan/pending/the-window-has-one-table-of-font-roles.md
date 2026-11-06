@@ -432,6 +432,47 @@ gets the new value; the commit names each one.
   document, and the field `title` names a `String`. The press selects the title
   where the card answers directly, and a `PrimitiveString` title everywhere. The
   owner decides.
+- **2026-11-06, decided by the owner, step 6.** "The principle behind the alt
+  click is that it should be possible to select any part of the editor's
+  document, so yes." A whole selection names a part as a whole: a document, or
+  a value that a field or one element of a collection holds. A caret and a
+  range of text still name a place inside a value, and a container makes them
+  the child as a whole. `is_whole_selection` and `convert_to_whole_selection`
+  follow the one rule, so a plain header of a table in a layout is selected too.
+  The Alt+arrow walk keeps its objects, which are documents.
+- **2026-11-06, step 6, the whole part rule.** `_is_whole_part` in
+  `WholeSelection.jl` holds the rule: the value is a `Document`, or the last
+  step is a field, or a range of width one in an `AbstractVector`, a `Tuple` or
+  a `CollectionDocument`. No collection document holds the letters of a text,
+  so a range of a text is never an element. The pane had a copy of the old rule
+  in `_select_page_content` and calls `is_whole_selection` now. From a selected
+  value, Alt+Down keeps the selection and Alt+Left and Alt+Right answer nothing,
+  because a value holds no objects. The picture of a selected value is the
+  picture of the part above it that has a canvas. Three tests expected the old
+  rule and follow the new one: an Alt+click on the `String` title of a card
+  selects the title, the whole card takes an Alt+click on its padding, and an
+  Alt+click on a row of the Files pane selects the file of the row, while an
+  Alt+click below the rows selects the pane.
+- **2026-11-06, step 6, the whole part rule, counts.** After the change:
+  `test_widget_selection` 107 (95 before, with new tests), `test_widget_card_fold`
+  72, `test_application` 401 pass, 1 fail, 2 broken; the fail is
+  `ApplicationTest.jl:1002` ("36k / 1M"), which main fixed in 6981aab8e after the
+  branch began. `test_history_sweep` 167 pass, 1 fail at `HistorySweepTest.jl:111`
+  (the palette gesture leaves one undo step), the same at 042c42fd0 before the
+  change. `test_pivot_zone_edits` 31 pass, 1 error, the known "Rows" fault. All
+  pass: `test_selection_walking` 36, `test_widget_table_part_selection` 69,
+  `test_widget_forms` 97, `test_widget_table_header_levels` 40,
+  `test_widget_table_list_column_share` 6, `test_widget_table_list` 256,
+  `test_layout_list` 101, `test_pane_construct` 62, `test_pane_gestures` 117,
+  `test_pane_reader` 89, `test_widget_toolbar` 83, `test_fault_catching` 53,
+  `test_widget_table_cell_order` 48, `test_appearance_wrapper` 55,
+  `test_find_bar_view_to_widget` 50, `test_appearance_tab` 159,
+  `test_settings_tab` 55, `test_pivot_table_projection` 42,
+  `test_workflow_to_widget` 72, `test_sequencechart_selection` 49,
+  `test_sequencechart_projection` 120, `test_research_to_widget` 121,
+  `test_data_frame_paths` 19, `test_data_frame_cells` 173, `test_part_picture` 13,
+  `test_table_navigation` 67, `test_evaluator_toplevel` 250,
+  `test_conversation_transcript` 143.
 - **2026-11-06, step 6, card titles, counts.** Before → after:
   `test_widget_card_fold` 46 → 68, `test_platform_examples` 203796 → 203700, all
   pass in both; the 96 that went are not checked one by one. The same before
