@@ -23,5 +23,5 @@ tree of the file system follows the widget theme instead.
     "The basename of a file."
     file_text::ThemeText = TextRole(:text; font_role = :text)
     "The name of a directory."
-    directory_text::ThemeText = TextRole(:module_name; font_role = :text, weight = 400)
+    directory_text::ThemeText = TextRole(:module_name; font_role = :text)
 end
