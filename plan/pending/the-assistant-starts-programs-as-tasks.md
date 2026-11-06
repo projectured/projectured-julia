@@ -202,13 +202,22 @@ Each step runs in a worktree and ends with one commit. `workspace/bin/bounded-ru
 a test under `test/platform/` in `package/ProjecturedPlatformTest`, one under `test/projectured/`
 in `environment/all`.
 
-1. **A group stops at a failure.** The field, the keyword, the shadow (`make_task_group_shadow`),
+1. **A group stops at a failure.** **Done on 2026-11-06.** The field, the keyword, the shadow (`make_task_group_shadow`),
    `_drive!` and `_describe_group` in `TaskGroup.jl`, and the section "A group of tasks" of
    `task.md`. Test: `test_task_group()` (`test/platform/task/TaskGroupTest.jl`), with imitated
    processes. A new testset asserts the code and the reason of each task: a chain of three whose
    second fails, two jobs, an inner group after the failure, a stop of the second task, and a
    rerun of `:unexpected`. With the default `false`, each case of today keeps its order and its
    results. Also `test_task_views()` and `test_build_step()`.
+   What the implementation found:
+   - The field `stop_at_failure` sits after `jobs` in `TaskGroup` and in its shadow, so the
+     positional constructor and `ACTaskGroup(...)` take it there. No file in omnet-julia
+     calls the positional constructor.
+   - A stop of one task ends it `CANCEL`, which is not expected, so the tasks after it end
+     `CANCEL` with `Not started: two ended CANCEL`. When the whole group is stopping, the
+     tasks that did not start keep no run, as before.
+   - The new testset is in `test_task_group()`; `test_task_group()`, `test_task_views()` and
+     `test_build_step()` pass together (213 Pass).
 2. **A program is a task.** The file `ProgramTask.jl`, included after `BuildStep.jl`, its exports,
    and a section "A program as a task" in `task.md`. Test: the new `test_program_task()`
    (`test/platform/task/ProgramTaskTest.jl`), registered in `ProjecturedPlatformTest.jl` and

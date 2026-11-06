@@ -41,8 +41,9 @@ end
     TaskNotStarted
 
 What a task of a group ended with when the preparation of the group ended with
-a result that is not expected: `CANCEL`, with a reason that names the
-preparation and its result. The task never started.
+a result that is not expected, or when a task of a group that stops at a
+failure did: `CANCEL`, with a reason that names the preparation or the task and
+its result. The task never started.
 """
 struct TaskNotStarted <: TaskResult
     task::AbstractTask
@@ -148,7 +149,7 @@ is_walk_opaque(::TaskGroupRuntime) = true
 
 """
     TaskGroup(tasks; name = "task", action = "", jobs = get_default_job_count(),
-              codes = nothing, preparation = nothing)
+              stop_at_failure = false, codes = nothing, preparation = nothing)
 
 A group of tasks and what became of each: `MultipleTasks` of `opp_repl`.
 `runs[i]` is `nothing` until `tasks[i]` starts, and the [`TaskExecution`](@ref) of
@@ -157,7 +158,13 @@ entry in place and renumbers nothing.
 
 `name` is a noun and `action` a verb in its `-ing` form, as `opp_repl` writes
 them: `"fingerprint test"` and `"Checking fingerprint"`. `jobs` is how many tasks
-go at once; one job is the sequential case. `codes` are the result codes of the
+go at once; one job is the sequential case. `stop_at_failure` says that a task
+needs the tasks before it: when a task ends with a result that is not expected,
+no more task starts, the tasks that go run to their end, and each task that did
+not start ends `CANCEL` with the reason `Not started: checkout ended ERROR`. With
+one job the group is a chain; with more jobs it stops as `make` stops without
+`-k`. A run again of the failed task and of the tasks that did not start follows
+the same rule. `codes` are the result codes of the
 group, by default those of its first task.
 
 `runtime.finish`, when it is set, is called with the group when the last task
@@ -193,6 +200,7 @@ that execution when the preparation starts.
     name::String
     action::String
     jobs::Int
+    stop_at_failure::Bool
     codes::ResultCodes
     preparation::Union{AbstractTask,Nothing}
     stopping::Bool
@@ -207,12 +215,13 @@ end
 
 function TaskGroup(tasks::AbstractVector{<:AbstractTask}; name::AbstractString = "task",
                    action::AbstractString = "", jobs::Integer = get_default_job_count(),
+                   stop_at_failure::Bool = false,
                    codes::Union{ResultCodes,Nothing} = nothing,
                    preparation::Union{AbstractTask,Nothing} = nothing)
     resolved = codes !== nothing ? codes :
                isempty(tasks) ? RUN_RESULT_CODES : get_result_codes(first(tasks))
     group = TaskGroup(AbstractTask[t for t in tasks], String(name), String(action),
-                      max(1, Int(jobs)), resolved, preparation, false, nothing, nothing,
+                      max(1, Int(jobs)), stop_at_failure, resolved, preparation, false, nothing, nothing,
                       Union{TaskExecution,Nothing}[nothing for _ in tasks], nothing, nothing,
                       nothing, TaskGroupRuntime())
     group.tally = _make_task_group_tally(group)
@@ -358,7 +367,8 @@ format_task_group_close_description(group::TaskGroup) =
 
 _describe_group(action::AbstractString, group::TaskGroup) =
     (isempty(action) ? "" : action * " ") * group.name * " (" *
-    string(length(group.tasks)) * (is_concurrent(group) ? " concurrent)" : " sequential)")
+    string(length(group.tasks)) * (is_concurrent(group) ? " concurrent" : " sequential") *
+    (group.stop_at_failure ? ", stops at a failure)" : ")")
 
 """
     compute_task_group_indices(group, which) -> Vector{Int}
@@ -439,8 +449,10 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
     finished = Channel{Int}(max(1, length(indices)))
     next = 1
     active = 0
+    failure = nothing
     while next <= length(indices) || active > 0
-        while !_is_task_group_stopping(group) && next <= length(indices) && active < group.jobs
+        while failure === nothing && !_is_task_group_stopping(group) && next <= length(indices) &&
+              active < group.jobs
             index = indices[next]
             next += 1
             active += 1
@@ -466,12 +478,30 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
             on_change === nothing || on_change(group)
         end
         active == 0 && break
-        _record_task_end!(group, take!(finished))
+        ended = take!(finished)
+        _record_task_end!(group, ended)
         active -= 1
+        if group.stop_at_failure && failure === nothing
+            result = _get_task_result(group, ended)
+            result === nothing || is_expected(result) ||
+                (failure = string("Not started: ", format_task_parameters(group.tasks[ended]),
+                                  " ended ", result.result))
+        end
         on_change === nothing || on_change(group)
     end
     close(finished)
+    if failure !== nothing && !_is_task_group_stopping(group)
+        for index in indices[next:end]
+            _end_unstarted_task!(group, index, failure, on_start, on_finish, on_change)
+        end
+    end
     _finish_drive!(group)
+end
+
+# The result of the task at `index`, or `nothing` before it ends.
+function _get_task_result(group::TaskGroup, index::Int)
+    run = lock(() -> group.runs[index], group.runtime.lock)
+    run === nothing ? nothing : lock(() -> run.result, run.runtime.lock)
 end
 
 # The end of a start of the group: its `finish`, and the time.
@@ -1016,7 +1046,7 @@ get_task_group_counts(summary::TaskGroupSummary) =
 # ── The shadow ───────────────────────────────────────────────────────────────
 
 # The fields that a shadow takes; it holds no `runs`, `tally` or `runtime`.
-const _GROUP_SHADOW_FIELDS = (:name, :action, :jobs, :codes, :stopping, :start_time,
+const _GROUP_SHADOW_FIELDS = (:name, :action, :jobs, :stop_at_failure, :codes, :stopping, :start_time,
                               :end_time, :summary, :counts)
 
 # The summary of the group now, kept in the group with its counts.
@@ -1039,7 +1069,8 @@ reads the run of that task. Make it on the editor task.
 function make_task_group_shadow(group::TaskGroup)
     _refresh_task_group_summary!(group)
     lock(group.runtime.lock) do
-        ACTaskGroup(group.tasks, group.name, group.action, group.jobs, group.codes,
+        ACTaskGroup(group.tasks, group.name, group.action, group.jobs, group.stop_at_failure,
+                    group.codes,
                     group.preparation, group.stopping, group.start_time, group.end_time,
                     Union{TaskExecution,Nothing}[], nothing, group.summary, group.counts, nothing)
     end

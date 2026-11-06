@@ -325,6 +325,73 @@ function test_task_group()
             @test group.runs[1] === nothing
         end
 
+        @testset "a group that stops at a failure starts no task after a failed one" begin
+            chain(scripts...; kwargs...) = TaskGroup(
+                AbstractTask[_TaskGroupProbeTask(name, script) for (name, script) in scripts];
+                kwargs...)
+            codes(group) = [run === nothing ? "-" : run.result.result for run in group.runs]
+
+            group = run_task_group(chain("one" => "exit 0", "two" => "exit 1", "three" => "exit 0";
+                                         jobs = 1, stop_at_failure = true))
+            @test codes(group) == ["DONE", "ERROR", "CANCEL"]
+            skipped = group.runs[3].result
+            @test skipped isa TaskNotStarted
+            @test skipped.reason == "Not started: two ended ERROR"
+            @test format_task_group_description(group) == "task (3 sequential, stops at a failure)"
+
+            # With the default, each task runs.
+            group = run_task_group(chain("one" => "exit 0", "two" => "exit 1", "three" => "exit 0";
+                                         jobs = 1))
+            @test codes(group) == ["DONE", "ERROR", "DONE"]
+
+            # With two jobs, the tasks that go run to their end.
+            group = run_task_group(chain("fail" => "exit 1", "slow" => "sleep 0.3",
+                                         "next" => "exit 0", "last" => "exit 0";
+                                         jobs = 2, stop_at_failure = true))
+            @test codes(group) == ["ERROR", "DONE", "CANCEL", "CANCEL"]
+            @test group.runs[4].result.reason == "Not started: fail ended ERROR"
+
+            # An inner group after the failure ends each of its tasks.
+            inner = chain("x" => "exit 0", "y" => "exit 0"; name = "inner")
+            group = TaskGroup(AbstractTask[_TaskGroupProbeTask("bad", "exit 1"), inner];
+                              jobs = 1, stop_at_failure = true)
+            run_task_group(group)
+            @test codes(inner) == ["CANCEL", "CANCEL"]
+            @test all(run.result isa TaskNotStarted for run in inner.runs)
+            @test build_task_group_summary(group).counts == Dict("ERROR" => 1, "CANCEL" => 2)
+
+            # A stop of the second task ends it CANCEL, and the third does not start.
+            group = chain("one" => "exit 0",
+                          "two" => "trap 'kill \$!; exit 130' INT; sleep 30 & wait \$!",
+                          "three" => "exit 0"; jobs = 1, stop_at_failure = true)
+            start_task_group!(group)
+            deadline = time() + 10
+            while (group.runs[2] === nothing || !is_task_running(group.runs[2])) && time() < deadline
+                sleep(0.02)
+            end
+            stop_task_execution!(group.runs[2])
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "CANCEL", "CANCEL"]
+            @test group.runs[3].result.reason == "Not started: two ended CANCEL"
+
+            # A run again of what did not succeed follows the same rule.
+            folder = mktempdir()
+            flag = joinpath(folder, "flag")
+            group = chain("one" => "exit 0", "two" => "test -f $flag", "three" => "exit 0",
+                          "four" => "test -f $flag"; jobs = 1, stop_at_failure = true)
+            run_task_group(group)
+            @test codes(group) == ["DONE", "ERROR", "CANCEL", "CANCEL"]
+            @test compute_task_group_indices(group, :unexpected) == [2, 3, 4]
+            touch(flag)
+            rerun_task_group!(group, :unexpected)
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "DONE", "DONE", "DONE"]
+            rm(flag)
+            rerun_task_group!(group, [2, 3, 4])
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "ERROR", "CANCEL", "CANCEL"]
+        end
+
         @testset "a stop ends every task" begin
             group = TaskGroup(_make_task_group_probe_tasks(30); jobs = 5)
             start_task_group!(group)

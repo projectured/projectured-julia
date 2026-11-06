@@ -237,6 +237,19 @@ the card of the pane says in one line how it went
 (`describe_task_group_preparation`), and its button Show puts the preparation
 in the detail, the pane of a preparation that is a group.
 
+A group can stop at a failure (`stop_at_failure`, false by default). It says that
+a task needs the tasks before it: `jobs` limits how many tasks run at a time, and
+`stop_at_failure` says whether a task waits for the success of the ones before
+it. When a task ends with a result that is not expected, including a `CANCEL`
+from a stop of that task, `_drive!` starts no more task. The tasks that run go on
+to their end, and each task that did not start ends `CANCEL` with a
+`TaskNotStarted` result, at every depth, whose reason carries the name and the
+code of the task that failed: `Not started: checkout ended ERROR`. With one job
+the group is a chain; with more jobs it stops as `make` stops without `-k`. A run
+again of `:unexpected` runs the failed task and the tasks that did not start, in
+their order, under the same rule. The card says it:
+`commit 3fa2c1d (4 sequential, stops at a failure)`. The shadow holds the field.
+
 ## The steps of a build
 
 `BuildStepTask` is a step of a build, as `common/compile.py` of `opp_repl` has
