@@ -370,4 +370,24 @@ function test_widget_card_fold()
         @test answer isa ReplaceSelectionOperation
         @test evaluate_reference(composite, answer.path) === text
     end
+
+    @testset "an Alt+press on a String title inside a container selects the title of the card" begin
+        printer = _title_printer()
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "x")
+        composite = WidgetComposite(Any[card])
+        iomap = print_document(proj, proj, composite, PrinterContext())
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8,
+                                                     ModifierKeys(alt = true); time = 0.0))
+        @test answer isa ReplaceSelectionOperation
+        @test strip_reference_types(answer.path) ==
+              ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(0, 1),
+                      ConcreteReference(FieldReferenceStep("title"), EmptyReference())))
+        # The selection reaches the card, which draws the band over its title.
+        band = printer.row_selected_color
+        @test isempty(_find_rects_with_color(iomap.output, band))
+        evaluate_operation((document = composite,), answer)
+        @test length(_find_rects_with_color(iomap.output, band)) == 1
+    end
 end

@@ -541,9 +541,10 @@ end
 # re-targets through `map_reference_backward`: its bare
 # `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`.
 #
-# An Alt+click inside a page names an object in the tab's document. When the
-# content's projection maps it back to a whole document, the answer is that
-# document. A caret, or a place the content's projection introduced, names the
+# An Alt+click inside a page names a part of the tab's document. When the
+# content's projection maps it back to a whole part (`is_whole_selection`), a
+# document or a value that a field or one element holds, the answer is that
+# part. A caret, or a place the content's projection introduced, names the
 # innermost document on its path: the one that holds the caret, or the one the
 # projection printed the place for. Any other answer — the tab, because the
 # content maps nothing back — names the tab's content, as a whole.
@@ -552,7 +553,7 @@ function _select_page_content(tree::PaneTree, widget_operation, answer)
         return answer
     answer isa ReplaceSelectionOperation || return answer
     target = try_evaluate_reference(tree, answer.path, nothing)
-    (target isa Document && !(target isa PaneDocument)) && return answer
+    (is_whole_selection(tree, answer.path) && !(target isa PaneDocument)) && return answer
     innermost = _find_innermost_document_path(tree, answer.path)
     innermost === nothing || return ReplaceSelectionOperation(innermost)
     rest = _after_field(answer.path, "root")

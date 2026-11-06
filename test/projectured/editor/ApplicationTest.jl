@@ -1894,7 +1894,7 @@ function test_application()
 
             # The ring shows a selection that ends at the Files pane. A row the
             # person selects is inside it, so the ring is off.
-            @testset "a click selects a row inside the Files pane, and Alt+click the Files pane" begin
+            @testset "a click and an Alt+click select a row inside the Files pane" begin
                 document, scene, composed, iomap = _app_make_scene(String[], dir; files = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
@@ -1928,7 +1928,14 @@ function test_application()
                 opened = _app_fire(composed, editor.iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
+                # An Alt+click on the row selects the file of the row as a whole, the
+                # innermost part under the pointer, so the ring is off.
                 @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+                      ReplaceSelectionOperation
+                @test selected_file() == joinpath(dir, "a.json")
+                @test isempty(ring())
+                # An Alt+click below the rows selects the Files pane as a whole.
+                @test press!(MouseClick(:left, x + 3, y + 400, 1, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test endswith(path(), ".tabs[1].content")
                 @test length(ring()) == 1

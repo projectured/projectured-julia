@@ -27,13 +27,13 @@ The focus moves on the down, and a control acts on the press that a gesture trac
 
 ### The whole-element selection
 
-A whole-element selection is a path that ends at a document. A caret and a range of text end inside a document, so they are not whole. Any document can be selected whole, and no document declares that it can be.
+A whole-element selection is a path that names a part of the document as a whole: a document, or a value that a field or one element of a vector, a tuple or a collection document holds, such as the title of a card that is a `String`. A caret and a range of text name a place inside a value, so they are not whole. Any part can be selected whole, and no document declares that it can be.
 
 - `is_whole_selection_press(event)` is `true` for a left `MouseClick` with Alt and no other modifier. A plain press keeps its meaning, so a button still fires and a caret still lands.
-- `is_whole_selection(document, reference)` is `true` when the reference evaluates, inside `document`, to a `Document`.
+- `is_whole_selection(document, reference)` is `true` when the reference evaluates inside `document` and names a part as a whole: its value is a `Document`, or its last step is a field, or one element of a vector, a tuple or a collection document.
 - `convert_to_whole_selection(operation, child)` is the answer of a container for an Alt+press that hit `child`, where `operation` is the answer of `child`.
 
-`convert_to_whole_selection` keeps a `ReplaceSelectionOperation` whose path evaluates to a document inside `child`, so the innermost object under the pointer wins. It also keeps a path that does not evaluate in `child`, because a container can answer in its own terms, and the level above maps the path back. Every other answer becomes the whole selection of `child`: `nothing`, a caret, or the action of a control. So an Alt+press never acts. Before the test, the function cuts a path at its first `ProjectionReferenceStep`: a place that a projection introduced, such as a bracket, then selects the node that the bracket was printed for.
+`convert_to_whole_selection` keeps a `ReplaceSelectionOperation` whose path names a part inside `child` as a whole, so the innermost part under the pointer wins. It also keeps a path that does not evaluate in `child`, because a container can answer in its own terms, and the level above maps the path back. Every other answer becomes the whole selection of `child`: `nothing`, a caret, or the action of a control. So an Alt+press never acts. Before the test, the function cuts a path at its first `ProjectionReferenceStep`: a place that a projection introduced, such as a bracket, then selects the node that the bracket was printed for.
 
 The rule is applied in one place: `read_child_event` in `source/platform/layout/LayoutToGraphics.jl`. Every layout and every widget container calls it to give a press or a down to a child, so this package only gives the functions. The pane package adds one more rule for a page; see [pane.md](../pane/pane.md#selecting-inside-a-page).
 

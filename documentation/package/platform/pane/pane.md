@@ -132,7 +132,7 @@ Ctrl+M makes the focused group fill the window, with its tab strip, and Ctrl+M a
 
 A click on the content of a tab gives the press to the page, and the tabbed pane adds the tab to the path that comes back. So the path runs `tabs[i].content` and then into the domain of the content.
 
-An Alt+click inside a page selects the object under the pointer. [widget.md](../widget/widget.md#selecting-a-whole-widget) describes the rule. When the content projection maps the object back to a whole document, the selection is that document. When it maps back a caret or a place that it introduced, `_select_page_content` selects the innermost document on that path. When it maps back nothing, the selection is the whole content of the tab. So the content of any tab can be selected, whatever its projection maps.
+An Alt+click inside a page selects the object under the pointer. [widget.md](../widget/widget.md#selecting-a-whole-widget) describes the rule. When the content projection maps the object back to a whole part, a document or a value that a field or one element holds, the selection is that part. When it maps back a caret or a place that it introduced, `_select_page_content` selects the innermost document on that path. When it maps back nothing, the selection is the whole content of the tab. So the content of any tab can be selected, whatever its projection maps.
 
 The pane answers the Alt arrows at a tab itself. The generic walk steps from the content of a tab to its title, and a title is not an object of the content. A whole tab is the top of the walk, and the root of a content has no sibling.
 

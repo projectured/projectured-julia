@@ -123,7 +123,7 @@ function _selection_boxes()
 end
 
 function test_widget_selection()
-    @testset "a whole selection names a document, and a caret does not" begin
+    @testset "a whole selection names a part, and a caret does not" begin
         text = PrimitiveString("abc")
         @test is_whole_selection(text, EmptyReference())
         # `[1:2]` of a string is the letter "b", which is not a document.
@@ -133,10 +133,29 @@ function test_widget_selection()
         t = _selection_tree()
         # A path that does not resolve is not a whole selection either.
         @test !is_whole_selection(t.root, ConcreteReference(FieldReferenceStep("nowhere"), EmptyReference()))
+        # A value that a field or one element of a collection holds is a part too.
+        titled = WidgetCard(; title = "Scale", content = WidgetLabel("x"))
+        title = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+        @test is_whole_selection(titled, title)
+        item = ConcreteReference(FieldReferenceStep("items"),
+                   ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+        @test is_whole_selection(WidgetList(["a", "b"]), item)
+        @test is_whole_selection(["a", "b"], ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+        # A letter and a caret of the title are places inside it.
+        title_letter = ConcreteReference(FieldReferenceStep("title"), letter)
+        title_caret = ConcreteReference(FieldReferenceStep("title"),
+                          ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
+        @test !is_whole_selection(titled, title_letter)
+        @test !is_whole_selection(titled, title_caret)
 
         # A child's whole selection is kept; anything else selects the child.
         inside = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
         @test convert_to_whole_selection(inside, t.card) === inside
+        named = ReplaceSelectionOperation(title)
+        @test convert_to_whole_selection(named, titled) === named
+        for place in (title_letter, title_caret)
+            @test convert_to_whole_selection(ReplaceSelectionOperation(place), titled).path isa EmptyReference
+        end
         for (answer, child) in ((nothing, t.card), (InvokeActionOperation(Action("go")), t.card),
                                 (ReplaceSelectionOperation(letter), text))
             converted = convert_to_whole_selection(answer, child)
@@ -189,15 +208,24 @@ function test_widget_selection()
         # A plain press on the button still answers its action.
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
 
-        # An Alt+press names the innermost widget, whole, and nothing acts.
+        # An Alt+press names the innermost part, whole, and nothing acts. The
+        # point (1, 1) is in the padding of the card, before its title.
+        @test tx > 1 && ty > 1
         for ((x, y), wanted) in (((bx + 2, by + 2), t.button),
                                  ((lx + 2, ly + 2), t.label),
                                  ((fx + 2, fy + 2), t.field),
-                                 ((tx + 2, ty + 2), t.card))
+                                 ((1, 1), t.card))
             op = read_intent(projection, iomap, _press(x, y, _ALT))
             @test op isa ReplaceSelectionOperation
             @test evaluate_reference(t.root, op.path) === wanted
         end
+        # The title of the card is a `String`, and a part of the card.
+        title = read_intent(projection, iomap, _press(tx + 2, ty + 2, _ALT))
+        @test title isa ReplaceSelectionOperation
+        @test strip_reference_types(title.path) ==
+              ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(0, 1),
+                      ConcreteReference(FieldReferenceStep("title"), EmptyReference())))
         @test t.count[] == 0
 
         # Outside every widget, an Alt+press names nothing.
@@ -250,15 +278,22 @@ function test_widget_selection()
         @test (x, y) == (lx, ly)
         @test (w, h) == (length("hello") * 10, 24)
 
-        # The card as a whole: the composite draws the ring around it.
+        # The card as a whole, by a press on its padding: the composite draws
+        # the ring around it.
         (tx, ty) = _selection_text_at(out, "Title")
-        op = read_intent(projection, iomap, _press(tx + 2, ty + 2, _ALT))
+        op = read_intent(projection, iomap, _press(1, 1, _ALT))
         evaluate_operation((document = t.root,), op)
         drawn = _selection_rings(out)
         @test length(drawn) == 1
         (x, y, w, h) = only(drawn)
         @test (x, y) == (0, 0)
         @test x <= tx < x + w && y <= ty < y + h
+
+        # The title of the card is no document, so no container draws a ring
+        # for it: the card draws the band of a selected part on it.
+        op = read_intent(projection, iomap, _press(tx + 2, ty + 2, _ALT))
+        evaluate_operation((document = t.root,), op)
+        @test isempty(_selection_rings(out))
 
         clear_selection!(t.root)
         @test isempty(_selection_rings(out))

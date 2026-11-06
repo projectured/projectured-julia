@@ -2,9 +2,10 @@
 # makes one, the test that tells one from a caret, and the answer a container
 # gives for the child a press hit.
 #
-# A whole-element selection is a path that ends AT a document. Any object can be
-# selected this way, so no document declares that it can be: a container applies
-# the rule to whatever child is under the pointer.
+# A whole-element selection is a path that names a part of the document as a
+# whole: a document, or a value that a field or one element of a collection
+# holds. Any part can be selected this way, so no document declares that it can
+# be: a container applies the rule to whatever child is under the pointer.
 
 """
     is_whole_selection_press(event) -> Bool
@@ -20,12 +21,32 @@ is_whole_selection_press(event) =
 """
     is_whole_selection(document, reference) -> Bool
 
-Whether `reference`, read inside `document`, names a document as a whole. A
-caret and a range of text name no document, so neither is a whole selection. A
-path that does not resolve in `document` is not one either.
+Whether `reference`, read inside `document`, names a part of `document` as a
+whole: a document, or a value that a field or one element of a collection
+holds, such as the title of a card that is a `String`. A caret and a range of
+text name a place inside a value, so neither is a whole selection. A path that
+does not resolve in `document` is not one either.
 """
-is_whole_selection(document, reference) =
-    reference isa Reference && try_evaluate_reference(document, reference, missing) isa Document
+function is_whole_selection(document, reference)
+    reference isa Reference || return false
+    target = try_evaluate_reference(document, reference, missing)
+    target !== missing && _is_whole_part(document, reference, target)
+end
+
+# Whether `path`, read inside `document`, names `target` as a whole: `target` is
+# a document, or the last step of `path` is a field, or one element of a vector,
+# a tuple or a collection document. A range of a text is none of these.
+function _is_whole_part(document, path::Reference, target)
+    target isa Document && return true
+    steps = get_reference_steps(strip_reference_types(path))
+    isempty(steps) && return false
+    step = last(steps)
+    step isa FieldReferenceStep && return true
+    (step isa RangeReferenceStep && step.stop == step.start + 1) || return false
+    holder = try_evaluate_reference(document, _prepend_steps(Tuple(steps[1:(end - 1)]), EmptyReference()),
+                                    missing)
+    holder isa AbstractVector || holder isa Tuple || holder isa CollectionDocument
+end
 
 """
     convert_to_whole_selection(operation, child) -> ReplaceSelectionOperation
@@ -33,12 +54,13 @@ is_whole_selection(document, reference) =
 The answer a container gives for an Alt+press that hit `child`, where
 `operation` is what `child` itself answered.
 
-A selection inside `child` is kept, so the innermost object under the pointer
-wins. Any other answer becomes the selection of `child` as a whole: nothing, a
-control's action, and a selection that names a value inside `child` rather than
-a document, such as a caret. An Alt+press therefore never acts, because the
-action a button answered is dropped here, and a reader has no side effect of its
-own.
+A selection of a part inside `child` is kept, so the innermost part under the
+pointer wins: a document, or a value that a field or one element of a
+collection holds (`is_whole_selection`). Any other answer becomes the selection
+of `child` as a whole: nothing, a control's action, and a selection that names a
+place inside a value, such as a caret or a range of text. An Alt+press therefore
+never acts, because the action a button answered is dropped here, and a reader
+has no side effect of its own.
 
 A place that a projection introduced, such as the bracket of a call, names the
 node that the projection printed it for, and that node is selected as a whole.
@@ -53,7 +75,8 @@ function convert_to_whole_selection(operation, child)
     path = _cut_introduced_place(operation.path)
     kept = path === operation.path ? operation : ReplaceSelectionOperation(path)
     target = try_evaluate_reference(child, path, missing)
-    (target === missing || target isa Document) ? kept : ReplaceSelectionOperation(EmptyReference())
+    (target === missing || _is_whole_part(child, path, target)) ? kept :
+        ReplaceSelectionOperation(EmptyReference())
 end
 
 # `path` up to the first place a projection introduced, which then ends at the
