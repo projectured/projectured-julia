@@ -209,6 +209,8 @@ gets the new value; the commit names each one.
   Lucide font. Tests: the presentation suite of omnet-julia, and
   `Pkg.precompile` of the omnet environment, because a change of a platform
   method breaks its precompile.
+  (Done on 2026-11-06 on the omnet-julia branch `font-roles`, `1c76decd1` and
+  `b8878b93a`, not landed; facts in section 5.)
 
 ## 5. Facts and decisions found in the work
 
@@ -497,6 +499,43 @@ gets the new value; the commit names each one.
   of step 6 runs. The next release of `ProjecturedPlatform` takes a minor step,
   because `apply_font_role` and `get_role_base` are no longer exported; the
   generator of step B7 finds a removed name by itself.
+
+- **2026-11-06, step 8.** The omnet-julia branch `font-roles` (worktree
+  `omnet-julia-font-roles`, from omnet main `f2b9b2f7d`) makes omnet-julia load
+  against `main` again:
+  - The NED, INI, test file and result themes name `font_role = :document_code`
+    on each text. The NED, INI and test file themes keep their `font` field as
+    `FontRole(:document_code)`, because their projections read it for the line
+    breaks and the spaces between the parts. The `font` field of `ResultTheme`
+    is gone, because only the title text used it as a base; the card title is
+    `TextRole(:text; font_role = :title)`, and its `code_font` is
+    `FontRole(:document_code)` for the line breaks of a task list.
+  - The Qtenv preset keeps no literal font: `QTENV_FONT` and the `font` keyword
+    of `build_qtenv_widget_theme` are gone, the theme sets no font field, and
+    the Qtenv window passes `get_theme_defaults(WidgetTheme).font`, the 13 px
+    text role. Its 11 px small font is now the 12 px quiet role.
+  - Seven builders read `get_theme_defaults(TextTheme).font`, which is gone;
+    they read `plain_text.font`, the same Ubuntu Mono 14. The example reads
+    `quiet_font` for `font_small`.
+  - The module builder read `theme.font` of a widget theme that is not scaled,
+    which is now a `FontRole`; it reads `get_theme_values(theme)`, so a role
+    comes resolved.
+  - The campaign form names no font in omnet-julia, so it did not change. The
+    icon of the execution status keeps its exact Lucide font.
+- **2026-11-06, step 8, tests.** `Pkg.precompile` of the omnet environment
+  prints no undeclared binding and no method overwriting. It warns that the
+  recorded call lists are old: OmnetIde 552 of 5098, OmnetIdeBuild 240 of 1277,
+  OmnetLegacyFormat 408 of 3921, OmnetLegacyResultPresentation 391 of 2639, and
+  the projectured lists of Chart, DBCatalog, FSM, Workflow and Research. They
+  are recorded again after the landing. The baseline is omnet `f2b9b2f7d` with
+  projectured `e30b59b5e`, in a folder that holds both checkouts:
+  `test_qtenv` 38/38 on both sides; `OmnetPresentationTest.test_all` 1663 pass,
+  9 fail, 9 errors, 1 broken on both sides, at the same lines;
+  `OmnetLegacyTest.test_all` 2650/25/64/1 against 2638/25/64/3, with the same
+  failing lines. The ten tests more come from two `@test_skip` that need
+  `inet-cpp` and `opp_repl` beside the repository, which the baseline folder
+  did not hold. Both runs skipped `test_parallel_sim_dashboard_panel`, which
+  hangs on main with two threads.
 
 ## 6. Not in this plan
 
