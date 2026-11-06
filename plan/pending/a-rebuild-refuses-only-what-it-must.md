@@ -199,7 +199,7 @@ approval of the user.
   After the apply, `@doc` of the module gives the new text, and the module is the
   same object as before.
 
-  Done on 2026-11-06, in the Julia worktree (the commit after cd1d275035). The
+  Done on 2026-11-06, in the Julia worktree (58014b9669). The
   change has the id H2, the docstring category of the catalog of change ids.
   - `rc_split_module_doc` splits a header into its docstring (`Core.@doc` or
     `@doc`) and the module with the empty body. Two headers are a docstring
@@ -217,8 +217,8 @@ approval of the user.
     the definition. A header without a docstring removes it.
 
   Test, without a rebuild of Julia: `rc_warm()` passes with a new check, which
-  classifies a changed, an added-away and a `baremodule` header (H2, H2,
-  refused C5) and replaces and removes the docstring of a module in place.
+  classifies a header with a changed docstring, a header without its docstring
+  and a `baremodule` header (H2, H2, refused C5), and replaces and removes the docstring of a module in place.
   A probe ran `rc_apply_tracked` on a small loaded package, with a new
   `include(joinpath(_SOURCE, "View.jl"))` and a new docstring of its submodule.
   With the changed sources it applies C4, H2 and the new file, with no refusal:
