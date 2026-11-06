@@ -96,7 +96,9 @@ function _make_filter_header(p, view, name::String)
     end
     glyph = make_sort_glyph(_get_sort_keys(view.query), name, p.unsorted_glyph,
                             adding -> _make_sort_operation(view, name, adding); domain = "data frame")
-    label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))), glyph...];
+    header = WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]));
+                         text_style = StyleText(p.header_font, p.header_color))
+    label = HorizontalLayout(Any[header, glyph...];
                              gap = p.header_gap)
     make_labeled_field(label, make_filter_field(text, () -> _find_filter_range(view, name), reason,
                                                 0, p.invalid_filter),

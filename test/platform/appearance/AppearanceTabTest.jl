@@ -188,25 +188,25 @@ end
     @test length(preset.operations) == length(get_theme_field_names(FaultTheme))
     evaluate_operation(nothing, preset)
     @test fault.message_text == ProjecturedPlatform.FaultViewModule.make_fault_log_panel_theme().message_text
-    # The step of a font goes to the next font file, at the same size.
+    # The `font` of the widget theme names a role of the font theme: the step goes to
+    # the next role.
     font_step = only(op for (action, op) in tab.commands if action.label == "›" &&
                      unwrap(op).document === theme &&
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
-    @test next_font.size == theme.font.size && next_font.family != theme.font.family
-    # The step of a weight goes to the next weight of the family: Ubuntu has a
+    @test next_font isa FontRole && next_font.role !== theme.font.role
+    # The step of a weight goes to the next weight of the role: Ubuntu has a
     # medium face between the regular and the bold.
     # The "+" of a scale row adjusts a scale; the "+" of the font writes the theme.
     writes_font(op) = unwrap(op) isa ReplaceReferencedValueOperation && unwrap(op).document === theme &&
                       unwrap(op).reference.head == FieldReferenceStep("font")
     weight_step = only(op for (action, op) in tab.commands if action.label == "+" && writes_font(op))
     heavier = unwrap(weight_step).value
-    @test (heavier.family, heavier.size, heavier.weight) == (theme.font.family, theme.font.size, 500)
+    @test (heavier.role, heavier.weight) == (theme.font.role, 500)
     # The checkbox of the font makes it italic and keeps the rest.
     italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_font(write(true)))
     italic = unwrap(translate(ReplaceReferencedValueOperation(italic_box, "content", true))).value
-    @test italic.italic && (italic.family, italic.size, italic.weight) ==
-                           (theme.font.family, theme.font.size, theme.font.weight)
+    @test italic.italic && (italic.role, italic.weight) == (theme.font.role, theme.font.weight)
 end
 
 @testset "every card is as wide as the pane, and follows the width of the offer" begin

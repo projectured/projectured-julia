@@ -274,7 +274,9 @@ function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::Strin
     menu = WidgetMenu(Any[WidgetMenuItem("Filter by values…";
                                          action = Action("Filter by values…";
                                                          callback = editor -> _open_value_list!(p, editor, rows, ctx, entry, key)))])
-    label = WidgetContextMenu(HorizontalLayout(Any[WidgetLabel(format_roster_column_label(key)), glyph...]; gap = Int(style(:header_gap))), menu)
+    header = WidgetLabel(format_roster_column_label(key);
+                         text_style = StyleText(style(:column_font), style(:muted_foreground)))
+    label = WidgetContextMenu(HorizontalLayout(Any[header, glyph...]; gap = Int(style(:header_gap))), menu)
     make_labeled_field(label, make_filter_field(text, () -> _find_header_range(rows, c), reason,
                                                 0, style(:invalid_filter)),
                        Int(style(:header_field_minimum_width)))

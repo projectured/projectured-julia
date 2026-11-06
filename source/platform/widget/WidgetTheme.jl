@@ -93,12 +93,22 @@ builder fills them from a theme, scaled or not.
     "The knob of a switch and of a slider."
     knob::ThemeColor = ColorRole(:text_on_accent)
     # ── Fonts ──
-    "The font of the text of a widget."
-    font::StyleFont = StyleFont("Ubuntu", 13)
-    "The font of a title and of a header."
-    font_bold::ThemeFont = FontRole(weight = 700)
-    "The font of a caption and of a badge."
-    font_small::ThemeFont = FontRole(relative_size = 0.9)
+    "The font of the text of a widget: a control, a row, a cell. It is an exact font where a builder passes one."
+    font::ThemeFont = FontRole(:text)
+    "The font of the title of a card, of a dialog and of a title pane."
+    title_font::ThemeFont = FontRole(:title)
+    "The font of the head of a small box or of a row: the title of an accordion item and of an alert."
+    strong_font::ThemeFont = FontRole(:strong_text)
+    "The font of a caption, a description, a footer, the status bar and the keys of a menu item."
+    quiet_font::ThemeFont = FontRole(:quiet)
+    "The font of a badge."
+    badge_font::ThemeFont = FontRole(:badge)
+    "The font of the header row of a table."
+    column_font::ThemeFont = FontRole(:column)
+    "The font of the heading of a group inside a pane."
+    section_font::ThemeFont = FontRole(:section)
+    "The font of the selected tab."
+    selected_tab_font::ThemeFont = FontRole(:text; weight = 500)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
     control_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
@@ -239,13 +249,16 @@ end
 # ── The theme with a font ───────────────────────────────────────────────────
 
 """
-    make_widget_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
+    make_widget_theme(; font = nothing) -> WidgetTheme
 
-The default widget theme with the font `font`. Its colours are roles of the
-colour theme, so the colour settings of the appearance choose the palette, the
-mode and the contrast.
+The default widget theme. With a `font`, the `font` field of the theme, the text of
+a control, a row and a cell, is that exact [`StyleFont`](@ref); every other font
+of the theme is a role of the font theme of the appearance. Its colours are roles
+of the colour theme, so the colour settings of the appearance choose the palette,
+the mode and the contrast.
 """
-make_widget_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
+make_widget_theme(; font::Union{Nothing,StyleFont} = nothing) =
+    font === nothing ? WidgetTheme() : WidgetTheme(; font)
 
 # ── Values that a widget derives from a theme ───────────────────────────────
 
@@ -258,8 +271,9 @@ _with_alpha(color::StyleColor, alpha::Real) =
 # styles are no fields of the theme, so they follow the fonts and the palette. Each
 # takes the values of a widget theme, scaled or not (`get_theme_values`).
 _get_body_text(theme) = StyleText(theme.font, theme.foreground)
-_get_title_text(theme) = StyleText(theme.font_bold, theme.foreground)
-_get_caption_text(theme) = StyleText(theme.font_small, theme.muted_foreground)
+_get_title_text(theme) = StyleText(theme.title_font, theme.foreground)
+_get_strong_text(theme) = StyleText(theme.strong_font, theme.foreground)
+_get_quiet_text(theme) = StyleText(theme.quiet_font, theme.muted_foreground)
 _get_label_text(theme) = StyleText(theme.font, theme.foreground)
 _get_link_text(theme) = StyleText(theme.font, theme.link)
 _get_hover_layer(theme) = theme.hover

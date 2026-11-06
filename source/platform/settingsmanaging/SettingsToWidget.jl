@@ -53,12 +53,12 @@ SettingsToWidget(; theme = nothing, caption = _make_caption_style(theme),
                  row_gap = get_widget_style(theme, :form_row_gap)) =
     SettingsToWidget(caption, button_gap, section_gap, column_gap, row_gap)
 
-# The style of a summary and a description: the small font and the muted color of
+# The style of a summary and a description: the quiet font and the muted color of
 # the widget theme `theme`, scaled or not, as the description of a card, or of the
 # default theme for `nothing`.
 _make_caption_style(::Nothing) = _compute_caption_style(get_theme_defaults(WidgetTheme))
 _make_caption_style(theme) = make_theme_cell(StyleText, theme, _compute_caption_style)
-_compute_caption_style(values) = StyleText(values.font_small, values.muted_foreground)
+_compute_caption_style(values) = StyleText(values.quiet_font, values.muted_foreground)
 
 # `controls` holds `(control, group, name, convert)` for each control of a setting,
 # so the reader turns the write of a control into the write of its setting:

@@ -217,7 +217,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                                       button("Load", LoadAppearanceOperation(appearance))];
                                   gap = theme.button_gap),
                  _make_scale_card(controls), _make_color_settings_card(controls)]
-    heading = StyleText(theme.font_bold, theme.muted_foreground)
+    heading = StyleText(theme.section_font, theme.muted_foreground)
     for (title, themes) in _get_theme_groups(appearance)
         isempty(themes) && continue
         cards = VerticalLayout(Any[_make_theme_section(controls, section_theme) for section_theme in themes];
@@ -367,7 +367,7 @@ function _make_theme_section_content(controls, theme)
         CompoundOperation(Any[_write_theme_field(theme, field, getproperty(preset, field))
                               for field in get_theme_field_names(T)])
     end))
-    caption = StyleText(controls.theme.font_small, controls.theme.muted_foreground)
+    caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
     cells = Any[]
     # The gap above each row of the grid: a field is a section gap from the field
     # above, and its docstring follows its row with no gap, as a part of it.

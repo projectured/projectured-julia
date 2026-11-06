@@ -771,7 +771,7 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
                                label_gap = _themed(Int, theme, t -> t.label_gap),
                                popup_gap = _themed(Int, theme, t -> t.popup_gap),
                                icon_size = _themed(Float64, theme, t -> t.icon_size),
-                               keys_text = _themed(StyleText, theme, _get_caption_text),
+                               keys_text = _themed(StyleText, theme, _get_quiet_text),
                                keys_gap = _themed(Int, theme, t -> t.section_gap)) =
     WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, submenu_padding, margin_color,
                                    border_color, padding_color, content_color, label_text,
@@ -955,7 +955,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  tab_color = color_transparent,
                                  tab_selected_color = _themed(StyleColor, theme, t -> t.background),
                                  tab_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
-                                 tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
+                                 tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.selected_tab_font, t.foreground)),
                                  page_color = color_transparent,
                                  graphics_style = _make_graphics_style(graphics_theme),
                                  tab_padding = _themed(Inset, theme, t -> t.tab_padding),
@@ -7735,7 +7735,7 @@ WidgetStatusBarToGraphicsCanvas(theme; measure,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = _themed(StyleColor, theme, t -> t.muted),
                                 content_color = _themed(StyleColor, theme, t -> t.muted),
-                                label_text = _themed(StyleText, theme, _get_caption_text),
+                                label_text = _themed(StyleText, theme, _get_quiet_text),
                                 item_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetStatusBarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, label_text, item_gap)
@@ -8195,37 +8195,37 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = _themed(StyleColor, theme, t -> t.primary),
                             content_color = _themed(StyleColor, theme, t -> t.primary),
-                            label_text = _themed(StyleText, theme, t -> StyleText(t.font_small, t.primary_foreground)),
+                            label_text = _themed(StyleText, theme, t -> StyleText(t.badge_font, t.primary_foreground)),
                             secondary_padding_color = _themed(StyleColor, theme, t -> t.secondary),
                             secondary_content_color = _themed(StyleColor, theme, t -> t.secondary),
                             secondary_border_color = color_transparent,
                             secondary_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.secondary_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.secondary_foreground)),
                             destructive_padding_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_content_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_border_color = color_transparent,
                             destructive_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.destructive_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.destructive_foreground)),
                             outline_padding_color = _themed(StyleColor, theme, t -> t.background),
                             outline_content_color = _themed(StyleColor, theme, t -> t.background),
                             outline_border_color = _themed(StyleColor, theme, t -> t.border),
                             outline_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.foreground)),
                             success_surface_color = _themed(StyleColor, theme, t -> t.success_surface),
                             success_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.success_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.success_foreground)),
                             warning_surface_color = _themed(StyleColor, theme, t -> t.warning_surface),
                             warning_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.warning_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.warning_foreground)),
                             error_surface_color = _themed(StyleColor, theme, t -> t.error_surface),
                             error_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.error_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.error_foreground)),
                             info_surface_color = _themed(StyleColor, theme, t -> t.info_surface),
                             info_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.info_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.info_foreground)),
                             accent_surface_color = _themed(StyleColor, theme, t -> t.accent),
                             accent_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.accent_foreground))) =
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.accent_foreground))) =
     WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, label_text,
                                 secondary_padding_color, secondary_content_color, secondary_border_color,
@@ -8416,9 +8416,9 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            padding_color = _themed(StyleColor, theme, t -> t.card),
                            content_color = _themed(StyleColor, theme, t -> t.card),
                            title_text = _themed(StyleText, theme, _get_title_text),
-                           description_text = _themed(StyleText, theme, _get_caption_text),
+                           description_text = _themed(StyleText, theme, _get_quiet_text),
                            body_text = _themed(StyleText, theme, t -> StyleText(t.font, t.card_foreground)),
-                           footer_text = _themed(StyleText, theme, _get_caption_text),
+                           footer_text = _themed(StyleText, theme, _get_quiet_text),
                            header_color = color_transparent, body_color = color_transparent,
                            footer_color = color_transparent,
                            # The tint is NEUTRAL, and it is a step of depth rather than a change
@@ -9634,11 +9634,11 @@ WidgetAlertToGraphicsCanvas(theme; measure,
                             border_color = _themed(StyleColor, theme, t -> t.border),
                             padding_color = _themed(StyleColor, theme, t -> t.background),
                             content_color = _themed(StyleColor, theme, t -> t.background),
-                            title_text = _themed(StyleText, theme, _get_title_text),
-                            description_text = _themed(StyleText, theme, _get_caption_text),
+                            title_text = _themed(StyleText, theme, _get_strong_text),
+                            description_text = _themed(StyleText, theme, _get_quiet_text),
                             destructive_border_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_title_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_bold, t.destructive)),
+                                _themed(StyleText, theme, t -> StyleText(t.strong_font, t.destructive)),
                             title_gap = _themed(Int, theme, t -> t.title_gap),
                             corner_radius = _themed(Int, theme, t -> t.radius),
                             label_gap = _themed(Int, theme, t -> t.label_gap),
@@ -11210,8 +11210,8 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                title_text = _themed(StyleText, theme, _get_title_text),
-                                body_text = _themed(StyleText, theme, _get_caption_text),
+                                title_text = _themed(StyleText, theme, _get_strong_text),
+                                body_text = _themed(StyleText, theme, _get_quiet_text),
                                 divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                 chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                                 item_padding = _themed(Inset, theme, t -> t.control_padding),
@@ -13997,8 +13997,10 @@ text sizing. `theme` is a [`WidgetTheme`](@ref) and `graphics_theme` a
 theme. Every widget printer holds the styles that it reads from them, and none
 holds a theme. A builder of an editor passes the scaled themes of its
 `Appearance`, so every widget of the editor follows its scales; an interface with
-no scales passes a theme as it is. A projection built on its own can name the
-font of its default theme, the slate light preset.
+no scales passes a theme as it is. A projection built on its own can pass a `font`,
+which sets the `font` field of the default theme to that exact [`StyleFont`](@ref), the
+text of a control, a row and a cell; every other font of the theme is a role of the
+font theme of the default appearance.
 
 `text_theme` is a [`TextTheme`](@ref), scaled or not, whose caret and band the text of
 a widget draws with; `nothing` takes the default text theme.

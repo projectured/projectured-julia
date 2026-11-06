@@ -57,8 +57,8 @@ The projection holds its styles and no theme; `make_data_frame_view_projection`
 fills them from the `WidgetTheme` and the `DataFrameTheme` of its appearance, and
 with none it holds the default styles: the width of a field of the filter row and
 of the expression bar, the gaps of the header and of the bar, the color of a text
-that does not parse and of the glyph of a column that does not sort, and
-`list_column_width`. The table
+that does not parse and of the glyph of a column that does not sort, the font and
+the colour of the header of a column, and `list_column_width`. The table
 draws the bar at the thickness of its widget theme.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
@@ -71,6 +71,8 @@ draws the bar at the thickness of its widget theme.
     item_gap::Int = get_widget_style(nothing, :item_gap)
     invalid_filter::StyleColor = get_widget_style(nothing, :invalid_filter)
     unsorted_glyph::StyleColor = get_widget_style(nothing, :unsorted_glyph)
+    header_font::StyleFont = get_widget_style(nothing, :column_font)
+    header_color::StyleColor = get_widget_style(nothing, :muted_foreground)
     list_column_width::Int = get_data_frame_style(nothing, :list_column_width)
 end
 
@@ -381,6 +383,8 @@ function make_data_frame_view_projection(; measure::TextMeasure,
                                  header_gap = get_widget_style(theme, :header_gap), item_gap = get_widget_style(theme, :item_gap),
                                  invalid_filter = get_widget_style(theme, :invalid_filter),
                                  unsorted_glyph = get_widget_style(theme, :unsorted_glyph),
+                                 header_font = get_widget_style(theme, :column_font),
+                                 header_color = get_widget_style(theme, :muted_foreground),
                                  list_column_width = get_style(:list_column_width))
     ChainingProjection(view, grid)
 end
