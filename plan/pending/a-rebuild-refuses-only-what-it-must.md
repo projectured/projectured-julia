@@ -226,7 +226,7 @@ approval of the user.
   gives 42. With the sources of `merged-next` before the change, the same apply
   is refused with the two reasons of the IDE build: C4 "includes a file that is
   not tracked" and C5 "the header of a module changed".
-- [ ] **Step 5: one rebuild of Julia, and the gate.** Build the Julia of the
+- [x] **Step 5: one rebuild of Julia, and the gate.** Build the Julia of the
   worktree with step 3 and step 4. The gate is a small app that depends on
   `ProjecturedKernel`. It has a `@document` struct, a module with a docstring,
   and a root file that includes with `joinpath(_SOURCE, …)`. Found it, then do
@@ -235,6 +235,44 @@ approval of the user.
   edit, and the program must show the new state after it. Then do one edit that
   must be refused, a new dependency (F3), and check that the refusal is still
   there.
+
+  Done on 2026-11-06. The Julia of the worktree `julia-rebuild-refusals`
+  (58014b9669) took 8 min 51 s with `make -j8`, at a peak of 9.5 GB. The build
+  used the `Make.user` of `merged-next` (`JULIA_PRECOMPILE=1`) and copies of
+  its `deps/srccache` and `stdlib/srccache`, which hold only downloads.
+
+  The gate is a throwaway app in the scratchpad of the session, in the shape of
+  gate I1 of the fork. It is not committed. `GateApp` has a `@document struct
+  GateShape` in `Shape.jl`, a module `Notes` with a docstring in `Notes.jl`, and
+  a root file with `const _SOURCE = @__DIR__` and `include(joinpath(_SOURCE, …))`.
+  `materialize_app` founds it with `track_dependencies = true`, with the
+  PackageCompiler of the build environments (`projectured/PackageCompiler.jl`,
+  rev `reactive`). The binary prints the fields of `GateShape`, their values,
+  the value of `get_view_value` or 0, and the docstring of `Notes`.
+
+  | edit | the Julia of the worktree | `merged-next` and the kernel of `main` |
+  | --- | --- | --- |
+  | a field `height` | A4 `Shape.jl:1 GateShape`, 23 methods replaced | refused: "the untracked none:0 GateShape names the type" |
+  | `include(joinpath(_SOURCE, "View.jl"))` | C4 include, C4 new file `View.jl` | refused C4: "includes a file that is not tracked" |
+  | the docstring of `Notes` | H2 `Notes.jl:1 Notes` | refused C5: "the header of a module changed" |
+  | `using CRC32c`, not in `Project.toml` | refused F3: "CRC32c is not in the image" | refused F3, the same |
+  | `CRC32c` in `Project.toml` and the Manifest, its `using` and a call | C3 using, A2 `print_report` | C3 and A2, the same |
+
+  The founding took 2 min 20 s at 6.7 GB, and each rebuild took 6 to 7 s at
+  0.9 GB. After each rebuild that applied, the binary printed the new state. After
+  each refusal, it printed the state before the edit.
+
+  Facts found:
+  - The rebuild of a field takes the `@document` struct as one macro call,
+    A4, "constructors only". The new type and its 23 generated methods replace
+    the old ones, because each method now names `Shape.jl:1`.
+  - F3 refuses a package that the image does not hold and `Project.toml` does
+    not name. The child of a rebuild is a `create_sysimage` process with the
+    project of the app, and it loads each direct dependency before the apply. So
+    a dependency that `Pkg.add` writes applies as C3, and the binary calls it.
+    Both Julia builds do this, so steps 3 and 4 did not change it.
+  - A new path package applies too: the store tracks every path package of the
+    Manifest, so its root file is a new tracked file (C4).
 - [ ] **Step 6: the real IDE.** After the user approves the landing of both
   worktrees: rebuild the `+merged` Julia, and found the IDE store with
   `bin/build_omnet_ide --found`. Then add a field to `WidgetTheme` in a copy of
@@ -243,7 +281,8 @@ approval of the user.
 
 ## Not in this plan
 
-- The other rules of refusal: a module option (F1), a new dependency (F3), an
+- The other rules of refusal: a module option (F1), a `using` of a package
+  that the image does not hold and `Project.toml` does not name (F3), an
   import that conflicts with a binding (C3), and top-level code outside the
   `module` block of a root file (C5). They need a founding build.
 - The refusal of the trimmer (T1) for a trimmed build.
