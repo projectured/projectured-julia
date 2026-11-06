@@ -6205,22 +6205,6 @@ function _pane_extent(offer, content_cell, minimum = nothing, maximum = nothing)
     end)
 end
 
-# The viewport extent of a scroll pane on `axis`. It is `_pane_extent`, except for a
-# pane with no offer whose content is a list along the axis: the list has no extent
-# to measure, so the viewport takes the `maximum` of its range, and not less than
-# the `minimum`. With no `maximum` there is no edge to take, and the extent is the
-# content's own. `canvas_cell` holds the canvas of the content, or is `nothing`.
-function _pane_extent_along(axis::Symbol, offer, content_cell, canvas_cell, minimum, maximum)
-    (offer !== nothing || canvas_cell === nothing || maximum === nothing) &&
-        return _pane_extent(offer, content_cell, minimum, maximum)
-    Cell(@computation begin
-        extent = _has_no_extent_along(canvas_cell[], axis) ? Int(maximum[]) :
-                 content_cell === nothing ? 0 : max(0, Int(content_cell[]))
-        minimum === nothing || (extent = max(extent, Int(minimum[])))
-        Int32(min(extent, Int(maximum[])))
-    end)
-end
-
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
 # How far down a pane shows its content, in pixels. The printer draws the content
@@ -6323,6 +6307,49 @@ function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, ax
         node = preceding
     end
     offset
+end
+
+# The extent of the content of a pane along `axis`, which the viewport takes
+# there when the pane has no offer on that axis: `extent`, the cell of the extent
+# of the content, or, for a content that draws a list along `axis` under an
+# `edge`, the extent of the list up to the edge (`_measure_list_extent`).
+function _get_listed_content_extent(offer, content_canvas, extent, edge, axis::Symbol)
+    (offer === nothing && edge !== nothing && content_canvas !== nothing) || return extent
+    Cell(@computation begin
+        canvas = content_canvas[]
+        _has_no_extent_along(canvas, axis) || return extent[]
+        Int32(_measure_list_extent(canvas, axis, Int(edge[])))
+    end)
+end
+
+# The extent along `axis` of the list that `content` draws, from the start of
+# `content`, when a walk from the head reaches both ends of the list within
+# `edge`; else `edge`. So a list that ends before the edge takes only its
+# children. Each walk stops at the edge, so it reads the children that a
+# renderer reads to draw the list.
+function _measure_list_extent(content::GraphicsCanvas, axis::Symbol, edge::Int)
+    list, start = _find_list_canvas(content, axis)
+    head = list.elements
+    span = _get_list_element_span(head.value, axis)
+    span === nothing && return edge
+    near, far = span
+    node = head
+    while (following = node.next) !== nothing
+        start + far - near >= edge && return edge
+        node = following
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return edge
+        far = span[2]
+    end
+    node = head
+    while (preceding = node.prev) !== nothing
+        start + far - near >= edge && return edge
+        node = preceding
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return edge
+        near = span[1]
+    end
+    min(edge, start + far - near)
 end
 
 # ── The parts of a ScrollLayout in a scroll pane ────────────────────────────
@@ -6635,8 +6662,12 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
     content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
-    vw_cell = _pane_extent_along(:x, offer_w, content_w, content_canvas, inner_ctx.minimum_width, inner_ctx.maximum_width)
-    vh_cell = _pane_extent_along(:y, offer_h, content_h, content_canvas, inner_ctx.minimum_height, inner_ctx.maximum_height)
+    # A list has no extent of its own, so on an axis with an edge and no offer the
+    # pane measures a list that runs along it, up to the edge.
+    content_w = _get_listed_content_extent(offer_w, content_canvas, content_w, inner_ctx.maximum_width, :x)
+    content_h = _get_listed_content_extent(offer_h, content_canvas, content_h, inner_ctx.maximum_height, :y)
+    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
     inner_x = Cell(@computation Int32(-(content_canvas === nothing ?

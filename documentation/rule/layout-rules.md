@@ -208,6 +208,10 @@ The pane stops at an edge, because the giver cuts there, and scrolls the rest. I
 content gets the minimum of that range and no maximum, and the maximum is the
 visible extent. Every other widget keeps `e = max(m, C(M))`. This is what keeps
 a collapsed card body — clipped to `Fixed(30)` in height — as wide as its text.
+A list has no extent of its own, so a viewport measures a list that runs along
+such an axis: a walk from the head that reaches both ends of the list within `M`
+gives `C`, and else `C = M`. So a short list takes only its children, and the
+walk reads only the children that the viewport draws.
 
 A `WidgetShell` offers its content the same way: its authored `size`, else the
 space its parent gave, less its insets and its bands. So the shell of a window
