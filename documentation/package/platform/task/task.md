@@ -434,7 +434,7 @@ runs again goes back into its place.
 
 `TaskGroupDocumentToWidgetPane` draws a group as its pane: a card (below); a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
-buttons and its two streams. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, with the code word nowhere else; the error message of an `ERROR` is a line in the error colour under it. Below the buttons come the document of the kind, in a place of its own (a kind with no document shows the lines of `format_task_details` above the buttons), and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
+buttons and its two streams. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR` is a line in the error colour under it. Below the buttons come the document of the kind, in a place of its own (a kind with no document shows the lines of `format_task_details` above the buttons), and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -456,10 +456,14 @@ the document) and `4 at a time`, joined by ` · ` in muted text; the line of the
 preparation; a badge for each count, `2 FAIL unexpected` in the role of its code,
 `1 running` in the accent role and `3 waiting` with no role; the bar of the
 progress; the time facts in two groups side by side, `finished`, `elapsed` and
-`left`, then `slowest` and `rate`, a fact with no value left out; a table of
-the reasons of the unexpected results with the columns `count`, `reason` and
-`tasks` (five rows at most, then a muted `+3 more reasons`), which is not shown
-while no result is unexpected; and the actions on the whole group. The badges and
+`left`, then `slowest` and `rate` (`72 a minute`, `2.5 a minute`, or `12 an
+hour` when fewer than one a minute finish), a fact with no value left out; a
+table of the reasons of the unexpected results with the columns `count`,
+`reason` and `tasks` (five rows at most, then a muted `+3 more reasons`), which
+is not shown while no result is unexpected; and the actions on the whole group.
+A row of the table is one line: the reason and the names are cut with "…", and
+the tooltip holds the whole text; the names are the first three, then `and 197
+more`. The badges and
 the table read the counts of the group, so they are not built again at each
 tick of the clock; the time facts follow the summary. The line of `opp_repl` is
 no part of the card, and the text for the assistant keeps it.

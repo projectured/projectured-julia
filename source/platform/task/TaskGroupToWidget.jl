@@ -63,12 +63,16 @@ function make_task_progress_bar(value)
 end
 
 # A label whose text and colour follow a computation of `(text, color)`. It
-# takes no line while its text is empty.
-function _make_live_label(f)
-    label = WidgetLabel("")
+# takes no line while its text is empty. With `max_lines` above 0 it shows at
+# most that many lines, the last cut with "…", and its tooltip holds the whole
+# text.
+function _make_live_label(f; max_lines::Integer = 0)
+    label = WidgetLabel(""; max_lines)
     set_cell_computation!(getfield(label, :content), () -> f()[1])
     set_cell_computation!(getfield(label, :text_style), () -> f()[2])
     set_cell_computation!(getfield(label, :visible), () -> !isempty(f()[1]))
+    max_lines > 0 && set_cell_computation!(getfield(label, :tooltip),
+                                           () -> (text = f()[1]; isempty(text) ? nothing : text))
     label
 end
 
@@ -129,7 +133,8 @@ end
 
 # The muted text beside the name of a task: the name of its kind, whether its
 # result is the expected one (as `format_task_result` writes it), and the reason
-# of its result, joined by ` · `. It takes no line while it is empty.
+# of its result, joined by ` · `. It takes no line while it is empty, and it is
+# one line, cut with "…", so a long reason does not push the buttons down.
 function _make_task_header_note(p, document::TaskDocument)
     task = getfield(document, :task)[]
     _make_live_label(() -> begin
@@ -146,7 +151,7 @@ function _make_task_header_note(p, document::TaskDocument)
             _has_text(result.reason) && push!(parts, result.reason)
         end
         (join(parts, " · "), p.muted_color)
-    end)
+    end; max_lines = 1)
 end
 
 # The error message of a task that ended with `ERROR`, in the error colour; no
@@ -216,13 +221,30 @@ function _make_group_time_facts(p, doc::TaskGroupDocument)
         s = get_summary()
         Pair{String,Any}["slowest" => s.slowest === nothing ? nothing :
                                       s.slowest[1] * ", " * _format_duration(s.slowest[2]; precision = 1),
-                         "rate" => s.rate === nothing ? nothing : string(round(Int, s.rate), " a minute")]
+                         "rate" => s.rate === nothing ? nothing : _format_task_rate(s.rate)]
     end)
     HorizontalLayout(Any[done, pace]; vertical_align = :top, gap = p.section_gap)
 end
 
+# The tasks finished in a minute, or in an hour when fewer than one a minute
+# finish: a whole number from 10 up, else one digit after the point.
+function _format_task_rate(per_minute::Real)
+    format(rate) = rate >= 10 ? string(round(Int, rate)) : string(round(rate; digits = 1))
+    per_minute >= 1 ? string(format(per_minute), " a minute") : string(format(per_minute * 60), " an hour")
+end
+
 # The most reasons that the card lists; the rest are counted in a line.
 const _SUMMARY_REASON_ROWS = 5
+
+# The most names of tasks that a row of a reason lists; the rest are counted.
+const _SUMMARY_REASON_NAMES = 3
+
+# A label of one line, cut with "…" in a bounded width, whose tooltip holds the whole text.
+_make_cut_label(text::AbstractString) = WidgetLabel(text; max_lines = 1, tooltip = text)
+
+# The names of the tasks that gave a reason: the first ones, and a count of the rest.
+_format_reason_names(names) = length(names) <= _SUMMARY_REASON_NAMES ? join(names, ", ") :
+    string(join(first(names, _SUMMARY_REASON_NAMES), ", "), " and ", length(names) - _SUMMARY_REASON_NAMES, " more")
 
 # The table of the reasons of the unexpected results of a group: a row for each
 # reason, with its count and the tasks that gave it, and a muted line that counts
@@ -231,12 +253,14 @@ const _SUMMARY_REASON_ROWS = 5
 function _make_group_reason_table(p, doc::TaskGroupDocument)
     reasons() = get_task_group_document_counts(doc).reasons
     rows = CellVector(Computation(() -> Any[
-        CellVector(Cell[Cell(WidgetLabel(string(count))), Cell(WidgetLabel(reason)),
-                        Cell(WidgetLabel(join(names, ", ")))])
+        CellVector(Cell[Cell(WidgetLabel(string(count))), Cell(_make_cut_label(reason)),
+                        Cell(_make_cut_label(_format_reason_names(names)))])
         for (reason, count, names) in first(reasons(), _SUMMARY_REASON_ROWS)]))
     headers = CellVector(Cell[Cell(WidgetLabel(name)) for name in ("count", "reason", "tasks")])
     table = WidgetTable(headers, rows)
-    # The count is as narrow as its numbers; the reasons and the tasks share the rest and wrap.
+    # The count is as narrow as its numbers; the reasons and the tasks share the
+    # rest, in the bounded width of a wrapped column, where each is one line cut
+    # with "…", so a row of the card is one line high.
     columns = Any[WidgetTableColumn(; align = :right),
                   WidgetTableColumn(; policy = Relative(2.0), cell_policy = :wrap),
                   WidgetTableColumn(; policy = Relative(3.0), cell_policy = :wrap)]
