@@ -264,6 +264,42 @@ function test_pred_file()
         end
     end
 
+    @testset "splice_held_files! gives each whole file(…) the answer of find_file" begin
+        asked = String[]
+        answers = Dict("/work/sub/a.txt" => TextFile("/work/sub/a.txt", "one"),
+                       "/work/b/c.txt" => TextFile("/work/b/c.txt", "two"))
+        find_file = path -> (push!(asked, path); get(answers, path, nothing))
+        a_leaf = () -> SerializationModule.PredReference("file(\"a.txt\")")
+        node_leaf = SerializationModule.PredReference("node(file(\"a.txt\"), \"elements[1]\")")
+        gone_leaf = SerializationModule.PredReference("file(\"gone.txt\")")
+        holder = PredFileHolder(name = "h", elements = Any[a_leaf(), a_leaf(), node_leaf,
+                                SerializationModule.PredReference("file(\"../b/c.txt\")"), gone_leaf,
+                                (picture = a_leaf(), count = 3), (a_leaf(), 4)])
+        content = splice_held_files!(holder, "/work/sub", find_file)
+        @test content === holder
+        elements = holder.elements
+        # A whole file(…) takes the answer, and two slots of one path hold one object.
+        @test elements[1] === answers["/work/sub/a.txt"]
+        @test elements[2] === elements[1]
+        # A node(…) stays, and so does a file that find_file does not know.
+        @test elements[3] === node_leaf
+        @test elements[5] === gone_leaf
+        # A path with .. is asked as the absolute path against the base folder.
+        @test elements[4] === answers["/work/b/c.txt"]
+        # A slot in a named tuple and in a tuple takes its answer.
+        @test elements[6].picture === elements[1] && elements[6].count == 3
+        @test elements[7][1] === elements[1] && elements[7][2] == 4
+        # find_file is asked once for each path.
+        @test sort(asked) == ["/work/b/c.txt", "/work/sub/a.txt", "/work/sub/gone.txt"]
+        # A content that is a whole file(…) is the answer.
+        @test splice_held_files!(a_leaf(), "/work/sub", find_file) === answers["/work/sub/a.txt"]
+        # An answer nothing keeps every leaf, and a content that holds none stays as it is.
+        kept = PredFileHolder(name = "k", elements = Any[a_leaf()])
+        splice_held_files!(kept, "/work/sub", path -> nothing)
+        @test kept.elements[1] isa SerializationModule.PredReference
+        @test splice_held_files!("plain text", "/work/sub", find_file) == "plain text"
+    end
+
     @testset "a held file in a tuple or a named tuple is a reference, and the load gives the file back" begin
         directory = mktempdir()
         try

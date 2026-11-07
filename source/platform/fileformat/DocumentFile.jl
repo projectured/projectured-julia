@@ -542,6 +542,11 @@ the projection renders it again: `content` when it is given, such as a document
 that a task read off the loop with [`read_file_content_again`](@ref), or else the file read again from disk now. A
 non-existent file seeds the insertion placeholder of its extension again.
 
+In an editor, each `file("…")` of the new document gets the file document that the
+editor holds for that file, else a new one that reads nothing
+([`open_file_document!`](@ref)); the reload reads no held file. With no editor, each
+reference stays a leaf.
+
 The file keeps the hash of the text that it read and takes its band away.
 `file_hash` is the hash that the task computed for `content`; with none, the
 file on disk is hashed now ([`compute_file_text_hash`](@ref)). The file counts every
@@ -568,6 +573,7 @@ ReloadFileOperation(file::FileDocument; content = nothing, file_hash = nothing) 
 function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
     content = op.content === nothing ? _read_file_again(file) : op.content
+    content = _splice_open_files(editor, file, content)
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file), content)
@@ -583,6 +589,16 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     state.band = nothing
     _repair_selection!(editor)
     nothing
+end
+
+# `content`, loaded for `file`, with each `file("…")` in it given the file document
+# that `editor` holds for that file, else a new one that reads nothing
+# ([`open_file_document!`](@ref)). The names of the files are against the folder of
+# `file`, as a save writes them. With no editor, or no name, each reference stays.
+function _splice_open_files(editor, file::FileDocument, content)
+    (editor isa Editor && !isempty(get_filename(file))) || return content
+    splice_held_files!(content, dirname(abspath(get_filename(file))),
+                       path -> open_file_document!(editor, path))
 end
 
 # The selection of the editor after a load: it stays where it is, or when the new

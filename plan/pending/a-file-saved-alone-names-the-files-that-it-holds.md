@@ -567,7 +567,7 @@ through the reload (D7), so no test can check the open without the reload.
      one path hold one file after the load, and that a load of the file alone keeps each reference
      and saves it back unchanged.
    - Results: the sets of step 3 pass, 984 tests, with the same three known results.
-5. **A load into an editor gives each `file("…")` its file document (D6, D7, D11).** Needs G4
+5. **A load into an editor gives each `file("…")` its file document (D6, D7, D11).** **Done on 2026-11-07.** Needs G4
    step 2 on main (landed 2026-11-07, `140ae8853`). `FileSplice.jl`: `splice_held_files!`, with
    its export in `SerializationModule.jl`. `OpenFileList.jl`: the generic function
    `open_file_document!` with its docstring and its default, beside `find_open_file_document`
@@ -609,6 +609,65 @@ through the reload (D7), so no test can check the open without the reload.
 
    Then `test_filechange()`, `test_file_tab()`, `test_user_interface_file()` and
    `test_platform_layering()`.
+
+   What the implementation found:
+   - `_splice_walk!` and `_splice_tuple` of `FileSplice.jl` take a `resolve` function in place of
+     `(project, index, tolerant)`, so `load_project` and `splice_held_files!` share one walk.
+     `splice_held_files!` answers the content: the content itself, or the answer when the whole
+     content is a `file("…")` leaf.
+   - Decision: the generic function has two forms. `open_file_document!(path; editor =
+     find_evaluation_editor())` is the one that the assistant calls, and it calls
+     `open_file_document!(editor, path)`, whose default answers `nothing`. Julia can not dispatch on
+     a keyword, so the method of the file-system slice is for `editor::Editor` in the positional
+     form. It runs under `run_on_editor_task!`, because it changes the open files of the editor, so
+     a call of the assistant from another task is posted, and a call from the evaluation of an
+     operation runs at once.
+   - Deviation from the plan text: the example in the docstring puts the file document in a card,
+     `DashboardCard("notes.md", file_1)`, and not `make_file_view(file_1)`. A card holds the file and
+     makes its own view (G4 D3); a view as the content of a card would be a view of a view.
+   - `ReloadFileOperation` splices only when `editor isa Editor` and the file has a name
+     (`_splice_open_files`), so a reload with no editor keeps each leaf and walks nothing.
+   - `_make_opened_file` splices before `op.wrap` and the history, with `dirname(abspath(op.path))`
+     as the base folder. The history wrap of the settings is now made by `_make_editor_history_wrap`,
+     which `_make_opened_file` and the method of `open_file_document!` both use.
+   - The view of a file that is not read yet (`loaded_count < 0`): the folder shows its read in
+     three places, the tree row `WidgetTreeNode(:loader, "reading")`, the heading
+     "<path> · reading" (`FileSystemDirectoryToWidget.jl:112`) and the condition `:running` of its
+     decoration. The view uses the words of the heading: a row above the scroll pane that says
+     "<name> · reading", built as a `LayoutConstraint` of a `WidgetLabel` with a height of its
+     content. It takes the place of the band, so the scroll pane is the second child while a band
+     or the row shows (`_get_file_view_scroll_steps`), and the row names no place. Decision: the
+     decoration of the file got no `:running` condition, because the plan names the view only; a tab
+     label of an unread file shows no loader.
+   - A file in the open files before a holder holds it is not watched. After the reload of a holder
+     in a tab, the new file document of a card is in the open files, and neither held nor watched,
+     because nothing holds what the content of a file holds. The set in `test_file_change_store()`
+     records that as `@test_broken` (G4 open question 10).
+   - A cycle of files that hold each other can not be printed to its end: with the tab of the first
+     file as the root of the editor, the frame ran out of memory (10 GB) once the second file had
+     read and held the first. The test of the cycle puts a plain document at the root of the
+     editor. Whether the window of the application prints such a cycle forever is not measured; it
+     is a risk for step 6 and for G4 step 4.
+   - `FileChangeTests` of `ProjecturedPlatformTest` imports `search_documents`. The explorer set
+     defines its frame and draw helpers locally, because `ExplorerTest.jl` is in the main module of
+     the test package and the helpers of the file-change test are in another.
+   - A self-reference `file("a.pred")` inside `a.pred` gets a second, unread file document of
+     `a.pred` while `_make_opened_file` reads it, since the file is not in the open files yet. The
+     save writes a marker into itself as `node(file(…), …)` and the root as `file(…)` only for a
+     held file, so a normal file does not write this.
+   - Results (projectured-julia): `test_pred_file()` 87 pass; `test_explorer()` 360 pass;
+     `test_filechange()` 228 pass and 1 broken (the hold above); `test_file_tab()` 31 pass;
+     `test_user_interface_file()` 22 pass; `test_assistant_documentation()` 27, 196 and 2839 pass;
+     `test_assistant_verbs()` 83 pass. `test_platform_layering()` fails in two sets, "qualified
+     references name only exported symbols" (`AssistantList.jl` and `PaneModule.find_pane_tab_layer`)
+     and "every file imports what it extends" (`CheckLayering.jl:889`); the main checkout fails the
+     same two with the same entries, and no entry names a file of this step. The Julia process of
+     `test_filechange()` and of `test_pred_file()` plus `test_filechange()` ends with a SIGSEGV of
+     the compiler (LLVM) in a watcher thread after `END-OF-TESTS`; the tests had finished.
+   - Results (omnet-julia at `ced3d0cdb` with this worktree): `test_demo_catalog()` 362 pass;
+     `test_workbench()` 182 pass; the workbench tests of `OmnetWorkbenchTest.jl` and
+     `OmnetWorkbenchToWidgetTest.jl` pass; `test_fingerprint_store_document()` and
+     `test_project_page()` of `OmnetLegacyTest` pass (100 for the page). omnet-julia needs no change.
 6. **The explorer content saves alone and splices its held files (D8).** Needs step 5.
    `ExplorerContentFile.jl:60-70` and `:90-99`, with the keyword `folder`. `Application.jl:597-605`
    and `ApplicationExplorer.jl:87-94` give `root`. `explorer.md` says it. Test: the set of

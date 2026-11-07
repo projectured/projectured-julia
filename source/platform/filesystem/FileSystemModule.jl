@@ -54,6 +54,7 @@ import ..DocumentModule: get_document_title, has_document_duplicate, copy_docume
 import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file,
                        acquire_document!, release_document!, get_document_decoration
 import ..FileChangeModule: receive_folder_change!
+import ..FileFormatModule: open_file_document!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..WidgetModule: make_graphics_projection

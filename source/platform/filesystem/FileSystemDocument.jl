@@ -238,12 +238,38 @@ function evaluate_operation(editor, op::OpenFileOperation)
     nothing
 end
 
-# The file of `op`: read from disk, with a history around its content when the
-# editor has settings.
+# The file of `op`: read from disk, with each `file("…")` in it given the file
+# document that the editor holds for that file, and a history around its content
+# when the editor has settings. The splice runs before the history wraps the content,
+# so the history gets no step.
 function _make_opened_file(editor, op::OpenFileOperation)
+    history = _make_editor_history_wrap(editor)
+    base_dir = dirname(abspath(op.path))
+    make_file_tab(op.path, document -> history(op.wrap(
+        splice_held_files!(document, base_dir, path -> open_file_document!(editor, path)))))
+end
+
+# What wraps the content of a file that the editor opens: a history when the editor
+# has settings, else nothing.
+function _make_editor_history_wrap(editor)
     settings = find_editor_settings(; editor)
-    history = settings === nothing ? identity : make_history_wrap(settings)
-    make_file_tab(op.path, document -> history(op.wrap(document)))
+    settings === nothing ? identity : make_history_wrap(settings)
+end
+
+# The file document of a held file at `path` in `editor`: the one that the editor
+# holds open, else a new one that reads nothing (`make_unread_file`), with the history
+# of the settings of the editor around its content, and in the open files of the
+# editor from this call on. It runs on the task of the editor. A new file document
+# reads its file when a view of it is drawn, and a holder that holds it watches its
+# file.
+function open_file_document!(editor::Editor, path::AbstractString)
+    run_on_editor_task!(editor; description = "open_file_document!") do
+        open = find_open_file_document(path; editor)
+        open === nothing || return open
+        file = make_unread_file(path, _make_editor_history_wrap(editor))
+        add_open_file!(editor, file)
+        file
+    end
 end
 
 # What a new tab shows of the file of `op`: the part that `file_wrap` puts around

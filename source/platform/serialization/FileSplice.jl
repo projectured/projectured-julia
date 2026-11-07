@@ -179,24 +179,26 @@ end
 
 function _splice!(project::FileProject; tolerant::Bool = false)
     index = Dict{String,Any}(normpath(get_filename(file)) => file for file in project.files)
+    resolve = leaf -> _splice_target(project, index, leaf, tolerant)
     visited = IdDict{Any,Bool}()
     for file in project.files
         # A file whose whole content is a reference: the save cut at its root, and
         # a one-statement file parses to the statement itself.
-        target = _splice_target(project, index, get_file_content(file), tolerant)
+        target = resolve(get_file_content(file))
         if target !== nothing
             getfield(file, :content)[] = target
         else
-            _splice_walk!(project, index, get_file_content(file), visited, tolerant)
+            _splice_walk!(resolve, get_file_content(file), visited)
         end
     end
     project
 end
 
 # Every child slot of `node` whose leaf is a reference gets the node it names,
-# written into the slot's cell. The walk visits each object once, so a graph
+# written into the slot's cell. `resolve` answers the node that a leaf names, or
+# `nothing` for a leaf it leaves. The walk visits each object once, so a graph
 # the splice closes into a cycle still terminates.
-function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
+function _splice_walk!(resolve, node, visited::IdDict)
     node isa Document || return
     haskey(visited, node) && return
     visited[node] = true
@@ -210,29 +212,29 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
             for index_in in eachindex(value)
                 element = value[index_in]
                 target = element isa Union{Tuple,NamedTuple} ?
-                         _splice_tuple(project, index, element, visited, tolerant) :
-                         _splice_target(project, index, element, tolerant)
+                         _splice_tuple(resolve, element, visited) :
+                         resolve(element)
                 if target !== nothing
                     value[index_in] = target
                 else
-                    _splice_walk!(project, index, element, visited, tolerant)
+                    _splice_walk!(resolve, element, visited)
                 end
             end
         elseif value isa Union{Tuple,NamedTuple}
-            target = _splice_tuple(project, index, value, visited, tolerant)
+            target = _splice_tuple(resolve, value, visited)
             if target !== nothing
                 raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
                                               name, " of ", typeof(node), ", which cannot be spliced")
                 raw[] = target
             end
         elseif value isa Document
-            target = _splice_target(project, index, value, tolerant)
+            target = resolve(value)
             if target !== nothing
                 raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
                                               name, " of ", typeof(node), ", which cannot be spliced")
                 raw[] = target
             else
-                _splice_walk!(project, index, value, visited, tolerant)
+                _splice_walk!(resolve, value, visited)
             end
         end
     end
@@ -241,14 +243,14 @@ end
 # A tuple or a named tuple built again with each reference leaf in it, at any
 # depth, replaced by the node that it names, or `nothing` when no leaf in it
 # names a node of the set. A document in it is walked as any other.
-function _splice_tuple(project, index, value::Union{Tuple,NamedTuple}, visited::IdDict, tolerant::Bool)
+function _splice_tuple(resolve, value::Union{Tuple,NamedTuple}, visited::IdDict)
     changed = false
     spliced = map(value) do element
         target = element isa Union{Tuple,NamedTuple} ?
-                 _splice_tuple(project, index, element, visited, tolerant) :
-                 _splice_target(project, index, element, tolerant)
+                 _splice_tuple(resolve, element, visited) :
+                 resolve(element)
         target === nothing || (changed = true; return target)
-        _splice_walk!(project, index, element, visited, tolerant)
+        _splice_walk!(resolve, element, visited)
         element
     end
     changed ? spliced : nothing
@@ -272,6 +274,49 @@ function _splice_target(project, index, leaf, tolerant::Bool = false)
         nothing
     end
     target
+end
+
+"""
+    splice_held_files!(content, base_dir, find_file) -> content
+
+Replace each reference leaf of `content` whose marker is a whole `file("p")` with
+what `find_file(path)` answers for the absolute path of `p` against `base_dir`, and
+answer the content: `content` itself, or the file that it is when the whole content
+is such a leaf. `find_file` is asked once for each path, so two slots of one file
+get one answer. An answer `nothing` keeps the leaf. A `node(…)`, a `section(…)` and
+any other verb stay leaves. The walk goes into a tuple and a named tuple. It reads
+no disk, and it changes nothing outside `content`.
+
+Use it where a file enters an editor, to give each file that it names the file
+document that the editor holds for it.
+
+# Example
+
+    splice_held_files!(content, "/work", path -> get(opened_files, path, nothing))
+
+See also `load_project` and `find_held_file`.
+"""
+function splice_held_files!(content, base_dir::AbstractString, find_file)
+    answers = Dict{String,Any}()
+    resolve = leaf -> _find_held_file_answer!(answers, leaf, base_dir, find_file)
+    visited = IdDict{Any,Bool}()
+    target = content isa Union{Tuple,NamedTuple} ? _splice_tuple(resolve, content, visited) : resolve(content)
+    target !== nothing && return target
+    _splice_walk!(resolve, content, visited)
+    content
+end
+
+# What `find_file` answers for the file that `leaf` names as a whole `file("p")`, or
+# `nothing` for any other leaf. `answers` keeps one answer for each path.
+function _find_held_file_answer!(answers::Dict{String,Any}, leaf, base_dir::AbstractString, find_file)
+    marker = find_reference_marker(leaf)
+    marker === nothing && return nothing
+    expression = _parse_marker_expression(marker)
+    (expression isa Expr && expression.head === :call && expression.args[1] === :file &&
+     length(expression.args) == 2 && expression.args[2] isa AbstractString) || return nothing
+    path = abspath(joinpath(base_dir, String(expression.args[2])))
+    haskey(answers, path) || (answers[path] = find_file(path))
+    answers[path]
 end
 
 # The marker vocabulary, evaluated against the set: `file` and `node` here, a

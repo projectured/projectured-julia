@@ -117,6 +117,37 @@ function find_open_file_document(path::AbstractString; editor = find_evaluation_
 end
 
 """
+    open_file_document!(path; editor = find_evaluation_editor()) -> FileDocument or nothing
+
+The file document that a held file at `path` gets in `editor`: the one that `editor`
+holds open for that file, else a new one that reads nothing and reads the file when a
+view of it is drawn, with the history of the settings of the editor around its
+content. A new one is in the open files of the editor at once. It is not shown: the
+view of a file draws it, and the call places it in no tab. `nothing` when no editor
+opens it, so a load with no editor keeps each reference to a file as it is.
+
+Use it to get the editor's one document of a file, to hold it in a card or a record
+and to show it without a tab.
+
+# Example
+
+    file_1 = open_file_document!("notes.md")
+    content_1 = find_explorer_content()
+    insert_elements!(content_1.entries, length(content_1.entries) + 1,
+                     [Dashboard("Notes", [DashboardCard("notes.md", file_1)])])
+
+See also `open_file!`, `find_open_file_document`, `find_explorer_content`.
+
+For the assistant.
+"""
+function open_file_document! end
+
+open_file_document!(path::AbstractString; editor = find_evaluation_editor()) = open_file_document!(editor, path)
+
+# A load calls it with the editor that loads; the default opens nothing.
+open_file_document!(editor, path::AbstractString) = nothing
+
+"""
     collect_open_file_paths(; editor = find_evaluation_editor()) -> Vector{String}
 
 The absolute paths of the files that `editor` holds open, in the order of its

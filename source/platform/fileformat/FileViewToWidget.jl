@@ -1,10 +1,10 @@
-# Fragment of `FileFormatModule` — the view of a file as a vertical layout: the
-# band of the file above the scroll pane of the view while the file holds one, and
-# the scroll pane alone otherwise:
+# Fragment of `FileFormatModule` — the view of a file as a vertical layout: a row
+# above the scroll pane of the view while the file holds a band or reads its first
+# text, and the scroll pane alone otherwise:
 #
-#     with a band    children[1]                   the band, which names no place
+#     with a row     children[1]                   the band or the reading row, which names no place
 #                    children[2].content.<rest>    the file, in the scroll pane
-#     no band        children[1].content.<rest>    the file, in the scroll pane
+#     no row         children[1].content.<rest>    the file, in the scroll pane
 #
 # The printer prints no child. The layout stage that follows prints the layout
 # through the recursion, which draws the band with the rows of the widgets and the
@@ -18,7 +18,9 @@
 
 The projection of a [`FileView`](@ref): the [`FileBand`](@ref) of its file
 above its scroll pane, as one row with the sentence of the band and a button for
-each of its choices. A click on a button answers the operation of its choice. The
+each of its choices. A click on a button answers the operation of its choice. A file
+that is not read yet ([`make_unread_file`](@ref)) has a row that says
+"<name> · reading", as the heading of a folder says it, in the place of the band. The
 file is the content of the scroll pane, so the pane scrolls it and the band stays. `surface` is the color
 behind the row, `text` the color of the sentence and `padding` the space inside the
 row and `button_gap` the space between the buttons; the default and `theme`, a
@@ -68,9 +70,17 @@ end
 function _arrange_file_view(p::FileViewToWidget, view::FileView)
     # A file whose changes are not all read reads its text after this frame.
     demand_file_text(view.file)
-    band = get_file_disk_state(view.file).band
-    band === nothing ? Any[view.scroll] : Any[_make_file_band_row(p, band), view.scroll]
+    state = get_file_disk_state(view.file)
+    band = state.band
+    band !== nothing && return Any[_make_file_band_row(p, band), view.scroll]
+    state.loaded_count < 0 && return Any[_make_file_reading_row(view), view.scroll]
+    Any[view.scroll]
 end
+
+# The row of a file that is not read yet: its name and that it reads, in the words of
+# the heading of a folder that reads. The row takes the height of its content.
+_make_file_reading_row(view::FileView) =
+    LayoutConstraint(WidgetLabel(string(get_document_title(view.file), " · reading")); height = Content)
 
 # The row of `band`: its sentence, and a button for each choice, whose click answers
 # the operation of the choice. The row takes the height of its content.
@@ -87,9 +97,12 @@ function _make_file_band_row(p::FileViewToWidget, band::FileBand)
 end
 
 # The steps from the layout to the scroll pane, for the arrangement that the file of
-# the view shows now.
-_get_file_view_scroll_steps(view::FileView) =
-    get_file_disk_state(view.file).band === nothing ? _FILE_VIEW_FIRST_STEPS : _FILE_VIEW_SECOND_STEPS
+# the view shows now: the scroll pane is second below a row of the band or of the
+# first read, and first otherwise.
+function _get_file_view_scroll_steps(view::FileView)
+    state = get_file_disk_state(view.file)
+    state.band === nothing && state.loaded_count >= 0 ? _FILE_VIEW_FIRST_STEPS : _FILE_VIEW_SECOND_STEPS
+end
 
 # `file.<rest>` ↔ `<scroll pane>.content.<rest>` in the layout: the file is the
 # content of the scroll pane. `scroll.<rest>` is a part that the pane introduced,
@@ -122,8 +135,9 @@ end
 
 # A path into the file takes the step of the file, and a path to the scroll pane
 # names the file; a part that the pane introduced keeps its path below the field of
-# the pane. A path into the band names nothing, so a click on a button leaves the
-# selection where it is; a path to the layout itself names the whole view.
+# the pane. A path into the band or the reading row names nothing, so a click on a
+# button leaves the selection where it is; a path to the layout itself names the whole
+# view.
 function map_reference_backward(::FileViewToWidget, iomap::SimpleIoMap, reference)
     prefix = _get_file_view_scroll_steps(iomap.input)
     steps = get_reference_steps(strip_reference_types(reference))

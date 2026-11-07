@@ -34,6 +34,8 @@ A document graph can also be saved as text files that a version control system c
 
 `load_project(base_dir, filenames)` parses every file with its own format first; a reference leaf is then an ordinary leaf, such as a `JsonString` that holds a marker. It then walks each tree and replaces each reference leaf with the node that the marker names. Every tree exists before the first replacement, so two markers of one node get the same object and a cycle across files becomes a cycle in memory. A marker that names a file outside the set stays a leaf, so one file can be opened alone and saved back unchanged. `follow = true` also opens the files that the set names, and `tolerant = true` logs a file that does not open and keeps its markers as text.
 
+`splice_held_files!(content, base_dir, find_file)` is the splice of an editor. It replaces each leaf of `content` whose marker is a whole `file("p")` with what `find_file(path)` answers for the absolute path of `p` against `base_dir`, and answers the content: `content` itself, or the answer when the whole content is such a leaf. `find_file` is asked once for each path, so two slots of one file hold one object. An answer `nothing` keeps the leaf, and a `node(…)`, a `section(…)` and any other verb stay leaves. The walk goes into a tuple and a named tuple, and it reads no disk. It shares its walk with `load_project`, which resolves a leaf against a set of files. The file-format slice calls it when a file enters an editor, with the file documents that the editor holds ([fileformat.md](../fileformat/fileformat.md)).
+
 ### The marker language
 
 A marker is `<<expr>>`, where `expr` is a call:

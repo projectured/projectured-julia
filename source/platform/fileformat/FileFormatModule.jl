@@ -74,7 +74,7 @@ export get_file_icon, make_file_note
 export FileToContent
 export FileView, make_file_view, FileViewToWidget, KeepFileEditsOperation, receive_file_change!
 export OpenFileList, get_session_open_file_list, find_open_file_document, add_open_file!, remove_open_file!,
-       collect_open_file_paths, find_shown_file_path,
+       collect_open_file_paths, find_shown_file_path, open_file_document!,
        OpenFileListToWidget
 
 

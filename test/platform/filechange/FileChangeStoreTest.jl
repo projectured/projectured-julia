@@ -666,6 +666,98 @@ function test_file_change_store()
             evaluate_operation(editor, ReleaseDocumentOperation(view))
         end
 
+        @testset "a reload of a holder gives each file(…) the file document of the editor, and reads no held file" begin
+            root = mktempdir()
+            try
+                paths = Dict(name => joinpath(root, name) for name in ("a.txt", "b.txt", "h.pred"))
+                write(paths["a.txt"], "a on disk\n")
+                write(paths["b.txt"], "b on disk\n")
+                make_card(title, name) = DashboardCard(title, TextFile(name, "x"))
+                @test save_file!(PredFile(paths["h.pred"], Dashboard("one", Any[make_card("A", "a.txt")])), root)
+                holder = make_file_tab(paths["h.pred"], UndoBuffer)
+                view = make_file_view(holder)
+                editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                      backend = HeadlessBackend(), devices = Device[], window = false, tabs = false,
+                                      appearance = false, settings = false, file_change = true)
+                store = get_session_file_change_store(; editor)
+                run_frame!(editor)
+                get_dashboard() = get_wrapped_document(get_file_content(holder))
+                is_leaf(node) = node isa SerializationModule.PredReference
+                find_leaves() = search_documents(get_dashboard(), is_leaf)
+                # The first load is an open of the editor.
+                evaluate_operation(editor, ReloadFileOperation(holder))
+                evaluate_operation(editor, AcquireDocumentOperation(view))
+                a_file = get_dashboard().cards[1].content
+                @test a_file isa TextFile && get_file_disk_state(a_file).loaded_count < 0 && isempty(find_leaves())
+                @test find_open_file_document(paths["a.txt"]; editor) === a_file
+                # Another program rewrites the holder: another title, the held path of before and a new one.
+                @test save_file!(PredFile(paths["h.pred"], Dashboard("two", Any[make_card("A", "a.txt"),
+                                                                              make_card("B", "b.txt")])), root)
+                @test _wait_for_file_change(store)
+                @test drain_file_changes!(; editor) == 1
+                _draw_file_view(editor, view)
+                @test _run_frames_until(editor, () -> _is_file_read(holder))
+                @test get_dashboard().title == "two" && length(get_dashboard().cards) == 2
+                @test get_dashboard().cards[1].content === a_file
+                b_file = get_dashboard().cards[2].content
+                @test b_file isa TextFile && get_filename(b_file) == paths["b.txt"]
+                @test get_file_disk_state(b_file).loaded_count < 0 && isempty(find_leaves())
+                @test find_open_file_document(paths["b.txt"]; editor) === b_file
+                # The reload read no held file.
+                @test isempty(filter(record -> occursin("b.txt", string(record)), get_background_work_store(editor).records))
+                @test get_file_disk_state(b_file).read_count == 0
+                # @broken: a load writes the content of a file with no hold, so no holder holds the new file document and its file is not watched; G4 open question 10
+                @test_broken is_document_held(editor, b_file) && is_document_file_watched(b_file; store)
+                # F5 gives the same.
+                @test save_file!(PredFile(paths["h.pred"], Dashboard("three", Any[make_card("B", "b.txt"),
+                                                                                make_card("A", "a.txt")])), root)
+                evaluate_operation(editor, ReloadFileOperation(holder))
+                @test get_dashboard().title == "three" && isempty(find_leaves())
+                @test get_dashboard().cards[1].content === b_file && get_dashboard().cards[2].content === a_file
+                evaluate_operation(editor, ReleaseDocumentOperation(view))
+                # With no editor, a reload keeps each reference.
+                alone = make_file_tab(paths["h.pred"], UndoBuffer)
+                evaluate_operation(nothing, ReloadFileOperation(alone))
+                @test all(card -> is_leaf(card.content), get_wrapped_document(get_file_content(alone)).cards)
+            finally
+                rm(root; recursive = true, force = true)
+            end
+        end
+
+        @testset "two files that hold each other get each other's file document" begin
+            root = mktempdir()
+            try
+                first_path, second_path = joinpath(root, "first.pred"), joinpath(root, "second.pred")
+                first_dashboard, second_dashboard = Dashboard("first", Any[]), Dashboard("second", Any[])
+                first_file, second_file = PredFile(first_path, first_dashboard), PredFile(second_path, second_dashboard)
+                push!(first_dashboard.cards, DashboardCard("to second", second_file))
+                push!(second_dashboard.cards, DashboardCard("to first", first_file))
+                @test save_file!(first_file, root) && save_file!(second_file, root)
+                tab_file = make_file_tab(first_path, UndoBuffer)
+                view = make_file_view(tab_file)
+                # The window shows neither file: a cycle of files that hold each other has no end to print.
+                editor = build_editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                      backend = HeadlessBackend(), devices = Device[], window = false, tabs = false,
+                                      appearance = false, settings = false, file_change = true)
+                run_frame!(editor)
+                evaluate_operation(editor, ReloadFileOperation(tab_file))
+                evaluate_operation(editor, AcquireDocumentOperation(view))
+                # The open of the first reads the first only.
+                held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
+                @test held_second isa PredFile && get_file_disk_state(held_second).loaded_count < 0
+                # A view draws the card of the second, and its read gives the slot of the first the tab.
+                second_view = make_file_view(held_second)
+                evaluate_operation(editor, AcquireDocumentOperation(second_view))
+                _draw_file_view(editor, second_view)
+                @test _run_frames_until(editor, () -> _is_file_read(held_second))
+                @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
+                evaluate_operation(editor, ReleaseDocumentOperation(second_view))
+                evaluate_operation(editor, ReleaseDocumentOperation(view))
+            finally
+                rm(root; recursive = true, force = true)
+            end
+        end
+
         @testset "a load keeps the selection where it can, and makes the editor no fault" begin
             folder = mktempdir()
             path = joinpath(folder, "work.pred")

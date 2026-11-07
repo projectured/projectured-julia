@@ -1313,6 +1313,79 @@ function test_explorer()
         end
     end
 
+    @testset "the open of a dashboard gives a card the file document of a tab, else one that reads when it is drawn" begin
+        root = mktempdir()
+        try
+            notes_path, later_path, work_path = (joinpath(root, name) for name in ("notes.txt", "later.txt", "work.pred"))
+            write(notes_path, "notes on disk\n")
+            write(later_path, "later on disk\n")
+            saved = Dashboard("work", Any[DashboardCard("notes", TextFile("notes.txt", "x")),
+                                          DashboardCard("later", TextFile("later.txt", "y"))])
+            @test save_file!(PredFile(work_path, saved), root)
+            editor, backend = _nav_editor(PrimitiveString("x"); file_change = true, settings = Settings())
+            store = get_session_file_change_store(; editor)
+            open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
+            # Frames until `done()` holds, and a draw of a view as the frame of a window draws it: the
+            # print of a view demands the text of its file in the evaluation of the editor.
+            function run_until(done; seconds = 30)
+                deadline = time() + seconds
+                while time() < deadline
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                    done() && return true
+                    sleep(0.02)
+                end
+                false
+            end
+            draw(view) = run_with_evaluation_editor(editor) do
+                length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
+            end
+            is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
+            # A tab shows notes.txt.
+            tab_file = open_file(notes_path)
+            tab_view = make_file_view(tab_file)
+            evaluate_operation(editor, AcquireDocumentOperation(tab_view))
+            @test find_open_file_document(notes_path; editor) === tab_file
+            # The open of the dashboard reads no held file.
+            holder = open_file(work_path)
+            dashboard = get_wrapped_document(get_file_content(holder))
+            @test dashboard isa Dashboard && length(dashboard.cards) == 2
+            @test dashboard.cards[1].content === tab_file
+            later = dashboard.cards[2].content
+            @test later isa TextFile && get_filename(later) == later_path
+            @test find_open_file_document(later_path; editor) === later
+            state = get_file_disk_state(later)
+            @test state.loaded_count < 0 && state.read_count == 0 && state.file_hash === nothing
+            @test get_file_content(later) isa UndoBuffer
+            run_until(() -> false; seconds = 0.5)
+            @test isempty(get_background_work_store(editor).records)
+            # A second open of the path gives the same file document.
+            @test open_file_document!(later_path; editor) === later
+            # Before the read, the view says that it reads, and the file refuses a save.
+            later_view = make_file_view(later)
+            evaluate_operation(editor, AcquireDocumentOperation(later_view))
+            @test draw(later_view) == 2
+            reading = print_document(FileViewToWidget(), nothing, later_view, nothing).output.children[1]
+            @test reading.child.content == "later.txt \u00b7 reading"
+            @test evaluate_operation(nothing, SaveFileOperation(later)) === false
+            @test read(later_path, String) == "later on disk\n"
+            # A save of the dashboard writes the file in each card as the file that it shows.
+            text = cut_file_text(PredFile(work_path, dashboard), root)
+            @test occursin("file(\"notes.txt\")", text) && occursin("file(\"later.txt\")", text)
+            @test !occursin("later on disk", text) && !occursin("FileDiskState", text)
+            # The read comes after the frame, once, and the view stops saying that it reads.
+            @test run_until(() -> is_read(later))
+            reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
+            @test reads == 1 && state.loaded_count >= 0
+            @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
+            @test draw(later_view) == 1
+            evaluate_operation(editor, ReleaseDocumentOperation(later_view))
+            evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
     @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
         root = mktempdir()
         try

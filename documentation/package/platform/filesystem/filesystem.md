@@ -19,6 +19,8 @@ The file-system slice of `ProjecturedPlatform` shows folders and files of the di
 
 A `FileSystemFile` has a field `document`, the file document that the editor holds open for the file, and a view-state field `document_view`, the `FileView` of that document that the page of the file draws. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else the document that the file kept, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict, or keeps a dormant selection: the place where the keys were on it, which a double press in an explorer links back ([explorer.md](../explorer/explorer.md)).
 
+The open of a file (`OpenFileOperation`, `open_file!` and the acquire of a `FileSystemFile`) gives each `file("…")` of the file that it reads the file document that the editor holds for that file, before the history wraps the content. This slice adds the method of `open_file_document!` for an `Editor`: the file document that the list of open files holds for the path, else a new one that `make_unread_file` makes with the history of the settings of the editor around its content, which it adds to the list at once. The method runs on the task of the editor. The new file document reads its file when a view of it is drawn ([fileformat.md](../fileformat/fileformat.md)).
+
 `make_filesystem_pathname(path)` makes a `FileSystemFile`, or a `FileSystemDirectory` that is unread. A print reads only what a folder holds, and never the disk.
 
 ### A folder holds what its last read found

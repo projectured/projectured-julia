@@ -587,7 +587,7 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
 using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep, PositionReferenceStep,
-    annotate_reference_types, extend_reference, strip_reference_types, get_reference_steps, is_valid_reference
+    annotate_reference_types, extend_reference, strip_reference_types, get_reference_steps, is_valid_reference, search_documents
 using ProjecturedKernel.SelectionModule: get_selection, replace_selection!
 using ProjecturedPlatform.FaultViewModule: get_session_fault_log
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString

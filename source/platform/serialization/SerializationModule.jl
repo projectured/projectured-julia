@@ -46,7 +46,7 @@ export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text
        find_file_extension,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text, is_own_content, make_file, is_editable_file_type, read_file_content,
-       is_written_in_file, is_written_inline, make_inline_leaf, find_held_file
+       is_written_in_file, is_written_inline, make_inline_leaf, find_held_file, splice_held_files!
 export TextFile
 export parse_path_text, print_path_text
 export PredFile, PredText, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
