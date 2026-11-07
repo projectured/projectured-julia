@@ -28,8 +28,8 @@ function test_workflow_list()
         @testset "a row for each open file that holds a workflow, while it is open" begin
             editor = _make_workflow_view_editor(PrimitiveString("start"))
             folder = _make_workflow_list_folder()
-            plan = make_file_tab_content(joinpath(folder, "plan.pred")).page
-            other = make_file_tab_content(joinpath(folder, "other.pred")).page
+            plan = make_file_tab_content(joinpath(folder, "plan.pred")).file
+            other = make_file_tab_content(joinpath(folder, "other.pred")).file
             list = get_session_workflow_list(; editor)
             @test list === get_session_workflow_list(; editor)
             @test list.file_list === get_session_open_file_list(; editor)
@@ -40,7 +40,7 @@ function test_workflow_list()
             rows = collect(list.table.document.rows)
             @test length(rows) == 1
             @test rows[1].item === get_edited_document(plan)
-            @test rows[1].within === find_page_file(plan)
+            @test rows[1].within === plan
             @test collect(rows[1].values) ==
                   Any["Ship the list", :active, "Ship the list, Build", "2026-10-22 09:30", 1, "plan.pred"]
             remove_open_file!(editor, plan)
@@ -58,9 +58,9 @@ function test_workflow_list()
             @test make_pred_document(WorkflowList, (), Pair{Symbol,Any}[]) isa WorkflowList
         end
 
-        @testset "the tree reaches the steps through the page of a file" begin
+        @testset "the tree reaches the steps through a file" begin
             editor = _make_workflow_view_editor(PrimitiveString("start"))
-            plan = make_file_tab_content(joinpath(_make_workflow_list_folder(), "plan.pred")).page
+            plan = make_file_tab_content(joinpath(_make_workflow_list_folder(), "plan.pred")).file
             add_open_file!(editor, plan)
             list = get_session_workflow_list(; editor)
             files = collect_tree_children(list; limit = 10)
@@ -85,7 +85,7 @@ function test_workflow_list()
             list = get_session_workflow_list(; editor)
             line() = print_document(WorkflowListToWidget(), nothing, list, nothing).output.children[1].content
             @test startswith(line(), "No workflow is open.")
-            add_open_file!(editor, make_file_tab_content(joinpath(_make_workflow_list_folder(), "plan.pred")).page)
+            add_open_file!(editor, make_file_tab_content(joinpath(_make_workflow_list_folder(), "plan.pred")).file)
             @test line() == "1 open workflow · 1 open decision"
             # The renderer draws the list as its page.
             @test _make_workflow_view_editor(list) isa Editor

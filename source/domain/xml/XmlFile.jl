@@ -17,6 +17,7 @@ const PRED_REF_ELEMENT_TAG = "pred:ref"
 @document struct XmlFile <: FileDocument
     filename::String
     content::Document = XmlNothing()
+    disk::FileDiskState = FileDiskState()
 end
 
 # A cell may still be a cell mid-walk: a CellVector holds cells.

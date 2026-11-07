@@ -30,11 +30,12 @@ using ..ReferenceModule
 using Serialization
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_edited_field
+import ..DocumentModule: get_edited_field, get_view_state_fields, is_field_walked
 import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
+       FileDiskState, FileBand, get_file_disk_state,
        get_filename, get_file_content, emit_text,
        save_project!, load_project,
        register_file_document_type!, get_file_document_type, has_file_document_type,

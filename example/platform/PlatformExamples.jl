@@ -361,8 +361,8 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:explorer, "search",    make_explorer_search_document_example),
     AtomicDocument(:explorer, "dashboard", make_dashboard_document_example),
     AtomicDocument(:backgroundwork, "log", make_background_work_log_document_example),
-    # The page of a file that is not on disk.
-    AtomicDocument(:fileformat, "page", make_file_page_document_example),
+    # The view of a file that is not on disk.
+    AtomicDocument(:fileformat, "view", make_file_view_document_example),
     # A roster of a collection, and a terminal that has not started its program.
     AtomicDocument(:roster, "roster",     make_roster_document_example),
     AtomicDocument(:terminal, "terminal", make_terminal_document_example),

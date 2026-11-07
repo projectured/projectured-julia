@@ -120,8 +120,8 @@ end
 function __init__()
     register_natural_graphics!(:fileformat, (; measure, appearance) -> Pair{Type,Any}[
         FileDocument => FileToContent(),
-        FilePageView => ChainingProjection(FilePageToWidget(_find_widget_theme(appearance)),
-                                           VerticalLayoutToGraphicsCanvas()),
+        FileView => ChainingProjection(FileViewToWidget(_find_widget_theme(appearance)),
+                                       VerticalLayoutToGraphicsCanvas()),
         OpenFileList => ChainingProjection(
             OpenFileListToWidget(; gap = get_widget_style(_find_widget_theme(appearance), :section_gap)),
             GridLayoutToGraphicsCanvas()),

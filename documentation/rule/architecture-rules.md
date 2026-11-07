@@ -278,7 +278,7 @@ state, and the code keeps them apart.
   explorers of one folder open apart. State that every view of a thing shares is
   content.
 - **A view document names the content that it shows** with `get_edited_field`, so a
-  path into the content goes through the view, as it goes through a `FilePageView`.
+  path into the content goes through the view, as it goes through a `FileView`.
 - **A view document holds the content that it shows**, with `hold_documents!` in
   its `acquire_document!`, and something holds the view document only while it
   shows. So a read of outside state follows the views by the count of the holders,

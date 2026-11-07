@@ -56,12 +56,12 @@ function test_file_watch_window()
         path = joinpath(dir, "a.json")
         write(path, "{\"name\": \"Alice\"}")
         (editor, backend) = _fw_make_window([path], dir)
-        page = only(search_documents(editor.document, node -> node isa FilePage))
-        file = find_page_file(page)
+        file = only(search_documents(editor.document, node -> node isa JsonFile))
+        state = get_file_disk_state(file)
         @test is_document_file_watched(file; store = get_session_file_change_store(; editor))
-        @test only(get_session_file_change_store(; editor).files).receiver === page
+        @test only(get_session_file_change_store(; editor).files).receiver === file
         shows(text) = any(entry -> occursin(text, entry[1]), _fw_drawn(editor))
-        # A text of the page of the file: below the tab strip, whose first tab is
+        # A text of the file: below the tab strip, whose first tab is
         # the Explorer.
         strip_y = only(y for (t, x, y) in _fw_drawn(editor) if t == "Explorer")
         place(text) = only((x, y) for (t, x, y) in _fw_drawn(editor) if occursin(text, t) && y > strip_y)
@@ -70,10 +70,10 @@ function test_file_watch_window()
         # Another program writes the file: a file with no edits takes it.
         write(path, "{\"name\": \"Bob\"}")
         @test _fw_wait_until(() -> shows("Bob"), editor)
-        @test page.band === nothing && page.file_hash == compute_file_text_hash(path)
+        @test state.band === nothing && state.file_hash == compute_file_text_hash(path)
 
         # A typed character is an edit that is not saved. A change on disk keeps it,
-        # and the page shows its band.
+        # and the file shows its band.
         _fw_click!(editor, backend, place("Bob"), 1.0)
         _fw_press!(editor, backend, KeyPress('x'; time = 2.0))
         @test shows("x")
@@ -85,20 +85,20 @@ function test_file_watch_window()
 
         # Keep mine: the band goes, and the next save writes over the file.
         _fw_click!(editor, backend, place("Keep mine"), 3.0)
-        @test page.band === nothing && !shows("changed on disk")
+        @test state.band === nothing && !shows("changed on disk")
         _fw_press!(editor, backend, KeyDown(:s, ModifierKeys(ctrl = true); time = 4.0))
         @test read(path, String) == edited
-        @test page.file_hash == hash(edited)
+        @test state.file_hash == hash(edited)
 
-        # Load it: the page takes the file on disk, and the edit goes.
+        # Load it: the file takes the file on disk, and the edit goes.
         _fw_click!(editor, backend, place("x"), 5.0)
         _fw_press!(editor, backend, KeyPress('y'; time = 6.0))
         @test has_unsaved_edits(get_file_content(file)) === true
         write(path, "{\"name\": \"Dave\"}")
         @test _fw_wait_until(() -> shows("a.json changed on disk."), editor)
         _fw_click!(editor, backend, place("Load it"), 7.0)
-        @test shows("Dave") && page.band === nothing
-        @test page.file_hash == compute_file_text_hash(path)
+        @test shows("Dave") && state.band === nothing
+        @test state.file_hash == compute_file_text_hash(path)
         foreach(step -> step(editor), editor.stop_steps)
     end
 end

@@ -122,8 +122,7 @@ collect_roster_parts(source::_OpenWorkflows, link) = collect(Any, source.list.fi
 function collect_roster_items(::_OpenWorkflows, link, file)
     workflow = _find_file_workflow(file)
     workflow === nothing && return RosterItem[]
-    holder = file isa FilePage ? find_page_file(file) : file
-    RosterItem[RosterItem(workflow, holder === nothing ? file : holder)]
+    RosterItem[RosterItem(workflow, file)]
 end
 
 # The facets of a step, which the columns of the list show and a person filters

@@ -68,6 +68,7 @@ A `.pred` file: any document, written as its own constructor.
 @document struct PredFile <: FileDocument
     filename::String
     content::Any = nothing
+    disk::FileDiskState = FileDiskState()
 end
 
 # What a `.pred` file holds is a document of any type that no text format owns.

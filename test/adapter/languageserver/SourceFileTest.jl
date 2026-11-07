@@ -213,14 +213,14 @@ end
 end
 
 @testset "a view that only its holder acquires gives the source file of its page the server" begin
-    # The navigator of an explorer holds the view of the page of a file, and nothing
-    # acquires the file itself: the view holds the page, and the page holds it.
+    # The navigator of an explorer holds the view of a file, and nothing acquires the
+    # file itself: the view holds it.
     server, connection = start_fake_language_server(token_types = ["variable", "function"], tokens = _sf_tokens)
     directory = mktempdir()
     path = joinpath(directory, "shown.c")
     write(path, _SF_SOURCE)
     view = make_file_tab_content(path)
-    file = find_page_file(view.page)
+    file = view.file
     @test file isa SourceFile
     editor, backend = _sf_editor(view)
     _sf_give_server!(editor, path, connection)

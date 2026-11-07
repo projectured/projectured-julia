@@ -338,7 +338,7 @@ function test_explorer()
         (_, x, y) = texts[argmax([entry[2] for entry in texts])]
         _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
         file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
-        place = file * ".document.content.content.entries[1].value.value{0}"
+        place = file * ".document.content.entries[1].value.value{0}"
         @test selected() == place
         # The row of another file takes the keys, then a double press on the row of
         # the file puts them back: the file, its document and the place in the JSON.
@@ -496,7 +496,7 @@ function test_explorer()
         drain_operations!(editor)
         run_frame!(editor)
         file = workspace.folders[1].directory.elements[1]
-        @test file isa FileSystemFile && file.document isa FilePage
+        @test file isa FileSystemFile && file.document isa FileDocument
         @test _nav_has_text(backend, "hello")
         open = get_session_open_file_list(; editor)
         @test any(listed -> listed === file.document, open.files)
@@ -509,8 +509,8 @@ function test_explorer()
         run_frame!(editor)
         @test tabs() == before + 1
         shown = [tab.content for group in get_pane_groups(get_window_tree(editor.document)) for tab in group.tabs]
-        @test any(content -> content isa FilePageView && content.page === file.document, shown)
-        @test count(listed -> listed isa FilePage, open.files) == 1
+        @test any(content -> content isa FileView && content.file === file.document, shown)
+        @test count(listed -> listed === file.document, open.files) == 1
         # A second open focuses that tab, and opens no other.
         evaluate_operation(editor, OpenFileOperation(path))
         drain_operations!(editor)
@@ -534,12 +534,12 @@ function test_explorer()
         _nav_press!(editor, backend, _explorer_click(backend, "Open files"))
         @test get_navigator_page(explorer.navigator) === list
         @test _nav_has_text(backend, "No file is open.")
-        # A row comes for each file that opens: a file, or the page of a file.
+        # A row comes for each file that opens.
         buffer = UndoBuffer(PrimitiveString("alpha"))
         file = TextFile(joinpath(root, "a.txt"), buffer)
-        page = FilePage(; content = TextFile(joinpath(root, "b.txt"), UndoBuffer(PrimitiveString("beta"))))
+        second = TextFile(joinpath(root, "b.txt"), UndoBuffer(PrimitiveString("beta")))
         add_open_file!(editor, file)
-        add_open_file!(editor, page)
+        add_open_file!(editor, second)
         frame!()
         @test [collect(row.values) for row in roster.rows] == [Any["a.txt", root, ""], Any["b.txt", root, ""]]
         @test _nav_has_text(backend, "2 open files") && _nav_has_text(backend, "a.txt") && _nav_has_text(backend, "b.txt")
@@ -578,10 +578,10 @@ function test_explorer()
         @test !_nav_has_text(backend, "a.txt")
         _nav_press!(editor, backend, _explorer_click(backend, "b.txt"; side = :page))
         frame!()
-        @test get_navigator_page(explorer.navigator) === page
+        @test get_navigator_page(explorer.navigator) === second
         @test last_steps(explorer.navigator.address, 2) == files_at(2)
         @test _nav_count(backend, "Open files") == 2 && !_nav_has_text(backend, "rows[")
-        @test find_open_file_document(joinpath(root, "b.txt"); editor) === page
+        @test find_open_file_document(joinpath(root, "b.txt"); editor) === second
         # A row goes when the editor lets its file go.
         remove_open_file!(editor, file)
         @test [row.values[1] for row in roster.rows] == ["b.txt"]
@@ -1254,36 +1254,36 @@ function test_explorer()
         @test folder.state === :unread && folder.read_count == 0 && isempty(search.result.matches)
     end
 
-    @testset "a dashboard saved alone writes the page in a card as the file that it shows" begin
+    @testset "a dashboard saved alone writes the file in a card as the file that it shows" begin
         root = mktempdir()
         try
             path = joinpath(root, "notes.txt")
             write(path, "hello")
             view = make_file_tab_content(path)
-            @test view isa FilePageView && view.page isa FilePage
-            # A card that holds the page, and a card that holds its view, write the file.
-            for held in (view.page, view)
+            @test view isa FileView && is_file_document(view.file)
+            # A card that holds the file, and a card that holds its view, write the file.
+            for held in (view.file, view)
                 dashboard = Dashboard("work", Any[DashboardCard("notes", held)])
                 text = cut_file_text(PredFile(joinpath(root, "work.pred"), dashboard), root)
                 @test occursin("content = file(\"notes.txt\")", text)
                 @test !occursin("hello", text)
-                @test !occursin("FilePage", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
+                @test !occursin("FileDiskState", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
             end
         finally
             rm(root; recursive = true, force = true)
         end
     end
 
-    @testset "a dashboard holds the content of its cards, and a page in a card watches its file" begin
+    @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
         root = mktempdir()
         try
-            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_page(make_file_tab(path)))
+            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_tab(path))
             (first_page, inserted, pasted) = (make_page("first.txt"), make_page("inserted.txt"), make_page("pasted.txt"))
             dashboard = Dashboard("Study", Any[DashboardCard("First", first_page)])
             explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
             editor, backend = _nav_editor(explorer; tabs = true, clipboard = true, undo = true, file_change = true)
             store = get_session_file_change_store(; editor)
-            watched(page) = is_document_file_watched(find_page_file(page); store)
+            watched(file) = is_document_file_watched(file; store)
             # A page that no holder shows holds nothing.
             @test !is_document_held(editor, first_page) && !watched(first_page)
             evaluate_operation(editor, AcquireDocumentOperation(explorer))

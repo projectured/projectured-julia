@@ -18,6 +18,7 @@ says so with `is_own_content`, reads itself with `make_file`, and prints itself.
     filename::String
     title::String = ""
     body::String  = ""
+    disk::FileDiskState = FileDiskState()
 end
 
 SerializationModule.is_own_content(::NoteFile) = true

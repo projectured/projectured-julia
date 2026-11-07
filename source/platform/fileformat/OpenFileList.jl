@@ -1,15 +1,14 @@
-# Fragment of `FileFormatModule` — the open files of an editor: the page or the
-# document of each file that a tab or a page shows, once each. An open of a file
-# that the list holds reaches that document, so one file is one document in an
-# editor, and the explorer lists the files that are open.
+# Fragment of `FileFormatModule` — the open files of an editor: the file document
+# of each file that a tab or a page shows, once each. An open of a file that the
+# list holds reaches that document, so one file is one document in an editor, and
+# the explorer lists the files that are open.
 
 """
     OpenFileList()
 
-The files that an editor holds open: for each file, the [`FilePage`](@ref) that a
-tab or a page shows, or the file document when no page holds it. The acquire of a
-file page or a file document adds it, and the release of its last holder takes
-it away, so the list is what the editor shows now. Each editor has its own
+The files that an editor holds open: for each file, the file document that a tab
+or a page shows. The acquire of a file document adds it, and the release of its
+last holder takes it away, so the list is what the editor shows now. Each editor has its own
 ([`get_session_open_file_list`](@ref)).
 
 `table` is the table of the files, which the page of the list shows: an
@@ -90,10 +89,10 @@ function _make_open_file_list()
 end
 
 """
-    find_open_file_document(path; editor = find_evaluation_editor()) -> FilePage, FileDocument or nothing
+    find_open_file_document(path; editor = find_evaluation_editor()) -> FileDocument or nothing
 
-The page or the document of the file at `path` that `editor` holds open, or
-`nothing` when no tab and no page of it shows that file. An open of a file asks it
+The file document at `path` that `editor` holds open, or `nothing` when no tab and
+no page shows that file. An open of a file asks it
 first, so a file that is open is not read a second time.
 
 Use it to reach the document of a file that is open.
@@ -111,9 +110,8 @@ function find_open_file_document end
 function find_open_file_document(path::AbstractString; editor = find_evaluation_editor())
     editor isa Editor || return nothing
     target = abspath(path)
-    for document in get_session_open_file_list(; editor).files
-        file = document isa FilePage ? find_page_file(document) : document
-        file === nothing || abspath(String(get_filename(file))) == target && return document
+    for file in get_session_open_file_list(; editor).files
+        abspath(String(get_filename(file))) == target && return file
     end
     nothing
 end
@@ -129,9 +127,8 @@ function collect_open_file_paths end
 function collect_open_file_paths(; editor = find_evaluation_editor())
     editor isa Editor || return String[]
     paths = String[]
-    for document in get_session_open_file_list(; editor).files
-        file = document isa FilePage ? find_page_file(document) : document
-        file === nothing || push!(paths, abspath(String(get_filename(file))))
+    for file in get_session_open_file_list(; editor).files
+        push!(paths, abspath(String(get_filename(file))))
     end
     paths
 end
@@ -140,42 +137,29 @@ end
     find_shown_file_path(content) -> String | Nothing
 
 The absolute path of the file that `content`, the content of a tab, shows,
-through the layers that hold it, such as a page, a history and a scroll pane, or
+through the layers that hold it, such as a view, a navigator and a scroll pane, or
 `nothing` when it shows no file or a file with no name.
 """
 function find_shown_file_path(content)
-    for _ in 1:8
-        file = content isa FilePage ? find_page_file(content) : is_file_document(content) ? content : nothing
-        if file !== nothing
-            name = String(get_filename(file))
-            return isempty(name) ? nothing : abspath(name)
-        end
-        field = get_edited_field(content)
-        field === nothing && return nothing
-        content = getproperty(content, field)
-    end
-    nothing
+    file = _find_shown_file(content)
+    file === nothing && return nothing
+    name = String(get_filename(file))
+    isempty(name) ? nothing : abspath(name)
 end
 
-# The list takes `document`, a page or a file, unless it holds it or the page that
-# shows it already. A tab acquires its outer layer first, so the page of a file
-# comes before the file.
-function add_open_file!(editor, document)
+# The list takes `file`, unless it holds it already.
+function add_open_file!(editor, file)
     editor isa Editor || return nothing
     list = get_session_open_file_list(; editor)
-    for listed in list.files
-        listed === document && return nothing
-        listed isa FilePage && find_page_file(listed) === document && return nothing
-    end
-    push!(list.files, document)
+    any(listed -> listed === file, list.files) || push!(list.files, file)
     nothing
 end
 
-# The list lets `document` go, once nothing holds it.
-function remove_open_file!(editor, document)
+# The list lets `file` go, once nothing holds it.
+function remove_open_file!(editor, file)
     editor isa Editor || return nothing
     files = get_session_open_file_list(; editor).files
-    index = findfirst(listed -> listed === document, collect(files))
+    index = findfirst(listed -> listed === file, collect(files))
     index === nothing || deleteat!(files, index)
     nothing
 end

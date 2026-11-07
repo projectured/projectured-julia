@@ -13,6 +13,7 @@ A file document whose `content` is an `RstDocument`.
 @document struct RstFile <: FileDocument
     filename::String
     content::Document = RstRoot()
+    disk::FileDiskState = FileDiskState()
 end
 
 emit_text(f::RstFile) = print_natural_text(get_file_content(f))

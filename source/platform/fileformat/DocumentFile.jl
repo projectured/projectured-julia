@@ -167,23 +167,38 @@ function make_file_tab end
 function make_file_tab(path::AbstractString, wrap = identity)
     file_type = get_file_document_type(path)
     content = read_document_file(path)
-    is_own_content(content) || return file_type(abspath(path), wrap(content))
+    if !is_own_content(content)
+        file = file_type(abspath(path), wrap(content))
+        _record_read_file_hash!(file)
+        return file
+    end
     # The read built the file with the name that its parser gives, which is not the
     # absolute path.
-    wrap(make_file(file_type, abspath(path), read(path, String)))
+    file = make_file(file_type, abspath(path), read(path, String))
+    _record_read_file_hash!(file)
+    wrap(file)
+end
+
+# The file keeps the hash of the text of its file on disk now, as the file was just
+# read. A file that a person does not edit is not read for a hash: a save never
+# writes it, and its file can be large.
+function _record_read_file_hash!(file::FileDocument)
+    (isempty(get_filename(file)) || !is_editable_file_type(typeof(file))) && return nothing
+    get_file_disk_state(file).file_hash = compute_file_text_hash(abspath(get_filename(file)))
+    nothing
 end
 
 """
-    make_file_tab_content(path, wrap = identity) -> FilePageView
+    make_file_tab_content(path, wrap = identity) -> FileView
 
-The content of a tab that shows the file at `path`: the view ([`FilePageView`](@ref))
-of a new [`FilePage`](@ref) of the file document of [`make_file_tab`](@ref). The view
-keeps a scroll pane, so a file longer than its tab scrolls, and the band of the page
-stays above it. The file grows down on its height, as a page does, so a table on a
-Markdown page is as tall as its rows and the tab scrolls it. The page knows the hash
-of the text of the file that it read ([`make_file_page`](@ref)). The scroll is
-made here, where a file tab is made, and not by the tab, because a tab page gets no
-scroll of its own: a page can hold two parts that each scroll.
+The content of a tab that shows the file at `path`: the view ([`FileView`](@ref))
+of the file document of [`make_file_tab`](@ref). The view keeps a scroll pane, so a
+file longer than its tab scrolls, and the band of the file stays above it. The file
+grows down on its height, as a view of a file does, so a table on a Markdown page is
+as tall as its rows and the tab scrolls it. The file knows the hash of the text that
+it read ([`make_file_tab`](@ref)). The scroll is made here, where a file tab is made,
+and not by the tab, because a tab page gets no scroll of its own: a page can hold two
+parts that each scroll.
 
 Use it to open a file in a tab.
 
@@ -198,8 +213,12 @@ For the assistant.
 """
 function make_file_tab_content end
 
-make_file_tab_content(path::AbstractString, wrap = identity) =
-    make_file_page_view(make_file_page(make_file_tab(path, wrap)))
+function make_file_tab_content(path::AbstractString, wrap = identity)
+    file = make_file_tab(path, wrap)
+    # A file that is its own content has no content inside it to hold a history, so
+    # `wrap` goes around the file, and the tab shows that part.
+    file isa FileDocument ? make_file_view(file) : file
+end
 
 # ── What a file is called ────────────────────────────────────────────────────
 
@@ -214,10 +233,17 @@ get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 # **F5** reloads it.
 
 """
-    SaveFileOperation(file)
+    SaveFileOperation(file; force = false)
 
-Write `file`'s current content to its own name. A pure side effect; the
-document is not mutated.
+Write `file`'s current content to its own name, when the file on disk still holds
+the text of the last load or save of `file`, and keep the hash of the text that it
+wrote. A pure side effect; the document is not mutated.
+
+When another program changed the file on disk since, the file shows its band and
+nothing is written: "Load it" reads the file ([`ReloadFileOperation`](@ref)), and
+"Keep mine" answers this save with `force = true`, which writes with no check. A file
+that knows no hash writes with no check too. A history inside the file adds no step
+for a save, because it changes no document.
 
 Ctrl+S answers it; code saves a file with `save_file_to_disk!`.
 
@@ -225,7 +251,10 @@ See also `ReloadFileOperation` and `write_document_file`.
 """
 struct SaveFileOperation <: Operation
     file::FileDocument
+    force::Bool
 end
+
+SaveFileOperation(file::FileDocument; force::Bool = false) = SaveFileOperation(file, force)
 
 # `save_file!` dispatches on the file object and goes through each format's
 # own `emit_text`, so it writes a `TextFile`'s raw `String` content and a
@@ -237,7 +266,21 @@ function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
     # A file that a person does not edit has nothing of a person to write.
     is_editable_file_type(typeof(file)) || return nothing
-    _write_file_text!(file) !== nothing
+    state = get_file_disk_state(file)
+    is_named = !isempty(get_filename(file))
+    if is_named && !op.force && state.file_hash !== nothing &&
+       compute_file_text_hash(abspath(get_filename(file))) != state.file_hash
+        state.band = _make_changed_file_band(file, "Load it" => ReloadFileOperation(file),
+                                             "Keep mine" => SaveFileOperation(file; force = true))
+        return false
+    end
+    text = _write_file_text!(file)
+    text === nothing && return false
+    if is_named
+        state.file_hash = hash(text)
+        state.band = nothing
+    end
+    true
 end
 
 # Write the text of `file` to its name, and answer that text, or `nothing` when
@@ -248,6 +291,11 @@ function _write_file_text!(file::FileDocument)
     text === nothing || record_saved_state!(get_file_content(file))
     text
 end
+
+# The band that says that the file changed on disk, with its two choices.
+_make_changed_file_band(file, load, keep) =
+    FileBand(; message = string(get_document_title(file), " changed on disk."),
+               choices = Pair{String,Any}[load, keep])
 
 """
     record_saved_state!(content) -> nothing
@@ -286,9 +334,9 @@ has_unsaved_edits(content) = nothing
     compute_file_text_hash(path) -> UInt64
 
 The hash of the text of the file at `path` on disk now, or the hash of `nothing`
-when there is no file. A [`FilePage`](@ref) keeps the hash of the text of its last
-load or save and compares it with this one, and a watcher of the file reports it
-with a change.
+when there is no file. A file document keeps the hash of the text of its last
+load or save ([`FileDiskState`](@ref)) and compares it with this one, and a watcher
+of the file reports it with a change.
 """
 compute_file_text_hash(path::AbstractString) = isfile(path) ? hash(read(path, String)) : hash(nothing)
 
@@ -299,8 +347,8 @@ get_item_facets(::Type{FileDocument}) = [
     "folder" => "the folder of the file, as its file name gives it",
     "has_edits" => "whether the document has edits since its file was read or saved; nothing for a file " *
                    "that keeps no history",
-    "state" => "the conditions of the file in words, such as \"unsaved edits\" or \"read only\"; empty for a " *
-               "file with none"]
+    "state" => "the conditions of the file in words, such as \"unsaved edits\", \"changed on disk\" or " *
+               "\"read only\"; empty for a file with none"]
 compute_item_facet(file::FileDocument, ::Val{:name}) = basename(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:folder}) = dirname(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:has_edits}) = has_unsaved_edits(get_file_content(file))
@@ -342,12 +390,18 @@ function get_file_icon(path::AbstractString)
 end
 
 # A file says the kind of its name, the edits that no save wrote, and that it
-# takes no edit, with its folder as its detail.
+# takes no edit, with its folder as its detail. While its band shows, it says also
+# that it changed on disk: a conflict when it has edits that no save wrote.
 function get_document_decoration(file::FileDocument)
     name = String(get_filename(file))
     conditions = DocumentCondition[]
     has_unsaved_edits(get_file_content(file)) === true && push!(conditions, DocumentCondition(:unsaved))
     is_editable_file_type(typeof(file)) || push!(conditions, DocumentCondition(:read_only))
+    if get_file_disk_state(file).band !== nothing
+        is_unsaved = any(condition -> condition.name === :unsaved, conditions)
+        filter!(condition -> condition.name !== :unsaved, conditions)
+        push!(conditions, DocumentCondition(is_unsaved ? :conflict : :changed_on_disk))
+    end
     folder = dirname(name)
     DocumentDecoration(; icon = get_file_icon(name), conditions,
                        detail = folder in ("", ".") ? "" : replace(folder, homedir() => "~"),
@@ -423,13 +477,17 @@ NaturalModule.print_natural_text(file::FileDocument) =
     end
 
 """
-    ReloadFileOperation(file; content = nothing)
+    ReloadFileOperation(file; content = nothing, file_hash = nothing)
 
 Swap the document of the file of `file` into its `content`, a reactive write, so
 the projection renders it again: `content` when it is given, such as a document
 that a watcher of the file read off the loop with
 [`read_file_content_again`](@ref), or else the file read again from disk now. A
 non-existent file seeds the insertion placeholder of its extension again.
+
+The file keeps the hash of the text that it read and takes its band away.
+`file_hash` is the hash that the watcher computed for `content`; with none, the
+file on disk is hashed now ([`compute_file_text_hash`](@ref)).
 
 It writes no selection. F5 answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
@@ -442,9 +500,11 @@ See also `SaveFileOperation` and `make_file_tab`.
 struct ReloadFileOperation <: Operation
     file::FileDocument
     content::Any
+    file_hash::Any
 end
 
-ReloadFileOperation(file::FileDocument; content = nothing) = ReloadFileOperation(file, content)
+ReloadFileOperation(file::FileDocument; content = nothing, file_hash = nothing) =
+    ReloadFileOperation(file, content, file_hash)
 
 function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
@@ -452,6 +512,33 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file), content)
+    state = get_file_disk_state(file)
+    if op.file_hash !== nothing
+        state.file_hash = op.file_hash
+    elseif !isempty(get_filename(file))
+        state.file_hash = compute_file_text_hash(abspath(get_filename(file)))
+    end
+    state.band = nothing
+    nothing
+end
+
+"""
+    KeepFileEditsOperation(file, file_hash)
+
+Keep what `file` holds over a file that another program changed: `file_hash`, the
+hash of the file on disk, becomes the hash of `file`, so the next save writes over
+that file, and the band goes. "Keep mine" of the band of a change answers it. A
+history inside the file adds no step for it.
+"""
+struct KeepFileEditsOperation <: Operation
+    file::FileDocument
+    file_hash::Any
+end
+
+function evaluate_operation(editor, op::KeepFileEditsOperation)
+    state = get_file_disk_state(op.file)
+    state.file_hash = op.file_hash
+    state.band = nothing
     nothing
 end
 
@@ -495,5 +582,124 @@ end
 
 # Each carries its own subject and names no reference, so every reader
 # between the gesture and the editor passes it up unchanged.
-OperationModule.is_self_contained_operation(::Union{SaveFileOperation,
-                                                    ReloadFileOperation}) = true
+OperationModule.is_self_contained_operation(::Union{SaveFileOperation, ReloadFileOperation,
+                                                    KeepFileEditsOperation}) = true
+
+# A save and a keep change no document that a person edits. A reload replaces the
+# document and has no way back.
+OperationModule.make_inverse_operation(document, ::Union{SaveFileOperation, KeepFileEditsOperation}) =
+    DoNothingOperation()
+
+# ── The keys of a file, as verbs ─────────────────────────────────────────────
+
+"""
+    save_file_to_disk!(file; editor = get_evaluation_editor()) -> Bool
+
+Write what the open file holds to the file of its own name, as Ctrl+S does, and
+answer whether it wrote. `file` is the tab of the file, as `open_file!` answers
+it, or the file itself. When another program changed the file on disk since the
+tab read it, nothing is written, the answer is `false`, and the tab shows a band
+that asks the person what to keep. A file that a person does not edit, such as a
+result file, is not written.
+
+Use it to keep the edits of an open file on the disk.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    save_file_to_disk!(notes_tab_1)
+
+See also `reload_file_from_disk!`, `has_unsaved_edits`, `open_file!`.
+
+For the assistant.
+"""
+function save_file_to_disk! end
+
+save_file_to_disk!(file; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "save_file_to_disk!") do
+        evaluate_operation(editor, SaveFileOperation(_get_shown_file(get_document(file), "save"))) === true
+    end
+
+"""
+    reload_file_from_disk!(file; editor = get_evaluation_editor()) -> file
+
+Read the open file again from the disk, as F5 does, so it holds what the disk
+holds now, and answer `file`. `file` is the tab of the file, as `open_file!`
+answers it, or the file itself. The edits that were not saved are lost. A file that
+is not on the disk any more holds the empty document of its extension.
+
+Use it to see what another program wrote to an open file.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    reload_file_from_disk!(notes_tab_1)
+
+See also `save_file_to_disk!`, `has_unsaved_edits`, `open_file!`.
+
+For the assistant.
+"""
+function reload_file_from_disk! end
+
+function reload_file_from_disk!(file; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "reload_file_from_disk!") do
+        evaluate_operation(editor, ReloadFileOperation(_get_shown_file(get_document(file), "read again")))
+        file
+    end
+end
+
+# The file that `document` shows: `document` itself, or the first file document on
+# the walk from it through the fields that a person edits, as a tab shows its file;
+# or `nothing`.
+function _find_shown_file(document)
+    node = document
+    for _ in 1:16
+        is_file_document(node) && return node
+        field = get_edited_field(node)
+        field === nothing && return nothing
+        node = getproperty(node, field)
+    end
+    nothing
+end
+
+# The verbs that save and read a file again name no part that shows none.
+function _get_shown_file(document, purpose::AbstractString)
+    file = _find_shown_file(document)
+    file === nothing && throw(ArgumentError("That part shows no file, so there is nothing to $purpose."))
+    file
+end
+
+# ── A change of the file on disk ─────────────────────────────────────────────
+
+"""
+    receive_file_change!(editor, receiver, file_hash, content) -> Bool
+
+Tell `receiver` that its file changed on disk, and answer whether it took the new
+document. `file_hash` is the hash that the watcher of the file read
+([`compute_file_text_hash`](@ref) for a file that a person edits), and `content`
+the document that it parsed. The watcher calls it and knows nothing of what the
+change means: the receiver decides.
+
+A file document is the receiver of its own file:
+
+- A file whose [`FileDiskState`](@ref) holds `file_hash` holds that text already,
+  after its own save or load, and nothing happens.
+- A file that a person does not edit, or one with no edits since its last load or
+  save, takes the new document ([`ReloadFileOperation`](@ref)).
+- A file with edits that are not saved, or with no history that says, keeps what it
+  holds, and shows its band: "Load it" takes the new document, and "Keep mine" keeps
+  the edits ([`KeepFileEditsOperation`](@ref)).
+"""
+function receive_file_change! end
+
+function receive_file_change!(editor, file::FileDocument, file_hash, content)
+    state = get_file_disk_state(file)
+    file_hash == state.file_hash && return false
+    load = ReloadFileOperation(file; content, file_hash)
+    if !is_editable_file_type(typeof(file)) || has_unsaved_edits(get_file_content(file)) === false
+        evaluate_operation(editor, load)
+        return true
+    end
+    state.band = _make_changed_file_band(file, "Load it" => load, "Keep mine" => KeepFileEditsOperation(file, file_hash))
+    false
+end

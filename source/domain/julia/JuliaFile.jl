@@ -20,6 +20,7 @@ docstring for the `pred_ref(...)` marker convention.
 @document struct JuliaFile <: FileDocument
     filename::String
     content::Document = JuliaNothing()
+    disk::FileDiskState = FileDiskState()
 end
 
 # The text of the file ends with a line break, which the print of its last statement

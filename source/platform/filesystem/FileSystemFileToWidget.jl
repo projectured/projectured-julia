@@ -1,5 +1,5 @@
 # Fragment of `FileSystemModule` — the page of a file: the page of its document,
-# the same document that a tab of the file shows, so an edit here is an edit of
+# the same file document that a tab of the file shows, so an edit here is an edit of
 # the file. The page draws the view of its document that the file keeps, and the
 # path of the document goes through the field of the view that holds it:
 #
@@ -9,15 +9,14 @@
     FileSystemFileToWidget()
 
 Draw a [`FileSystemFile`](@ref) as its page: its document, which its acquire gives
-it, drawn by the row of its own type, as the view of its page ([`FilePageView`](@ref))
-when the document is a page, or a line that says that the file is not read while it
-has none. A path in the document goes to the page and
+it, drawn as the view of the file document ([`FileView`](@ref)), or a line that says
+that the file is not read while it has none. A path in the document goes to the page and
 back, so a key and a press on the page edit the file.
 """
 struct FileSystemFileToWidget <: Projection end
 
 function print_document(p::FileSystemFileToWidget, recursion, file::FileSystemFile, context)
-    output = VerticalLayout(CellVector(@computation Any[something(_get_file_page_view(file), file.document,
+    output = VerticalLayout(CellVector(@computation Any[something(_get_file_document_view(file), file.document,
                                                                   WidgetLabel(file.pathname * " · not read yet"))]),
                             Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     iomap = SimpleIoMap(p, file, output)
@@ -31,7 +30,7 @@ function map_reference_forward(::FileSystemFileToWidget, iomap, reference)
     head = get_reference_head(reference)
     (head isa FieldReferenceStep && head.name == "document" && iomap.input.document !== nothing) || return nothing
     rest = strip_reference_types(get_reference_tail(reference))
-    view = _get_file_page_view(iomap.input)
+    view = _get_file_document_view(iomap.input)
     rest isa ConcreteReference && view !== nothing && !is_introduced_reference(rest) &&
         (rest = concat_references(extend_reference(EmptyReference(), FieldReferenceStep(String(get_edited_field(view)))),
                                   rest))
@@ -45,10 +44,10 @@ function map_reference_backward(::FileSystemFileToWidget, iomap, reference)
     (length(steps) >= 2 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(0, 1)) ||
         return EmptyReference()
     below = steps[3:end]
-    # A path through the field of the view that holds the page is a path in the page,
-    # and a part that the view introduced keeps its path after the page. A field that
-    # only the view keeps names no part of the page.
-    view = _get_file_page_view(iomap.input)
+    # A path through the field of the view that holds the file document is a path in
+    # the document, and a part that the view introduced keeps its path after the
+    # document. A field that only the view keeps names no part of the document.
+    view = _get_file_document_view(iomap.input)
     if view !== nothing && !isempty(below) && !(first(below) isa ProjectionReferenceStep)
         first(below) == FieldReferenceStep(String(get_edited_field(view))) || return EmptyReference()
         below = below[2:end]
@@ -56,7 +55,7 @@ function map_reference_backward(::FileSystemFileToWidget, iomap, reference)
     extend_reference(EmptyReference(), FieldReferenceStep("document"), below...)
 end
 
-# The document of the page comes back through the recursion of the renderer, which
+# The view of the document comes back through the recursion of the renderer, which
 # draws it with the row of its own type.
 make_graphics_projection(::Type{FileSystemFile}; measure, appearance) =
     ChainingProjection(FileSystemFileToWidget(), VerticalLayoutToGraphicsCanvas())

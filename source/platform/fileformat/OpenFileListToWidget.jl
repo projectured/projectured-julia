@@ -18,6 +18,8 @@ name of a file, or a double click on its row, opens the page of the file.
 end
 
 const _OPEN_FILE_TABLE_STEP = FieldReferenceStep("table")
+# The steps from the grid to its second child, the table.
+const _OPEN_FILE_GRID_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
 
 # The line above the table: the open files, and those of them with unsaved edits.
 function _format_open_file_line(list::OpenFileList)
@@ -48,7 +50,7 @@ function map_reference_forward(::OpenFileListToWidget, iomap::SimpleIoMap, refer
     rest = get_reference_tail(reference)
     is_fully_typed_reference(rest) ||
         (rest = annotate_reference_types(getfield(iomap.input, :table)[], strip_reference_types(rest)))
-    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _FILE_PAGE_SECOND_STEPS...)),
+    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _OPEN_FILE_GRID_STEPS...)),
                       rest)
 end
 
@@ -58,7 +60,7 @@ end
 function map_reference_backward(::OpenFileListToWidget, iomap::SimpleIoMap, reference)
     steps = get_reference_steps(strip_reference_types(reference))
     isempty(steps) && return EmptyReference()
-    (length(steps) >= 2 && steps[1] == _FILE_PAGE_SECOND_STEPS[1] && steps[2] == _FILE_PAGE_SECOND_STEPS[2]) ||
+    (length(steps) >= 2 && steps[1] == _OPEN_FILE_GRID_STEPS[1] && steps[2] == _OPEN_FILE_GRID_STEPS[2]) ||
         return nothing
     concat_references(ConcreteReference(_OPEN_FILE_TABLE_STEP, EmptyReference()),
                       get_reference_tail(get_reference_tail(reference)))

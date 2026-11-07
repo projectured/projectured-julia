@@ -23,6 +23,7 @@ module docstring for the fenced-block marker convention.
 @document struct MarkdownFile <: FileDocument
     filename::String
     content::Document = MarkdownRoot()
+    disk::FileDiskState = FileDiskState()
 end
 
 emit_text(f::MarkdownFile) = print_natural_text(get_file_content(f))

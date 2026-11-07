@@ -43,6 +43,7 @@ A `.lines` file, which holds a [`PredFileLines`](@ref).
 @document struct PredFileLinesFile <: FileDocument
     filename::String
     content::Any = nothing
+    disk::FileDiskState = FileDiskState()
 end
 
 SerializationModule.get_file_domain(::Type{<:PredFileLinesFile}) = PredFileLines
@@ -67,6 +68,7 @@ A `.viewed` file, which holds a [`PredFileViewedLines`](@ref).
 @document struct PredFileViewedLinesFile <: FileDocument
     filename::String
     content::Any = nothing
+    disk::FileDiskState = FileDiskState()
 end
 
 SerializationModule.get_file_domain(::Type{<:PredFileViewedLinesFile}) = PredFileViewedLines

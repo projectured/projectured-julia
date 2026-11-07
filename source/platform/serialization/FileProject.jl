@@ -42,9 +42,11 @@
 """
     FileDocument
 
-A document that owns a text file. Every direct subtype declares two
-`@document` fields — `filename::String` and a format-native `content`
-— so `get_filename(f)` and `get_file_content(f)` work uniformly.
+A document that owns a text file. Every direct subtype declares three
+`@document` fields — `filename::String`, a format-native `content`, and
+`disk::FileDiskState = FileDiskState()` — so `get_filename(f)`, `get_file_content(f)`
+and `get_file_disk_state(f)` work uniformly. The constructor of a type makes a new
+`FileDiskState` for each file.
 
 The abstract type is one of *two* ways to opt in; the other is the
 `is_file_document` trait (see below), for types that already have an
@@ -127,6 +129,57 @@ function get_file_content(f)
     field === nothing ? unwrap_cell(getfield(f, :content)) : get_file_content(getproperty(f, field))
 end
 get_file_content(file::ReferencedDocument) = get_file_content(get_document(file))
+
+"""
+    FileBand(; message, choices = Pair{String,Any}[])
+
+A band above a file: `message`, one sentence, and `choices`, each the label of a
+button and the operation that a click on it answers. The [`FileDiskState`](@ref) of
+a file holds it while the file and its copy on disk disagree, and the view of the
+file draws it.
+
+# Example
+
+    FileBand(; message = "notes.txt changed on disk.",
+               choices = ["Load it" => load, "Keep mine" => keep])
+"""
+@document struct FileBand
+    message::String = ""
+    choices::Any = Pair{String,Any}[]
+end
+
+"""
+    FileDiskState(; file_hash = nothing, band = nothing)
+
+What a file document knows of its file on disk: `file_hash`, the hash of the text
+of the file at the last load or save of the document (`compute_file_text_hash`), or
+`nothing` when it does not know it, and `band`, a [`FileBand`](@ref) while the file
+changed on disk under edits that no save wrote, or `nothing`.
+
+Every file document keeps one in its field `disk`, as it keeps `filename` and
+`content`; [`get_file_disk_state`](@ref) reads it. The field is view state, so a save
+writes none of it and a walk does not enter it.
+
+# Example
+
+    state = FileDiskState(; file_hash = hash("a note"))
+"""
+@document struct FileDiskState
+    file_hash::Any = nothing
+    band::Any = nothing
+end
+
+"""
+    get_file_disk_state(file) -> FileDiskState
+
+The state of `file` against its file on disk, the value of its `disk` field.
+"""
+get_file_disk_state(f) = unwrap_cell(getfield(f, :disk))
+
+# The state against the disk is what a view of the file shows, not what the file
+# says, and a walk of the document does not enter it.
+get_view_state_fields(::Type{<:FileDocument}) = (:disk,)
+is_field_walked(::FileDocument, name::Symbol) = name !== :disk
 
 """
     is_own_content(file) -> Bool

@@ -82,7 +82,7 @@ A role is a field of `WidgetTheme` ([WidgetTheme.jl](../../source/platform/widge
 | `toolbar_padding` | 4 | a toolbar | N1 |
 | `toolbar_item_padding` | 4 | a button of a toolbar | N1, C4 |
 | `status_bar_padding` | 4, 4, 8, 8 | a status bar | N1 |
-| `band_padding` | 4, 4, 8, 8 | the band of a file page | N1 |
+| `band_padding` | 4, 4, 8, 8 | the band of a file | N1 |
 | `tree_row_padding` | 2, 2, 8, 8 | a row of a tree | N1 |
 | `toggle_group_padding` | 2 | a toggle group, around its toggles | N1 |
 | `slot_padding` | 8 on each side | what a slot of the frame gives to what it holds, once (section 4) | N1, N2, R1 |

@@ -36,13 +36,11 @@ A watcher reads a changed file off the loop. It hashes the text, parses a new do
 
 | Receiver | What it does with a change |
 | --- | --- |
-| a `FilePage`, with the hash it already holds | nothing: its own save or load wrote that text |
-| a `FilePage`, for a file with no edits, or a file that a person does not edit | loads the new document |
-| a `FilePage`, for a file with edits, or with no history that says | keeps what it holds, and shows its band with "Load it" and "Keep mine" |
-| a file document with no page, for a file that a person does not edit | loads the new document |
-| a file document with no page, for any other file | keeps what it holds, and logs a warning, because it can not tell its own save from a change |
+| a file document, with the hash it already holds | nothing: its own save or load wrote that text |
+| a file document, for a file with no edits, or a file that a person does not edit | loads the new document |
+| a file document, for a file with edits, or with no history that says | keeps what it holds, and shows its band with "Load it" and "Keep mine" |
 
-The receiver of a file in a tab is its `FilePage`. A tab acquires its outer layer first, so the page watches the file with itself as the receiver. A file document with no page is its own receiver. **A page holds the file that it shows**, so the file is acquired wherever the page is: in a tab, which acquires every layer of its content, in the navigator of an explorer, which holds only the view of the page, and in a card of a dashboard, which a dashboard holds as a view of its content. A view of a page holds the page, so a tab and a card that show one file share one page, one watch and one band. A file whose acquire does more than watch, such as a source file that takes the language server of its window, does it in both places. The page and its band are described in [fileformat.md](../fileformat/fileformat.md).
+The file document is the receiver of its own file, and it keeps the hash and the band in its `disk` field (`FileDiskState`). **A view holds the file that it shows**, so the file is acquired wherever a view is: in a tab, which acquires every layer of its content, in the navigator of an explorer, which holds only the view of its page, and in a card of a dashboard, which a dashboard holds as a view of its content. A tab and a card that show one file share one file document, one watch and one band, each with a view of its own. A file whose acquire does more than watch, such as a source file that takes the language server of its window, does it in both places. The hash and the band are described in [fileformat.md](../fileformat/fileformat.md).
 
 A file of a type that a person does not edit (`is_editable_file_type` answers `false`), such as the result file of a run that writes it while it runs, has no edits to keep and can be too large to read whole. The watcher compares only the time and the size of its file with those of the last read, and never reads its text.
 
@@ -50,7 +48,7 @@ A file of a type that a person does not edit (`is_editable_file_type` answers `f
 
 ## How it fits
 
-The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `receive_file_change!`, `FilePage`, `find_page_file` and `compute_file_text_hash`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, or opens a tab, which watches its file itself, and turns on the wrapper `file_change = true` of `build_editor`. The wrapper adds the feed, and its stop step stops the watchers of the store of the feed when the loop ends.
+The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `receive_file_change!` and `compute_file_text_hash`, on the serialization slice for `FileDocument` and `FileDiskState`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, or opens a tab, which watches its file itself, and turns on the wrapper `file_change = true` of `build_editor`. The wrapper adds the feed, and its stop step stops the watchers of the store of the feed when the loop ends.
 
 ## Design decisions
 
@@ -58,7 +56,7 @@ The code is in `source/platform/filechange/`. The slice depends on the file-form
 - **A folder watch reports only that the folder changed.** The watcher reads nothing of the folder, so a large folder costs the editor task nothing until its receiver reads it off the loop.
 - **A watcher for each folder, not for each file.** A program writes a file at once by a rename, which a watch of the file itself loses, and a session with many files of one folder needs one handle of the system.
 - **The text decides, not the time.** A save changes the time of its file too. The hash of the text separates a save from a change of another program, and the receiver compares it, not the drain.
-- **The watcher knows nothing of editing.** It watches, reads, hashes and parses. The receiver owns the meaning of a change, so the slice reads no edit and makes no band. It names `FilePage` only to watch a file with its page as the receiver.
+- **The watcher knows nothing of editing.** It watches, reads, hashes and parses. The receiver owns the meaning of a change, so the slice reads no edit and makes no band.
 - **An edit that is not saved is never lost.** The receiver keeps the edits of a file that has them, and shows a choice. The drain never replaces a document.
 - **No watch while Julia writes a precompile cache.** `watch_document_file!` does nothing in such a process. Julia ends a precompile only when every task of its workload has ended, and the task of a watcher ends only when its folder monitor closes, so one watch in a workload holds the precompile forever.
 
@@ -77,7 +75,7 @@ A watch where no editor with a `FileChangeFeed` is the editor of the evaluation 
 nothing: no drain would bring its changes, and its watcher task would run forever.
 
 - Examples: none.
-- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()` in `FileChangeStoreTest.jl`. It covers a page whose file has no edits, a save of the page, a page with edits and its band, a page with no history, a file with no page, the save that checks the disk, the feed, a file type that an opener chose, a file that a person does not edit, a polled folder, one store for each editor, a tab that watches while it is open, the `file_change` wrapper, a change of a folder that reaches each receiver, a shared watcher that stops with its last receiver, and the limit of watches.
+- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()` in `FileChangeStoreTest.jl`. It covers a file that has no edits, a save of the file, a file with edits and its band, a file with no history, the file as the receiver of its own watch, the save that checks the disk, the feed, a file type that an opener chose, a file that a person does not edit, a polled folder, one store for each editor, a tab that watches while it is open, a tab pane with no explorer that shows a rewritten file, two new files with two states, the `file_change` wrapper, a change of a folder that reaches each receiver, a shared watcher that stops with its last receiver, and the limit of watches.
 
 ## Limits
 

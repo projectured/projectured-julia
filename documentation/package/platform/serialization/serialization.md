@@ -18,7 +18,7 @@ The format depends on the layout of the structs in memory. It is for one version
 
 ### The multi-file project
 
-A document graph can also be saved as text files that a version control system compares line by line. A **file document** has a `filename` and a `content`. It is a subtype of `FileDocument`, or a type with another supertype that returns `true` from `is_file_document`.
+A document graph can also be saved as text files that a version control system compares line by line. A **file document** has a `filename`, a `content` and a `disk` state. It is a subtype of `FileDocument`, or a type with another supertype that returns `true` from `is_file_document`.
 
 `get_file_content(file)` answers the value of the `content` field: the parsed tree, for most formats. An application that keeps a history of each file holds that history in the field instead, so `get_file_content` then answers the history and not the tree; [`get_edited_document`](../../kernel/reference.md#a-document-together-with-its-reference) reaches the document itself, through the history and every other such layer. `get_edited_field` of a `FileDocument` answers `:content`, unless the file's own node is its content, where it answers `nothing`. `get_file_content` also takes a `ReferencedDocument` in place of the file.
 
@@ -70,7 +70,7 @@ More have a default that fits most formats:
 | `is_file_domain_node(file, node)` | `node isa get_file_domain(typeof(file))` | the domain of the file is not one type |
 | `is_written_in_file(file, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
 | `is_written_inline(file, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
-| `find_held_file(node)` | `node` for a file document, else `nothing` | a document shows a file and keeps the state of that showing, as the page of a file does, so a holder must save it as `file("…")` and write none of that state |
+| `find_held_file(node)` | `node` for a file document, else `nothing` | a document shows a file and keeps the state of that showing, as the view of a file does, so a holder must save it as `file("…")` and write none of that state |
 | `is_editable_file_type(::Type{T})` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
 | `read_file_content(::Type{T}, path)` | the text of the file through `parse_file_content` | the type does not edit, and its file is too large to read whole, so it reads only what it needs |
 
@@ -83,6 +83,7 @@ The JSON file type is the smallest full example:
 @document struct JsonFile <: FileDocument
     filename::String
     content::JsonDocument = JsonNothing()
+    disk::FileDiskState = FileDiskState()
 end
 get_file_domain(::Type{<:JsonFile}) = JsonDocument
 make_reference_leaf(::JsonFile, marker::AbstractString) = JsonString(make_marker_text(marker))
@@ -90,6 +91,8 @@ find_reference_marker(leaf::JsonString) = parse_marker_text(leaf.value)
 parse_file_content(::Type{<:JsonFile}, text::AbstractString) = parse_json(text)
 emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 ```
+
+The field `disk` is the state of the file against its file on disk: `file_hash`, the hash of the text of the last load or save, and `band`, the band that says that the file changed on disk. `get_file_disk_state(file)` reads it. It is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it, and the default of the field makes a new state for each file ([fileformat.md](../fileformat/fileformat.md)).
 
 `parse_marker_text` returns `nothing` for a string that is not a marker, so an ordinary string stays a string. Each format spells a reference with its own opaque unit: a JSON string, an XML `pred:ref` element, a Markdown fence, an RST directive. A file whose node is itself the content returns `true` from `is_own_content`, defines `get_file_content(f) = f` and builds itself in `make_file`.
 

@@ -462,7 +462,7 @@ Open question 10 can put a plan of its own before that landing.
         2 of 16 (copies and drawn share of a Julia file in a tab) and fails the same way at the
         commit of step 1. `test_application()` has 1 failure at `ApplicationTest.jl:1008` (the
         usage text of an agent bar), which no file code touches.
-- [ ] **1b. The file document watches its file, and the page goes away (D10 to D13).** One commit
+- [x] **1b. The file document watches its file, and the page goes away (D10 to D13).** **Done on 2026-11-07.** One commit
       in each repository, which land together, because omnet-julia does not load with a file type
       that has no `disk` field. Before it starts, the uncommitted work of the first try of steps 2
       and 3 on the page (2026-11-06, in both worktrees) goes into a named stash, `g4-step2-on-page`,
@@ -508,6 +508,53 @@ Open question 10 can put a plan of its own before that landing.
       `test_filechange()`: a tab pane with no explorer opens a file, a program rewrites it and the
       tab shows the new text, the person types a letter and the next rewrite shows the band, and the
       file document is the receiver of the watch (`===`).
+      What the implementation found:
+      - `FileDiskState` (`file_hash`, `band`), `FileBand` and `get_file_disk_state` sit in
+        `FileProject.jl` of the serialization slice, because the file types of the domains
+        declare the field and the fileformat slice depends on serialization. The operations
+        that a choice of the band answers stay in `DocumentFile.jl`. The field is
+        `disk::FileDiskState = FileDiskState()` as the last field of each file type; the
+        default is evaluated for each construction, so two new files get two states
+        (tested). `get_view_state_fields` and `is_field_walked` of `FileDocument` name `disk`.
+      - `SaveFileOperation` has the field `force` and the check of the disk; `ReloadFileOperation`
+        has the field `file_hash` (the hash of the file on disk now when none is given) and takes
+        the band away; `KeepFileEditsOperation(file, file_hash)` is new. A save and a keep answer
+        `DoNothingOperation` as their inverse, so a history inside the file records no step.
+        F5 needs no reader: `ReloadFileOperation` keeps the hash itself.
+      - `make_file_tab` records the hash of an editable file where it reads it. A file made some
+        other way has no hash, so its first report loads (history says no edits) or shows the band.
+        A file with no history (or a bare file in an editor) now shows the band; before, a file
+        with no page logged a warning and kept what it held.
+      - `FileView(file, scroll)` replaces `FilePageView`; its paths are `file.<rest>`, the file being
+        the content of the scroll pane. `find_page_file` becomes `_find_shown_file`, private, and
+        the verbs `save_file_to_disk!` and `reload_file_from_disk!` take a tab or a file.
+      - The open puts the history inside the file also for `file_wrap`; a tab with a `file_wrap`
+        shows the wrap (a navigator), whose page view is the `FileView` of the file. The tab finder
+        walks the edited fields of the content to the file.
+      - The open files list holds file documents only. The save as takes the file and answers
+        `SaveFileOperation(file; force = true)`.
+      - The example `make_file_view_document_example` has the row "view" in `PlatformExamples.jl`.
+      - A save of a file that is gone from the disk shows the band (its hash differs from the hash
+        of nothing), as the save of a page did; `IdeNavigatorTest.jl` forces that save.
+        `make_file_tab_content` with a `wrap` for a file that is its own content (no such type in
+        `source/`) answers the wrapped part with no view, because no content inside the file holds
+        the history.
+      - `OpenFileListToWidget.jl` had borrowed a step constant of the page view; it has its own now.
+      - Results (projectured-julia): `test_filechange()` 160 Pass, `test_explorer()` 333,
+        `test_file_tab()` 31, `test_file_watch_window()` 16, `test_user_interface_file()` 22,
+        `test_roster_facets()` 26, `test_document_decoration()` 57, `test_text_file()` 40,
+        `test_workflow_list()` 27, `test_source_file()` 51, `test_open_page_operation()` 95,
+        `test_referenced_document_editor()` 134, `test_assistant_documentation()` 27 + 196 + 2828,
+        all Pass. `test_application()` 399 Pass, 1 Fail (`ApplicationTest.jl:1008`), 2 Broken and
+        `test_scroll_work()` 14 Pass, 2 Fail (`:127`, `:130`) are the counts of the base.
+      - Results (omnet-julia, scratch environment of the two worktrees): `test_project_page()` 100,
+        `test_fingerprint_store_document()` 27, `test_ide_file_navigator()` 50 Pass, 2 Fail at
+        `IdeNavigatorTest.jl:50` and `:57` (the Julia and Markdown tabs, which fail on main too).
+      - The recorded lists under `package/*/precompile/` still name `FilePage`; every package loads
+        and warns that its recorded calls no longer resolve until they are recorded again.
+      - omnet-julia: the `disk` field in its 6 file types; `LegacyResultFile.jl` and
+        `LegacyBaselineFileView.jl` use `find_open_file_document` as it is; `IdeNavigatorTest.jl`
+        reads `content.file` of a tab.
 - [ ] **2. The text of a file is a background cell (D4).** The `disk` state of the file gets the
       cell, its `BackgroundSource`, and an `apply` that loads with the check of today
       (`receive_file_change!`). The watch in `FileChangeStore.jl` reports

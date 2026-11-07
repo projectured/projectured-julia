@@ -31,16 +31,17 @@ end
 """
     FileSystemFile(pathname)
 
-A file on the disk, as the read of its folder found it. `document` is the page of
-the file that its page shows, or `nothing` while no holder acquired it: the
-acquire takes the page that the editor holds open for the same path, else the page
-that the file kept, else it reads the file, so a file is one document in an
-editor, also when a tab shows it. A release keeps a page with an unsaved edit, and
-a page that keeps a dormant selection, so the keys go back to where they were on it.
+A file on the disk, as the read of its folder found it. `document` is the file
+document that its page shows, or `nothing` while no holder acquired it: the
+acquire takes the file document that the editor holds open for the same path, else
+the one that the file kept, else it reads the file, so a file is one document in an
+editor, also when a tab shows it. A release keeps a file document with an unsaved
+edit, and one that keeps a dormant selection, so the keys go back to where they
+were on it.
 
-`document_view` is the view of the page that the page of the file shows
-([`FilePageView`](@ref)), which keeps its own place in the file apart from a tab
-that shows the same page. It is view state: a save writes none of it, and a walk
+`document_view` is the view of the file document that the page of the file shows
+([`FileView`](@ref)), which keeps its own place in the file apart from a tab that
+shows the same file document. It is view state: a save writes none of it, and a walk
 does not enter it.
 """
 @document struct FileSystemFile <: FileSystemDocument
@@ -56,57 +57,53 @@ is_field_walked(::FileSystemFile, name::Symbol) = name !== :document_view
 pred_arguments(file::FileSystemFile) = (file.pathname,), Pair{Symbol,Any}[]
 make_pred_document(::Type{<:FileSystemFile}, positional, keywords) = FileSystemFile(only(positional))
 
-# The acquire of a file gives it its document: the page that the editor holds open
-# for its path, else the page that the file kept, else a page read from the disk,
-# as the open of a file reads it. It runs in the evaluation of the operation that
-# acquires, where a read of the disk is in its place. The file then holds the view
-# of the page, which holds the page, so the page watches the file.
+# The acquire of a file gives it its document: the file document that the editor
+# holds open for its path, else the one that the file kept, else a file document
+# read from the disk, as the open of a file reads it. It runs in the evaluation of
+# the operation that acquires, where a read of the disk is in its place. The file
+# then holds the view of the file document, which holds the file document, so the
+# file document watches its file.
 function acquire_document!(editor, file::FileSystemFile)
     open = find_open_file_document(file.pathname; editor)
     if open !== nothing
         file.document = open
     elseif file.document === nothing
-        file.document = _read_file_page(editor, file.pathname)
+        file.document = _read_opened_file(editor, file.pathname)
     end
-    # The view of the page that the file kept stays, unless another holder holds it,
-    # as the duplicate of a tab leaves it.
-    view = _get_file_page_view(file)
+    # The view of the file document that the file kept stays, unless another holder
+    # holds it, as the duplicate of a tab leaves it.
+    view = _get_file_document_view(file)
     (view !== nothing && !is_document_held(editor, view)) ||
-        set_cell_value!(getfield(file, :document_view), _make_page_view_or_nothing(file.document))
-    hold_documents!(editor, file, Any[something(_get_file_page_view(file), file.document)])
+        set_cell_value!(getfield(file, :document_view), make_file_view(file.document))
+    hold_documents!(editor, file, Any[something(_get_file_document_view(file), file.document)])
 end
 
-# The release lets the page go. The file keeps a page with an unsaved edit or a
-# conflict, and a page that keeps a dormant selection, which is where the keys were
-# on it, with its view, and forgets any other page.
+# The release lets the file document go. The file keeps a file document with an
+# unsaved edit or a conflict, and one that keeps a dormant selection, which is where
+# the keys were on it, with its view, and forgets any other.
 function release_document!(editor, file::FileSystemFile)
     document = file.document
     document === nothing && return nothing
-    release_held_documents!(editor, file, Any[something(_get_file_page_view(file), document)])
-    (_has_page_edits(document) || _has_dormant_place(document)) ||
+    release_held_documents!(editor, file, Any[something(_get_file_document_view(file), document)])
+    (_has_file_edits(document) || _has_dormant_place(document)) ||
         (file.document = nothing; file.document_view = nothing)
     nothing
 end
 
-# The view of the page of `file` that the file shows: the view that it keeps while
-# that view shows its page, and `nothing` otherwise.
-function _get_file_page_view(file::FileSystemFile)
+# The view of the file document of `file` that the file shows: the view that it
+# keeps while that view shows its file document, and `nothing` otherwise.
+function _get_file_document_view(file::FileSystemFile)
     view = file.document_view
-    (view isa FilePageView && view.page === file.document) ? view : nothing
+    (view isa FileView && view.file === file.document) ? view : nothing
 end
 
-# A new view of `document` when it is a page, else `nothing`: a file that no page
-# holds shows as itself.
-_make_page_view_or_nothing(document::FilePage) = make_file_page_view(document)
-_make_page_view_or_nothing(document) = nothing
-
-_has_page_edits(document) =
+_has_file_edits(document) =
     any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions)
 
 _has_dormant_place(document) = get_stored_selection(document) !== nothing && !is_live_selection(document)
 
-# The page of the file at `path`, with the history of the settings of `editor`.
-_read_file_page(editor, path::AbstractString) = _make_opened_file_page(editor, OpenFileOperation(path))
+# The file document at `path`, with the history of the settings of `editor`.
+_read_opened_file(editor, path::AbstractString) = _make_opened_file(editor, OpenFileOperation(path))
 
 
 # ── Directory ─────────────────────────────────────────────────────────────────
@@ -216,47 +213,58 @@ make_filesystem_chooser(directory::AbstractString) =
 # ── Open a file ───────────────────────────────────────────────────────────────
 
 # The destination is a pane tree, in a new tab: `make_file_tab` reads the file into
-# the document type its extension owns, a page holds it, the tab shows the view of
-# the page, and `get_pane_file_group` asks the pane tree where a file belongs. An editor with settings gives the file a
-# history (`make_history_wrap`), around the part that the opener puts around the
-# file, or around the content. This runs while the editor evaluates the open, so
-# the new tab is posted, and the loop evaluates it at the top of the next frame.
+# the document type its extension owns, the tab shows the view of the file
+# (`make_file_view`) or the part that the opener puts around it, and
+# `get_pane_file_group` asks the pane tree where a file belongs. An editor with
+# settings gives the file a history (`make_history_wrap`), around the content inside
+# the file, whatever the opener puts around the file. This runs while the editor
+# evaluates the open, so the new tab is posted, and the loop evaluates it at the top
+# of the next frame.
 function evaluate_operation(editor, op::OpenFileOperation)
     # A file that is open is one document: its tab takes the focus, or a tab opens
     # on that document.
     open = find_open_file_document(op.path; editor)
     if open !== nothing
         _focus_open_file!(editor, open) ||
-            post_pane_operation!(editor, make_open_pane_operation(_make_page_view(open);
+            post_pane_operation!(editor, make_open_pane_operation(make_file_view(open);
                                                                   group = get_pane_file_group(; editor),
                                                                   focus = true, editor))
         return nothing
     end
     # A file opens as a person opens it: the new tab takes the focus.
-    post_pane_operation!(editor, make_open_pane_operation(_make_page_view(_make_opened_file_page(editor, op));
+    post_pane_operation!(editor, make_open_pane_operation(_make_opened_tab_content(editor, op);
                                                           group = get_pane_file_group(; editor),
                                                           focus = true, editor))
     nothing
 end
 
-# The page of the file of `op`: the file read from disk, with a history when the
+# The file of `op`: read from disk, with a history around its content when the
 # editor has settings.
-function _make_opened_file_page(editor, op::OpenFileOperation)
+function _make_opened_file(editor, op::OpenFileOperation)
     settings = find_editor_settings(; editor)
     history = settings === nothing ? identity : make_history_wrap(settings)
-    op.file_wrap === identity ?
-        make_file_page(make_file_tab(op.path, document -> history(op.wrap(document)))) :
-        make_file_page(history(op.file_wrap(make_file_tab(op.path, op.wrap))))
+    make_file_tab(op.path, document -> history(op.wrap(document)))
 end
 
-# What a tab shows of `document`, an open file: a new view of its page, so the tab
-# keeps its own place in the file; the document itself when no page holds it.
-_make_page_view(document::FilePage) = make_file_page_view(document)
-_make_page_view(document) = document
+# What a new tab shows of the file of `op`: the part that `file_wrap` puts around
+# it, whose own views show the file, or else the view of the file.
+function _make_opened_tab_content(editor, op::OpenFileOperation)
+    file = _make_opened_file(editor, op)
+    op.file_wrap === identity ? make_file_view(file) : op.file_wrap(file)
+end
 
-# Whether `tab` shows `document`: as its content, or through the view of a page.
-_is_document_in_tab(tab, document) =
-    tab.content === document || (tab.content isa FilePageView && tab.content.page === document)
+# Whether `tab` shows `file`: as its content, or through the layers that hold it,
+# such as a view or a navigator.
+function _is_document_in_tab(tab, file)
+    node = tab.content
+    for _ in 1:16
+        node === file && return true
+        field = get_edited_field(node)
+        field === nothing && return false
+        node = getproperty(node, field)
+    end
+    false
+end
 
 """
     open_file!(path; editor = get_evaluation_editor()) -> ReferencedDocument
@@ -286,7 +294,7 @@ function open_file!(path::AbstractString; editor = get_evaluation_editor())
         open = find_open_file_document(path; editor)
         tab = open === nothing ? nothing : _find_open_file_tab(editor, open)
         tab === nothing || return tab
-        open_pane!(_make_page_view(open === nothing ? _make_opened_file_page(editor, OpenFileOperation(path)) : open);
+        open_pane!(open === nothing ? _make_opened_tab_content(editor, OpenFileOperation(path)) : make_file_view(open);
                    group = get_pane_file_group(; editor), editor)
     end
 end

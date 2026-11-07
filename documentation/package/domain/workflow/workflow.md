@@ -58,7 +58,7 @@ One computation builds the output of the tree and the places of its documents, a
 
 ### The list of the open workflows
 
-`WorkflowList` is a session document of each editor, as the list of the open files is. `get_session_workflow_list(; editor)` answers it. It holds the open file list of its editor in `file_list`, and `files` computes from it the open files whose document is a `WorkflowStep`: a file page, or the file document when no page holds it. A file comes when a tab or a page shows it, and goes when the last of them closes, so a workflow from any folder is in the list while it is open. The list reads no disk.
+`WorkflowList` is a session document of each editor, as the list of the open files is. `get_session_workflow_list(; editor)` answers it. It holds the open file list of its editor in `file_list`, and `files` computes from it the open files whose document is a `WorkflowStep`: the file document. A file comes when a tab or a page shows it, and goes when the last of them closes, so a workflow from any folder is in the list while it is open. The list reads no disk.
 
 The list says `is_session_explorer_entry_type`, so the explorer of each window holds it from the start, after the lists of the session, and `+` adds it as "workflows". Its maker runs with its editor as the editor of the evaluation, so it reads the open file list of that editor. A file of an explorer keeps that it holds the list, and no file and no row.
 

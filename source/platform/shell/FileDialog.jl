@@ -46,11 +46,10 @@ end
 
 Give `file` a name and write it there.
 
-`file` is the `FileDocument` a tab holds, or the [`FilePage`](@ref) that holds
-it. Saving it under a new name is two things and this does both in order: the
-file takes the name, and then it is written, by the one operation that writes a
-file. A page writes with no check of the disk, because the person chose the name,
-and keeps the hash of the text that it wrote.
+`file` is the `FileDocument` a tab holds. Saving it under a new name is two things
+and this does both in order: the file takes the name, and then it is written, by the
+one operation that writes a file. The write has no check of the disk, because the
+person chose the name, and the file keeps the hash of the text that it wrote.
 """
 function save_file_dialog!(file; directory::AbstractString = pwd(),
                            editor = get_evaluation_editor())
@@ -66,12 +65,7 @@ end
 # The file takes the name, and the save of what the dialog was given writes it.
 function _make_save_as_operation(file, path)
     file.filename = path
-    SaveFileOperation(file)
-end
-
-function _make_save_as_operation(page::FilePage, path)
-    find_page_file(page).filename = path
-    SaveFilePageOperation(page; force = true)
+    SaveFileOperation(file; force = true)
 end
 
 # The dialog is a window of its own, as every popup here is (`PAR-MANY-WINDOWS`).

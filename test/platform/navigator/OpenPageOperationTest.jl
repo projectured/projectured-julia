@@ -65,6 +65,7 @@ end
 @document struct NavigatorTestFile <: FileDocument
     filename::String
     content::Any
+    disk::FileDiskState = FileDiskState()
 end
 
 # A content of a tab that holds a navigator in a field, as an explorer holds the
@@ -287,7 +288,7 @@ function test_open_page_operation()
         @test answer isa OpenFileOperation && answer.path == path
         @test answer.file_wrap(PrimitiveString("x")) isa Navigator
         # The navigator holds the file, and an editor with settings puts a history
-        # around the navigator, so it records the edits of every page.
+        # inside the file, around its content, so it records the edits of the file.
         for (settings, has_history) in ((make_settings(), true), (false, false))
             editor = build_editor(_nav_make_shelf(), _nav_natural(); backend = HeadlessBackend(),
                                   devices = Device[Keyboard(), Mouse(), Display()], window = false, tabs = true,
@@ -298,14 +299,14 @@ function test_open_page_operation()
             run_frame!(editor)
             found = only(search_documents(editor.document, node -> node isa Navigator && node.content isa TextFile))
             @test found.content.filename == path
-            buffers = search_documents(editor.document, node -> node isa UndoBuffer && node.content === found)
-            @test length(buffers) == (has_history ? 1 : 0)
+            @test (found.content.content isa UndoBuffer) == has_history
+            @test isempty(search_documents(editor.document, node -> node isa UndoBuffer && node.content === found))
         end
     end
 
     @testset "a navigator that an open makes from a file tab keeps the file as its content" begin
         shelf = _nav_make_shelf()
-        file = NavigatorTestFile("shelf.txt", shelf, nothing)
+        file = NavigatorTestFile("shelf.txt", shelf)
         editor, backend = _nav_editor(file; tabs = true)
         open = OpenPageOperation(nothing, @reference(editor.document, root.tabs[1].content.content.books[2]))
         evaluate_operation(editor, open)

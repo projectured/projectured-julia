@@ -158,6 +158,7 @@ no marked text has no `server_text`.
     filename::String
     content::Any
     server_text::Any = nothing
+    disk::FileDiskState = FileDiskState()
 end
 
 function SourceFile(filename::AbstractString, content::Document)

@@ -14,6 +14,7 @@ A file document whose `content` is a `YamlDocument`.
 @document struct YamlFile <: FileDocument
     filename::String
     content::Document = YamlNothing()
+    disk::FileDiskState = FileDiskState()
 end
 
 # What the file writes itself, and how it spells a reference to what it does

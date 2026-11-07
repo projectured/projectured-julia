@@ -13,6 +13,7 @@ A file document whose `content` is a `JsonDocument`.
 @document struct JsonFile <: FileDocument
     filename::String
     content::Document = JsonNothing()
+    disk::FileDiskState = FileDiskState()
 end
 
 # What the file writes itself, and how it spells a reference to what it does

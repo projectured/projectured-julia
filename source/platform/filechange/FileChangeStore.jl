@@ -120,8 +120,8 @@ _find_watch_store() = find_file_change_store(find_evaluation_editor())
 Report each change of the file of `file` to `receiver`: when the file changed on
 disk, a drain of the store calls `receive_file_change!` with the hash of the file
 and the document that a watcher parsed, and the receiver decides what the change
-means. A [`FilePage`](@ref) that shows the file is the receiver of a file in a
-tab. A file of a type that a person does not edit (`is_editable_file_type`) is
+means. The file document is the receiver of its own file ([`receive_file_change!`](@ref)),
+also in a tab. A file of a type that a person does not edit (`is_editable_file_type`) is
 read again when the time or the size of its file changes, and its text is never
 read.
 
@@ -272,11 +272,9 @@ function is_folder_watched(path::AbstractString; store::Union{FileChangeStore,No
 end
 
 # A file that enters the window watches its file in the store of the editor while
-# a tab shows it, and the release of the tab stops the watch. An editor with no
-# file change feed watches nothing. A tab acquires its outer layer first, so the
-# page of a file watches the file as its receiver, and the file itself, which comes
-# next, watches already. The open files of the editor list the page, or the file
-# that no page holds, while it is held.
+# a tab, a card or a navigator shows it, and the release of its last holder stops
+# the watch. The file is the receiver of its own file. An editor with no file change
+# feed watches nothing. The open files of the editor list the file while it is held.
 function acquire_document!(editor, file::FileDocument)
     watch_document_file!(file; store = find_file_change_store(editor))
     add_open_file!(editor, file)
@@ -286,26 +284,6 @@ end
 function release_document!(editor, file::FileDocument)
     unwatch_document_file!(file; store = find_file_change_store(editor))
     remove_open_file!(editor, file)
-    nothing
-end
-
-# A page holds the file that it shows, so the file is acquired wherever the page
-# is: in a tab, which acquires every layer of its content, and in the navigator of
-# an explorer, which holds only the page.
-function acquire_document!(editor, page::FilePage)
-    file = find_page_file(page)
-    file === nothing ||
-        watch_document_file!(file; store = find_file_change_store(editor), receiver = page)
-    add_open_file!(editor, page)
-    file === nothing || hold_documents!(editor, page, Any[file])
-    nothing
-end
-
-function release_document!(editor, page::FilePage)
-    file = find_page_file(page)
-    file === nothing || unwatch_document_file!(file; store = find_file_change_store(editor))
-    remove_open_file!(editor, page)
-    file === nothing || release_held_documents!(editor, page, Any[file])
     nothing
 end
 
@@ -497,7 +475,7 @@ watches it ([`receive_folder_change!`](@ref)), and answer how many receivers too
 their change.
 Run it on the task that reads the documents. The drain reads no file: a watcher
 read it, off the loop. What a change means is the choice of the receiver: a
-[`FilePage`](@ref) knows its own save and the edits of its file, and the drain
+[`FileDocument`](@ref) knows its own save and the edits of its file, and the drain
 knows neither. A change is reported once. A parse that failed is thrown after the
 other changes, so the editor records it.
 """

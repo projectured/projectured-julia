@@ -91,13 +91,12 @@ function _app_make_window(paths; files::Bool = false, focus_file::Bool = false, 
 end
 
 # The selection on the content of the first file of the window of `document`: the
-# file that the page of its tab holds, as a press on its tab gives it: the window
+# file that the view of its tab holds, as a press on its tab gives it: the window
 # opens on the Explorer, the tab before it.
 function _app_focus_first_file!(document)
     steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
     at = findlast(==(FieldReferenceStep("tabs")), steps)
-    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("page"),
-                 FieldReferenceStep("content"))
+    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("file"))
     set_selection!(document, extend_reference(EmptyReference(), steps...))
     document
 end
@@ -916,9 +915,9 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene([json], dir; focus_file = true)
                 editor = _AppFakeEditor(scene, iomap)
                 operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
-                # The page of the file answers its own save, which checks the disk first.
-                @test _app_plain(operation) isa SaveFilePageOperation
-                tab = find_page_file(_app_plain(operation).page)
+                # The save of the file checks the disk first.
+                @test _app_plain(operation) isa SaveFileOperation
+                tab = _app_plain(operation).file
                 @test tab.filename == json
                 get_wrapped_document(tab.content).entries[1].value.value = "Bob"
                 evaluate_operation(editor, operation)
@@ -1161,10 +1160,10 @@ function test_application()
                 # A tab of its own, and not a page in the navigator of the explorer.
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
                 # The group of the files, where a file from the explorer opens too. A
-                # file tab shows a view of the page of its file, which holds the file
-                # in a scroll pane.
-                @test any(tab -> tab.content isa FilePageView && tab.content.scroll isa WidgetScrollPane &&
-                                 is_file_document(find_page_file(tab.content.page)),
+                # file tab shows a view of its file, which holds the file in a scroll
+                # pane.
+                @test any(tab -> tab.content isa FileView && tab.content.scroll isa WidgetScrollPane &&
+                                 is_file_document(tab.content.file),
                           group.tabs)
             end
 
@@ -2034,15 +2033,14 @@ function test_application()
                       if occursin("Alice", text)]
                 w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
                 @test holds_one_path(w)
-                # F5 answers the load of the page of the file and a selection of the
-                # whole file.
+                # F5 answers the reload of the file and a selection of the whole file.
                 reload = w.press!(KeyDown(:f5, ModifierKeys(); time = 0.0))
                 @test reload isa CompoundOperation
-                @test any(operation -> operation isa LoadFilePageOperation, reload.operations)
+                @test any(operation -> operation isa ReloadFileOperation, reload.operations)
                 @test holds_one_path(w)
                 @test evaluate_reference(w.scene, get_selection(w.scene)) isa JsonFile
                 @test _app_plain(_app_fire(w.composed, w.editor.iomap,
-                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFilePageOperation
+                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFileOperation
             end
 
             @testset "the evaluator" begin

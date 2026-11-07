@@ -38,7 +38,7 @@ A path that does not exist opens as `make_document_seed(Val(extension))`. A doma
 
 `make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`) has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file.
 
-`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the view (`FilePageView`, see the next section) of a new `FilePage` of the file document of `make_file_tab`. The view keeps the scroll pane, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it, and `open_file!` opens a tab with the view of the page of an open file, so each tab keeps its own place in a file that another place shows too.
+`make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the view (`FileView`, see the next section) of the file document of `make_file_tab`. The view keeps the scroll pane, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it, and `open_file!` opens a tab with the view of an open file, so each tab keeps its own place in a file that another place shows too.
 
 `FileToContent` is the projection of a `FileDocument` in the general renderer. It prints `content` through the recursion, so a tab with a `JsonFile` shows the JSON document exactly as a bare `JsonDocument` would show. The forward map passes the path below `content` to the child. The backward map puts the `content` step in front with `concat_references`. The `^` splice of `@reference` would move the type checkpoints of the path, and the selection would then match no document. `FileToContent(; content, accepts)` prints and reads a content that `accepts` answers `true` for with the projection `content` in place of the recursion: the view of a file of a domain, which a document of that domain inside another document does not have. Any other content, such as one that an opener wraps in a document of its own, prints through the recursion. The Julia domain gives `JuliaFile` such a view through `make_graphics_projection`, whose rows come before the row of `FileDocument`.
 
@@ -48,66 +48,68 @@ The `@gestures` table of `FileDocument` has two keys. Ctrl+O is not one of them:
 
 | Key | Operation | What it does |
 | --- | --- | --- |
-| Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document; inside a page, the reader of the page answers `SaveFilePageOperation` in place of it |
-| F5 | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; inside a page, the reader of the page answers `LoadFilePageOperation` in place of it |
+| Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document; the file checks the disk first (see the next section) |
+| F5 | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; the file keeps the hash of the text that it read |
 
 The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
 
-### The page of a file
+### The file against the disk
 
-`FilePage` is what an editor holds for a file. It holds `content` (the file, or what an opener put around it, such as a history), `band` and `file_hash`. `make_file_page(content)` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash. `find_page_file(page)` gives the file document of the page. The page holds the file, the hash and the band once, so one watch, one hash and one band serve every place that shows the file.
+Every file document keeps its state against the disk in one field, `disk`, of type `FileDiskState`, as it keeps `filename` and `content`. `get_file_disk_state(file)` reads it. The state holds `file_hash`, the hash of the text of the last load or save, and `band`, the `FileBand` while the file changed on disk under edits that no save wrote. The field is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it. The constructor of each file type makes a new state, so two new files have two states. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash. `make_file_tab` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash.
 
-Each place that shows a page shows a view of it. `make_document_view(page)` makes a `FilePageView(page, scroll)`: the `page` and the `scroll` pane of this place, which keeps where this place is scrolled to. `make_file_page_view(page)` makes it for a new place, with the selection of the view following the selection of the page. A tab keeps a view, a card of a dashboard keeps a view in its slot, and a navigator keeps the view of its page, so a scroll in the tab leaves the card where it is. The view names the page with `get_edited_field`, so a walk and a tab reach the file through the page, and not through the scroll pane, which a walk does not enter (`is_field_walked`). A view says the title and the decoration of its page. A holder holds the view, and the view holds the page, which holds the file. `find_held_file(view)` and `find_held_file(page)` answer the file, so a document that holds a view or a page saves it as `file("…")` and writes none of the band, the hash or the scroll pane.
+The file document watches its file while a place holds it, and is the receiver of what the watcher reports ([filechange.md](../filechange/filechange.md)). A tab, a card of a dashboard and a navigator all show the file document itself, each through its own view.
 
-The page holds the state of its file against the disk. `file_hash` is the hash of the text of the last load or save. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash.
+Each place that shows a file shows a view of it. `make_document_view(file)` makes a `FileView(file, scroll)`: the `file` and the `scroll` pane of this place, which keeps where this place is scrolled to. `make_file_view(file)` makes it for a new place, with the selection of the view following the selection of the file. A tab keeps a view, a card of a dashboard keeps a view in its slot, and a navigator keeps the view of its page, so a scroll in the tab leaves the card where it is. The view names the file with `get_edited_field`, so a walk and a tab reach the file through the view, and not through the scroll pane, which a walk does not enter (`is_field_walked`). A view says the title and the decoration of its file. A holder holds the view, and the view holds the file. `find_held_file(view)` answers the file, so a document that holds a view saves it as `file("…")` and writes none of the band, the hash or the scroll pane. When the history of a file sits inside the file, around its content, the file reads it with `has_unsaved_edits(get_file_content(file))`; the open of a file gives it so, also when a link of a navigator opens it.
 
-`SaveFilePageOperation` reads the file on disk and compares its hash with `file_hash`.
+`SaveFileOperation` reads the file on disk and compares its hash with `file_hash`.
 
-- If the hashes are equal, it writes the file and keeps the hash of the written text.
+- If the hashes are equal, or the file knows no hash, it writes the file and keeps the hash of the written text.
 - If they differ, it writes nothing and shows the band.
 - With `force = true`, it writes with no check.
 
-"Save as" (`save_file_dialog!` with a page) writes with `force = true`. A history above the page adds no step for a save or for `KeepFilePageEditsOperation`, because their way back is `DoNothingOperation`.
+"Save as" (`save_file_dialog!`) writes with `force = true`. A history inside the file adds no step for a save or for `KeepFileEditsOperation`, because their way back is `DoNothingOperation`. `ReloadFileOperation` keeps the hash of the text that it read (its `file_hash`, or the hash of the file on disk now) and takes the band away.
 
-`FileBand` holds a `message` and `choices`, each a label with an operation. `FilePageToWidget` draws the band of the page of a view above the scroll pane of the view, so the band stays at the top while a long file scrolls, in each view of the page. After a change on disk, the band says "<name> changed on disk." and offers two choices:
+`FileBand` holds a `message` and `choices`, each a label with an operation. `FileViewToWidget` draws the band of the file of a view above the scroll pane of the view, so the band stays at the top while a long file scrolls, in each view of the file. After a change on disk, the band says "<name> changed on disk." and offers two choices:
 
 | Choice | Operation | What it does |
 | --- | --- | --- |
-| Load it | `LoadFilePageOperation` | loads the document that the watcher read, or reads the file now when it carries none |
-| Keep mine | `KeepFilePageEditsOperation` | takes the hash of the disk as the hash of the page, so the next save writes |
+| Load it | `ReloadFileOperation` | loads the document that the watcher read, or reads the file now when it carries none |
+| Keep mine | `KeepFileEditsOperation` | takes the hash of the disk as the hash of the file, so the next save writes |
 
-The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver, file_hash, content)`, which this slice declares. A page with the same hash does nothing. A file that a person does not edit, or with no edits (`has_unsaved_edits` false), loads the new document. Any other file keeps its content, and the page shows the band. A file document with no page loads a file that a person does not edit. For any other file it logs a warning, because it can not tell its own save from a change.
+The decoration of a file says, while its band shows, that the file changed on disk, and a conflict when the file has edits that no save wrote.
+
+The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver, file_hash, content)`, which this slice declares. A file with the same hash does nothing. A file that a person does not edit, or with no edits (`has_unsaved_edits` false), loads the new document. Any other file keeps its content, and shows the band.
 
 ### The open files
 
-`OpenFileList` holds the files that an editor holds open. Its field `files` holds one item for each file: the `FilePage` that a tab or a page shows, or the file document when no page holds it. `get_session_open_file_list(; editor)` gives the one list of a session. `find_open_file_document(path; editor)` finds the item of a path, so an open of a file that the list holds reaches that document. The acquire of a page or a file adds it (`add_open_file!`), and the release of its last holder takes it away (`remove_open_file!`). The explorer shows the list as the entry "Open files", with a count of the files that have unsaved edits.
+`OpenFileList` holds the files that an editor holds open. Its field `files` holds one item for each file: the file document that a tab or a page shows. `get_session_open_file_list(; editor)` gives the one list of a session. `find_open_file_document(path; editor)` finds the file document of a path, so an open of a file that the list holds reaches that document. The acquire of a file adds it (`add_open_file!`), and the release of its last holder takes it away (`remove_open_file!`). The explorer shows the list as the entry "Open files", with a count of the files that have unsaved edits.
 
-The field `table` holds the table of the files: an `ArrangementDocument` with no entry, around a `Roster` of `CollectionItems` at `files`, with the columns `name`, `folder` and `state`. The list of a session has it. A list that `OpenFileList()` makes has `nothing`. `OpenFileListToWidget` draws the page of the list: a line such as "2 open files · 1 unsaved", or "No file is open.", and under it the table. A person filters and sorts the table in its bar. The name of a file is a link: a click on it opens the page of the file, as a double click on its row does ([roster.md](../roster/roster.md)).
+The field `table` holds the table of the files: an `ArrangementDocument` with no entry, around a `Roster` of `CollectionItems` at `files`, with the columns `name`, `folder` and `state`. The list of a session has it. A list that `OpenFileList()` makes has `nothing`. `OpenFileListToWidget` draws the page of the list: a line such as "2 open files · 1 unsaved", or "No file is open.", and under it the table. A person filters and sorts the table in its bar. The name of a file is a link: a click on it opens the file, as a double click on its row does ([roster.md](../roster/roster.md)).
 
 The removal of the last entry of an arrangement normally puts the roster in the place of the arrangement. The page keeps the arrangement with no entry instead, through `keep_held_arrangement` of the arrangement slice, so the next filter of the table has an arrangement to go to.
 
 The reader of the page opens the file of a row at its place in the list, `files[j]`, through `retarget_held_row_open` of the roster slice ([roster.md](../roster/roster.md)). So a click on the name of a file opens it with the address "Explorer › Open files › todo.txt", and Parent goes back to the list. A selected row stays selected at the path of the row, which the table shows.
 
-A file and the page of a file have the facets that a roster of files shows, filters and sorts by:
+A file has the facets that a roster of files shows, filters and sorts by:
 
-| Facet | `FileDocument` | `FilePage` |
-| --- | --- | --- |
-| `name` | the name of the file, without its folder | the name of its file |
-| `folder` | the folder of the file, as its file name gives it | the folder of its file |
-| `has_edits` | whether the history of the file has a step that the file does not hold | the same, of its file |
-| `state` | the words of its conditions, such as "unsaved edits" or "read only" | the words of the conditions of the page, which also says "changed on disk" and the conflict |
+| Facet | `FileDocument` |
+| --- | --- |
+| `name` | the name of the file, without its folder |
+| `folder` | the folder of the file, as its file name gives it |
+| `has_edits` | whether the history of the file has a step that the file does not hold |
+| `state` | the words of its conditions, such as "unsaved edits", "changed on disk" or "read only", and the conflict |
 
-A page with no file answers `nothing` for `name`, `folder` and `has_edits`. The words of `state` are the `words` of the `ConditionLook` of each condition, in the order that a tooltip says them, with commas between them. A file with no condition has an empty `state`.
+The words of `state` are the `words` of the `ConditionLook` of each condition, in the order that a tooltip says them, with commas between them. A file with no condition has an empty `state`.
 
 ### The tool set
 
-The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `make_file_tab`, `read_document_file`, `write_document_file`, `save_file_to_disk!`, `reload_file_from_disk!`, `import_document` and `export_document`. `save_file_to_disk!` and `reload_file_from_disk!` do what Ctrl+S and F5 do: they take the tab of a file, its page or the file, and a page checks the disk first. `open_file!` of the file system slice opens a file in a tab. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
+The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `make_file_tab`, `read_document_file`, `write_document_file`, `save_file_to_disk!`, `reload_file_from_disk!`, `import_document` and `export_document`. `save_file_to_disk!` and `reload_file_from_disk!` do what Ctrl+S and F5 do: they take the tab of a file or the file, and the save checks the disk first. `open_file!` of the file system slice opens a file in a tab. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 
 The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) offers its marked names to the assistant.
 
-It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FilePageView` with `FilePageToWidget`, so a page shows through its view; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
+It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FileView` with `FileViewToWidget`, so a file shows through its view; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
 
 ## Design decisions
 
