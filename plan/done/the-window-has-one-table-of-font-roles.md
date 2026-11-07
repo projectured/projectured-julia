@@ -1,7 +1,9 @@
 # The window has one table of font roles
 
-> **Status:** pending. Written on 2026-11-05 at the owner's request. The owner
-> decided every point of section 2. No implementation is asked yet.
+> **Status:** done on 2026-11-07. Written on 2026-11-05 at the owner's request.
+> The owner decided every point of section 2. Steps 1 to 7 are in
+> projectured-julia and step 8 is in omnet-julia; the record of the compiled
+> calls of step 6 is deferred to after the plan.
 > The facts are in [how-the-window-uses-fonts-today.md](how-the-window-uses-fonts-today.md).
 > The page with the 19 parts of the window before and after is the artifact
 > "Editor Type Study", https://claude.ai/artifact/T8tYi1TEgC5T249MrJJRuk.
@@ -188,19 +190,22 @@ gets the new value; the commit names each one.
   the ratio of `apply_font_role`. Tests: `test_markdown()`, `test_rst()`,
   `test_book()`, `test_chart()`, `test_sequencechart()`, `test_math()` and one
   code domain, `test_json()`.
-- [ ] **Step 6. Real screens.** Draw the parts of the 19 examples of the page in
+- [x] **Step 6. Real screens.** Draw the parts of the 19 examples of the page in
   the editor, on `main` and on the branch, with `write_image` and no window on
   the desktop, and put them side by side on the page. The owner looks at them
   before the branch goes further. Then compare every suite that steps 1 to 5
   touched with the baseline of `main`. Record the precompile calls again
   (`record_package_calls!`) for each package whose load warns that recorded calls
   no longer resolve, and check that the load of the branch gives no such warning.
-- [ ] **Step 7. The documentation.** Write `documentation/rule/type-rules.md`:
+  (Done on 2026-11-07, `1cbfd8252`, except the record of the compiled calls,
+  which the owner deferred to after the plan; facts in section 5.)
+- [x] **Step 7. The documentation.** Write `documentation/rule/type-rules.md`:
   the six differences, the roles, the exceptions, and how a new widget, panel or
   domain gets its fonts. Change `documentation/package/platform/style/style.md`
   (fonts, roles and the font theme), `appearance/appearance.md` (the font theme in
   the appearance and in the tab), `widget.md` (the roles of each part) and
   `new-domain-guide.md` (a domain theme names roles).
+  (Done on 2026-11-06, `3bd645e14`; facts in section 5.)
 - [ ] **Step 8. omnet-julia.** After the owner approves the landing of steps 1 to
   7 on `main` of projectured-julia: the NED, INI, test file and result themes name
   roles; the result card title takes `title`; the Qtenv preset
@@ -536,6 +541,105 @@ gets the new value; the commit names each one.
   `inet-cpp` and `opp_repl` beside the repository, which the baseline folder
   did not hold. Both runs skipped `test_parallel_sim_dashboard_panel`, which
   hangs on main with two threads.
+- **2026-11-06, decided by the owner.** The open question of step 3, what an
+  exact font passed to `WidgetToGraphics(StyleFont(...))` means: "remove,
+  agreed", option 1. The argument goes, an example draws at the sizes of the
+  editor, and an example that needs large text sets the font scale of its
+  appearance. The fonts of the widgets come only from the widget theme. The
+  design that follows from it:
+  - `WidgetToGraphics(font; ...)` goes, and `make_widget_theme(; font)` with it,
+    because it was the default of that argument and gives the same exact font.
+    A caller takes `WidgetTheme()`, or the scaled theme of its appearance.
+  - The map of a study draws its widgets with the widget theme that it gets, not
+    with the `font` of `ResearchTheme`. That field goes, with the `theme` keyword
+    of `make_research_map_projection`.
+  - The builders of step 4 and step 5 that take an exact font are not in this
+    decision; each needs a design of its own.
+  - The owner deferred the record of the compiled calls of step 6 to after the
+    plan.
+- **2026-11-06, the decision on a passed font, done** (`4b912c2aa`, omnet-julia
+  `c57282965`). `WidgetToGraphics(; measure, theme, graphics_theme, text_theme)`
+  is the only form, and `make_widget_theme` is no longer exported.
+  - In projectured-julia, 107 calls in 17 examples and 54 tests drop the font,
+    and 10 calls of `make_widget_theme` take `WidgetTheme()`. No expected size
+    or position changed, because most tests measure with a fixed measure that
+    gives every font the same size.
+  - One test needs a large and a plain widget projection side by side:
+    `LayoutCloseoutTest.jl:224` makes the large one with
+    `make_scaled_theme(WidgetTheme(), Appearance(font_scale = 2.0))`.
+  - The `font` keyword that nothing read is gone from `make_find_bar_projection`,
+    `make_shell_projection` and seven omnet-julia demo builders.
+  - omnet-julia: `reflection_render_projection` and `pane_render_projection`
+    take no font. The scroll pane of the workbench keeps its font, because it
+    measures the scroll step with it, and the module builder keeps its font,
+    because `build_module_appearance_graphics` draws with it.
+  - `ResearchTheme` keeps five fields that no code reads. The owner can remove
+    them in a later change.
+  - omnet-julia `main` does not load against projectured-julia `main` without
+    `c57282965`, so the two branches land together.
+  - omnet-julia `c57282965` against projectured-julia `3bd645e14`:
+    `Pkg.precompile` prints no undeclared binding and no method overwriting;
+    `test_qtenv` 38/38; `OmnetLegacyTest.test_all` 2650/25/64/1 and
+    `OmnetPresentationTest.test_all` 1663/9/9/1, at the same failing lines as
+    step 8 and as its baseline.
+- **2026-11-06, step 7.** `type-rules.md` holds the six differences, the roles,
+  the rule of one size in a code view and of a placeholder at the size of its
+  field, the weight and the slant over a role, the exceptions, and the steps for
+  a new widget, panel or domain. Its section 4 lists the builders that still
+  take an exact font as they are now. `resolve_font_role` loses a check that can
+  never be true, because a role with no base field does not exist any more.
+  `test_documentation()` passes. The style guard `test_style()` fails at
+  `BookModule.jl:34`, a `StyleFont("Ubuntu Mono", 20)` in `make_workload_file`,
+  and `main` has the same line and the same failure.
+- **2026-11-07, step 6, the suites.** The baseline is `e30b59b5e`, the parent of
+  the first commit of this plan. Every commit between it and `3bd645e14` belongs
+  to this plan, except `7afb5e0ce` and `bb664a6ef`, which change only the plan
+  file of another plan. `test_platform`, the 21 domain and adapter suites, and
+  `test_printers`, `test_domain_examples` and `test_projections` ran on both
+  sides. `test_process` runs in a process of its own, because it can hang at
+  `ProcessDebugTest.jl:185` under load, a race on `main`.
+  - Four tests failed only on the branch, and each one read a form that this
+    plan changed. `1cbfd8252` fixes them:
+    - `MarkdownEmbedCardTest.jl:45` and `RstEmbedCardTest.jl:29` read
+      `card.title.content`, and the title of a card is a `String` since
+      `f1cf896c9`;
+    - `WorkflowJournalToWidgetTest.jl:33` expected "9 OCT", and a section label
+      of an outline keeps the case it was written in since `fb79e616f`;
+    - `TooltipWindowTest.jl:210` rested 10 px into a label in a scrolled pane.
+      The test measures with a `FixedMeasure`, but the hit test takes the box of
+      a text with no background from the bounds of the canvas, which measure
+      with the real font. The point was inside the Ubuntu 20 text of the old
+      example font and is above the 13 px text, so the dwell rests in the middle
+      of the line.
+    The first three also fail on `main`, because their causes landed with
+    `0fd0b6351`.
+  - The other failures are on both sides, at the same places: `test_platform`
+    3, `test_graph` 4 and 2 errors, `test_julia` 1 (`TooltipWindowTest.jl:179`),
+    `test_pivot` 1 and 1 error.
+  - The counts that differ, and why:
+
+    | Suite | Base → branch | Why |
+    | --- | --- | --- |
+    | `test_platform` | 219626 → 219836 | new tests: font theme 74, card titles and the whole part rule 38, appearance tab 21, tab strip 4; the cell walk of the platform examples 75; `Theme` and `test_help` lose 1 each |
+    | `test_chart` | 429 → 432 | three new tests in `ChartProjectionTest.jl` |
+    | `test_projections` | 784 → 787 | three new tests in `GestureMapTest.jl` |
+    | `test_printers` | 1048292 → 1036186 | the cell walk, below |
+    | `test_domain_examples` | 1122674 → 1110196 | the cell walk, below |
+
+    The two sweeps count one test for each cell that the walk of the IO map
+    forces. 64 examples that draw with `NaturalToGraphics` lose about 358
+    cells, and the assistant examples, with two natural tables, about 650.
+    The research slice registers a row for `ResearchMap` in that table, and
+    the row made its own widget printers from the font of `ResearchTheme`. Now
+    it takes the scaled widget theme of the appearance, so its printers read
+    the same cells as the other widget printers, and the walk counts each cell
+    once: each field of each widget printer holds 2 cells on the base and 1 on
+    the branch. Each plain widget example gains 1 cell, the title text of an
+    alert. The card examples gain cells and `nested_object_to_widget` loses
+    63, because a `String` title draws in a card IO map with a header in place
+    of a `WidgetLabel`. `widget_table_frozen` draws 6 texts less, probably
+    because its rows at 13 px are lower and the scroll of 60 px moves one more
+    row out of the view.
 
 ## 6. Not in this plan
 
