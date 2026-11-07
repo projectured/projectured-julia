@@ -321,9 +321,11 @@ function test_task_views()
         end
 
         @testset "the header holds the state badge once, the name, the muted parts and the error" begin
+            broken = BuildCommandTask(; action = "Compiling", subject = "broken.c", working_directory = mktempdir(),
+                arguments = ["sh", "-c", "echo broke >&2; exit 2"], input_files = String[], output_files = String[])
             tasks = AbstractTask[_TaskViewDocumentProbeTask("good", "exit 0"), _TaskViewDocumentProbeTask("bad", "exit 1"),
-                                 _TaskViewProbeTask("plain", "exit 1")]
-            document = wrap_task_group_document(TaskGroup(tasks; name = "headers", jobs = 3))
+                                 _TaskViewProbeTask("plain", "exit 1"), broken]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "headers", jobs = 4))
             documents = getfield(document, :tasks)[]
             # Before the result: the state word, with no role.
             waiting = TaskModule._make_task_state_badge(documents[1])
@@ -349,8 +351,14 @@ function test_task_views()
             detail = [t[3] for t in texts if t[2] >= badge[2]]
             @test count(==("ERROR"), detail) == 1
             @test !any(w -> occursin("bad — ", w) || occursin("(unexpected)", w), detail)
-            # The error message of an ERROR is a line under the header.
-            line = only(t for t in texts if t[3] == "<No error message>")
+            # A result that says nothing about its error has no error line.
+            @test !("<No error message>" in words)
+            # The error message of an ERROR is a line under the header, above the
+            # buttons; the stream of the step shows the same text further down.
+            select_task_document!(document, 4)
+            texts = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
+            badge = last(sort([t for t in texts if t[3] == "ERROR"]; by = t -> t[2]))
+            line = first(sort([t for t in texts if t[3] == "broke"]; by = t -> t[2]))
             @test line[2] > badge[2] && line[2] < only(t for t in texts if t[3] == "Run again")[2]
             # A good result has no error line and only the name of the kind.
             select_task_document!(document, 1)

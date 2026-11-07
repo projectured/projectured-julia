@@ -95,13 +95,22 @@ reason.
 get_inner_task_results(::TaskResult) = TaskResult[]
 
 """
-    get_error_message(result) -> String
+    find_error_message(result) -> Union{String,Nothing}
 
 What a result that is `ERROR` says about the error, such as the error line that
-a kind of task finds in the output of its process. `"<No error message>"` when it
-says nothing, as `opp_repl` writes it.
+a kind of task finds in the output of its process, or `nothing` when it says
+nothing. A kind of task adds a method to it. The detail of a task shows the
+message in a line under its header, and no line for `nothing`.
 """
-get_error_message(::TaskResult) = "<No error message>"
+find_error_message(::TaskResult) = nothing
+
+"""
+    get_error_message(result) -> String
+
+The error message of `result` as `opp_repl` writes it: the message that
+`find_error_message` finds, or `"<No error message>"` when it finds none.
+"""
+get_error_message(result::TaskResult) = something(find_error_message(result), "<No error message>")
 
 """
     format_task_parameters(task) -> String

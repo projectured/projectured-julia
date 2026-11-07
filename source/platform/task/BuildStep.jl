@@ -117,7 +117,7 @@ get_result_codes(::BuildStepTask) = RUN_RESULT_CODES
 format_task_parameters(step::BuildCommandTask) = step.subject
 format_task_parameters(step::BuildCopyTask) = step.target_file
 format_task_parameters(step::BuildRemoveTask) = step.path
-get_error_message(result::BuildStepResult) = something(result.error_message, "<No error message>")
+find_error_message(result::BuildStepResult) = result.error_message
 
 _get_build_step_action(step::BuildCommandTask) = step.action
 _get_build_step_action(::BuildCopyTask) = "Copying"

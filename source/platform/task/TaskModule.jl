@@ -63,7 +63,7 @@ import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explore
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,
-       get_inner_task_results, get_error_message, format_task_parameters, get_task_columns, format_task_column, get_task_column_value,
+       get_inner_task_results, find_error_message, get_error_message, format_task_parameters, get_task_columns, format_task_column, get_task_column_value,
        get_task_actions, format_task_details, get_task_links, make_task_kind_document,
        get_task_kind_name,
        find_task_output_mark, get_task_output_folder,

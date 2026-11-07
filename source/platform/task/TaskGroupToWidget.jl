@@ -155,12 +155,12 @@ function _make_task_header_note(p, document::TaskDocument)
 end
 
 # The error message of a task that ended with `ERROR`, in the error colour; no
-# line while the task has none. With `max_lines` above 0 it shows at most that
-# many lines, cut with "…".
+# line while the task has none, or when its result says nothing about the error.
+# With `max_lines` above 0 it shows at most that many lines, cut with "…".
 _make_task_error_line(p, document::TaskDocument; max_lines::Integer = 0) = _make_live_label(() -> begin
     result = get_task_document_result(document)
-    (result !== nothing && result.result == "ERROR") ? (get_error_message(result), p.error_color) :
-                                                       ("", p.error_color)
+    message = (result !== nothing && result.result == "ERROR") ? find_error_message(result) : nothing
+    (something(message, ""), p.error_color)
 end; max_lines)
 
 # The `Process` group of a task: its process and the time it took or takes,
