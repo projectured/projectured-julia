@@ -431,6 +431,22 @@ which cuts a long chain that has no cycle. Rejected: refuse a cycle, because a c
 the editor holds in memory now, and the save of one file can write it. Rejected: a table of the
 files of one open, with the holder first, which the rejected eager open of D6 needed.
 
+**D11, the display. A place where a file repeats on its own path draws collapsed.** Decided by
+the owner on 2026-11-08 ("Infinitely recursive documents should not be printed by keeping the
+recursion points collapsed", then "Yes"). Step 5 found that the display has no end for a cycle:
+the window draws `a.pred`, its card of `b.pred`, its card of `a.pred`, and so on, until the
+memory runs out. The print decides at each place, and nothing stores which places are collapsed.
+Each print gets the path from the window to its place (`ctx.reference` of the `PrinterContext`).
+A view of a file whose file already appears on that path is a repeat, and it draws as a closed
+card: the chevron points right, and the card shows its title and the path of its file, and not
+its content. The open state of a repeat belongs to that one place: it is the transient
+`collapsed` cell of the `WidgetCard` that the print makes there, as for any card. It is not on the
+card document, because one card document stands at every second level of a cycle, and a state on
+it would open every level. An opened repeat shows one more level, and the next repeat inside it is
+collapsed again, because its path holds the file twice. Two places of one file side by side are no
+repeat, and a long chain with no cycle shows whole. Rejected: a limit on the depth, for the reason
+above.
+
 **D12. The cut of a `.pred` file walks a positional argument of `pred_arguments` too.** Today the
 cut walks only the keywords (`PredFile.jl:148-153`), so the content of a scroll pane and of a
 transform pane is never cut, and a held file there is written whole with a copy of its text (§2,
@@ -610,6 +626,18 @@ through the reload (D7), so no test can check the open without the reload.
    Then `test_filechange()`, `test_file_tab()`, `test_user_interface_file()` and
    `test_platform_layering()`.
 
+   **5b. The display of a cycle (D11, the display).** Added on 2026-11-08 after the owner decided
+   it. The view of a file whose file already appears on the path of its place draws as a closed,
+   collapsible card with its title and the path of its file, and prints no content while it is
+   closed. Every printer that draws the content of a held file inside another document follows
+   the rule (the view of a file, and `FileToContent` if it draws a held file without a view).
+   Tests: the tab of `first.pred`, which holds `second.pred`, which holds `first.pred`, as the root
+   of an editor with the headless backend: after `second.pred` reads, frames end and the memory
+   stays bounded; the card of `first.pred` inside `second.pred` is collapsed and its content is not
+   printed. A click on its chevron (`ToggleCollapseOperation`) shows one more level, and in it the
+   card of `second.pred` is collapsed. Two cards of one file in one dashboard both show it. A chain
+   `a.pred` → `b.pred` → `c.pred` with no cycle shows whole. Then the tests of step 5 again.
+
    What the implementation found:
    - `_splice_walk!` and `_splice_tuple` of `FileSplice.jl` take a `resolve` function in place of
      `(project, index, tolerant)`, so `load_project` and `splice_held_files!` share one walk.
@@ -646,8 +674,9 @@ through the reload (D7), so no test can check the open without the reload.
    - A cycle of files that hold each other can not be printed to its end: with the tab of the first
      file as the root of the editor, the frame ran out of memory (10 GB) once the second file had
      read and held the first. The test of the cycle puts a plain document at the root of the
-     editor. Whether the window of the application prints such a cycle forever is not measured; it
-     is a risk for step 6 and for G4 step 4.
+     editor. The assistant reproduced it on 2026-11-08: the headless paint builds card, view, card
+     without end, 8 GB in about 40 seconds, while the save, `search_documents` and `repr` of the
+     same cycle end. Step 5b makes the display end (D11, the display).
    - `FileChangeTests` of `ProjecturedPlatformTest` imports `search_documents`. The explorer set
      defines its frame and draw helpers locally, because `ExplorerTest.jl` is in the main module of
      the test package and the helpers of the file-change test are in another.
