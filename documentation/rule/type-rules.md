@@ -74,7 +74,7 @@ Three other texts keep a font of their own:
 - **A document with a style of its own.** A chart document holds a `ChartStyle`, whose fonts are values of the document, as its colours are.
 - **The scripts of a formula.** The math typesetter draws a script at 0.7 and a second script at 0.5 of the size of its font. They follow the role, because the typesetter multiplies the size of the font that the role gives.
 
-Some builders take an exact font as an argument: `ReferenceToText`, `ReferenceToHumanReadableText`, `ReferenceInspectorToText`, `SelectionInspectorToText`, `SyntaxCompoundToText` (`decoration_font`), `ConversationComposerToWidget` (`code_font`), `MathToGraphics` and `MathConfig` (`font`, `slanted`), and `FormulaEnvironmentToSyntaxNode` (`font`). A caller that passes a font gets that font, and no role changes it.
+A projection holds the fonts of its theme as style fields, and its builder fills them from the theme, as `make_conversation_composer_projection` fills the `code_font` of the composer. Only the math builders take a font beside their theme: `MathToGraphics` and `MathConfig` take `font` and `slanted`. A caller that passes them gets those fonts, and no role changes them.
 
 ## 5. How a new widget, panel or domain gets its fonts
 
@@ -87,5 +87,6 @@ Some builders take an exact font as an argument: `ReferenceToText`, `ReferenceTo
 A builder must not do these:
 
 - **A font as a literal value in a projection.** A `StyleFont("…` in `source/`, outside a theme, fails the style guard `test_style()` ([testing-guide.md](../guide/testing-guide.md#the-style-guard)).
-- **A font argument that sets the fonts of the widgets.** `WidgetToGraphics` takes no font: the fonts of the widgets come from the widget theme. A view that needs larger text scales the fonts of its appearance.
+- **A font argument beside a theme.** `WidgetToGraphics` takes no font: the fonts of the widgets come from the widget theme. A builder takes the theme, and the theme gives each font. A view that needs larger text scales the fonts of its appearance.
+- **Two themes for one text.** One theme gives the fonts of a text. The Reference tab takes the text of a reference from `ReferenceTheme`, and its own theme gives only its headers.
 - **A size of its own on a role.** A role has no size keyword. A text that needs another size takes another role.
