@@ -28,8 +28,6 @@ are plain values:
   execution has a result, so a column can show a number that a test found. A table
   filters and sorts that value as a number. The default is the text of
   `format_task_column`;
-- `format_task_details(task, result)` gives its facts, one a line, such as the
-  command, the exit code and the error line, from what the task ended with;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
   press calls with the editor that evaluates the press and the task;
 - `get_task_links(task)` gives its links, each `(label, text, document,
@@ -55,7 +53,11 @@ are plain values:
   reaches it, `tasks[i].kind_document`, and the pane maps that path to the card
   and back, as a page maps an embedded file: a person edits the document where
   it shows. A kind with no document answers `nothing`, and then the frame shows
-  the lines of `format_task_details`;
+  only its header, its buttons, its `Process` group and its streams. The build
+  steps (`BuildCommandTask`, `BuildCopyTask`, `BuildRemoveTask`) and the
+  background task of an agent give a `WidgetFactGroup`: the command, the exit code
+  and the error line of a step; the kind, the tool call, the subagent, the output
+  and the summary of a background task. A fact with no value is left out;
 - `get_task_kind_name(task)` gives the name of the kind, such as `"statistical
   test"`, which the header shows in muted text; the default is an empty string.
 
@@ -442,7 +444,7 @@ and the detail of the task whose row a person pressed, with its facts, its
 buttons and its two streams. The table and the detail stand in a split that a
 person can drag. The table takes its rows up to half of the split, and the
 detail takes the rest, so a group of a few tasks gives the detail the height
-that its rows leave. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR`, when its result has one, is a line in the error colour under it, at most two lines cut with "…". The header line, the error line and the buttons stand whole at the top of the detail, and the body below them shares the rest of the height, so in a short detail the body gives up its height and the buttons stay. In the body come the lines of `format_task_details` of a kind with no document, in a scroll area with no weight; the document of the kind, in a place of its own with at least `document_minimum_height`; and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. When the body is too short for all of it, the streams go below the edge first. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
+that its rows leave. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR`, when its result has one, is a line in the error colour under it, at most two lines cut with "…". The header line, the error line and the buttons stand whole at the top of the detail, and the body below them shares the rest of the height, so in a short detail the body gives up its height and the buttons stay. In the body come the document of the kind, in a place of its own with at least `document_minimum_height`; and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. When the body is too short for all of it, the streams go below the edge first. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -531,15 +533,16 @@ navigator around the page opens it, and Ctrl+press opens it in a new tab.
   kind that the editor does not start (`start_task`), such as a background task
   of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
   its kind; a link to the page of the group of a task that is a group; the
-  document of the kind, drawn in the page by the recursion, or the lines of
-  `format_task_details` when the kind gives none; the links of the kind; the
+  document of the kind, drawn in the page by the recursion, when the kind gives
+  one; the links of the kind; the
   `Process` group; its executions, the newest first, each a link to its page; and
   each stream of its current execution, as the last lines with a link to the
   page of the stream, or `stdout · empty` when it has no line.
 - **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a
-  shadow: its time, its verdict, the facts of the kind of its task, its process,
-  its times, its use of the machine and its reason, and a link to the page of
-  each stream.
+  shadow: its time, its verdict, its process,
+  its times, its use of the machine and its reason, the page of the kind of its
+  task for the result of that execution (`make_task_kind_document(task,
+  shadow.result)`), and a link to the page of each stream.
 - **The page of a stream** (`TaskStreamToWidget`): each shadow holds a
   `TaskStream` for each stream, `stdout_page` and `stderr_page`, which keeps the
   state of its view while the shadow follows its execution. A grid holds the bar
@@ -572,8 +575,10 @@ the groups of the session with the verbs of the slice: `list_task_groups`,
 `editor = get_evaluation_editor()`, so the code of a model names no editor;
 `wait_for_task_group!` takes `editor` first. Each does its document work on the
 task of the editor through `run_on_editor_task!`, so a person at the REPL, who
-passes `editor`, calls it while the window runs. `describe_task` writes the facts that the kind
-of the task gives (`format_task_details`).
+passes `editor`, calls it while the window runs. `describe_task` writes what every task has: its line, its process, its time, its
+executions and the last lines of its streams. What the kind says is the result,
+`get_task_document_result(group.tasks[index])`, and the page of the kind,
+`group.tasks[index].kind_document`, which the model reads as Julia values.
 
 **A client of `execute_julia_code` never passes `wait = true`.** The call runs
 in a frame of the window, so a verb that waits holds the window until the group
@@ -629,7 +634,7 @@ A domain adds a kind of task in five steps. The example is a build that runs
    with `start_process_task!`, and in `finish` makes the result and calls
    `finish_task_execution!` with `on_finish`.
 4. If the views must show more than every task has, answer the functions of the
-   views: `get_task_columns`, `format_task_column`, `format_task_details`,
+   views: `get_task_columns`, `format_task_column`,
    `get_task_actions`, `get_task_links` and `make_task_kind_document`.
 5. Give a model the kind and the verbs: the kind itself carries the mark
    `For the assistant.` in its docstring (with "Use it to", an example and "See

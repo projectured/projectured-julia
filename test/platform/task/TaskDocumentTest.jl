@@ -53,6 +53,9 @@ function test_task_document()
             wait_task_document(start_task!(failed))
             @test get_task_document_status(failed) === :error
             @test get_task_document_result(failed).reason == "Non-zero exit code: 3"
+            # The tooltip of a row says the reason, or no text.
+            @test TaskModule._make_task_note(failed).text == "Non-zero exit code: 3"
+            @test TaskModule._make_task_note(document).text === nothing
 
             # A start again begins from nothing, and keeps the first execution
             # with its result: the document holds both, the newest last.

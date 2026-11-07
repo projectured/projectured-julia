@@ -96,7 +96,14 @@ function test_task_group_verbs()
             @test occursin("2. fail — ERROR (unexpected)", text) && !occursin("1. alpha", text)
             @test occursin("1. alpha — DONE", string(describe_task_group(group; tasks = :all, editor)))
             detail = string(describe_task(group, 2; editor))
-            @test occursin("script: echo oops", detail) && occursin("ended: ERROR", detail)
+            # The line of the task has its result and its reason; the process and
+            # the streams follow; the facts of the kind are the result and the page.
+            @test startswith(detail, "2. fail — ERROR (unexpected) (Non-zero exit code: 1)")
+            @test occursin(r"process: \d+", detail) && occursin(r"elapsed: ", detail)
+            @test !occursin("script:", detail) && !occursin("ended:", detail)
+            failed = group.tasks[2]
+            @test get_task_document_result(failed).result == "ERROR"
+            @test failed.kind_document === nothing
             @test occursin("stderr:\noops", detail)
             @test occursin("executions: 1", detail) && !occursin("earlier", detail)
             @test string(get_task_output(group, 1; editor)) == "alpha"

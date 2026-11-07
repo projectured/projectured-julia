@@ -104,7 +104,7 @@ function test_assistant_work()
             # The page of the task: its name, its state, the facts of its kind and
             # its streams. The editor does not start a task of an agent, so the page
             # has no Run again.
-            for text in ("watch the build", "running", "kind: local_bash", "stdout", "stderr")
+            for text in ("watch the build", "running", "kind", "local_bash", "stdout", "stderr")
                 @test _work_page_has_text(backend, text)
             end
             @test !_work_page_has_text(backend, "Run again")
@@ -155,7 +155,9 @@ function test_assistant_work()
             task = AgentBackgroundTask("s", "t", :local_bash, "watch\nthe build", "", "",
                                        "", "one\ntwo", false)
             @test format_task_parameters(task) == "watch the build"
-            @test "summary: one two" in format_task_details(task, nothing)
+            page = make_task_kind_document(task, nothing)
+            @test Pair{String,String}[fact.label => fact.value for fact in collect(page.facts)] ==
+                  ["kind" => "local_bash", "summary" => "one two"]
         end
 
         @testset "the shown page is in a tab of any window, and no walk finds it" begin

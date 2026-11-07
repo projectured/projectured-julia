@@ -174,16 +174,23 @@ end
 """
     describe_task(group, index; editor = get_evaluation_editor()) -> String
 
-**Everything of one task of a group**: its state and its result, what its kind
-says of it (`format_task_details`, such as its command line, its exit code and
-its error), its process, its time, how many executions ran and what the earlier
-ones ended with, and the last lines of its output and of its errors.
+**What every task of a group has**: its state and its result, its process, its
+time, how many executions ran and what the earlier ones ended with, and the last
+lines of its output and of its errors.
+
+What the kind of the task says of it, such as its command line, its exit code or
+its statistics, is not in the text. It is in the result and in the page of the
+kind, which you read as Julia values: `document = group.tasks[3]` is the
+document of the task, `get_task_document_result(document)` is its result, with
+its fields, and `document.kind_document` is the page of its kind
+([`make_task_kind_document`](@ref)), or `nothing` for a kind with no page.
 
 Use it to tell the person why one task failed.
 
 # Example
 
     describe_task(t1, 3)
+    get_task_document_result(t1.tasks[3])
 
 See also `get_task_output`, `describe_task_group`.
 
@@ -200,10 +207,8 @@ describe_task(group::ReferencedDocument, index::Integer; keywords...) =
 
 function _describe_task(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
-    task = getfield(document, :task)[]
     current = get_current_task_execution(document)
-    result = current === nothing ? nothing : current.result
-    lines = String[_format_task_line(group, index), format_task_details(task, result)...]
+    lines = String[_format_task_line(group, index)]
     if current !== nothing
         current.process_id === nothing || push!(lines, "process: " * string(current.process_id))
         started = current.start_time

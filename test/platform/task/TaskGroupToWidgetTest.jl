@@ -35,8 +35,6 @@ DocumentModule.get_document_title(item::_TaskViewProbeItem) = item.title
 ProjecturedPlatform.DomainModule.get_document_decoration(item::_TaskViewProbeItem) =
     DocumentDecoration(; icon = :search, conditions = [DocumentCondition(item.stopped ? :stopped : :running)],
                        detail = "found 3", work_item = true)
-TaskModule.format_task_details(task::_TaskViewProbeTask, result) =
-    String["script: " * task.script; result === nothing ? String[] : ["ended: " * result.result]]
 const _TASK_VIEW_PRESSES = String[]
 TaskModule.get_task_actions(::_TaskViewProbeTask) =
     ["Note" => (editor, task) -> push!(_TASK_VIEW_PRESSES, task.name)]
@@ -61,7 +59,6 @@ end
 TaskModule.get_result_codes(::_TaskViewDocumentProbeTask) = RUN_RESULT_CODES
 TaskModule.format_task_parameters(task::_TaskViewDocumentProbeTask) = task.name
 TaskModule.get_task_kind_name(::_TaskViewDocumentProbeTask) = "probe kind"
-TaskModule.format_task_details(task::_TaskViewDocumentProbeTask, result) = String["script: " * task.script]
 const _TASK_VIEW_KIND_CALLS = Tuple{String,Any}[]
 function TaskModule.make_task_kind_document(task::_TaskViewDocumentProbeTask, result)
     push!(_TASK_VIEW_KIND_CALLS, (task.name, result === nothing ? nothing : result.result))
@@ -235,7 +232,7 @@ function test_task_views()
             projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
             words = [t[3] for t in texts]
-            @test "script: exit 1" in words && "ended: ERROR" in words
+            @test "ERROR" in words && !any(w -> startswith(w, "script: ") || startswith(w, "ended: "), words)
             @test "Stop" in words && "Run again" in words && "Note" in words
 
             note = only(t for t in texts if t[3] == "Note")
@@ -315,7 +312,7 @@ function test_task_views()
             after = getfield(task, :kind_document)[]
             @test after !== before && after.line == "the result of kappa is DONE"
             @test last(_TASK_VIEW_KIND_CALLS) == ("kappa", "DONE")
-            # A kind with no document answers nothing, and the frame shows its lines.
+            # A kind with no document answers nothing, and the frame shows only its header, buttons, process and streams.
             @test TaskModule.make_task_kind_document(_TaskViewProbeTask("plain", "exit 0"), nothing) === nothing
             @test TaskModule.get_task_kind_name(_TaskViewProbeTask("plain", "exit 0")) == ""
         end
@@ -364,10 +361,12 @@ function test_task_views()
             select_task_document!(document, 1)
             words = _collect_task_view_words(document)
             @test "probe kind" in words && !("<No error message>" in words)
-            # A kind with a document hides its lines; a kind with none shows them.
-            @test !("script: exit 0" in words)
+            # A kind with a document shows it below the header; a kind with none
+            # shows the frame only.
+            @test "the result of good is DONE" in words
             select_task_document!(document, 3)
-            @test "script: exit 1" in _collect_task_view_words(document)
+            words = _collect_task_view_words(document)
+            @test "Stop" in words && "Run again" in words && !any(w -> startswith(w, "the result of "), words)
         end
 
         @testset "the Process group holds the facts that have a value" begin

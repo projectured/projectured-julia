@@ -52,13 +52,21 @@ end
 TaskModule.get_result_codes(::_TaskPageKindProbeTask) = RUN_RESULT_CODES
 TaskModule.format_task_parameters(task::_TaskPageKindProbeTask) = task.name
 TaskModule.get_task_kind_name(::_TaskPageKindProbeTask) = "page kind"
-TaskModule.format_task_details(::_TaskPageKindProbeTask, result) = ["lines of the kind"]
 const _TASK_PAGE_KIND_PRESSES = String[]
 TaskModule.make_task_kind_document(task::_TaskPageKindProbeTask, result) =
     WidgetButton("kind " * (result === nothing ? "waits" : result.result);
                  action = _ -> push!(_TASK_PAGE_KIND_PRESSES, task.name))
-TaskModule.start_task(task::_TaskPageKindProbeTask; on_finish = nothing) =
-    TaskModule.start_task(_TaskPageProbeTask(task.name, task.script); on_finish)
+# Its executions belong to the kind itself, so the page of an execution finds the
+# page of the kind in its task.
+function TaskModule.start_task(task::_TaskPageKindProbeTask; on_finish = nothing)
+    execution = TaskExecution(task)
+    finish = function (process, cancelled, elapsed)
+        code = cancelled ? "CANCEL" : process.exitcode == 0 ? "DONE" : "ERROR"
+        finish_task_execution!(execution, _TaskPageProbeResult(_TaskPageProbeTask(task.name, task.script), code,
+                                                               "DONE", nothing, elapsed); finish = on_finish)
+    end
+    start_process_task!(execution, `sh -c $(task.script)`; finish)
+end
 
 # A group of two tasks, run to the end: the first prints 300 lines, an error line
 # and a progress line.
@@ -113,13 +121,13 @@ function test_task_pages()
             projection, iomap = _print_task_view(kinded)
             words = [t[3] for t in _collect_task_view_texts(iomap.output)]
             @test "kind waits" in words && "pending" in words && "page kind" in words
-            @test !("lines of the kind" in words) && !("Process" in words)
+            @test !("Process" in words)
             wait_task_group_document(start_task_group_document!(kind_group))
             projection, iomap = _print_task_view(kinded)
             texts = _collect_task_view_texts(iomap.output)
             words = [t[3] for t in texts]
             @test !("kind waits" in words) && "kind DONE" in words && count(==("DONE"), words) == 1
-            @test !("lines of the kind" in words) && !any(w -> occursin("kinded — ", w), words)
+            @test !any(w -> occursin("kinded — ", w), words)
             y(text) = _find_task_page_text(iomap, text)[2]
             badge, name, note, link = (_find_task_page_text(iomap, w) for w in ("DONE", "kinded", "page kind", "in kind tasks"))
             @test badge[2] == name[2] == note[2] == link[2] && badge[1] < name[1] < note[1] < link[1]
@@ -133,6 +141,12 @@ function test_task_pages()
             @test operation isa InvokeActionOperation
             operation.action.callback(nothing)
             @test _TASK_PAGE_KIND_PRESSES == ["kinded"]
+            # The page of an earlier execution shows the page of the kind for the
+            # result of that execution.
+            wait_task_document(start_task!(kinded))
+            earlier = first(get_earlier_task_executions(kinded))
+            words = [t[3] for t in _collect_task_view_texts(last(_print_task_view(earlier)).output)]
+            @test "kind DONE" in words && !("kind waits" in words)
         end
 
         @testset "the page of an execution links to its streams" begin

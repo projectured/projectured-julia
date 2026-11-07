@@ -170,16 +170,6 @@ nothing to add answers none.
 get_task_actions(::AbstractTask) = Pair{String,Function}[]
 
 """
-    format_task_details(task, result) -> Vector{String}
-
-What a kind of task says about `task` beside its state, one fact a line, such as
-`command: …`, the exit code of its process, and the line that says why it
-failed. `result` is what the task ended with, or `nothing` while it has not
-ended. A kind with nothing to say answers none.
-"""
-format_task_details(::AbstractTask, result) = String[]
-
-"""
     get_task_links(task) -> Vector{NamedTuple}
 
 The links that a kind of task adds to the facts of a task, one a line: each is
@@ -205,7 +195,7 @@ the result changes: `result` is `nothing` before the task ended, and what it
 ended with after. The detail and the page of the task show the document below
 their header. It draws by the method of `make_graphics_projection` for its type,
 as it draws in any document. A kind with no document answers `nothing`, and the
-frame shows the lines of [`format_task_details`](@ref).
+frame shows its header, its buttons, its process and its streams.
 """
 make_task_kind_document(::AbstractTask, result) = nothing
 

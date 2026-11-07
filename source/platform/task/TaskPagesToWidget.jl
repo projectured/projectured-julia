@@ -112,15 +112,13 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
 end
 
 # What the kind says about a task: its document, drawn by the recursion like
-# any document, or the lines of `format_task_details` when it gives none. It
-# follows the document of the kind.
+# any document, and nothing when it gives none. It follows the document of the
+# kind.
 function _build_task_kind_part(p, task, document::TaskDocument)
     part = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(part.children, :elements), () -> begin
         shown = getfield(document, :kind_document)[]
-        shown === nothing ?
-            Cell[Cell(WidgetLabel(line)) for line in format_task_details(task, get_task_document_result(document))] :
-            Cell[Cell(shown)]
+        shown === nothing ? Cell[] : Cell[Cell(shown)]
     end)
     part
 end
@@ -213,7 +211,6 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
     facts = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(facts.children, :elements), () -> begin
         lines = String[format_task_parameters(task)]
-        append!(lines, format_task_details(task, shadow.result))
         shadow.process_id === nothing || push!(lines, "process " * string(shadow.process_id))
         shadow.start_time === nothing || push!(lines, "started " * Libc.strftime("%H:%M:%S", shadow.start_time))
         shadow.end_time === nothing || push!(lines, "ended " * Libc.strftime("%H:%M:%S", shadow.end_time))
@@ -225,11 +222,16 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
         result === nothing || result.reason === nothing || push!(lines, "reason " * result.reason)
         Cell[Cell(WidgetLabel(line)) for line in lines]
     end)
+    kind = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    set_cell_computation!(getfield(kind.children, :elements), () -> begin
+        shown = make_task_kind_document(task, shadow.result)
+        shown === nothing ? Cell[] : Cell[Cell(shown)]
+    end)
     streams = vcat(_build_stream_preview(p, shadow, (), shadow, :output),
                    _build_stream_preview(p, shadow, (), shadow, :error_output))
     root = VerticalLayout(Any[HorizontalLayout(Any[WidgetLabel(get_document_title(shadow)), state];
                                                 vertical_align = :center, gap = p.label_gap),
-                              facts, _build_task_links(p, task), streams...];
+                              facts, kind, _build_task_links(p, task), streams...];
                           horizontal_align = :left, gap = p.section_gap, child_width = Fill)
     iomap = ChildrenIoMap(p, shadow, root, Cell(Any[]))
     follow_output_mouse_target!(root, () ->

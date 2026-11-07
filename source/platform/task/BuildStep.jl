@@ -347,16 +347,23 @@ function _find_build_error_line(message::AbstractString)
     String(strip(lines[something(index, 1)]))
 end
 
-function format_task_details(step::BuildStepTask, result)
-    lines = step isa BuildCommandTask ?
-                String["command: " * join(step.arguments, " ");
-                       step.postprocess === nothing ? String[] :
-                           ["then: " * join(step.postprocess, " ") * " " * first(step.output_files)]] :
-            step isa BuildCopyTask ? String["copy: " * step.source_file * " → " * step.target_file] :
-            String["remove: " * format_task_parameters(step)]
-    result isa BuildStepResult || return lines
-    result.exit_code === nothing || push!(lines, "exit code: " * string(result.exit_code))
-    result.error_message === nothing ||
-        push!(lines, "error: " * _find_build_error_line(result.error_message))
-    lines
+# The page of a step: its command, the exit code of its process and the line
+# that says why it failed. A fact that has no value is left out.
+function make_task_kind_document(step::BuildStepTask, result)
+    facts = Pair{String,String}[]
+    if step isa BuildCommandTask
+        push!(facts, "command" => join(step.arguments, " "))
+        step.postprocess === nothing ||
+            push!(facts, "then" => join(step.postprocess, " ") * " " * first(step.output_files))
+    elseif step isa BuildCopyTask
+        push!(facts, "copy" => step.source_file * " → " * step.target_file)
+    else
+        push!(facts, "remove" => format_task_parameters(step))
+    end
+    if result isa BuildStepResult
+        result.exit_code === nothing || push!(facts, "exit code" => string(result.exit_code))
+        result.error_message === nothing ||
+            push!(facts, "error" => _find_build_error_line(result.error_message))
+    end
+    WidgetFactGroup(facts)
 end

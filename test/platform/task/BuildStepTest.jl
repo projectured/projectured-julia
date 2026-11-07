@@ -10,6 +10,12 @@ function _set_build_file_time(path, seconds)
     path
 end
 
+# The label and the value of each fact on the page of a step.
+function _get_build_page_facts(step, result)
+    page = make_task_kind_document(step, result)
+    page isa WidgetFactGroup ? Pair{String,String}[fact.label => fact.value for fact in collect(page.facts)] : nothing
+end
+
 _run_build_step(step) = only(collect_task_group_results(run_task_group(TaskGroup([step]))))
 
 function test_build_step()
@@ -32,7 +38,8 @@ function test_build_step()
             @test !is_build_step_up_to_date(step)
             @test format_task_parameters(step) == "in.txt"
             @test format_task_column(step, "step") == "Copying"
-            @test format_task_details(step, again) == ["command: cp in.txt out/out.txt"]
+            @test _get_build_page_facts(step, again) == ["command" => "cp in.txt out/out.txt"]
+            @test _get_build_page_facts(step, nothing) == ["command" => "cp in.txt out/out.txt"]
         end
 
         @testset "a dependency file names the inputs of an output" begin
@@ -90,8 +97,8 @@ function test_build_step()
             @test _run_build_step(step).result == "DONE"
             @test read(joinpath(folder, "include", "out.txt"), String) == "one"
             @test !isfile(joinpath(folder, "staged.txt")) && is_build_step_up_to_date(step)
-            @test format_task_details(step, nothing) ==
-                  ["command: cp in.txt staged.txt", "then: mv -f staged.txt include/out.txt"]
+            @test _get_build_page_facts(step, nothing) ==
+                  ["command" => "cp in.txt staged.txt", "then" => "mv -f staged.txt include/out.txt"]
             failing = BuildCommandTask(; action = "Generating", subject = "out.txt",
                 working_directory = folder, arguments = ["true"], input_files = ["in.txt"],
                 output_files = ["missing/out.txt"], postprocess = ["mv", "nothing.txt"])
@@ -132,7 +139,9 @@ function test_build_step()
             result = _run_build_step(step)
             @test result.result == "ERROR" && result.reason == "Non-zero exit code: 1"
             @test result.exit_code == 1 && !is_expected(result)
-            @test format_task_details(step, result)[2:3] == ["exit code: 1", "error: in.cc:3:1: error: bad"]
+            @test _get_build_page_facts(step, result) ==
+                  ["command" => "sh -c " * join(step.arguments[3:3], " "), "exit code" => "1",
+                   "error" => "in.cc:3:1: error: bad"]
         end
 
         @testset "a copy copies once, and accepts a hard link" begin

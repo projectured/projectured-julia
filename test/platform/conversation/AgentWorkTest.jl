@@ -195,9 +195,11 @@ function test_agent_work()
             task = document.task
             @test (task.summary, task.output_uri, task.can_stop) ==
                   ("slept", "file:///tmp/output.txt", false)
-            @test format_task_details(task, result) ==
-                  ["kind: local_bash", "tool call: t1", "output: /tmp/output.txt",
-                   "summary: slept"]
+            page = make_task_kind_document(task, result)
+            @test page isa WidgetFactGroup
+            @test Pair{String,String}[fact.label => fact.value for fact in collect(page.facts)] ==
+                  ["kind" => "local_bash", "tool call" => "t1", "output" => "/tmp/output.txt",
+                   "summary" => "slept"]
             @test [first(action) for action in get_task_actions(task)] ==
                   ["Open the output"]
             @test compute_item_facet(a, Val(:background_tasks)) == 0

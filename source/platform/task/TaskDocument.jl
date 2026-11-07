@@ -327,9 +327,7 @@ function _make_task_note(document::TaskDocument)
     current.process_id === nothing || push!(facts, "Process" => string(current.process_id))
     current.resident_memory === nothing ||
         push!(facts, "Memory" => string(round(current.resident_memory / 2^20; digits = 1), " MB"))
-    details = result === nothing ? String[] : format_task_details(task, result)
-    text = result !== nothing && result.reason !== nothing ? string(result.reason) :
-           isempty(details) ? nothing : join(details, "\n")
+    text = result !== nothing && result.reason !== nothing ? string(result.reason) : nothing
     TooltipNote(; title = format_task_parameters(task), text, facts)
 end
 

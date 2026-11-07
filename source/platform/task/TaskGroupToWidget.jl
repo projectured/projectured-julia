@@ -367,7 +367,7 @@ function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
     preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, bounded; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
-        _build_task_details(p, getfield(preparation, :task)[], preparation),
+        _build_task_kind_part(p, getfield(preparation, :task)[], preparation),
         _build_earlier_executions(p, preparation),
         _make_label("stdout", p.muted_color),
         _build_output_pane(() -> collect_task_document_lines(preparation, :output); weight = 2),
@@ -486,10 +486,6 @@ _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? 
 # line, its error line and its buttons.
 const _BODY_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
 
-# The parts of the body of the detail of a task before its documents: the scroll
-# area of the lines of facts of a kind that gives no document.
-_get_parts_before_documents(document::TaskDocument) = getfield(document, :kind_document)[] === nothing ? 1 : 0
-
 # The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
 const _DOCUMENT_FIELDS = (:kind_document, :process_tree)
@@ -522,10 +518,9 @@ function _find_document_places(doc::TaskGroupDocument)
                         FieldReferenceStep("kind_document")), _PLACE_STEPS))
         return places
     end
-    before = _get_parts_before_documents(documents[index])
     for field in _DOCUMENT_FIELDS
         getfield(documents[index], field)[] === nothing && continue
-        position = before + length(places)
+        position = length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
                        (_get_detail_steps(doc)..., _BODY_STEPS..., FieldReferenceStep("children"),
@@ -614,17 +609,12 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         buttons = HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)
         top = VerticalLayout(Any[header, _make_task_error_line(p, document; max_lines = 2), buttons];
                              gap = p.section_gap, child_width = Fill)
-        # The body, top to bottom: the lines of a kind that gives no document,
-        # which scroll in a part with no weight; the document that the kind
-        # gives and the tree of the processes of the task while it runs, each in
-        # a place that gives it a share of the height and at least
-        # `document_minimum_height`; the process facts; the streams. The maps of
-        # the pane find each document by its place.
+        # The body, top to bottom: the document that the kind gives and the
+        # tree of the processes of the task while it runs, each in a place that
+        # gives it a share of the height and at least `document_minimum_height`;
+        # the process facts; the streams. The maps of the pane find each
+        # document by its place.
         parts = Any[]
-        getfield(document, :kind_document)[] === nothing &&
-            push!(parts, WidgetScrollPane(_build_task_details(p, task, document)))
-        length(parts) == _get_parts_before_documents(document) ||
-            error("the documents of the task are not where the maps of the pane find them")
         for field in _DOCUMENT_FIELDS
             shown = getfield(document, field)[]
             shown === nothing && continue
@@ -652,16 +642,6 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         Cell[Cell(top), Cell(body)]
     end)
     detail
-end
-
-# What the kind of the task says about it, one fact a line, which follows what
-# the task ended with.
-function _build_task_details(p, task, document::TaskDocument)
-    lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
-    set_cell_computation!(getfield(lines.children, :elements), () ->
-        Cell[Cell(WidgetLabel(line))
-             for line in format_task_details(task, get_task_document_result(document))])
-    lines
 end
 
 # The executions before the current one, the oldest first, each with its verdict
