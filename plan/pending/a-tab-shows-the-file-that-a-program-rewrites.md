@@ -128,8 +128,9 @@ the open of a node. The Insert key, a paste, `insert_elements!`,
 `delete_elements!` and an undo must all pass that reader, and the test of step 1 checks each one. A
 picture of G3 in a card follows its file in the same way. Step 1 found that an edit of a dashboard
 in an explorer does not pass that reader, so the change of the hold is added at four places, and an
-edit of the content of one card adds none (§2). A tab has the same gap. Open question 10 asks for
-one rule for every holder.
+edit of the content of one card adds none (§2). A tab has the same gap. One rule for every holder
+is deferred to a plan of its own after the plans of this session (open question 10), so G4 lands
+with the four places and the gap (§8).
 
 **The text of a file is a background cell (D4).** The cell is in the `disk` field of the file
 document (D11), and below "page" means that file. A page reads its file as a folder reads its
@@ -360,7 +361,6 @@ step saves one.
 step 5 of the save plan. The owner decided the order on 2026-11-06 ("Yes"): steps 1 to 3 of this
 plan land, then step 5 of the save plan, then step 4 of this plan. Step 6 of the save plan keeps
 its place after the plan of the layouts. Steps 1a and 1b belong to the steps that land first.
-Open question 10 can put a plan of its own before that landing.
 
 - [x] **1. A dashboard holds the content of its cards (D3).** **Done on 2026-11-06.** `acquire_document!` and
       `release_document!` of `Dashboard`, and a `read_intent` of `DashboardToWidget` that adds the
@@ -651,6 +651,11 @@ Open question 10 can put a plan of its own before that landing.
   (`a-layout-paints-only-what-the-screen-shows.md`) lands.
 - **An edit that passes no reader.** A direct write to `cards` changes no hold. The assistant writes
   through operations, so its edits pass the reader.
+- **A write into the content of a tab or a card changes no hold** (a known limit of the landing,
+  open question 10). After `replace_referenced_value!(tab, :content, make_file_view(b))` the file
+  `b` is not held and not watched, and the old file stays held and watched. Main has the same gap
+  for a tab today, so G4 does not make it worse. Only the open and the close of a tab, the four
+  places of step 1, the navigator, the tree and the Files tree change a hold.
 - **The part under the pointer.** Step 3 repairs the selection only. The part under the pointer can
   name no part after a load, until the pointer moves.
 - **A saved explorer content.** `shown_files` and the view of a card must stay out of the explorer
@@ -713,7 +718,21 @@ Open question 10 can put a plan of its own before that landing.
    that it opens through `OpenFileOperation` and gets a page and a history. The question was: the INI link of omnet-julia opens a file with no page and no history. Must
    a plan of omnet-julia open it through `OpenFileOperation`, so that it gets a page and a
    history? Recommended by the assistant: yes, in a plan of omnet-julia after G4 step 6.
-10. **One rule for what a holder holds.** Open, asked on 2026-11-06. Step 1 found that a holder
+10. **One rule for what a holder holds.** Deferred by the owner on 2026-11-07 ("Yes") until after
+    the plans of this session: it becomes a plan of its own, which starts with questions to the
+    owner, and G4 lands with the gap as a known limit (§8). The owner said that a change of the
+    kernel is acceptable but must be right, that the acquire and the release are a good interface
+    that can serve other needs, and that the plan must find the states of a file that is in the
+    document but not watched, such as a file in a long list that scrolls in and out of view. The
+    assistant proposed a model to start from: the editor compares the old and the new value at the
+    place of each write and acquires what joins and releases what departs; each holder type
+    answers which parts it shows, so a page in a Back list or a closed node is not held; the counts
+    of the holders stay. The states after step 2 that the assistant described: a file that is held
+    is watched, a change only adds one to its count, it reads only when it is drawn and out of
+    date, and a file that is not held keeps the time and the size of the version that it holds and
+    compares them when it is held again. Open in that plan: whether a long list holds every element
+    or only the elements on the screen (the assistant recommends every element, because a document
+    and not its layout decides what it holds). The text of 2026-11-06 follows. Step 1 found that a holder
     changes what it holds only on the paths that add the change (§2): a dashboard at four places,
     the pane tree when it opens or closes a tab. An edit of the content of a card or of a tab adds
     no change, so the new file is not watched and the old one stays watched. The question: one
