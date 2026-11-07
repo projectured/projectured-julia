@@ -30,7 +30,7 @@ function test_workflow_journal_to_widget()
             @test length(rows) == 3
             @test rows[1] == ("Store a workflow as .pred with markers.", "How to store a workflow · decision")
             @test endswith(rows[3][2], "· state") || startswith(rows[3][2], "Workflow domain")
-            @test _get_journal_days(iomap) == ["9 OCT"]
+            @test _get_journal_days(iomap) == ["9 Oct"]
         end
 
         @testset "a kind keeps only its entries, and a new entry shows at the top" begin

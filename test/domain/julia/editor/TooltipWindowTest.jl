@@ -215,10 +215,10 @@ end
     pane = WidgetScrollPane(content; size = Point2D(200, 30))
     getfield(pane, :scroll_position)[] = Point2D(0, 40)
     editor, backend, scene = _tw_editor(pane)
-    _tw_rest!(editor, backend, 20, 10, 1.0)
+    _tw_rest!(editor, backend, 20, 20, 1.0)
     tip = only(_tw_tooltips(scene))
     @test only(tip.content.layers)[2].text == "the lower label"
-    @test _tw_place(editor, scene, tip) == (100 + 20 + 16, 100 + 10 + 20)
+    @test _tw_place(editor, scene, tip) == (100 + 20 + 16, 100 + 20 + 20)
 end
 
 @testset "a move on the part keeps the window, and a move off closes it" begin
