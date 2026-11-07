@@ -47,7 +47,6 @@ export ResearchDocument, ResearchItem, ResearchStudy, ResearchQuestion, Research
 export find_study_item, collect_research_links, make_research_id, make_research_item,
        make_add_research_item_operation, collect_research_item_holders,
        make_delete_research_item_operation, make_record_decision_operation
-export ResearchTheme, ScaledResearchTheme
 export ResearchItemToWidget, ResearchStudyToWidget, make_research_projections, make_research_graphics_entries,
        ResearchToWidgetIoMap, describe_research_link, describe_research_expectation
 export ResearchMap, ResearchMapToGraph, ResearchMapToGraphIoMap,
@@ -62,7 +61,6 @@ export RESEARCH_STUDY_FILE_NAME, RESEARCH_REPORT_FILE_NAME, RESEARCH_CONVERSATIO
 
 include("ResearchDocument.jl")
 include("ResearchEdits.jl")
-include("ResearchTheme.jl")
 include("ResearchToWidget.jl")
 include("ResearchMapToGraph.jl")
 include("ResearchRoster.jl")

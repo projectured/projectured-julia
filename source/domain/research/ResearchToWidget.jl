@@ -342,6 +342,13 @@ _make_relation_chip(outline, linked::ResearchItem) =
 _make_relation_chip(outline, linked) =
     make_outline_label(outline, string(nameof(typeof(linked))), :relation_text)
 
+# The role of the colour that shows `status`, in the mark of a row and in the badge
+# of the explorer: an accepted item draws as a success, a rejected one as an error.
+# An open item has none, and its badge draws as an outline.
+_get_status_badge_role(status::Symbol) =
+    status === :accepted ? :success :
+    status === :rejected ? :error : nothing
+
 # The mark of an item: the icon of its kind in the colour of its status, with a dot
 # once a decision settled it.
 function _make_research_icon(item::ResearchItem)
