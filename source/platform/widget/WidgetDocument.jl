@@ -2397,8 +2397,9 @@ WidgetAvatar(initials; position::Point2D=Point2D(0, 0), size::Integer=64, visibl
 
 A bordered message with a bold title and a muted description.
 
-`icon` names an icon drawn before the title, as tall as the title and in its
-color, such as `:warning` for a fault.
+`icon` is drawn before the title, as tall as the title: the name of an icon, in
+the color of the title, or a [`WidgetIcon`](@ref), in the color of its role, such
+as `WidgetIcon(:warning; role = :warning)` for a check that found a difference.
 
 Use it to tell a person something that needs attention: a run failed, a file
 is missing, a check passed. `variant = :destructive` draws it in the color of a

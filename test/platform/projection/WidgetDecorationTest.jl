@@ -92,6 +92,31 @@ function test_document_decoration()
         @test WidgetModule.icon_width(icon, 16) == 16
     end
 
+    @testset "an alert draws a plain icon in the color of its title, and a decorated one in its role" begin
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        collect_texts(canvas, found = GraphicsText[]) = begin
+            for element in canvas.elements
+                element isa GraphicsText && push!(found, element)
+                element isa GraphicsCanvas && collect_texts(element, found)
+            end
+            found
+        end
+        glyph = string(find_icon_character(:warning))
+        function find_colors(icon)
+            texts = collect_texts(print_document(projection, nothing, WidgetAlert("Two differ"; icon),
+                                                 PrinterContext()).output)
+            (title = only(t for t in texts if t.text == "Two differ").color,
+             icon = only(t for t in texts if t.text == glyph).color)
+        end
+        plain = find_colors(:warning)
+        @test plain.icon == plain.title
+        decorated = find_colors(WidgetIcon(:warning; role = :warning))
+        badge = WidgetBadgeToGraphicsCanvas(WidgetTheme(); measure = FixedMeasure(10, 18, 6, 0))
+        @test decorated.icon == badge.warning_label_text.color
+        @test decorated.icon != decorated.title
+    end
+
     @testset "a row of a tree draws the marks, the detail and the pills" begin
         root = _doctree_node("root", _DecoratedNode("busy", :running))
         tree = DocumentTree(root)

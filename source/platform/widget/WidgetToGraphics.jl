@@ -9792,6 +9792,7 @@ end
     corner_radius::Int
     label_gap::Int                     # gap between the icon and the title
     icon_size::Float64                # times the box of the icon, one line of the title
+    badge::Any                        # the colors of the role of a decorated icon and of its marks
 end
 
 WidgetAlertToGraphicsCanvas(theme; measure,
@@ -9810,11 +9811,12 @@ WidgetAlertToGraphicsCanvas(theme; measure,
                             title_gap = _themed(Int, theme, t -> t.title_gap),
                             corner_radius = _themed(Int, theme, t -> t.radius),
                             label_gap = _themed(Int, theme, t -> t.label_gap),
-                            icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                            icon_size = _themed(Float64, theme, t -> t.icon_size),
+                            badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
     WidgetAlertToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, title_text, description_text, destructive_border_color,
                                 destructive_title_text, title_gap, corner_radius, label_gap,
-                                icon_size)
+                                icon_size, badge)
 
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
@@ -9833,14 +9835,16 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         y = content_y
         title_string = string(w.title)
         title_width, title_height = _text_size(p.measure, title.font, title_string)
-        # The icon stands before the title, in its color: a square of the height of
-        # the title times `icon_size`. The row is as tall as the larger of the
-        # icon and the title, and each is centred in it.
+        # The icon stands before the title: a square of the height of the title
+        # times `icon_size`, in the color of the title, or of its role when it is
+        # a `WidgetIcon`. The row is as tall as the larger of the icon and the
+        # title, and each is centred in it.
         icon_size = icon_width(w.icon, scale_length(title_height, p.icon_size))
         icon_gap = icon_size > 0 ? p.label_gap : 0
         row_height = max(icon_size, title_height)
-        icon_size > 0 && _push_icon!(elements, w.icon, content_x, y + (row_height - icon_size) ÷ 2, icon_size,
-                                     title.color)
+        icon_size > 0 && _push_decorated_icon!(elements, p.badge, w.icon, content_x,
+                                               y + (row_height - icon_size) ÷ 2, icon_size, title.color,
+                                               colors.content)
         _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap,
                     y + (row_height - title_height) ÷ 2, title.color)
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
