@@ -151,10 +151,19 @@ end
 """
     FileDiskState(; file_hash = nothing, band = nothing)
 
-What a file document knows of its file on disk: `file_hash`, the hash of the text
-of the file at the last load or save of the document (`compute_file_text_hash`), or
-`nothing` when it does not know it, and `band`, a [`FileBand`](@ref) while the file
-changed on disk under edits that no save wrote, or `nothing`.
+What a file document knows of its file on disk:
+
+- `file_hash`, the hash of the text of the file at the last load or save of the
+  document (`compute_file_text_hash`), or `nothing` when it does not know it.
+- `band`, a [`FileBand`](@ref) while the file changed on disk under edits that no
+  save wrote, or `nothing`.
+- `file_stamp`, the time and the size of the file at the last read, load or save,
+  or `nothing` when the document does not know them.
+- `read_count`, how many changes of the file the watch reported, and `loaded_count`,
+  the count whose text the document holds; `-1` for a file that was made unread. A
+  file whose `read_count` is past its `loaded_count` reads its text when it is drawn.
+- `text`, the background cell that reads the text of the file, or `nothing` while
+  the file has none.
 
 Every file document keeps one in its field `disk`, as it keeps `filename` and
 `content`; [`get_file_disk_state`](@ref) reads it. The field is view state, so a save
@@ -167,6 +176,10 @@ writes none of it and a walk does not enter it.
 @document struct FileDiskState
     file_hash::Any = nothing
     band::Any = nothing
+    file_stamp::Any = nothing
+    read_count::Int = 0
+    loaded_count::Int = 0
+    text::Any = nothing
 end
 
 """

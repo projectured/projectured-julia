@@ -595,14 +595,16 @@ using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
-using ProjecturedKernel.EditorModule: Editor, build_editor, run_frame!, insert_elements!
+using ProjecturedKernel.EditorModule: Editor, build_editor, run_frame!, insert_elements!, wait_for_cell!,
+    drain_operations!, get_background_work_store
 using ProjecturedKernel.ProjectionModule: print_document
 using ProjecturedPlatform.FileSystemModule: open_file!
 using ProjecturedPlatform.SettingsManagingModule: Settings
-using ProjecturedKernel.DeviceModule: Device
+using ProjecturedKernel.DeviceModule: Device, Mouse, Display
+using ProjecturedKernel.EventModule: ModifierKeys, MouseScroll, WindowInput
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedKernelExample: HeadlessBackend
+using ProjecturedKernelExample: HeadlessBackend, push_event!
 using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation, ChangeHeldDocumentsOperation,
     is_document_held
 using ProjecturedPlatform.PaneModule: PaneTab

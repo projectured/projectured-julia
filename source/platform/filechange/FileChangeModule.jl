@@ -9,11 +9,12 @@ git, a task that writes a store. A receiver that watches a folder
 ([`watch_folder!`](@ref)) learns that an entry of the folder came, went or
 changed, and reads the folder itself. A watcher task for each folder takes the
 notifications of the system, or polls the times of the files where no
-notification works, and stores the paths that changed. The editor drains the
-store on its own task ([`FileChangeFeed`](@ref)), and the drain reports each
-change to the receiver of its file, which decides what the change means. The
-watcher knows nothing of editing: the page of a file in a tab knows its own save
-and the edits of its file.
+notification works, and stores the paths that changed. It reads no text and
+computes no hash. The editor drains the store on its own task
+([`FileChangeFeed`](@ref)), and the drain reports each change to the receiver of
+its file, which decides what the change means. The watcher knows nothing of
+editing: the file document knows its own save and its edits, and reads its text when
+a view of it is drawn.
 """
 module FileChangeModule
 

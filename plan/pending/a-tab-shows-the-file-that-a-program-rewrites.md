@@ -555,7 +555,7 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       - omnet-julia: the `disk` field in its 6 file types; `LegacyResultFile.jl` and
         `LegacyBaselineFileView.jl` use `find_open_file_document` as it is; `IdeNavigatorTest.jl`
         reads `content.file` of a tab.
-- [ ] **2. The text of a file is a background cell (D4).** The `disk` state of the file gets the
+- [x] **2. The text of a file is a background cell (D4).** **Done on 2026-11-07.** The `disk` state of the file gets the
       cell, its `BackgroundSource`, and an `apply` that loads with the check of today
       (`receive_file_change!`). The watch in `FileChangeStore.jl` reports
       only a change and adds one to the count of the file, and it reads no text and computes no
@@ -572,6 +572,35 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       page holds the editor's one file document of its fingerprint store file, and its facts demand
       the text of that file (D10). Then, in omnet-julia, `test_project_page()` and
       `test_fingerprint_store_document()`.
+      What the implementation found:
+      - `FileDiskState` gets `file_stamp`, `read_count`, `loaded_count` and `text`. A `@document`
+        field cannot hold a cell as its value, so `text` holds a one-field box (`_FileTextCell`)
+        that `ensure_file_text_cell!` writes where a file enters the window (its acquire) and
+        `make_unread_file` writes. The serialization slice is below the editor, so the cell is
+        made in the fileformat slice, not in the constructor of the state. Each file has a
+        `BackgroundSource` of its own, so the files of a frame read in parallel.
+      - The watch compares `compute_file_stamp` (time and size) and notes the path. It computes
+        no hash and parses nothing; the settle wait and the hash moved to the read on the task.
+        `receive_file_change!(editor, receiver)` has two arguments; a file adds one to
+        `read_count`, the default takes none. `ApplyFileTextOperation` stores the answer with
+        the check of today.
+      - `FileViewToWidget` demands the text in the computation that arranges the view
+        (`demand_file_text`), so only a drawn file reads. A file that enters the window with
+        another time or size than its `file_stamp` counts a change (`is_file_stale`); a file with
+        no stamp claims nothing. `SaveFileOperation` refuses a file with `loaded_count < 0`.
+        `ReloadFileOperation` counts every reported change as read and takes the stamp of the file.
+      - `make_unread_file(path, wrap)` is the make of a file that reads nothing; a file that is its
+        own content raises an `ArgumentError`, because no such type is in `source/`.
+      - The headless backend draws every row of a dashboard, so the test of a file below the
+        screen holds 40 files in a dashboard that nothing draws and draws two views by hand; the
+        rows that show are the work of step 1 (`test_dashboard_render()`). The test of the Back
+        list is in `ExplorerTest.jl`, where the explorer helpers are, and has no caret in the file.
+      - omnet-julia: the project page holds the file of its store (the editor's open file of the
+        same path, else its own), and its facts demand the text of that file.
+      - Results (projectured-julia): `test_filechange()` 198 Pass, `test_explorer()` 340,
+        `test_open_page_operation()` 95, `test_file_tab()` 31, `test_file_watch_window()` 16,
+        `test_user_interface_file()` 22, all Pass; `test_application()` 399 Pass, 1 Fail
+        (`ApplicationTest.jl:1008`), 2 Broken, the counts of the base.
 - [ ] **3. A load keeps the selection where it can (D6).** The evaluation of `ReloadFileOperation`
       in `DocumentFile.jl`. Remove the limit from `filechange.md`. Test: `test_filechange()`, a new set
       with an editor. The caret is in the third paragraph, and the file loses two paragraphs. After

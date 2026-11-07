@@ -64,8 +64,10 @@ function print_document(p::FileViewToWidget, recursion, view::FileView, ctx)
 end
 
 # The children of the layout: the row of the band above the scroll pane, or the
-# scroll pane.
+# scroll pane. Drawing the view asks for the text of its file when a change is unread.
 function _arrange_file_view(p::FileViewToWidget, view::FileView)
+    # A file whose changes are not all read reads its text after this frame.
+    demand_file_text(view.file)
     band = get_file_disk_state(view.file).band
     band === nothing ? Any[view.scroll] : Any[_make_file_band_row(p, band), view.scroll]
 end

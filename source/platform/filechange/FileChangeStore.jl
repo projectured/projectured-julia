@@ -1,28 +1,18 @@
 # Fragment of `FileChangeModule` — the store of the watched files and folders: the
 # file documents that watch their files, the receivers that watch a folder, a
 # watcher for each folder that holds one of them, and what changed since the last
-# drain. A watcher reads and parses a changed file on its own task and keeps the
-# new document in the store; of a watched folder it notes only that the folder
-# changed. Only a drain, on the editor task, reports a change to its receiver.
+# drain. A watcher reads nothing of a file or a folder: it notes that the time or
+# the size of a file, or the time of a folder, changed. Only a drain, on the editor
+# task, reports a change to its receiver, which reads the file when it shows.
 
-# One file document, the absolute path of its file, the file type that reads it,
-# whether its text is read, the receiver that a change is reported to, and what
-# the last report saw: the hash of the text of the file. The text of a file that
-# a person does not edit is not read: its `file_hash` is the hash of the time and
-# the size of the file. `stamp` is the time and the size of the file at the last
-# look of a poll, or at the start of the watch. The watcher alone writes
-# `seen_hash`, the hash of the file at its last read, and `prepared` holds what
-# it read since the last drain.
+# One file document, the absolute path of its file, the receiver that a change is
+# reported to, and `stamp`, the time and the size of the file at the last look of
+# the watcher, or at the start of the watch.
 mutable struct WatchedFile
     file::FileDocument
     path::String
-    type::Type
-    is_editable::Bool
     receiver::Any
-    file_hash::UInt64
     stamp::Any
-    seen_hash::UInt64
-    prepared::Any
 end
 
 # A receiver that watches a folder, the absolute path of the folder, and the time
@@ -33,20 +23,7 @@ mutable struct WatchedFolder
     stamp::Any
 end
 
-# What a watcher read of a changed file: the hash of the file, and the new
-# document, or the exception of its parse.
-struct _PreparedFile
-    file_hash::UInt64
-    content::Any
-    failure::Any
-end
-
-function WatchedFile(file::FileDocument, path::String, receiver)
-    is_editable = is_editable_file_type(typeof(file))
-    file_hash = is_editable ? compute_file_text_hash(path) : hash(_get_file_stamp(path))
-    WatchedFile(file, path, Base.typename(typeof(file)).wrapper, is_editable, receiver, file_hash,
-                _get_file_stamp(path), file_hash, nothing)
-end
+WatchedFile(file::FileDocument, path::String, receiver) = WatchedFile(file, path, receiver, compute_file_stamp(path))
 
 """
     FOLDER_WATCH_LIMIT
@@ -117,13 +94,11 @@ _find_watch_store() = find_file_change_store(find_evaluation_editor())
 """
     watch_document_file!(file; store, receiver = file) -> file
 
-Report each change of the file of `file` to `receiver`: when the file changed on
-disk, a drain of the store calls `receive_file_change!` with the hash of the file
-and the document that a watcher parsed, and the receiver decides what the change
-means. The file document is the receiver of its own file ([`receive_file_change!`](@ref)),
-also in a tab. A file of a type that a person does not edit (`is_editable_file_type`) is
-read again when the time or the size of its file changes, and its text is never
-read.
+Report each change of the file of `file` to `receiver`: when the time or the size of
+the file changed on disk, a drain of the store calls `receive_file_change!`, and the
+receiver decides what the change means. The watch reads no text and computes no hash
+of any kind of file. The file document is the receiver of its own file
+([`receive_file_change!`](@ref)), also in a tab.
 
 Call it on the task that reads the document. `store` is by default the store of
 the [`FileChangeFeed`](@ref) of the editor of the evaluation; with no such
@@ -275,8 +250,13 @@ end
 # a tab, a card or a navigator shows it, and the release of its last holder stops
 # the watch. The file is the receiver of its own file. An editor with no file change
 # feed watches nothing. The open files of the editor list the file while it is held.
+# The file reads its text when it is drawn, so a file that is held and not drawn reads
+# nothing.
 function acquire_document!(editor, file::FileDocument)
+    ensure_file_text_cell!(file)
     watch_document_file!(file; store = find_file_change_store(editor))
+    # A file that changed while it was not held counts as a change.
+    is_file_stale(file) && receive_file_change!(editor, file)
     add_open_file!(editor, file)
     nothing
 end
@@ -330,8 +310,9 @@ function _start_folder_watch!(store::FileChangeStore, folder::String)
 end
 
 # Wait for each event of the folder until its monitor closes. An event marks
-# every watched file of the folder, because a program that writes a file at
-# once renames another file over it, and the event then names the other file.
+# every watched file of the folder whose time or size changed, because a program
+# that writes a file at once renames another file over it, and the event then
+# names the other file.
 function _wait_folder(store::FileChangeStore, folder::String, monitor::FolderMonitor)
     while true
         try
@@ -340,7 +321,7 @@ function _wait_folder(store::FileChangeStore, folder::String, monitor::FolderMon
             error isa EOFError && return
             rethrow()
         end
-        _prepare_folder_changes!(store, folder)
+        _mark_changed_files!(store, folder)
         _mark_watched_folder!(store, folder)
     end
 end
@@ -350,7 +331,7 @@ end
 # the start of its watch saw, so a change before the first look counts too.
 function _poll_folder(store::FileChangeStore, folder::String)
     while lock(() -> get(store.watchers, folder, nothing) === :poll, store.lock)
-        _update_folder_stamps!(store, folder) && _prepare_folder_changes!(store, folder)
+        _mark_changed_files!(store, folder)
         _update_watched_folder_stamps!(store, folder) && _mark_watched_folder!(store, folder)
         sleep(store.poll_interval)
     end
@@ -386,82 +367,23 @@ function _mark_watched_folder!(store::FileChangeStore, folder::String)
     nothing
 end
 
-# Take the stamp of each watched file of the folder, and answer whether one of
-# them differs from the stamp before.
-function _update_folder_stamps!(store::FileChangeStore, folder::String)
-    lock(store.lock) do
-        changed = false
+# Take the stamp of each watched file of the folder, note the files whose stamp
+# differs from the stamp before, and wake each editor that drains the store. It
+# reads nothing of a file: the receiver reads it, when it shows.
+function _mark_changed_files!(store::FileChangeStore, folder::String)
+    is_marked = false
+    @lock store.lock begin
         for watched in store.files
             dirname(watched.path) == folder || continue
-            stamp = _get_file_stamp(watched.path)
-            changed |= stamp != watched.stamp
+            stamp = compute_file_stamp(watched.path)
+            stamp == watched.stamp && continue
             watched.stamp = stamp
-        end
-        changed
-    end
-end
-
-# The time and the size of the file, or `nothing` when there is no file.
-_get_file_stamp(path::String) = isfile(path) ? (mtime(path), filesize(path)) : nothing
-
-# How long the time and the size of a file stay the same before a watcher reads
-# it, and the longest wait for that, in seconds.
-const FILE_SETTLE_SECONDS = 0.05
-const FILE_SETTLE_LIMIT_SECONDS = 2.0
-
-# Wait until the time and the size of the file at `path` stay the same for
-# `FILE_SETTLE_SECONDS`, at most `FILE_SETTLE_LIMIT_SECONDS`.
-function _wait_for_settled_file(path::String)
-    deadline = time() + FILE_SETTLE_LIMIT_SECONDS
-    stamp = _get_file_stamp(path)
-    while time() < deadline
-        sleep(FILE_SETTLE_SECONDS)
-        next = _get_file_stamp(path)
-        next == stamp && return nothing
-        stamp = next
-    end
-    nothing
-end
-
-# Read each watched file of the folder that changed since the watcher read it
-# last, parse it into a new document, keep that for the next drain, and wake each
-# editor that drains the store. It runs on the task of the watcher of the folder,
-# one change after the other, so a file that changes again during a parse is read
-# again in its newest version, and that read replaces the one before.
-function _prepare_folder_changes!(store::FileChangeStore, folder::String)
-    watched_files = lock(() -> WatchedFile[w for w in store.files if dirname(w.path) == folder], store.lock)
-    is_prepared = false
-    for watched in watched_files
-        prepared = _prepare_file_change(watched)
-        prepared === nothing && continue
-        lock(store.lock) do
-            any(w -> w === watched, store.files) || return
-            watched.prepared = prepared
             push!(store.changed, watched.path)
-            is_prepared = true
+            is_marked = true
         end
     end
-    is_prepared || return nothing
-    foreach(wake -> wake(), lock(() -> copy(store.wakes), store.lock))
+    is_marked && foreach(wake -> wake(), lock(() -> copy(store.wakes), store.lock))
     nothing
-end
-
-# What the watcher reads of a changed file, or `nothing` when the file is gone or
-# did not change since its last read. A file that a person does not edit is read
-# when its time or its size changed, and its text is never hashed. The watcher
-# reads a file once it is whole: a program writes a file in more than one step,
-# and each step is an event.
-function _prepare_file_change(watched::WatchedFile)
-    _wait_for_settled_file(watched.path)
-    isfile(watched.path) || return nothing
-    file_hash = watched.is_editable ? compute_file_text_hash(watched.path) : hash(_get_file_stamp(watched.path))
-    file_hash == watched.seen_hash && return nothing
-    watched.seen_hash = file_hash
-    try
-        _PreparedFile(file_hash, read_file_content_again(watched.type, watched.path), nothing)
-    catch exception
-        _PreparedFile(file_hash, nothing, CapturedException(exception, catch_backtrace()))
-    end
 end
 
 # ── The drain ────────────────────────────────────────────────────────────────
@@ -469,15 +391,14 @@ end
 """
     drain_file_changes!(; editor = nothing, store = get_session_file_change_store(; editor)) -> Int
 
-Report each change that the watchers read and parsed to the receiver of its file
+Report each file whose time or size changed to its receiver
 (`receive_file_change!`), and each folder that changed to each receiver that
 watches it ([`receive_folder_change!`](@ref)), and answer how many receivers took
 their change.
-Run it on the task that reads the documents. The drain reads no file: a watcher
-read it, off the loop. What a change means is the choice of the receiver: a
-[`FileDocument`](@ref) knows its own save and the edits of its file, and the drain
-knows neither. A change is reported once. A parse that failed is thrown after the
-other changes, so the editor records it.
+Run it on the task that reads the documents. The drain reads no file, and the
+watchers read none. What a change means is the choice of the receiver: a
+[`FileDocument`](@ref) counts it and reads the file when it shows, and knows its own
+save and the edits of its file; the drain knows neither. A change is reported once.
 """
 function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_session_file_change_store(; editor))
     folders = lock(store.lock) do
@@ -487,28 +408,11 @@ function drain_file_changes!(; editor = nothing, store::FileChangeStore = get_se
         WatchedFolder[watched for watched in store.folders if watched.path in paths]
     end
     changed = lock(store.lock) do
-        isempty(store.changed) && return Tuple{WatchedFile,_PreparedFile}[]
+        isempty(store.changed) && return WatchedFile[]
         paths = copy(store.changed)
         empty!(store.changed)
-        changed = Tuple{WatchedFile,_PreparedFile}[]
-        for watched in store.files
-            watched.path in paths && watched.prepared !== nothing || continue
-            push!(changed, (watched, watched.prepared))
-            watched.prepared = nothing
-        end
-        changed
+        WatchedFile[watched for watched in store.files if watched.path in paths]
     end
-    taken = count(((watched, prepared),) -> _bring_file_change!(watched, prepared, editor), changed)
-    taken += count(watched -> receive_folder_change!(editor, watched.receiver, watched.path) === true, folders)
-    for (_, prepared) in changed
-        prepared.failure === nothing || throw(prepared.failure)
-    end
-    taken
-end
-
-function _bring_file_change!(watched::WatchedFile, prepared::_PreparedFile, editor)
-    prepared.file_hash == watched.file_hash && return false
-    watched.file_hash = prepared.file_hash
-    prepared.failure === nothing || return false
-    receive_file_change!(editor, watched.receiver, prepared.file_hash, prepared.content)
+    taken = count(watched -> receive_file_change!(editor, watched.receiver) === true, changed)
+    taken + count(watched -> receive_folder_change!(editor, watched.receiver, watched.path) === true, folders)
 end

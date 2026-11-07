@@ -518,6 +518,45 @@ function test_explorer()
         @test tabs() == before + 1
     end
 
+    @testset "Back shows the new text of a file that changed while its page was not shown" begin
+        root = mktempdir()
+        write(joinpath(root, "a.json"), "{\"name\": \"abc\"}")
+        write(joinpath(root, "b.json"), "{\"name\": \"xyz\"}")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        # The editor has settings, so a file that it opens keeps a history, which says
+        # that the file has no edits.
+        editor, backend = _nav_editor(explorer; tabs = true, file_change = true, settings = Settings())
+        evaluate_operation(editor, AcquireDocumentOperation(explorer))
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        wait_for_text(text) = (for _ in 1:100
+                                   frame!()
+                                   _nav_has_text(backend, text) && return true
+                                   sleep(0.02)
+                               end; false)
+        for label in ("Files", "work")
+            _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+            @test wait_for_text(label == "Files" ? "work" : "a.json")
+        end
+        # The caret goes into the first file, then another file takes the page.
+        _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
+        @test wait_for_text("abc")
+        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+        (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+        file = workspace.folders[1].directory.elements[1]
+        shown = file.document
+        _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
+        @test wait_for_text("xyz")
+        store = get_session_file_change_store(; editor)
+        @test !is_document_file_watched(shown; store)
+        # The first file changes while its page is not shown, and Back shows the new text.
+        write(joinpath(root, "a.json"), "{\"name\": \"new\"}")
+        _nav_press!(editor, backend, _nav_click(backend, _NAV_BACK))
+        @test wait_for_text("new")
+        @test !_nav_has_text(backend, "abc") && file.document === shown
+    end
+
     @testset "the page of the open files is a table of the files, which a person filters and opens" begin
         root = mktempdir()
         content = ExplorerSection("Explorer", Any[])

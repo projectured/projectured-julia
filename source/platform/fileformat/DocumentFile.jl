@@ -179,13 +179,37 @@ function make_file_tab(path::AbstractString, wrap = identity)
     wrap(file)
 end
 
-# The file keeps the hash of the text of its file on disk now, as the file was just
-# read. A file that a person does not edit is not read for a hash: a save never
-# writes it, and its file can be large.
+# The file keeps the time and the size of its file on disk now, and the hash of its
+# text, as the file was just read. A file that a person does not edit is not read for
+# a hash: a save never writes it, and its file can be large.
 function _record_read_file_hash!(file::FileDocument)
-    (isempty(get_filename(file)) || !is_editable_file_type(typeof(file))) && return nothing
-    get_file_disk_state(file).file_hash = compute_file_text_hash(abspath(get_filename(file)))
+    isempty(get_filename(file)) && return nothing
+    path = abspath(get_filename(file))
+    state = get_file_disk_state(file)
+    state.file_stamp = compute_file_stamp(path)
+    is_editable_file_type(typeof(file)) && (state.file_hash = compute_file_text_hash(path))
     nothing
+end
+
+"""
+    make_unread_file(path, wrap = identity) -> FileDocument
+
+The file document of the file at `path` that reads nothing: it holds the seed of its
+extension, with `wrap` applied to the seed as [`make_file_tab`](@ref) applies it to
+the content, and it reads the file when a view of it is drawn. Until that read it
+knows no hash, holds no edit that the read would lose, and refuses a save.
+
+Use it to open a file whose read can wait until it shows, such as a file that a
+saved window names.
+"""
+function make_unread_file(path::AbstractString, wrap = identity)
+    seed = make_document_for(path)
+    is_own_content(seed) &&
+        throw(ArgumentError("The file at $path is its own content, so it can not be made unread."))
+    file = get_file_document_type(path)(abspath(path), wrap(seed))
+    get_file_disk_state(file).loaded_count = -1
+    ensure_file_text_cell!(file)
+    file
 end
 
 """
@@ -267,6 +291,9 @@ function evaluate_operation(editor, op::SaveFileOperation)
     # A file that a person does not edit has nothing of a person to write.
     is_editable_file_type(typeof(file)) || return nothing
     state = get_file_disk_state(file)
+    # A file that is not read yet holds the seed of its extension, and a save would
+    # write that over the file.
+    state.loaded_count < 0 && return false
     is_named = !isempty(get_filename(file))
     if is_named && !op.force && state.file_hash !== nothing &&
        compute_file_text_hash(abspath(get_filename(file))) != state.file_hash
@@ -278,6 +305,7 @@ function evaluate_operation(editor, op::SaveFileOperation)
     text === nothing && return false
     if is_named
         state.file_hash = hash(text)
+        state.file_stamp = compute_file_stamp(abspath(get_filename(file)))
         state.band = nothing
     end
     true
@@ -331,12 +359,42 @@ function has_unsaved_edits end
 has_unsaved_edits(content) = nothing
 
 """
+    compute_file_stamp(path) -> Union{Tuple, Nothing}
+
+The time and the size of the file at `path` on disk now, or `nothing` when there is
+no file. It reads no text. A watch of a file compares stamps to tell that the file
+changed, and a file document keeps the stamp of its last read in its
+[`FileDiskState`](@ref).
+"""
+compute_file_stamp(path::AbstractString) = isfile(path) ? (mtime(path), filesize(path)) : nothing
+
+# How long the time and the size of a file stay the same before a read takes it, and
+# the longest wait for that, in seconds. A program writes a file in more than one
+# step.
+const FILE_SETTLE_SECONDS = 0.05
+const FILE_SETTLE_LIMIT_SECONDS = 2.0
+
+# Wait until the time and the size of the file at `path` stay the same for
+# `FILE_SETTLE_SECONDS`, at most `FILE_SETTLE_LIMIT_SECONDS`.
+function _wait_for_settled_file(path::AbstractString)
+    deadline = time() + FILE_SETTLE_LIMIT_SECONDS
+    stamp = compute_file_stamp(path)
+    while time() < deadline
+        sleep(FILE_SETTLE_SECONDS)
+        next = compute_file_stamp(path)
+        next == stamp && return nothing
+        stamp = next
+    end
+    nothing
+end
+
+"""
     compute_file_text_hash(path) -> UInt64
 
 The hash of the text of the file at `path` on disk now, or the hash of `nothing`
 when there is no file. A file document keeps the hash of the text of its last
-load or save ([`FileDiskState`](@ref)) and compares it with this one, and a watcher
-of the file reports it with a change.
+load or save ([`FileDiskState`](@ref)) and compares it with this one, and the read
+of a changed file computes it.
 """
 compute_file_text_hash(path::AbstractString) = isfile(path) ? hash(read(path, String)) : hash(nothing)
 
@@ -481,13 +539,13 @@ NaturalModule.print_natural_text(file::FileDocument) =
 
 Swap the document of the file of `file` into its `content`, a reactive write, so
 the projection renders it again: `content` when it is given, such as a document
-that a watcher of the file read off the loop with
-[`read_file_content_again`](@ref), or else the file read again from disk now. A
+that a task read off the loop with [`read_file_content_again`](@ref), or else the file read again from disk now. A
 non-existent file seeds the insertion placeholder of its extension again.
 
 The file keeps the hash of the text that it read and takes its band away.
-`file_hash` is the hash that the watcher computed for `content`; with none, the
-file on disk is hashed now ([`compute_file_text_hash`](@ref)).
+`file_hash` is the hash that the task computed for `content`; with none, the
+file on disk is hashed now ([`compute_file_text_hash`](@ref)). The file counts every
+change that was reported so far as read.
 
 It writes no selection. F5 answers it together with a selection of the whole
 file, which every reader above makes a path from the root, because the old
@@ -518,6 +576,9 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     elseif !isempty(get_filename(file))
         state.file_hash = compute_file_text_hash(abspath(get_filename(file)))
     end
+    op.content === nothing && !isempty(get_filename(file)) &&
+        (state.file_stamp = compute_file_stamp(abspath(get_filename(file))))
+    state.loaded_count = max(state.loaded_count, state.read_count)
     state.band = nothing
     nothing
 end
@@ -672,34 +733,162 @@ end
 # ── A change of the file on disk ─────────────────────────────────────────────
 
 """
-    receive_file_change!(editor, receiver, file_hash, content) -> Bool
+    receive_file_change!(editor, receiver) -> Bool
 
-Tell `receiver` that its file changed on disk, and answer whether it took the new
-document. `file_hash` is the hash that the watcher of the file read
-([`compute_file_text_hash`](@ref) for a file that a person edits), and `content`
-the document that it parsed. The watcher calls it and knows nothing of what the
-change means: the receiver decides.
-
-A file document is the receiver of its own file:
-
-- A file whose [`FileDiskState`](@ref) holds `file_hash` holds that text already,
-  after its own save or load, and nothing happens.
-- A file that a person does not edit, or one with no edits since its last load or
-  save, takes the new document ([`ReloadFileOperation`](@ref)).
-- A file with edits that are not saved, or with no history that says, keeps what it
-  holds, and shows its band: "Load it" takes the new document, and "Keep mine" keeps
-  the edits ([`KeepFileEditsOperation`](@ref)).
+Tell `receiver` that its file changed on disk, and answer whether it took the
+change. The drain of the file change store calls it on the editor task. The watch
+that noted the change read nothing of the file and knows nothing of what the change
+means: the receiver decides. A [`FileDocument`](@ref) adds one to the count of
+changes in its [`FileDiskState`](@ref), and reads the file when a view of it is
+drawn ([`demand_file_text`](@ref)); the answer of that read is stored by
+[`ApplyFileTextOperation`](@ref). The default takes none, and so does a file with no
+name.
 """
 function receive_file_change! end
 
-function receive_file_change!(editor, file::FileDocument, file_hash, content)
+receive_file_change!(editor, receiver) = false
+
+function receive_file_change!(editor, file::FileDocument)
+    isempty(get_filename(file)) && return false
     state = get_file_disk_state(file)
-    file_hash == state.file_hash && return false
-    load = ReloadFileOperation(file; content, file_hash)
-    if !is_editable_file_type(typeof(file)) || has_unsaved_edits(get_file_content(file)) === false
-        evaluate_operation(editor, load)
-        return true
+    state.read_count += 1
+    true
+end
+
+# The answer of the read of a file: the hash of its text, the new document, the time
+# and the size of the file at the read, and the exception of a parse that failed. A
+# file that is gone gives no hash and no document.
+struct _FileTextAnswer
+    file_hash::Any
+    content::Any
+    stamp::Any
+    failure::Any
+end
+
+# The read that runs on a task after a frame, for each file that a frame asked for:
+# it waits until the file is whole and reads it. It reads no document of the editor.
+function _read_file_text_answer(path::String, type::Type, is_editable::Bool)
+    try
+        _wait_for_settled_file(path)
+        stamp = compute_file_stamp(path)
+        isfile(path) || return _FileTextAnswer(nothing, nothing, stamp, nothing)
+        file_hash = is_editable ? compute_file_text_hash(path) : hash(stamp)
+        _FileTextAnswer(file_hash, read_file_content_again(type, path), stamp, nothing)
+    catch exception
+        _FileTextAnswer(nothing, nothing, nothing, CapturedException(exception, catch_backtrace()))
     end
-    state.band = _make_changed_file_band(file, "Load it" => load, "Keep mine" => KeepFileEditsOperation(file, file_hash))
-    false
+end
+
+# The box that keeps the background cell of the text in the `text` field of a
+# [`FileDiskState`](@ref): a field can not hold a cell as its value.
+struct _FileTextCell
+    cell::Cell
+end
+
+# The background cell of the text of `file`, with a source of its own, so the files
+# of a frame read in parallel. Its inputs name the file and the count of the changes,
+# so it has no answer for a count that came after the last read.
+function _make_file_text_cell(file::FileDocument)
+    source = BackgroundSource(inputs -> Any[_read_file_text_answer(path, type, is_editable)
+                                           for (path, type, is_editable, _) in inputs];
+                              description = "the text of a file")
+    inputs = () -> (abspath(get_filename(file)), Base.typename(typeof(file)).wrapper,
+                    is_editable_file_type(typeof(file)), get_file_disk_state(file).read_count)
+    make_background_cell(source, inputs;
+                         apply = (inputs, answer) -> ApplyFileTextOperation(file, last(inputs), answer))
+end
+
+"""
+    ensure_file_text_cell!(file) -> nothing
+
+Give `file` the background cell of its text, when it has none and has a name. Call it
+where the file is made or enters the window, never in a print: a cell that a
+computation makes is new at each run.
+"""
+function ensure_file_text_cell!(file::FileDocument)
+    state = get_file_disk_state(file)
+    (state.text !== nothing || isempty(get_filename(file))) && return nothing
+    state.text = _FileTextCell(_make_file_text_cell(file))
+    nothing
+end
+
+"""
+    demand_file_text(file) -> nothing
+
+Ask for the text of `file` when a change is to be read: a read of its background
+cell, which records a demand, so a task reads the file after the frame. A file whose
+changes are all read, and a file with no such cell, ask for nothing. A view of the
+file calls it in what it draws, so a file that nothing draws reads nothing; a holder
+that shows what the file says without a view, such as a count in a page, calls it too.
+"""
+function demand_file_text(file::FileDocument)
+    state = get_file_disk_state(file)
+    box = state.text
+    box === nothing && return nothing
+    state.read_count > state.loaded_count && box.cell[]
+    nothing
+end
+
+"""
+    is_file_stale(file) -> Bool
+
+Whether the file on disk has another time or size than at the last read of `file`,
+so a file that was not watched while it changed knows it. A file that knows no stamp
+claims nothing.
+"""
+function is_file_stale(file::FileDocument)
+    state = get_file_disk_state(file)
+    (isempty(get_filename(file)) || state.file_stamp === nothing) && return false
+    compute_file_stamp(abspath(get_filename(file))) != state.file_stamp
+end
+
+"""
+    ApplyFileTextOperation(file, read_count, answer)
+
+Store what the read of the file of `file` found for the change `read_count`. An
+answer that a newer change follows is dropped. The hash of the new text equals the
+hash of the file after its own save or load, and nothing happens. A file that was not
+read yet, a file that a person does not edit, and a file with no edits since its
+last load or save take the new document ([`ReloadFileOperation`](@ref)). A file with
+edits that are not saved, or with no history that says, keeps what it holds and
+shows its band: "Load it" takes the new document, and "Keep mine" keeps the edits
+([`KeepFileEditsOperation`](@ref)). A read that failed logs its exception and
+changes nothing.
+
+The background cell of the text makes it. A history inside the file adds no step for
+it.
+"""
+struct ApplyFileTextOperation <: Operation
+    file::FileDocument
+    read_count::Int
+    answer::Any
+end
+
+OperationModule.is_self_contained_operation(::ApplyFileTextOperation) = true
+OperationModule.make_inverse_operation(document, ::ApplyFileTextOperation) = DoNothingOperation()
+
+function evaluate_operation(editor, op::ApplyFileTextOperation)
+    file = op.file
+    state = get_file_disk_state(file)
+    op.read_count == state.read_count || return nothing
+    answer = op.answer
+    if !(answer isa _FileTextAnswer) || answer.failure !== nothing
+        failure = answer isa _FileTextAnswer ? answer.failure : answer
+        @warn string("The file ", get_document_title(file), " could not be read, so it keeps what it holds.") exception = failure
+        state.loaded_count = op.read_count
+        return nothing
+    end
+    was_unread = state.loaded_count < 0
+    state.loaded_count = op.read_count
+    answer.content === nothing && return nothing
+    state.file_stamp = answer.stamp
+    (!was_unread && answer.file_hash == state.file_hash) && return nothing
+    load = ReloadFileOperation(file; content = answer.content, file_hash = answer.file_hash)
+    if was_unread || !is_editable_file_type(typeof(file)) || has_unsaved_edits(get_file_content(file)) === false
+        evaluate_operation(editor, load)
+    else
+        state.band = _make_changed_file_band(file, "Load it" => load,
+                                             "Keep mine" => KeepFileEditsOperation(file, answer.file_hash))
+    end
+    nothing
 end

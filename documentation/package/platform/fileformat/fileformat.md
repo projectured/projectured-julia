@@ -55,13 +55,17 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ### The file against the disk
 
-Every file document keeps its state against the disk in one field, `disk`, of type `FileDiskState`, as it keeps `filename` and `content`. `get_file_disk_state(file)` reads it. The state holds `file_hash`, the hash of the text of the last load or save, and `band`, the `FileBand` while the file changed on disk under edits that no save wrote. The field is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it. The constructor of each file type makes a new state, so two new files have two states. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash. `make_file_tab` sets `file_hash` to `compute_file_text_hash` of the file as it was just read. A file of a type that a person does not edit is not read for a hash.
+Every file document keeps its state against the disk in one field, `disk`, of type `FileDiskState`, as it keeps `filename` and `content`. `get_file_disk_state(file)` reads it. The state holds `file_hash`, the hash of the text of the last load or save, `band`, the `FileBand` while the file changed on disk under edits that no save wrote, `file_stamp`, the time and the size of the file at the last read, load or save, the counts `read_count` and `loaded_count`, and `text`, the background cell that reads the text of the file. The field is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it. The constructor of each file type makes a new state, so two new files have two states. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash. `make_file_tab` sets `file_hash` to `compute_file_text_hash` of the file as it was just read, and `file_stamp` to `compute_file_stamp` of it. A file of a type that a person does not edit is not read for a hash.
+
+**A file reads its text when it is drawn.** Each change that the watch reports adds one to `read_count`. `text` is a background cell of the path and `read_count`: the view of a file reads it (`demand_file_text`) while `read_count` is past `loaded_count`, a task waits until the file is whole, hashes it and parses it after the frame, and `ApplyFileTextOperation` stores the answer. The cell is made where the file enters the window (`ensure_file_text_cell!`) and by `make_unread_file`. The watch reads no text, and no print, reader or computation reads the disk. A file that is held again after a change counts it at its acquire (`is_file_stale`: another time or size than `file_stamp`).
+
+`make_unread_file(path, wrap)` makes a file that reads nothing: it holds the seed of its extension with `wrap` applied, `loaded_count` is `-1`, and it knows no hash. It reads the file at its first draw, and until then `SaveFileOperation` refuses to write it.
 
 The file document watches its file while a place holds it, and is the receiver of what the watcher reports ([filechange.md](../filechange/filechange.md)). A tab, a card of a dashboard and a navigator all show the file document itself, each through its own view.
 
 Each place that shows a file shows a view of it. `make_document_view(file)` makes a `FileView(file, scroll)`: the `file` and the `scroll` pane of this place, which keeps where this place is scrolled to. `make_file_view(file)` makes it for a new place, with the selection of the view following the selection of the file. A tab keeps a view, a card of a dashboard keeps a view in its slot, and a navigator keeps the view of its page, so a scroll in the tab leaves the card where it is. The view names the file with `get_edited_field`, so a walk and a tab reach the file through the view, and not through the scroll pane, which a walk does not enter (`is_field_walked`). A view says the title and the decoration of its file. A holder holds the view, and the view holds the file. `find_held_file(view)` answers the file, so a document that holds a view saves it as `file("…")` and writes none of the band, the hash or the scroll pane. When the history of a file sits inside the file, around its content, the file reads it with `has_unsaved_edits(get_file_content(file))`; the open of a file gives it so, also when a link of a navigator opens it.
 
-`SaveFileOperation` reads the file on disk and compares its hash with `file_hash`.
+`SaveFileOperation` reads the file on disk and compares its hash with `file_hash`. A file that is not read yet writes nothing.
 
 - If the hashes are equal, or the file knows no hash, it writes the file and keeps the hash of the written text.
 - If they differ, it writes nothing and shows the band.
@@ -73,12 +77,12 @@ Each place that shows a file shows a view of it. `make_document_view(file)` make
 
 | Choice | Operation | What it does |
 | --- | --- | --- |
-| Load it | `ReloadFileOperation` | loads the document that the watcher read, or reads the file now when it carries none |
+| Load it | `ReloadFileOperation` | loads the document that the read found, or reads the file now when it carries none |
 | Keep mine | `KeepFileEditsOperation` | takes the hash of the disk as the hash of the file, so the next save writes |
 
 The decoration of a file says, while its band shows, that the file changed on disk, and a conflict when the file has edits that no save wrote.
 
-The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver, file_hash, content)`, which this slice declares. A file with the same hash does nothing. A file that a person does not edit, or with no edits (`has_unsaved_edits` false), loads the new document. Any other file keeps its content, and shows the band.
+The [file-change slice](../filechange/filechange.md) reports each change with `receive_file_change!(editor, receiver)`, which this slice declares. A file adds one to its `read_count`, and reads its text when a view of it is drawn. The answer of the read is stored by `ApplyFileTextOperation`: a file with the same hash does nothing and logs nothing. A file that a person does not edit, with no edits (`has_unsaved_edits` false), or not read yet loads the new document. Any other file keeps its content, and shows the band.
 
 ### The open files
 
