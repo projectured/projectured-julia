@@ -609,8 +609,9 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         support, as for the result files and the event log.
       - The assistant also proposed the hash of a print against the hash of the last load for an
         editable file with no history, and the owner said "Yes" to it on 2026-11-07. That is
-        option B of D1, which the owner rejected on 2026-11-05. It is held, not made, until the
-        owner chooses again.
+        option B of D1, which the owner rejected on 2026-11-05, so the owner dropped it on
+        2026-11-07 ("Yes") and D1 stands: only the history says that a file has edits. Step 6
+        gives every open a history, so every file that a person edits has one.
       - omnet results: `test_fingerprint_store_document()` 32, `test_project_page()` 100,
         `test_campaign_explorer_content()` 57, all Pass; `test_ide_file_navigator()` 50 Pass, 2
         Fail (`IdeNavigatorTest.jl:50`, `:57`, the counts of main).
