@@ -9,14 +9,16 @@
 > G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
 > step 2 for steps 5 and 6 · **Order:** the owner moved step 5 forward on 2026-11-06 ("Yes"): it
-> runs after G4 steps 1 to 3 land and before G4 step 4, which needs `open_file_page!`. Step 6
+> runs after G4 steps 1 to 3 land and before G4 step 4, which needs `open_file_document!`. Step 6
 > keeps its place after the layout plan · **G4 D10:** on 2026-11-06 the owner decided in G4 that
 > the file document watches its file and keeps the hash and the band, and that `FilePage` goes away
 > (G4 D10 to D13, G4 step 1b). Below, "the page of a file" reads "the file document", and a view of
 > it is a `FileView`. G4 step 1b removes `find_held_file(page::FilePage)` of step 3 here, and the
 > view of a file answers `find_held_file` with its file. Step 5 adds `open_file_document!(path;
 > editor)` in place of `open_file_page!`, and it makes a file document that reads nothing. The text
-> of steps 5 and 6 is revised to these names before step 5 starts · **Stands on:**
+> of §4.6, §4.7 and steps 5 and 6 is revised to these names (2026-11-07, at `main` `140ae8853`,
+> after G4 steps 1 to 3 landed); the owner said "Yes" to the start of step 5 the same day ·
+> **Stands on:**
 > [serialization.md](../../documentation/package/platform/serialization/serialization.md),
 > [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
@@ -175,7 +177,7 @@ back as it is, so the text does not change. A script that wants the held files c
 `load_project(base, [name]; follow = true)`. After step 1, that load gives the file documents in
 their slots, with names relative to `base`.
 
-### 4.6 The open in an editor gives each held file its page (D6)
+### 4.6 The open in an editor gives each held file its file document (D6)
 
 The serialization slice gets one walk, and the file-format slice gets one generic function:
 
@@ -185,54 +187,60 @@ The serialization slice gets one walk, and the file-format slice gets one generi
   answer. An answer `nothing` keeps the leaf. A `node(…)`, a `section(…)` and any other verb stay
   leaves. The walk goes into a tuple and a named tuple (§4.4). It reads no disk, and it changes no
   state outside `content`.
-- `open_file_page!(path; editor)` answers the document that a held file at `path` gets in
-  `editor`, or `nothing`. The file-format slice declares it with its docstring, and its default
+- `open_file_document!(path; editor)` answers the file document that a held file at `path` gets
+  in `editor`, or `nothing`. The file-format slice declares it with its docstring, and its default
   answers `nothing`, so a load with no editor keeps each leaf. The file-system slice adds the method
-  for an `Editor`, which answers the editor's one page of the file:
-  `find_open_file_document(path; editor)`, else a new page with the history of the settings of the
-  editor, as `_read_file_page` makes it, but with no read. The method adds the new page to the open
-  files of the editor at once, so two holders that load before either is shown get one page, not
-  two. The text cell of that page (G4 D4) has no answer yet, so the method reads no file. The owner
-  decided the name on 2026-11-05 in two answers: first `open_held_file!`, because the function can
-  make a page, which `find_` must not do, and it changes the open files of the editor, so it ends
-  with `!`; then `open_file_page!(path; editor)` with the mark `For the assistant.`, because the
-  assistant gets the editor's one page of a file through it, with no tab (G3 open question 11).
-  `open_file!` stays the open of a person: a page and a tab. Rejected: `find_held_file_page`, and
-  the name `open_held_file!` for a function that also serves the assistant. This is the seam of `find_url_document` of G8: a generic
-  function with a default in the lower slice, and its method in the slice that can open a page (D7).
+  for an `Editor`, which answers the editor's one file document of the file:
+  `find_open_file_document(path; editor)`, else a new file document that reads nothing
+  (`make_unread_file`, G4 step 2), with the history around its content that `_make_opened_file`
+  puts there. The method adds the new file document to the open files of the editor at once, so two
+  holders that load before either is shown get one file document, not two. The text cell of that
+  file (G4 D4) has no answer yet, so the method reads no file. The owner decided the name on
+  2026-11-05 in two answers: first `open_held_file!`, because the function can make a document,
+  which `find_` must not do, and it changes the open files of the editor, so it ends with `!`; then
+  `open_file_page!(path; editor)` with the mark `For the assistant.`, because the assistant gets the
+  editor's one document of a file through it, with no tab (G3 open question 11). G4 D10 removed the
+  page, so the name is `open_file_document!` (the header of this plan, 2026-11-06). `open_file!`
+  stays the open of a person: a file document and a tab. Rejected: `find_held_file_page`, and the
+  name `open_held_file!` for a function that also serves the assistant. This is the seam of
+  `find_url_document` of G8: a generic function with a default in the lower slice, and its method in
+  the slice that can open a file (D7).
 
 Each load of a file into an editor splices what it read, on the editor task, before the content
 goes into its file. The base folder is the folder of the file, as for every editor save (§2):
 
-1. The evaluation of `ReloadFileOperation`. F5, `LoadFilePageOperation` and the `apply` of the
-   text cell of a page (G4 step 2) evaluate it (§4.7).
+1. The evaluation of `ReloadFileOperation`. F5, "Load it" of the band, and
+   `ApplyFileTextOperation`, which stores the answer of the text cell of a file (G4 step 2),
+   evaluate it (§4.7).
 2. The open of a file that a person or the assistant opens, where that open reads the file at once:
-   `_make_opened_file_content`, which `OpenFileOperation` and `open_file!` use, and
-   `_read_file_page`, which the acquire of a `FileSystemFile` uses. The splice runs before the
-   history wraps the content, so the history gets no step.
+   `_make_opened_file`, which `OpenFileOperation`, `open_file!` and the acquire of a
+   `FileSystemFile` (through `_read_opened_file`) use. The splice runs before the history wraps the
+   content, so the history gets no step.
 3. The load of the explorer content, with the folder of the window as the base folder (§4.8).
 
-A new page reads nothing at the open. When a view draws it, its text cell reads the file after the
-frame, and the `apply` loads it through `ReloadFileOperation`. That load splices the held files of
-that file in the same way. So a held file of a held file gets its page only when its holder is
-read, and the editor reads no file that no view draws. Until its read, a page shows that it reads
-and refuses a save (G4 D4).
+A new file document reads nothing at the open. When a view draws it, its text cell reads the file
+after the frame, and `ApplyFileTextOperation` loads it through `ReloadFileOperation`. That load
+splices the held files of that file in the same way. So a held file of a held file gets its file
+document only when its holder is read, and the editor reads no file that no view draws. Until its
+read, the view of the file shows that it reads, and the file refuses a save (G4 D4). G4 step 2 made
+the refusal; the view that shows the read comes with step 5, because step 5 makes the first file
+that a person sees before its read.
 
-A slot holds the editor's one page of the file, and a card shows its own view of it (open question
-5, G4 D2). G4 D8 decides that no bare file is watched, so each held file is a page after the open.
-No reader and no computation calls the splice. The editor is its argument, and its list of open
-files is its own session document (D0).
+A slot holds the editor's one file document of the file, and a card shows its own view of it
+(open question 5, G4 D2). Each held file document is watched while a holder holds it (G4 D10). No
+reader and no computation calls the splice. The editor is its argument, and its list of open files
+is its own session document (D0).
 
 ### 4.7 A reload is a load (D7)
 
 The evaluation of `ReloadFileOperation` splices the new content as §4.6 says, before
 `replace_wrapped_document!` puts it into the file. So a reload of a holder gives each `file("…")`
-the editor's one page of that file. That is the page that the old content held, which the open
-files of the editor list while the holder holds it, or a new page that is not read yet. A card that
-another program adds to the holder shows its file when a view draws it, and no reference leaf stays
-in a document of the editor. The reload reads no held file. The file-format slice holds the reload
-and calls `open_file_page!`, and the method of the file-system slice makes the page. So the
-reload needs no opener of a higher slice.
+the editor's one file document of that file. That is the file document that the old content held,
+which the open files of the editor list while the holder holds it, or a new file document that is
+not read yet. A card that another program adds to the holder shows its file when a view draws it,
+and no reference leaf stays in a document of the editor. The reload reads no held file. The
+file-format slice holds the reload and calls `open_file_document!`, and the method of the
+file-system slice makes the file document. So the reload needs no opener of a higher slice.
 
 ### 4.8 The explorer content
 
@@ -559,49 +567,57 @@ through the reload (D7), so no test can check the open without the reload.
      one path hold one file after the load, and that a load of the file alone keeps each reference
      and saves it back unchanged.
    - Results: the sets of step 3 pass, 984 tests, with the same three known results.
-5. **A load into an editor gives each `file("…")` its page (D6, D7, D11).** Needs G4 step 2 on
-   main. `FileSplice.jl`: `splice_held_files!`, with its export in `SerializationModule.jl`.
-   `OpenFileList.jl`: the generic function `open_file_page!` with its docstring and its default,
-   beside `find_open_file_document` (`:92-119`), and its export in `FileFormatModule.jl`. Its
-   docstring has an example (`page = open_file_page!(path)`, then `insert_elements!` into a card)
-   and ends with the line `For the assistant.`, and the tests of this step also run
-   `test_assistant_documentation()` and `test_assistant_verbs()`.
-   `DocumentFile.jl`: the evaluation of `ReloadFileOperation` (`:449-456`) splices the new content
-   before `replace_wrapped_document!`. `FileSystemDocument.jl`: the method of `open_file_page!`
-   for an `Editor`, which makes a page with no read as G4 step 2 allows, and the splice in
-   `_make_opened_file_content` (`:220-227`) and `_read_file_page` (`:82-86`) where they read the
-   file at once. If G4 step 1a is on main and its view of a page has no method of `find_held_file`,
-   this step adds it beside the view (open question 8). Update `serialization.md`, `fileformat.md`
-   and `filesystem.md`. Tests:
+5. **A load into an editor gives each `file("…")` its file document (D6, D7, D11).** Needs G4
+   step 2 on main (landed 2026-11-07, `140ae8853`). `FileSplice.jl`: `splice_held_files!`, with
+   its export in `SerializationModule.jl`. `OpenFileList.jl`: the generic function
+   `open_file_document!` with its docstring and its default, beside `find_open_file_document`
+   (`:92-119`), and its export in `FileFormatModule.jl`. Its docstring has an example
+   (`file = open_file_document!(path)`, then `insert_elements!` of `make_file_view(file)` into a
+   card) and ends with the line `For the assistant.`, and the tests of this step also run
+   `test_assistant_documentation()` and `test_assistant_verbs()`. `DocumentFile.jl`: the
+   evaluation of `ReloadFileOperation` (`:568-573`) splices the new content before
+   `replace_wrapped_document!`. `FileSystemDocument.jl`: the method of `open_file_document!` for an
+   `Editor`, which makes a file document with `make_unread_file` and the history of
+   `_make_opened_file`, and the splice in `_make_opened_file` (`:243-247`), where the open reads the
+   file at once. `FileViewToWidget.jl`: the view of a file that is not read yet
+   (`loaded_count < 0`) shows that it reads, as the folder of the Files tree shows its read, and
+   the content below it is the seed of the extension. `find_held_file(view::FileView)` exists
+   (`FileView.jl:55`), so open question 8 needs no code. Update `serialization.md`,
+   `fileformat.md` and `filesystem.md`. Tests:
    - `test_pred_file()`, a new set for the walk, with an answer from a dictionary. A whole `file(…)`
      takes the answer, a `node(…)` stays, and an answer `nothing` keeps the leaf. Two slots of one
      path ask once and hold one object. A slot in a named tuple takes its answer. `file("../b/c.txt")`
      asks for the absolute path against the base folder.
    - `test_explorer()`, a new set with an editor and a `FileChangeStore`. An open of a `.pred`
      dashboard whose card holds `file("notes.txt")`, while a tab shows `notes.txt`, gives the card
-     the page of that tab (`===`). With no tab, the card holds a new page, and the work of its text
-     cell counts no read until a view of the card is drawn, then one read after that frame. Before
-     that read, the page shows that it reads, a save of it answers `false`, and `notes.txt` keeps
-     its bytes. A save of the dashboard then writes `file("notes.txt")` for that page.
+     the file document of that tab (`===`). With no tab, the card holds a new file document, and its
+     text cell counts no read until a view of the card is drawn, then one read after that frame.
+     Before that read, the view shows that it reads, a save of the file answers `false`, and
+     `notes.txt` keeps its bytes. A save of the dashboard then writes `file("notes.txt")` for that
+     file document.
    - `test_file_change_store()`, a new set with an editor and a tab of the holder. Another program
      rewrites the holder with another title, the held path of before and one new held path. After
-     the read of the holder (the report, a frame and the `apply` of G4 step 2), the slot of the old
-     path holds the same page object, the slot of the new path holds a new page that is not read
-     yet, and no slot holds a reference leaf. F5 gives the same. The page of the new card is held
-     and watched once the dashboard holds its cards (G4 step 1). A dashboard `a.pred` in a tab holds
-     `b.pred`, which holds `a.pred`: the open reads `a.pred` only, and after a view draws the card of
-     `b.pred` and its read, the slot of `a.pred` in `b.pred` holds the page of the tab (`===`). With
-     no editor, `evaluate_operation(nothing, ReloadFileOperation(file))` keeps each leaf.
+     the read of the holder (the report, a frame and `ApplyFileTextOperation`), the slot of the old
+     path holds the same file document, the slot of the new path holds a new file document that is
+     not read yet, and no slot holds a reference leaf. F5 gives the same. The file document of the
+     new card is held and watched once the dashboard holds its cards (G4 step 1); if it is not,
+     because a load writes the content with no hold, the test records that as the known limit of G4
+     open question 10 and does not hide it. A dashboard `a.pred` in a tab holds `b.pred`, which
+     holds `a.pred`: the open reads `a.pred` only, and after a view draws the card of `b.pred` and
+     its read, the slot of `a.pred` in `b.pred` holds the file document of the tab (`===`). With no
+     editor, `evaluate_operation(nothing, ReloadFileOperation(file))` keeps each leaf.
 
    Then `test_filechange()`, `test_file_tab()`, `test_user_interface_file()` and
    `test_platform_layering()`.
 6. **The explorer content saves alone and splices its held files (D8).** Needs step 5.
    `ExplorerContentFile.jl:60-70` and `:90-99`, with the keyword `folder`. `Application.jl:597-605`
    and `ApplicationExplorer.jl:87-94` give `root`. `explorer.md` says it. Test: the set of
-   `test_explorer()` at `ExplorerTest.jl:777-818` grows. A card that holds the page of a file of the
-   work folder saves as `file("notes.txt")` and not as its text, and a file outside the work folder
-   saves as `file("../…")`. The next editor, with a tab of `notes.txt`, loads the content, and the
-   card holds the page of that tab (`===`). With no tab, the card holds a page that is not read yet.
+   `test_explorer()` at `ExplorerTest.jl:777-818` grows. A card that holds the file document of a
+   file of the work folder saves as `file("notes.txt")` and not as its text, and a file outside the
+   work folder saves as `file("../…")`. The next editor, with a tab of `notes.txt`, loads the
+   content, and the card holds the file document of that tab (`===`). With no tab, the card holds a
+   file document that is not read yet. The line numbers of this step are from 2026-11-05; read the
+   code again before the step starts.
    A section that holds one dashboard at two places loads back with one object. The session lists
    and the titles read back as now. Then `test_application()`, because `Application.jl` changes.
 
@@ -609,6 +625,14 @@ After step 6 the plan moves to `plan/done/`, and the code quality steward reads 
 
 ## 7. Risks
 
+- **A new file document is in the open files before any holder holds it.** Since G4 step 1b the
+  open files of the editor list a file from its acquire to the release of its last holder (§2).
+  `open_file_document!` adds a new file document at once (§4.6), so a call that no hold follows
+  leaves it in the list, not watched, until the editor closes. In the loads of step 5 a holder takes
+  it in the same operation. A call of the assistant that puts the file into no card, and a load that
+  writes a content with no hold, do not. This is the gap of G4 open question 10, which the owner
+  deferred on 2026-11-07 to a plan of its own; a file that such a call left reads at its first draw
+  when a later holder takes it, because it is not read yet.
 - **The meaning of a whole `file("…")` changes for each file on disk.** A hand-written embed, such as
   `<<file("network.ned")>>` in a page of the omnet-julia catalog, then embeds the file document. A
   file document draws as its content through `FileToContent` (`fileformat.md`), so the page looks the
