@@ -329,11 +329,10 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        collapsed_marker::TextString = TextString(""),
                        marker_eligible = _default_marker_eligible,
                        theme = nothing,
-                       ellipsis_style = get_syntax_style(theme, :ellipsis_text),
-                       decoration_font = get_syntax_style(theme, :font),
                        text_folds::Bool = false) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
-                         ellipsis_style, decoration_font, text_folds)
+                         get_syntax_style(theme, :ellipsis_text), get_syntax_style(theme, :font),
+                         text_folds)
 
 # Whether the syntax folds `node`: it is collapsed and the view has no text folds.
 # Such a node prints no children.
