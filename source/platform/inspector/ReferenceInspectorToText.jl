@@ -21,39 +21,36 @@
 # Display-only: `map_reference_forward`/`map_reference_backward` return `nothing`,
 # so a click landing inside the rendered panel produces no operation.
 """
-    ReferenceInspectorToText(; font=…, header_font=…, header_color=…, reference_style=…)
+    ReferenceInspectorToText(; header_font=…, header_color=…, reference_style=…)
 
 Projection over `ReferenceInspector`. Output is a `TextBlock` stacking the
 compact and human-readable renderings of `inspector.reference` under bold
 section headers.
 
-`font`, `header_font` and `header_color` are its styles, which default to the
-default [`InspectorTheme`](@ref); `reference_style` holds the values of the
+`header_font` and `header_color` are the styles of a header, which default to
+the default [`InspectorTheme`](@ref). `reference_style` holds the values of the
 [`ReferenceTheme`](@ref) that the delegate `ReferenceToText` and
-`ReferenceToHumanReadableText` take. [`make_reference_inspector_projection`](@ref)
+`ReferenceToHumanReadableText` take, so the text of a reference and the empty
+line between the two forms take its font. [`make_reference_inspector_projection`](@ref)
 fills them from two themes.
 """
 @projection UntrackedCell struct ReferenceInspectorToText <: Projection
-    font::StyleFont = get_inspector_style(nothing, :font)
     header_font::StyleFont = get_inspector_style(nothing, :header_font)
     header_color::StyleColor = get_inspector_style(nothing, :header_color)
     reference_style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 
 """
-    make_reference_inspector_projection(; theme = nothing, reference_theme = nothing,
-                                        font, header_font, header_color)
+    make_reference_inspector_projection(; theme = nothing, reference_theme = nothing)
         -> ReferenceInspectorToText
 
 A `ReferenceInspectorToText` whose styles follow `theme`, an `InspectorTheme`,
 and `reference_theme`, a `ReferenceTheme`; each scaled or not, or `nothing` for
-the default values. A style given as a keyword stays fixed.
+the default values.
 """
-make_reference_inspector_projection(; theme = nothing, reference_theme = nothing,
-                                    font = get_inspector_style(theme, :font),
-                                    header_font = get_inspector_style(theme, :header_font),
-                                    header_color = get_inspector_style(theme, :header_color)) =
-    ReferenceInspectorToText(; font, header_font, header_color,
+make_reference_inspector_projection(; theme = nothing, reference_theme = nothing) =
+    ReferenceInspectorToText(; header_font = get_inspector_style(theme, :header_font),
+                             header_color = get_inspector_style(theme, :header_color),
                              reference_style = make_theme_values_field(ReferenceTheme, reference_theme))
 
 _header(text::AbstractString, p::ReferenceInspectorToText) =
@@ -68,7 +65,7 @@ function _append_lines!(lines::Vector{TextDocument}, tt::TextBlock)
 end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
-    short_proj = ReferenceToText(font = p.font, style = p.reference_style)
+    short_proj = ReferenceToText(style = p.reference_style)
     # The two renderings keep the clock and the properties of the editor, and have a
     # free range on each axis.
     ictx = with_exact_size(make_child_context(ctx, EmptyReference());
@@ -79,15 +76,14 @@ function print_document(p::ReferenceInspectorToText, recursion, input::Reference
         # Annotate the node types, so both forms show them.
         canonical = (ref isa ConcreteReference && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
-        long_proj = ReferenceToHumanReadableText(document = target, font = p.font,
-                                                 style = p.reference_style)
+        long_proj = ReferenceToHumanReadableText(document = target, style = p.reference_style)
         short = print_document(short_proj, nothing, canonical, ictx).output
         long  = print_document(long_proj,  nothing, canonical, ictx).output
 
         # Each form under its header, with an empty line between the two.
         lines = TextDocument[TextLine(_header("Compact", p))]
         _append_lines!(lines, short)
-        push!(lines, TextLine(TextString("", p.font)))
+        push!(lines, TextLine(TextString("", unwrap_cell(p.reference_style).font)))
         push!(lines, TextLine(_header("Human-readable", p)))
         _append_lines!(lines, long)
         lines

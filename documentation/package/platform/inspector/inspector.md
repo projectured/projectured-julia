@@ -34,10 +34,10 @@ A function becomes the computation of a cell in the `source` field. So a read of
 
 ### The theme
 
-`InspectorTheme` holds the font of the inspector and the font and the color of its header. Each value has the default that the slice draws with no
-appearance. `ReferenceInspectorToText` holds its fonts and its header color as fields, and no theme;
+`InspectorTheme` holds the font and the color of a section header. Each value has the default that the slice draws with no
+appearance. `ReferenceInspectorToText` holds its header font and its header color as fields, and no theme;
 `make_reference_inspector_projection(; theme, reference_theme)` fills them from an `InspectorTheme`, scaled or not,
-and `SelectionInspectorToText` builds through it. With no theme they hold the default values. The tokens of a reference take the colors of `ReferenceTheme` of the text slice. The registration of the inspector gives both scaled themes of the `Appearance`, and the text theme to its `TextToGraphics`.
+and `SelectionInspectorToText` builds through it. With no theme they hold the default values. The text of a reference takes the fonts and the colors of `ReferenceTheme` of the text slice, and the inspector passes no font of its own, so one theme gives the size of each line. The registration of the inspector gives both scaled themes of the `Appearance`, and the text theme to its `TextToGraphics`.
 
 ## How it fits
 

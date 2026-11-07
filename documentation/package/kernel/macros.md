@@ -535,8 +535,7 @@ only job is to fill in defaults:
 ```julia
 @projection UntrackedCell struct ReferenceToHumanReadableText   # <: Projection is defaulted in
     document::Any
-    font::StyleFont   = get_reference_style(nothing, :font)          # default
-    style::NamedTuple = get_theme_defaults(ReferenceTheme)
+    style::NamedTuple = get_theme_defaults(ReferenceTheme)          # default
 end
 ```
 
@@ -544,8 +543,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-ReferenceToHumanReadableText(; document)                 # font and style of the default theme
-ReferenceToHumanReadableText(; document, font = StyleFont("Ubuntu", 20))
+ReferenceToHumanReadableText(; document)                 # the style of the default theme
+ReferenceToHumanReadableText(; document, style = make_theme_values_field(ReferenceTheme, theme))
 ```
 
 Semantics deliberately match `Base.@kwdef`:

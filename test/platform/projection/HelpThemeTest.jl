@@ -58,11 +58,11 @@ end
 @testset "ReferenceToText reads ReferenceTheme" begin
     defaults = make_scaled_theme(ReferenceTheme())
     plain = ReferenceToText()
+    @test !hasfield(typeof(plain), :font)
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), ReferenceTheme)
-    scaled = ReferenceToText(font = get_reference_style(theme, :font),
-                             style = make_theme_values_field(ReferenceTheme, theme))
-    @test plain.font.size == defaults.font.size
-    @test scaled.font.size == round(Int, plain.font.size * 1.5)
+    scaled = ReferenceToText(style = make_theme_values_field(ReferenceTheme, theme))
+    @test plain.style.font.size == defaults.font.size
+    @test scaled.style.font.size == round(Int, plain.style.font.size * 1.5)
     @test plain.style.aside_font.size == defaults.aside_font.size
     @test scaled.style.aside_font.size == round(Int, plain.style.aside_font.size * 1.5)
     for role in (:punctuation_color, :name_color, :index_color, :type_color, :projection_color, :unknown_color)
@@ -74,19 +74,25 @@ end
 @testset "ReferenceInspectorToText reads InspectorTheme" begin
     defaults = make_scaled_theme(InspectorTheme())
     plain = ReferenceInspectorToText()
+    @test !hasfield(typeof(plain), :font)
     scaled = make_reference_inspector_projection(
         theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme))
-    @test plain.font.size == defaults.font.size
-    @test scaled.font.size == round(Int, plain.font.size * 1.5)
     @test plain.header_font.size == defaults.header_font.size
     @test scaled.header_font.size == round(Int, plain.header_font.size * 1.5)
     @test is_color_equal(plain.header_color, defaults.header_color)
     @test is_color_equal(scaled.header_color, plain.header_color)
-    # A value given for a keyword stays fixed regardless of the theme.
-    fixed = make_reference_inspector_projection(
-        theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme),
-        font = StyleFont("Ubuntu Mono", 20))
-    @test fixed.font.size == 20
+end
+
+@testset "a line of an inspector draws at one size" begin
+    # The words of a step and the "which is" that ends its line take the font of
+    # the reference theme.
+    inspector = ReferenceInspector(reference = Reference(FieldReferenceStep("entries"),
+                                                         FieldReferenceStep("name")))
+    texts = draw_texts(inspector, Appearance())
+    sizes = draw_font_sizes(inspector, Appearance())
+    which = findfirst(text -> occursin("which is", text[1]), texts)
+    @test which !== nothing && which > 1
+    @test sizes[which] == sizes[which - 1] == make_scaled_theme(ReferenceTheme()).font.size
 end
 
 @testset "a document of the Help menu and of an inspector follows the font scale" begin

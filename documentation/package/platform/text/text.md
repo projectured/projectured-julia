@@ -172,7 +172,8 @@ none they draw the default values. The natural renderer gives them the scaled
 reference that `ReferenceToText` and `ReferenceToHumanReadableText` draw: the
 punctuation, a name, an index, a type, a projection and an unknown step. Each
 projection holds all its values as one style field and reads it once at each
-print. The inspector gives it the scaled theme of its `Appearance`.
+print. Every token takes the font of the theme, and the projections take no
+font of their own. The inspector gives them the scaled theme of its `Appearance`.
 
 ## How it fits
 
