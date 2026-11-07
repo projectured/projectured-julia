@@ -666,6 +666,52 @@ function test_file_change_store()
             evaluate_operation(editor, ReleaseDocumentOperation(view))
         end
 
+        @testset "a load keeps the selection where it can, and makes the editor no fault" begin
+            folder = mktempdir()
+            path = joinpath(folder, "work.pred")
+            card(title) = DashboardCard(title, PrimitiveString(title))
+            @test save_file!(PredFile(path, Dashboard("work", Any[card("one"), card("two"), card("three")])), folder)
+            file = make_file_tab(path, UndoBuffer)
+            view = make_file_view(file)
+            editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend = HeadlessBackend(), devices = Device[], window = false, tabs = false,
+                                  appearance = false, settings = false, file_change = true)
+            store = get_session_file_change_store(; editor)
+            run_frame!(editor)
+            evaluate_operation(editor, AcquireDocumentOperation(view))
+            get_dashboard() = get_wrapped_document(get_file_content(file))
+            # The caret is in the third card.
+            caret = extend_reference(find_document_path(editor.document, get_dashboard().cards[3]),
+                                     FieldReferenceStep("title"), PositionReferenceStep(2))
+            replace_selection!(editor.document, annotate_reference_types(editor.document, caret))
+            run_frame!(editor)
+            before = length(get_session_fault_log(; editor).entries)
+            length_before = length(get_reference_steps(strip_reference_types(get_selection(editor.document))))
+            # The file loses two cards.
+            @test save_file!(PredFile(path, Dashboard("work", Any[card("one")])), folder)
+            deadline = time() + 10.0
+            while get_file_disk_state(file).read_count == 0 && time() < deadline
+                drain_file_changes!(; editor, store)
+                sleep(0.05)
+            end
+            _draw_file_view(editor, view)
+            @test _run_frames_until(editor, () -> _is_file_read(file))
+            @test length(get_dashboard().cards) == 1
+            selection = get_selection(editor.document)
+            @test is_valid_reference(editor.document, selection)
+            @test length(get_reference_steps(strip_reference_types(selection))) < length_before
+            run_frame!(editor)
+            @test length(get_session_fault_log(; editor).entries) == before
+            # A selection that the new document still has stays where it is.
+            keep = annotate_reference_types(editor.document, extend_reference(
+                find_document_path(editor.document, get_dashboard().cards[1]),
+                FieldReferenceStep("title"), PositionReferenceStep(1)))
+            replace_selection!(editor.document, keep)
+            evaluate_operation(editor, ReloadFileOperation(file))
+            @test string(strip_reference_types(get_selection(editor.document))) == string(strip_reference_types(keep))
+            evaluate_operation(editor, ReleaseDocumentOperation(view))
+        end
+
         @testset "two new files get two states of their own" begin
             first_file, second_file = TextFile("first.txt", "a"), TextFile("second.txt", "b")
             @test get_file_disk_state(first_file) isa FileDiskState

@@ -601,10 +601,19 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         `test_open_page_operation()` 95, `test_file_tab()` 31, `test_file_watch_window()` 16,
         `test_user_interface_file()` 22, all Pass; `test_application()` 399 Pass, 1 Fail
         (`ApplicationTest.jl:1008`), 2 Broken, the counts of the base.
-- [ ] **3. A load keeps the selection where it can (D6).** The evaluation of `ReloadFileOperation`
+- [x] **3. A load keeps the selection where it can (D6).** **Done on 2026-11-07.** The evaluation of `ReloadFileOperation`
       in `DocumentFile.jl`. Remove the limit from `filechange.md`. Test: `test_filechange()`, a new set
       with an editor. The caret is in the third paragraph, and the file loses two paragraphs. After
       the drain, the selection names a part, and the fault log has no new entry.
+      What the implementation found:
+      - `_repair_selection!(editor)` runs at the end of `ReloadFileOperation`, so every load keeps the
+        selection: the read of a watch, "Load it", `reload_file_from_disk!` and F5. A selection that
+        still names a part is left alone; else it becomes `get_valid_reference_prefix`. It runs only
+        with an `Editor`, so a load with no editor changes no selection.
+      - The test builds a dashboard file with three cards, puts the caret in the third, rewrites
+        the file with one card, and asserts a valid, shorter selection and no new fault entry.
+      - `test_filechange()` 206 Pass. (In two runs the Julia process hung at exit after the summary, in the
+        exit handler of the code generator while a watcher thread compiled; the tests all passed.)
 - [ ] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).**
       Needs step 5 of the plan of the save, which adds `open_file_document!`.
       `collect_shown_file_paths` in `FileFormatModule`, the field `shown_files` of `FileDiskState`

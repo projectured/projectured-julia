@@ -38,6 +38,7 @@ using ..ProjectionModule
 using ..ProjectionAlgebraModule
 using ..ReferenceModule
 using ..RosterModule
+using ..SelectionModule: get_selection
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule

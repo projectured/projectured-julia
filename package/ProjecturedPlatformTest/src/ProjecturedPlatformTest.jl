@@ -586,8 +586,10 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
-using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep,
-    annotate_reference_types, extend_reference, strip_reference_types
+using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep, PositionReferenceStep,
+    annotate_reference_types, extend_reference, strip_reference_types, get_reference_steps, is_valid_reference
+using ProjecturedKernel.SelectionModule: get_selection, replace_selection!
+using ProjecturedPlatform.FaultViewModule: get_session_fault_log
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
 import ProjecturedPlatform.SerializationModule

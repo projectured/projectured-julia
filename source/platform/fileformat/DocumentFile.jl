@@ -547,9 +547,10 @@ The file keeps the hash of the text that it read and takes its band away.
 file on disk is hashed now ([`compute_file_text_hash`](@ref)). The file counts every
 change that was reported so far as read.
 
-It writes no selection. F5 answers it together with a selection of the whole
-file, which every reader above makes a path from the root, because the old
-selection pointed into the replaced content.
+A selection of the editor that names a part which the new document lacks becomes the
+longest start of its path that names a part; a selection that still names a part
+stays where it is. F5 answers it together with a selection of the whole file, which
+every reader above makes a path from the root.
 
 F5 answers it; code reads a file again with `reload_file_from_disk!`.
 
@@ -580,6 +581,19 @@ function evaluate_operation(editor, op::ReloadFileOperation)
         (state.file_stamp = compute_file_stamp(abspath(get_filename(file))))
     state.loaded_count = max(state.loaded_count, state.read_count)
     state.band = nothing
+    _repair_selection!(editor)
+    nothing
+end
+
+# The selection of the editor after a load: it stays where it is, or when the new
+# document lacks the part that it names, it becomes the longest start of its path that
+# names a part. A selection that names no part can make a printer fail at each frame.
+function _repair_selection!(editor)
+    editor isa Editor || return nothing
+    root = editor.document
+    selection = get_selection(root)
+    (selection isa ConcreteReference && !is_valid_reference(root, selection)) || return nothing
+    evaluate_operation(editor, ReplaceSelectionOperation(get_valid_reference_prefix(root, selection)))
     nothing
 end
 

@@ -87,5 +87,5 @@ nothing: no drain would bring its changes, and its watcher task would run foreve
 
 ## Limits
 
-- A load reads the file again with `ReloadFileOperation`, which writes no selection; a selection that pointed into the old content can point at nothing.
+- A load keeps the selection of the editor, or the longest start of its path that still names a part. The part under the pointer can name no part after a load, until the pointer moves.
 - A file that is removed keeps its document as it is.
