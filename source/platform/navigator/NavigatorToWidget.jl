@@ -145,7 +145,8 @@ end
 
 # The widgets of the address in the view that the address copy names. The path
 # view is a press that starts an edit, and while an edit is on, the syntax of the
-# address copy, with a mark when Enter read a path that reaches no node.
+# address copy, with a mark when Enter read a path that reaches no node. The types
+# view puts the same mark before the steps that an edit cut.
 function _make_address_part(navigator::Navigator, crumbs, address_output, path)
     draft = navigator.address_draft
     view = draft.view
@@ -153,11 +154,19 @@ function _make_address_part(navigator::Navigator, crumbs, address_output, path)
         draft.edited || return Any[WidgetToolbarItem(path; tooltip = TooltipNote(; title = "Path",
                                        keys = find_bound_keys(Navigator, "Edit the address"), text = "Edit the path."))]
         draft.unreached_step == 0 && return Any[address_output]
-        return Any[address_output, WidgetLabel("✗ step $(draft.unreached_step) reaches no part")]
+        return Any[address_output, _make_unreached_icon(), WidgetLabel("step $(draft.unreached_step) reaches no part")]
     end
-    view === :types && return Any[WidgetLabel(_get_types_text(navigator))]
+    if view === :types
+        types = WidgetLabel(_get_types_text(navigator))
+        cut = _find_cut_steps_text(navigator)
+        return cut === nothing ? Any[types] : Any[types, _make_unreached_icon(), WidgetLabel(cut)]
+    end
     _get_crumb_widgets(crumbs)
 end
+
+# The mark before the part of an address that reaches no node: a cross in the
+# color of a fault.
+_make_unreached_icon() = WidgetIcon(:x; role = :error)
 
 # The press on the path, which starts an edit: its label is the path.
 function _make_path_action(navigator::Navigator)
@@ -177,15 +186,17 @@ _get_step_text(step::FieldReferenceStep) = "." * step.name
 _get_step_text(step::RangeReferenceStep) = "[" * string(step.stop) * "]"
 _get_step_text(step::ReferenceInsertion) = step.value
 
-# The path of the page with the type of each node, and, when an edit cut the
-# address, a mark and the part that no longer reaches a node.
-function _get_types_text(navigator::Navigator)
-    page = get_navigator_page_address(navigator)
-    text = string(annotate_reference_types(navigator.content, page))
+# The path of the page with the type of each node.
+_get_types_text(navigator::Navigator) =
+    string(annotate_reference_types(navigator.content, get_navigator_page_address(navigator)))
+
+# The steps of the address that no longer reach a node after an edit cut it, or
+# `nothing` when every step reaches one.
+function _find_cut_steps_text(navigator::Navigator)
     stored = get_reference_steps(navigator.address)
-    reached = length(get_reference_steps(page))
-    reached < length(stored) || return text
-    text * "  ✗ " * join(_get_step_text(step) for step in stored[(reached + 1):end])
+    reached = length(get_reference_steps(get_navigator_page_address(navigator)))
+    reached < length(stored) || return nothing
+    join(_get_step_text(step) for step in stored[(reached + 1):end])
 end
 
 # ── The address ───────────────────────────────────────────────────────────────

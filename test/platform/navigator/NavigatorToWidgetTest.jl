@@ -263,10 +263,11 @@ function test_navigator_to_widget()
         navigator.address_draft.view = :types
         shelf.books[2].chapters = _nav_vector(NavigatorTestChapter[])
         iomap = print_document(make_navigator_projection(), nothing, navigator, nothing)
-        address = iomap.output.children[1].children[5]
+        (address, mark, cut) = iomap.output.children[1].children[5:7]
         @test address isa WidgetLabel
-        @test endswith(address.content, "✗ [1]")
         @test occursin("::NavigatorTestBook.chapters", address.content)
+        @test mark isa WidgetIcon && mark.name === :x && mark.role === :error
+        @test cut isa WidgetLabel && cut.content == "[1]"
     end
 
     @testset "undo records no visit in an editor" begin
