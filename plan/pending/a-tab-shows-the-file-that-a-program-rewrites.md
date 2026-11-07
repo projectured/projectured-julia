@@ -596,7 +596,24 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         rows that show are the work of step 1 (`test_dashboard_render()`). The test of the Back
         list is in `ExplorerTest.jl`, where the explorer helpers are, and has no caret in the file.
       - omnet-julia: the project page holds the file of its store (the editor's open file of the
-        same path, else its own), and its facts demand the text of that file.
+        same path, else its own, `_take_open_fingerprint_file!`), and its facts demand the text of
+        that file.
+      - The store file of the page has no history, so by D1 a write of an update task kept the old
+        text and gave a band that no view of the page draws: the count stayed old (main: the same,
+        with a warning). The owner decided on 2026-11-07 ("Yes") that the fingerprint store is a
+        file that a program writes and a person does not edit:
+        `is_editable_file_type(::Type{<:LegacyFingerprintStoreFile}) = false` (omnet-julia
+        `df3525ac6`). Its file takes each write by itself, the count follows the file, and Ctrl+S
+        writes nothing of it. The owner said that a file that code writes and the editor reads
+        again to present it is a common behaviour to support explicitly; the type answer is that
+        support, as for the result files and the event log.
+      - The assistant also proposed the hash of a print against the hash of the last load for an
+        editable file with no history, and the owner said "Yes" to it on 2026-11-07. That is
+        option B of D1, which the owner rejected on 2026-11-05. It is held, not made, until the
+        owner chooses again.
+      - omnet results: `test_fingerprint_store_document()` 32, `test_project_page()` 100,
+        `test_campaign_explorer_content()` 57, all Pass; `test_ide_file_navigator()` 50 Pass, 2
+        Fail (`IdeNavigatorTest.jl:50`, `:57`, the counts of main).
       - Results (projectured-julia): `test_filechange()` 198 Pass, `test_explorer()` 340,
         `test_open_page_operation()` 95, `test_file_tab()` 31, `test_file_watch_window()` 16,
         `test_user_interface_file()` 22, all Pass; `test_application()` 399 Pass, 1 Fail
