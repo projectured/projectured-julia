@@ -146,13 +146,13 @@ find_first_baseline(iomap::MathIoMap) = Int(iomap.ascent[])
 # ════════════════════════════════════════════════════════════════════════════
 
 """
-    MathConfig(; theme = nothing, measure, font, slanted, ink, hint)
+    MathConfig(; theme = nothing, measure)
 
 What every rule of one renderer shares: the two faces, the text measurer and the
-two ink colors. One value is built by `MathToGraphics` and handed to each rule,
-so a formula cannot end up half in one font and half in another. `theme` is a
-`MathTheme`, scaled or not, or `nothing` for the default values; a field given
-explicitly overrides the theme's own.
+colors. One value is built by `MathToGraphics` and handed to each rule, so a
+formula cannot end up half in one font and half in another. `theme` is a
+`MathTheme`, scaled or not, or `nothing` for the default values, and it gives
+every face and every color.
 """
 @cell_struct UntrackedCell struct MathConfig
     font::StyleFont        # upright: numbers, operators, function names, symbols
@@ -163,14 +163,10 @@ explicitly overrides the theme's own.
     selection_wash::StyleColor   # the wash a selected box paints over itself
 end
 
-MathConfig(; theme = nothing,
-             measure::TextMeasure = FontFileMeasure(),
-             font = get_math_style(theme, :font),
-             slanted = get_math_style(theme, :slanted_font),
-             ink = get_math_style(theme, :ink),
-             hint = get_math_style(theme, :hint),
-             selection_wash = get_math_style(theme, :selection_wash)) =
-    MathConfig(font, slanted, measure, ink, hint, selection_wash)
+MathConfig(; theme = nothing, measure::TextMeasure = FontFileMeasure()) =
+    MathConfig(get_math_style(theme, :font), get_math_style(theme, :slanted_font), measure,
+               get_math_style(theme, :ink), get_math_style(theme, :hint),
+               get_math_style(theme, :selection_wash))
 
 """
     MathMetrics
@@ -1969,16 +1965,14 @@ end
 # ════════════════════════════════════════════════════════════════════════════
 
 """
-    MathToGraphics(; measure, theme = nothing, style, font = nothing, slanted = nothing,
-                    ink = nothing, hint = nothing) -> TypeDispatchingProjection
+    MathToGraphics(; measure, theme = nothing, style) -> TypeDispatchingProjection
 
 Every math rule, sharing one configuration. Splice `.dispatch` into a bigger
 table the way `WidgetToGraphics(…).dispatch` is spliced, so a formula renders
 the same wherever it appears.
 
-`theme` is a `MathTheme`, scaled or not, or `nothing` for the default values.
-`font`, `slanted`, `ink` and `hint` each give a fixed value when they are not
-`nothing`, and the theme's own value otherwise.
+`theme` is a `MathTheme`, scaled or not, or `nothing` for the default values,
+and it gives every face and every color.
 
 `style` is the style level of the root: `:display` sets a formula on its own
 line (limits above and below a sum, a taller fraction) and `:text` sets it in a
@@ -1986,16 +1980,8 @@ line of prose.
 """
 function MathToGraphics(; measure::TextMeasure = FontFileMeasure(),
                         theme = nothing,
-                        style::Symbol = :display,
-                        font::Union{StyleFont,Nothing} = nothing,
-                        slanted::Union{StyleFont,Nothing} = nothing,
-                        ink::Union{StyleColor,Nothing} = nothing,
-                        hint::Union{StyleColor,Nothing} = nothing)
-    c = MathConfig(; theme, measure,
-                     font = something(font, get_math_style(theme, :font)),
-                     slanted = something(slanted, get_math_style(theme, :slanted_font)),
-                     ink = something(ink, get_math_style(theme, :ink)),
-                     hint = something(hint, get_math_style(theme, :hint)))
+                        style::Symbol = :display)
+    c = MathConfig(; theme, measure)
     TypeDispatchingProjection(
         MathVariable        => MathVariableToGraphics(c, style),
         MathSymbol          => MathSymbolToGraphics(c, style),

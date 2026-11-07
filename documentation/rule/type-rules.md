@@ -74,7 +74,7 @@ Three other texts keep a font of their own:
 - **A document with a style of its own.** A chart document holds a `ChartStyle`, whose fonts are values of the document, as its colours are.
 - **The scripts of a formula.** The math typesetter draws a script at 0.7 and a second script at 0.5 of the size of its font. They follow the role, because the typesetter multiplies the size of the font that the role gives.
 
-A projection holds the fonts of its theme as style fields, and its builder fills them from the theme, as `make_conversation_composer_projection` fills the `code_font` of the composer. Only the math builders take a font beside their theme: `MathToGraphics` and `MathConfig` take `font` and `slanted`. A caller that passes them gets those fonts, and no role changes them.
+A projection holds the fonts of its theme as style fields, and its builder fills them from the theme, as `make_conversation_composer_projection` fills the `code_font` of the composer. No builder takes a font beside its theme.
 
 ## 5. How a new widget, panel or domain gets its fonts
 

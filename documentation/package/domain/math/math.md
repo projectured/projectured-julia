@@ -66,7 +66,7 @@ Most rules are `@projection_template` builders, so the printer, the reference ma
 
 ### The two-dimensional form
 
-`MathToGraphics(; measure, font, slanted, style, ink, hint)` typesets its own boxes. The generic layouts align by top, centre or bottom, and none of them can put a fraction on the baseline of the row that holds it.
+`MathToGraphics(; measure, theme, style)` typesets its own boxes. The generic layouts align by top, centre or bottom, and none of them can put a fraction on the baseline of the row that holds it.
 
 **The box protocol.** Every rule returns a `MathIoMap`, which publishes the box as three cells beside the usual fields: `width`, `ascent` from the top of the box down to the baseline, and `descent` from the baseline down. A parent reads the cells of its children to place them, and wraps the placed children in a `GraphicsCanvas`. A change in one leaf computes again only the boxes above it. `GridLayoutIoMap` is the precedent: an IO map can publish geometry so that a parent can place its child. A formula answers `find_first_baseline` with its ascent, so a row on the baseline (`vertical_align = :baseline`) sets a label on the line of the formula, beside a tall fraction too.
 
@@ -115,9 +115,9 @@ the default that the domain draws with no appearance. A projection holds its
 styles as fields, and no theme; nothing in it scales or asks whether a theme is
 scaled. `MathToSyntax(; theme, syntax_theme)` gives each projection the style of
 its role with `get_math_style`, from `theme`, a `MathTheme` scaled or not, or
-the default styles for `nothing`. `MathToGraphics(; measure, theme, …)` builds
-one `MathConfig` the same way, and a font or a color that a keyword of
-`MathToGraphics` names stays fixed. The natural registration gives the scaled
+the default styles for `nothing`. `MathToGraphics(; measure, theme, style)` builds
+one `MathConfig` the same way, and the theme gives every font and every color of
+it. The natural registration gives the scaled
 theme of the `Appearance` of the editor, so the view follows its scales, and
 the appearance tab shows a section for `MathTheme`.
 
