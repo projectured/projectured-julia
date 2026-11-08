@@ -492,10 +492,11 @@ _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? 
 const _COLUMN_STEPS = (FieldReferenceStep("content"), FieldReferenceStep("children"))
 
 # The steps from the column of the detail to the place of each document of a
-# task: the slot of the field in the column, then the one place in the slot. The
-# slot of the document of the kind is the fourth part of the column, below the
-# header line, the error line and the buttons, and the slot of the tree of the
-# processes is the fifth (`_build_task_parts`).
+# task: the slot in the column, then the place in the slot. The slot of the
+# document of the kind is the fourth part of the column, below the header line,
+# the error line and the buttons, and it holds the one place. The tree of the
+# processes is the first part of the fifth, the slot of the parts below the
+# document (`_build_task_parts`).
 const _DOCUMENT_SLOT_STEPS = (kind_document = (RangeReferenceStep(3, 4), FieldReferenceStep("children"),
                                                RangeReferenceStep(0, 1)),
                               process_tree = (RangeReferenceStep(4, 5), FieldReferenceStep("children"),
@@ -600,8 +601,8 @@ end
 # out. It is the only reader of what it holds, so the column around it stays as
 # it is when the part shows something else, and the other parts of the column
 # do not print again.
-function _make_detail_slot(parts)
-    slot = VerticalLayout(Any[]; child_width = Fill)
+function _make_detail_slot(parts; gap::Integer = 0)
+    slot = VerticalLayout(Any[]; gap, child_width = Fill)
     set_cell_computation!(getfield(slot.children, :elements),
                           () -> Cell[Cell(part) for part in parts() if part !== nothing])
     slot
@@ -669,11 +670,12 @@ end
 _find_alone_page(pages::_KindPages) = (key = pages.key[]; key == 0 ? nothing : pages.shown[key]())
 
 # The parts of the detail of a task, made one time: the header line, the error
-# line and the buttons; the slot of the document of the kind and the slot of the
-# tree of the processes while the task runs; and the cards `Process` and
-# `Earlier executions` and the two streams. Each part reads the selected task in
-# a computation of its own, so a card stays the same card while the person
-# selects rows, and keeps its fold.
+# line and the buttons; the slot of the document of the kind; and one slot of the
+# parts below it, which holds only the parts that show: the tree of the processes
+# while the task runs, the cards `Process` and `Earlier executions` while they have
+# something to show, and the two streams. Each part reads the selected task in a
+# computation of its own, so a card stays the same card while the person selects
+# rows, and keeps its fold. A part that does not show takes no place and no gap.
 function _build_task_parts(p, doc::TaskGroupDocument, detail, pages::_KindPages)
     group = get_task_group(doc)
     selected = () -> _find_selected_task_document(doc)
@@ -710,18 +712,19 @@ function _build_task_parts(p, doc::TaskGroupDocument, detail, pages::_KindPages)
         Any[HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)]
     end)
     kind = _make_detail_slot(() -> (key = pages.key[]; key == 0 ? Any[] : Any[pages.places[key]]))
-    processes = _make_detail_slot(() -> begin
-        document = selected()
-        tree = document === nothing ? nothing : getfield(document, :process_tree)[]
-        tree === nothing && return Any[]
-        Any[_follow_detail_part!(detail, LayoutConstraint(tree; width = Fill),
-                                 (_COLUMN_STEPS..., _DOCUMENT_SLOT_STEPS.process_tree...))]
-    end)
-    Cell[Cell(part) for part in Any[header, error_line, buttons, kind, processes,
-                                    _build_process_card(p, doc, selected),
-                                    _build_earlier_executions_card(p, selected),
-                                    _build_stream_part(p, selected, :output),
-                                    _build_stream_part(p, selected, :error_output)]]
+    tree = Cell(@computation (document = selected();
+                              document === nothing ? nothing : getfield(document, :process_tree)[]))
+    (process, shows_process) = _make_process_card(p, doc, selected)
+    (executions, shows_executions) = _make_earlier_executions_card(p, selected)
+    (output, error_output) = (_build_stream_part(p, selected, :output), _build_stream_part(p, selected, :error_output))
+    below = _make_detail_slot(; gap = p.section_gap) do
+        shown = tree[]
+        place = shown === nothing ? nothing :
+            _follow_detail_part!(detail, LayoutConstraint(shown; width = Fill),
+                                 (_COLUMN_STEPS..., _DOCUMENT_SLOT_STEPS.process_tree...))
+        Any[place, shows_process[] ? process : nothing, shows_executions[] ? executions : nothing, output, error_output]
+    end
+    Cell[Cell(part) for part in Any[header, error_line, buttons, kind, below]]
 end
 
 # The detail of the selected task: one column of parts in a scroll area that
@@ -749,28 +752,39 @@ function _build_detail(p, doc::TaskGroupDocument, ctx)
     (detail, pages)
 end
 
-# The card `Process`: the facts of the process of the task that `selected()`
-# answers, in a slot that holds the card only while the task has such a fact. The
+# The card `Process` with the facts of the process of the task that `selected()`
+# answers, and a cell of whether it shows: while the task has such a fact. The
 # card is made one time, and only its content follows the task. A card reads
-# whether it is visible when it prints, so the slot, not the card, comes and goes,
-# and the parts around it do not print again.
-function _build_process_card(p, doc, selected)
+# whether it is visible when it prints, so a slot holds the card while it shows,
+# and the parts around the slot do not print again.
+function _make_process_card(p, doc, selected)
     facts = Cell(@computation (document = selected();
                                document === nothing ? nothing : _make_task_process_group(doc, document)))
     card = WidgetCard(; title = "Process", content = _make_detail_slot(() -> Any[facts[]]), collapsible = true)
-    shows = Cell(@computation (shown = facts[]; shown !== nothing && getfield(shown, :visible)[]))
+    (card, Cell(@computation (shown = facts[]; shown !== nothing && getfield(shown, :visible)[])))
+end
+
+# The card `Process` of the task that `selected()` answers in a slot of its own,
+# which holds it while it shows (`_make_process_card`).
+function _build_process_card(p, doc, selected)
+    (card, shows) = _make_process_card(p, doc, selected)
     _make_detail_slot(() -> Any[shows[] ? card : nothing])
 end
 
-# The card `Earlier executions` of the task that `selected()` answers, in a slot
-# that holds the card only while the task has such executions. The card is made
-# one time.
-function _build_earlier_executions_card(p, selected)
+# The card `Earlier executions` of the task that `selected()` answers, and a cell
+# of whether it shows: while the task has such executions. The card is made one
+# time.
+function _make_earlier_executions_card(p, selected)
     content = _make_detail_slot(() -> (document = selected();
                                        document === nothing ? Any[] : Any[_build_earlier_executions(p, document)]))
     card = WidgetCard(; title = "Earlier executions", content, collapsible = true)
-    shows = Cell(@computation (document = selected();
-                               document !== nothing && !isempty(get_earlier_task_executions(document))))
+    (card, Cell(@computation (document = selected();
+                              document !== nothing && !isempty(get_earlier_task_executions(document)))))
+end
+
+# The card `Earlier executions` in a slot of its own, which holds it while it shows.
+function _build_earlier_executions_card(p, selected)
+    (card, shows) = _make_earlier_executions_card(p, selected)
     _make_detail_slot(() -> Any[shows[] ? card : nothing])
 end
 
