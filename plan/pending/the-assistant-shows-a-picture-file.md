@@ -1,7 +1,9 @@
 # The assistant shows a picture file
 
 > **Kind:** plan · **Status:** a plan, written 2026-11-05, revised on 2026-11-08 at `main`
-> `aaa2ecf94` to G4 D10, G4 D14 and the file document. Nothing is built.
+> `aaa2ecf94` to G4 D10, G4 D14 and the file document. Steps 1 to 4 are built on branch
+> `picture-file`, rebased on `main` `d0b9c06c5` on 2026-11-09; step 5 is done except two items
+> that a person checks by hand. Not on main.
 > · **Sibling plans:** G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md), and the plan of the
 > save [a-file-saved-alone-names-the-files-that-it-holds.md](a-file-saved-alone-names-the-files-that-it-holds.md)
@@ -753,6 +755,35 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       tab must show the natural size while the card stays at the fit. Ctrl+0 must fit it again, and
       Ctrl+wheel must zoom the transform tab. Then `Pkg.precompile()` runs in omnet-julia, and this
       plan moves to `plan/done/`.
+
+      **Done on 2026-11-09, except two items below,** on `picture-file` `92e96eb1a` and omnet
+      `b9150323a` (both on their main). The IDE ran as `run_window_command(…; entry =
+      run_omnet_ide, …) <root> --mcp` in an environment that loads both worktrees, over a scratch
+      copy of the `fifo` sample with three charts of the fragmentation showcase in `media/`. The
+      session could not reconnect its MCP connection, so a small HTTP client called the same
+      server: `execute_julia_code` and `take_picture`. The keys went in as `WorkloadKey` inputs
+      through `send_workload_inputs!`, as a keyboard gives them.
+      - The first draw read each of the three files once and decoded each picture once (6 works),
+        although the throughput chart shows in a card, a file tab and a zoom tab. Before the
+        pixels come, each card shows the box with the path.
+      - A copy of another chart over `media/throughput.png` gave one read of the file, one load
+        and one decode (8 works). The file tab, the card and the zoom tab show the new chart, and
+        a show of another tab starts no work. A `cp` can give two reports (it empties the file,
+        then writes it): an earlier run counted two reads of the time and the size, and still one
+        load and one decode.
+      - Ctrl+1 in the file tab shows the chart at its natural size, 1517 px wide, and the card
+        stays at the fit. Ctrl+0 fits it again.
+      - `Pkg.precompile()` of omnet-julia on the rebased worktrees: no warning.
+      - **Not checked live:** Ctrl+wheel in the zoom tab, because the SDL backend gives a sent
+        input to the window only for a move, a button, a key and a character
+        (`SdlWorkload.jl`), and `test_widget_transform_pane()` covers it; and a picture file as
+        the value of a call in the conversation of the window, because the MCP client is not that
+        conversation. A person checks both by hand.
+      - **Found:** F1, the command palette and `run_command!` do not offer Ctrl+1 and Ctrl+0,
+        because a scroll pane reads them with `@gesture_case` in its reader and not as a binding.
+        The zoom keys of a transform pane are read in the same way. `describe_commands` of the
+        selected picture lists only "Reload file from disk: F5". This holds for every key of the
+        panes, so the owner decides it apart from this plan.
 
 ## 6. Risks
 
