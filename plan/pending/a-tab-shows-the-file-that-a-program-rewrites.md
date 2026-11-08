@@ -784,6 +784,15 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
   uses. Step 2 tests it: an unread file reads at its first draw, and a save before that read writes
   nothing.
 
+- **A file that shows itself, or two files that show each other, hold each other** (found at the
+  review of step 4, 2026-11-08). `open_shown_files!` gets the editor's one document of each path,
+  so a page whose image names the page itself holds itself, and two pages whose images name each
+  other hold each other. The release of the last tab then leaves each with a holder, so the file
+  stays watched and in the open files until the editor ends. A picture shows no file, so this can
+  not happen with the pictures of steps 4 and 5; it can happen only when an image names a file of a
+  type that shows files. It belongs to the lifecycle of a document (Q10), so step 4 does not
+  guard it.
+
 ## 9. Open questions for the owner
 
 1. **D1.** Answered by the owner on 2026-11-05: yes (option A). The question was: keep D15e: only a history says whether a page has edits. Every open of a file gives a
