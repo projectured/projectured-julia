@@ -1,8 +1,8 @@
 # A scroll area of a list takes the height it can
 
 > **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-08 at `main` `140ae8853`.
-> Nothing is built. The owner chose the general rule on 2026-11-08; the model below is a recommendation of the
-> author and the owner has not approved it. · **Stands on:**
+> Nothing is built. The owner chose the general rule on 2026-11-08, and then model A with the empty room under a
+> short list ("Agreed", 2026-11-08). The other open questions are proposed decisions, approved with the plan. · **Stands on:**
 > [layout-rules.md](../../documentation/rule/layout-rules.md) §3, §3b, §3c,
 > [layout.md](../../documentation/package/platform/layout/layout.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md)
@@ -108,14 +108,20 @@ It never gives a lazy list a whole-list number, adds no field, and changes only 
 little today. C is a refinement for later if the empty room below a short list looks wrong; it can be added to A
 without undoing A.
 
-## 6. Open questions for the owner
+## 6. Decisions
 
-1. A pane with no offer and no maximum (no edge at all) keeps its content height (`0` for a list) under A. Is that
-   right, or must it take the visible height of its context?
-2. Is the empty room below a short list in a card acceptable for the first step (A), with C only on request?
-3. The note that the rule "also fixes a table in a card" does not hold (section 2). Is the nested dashboard the
-   case you meant, or is there a table in a card that is hidden today? If so, give the repro.
-4. Does the rule apply to the `WidgetTransformPane` too? The author says no (no list is ever its content).
+1. **The model: A.** Decided by the owner on 2026-11-08 ("Agreed"): a pane that gets no height from its
+   container and holds a list is as tall as the limit of its range, so a short list in a card leaves empty
+   room under it. C (a short list only as tall as its rows) can come later on top of A, with no part of A
+   undone, if the owner asks for it.
+2. **A pane with no edge at all.** Proposed by the assistant: a pane with no offer and no maximum keeps the
+   extent of its content, `0` for a list, as now. Every window gives a maximum, so no pane of the code base
+   is in this case; a pane that is, gets no number that nobody gave.
+3. **No table in a card is part of this plan.** Proposed by the assistant: the note that the rule "also
+   fixes a table in a card" came from the assistant and does not hold (section 2). The nested dashboard is
+   the case.
+4. **`WidgetTransformPane` does not take the rule.** Proposed by the assistant: no list is ever its
+   content.
 
 ## 7. Steps (fixed)
 
