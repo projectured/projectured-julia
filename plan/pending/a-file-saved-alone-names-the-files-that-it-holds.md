@@ -626,7 +626,7 @@ through the reload (D7), so no test can check the open without the reload.
    Then `test_filechange()`, `test_file_tab()`, `test_user_interface_file()` and
    `test_platform_layering()`.
 
-   **5b. The display of a cycle (D11, the display).** Added on 2026-11-08 after the owner decided
+   **5b. The display of a cycle (D11, the display).** **Done on 2026-11-08.** Added on 2026-11-08 after the owner decided
    it. The view of a file whose file already appears on the path of its place draws as a closed,
    collapsible card with its title and the path of its file, and prints no content while it is
    closed. Every printer that draws the content of a held file inside another document follows
@@ -638,6 +638,49 @@ through the reload (D7), so no test can check the open without the reload.
    card of `second.pred` is collapsed. Two cards of one file in one dashboard both show it. A chain
    `a.pred` → `b.pred` → `c.pred` with no cycle shows whole. Then the tests of step 5 again.
 
+   What the implementation found (5b):
+   - The cycle is not in `FileViewToWidget`: a card of a dashboard holds the file document itself
+     before its view exists, so the cards print through `FileToContent`, and the view of a file
+     prints its file in its scroll pane through `FileToContent` too. The rule is in `FileToContent`
+     alone (`FileToContent.jl`); a view follows it with no code of its own. A file type that
+     registers a projection of its own for its file does not follow it.
+   - Which way finds the files on the path: the per-print value in `ctx.properties`
+     (`:path_files`, a tuple of files, outermost first). The path `ctx.reference[]` is not usable:
+     measured, it is a path through the output of the print (`::VerticalLayout.children::CellVector[1]
+     ::PredFile.content::UndoBuffer.content::VerticalLayout...::WidgetCard`), not a path from the
+     root document. It names the type of each file and not the file, and `evaluate_reference` on the
+     root of the editor raises `ReferenceTypeMismatchException`. `FileToContent` prints the content
+     of a file through `print_child` with a context that it extends with `with_property`, and the
+     prints of the widget stage below it inherit the properties, so the value is there at every
+     level of the cycle. Nothing is stored in a document, and no kernel file changed.
+   - A `WidgetCard` prints its content once, when it is made, whatever `collapsed` says
+     (`print_document(::WidgetCardToGraphicsCanvas)` calls `print_child` on `w.content` before
+     `_card_build` reads `collapsed`), so a closed card with the file content as its content would
+     print the cycle without end. Measured: a content computed from `collapsed` is read once and
+     does not follow a toggle. The card holds a `VerticalLayout` whose children are a reactive
+     `CellVector` that is empty while the card is closed, which is the reactive-list form that the
+     card comments name. A toggle fills the list and the content prints then.
+   - Measured with the reproduction script: before, the process reached 8 GB (killed, OOM) in 4
+     minutes in `_run_frames_until`; after, it ends in 22 seconds with 100 MB live, and five more
+     frames and a hand draw take 0.0 s each.
+   - Limit: the paths of the file are not mapped into an opened repeat (the card shows the content
+     in a layout, and no map aligns the two), so the caret does not go into an opened repeat and a
+     click there selects nothing. The repeat is for reading. A map for it would need a map for the
+     layout around the content.
+   - Tests: a set of `test_explorer()` has the tab of `first.pred` as the window, and after
+     `second.pred` reads the frame draws one closed card ("first.pred", its path, the right-pointing
+     chevron) and memory stays low. A direct print with the path `(tab, second)` gives a closed
+     card without content; `ToggleCollapseOperation` opens it, and then "to second" shows and the
+     card of `second.pred` in it is closed. A second set has two cards of one file in one dashboard
+     (both show the text) and the chain `a.pred` → `b.pred` → `c.pred` (no closed card). A click on
+     the chevron in the headless window did not reach the card (measured), so the test toggles
+     the operation.
+   - Results (projectured-julia): `test_explorer()` 376 pass (16 new); `test_pred_file()` 87 pass;
+     `test_filechange()` 228 pass and 1 broken; `test_file_tab()` 31; `test_user_interface_file()` 22;
+     `test_assistant_documentation()` and `test_assistant_verbs()` pass as before.
+     `test_platform_layering()` fails the same two sets as main. omnet-julia: `test_demo_catalog()`,
+     `test_workbench()`, the workbench tests, `test_fingerprint_store_document()` and
+     `test_project_page()` pass.
    What the implementation found:
    - `_splice_walk!` and `_splice_tuple` of `FileSplice.jl` take a `resolve` function in place of
      `(project, index, tolerant)`, so `load_project` and `splice_held_files!` share one walk.

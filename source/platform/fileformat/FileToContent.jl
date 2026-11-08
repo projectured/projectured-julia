@@ -33,7 +33,35 @@ FileToContent(; content = nothing, accepts = _ -> true) = FileToContent(content,
 _get_content_recursion(p::FileToContent, recursion, document) =
     (p.content === nothing || !p.accepts(document)) ? recursion : p.content
 
+# The files on the path from the window to a place, outermost first: the property
+# of a context that the print of a file gives to everything below it. A file that
+# appears on its own path is a repeat.
+const _PATH_FILES_PROPERTY = :path_files
+
+get_path_files(ctx) = get_property(ctx, _PATH_FILES_PROPERTY, ())
+
+# A repeat draws as a closed card with the title and the path of its file, which
+# opens to the content of the file. While the card is closed it has no content, so
+# it prints nothing below it; the card of this one place holds the state, and the
+# content that it shows has this file on its path, so a repeat inside it is closed
+# again.
+function _make_repeated_file_card(file::FileDocument)
+    card = WidgetCard(; title = get_document_title(file),
+                      description = replace(String(get_filename(file)), homedir() => "~"),
+                      collapsible = true, collapsed = true)
+    # A card prints its content once. The layout holds the content in a list that
+    # follows the state of the card, so the content is printed when the card opens.
+    body = VerticalLayout(CellVector(@computation card.collapsed === true ? Any[] : Any[get_file_content(file)]),
+                          Cell(:left), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing))
+    set_cell_value!(getfield(card, :content), body)
+    card
+end
+
 function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
+    path_files = get_path_files(ctx)
+    any(on_path -> on_path === file, path_files) &&
+        return print_child(recursion, _make_repeated_file_card(file), ctx)
+    ctx = with_property(ctx, _PATH_FILES_PROPERTY, (path_files..., file))
     step = @reference_step(content)
     # Single-child reconciliation (`make_reconciled_child_iomap_cell`, not the plural
     # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a

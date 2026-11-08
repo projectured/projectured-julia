@@ -1386,6 +1386,101 @@ function test_explorer()
         end
     end
 
+    @testset "a place where a file repeats on its own path draws closed, and each opening shows one more level" begin
+        root = mktempdir()
+        try
+            first_path, second_path = joinpath(root, "first.pred"), joinpath(root, "second.pred")
+            first_dashboard, second_dashboard = Dashboard("first", Any[]), Dashboard("second", Any[])
+            first_file, second_file = PredFile(first_path, first_dashboard), PredFile(second_path, second_dashboard)
+            push!(first_dashboard.cards, DashboardCard("to second", second_file))
+            push!(second_dashboard.cards, DashboardCard("to first", first_file))
+            @test save_file!(first_file, root) && save_file!(second_file, root)
+            tab_file = make_file_tab(first_path, UndoBuffer)
+            view = make_file_view(tab_file)
+            # The tab of the first file is the window; the second file reads when a view of it is drawn.
+            editor, backend = _nav_editor(view; file_change = true)
+            evaluate_operation(editor, ReloadFileOperation(tab_file))
+            evaluate_operation(editor, AcquireDocumentOperation(view))
+            held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
+            second_view = make_file_view(held_second)
+            evaluate_operation(editor, AcquireDocumentOperation(second_view))
+            run_with_evaluation_editor(editor) do
+                length(print_document(FileViewToWidget(), nothing, second_view, nothing).output.children)
+            end
+            is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
+            deadline = time() + 60
+            while time() < deadline && !is_read(held_second)
+                drain_operations!(editor)
+                run_frame!(editor)
+                sleep(0.02)
+            end
+            # The frames end: the slot of the first file in the second holds the tab, and the frame
+            # draws the first file once more as a closed card with its title and its path.
+            @test is_read(held_second)
+            @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
+            for _ in 1:3
+                drain_operations!(editor)
+                run_frame!(editor)
+            end
+            @test Base.gc_live_bytes() < 3 * 2^30
+            closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
+            @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
+            @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
+            # The same place, printed with the files of its path, is a closed card that holds no content.
+            path_files = (tab_file, held_second)
+            property = ProjecturedPlatform.FileFormatModule._PATH_FILES_PROPERTY
+            context = PrinterContext(EmptyReference(), nothing, nothing, Dict{Symbol,Any}(property => path_files))
+            iomap = run_with_evaluation_editor(editor) do
+                print_document(FileToContent(), editor.projection, tab_file, context)
+            end
+            card = iomap.input
+            @test card isa WidgetCard && card.collapsible && card.collapsed === true
+            @test card.title == "first.pred" && occursin("first.pred", card.description)
+            count_texts(text) = count(entry -> entry[1] == text, _nav_drawn(iomap.output))
+            @test count_texts(closed) == 1 && count_texts("to second") == 0
+            # A click on its chevron opens it: one more level shows, and the repeat in it is closed.
+            evaluate_operation(editor, ToggleCollapseOperation(card))
+            @test card.collapsed === false
+            @test count_texts("to second") == 1 && count_texts("second.pred") == 1
+            @test count_texts(opened) == 1 && count_texts(closed) == 1
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a chain of files with no cycle, and two cards of one file, show whole" begin
+        root = mktempdir()
+        try
+            note_path = joinpath(root, "note.txt")
+            write(note_path, "hello")
+            note = make_file_tab(note_path, UndoBuffer)
+            holder = PredFile(joinpath(root, "holder.pred"),
+                              Dashboard("both", Any[DashboardCard("one", note), DashboardCard("two", note)]))
+            editor, backend = _nav_editor(make_file_view(holder); file_change = true)
+            for _ in 1:3
+                drain_operations!(editor)
+                run_frame!(editor)
+            end
+            closed = string(Char(0xe06f))
+            @test count(entry -> occursin("hello", entry[1]), _nav_texts(backend)) == 2
+            @test _nav_count(backend, closed) == 0
+            # a.pred holds b.pred, which holds c.pred.
+            names = ("a.pred", "b.pred", "c.pred")
+            files = [PredFile(joinpath(root, name), Dashboard(name[1:1], Any[])) for name in names]
+            push!(files[1].content.cards, DashboardCard("to b", files[2]))
+            push!(files[2].content.cards, DashboardCard("to c", files[3]))
+            chain_editor, chain_backend = _nav_editor(make_file_view(files[1]); file_change = true)
+            for _ in 1:3
+                drain_operations!(chain_editor)
+                run_frame!(chain_editor)
+            end
+            @test _nav_has_text(chain_backend, "to b") && _nav_has_text(chain_backend, "to c")
+            @test _nav_count(chain_backend, closed) == 0
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
     @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
         root = mktempdir()
         try
