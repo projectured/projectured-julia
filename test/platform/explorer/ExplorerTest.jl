@@ -109,6 +109,31 @@ function _explorer_right_click(editor, backend, label)
     answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
 end
 
+# A page that shows pictures, and the picture: two file types that a person does not edit.
+# The page names its pictures, one in each line of its file.
+@document struct _ExplorerShownPage <: Document
+    names::Any = String[]
+end
+@document struct _ExplorerShownPageFile <: FileDocument
+    filename::String
+    content::Any
+    disk::FileDiskState = FileDiskState()
+end
+@document struct _ExplorerShownPictureFile <: FileDocument
+    filename::String
+    content::Any
+    disk::FileDiskState = FileDiskState()
+end
+for type in (_ExplorerShownPageFile, _ExplorerShownPictureFile)
+    SerializationModule.get_file_domain(::Type{<:type}) = Document
+    SerializationModule.is_editable_file_type(::Type{<:type}) = false
+end
+SerializationModule.read_file_content(::Type{<:_ExplorerShownPageFile}, path::AbstractString) =
+    _ExplorerShownPage(; names = String[line for line in split(read(path, String), '\n') if !isempty(line)])
+SerializationModule.read_file_content(::Type{<:_ExplorerShownPictureFile}, path::AbstractString) =
+    PrimitiveString(string(filesize(path), " bytes"))
+FileFormatModule.collect_shown_file_paths(page::_ExplorerShownPage) = String[name for name in page.names]
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -1381,6 +1406,49 @@ function test_explorer()
             @test draw(later_view) == 1
             evaluate_operation(editor, ReleaseDocumentOperation(later_view))
             evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a page in a card saves as the file that it shows, and the files that it shows stay out of the saved content" begin
+        register_file_document_type!(".xpage", _ExplorerShownPageFile)
+        register_file_document_type!(".xpicture", _ExplorerShownPictureFile)
+        root = mktempdir()
+        try
+            picture_path, page_path, work_path = (joinpath(root, name) for name in ("chart.xpicture", "chart.xpage", "work.pred"))
+            write(picture_path, "pixels")
+            write(page_path, "chart.xpicture\n")
+            editor, _ = _nav_editor(PrimitiveString("x"); file_change = true, settings = Settings())
+            open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
+            # The open of a page gives it the file document of the picture that it shows.
+            page = open_file(page_path)
+            shown = get_file_disk_state(page).shown_files
+            @test collect(keys(shown)) == ["chart.xpicture"]
+            picture = shown["chart.xpicture"]
+            @test picture isa _ExplorerShownPictureFile && find_open_file_document(picture_path; editor) === picture
+            # A dashboard with the page in a card writes the file of the page, and neither the files
+            # that it shows nor the state of any file.
+            dashboard = Dashboard("work", Any[DashboardCard("page", page)])
+            text = cut_file_text(PredFile(work_path, dashboard), root)
+            @test occursin("file(\"chart.xpage\")", text)
+            @test !occursin("chart.xpicture", text) && !occursin("shown_files", text) && !occursin("FileDiskState", text)
+            @test !occursin("content_view", text) && !occursin("pixels", text)
+            # The saved dashboard reads again: its card gets a page that reads nothing yet, and the
+            # load of that page gives it the file of the picture, which the saved content still does not name.
+            @test save_file!(PredFile(work_path, dashboard), root)
+            holder = open_file(work_path)
+            card_page = get_wrapped_document(get_file_content(holder)).cards[1].content
+            @test card_page isa _ExplorerShownPageFile && find_open_file_document(page_path; editor) === card_page
+            @test isempty(get_file_disk_state(card_page).shown_files)
+            evaluate_operation(editor, ReloadFileOperation(card_page))
+            @test collect(keys(get_file_disk_state(card_page).shown_files)) == ["chart.xpicture"]
+            @test get_file_disk_state(card_page).shown_files["chart.xpicture"] === picture
+            @test cut_file_text(PredFile(work_path, get_wrapped_document(get_file_content(holder))), root) == text
+            # A page that another read finds with no editor shows no file, and saves the same text.
+            alone = make_file_tab(page_path, UndoBuffer)
+            @test isempty(get_file_disk_state(alone).shown_files)
+            @test cut_file_text(PredFile(work_path, Dashboard("work", Any[DashboardCard("page", alone)])), root) == text
         finally
             rm(root; recursive = true, force = true)
         end

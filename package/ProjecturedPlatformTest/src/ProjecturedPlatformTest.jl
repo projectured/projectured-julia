@@ -594,6 +594,7 @@ using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
 import ProjecturedPlatform.SerializationModule
 using ProjecturedPlatform.FileFormatModule
+import ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
@@ -614,6 +615,18 @@ using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D
 using ProjecturedPlatform.ExplorerModule: Dashboard, DashboardCard
 using ProjecturedPlatform.NaturalModule: NaturalToGraphics
 using ProjecturedPlatform.StyleModule: FixedMeasure
+using ProjecturedKernel.ProjectionModule: Projection
+import ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.BackendModule: Backend
+import ProjecturedKernel.BackendModule
+using ProjecturedKernel.IoMapModule: SimpleIoMap
+using ProjecturedKernel.ReferenceModule: EmptyReference
+using ProjecturedPlatform.CollectionModule: ListNode
+using ProjecturedPlatform.LayoutModule: GridLayout, VerticalLayout, Fixed, VerticalLayoutToGraphicsCanvas
+using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection
+using ProjecturedPlatform.WidgetModule: WidgetLabel
+using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsViewport, layout_vertical
+import ProjecturedPlatform.WidgetModule
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

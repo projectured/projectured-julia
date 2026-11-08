@@ -632,7 +632,7 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         the file with one card, and asserts a valid, shorter selection and no new fault entry.
       - `test_filechange()` 206 Pass. (In two runs the Julia process hung at exit after the summary, in the
         exit handler of the code generator while a watcher thread compiled; the tests all passed.)
-- [ ] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).**
+- [x] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).** **Done on 2026-11-08.**
       Needs step 5 of the plan of the save, which adds `open_file_document!`.
       `collect_shown_file_paths` in `FileFormatModule`, the field `shown_files` of `FileDiskState`
       with the file of each path, which `open_file_document!(path; editor)` answers, and the hold of
@@ -646,6 +646,56 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       again. The release stops the watch of each picture that no other holder holds. Then
       `test_explorer()`, which saves and reads a content with such a file: `shown_files` and the
       view of a card stay out of the saved content.
+      What the implementation found, and what the assistant decided at implementation:
+      - Every load goes through the evaluation of `ReloadFileOperation`: F5, the first read of an
+        unread file (`ApplyFileTextOperation` evaluates one), and a rewrite. So the update of
+        `shown_files` is one call there, `open_shown_files!(editor, file)` (a new public name, in
+        `DocumentFile.jl` next to `_splice_open_files`): it collects the paths of the unwrapped
+        content with `collect_shown_file_paths`, resolves each against the folder of the file,
+        gets each file with `open_file_document!`, stores the new `shown_files`, and evaluates
+        `ChangeHeldDocumentsOperation(file, released, acquired)` for the files that came and went.
+        That operation does nothing for a file that is not held. `_make_opened_file` reads its file
+        at once, not through a reload, so it calls `open_shown_files!` after `make_file_tab`. With
+        no editor or no file name the call does nothing. A path whose extension names no file type
+        has no file in `shown_files` (an error would break the load).
+      - `shown_files` is a field of `FileDiskState` (view state, not walked, not saved): a
+        `Dict{String,Any}` from each path as `collect_shown_file_paths` answers it to its file
+        document, empty by default. `FileDiskState` has keyword constructors only, so no call
+        changed.
+      - `collect_shown_file_paths(document)` is a generic function of `FileFormatModule` with a
+        default that answers no path; it reads no disk. Domains add methods in step 5.
+      - The hold: `acquire_document!(editor, file::FileDocument)` also holds the files of
+        `shown_files` (`hold_documents!`), and `release_document!` releases them
+        (`release_held_documents!`). A subtype with an acquire of its own, such as `SourceFile`,
+        holds none; that is acceptable.
+      - The print sets `:shown_files` in `FileToContent.print_document`, next to `:path_files`, and
+        not in the view. Reasons: `FileToContent` prints the content of every file with the file in
+        hand (a view, a card, an opened repeat); and a history around the content keeps its
+        identity over a load (`replace_wrapped_document!`), so `make_reconciled_child_iomap_cell`
+        keeps the child print and its context. A plain value in the context would be stale after a
+        load. So the value of `:shown_files` is a computed cell that reads
+        `get_file_disk_state(file).shown_files`, and the public accessor `find_shown_file(context,
+        path)` reads that cell, so a computation that calls it follows a load. The test loads a
+        page under a history with a new path, and the printer gets the new file.
+      - A new picture file document is in the open files list from `open_file_document!` on, before
+        a holder holds it. That is the known gap of the lifecycle question Q10 (save plan §7 risk);
+        step 4 does not fix it.
+      - New public names: `collect_shown_file_paths`, `open_shown_files!`, `find_shown_file`
+        (`FileFormatModule`).
+      - The test picture reads its text with the background cell of the text of a file
+        (`demand_file_text`), not with a cell of its content, because the picture of G3 is not on
+        this branch; the cell has a source of its own for each file, as the picture of G3 will.
+      - The headless backend reads every part of a frame (at most 200 new links of a list), so it can
+        not tell the rows that show from the rows that do not. The test of `test_filechange()` has a
+        backend of its own, `_ClippedBackend`, that reads only the graphics inside the clip of a
+        viewport and ends the walk of a vertical list at the first row past the bottom edge, as the
+        renderer of the SDL backend does. A page of 60 pictures with 3 rows on the screen reads 3
+        pictures. A jump of the scroll position reads the rows between the old and the new screen as
+        well, because a pane reaches the offset of a list along the rows that it has built
+        (`_clamp_to_list_ends`); the test asserts that the new screen is read and no row below it.
+      - Results: `test_filechange()` 264 Pass, 1 Broken (the marker of the open question 10), 0 Fail,
+        0 Error (the process ends with SIGSEGV after the summary, as before); `test_explorer()` 392
+        Pass; `test_pred_file()` 87 Pass; `test_file_tab()` 31 Pass.
 - [ ] **5. The image of a Markdown page draws the picture that its file keeps.** Needs G3 on main.
       `collect_shown_file_paths(::MarkdownRoot)` gives the path of each image that names no web
       address, and `_md_image_value` takes its picture from `:shown_files` and reads no disk.
@@ -799,3 +849,8 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
 11. **The file document as the watcher.** Answered by the owner on 2026-11-06: yes (D10). The
     question was: change this plan so that the file document watches its file and keeps the hash
     and the band, the view draws the band, and the page goes away?
+12. **A change of the shown paths by an edit.** Open until step 5. An edit that adds or removes a
+    shown path (step 5: a person adds an image to a Markdown page) does not change `shown_files`,
+    which step 4 updates only at a load. Proposed by the assistant: the reader of the file adds the
+    change of what it holds to such an edit, as the reader of a dashboard does for an edit of
+    `cards` (`_add_card_holds`).

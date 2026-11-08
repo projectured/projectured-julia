@@ -245,8 +245,10 @@ end
 function _make_opened_file(editor, op::OpenFileOperation)
     history = _make_editor_history_wrap(editor)
     base_dir = dirname(abspath(op.path))
-    make_file_tab(op.path, document -> history(op.wrap(
+    file = make_file_tab(op.path, document -> history(op.wrap(
         splice_held_files!(document, base_dir, path -> open_file_document!(editor, path)))))
+    open_shown_files!(editor, file)
+    file
 end
 
 # What wraps the content of a file that the editor opens: a history when the editor

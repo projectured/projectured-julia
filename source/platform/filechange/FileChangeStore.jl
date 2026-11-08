@@ -251,17 +251,20 @@ end
 # the watch. The file is the receiver of its own file. An editor with no file change
 # feed watches nothing. The open files of the editor list the file while it is held.
 # The file reads its text when it is drawn, so a file that is held and not drawn reads
-# nothing.
+# nothing. A file holds the files that it shows (`shown_files`), so each of them watches
+# its file while the file is held, and the release of the file releases them.
 function acquire_document!(editor, file::FileDocument)
     ensure_file_text_cell!(file)
     watch_document_file!(file; store = find_file_change_store(editor))
     # A file that changed while it was not held counts as a change.
     is_file_stale(file) && receive_file_change!(editor, file)
     add_open_file!(editor, file)
+    hold_documents!(editor, file, collect(values(get_file_disk_state(file).shown_files)))
     nothing
 end
 
 function release_document!(editor, file::FileDocument)
+    release_held_documents!(editor, file, collect(values(get_file_disk_state(file).shown_files)))
     unwatch_document_file!(file; store = find_file_change_store(editor))
     remove_open_file!(editor, file)
     nothing
