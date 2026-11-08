@@ -9,7 +9,7 @@
 > [agent.md](../../documentation/package/kernel/agent.md),
 > [an-assistant-carries-a-long-study-to-its-end.md](an-assistant-carries-a-long-study-to-its-end.md)
 > (built, merged), inet-cpp `plan/pending/ieee80211-chart-baseline-evolution.md` §9.3, gap G9 ·
-> **Related plans:** [the-assistant-starts-programs-as-tasks.md](the-assistant-starts-programs-as-tasks.md)
+> **Related plans:** [the-assistant-starts-programs-as-tasks.md](../done/the-assistant-starts-programs-as-tasks.md)
 > (G1, written the same day); [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md)
 > (branch `reflection-api`; steps 1 to 4 are on main `2bbc18fb5`, and steps 5 to 7 are on main since `0836ec536` to `40fca6884`). The owner decided on 2026-11-05 that steps 1 to 4 of
 > `reflection-api` land on main first, and that this plan starts from main after that.

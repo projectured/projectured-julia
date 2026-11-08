@@ -9,7 +9,7 @@
 > [assistant-api-consolidation.md](assistant-api-consolidation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md)
 > · **Sibling plans:** G1
-> [the-assistant-starts-programs-as-tasks.md](the-assistant-starts-programs-as-tasks.md), G4
+> [the-assistant-starts-programs-as-tasks.md](../done/the-assistant-starts-programs-as-tasks.md), G4
 > [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
 
 This plan closes the gap G8 of the inet-cpp plan `plan/pending/ieee80211-chart-baseline-evolution.md`,
