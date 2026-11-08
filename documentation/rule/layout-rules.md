@@ -198,20 +198,18 @@ its range when it has one, else its minimum, and else that view (§3c).
 On an axis where it has neither, a viewport passes its own range on, less its
 insets, and takes its content between the minimum and the maximum of that range:
 `e = clamp(C, m, M)`, and `e = max(m, C)` with no maximum. A `WidgetScrollPane`
-whose content on that axis is a list, which has no extent to measure, takes
-`e = M` (not less than `m`), so the rows that show are visible: a dashboard in a
-card of a dashboard shows its cards. With no maximum there is no edge to take, and
-`e = max(m, C)` holds. A list that has a row is told from an empty content by the
-canvas of the content, so an empty list, an empty column and a finite content keep
-the extent of their content. A short list leaves empty room under its last row.
-The pane stops at an edge, because the giver cuts there, and scrolls the rest. If such an axis grows, the
+whose content on that axis is a list measures the list, because a list has no
+extent of its own: a walk from the head that reaches both ends of the list within
+`M` gives `C`, the extent of its rows, and else `C = M`. So a short list takes
+only its rows, a list that reaches the edge takes `e = M`, and the walk reads only
+the children that the viewport draws: a dashboard in a card of a dashboard shows
+its cards. With no maximum there is no edge to walk to, and `e = max(m, C)` holds.
+A list that has a row is told from an empty content by the canvas of the content,
+so an empty list, an empty column and a finite content keep the extent of their
+content. The pane stops at an edge, because the giver cuts there, and scrolls the rest. If such an axis grows, the
 content gets the minimum of that range and no maximum, and the maximum is the
 visible extent. Every other widget keeps `e = max(m, C(M))`. This is what keeps
 a collapsed card body — clipped to `Fixed(30)` in height — as wide as its text.
-A list has no extent of its own, so a viewport measures a list that runs along
-such an axis: a walk from the head that reaches both ends of the list within `M`
-gives `C`, and else `C = M`. So a short list takes only its children, and the
-walk reads only the children that the viewport draws.
 
 A `WidgetShell` offers its content the same way: its authored `size`, else the
 space its parent gave, less its insets and its bands. So the shell of a window

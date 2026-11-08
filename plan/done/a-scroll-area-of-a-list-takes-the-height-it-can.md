@@ -114,6 +114,11 @@ without undoing A.
    container and holds a list is as tall as the limit of its range, so a short list in a card leaves empty
    room under it. C (a short list only as tall as its rows) can come later on top of A, with no part of A
    undone, if the owner asks for it.
+   **Replaced on 2026-11-08 by C.** The owner chose model C when the branch of the plan
+   `the-detail-of-a-task-shares-its-height` (omnet-julia), whose table of tasks and table of differences
+   measure their lists, came onto this rule: C is the rule of every other content, it has no jump from an
+   empty list to the limit, and two lists in one column share it. The pane keeps `_has_no_extent_along`,
+   and `_get_listed_content_extent` measures the list up to the maximum.
 2. **A pane with no edge at all.** Proposed by the assistant: a pane with no offer and no maximum keeps the
    extent of its content, `0` for a list, as now. Every window gives a maximum, so no pane of the code base
    is in this case; a pane that is, gets no number that nobody gave.
