@@ -10,8 +10,10 @@
     TaskGroupDocumentToWidgetPane(; theme styles…)
 
 Draw a [`TaskGroupDocument`](@ref) as the pane of a group: the summary card, the
-table of its tasks, and the detail of the selected task, the table above the
-detail in a split a person can drag.
+line of its buttons, the table of its tasks, and the detail of the selected
+task, the table above the detail in a split a person can drag. The detail is one
+column in a scroll area: each part takes the height of its content, and the
+column scrolls.
 """
 @projection UntrackedCell struct TaskGroupDocumentToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -24,7 +26,7 @@ detail in a split a person can drag.
     error_color::StyleColor = get_task_style(nothing, :error_color)
     running_color::StyleColor = get_task_style(nothing, :running_color)
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
-    document_minimum_height::Int = get_task_style(nothing, :document_minimum_height)
+    stream_box_height::Int = get_task_style(nothing, :stream_box_height)
 end
 
 # ── Words and colours ────────────────────────────────────────────────────────
@@ -163,11 +165,11 @@ _make_task_error_line(p, document::TaskDocument; max_lines::Integer = 0) = _make
     (something(message, ""), p.error_color)
 end; max_lines)
 
-# The `Process` group of a task: its process and the time it took or takes,
+# The facts of the process of a task: its process and the time it took or takes,
 # each when it has a value. The elapsed time counts on with each drain of the
 # group `doc`. A group with no fact is not visible.
 function _make_task_process_group(doc::Union{TaskGroupDocument,Nothing}, document::TaskDocument)
-    group = WidgetFactGroup(Any[]; title = "Process")
+    group = WidgetFactGroup(Any[])
     facts = group.facts
     set_cell_computation!(getfield(facts, :elements), () -> begin
         shown = Cell[]
@@ -378,11 +380,9 @@ function _build_preparation_detail(p, doc::TaskGroupDocument, ctx)
     preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, ctx; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
         _build_task_kind_part(p, getfield(preparation, :task)[], preparation),
-        _build_earlier_executions(p, preparation),
-        _make_label("stdout", p.muted_color),
-        _build_output_pane(() -> collect_task_document_lines(preparation, :output); weight = 2),
-        _make_label("stderr", p.muted_color),
-        _build_output_pane(() -> collect_task_document_lines(preparation, :error_output); weight = 1)]
+        _build_earlier_executions_card(p, ctx, preparation),
+        _build_stream_card(p, ctx, preparation, :output),
+        _build_stream_card(p, ctx, preparation, :error_output)]
 end
 
 # A button that runs `action` while `enabled()` holds. A refused action is a
@@ -492,9 +492,13 @@ const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeRef
                        FieldReferenceStep("child"))
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
 
-# The steps from the detail of a task to its body, the part below its header
-# line, its error line and its buttons.
-const _BODY_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+# The steps from the detail to the column of its parts: the detail is a scroll
+# area, and its content a column.
+const _COLUMN_STEPS = (FieldReferenceStep("content"), FieldReferenceStep("children"))
+
+# The parts of the column before the documents of the task: the header line, the
+# error line and the buttons.
+const _DETAIL_HEAD_COUNT = 3
 
 # The fields of a task document that the detail shows in a place, in this order,
 # each when it holds a document.
@@ -525,16 +529,16 @@ function _find_document_places(doc::TaskGroupDocument)
     # tree of the processes has no place, and the detail is not in the output.
     if getfield(doc, :is_detail_alone)[] && _find_alone_document(doc) !== nothing
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
-                        FieldReferenceStep("kind_document")), _PLACE_STEPS))
+                        FieldReferenceStep("kind_document")), (_PLACE_STEPS..., FieldReferenceStep("content"))))
         return places
     end
     for field in _DOCUMENT_FIELDS
         getfield(documents[index], field)[] === nothing && continue
-        position = length(places)
+        position = _DETAIL_HEAD_COUNT + length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
-                       (_get_detail_steps(doc)..., _BODY_STEPS..., FieldReferenceStep("children"),
-                        RangeReferenceStep(position, position + 1), FieldReferenceStep("child"))))
+                       (_get_detail_steps(doc)..., _COLUMN_STEPS..., RangeReferenceStep(position, position + 1),
+                        FieldReferenceStep("child"))))
     end
     places
 end
@@ -576,30 +580,29 @@ function _follow_detail_part!(detail, part, steps::Tuple; is_followed = _is_foll
     follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target), is_followed)
 end
 
-# The share of the height that the place of a document takes against the two output
-# panes, which take 2 and 1: the document gets two thirds of the rest.
-const _PLACE_WEIGHT = 6.0
-
+# The detail of the selected task: one column of parts in a scroll area that grows
+# down, each part the height of its content. The header line, the error line and
+# the buttons come first; then the document of the kind and the tree of the
+# processes of the task while it runs, each in a place of its own; then the cards
+# of the task (`_build_task_cards`). The maps of the pane find each document by
+# its place.
 function _build_detail(p, doc::TaskGroupDocument, ctx)
     group = get_task_group(doc)
-    detail = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
-    set_cell_computation!(getfield(detail.children, :elements), () -> begin
+    column = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    detail = WidgetScrollPane(column; grows = (width = false, height = true))
+    set_cell_computation!(getfield(column.children, :elements), () -> begin
         index = getfield(doc, :selected)[]
         index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, ctx)]
         documents = getfield(doc, :tasks)[]
         (1 <= index <= length(documents)) ||
             return Cell[Cell(_make_label("Press a row to see its task here.", p.muted_color))]
-        # A task that is a group shows its own pane: its card, its table and
-        # the detail of the task picked in it.
+        # A task that is a group shows its own pane: its card, its buttons, its
+        # table and the detail of the task picked in it.
         inner = find_task_group_document(doc, index)
         inner === nothing ||
             return Cell[Cell(x) for x in first(_build_group_parts(p, inner, ctx; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
-        # The header line, the error line and the buttons stand whole at the
-        # top: they have no weight, and the body below them declares no minimum.
-        # The body shares the rest of the height, so in a short detail the body
-        # gives up its height, and the buttons stay.
         header = HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
                                       _make_task_header_note(p, document)];
                                   vertical_align = :center, gap = p.label_gap)
@@ -617,41 +620,42 @@ function _build_detail(p, doc::TaskGroupDocument, ctx)
         page = WidgetButton("Open the task page"; size = p.button_size,
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
         buttons = HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)
-        top = VerticalLayout(Any[header, _make_task_error_line(p, document; max_lines = 2), buttons];
-                             gap = p.section_gap, child_width = Fill)
-        # The body, top to bottom: the document that the kind gives and the
-        # tree of the processes of the task while it runs, each in a place that
-        # gives it a share of the height and at least `document_minimum_height`;
-        # the process facts; the streams. The maps of the pane find each
-        # document by its place.
-        parts = Any[]
+        parts = Any[header, _make_task_error_line(p, document; max_lines = 2), buttons]
         for field in _DOCUMENT_FIELDS
             shown = getfield(document, field)[]
             shown === nothing && continue
-            place = LayoutConstraint(shown; height = Relative(_PLACE_WEIGHT), width = Fill,
-                                     min_height = p.document_minimum_height)
-            steps = (_BODY_STEPS..., FieldReferenceStep("children"),
-                     RangeReferenceStep(length(parts), length(parts) + 1))
+            place = LayoutConstraint(shown; width = Fill)
+            steps = (_COLUMN_STEPS..., RangeReferenceStep(length(parts), length(parts) + 1))
             push!(parts, _follow_detail_part!(detail, place, steps))
         end
-        # What every task has: its process and its earlier executions. They
-        # scroll in a part with no weight too, so in a short detail they give up
-        # their height before the streams leave the window.
-        push!(parts, WidgetScrollPane(VerticalLayout(Any[_make_task_process_group(doc, document),
-                                                         _build_earlier_executions(p, document)];
-                                                     gap = p.section_gap, child_width = Fill)))
-        append!(parts, _build_stream_parts(p, document, :output; weight = 2))
-        append!(parts, _build_stream_parts(p, document, :error_output; weight = 1))
-        stack = VerticalLayout(parts; gap = p.section_gap, child_width = Fill)
-        body = LayoutConstraint(stack; width = Fill, height = Fill)
-        # The body and its stack hold their part of the paths too, so a key goes
-        # through them to a place; the walk stops there, because each place
-        # follows on its own, and a walk into the streams would build the
-        # detail again at each line.
-        _follow_detail_part!(detail, body, _BODY_STEPS[1:2]; is_followed = node -> node === body || node === stack)
-        Cell[Cell(top), Cell(body)]
+        append!(parts, _build_task_cards(p, ctx, doc, document))
+        Cell[Cell(x) for x in parts]
     end)
     detail
+end
+
+# The cards of a task under its documents: its process, its earlier executions,
+# and its two streams.
+_build_task_cards(p, ctx, doc, document::TaskDocument) =
+    Any[_build_process_card(p, ctx, doc, document),
+        _build_earlier_executions_card(p, ctx, document),
+        _build_stream_card(p, ctx, document, :output),
+        _build_stream_card(p, ctx, document, :error_output)]
+
+# The card `Process`: the facts of the process of the task. It is not visible
+# while the task has no such fact.
+function _build_process_card(p, ctx, doc, document::TaskDocument)
+    facts = _make_task_process_group(doc, document)
+    card = make_collapsible_card(ctx; title = "Process", content = facts)
+    set_cell_computation!(getfield(card, :visible), () -> getfield(facts, :visible)[])
+    card
+end
+
+# The card `Earlier executions`, not visible while the task has none.
+function _build_earlier_executions_card(p, ctx, document::TaskDocument)
+    card = make_collapsible_card(ctx; title = "Earlier executions", content = _build_earlier_executions(p, document))
+    set_cell_computation!(getfield(card, :visible), () -> !isempty(get_earlier_task_executions(document)))
+    card
 end
 
 # The executions before the current one, the oldest first, each with its verdict
@@ -660,10 +664,8 @@ end
 function _build_earlier_executions(p, document::TaskDocument)
     lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () -> begin
-        earlier = get_earlier_task_executions(document)
-        isempty(earlier) && return Cell[]
-        parts = Any[_make_label("Earlier executions", p.muted_color)]
-        for (number, execution) in enumerate(earlier)
+        parts = Any[]
+        for (number, execution) in enumerate(get_earlier_task_executions(document))
             (text, result) = describe_task_execution(execution)
             color = result === nothing ? p.muted_color :
                     _get_role_color(p, get_result_role(get_result_codes(result), result.result))
@@ -693,28 +695,30 @@ _has_stream_lines(document::TaskDocument, field::Symbol) = _get_stream_line_coun
 _format_stream_count(name::AbstractString, count::Integer) =
     count == 0 ? name * " · empty" : string(name, " · ", count, count == 1 ? " line" : " lines")
 
-# The parts of one stream in the detail: the count of its lines over the pane of
-# its lines, or the muted word `stdout · empty` and no pane. The parts read
-# whether the stream has a line in a cell of its own, which stays as it is while
-# lines come, so the first line builds the parts again and a later line does not.
-function _build_stream_parts(p, document::TaskDocument, field::Symbol; weight)
+# The card of one stream in the detail: its name and the count of its lines over
+# the box of its lines, or the muted word `stdout · empty` and no card. The part
+# reads whether the stream has a line in a cell of its own, which stays as it is
+# while lines come, so the first line builds the part again and a later line does
+# not. The card is remembered under the name of the stream, whatever the count.
+function _build_stream_card(p, ctx, document::TaskDocument, field::Symbol)
     name = field === :output ? "stdout" : "stderr"
     has_lines = Cell(@computation _has_stream_lines(document, field))
-    has_lines[] || return Any[_make_label(name * " · empty", p.muted_color)]
-    Any[_make_label(() -> _format_stream_count(name, _get_stream_line_count(document, field)), p.muted_color),
-        _build_output_pane(() -> collect_task_document_lines(document, field); weight)]
+    has_lines[] || return _make_label(name * " · empty", p.muted_color)
+    title = _make_label(() -> _format_stream_count(name, _get_stream_line_count(document, field)), p.muted_color)
+    make_collapsible_card(ctx; title, name,
+                          content = _build_output_pane(p, () -> collect_task_document_lines(document, field)))
 end
 
-# The lines of a stream in a pane of its own that follows the end. The two panes
-# of a task share the height that the lines above them leave, by `weight`, and
-# the box in each is as high as its lines.
-function _build_output_pane(lines; weight)
+# The lines of a stream in a box of at most `stream_box_height`, which scrolls
+# and follows the end, so it shows the last lines.
+function _build_output_pane(p, lines)
     area = WidgetTextarea(""; rows = 0)
     set_cell_computation!(getfield(area, :content), () -> begin
         value = lines()
         value isa AbstractVector ? join(value, "\n") : string(something(value, ""))
     end)
-    LayoutConstraint(WidgetScrollPane(area; follow_end = true); height = Relative(weight), width = Fill)
+    VerticalLayout(Any[LayoutConstraint(WidgetScrollPane(area; follow_end = true); max_height = p.stream_box_height)];
+                   child_width = Fill)
 end
 
 # ── A group as a task ────────────────────────────────────────────────────────
@@ -881,16 +885,18 @@ function _build_group_parts(p, doc::TaskGroupDocument, ctx; actions::Bool = true
     table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Content, weight_height = 1.0)
     detail = _build_detail(p, doc, ctx)
     split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
+    alone = WidgetScrollPane(nothing; grows = (width = false, height = true))
+    set_cell_computation!(getfield(alone, :content), () -> _find_alone_document(doc))
     place = LayoutConstraint(split; width = Fill, height = Fill)
     set_cell_computation!(getfield(place, :child), () -> begin
         getfield(doc, :is_detail_alone)[] || return split
-        something(_find_alone_document(doc), detail)
+        _find_alone_document(doc) === nothing ? detail : alone
     end)
-    (Any[card, buttons, place], detail)
+    (Any[card, buttons, place], detail, alone)
 end
 
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
-    (parts, detail) = _build_group_parts(p, doc, ctx)
+    (parts, detail, alone) = _build_group_parts(p, doc, ctx)
     root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
@@ -914,6 +920,16 @@ function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGr
     follow_output_mouse_target!(detail, below_detail(forward_mouse_target);
         is_followed = node -> !(node isa ArrangementDocument))
     follow_output_selection!(detail, below_detail(forward_selection); is_followed = _is_followed_by_selection)
+    # The scroll area of the document alone stands in the place below the buttons.
+    below_alone(forward) = () -> begin
+        path = forward()
+        (path === nothing || !getfield(doc, :is_detail_alone)[] || _find_alone_document(doc) === nothing) &&
+            return nothing
+        _find_path_below(path, _PLACE_STEPS)
+    end
+    follow_output_mouse_target!(alone, below_alone(forward_mouse_target);
+        is_followed = node -> !(node isa ArrangementDocument))
+    follow_output_selection!(alone, below_alone(forward_selection); is_followed = _is_followed_by_selection)
     iomap
 end
 
@@ -1431,7 +1447,7 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
     Pair{Type,Any}[
         TaskGroupDocument => TaskCardScopeProjection(
             ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
-                                   document_minimum_height = get_style(:document_minimum_height)),
+                                   stream_box_height = get_style(:stream_box_height)),
                                widgets())),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
         ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; section_gap = styles.section_gap,

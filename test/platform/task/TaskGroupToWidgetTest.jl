@@ -161,6 +161,28 @@ function _collect_task_view_images(node, x = 0, y = 0, found = NTuple{4,Int}[])
     found
 end
 
+# Each viewport of a drawn pane as `(x, y, width, height, content)` on the canvas.
+function _collect_task_view_viewports(node, x = 0, y = 0, found = Tuple{Int,Int,Int,Int,Any}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            link = elements
+            while link !== nothing
+                _collect_task_view_viewports(link.value, x + Int(node.x), y + Int(node.y), found)
+                link = link.next
+            end
+        else
+            for element in elements
+                _collect_task_view_viewports(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h), node.content))
+        _collect_task_view_viewports(node.content, x + Int(node.x), y + Int(node.y), found)
+    end
+    found
+end
+
 # Each text of a drawn pane with its place on the canvas.
 function _collect_task_view_texts(node, x = 0, y = 0, found = Tuple{Int,Int,String}[])
     if node isa GraphicsCanvas
@@ -407,7 +429,7 @@ function test_task_views()
             @test !("Process" in _collect_task_view_words(pending))
             wait_task_group_document(start_task_group_document!(pending))
             group = TaskModule._make_task_process_group(pending, task)
-            @test group.visible && group.title == "Process"
+            @test group.visible
             @test [fact.label for fact in group.facts] == ["process", "elapsed"]
             texts = _collect_task_view_texts(last(_print_task_view(pending; height = 1200)).output)
             title = only(t for t in texts if t[3] == "Process")
@@ -450,33 +472,61 @@ function test_task_views()
             end
         end
 
-        @testset "in a short detail the header and the buttons stay whole and the document keeps its least height" begin
+        @testset "the detail is one column that scrolls, and each part takes the height of its content" begin
             document = wrap_task_group_document(
                 TaskGroup([_TaskViewTableProbeTask("delta")]; name = "short detail", jobs = 1))
             wait_task_group_document(start_task_group_document!(document))
             select_task_document!(document, 1)
-            least = Int(TaskModule.get_task_style(nothing, :document_minimum_height))
             find_y(texts, text) = only(t for t in texts if t[3] == text)[2]
-            # In a tall window everything shows: the buttons, the table, the output.
-            tall = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
-            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "stdout · empty") < 1200
+            # In a tall window everything shows, in order: the buttons, the table of
+            # the document with all its rows, the cards.
+            tall = _collect_task_view_texts(last(_print_task_view(document; height = 3000)).output)
+            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "row 30") <
+                  find_y(tall, "Process") < find_y(tall, "stdout · empty")
             # The table of one task takes its row, and the detail starts under it:
             # the header line of the detail is less than 100 px below the state
             # word of the row.
             header_y = find_y(tall, "delta")
             row_y = maximum(t[2] for t in tall if t[3] == "DONE" && t[2] < header_y)
             @test 0 < header_y - row_y < 100
-            # At 900 the output word is still in the window.
-            medium = _collect_task_view_texts(last(_print_task_view(document; height = 900)).output)
-            @test find_y(medium, "stdout · empty") < 900
-            # In a short window the header line and the buttons stay whole above
-            # the table, and the table keeps its least height: the body below the
-            # buttons gives up its height, and the output words go below the edge
-            # first.
-            short = _collect_task_view_texts(last(_print_task_view(document; height = 800)).output)
-            header_y = maximum(t[2] for t in short if t[3] == "delta")
-            @test header_y < find_y(short, "Run again") < find_y(short, "scalar")
-            @test find_y(short, "stdout · empty") - find_y(short, "scalar") >= least
+            # In a short window the column keeps the same order and the same heights:
+            # the table keeps all its rows, and the column scrolls.
+            short = _collect_task_view_texts(last(_print_task_view(document; height = 500)).output)
+            @test header_y < find_y(short, "Run again") < find_y(short, "scalar") < find_y(short, "row 30") <
+                  find_y(short, "Process") < find_y(short, "stdout · empty")
+            @test find_y(short, "row 30") - find_y(short, "scalar") == find_y(tall, "row 30") - find_y(tall, "scalar")
+        end
+
+        @testset "a stream is a card with a box of at most ten lines that shows its last lines" begin
+            document = wrap_task_group_document(TaskGroup(
+                [_TaskViewProbeTask("many", raw"for i in $(seq 1 30); do echo line $i; done; echo oops >&2")];
+                name = "boxes", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            cap = Int(TaskModule.get_task_style(nothing, :stream_box_height))
+            _, iomap = _print_task_view(document; height = 1200)
+            texts = _collect_task_view_texts(iomap.output)
+            boxes = _collect_task_view_viewports(iomap.output)
+            # The smallest viewport that holds a line is the box of its stream.
+            box_of(line) = (at = only(t for t in texts if t[3] == line);
+                            argmin(v -> v[4], [v for v in boxes if v[2] <= at[2] < v[2] + v[4]]))
+            many, one = box_of("line 30"), box_of("oops")
+            @test 0 < many[4] <= cap && 0 < one[4] < many[4]
+            # The box follows the end: the last line shows, and the first has scrolled out.
+            @test only(t for t in texts if t[3] == "line 30")[2] < many[2] + many[4]
+            @test only(t for t in texts if t[3] == "line 1")[2] < many[2]
+            # The cards carry the count of lines in their title, and are remembered by the name of the stream.
+            names = sort(collect(values(iomap.scope.names)))
+            @test names == ["Earlier executions", "Process", "Summary", "stderr", "stdout"]
+            @test "stdout · 30 lines" in [t[3] for t in texts] && "stderr · 1 line" in [t[3] for t in texts]
+            # A stream with no line is a muted word and no card.
+            quiet = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("quiet", "exit 0")]; name = "quiet", jobs = 1))
+            wait_task_group_document(start_task_group_document!(quiet))
+            select_task_document!(quiet, 1)
+            _, quiet_iomap = _print_task_view(quiet; height = 1200)
+            words = [t[3] for t in _collect_task_view_texts(quiet_iomap.output)]
+            @test "stdout · empty" in words && "stderr · empty" in words
+            @test !("stdout" in values(quiet_iomap.scope.names)) && !("stderr" in values(quiet_iomap.scope.names))
         end
 
         @testset "a path into the document of a result goes to its place and back" begin
@@ -493,14 +543,14 @@ function test_task_views()
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
             result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("kind_document"))
-            # The place is the first part of the body of the detail, which is the
-            # second part, below the header line and the buttons, in the second
-            # pane of the split below the card of the group; it holds the document
-            # itself.
+            # The place is the fourth part of the column of the detail, below the
+            # header line, the error line and the buttons, in the second pane of
+            # the split below the line of buttons of the group; it holds the
+            # document itself.
             place = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                    FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                    FieldReferenceStep("children"), RangeReferenceStep(0, 1), FieldReferenceStep("child"))
+                    FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(3, 4),
+                    FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [place..., FieldReferenceStep("line")]
@@ -539,7 +589,8 @@ function test_task_views()
                                FieldReferenceStep("kind_document"), FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [FieldReferenceStep("children"), RangeReferenceStep(2, 3),
-                                      FieldReferenceStep("child"), FieldReferenceStep("line")]
+                                      FieldReferenceStep("child"), FieldReferenceStep("content"),
+                                      FieldReferenceStep("line")]
             @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
             ProjecturedKernel.CellModule.set_cell_value!(getfield(document, :is_detail_alone), false)
             @test "stdout · empty" in words()

@@ -101,7 +101,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     push!(parts, _build_task_page_actions(p, document, task, place))
     push!(parts, _build_task_kind_part(p, task, document))
     push!(parts, _build_task_links(p, task))
-    push!(parts, _make_task_process_group(place === nothing ? nothing : first(place), document))
+    push!(parts, _build_process_card(p, ctx, place === nothing ? nothing : first(place), document))
     push!(parts, _build_task_page_executions(p, document))
     push!(parts, _build_task_page_streams(p, document))
     root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap, child_width = Fill)
