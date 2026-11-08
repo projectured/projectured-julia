@@ -143,7 +143,7 @@ without undoing A.
    edits), `test_explorer()`, `test_navigator_to_widget()`, `test_dashboard_render()`, `test_table()` and the
    task page suite (`test/platform/task`). Compare any failure with the baseline on `main` before calling it a
    regression.
-5. **Documentation.** Change layout-rules.md §3 (the text on a viewport with no offer) and the scroll-pane
+5. **Documentation.** **Done on 2026-11-08.** layout-rules.md §3 (the paragraph on a viewport with no offer) and the scroll-bars section of widget.md now say that a pane of a list takes the maximum of its range. `test_documentation()` 1 of 1, exit 0 (it prints 150 report lines, as a pass does). Change layout-rules.md §3 (the text on a viewport with no offer) and the scroll-pane
    section of widget.md: a pane of a list takes the maximum of its range. Test: `test_documentation()`.
 6. **Look at the pixels.** Start a fresh process, show a dashboard in a card, force the tree and read the pixels
    of the SDL backend: the cards of the inner dashboard are drawn, and Alt+click at one selects it.
