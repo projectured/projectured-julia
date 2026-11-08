@@ -15,6 +15,7 @@ using ..OperationModule
 using ..ReferenceModule
 using ..SettingsModule
 using ..EventModule
+using ..SerializationModule
 
 import TOML
 
@@ -23,7 +24,7 @@ import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_view_state_fields, replace_wrapped_document!
 import ..OperationModule: evaluate_operation
 import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document,
-                              FileDocument, FileDiskState, get_file_domain,
+                              get_file_domain,
                               is_editable_file_type, read_file_content, register_file_document_type!
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
