@@ -49,7 +49,7 @@ export compute_context_menu
 export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
        add_document_holder!, remove_document_holder!, is_document_held, hold_documents!,
        release_held_documents!, ChangeHeldDocumentsOperation, start_document_read!, DOCUMENT_READ_WAIT
-export make_document_view, follow_content_selection!
+export make_document_view, follow_content_selection!, make_following_document
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 export DocumentCondition, DocumentCount, DocumentDecoration, get_document_decoration, ConditionLook,

@@ -1,6 +1,7 @@
 # Fragment of `DomainModule` — the view document of a document that shows as a
 # page: the state of one view of it, apart from the document, which every view
-# shares.
+# shares; and the following copy, which shows documents of one type one after
+# the other in one place.
 
 """
     make_document_view(document) -> Any
@@ -75,3 +76,49 @@ _prefix_content_path(view, step, path::Reference) =
 _prefix_content_path(view, step, kept::SelectionDocument) =
     SelectionDocument(; primary = _prefix_content_path(view, step, kept.primary), live = kept.live)
 _prefix_content_path(view, step, path) = path
+
+"""
+    make_following_document(source) -> Document
+
+A document that stays one object while the document that it shows changes: a new
+document of the type of `source()`, whose every field computes the same field of
+the document that `source()` answers now. `source` takes no argument, and it
+answers a document of the same `@document` type at each call. A value of the copy
+is the value of that document, so a change inside it, such as a sort of a table
+that it holds, is a change of the document of the source. The selection and the
+part under the pointer follow too, so the copy draws the selection of the
+document that it shows.
+
+Use it where one place shows documents of one type one after the other, such as
+the detail of the selected row of a table. A projection then prints the copy one
+time, and the state of that print, such as a folded card, stays when the source
+answers another document.
+
+A write of a whole field of the copy ends the following of that field, so write
+the document of the source. Each field must be a `ReactiveCell`; another kind of
+field throws an `ArgumentError`.
+
+# Example
+
+    selected = Cell(1)
+    shown = make_following_document(() -> pages[selected[]])
+    selected[] = 2      # `shown` is the same object, and its fields are those of `pages[2]`
+
+See also `make_document_view` and `follow_content_selection!`.
+"""
+function make_following_document end
+
+function make_following_document(source)
+    document = source()
+    type = typeof(document)
+    # The bare name of the schema takes cells; the concrete type of a cell layout
+    # carries a parameter for each field and does not.
+    make = Base.typename(type).wrapper
+    make(map(name -> _make_following_cell(source, type, name, getfield(document, name)), fieldnames(type))...)
+end
+
+# The cell of the field `name` of a following copy: the same field of `source()`.
+_make_following_cell(source, type, name, ::ReactiveCell{T}) where {T} =
+    ReactiveCell{T}(Computation(() -> getfield(source(), name)[]))
+_make_following_cell(source, type, name, cell) =
+    throw(ArgumentError("make_following_document: the field `$name` of $type is a $(typeof(cell)), not a ReactiveCell"))
