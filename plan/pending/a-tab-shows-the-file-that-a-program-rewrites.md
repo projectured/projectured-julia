@@ -296,6 +296,20 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   edits of the file today (§2), so nothing that it records is lost. Rejected: the history around
   the navigator, as today, where the file can not read it, so every rewrite of such a file shows the
   band.
+- **D14. A picture is held by the image that shows it, as by a tab.** Decided by the owner on
+  2026-11-08: "The explorer and the pages are not special in any way. An image file could just as
+  well shown in a tab pane. Then it should watch the file. A picture file should be watched only
+  once and read once." Then "Yes" to the model: the image in a page holds the file document of its
+  picture in the same way as a tab holds the file document that it shows, and the page keeps no
+  table of its pictures. The editor keeps one file document for each file, so a picture that a tab
+  and a page show has one watch and one read. An edit that adds an image holds its picture, and an
+  edit that removes it releases it, with no code for pictures in a load or in an edit. This
+  replaces the part of D5 by which the page keeps a picture for each image (the pixels as a
+  background cell that only a draw demands stay). Consequences:
+  - Step 4 as built (the table `shown_files` of the page, filled at a load, and its hold in
+    `acquire_document!(::FileDocument)`) follows the replaced model, so it does not stay.
+  - A hold that follows an edit needs the general hold rule of the lifecycle of a document (Q10),
+    so the plan of Q10 comes before step 5.
 
 ## 6. How the names reach the assistant, and the order of the plans
 
@@ -650,6 +664,8 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       - `test_filechange()` 206 Pass. (In two runs the Julia process hung at exit after the summary, in the
         exit handler of the code generator while a watcher thread compiled; the tests all passed.)
 - [x] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).** **Done on 2026-11-08.**
+      **Replaced by D14 (owner, 2026-11-08):** the page keeps no table of its pictures; the image
+      holds its picture as a tab does. The code of this step is on main `24b941058` and does not stay.
       Needs step 5 of the plan of the save, which adds `open_file_document!`.
       `collect_shown_file_paths` in `FileFormatModule`, the field `shown_files` of `FileDiskState`
       with the file of each path, which `open_file_document!(path; editor)` answers, and the hold of
@@ -714,6 +730,8 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         0 Error (the process ends with SIGSEGV after the summary, as before); `test_explorer()` 392
         Pass; `test_pred_file()` 87 Pass; `test_file_tab()` 31 Pass.
 - [ ] **5. The image of a Markdown page draws the picture that its file keeps.** Needs G3 on main.
+      **Needs the plan of Q10 too (D14),** and its text below follows the replaced model of step 4:
+      revise it after Q10.
       `collect_shown_file_paths(::MarkdownRoot)` gives the path of each image that names no web
       address, and `_md_image_value` takes its picture from `:shown_files` and reads no disk.
       Update `markdown.md`. Test: `test_markdown_image_leaf()` in
@@ -875,7 +893,9 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
 11. **The file document as the watcher.** Answered by the owner on 2026-11-06: yes (D10). The
     question was: change this plan so that the file document watches its file and keeps the hash
     and the band, the view draws the band, and the page goes away?
-12. **A change of the shown paths by an edit.** Open until step 5. An edit that adds or removes a
+12. **A change of the shown paths by an edit.** Answered by the owner on 2026-11-08 with D14: the
+    image holds its picture as a tab does, so no table of shown paths exists to change. The
+    question was: An edit that adds or removes a
     shown path (step 5: a person adds an image to a Markdown page) does not change `shown_files`,
     which step 4 updates only at a load. Proposed by the assistant: the reader of the file adds the
     change of what it holds to such an edit, as the reader of a dashboard does for an edit of
