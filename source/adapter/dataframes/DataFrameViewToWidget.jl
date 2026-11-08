@@ -117,9 +117,14 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     # table that is drawn, and the table builds its parts again.
     table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view, bar) :
                                                     _make_view_table(p, view, bar)
-    # The expression bar over the table.
+    # The expression bar over the table. The table fills the height of the view.
+    # A view that gets only a maximum of the height, such as a part of a scroll
+    # area under a limit, has no height to fill: the table takes the height of its
+    # rows, at most the maximum, and the `Content` row gives the table that edge.
     expression = _make_expression_bar(p, view)
-    grid = GridLayout(Any[expression, table], 1; column_policies = Any[Fill], row_policies = Any[Content, Fill])
+    is_edge = ctx !== nothing && get_exact_height(ctx) === nothing && ctx.maximum_height !== nothing
+    grid = GridLayout(Any[expression, table], 1; column_policies = Any[Fill],
+                      row_policies = Any[Content, is_edge ? Content : Fill])
     # The grid gives a key to the expression bar or to the table, by their
     # selection.
     set_cell_computation!(getfield(grid, :selection), () -> begin

@@ -311,5 +311,20 @@ function test_data_frame_view()
             @test "id :: Int64" in found
             @test _read_data_frame_key(projection, io, :end) === nothing
         end
+
+        @testset "a view that gets only a maximum of the height takes the height of its rows" begin
+            limited = with_size_range(with_exact_size(PrinterContext(); width = Cell(Int32(600)));
+                                      height = (nothing, Cell(Int32(480))))
+            one = print_document(projection, nothing, DataFrameView(make_data_frame_example(rows = 1)), limited)
+            many = print_document(projection, nothing, DataFrameView(make_data_frame_example(rows = 80)), limited)
+            step = _data_frame_view_iomap(one).projection.row_step
+            # The expression bar, the header row and one row, with some space.
+            @test Int(one.output.h) <= 6 * step
+            @test "item 1" in Set(t[3] for t in _data_frame_texts(one.output))
+            # Eighty rows stop at the maximum, and the table scrolls them.
+            @test Int(many.output.h) == 480
+            @test "item 80" ∉ Set(t[3] for t in _data_frame_texts_in_body(many))
+            @test _read_data_frame_key(projection, many, :end) !== nothing
+        end
     end
 end
