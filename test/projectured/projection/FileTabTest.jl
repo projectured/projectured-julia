@@ -72,6 +72,21 @@ mktempdir() do dir
         @test occursin("reloaded", render(file))
     end
 
+    # A print of a file in a history, with no view: the reload replaces the document
+    # inside the history, and the print that was made before shows the new text.
+    @testset "F5 shows the new text in a print made before it, with no view" begin
+        write(path, "{\"greeting\": \"hello\"}")
+        file = make_file_tab(path, UndoBuffer)
+        iomap = print_document(NaturalToGraphics(measure = _stub), nothing, file,
+                               PrinterContext(EmptyReference(), Cell(600), Cell(400),
+                                              Dict{Symbol,Any}()))
+        @test occursin("hello", drawn(get_iomap_output(iomap)))
+        write(path, "{\"greeting\": \"again\"}")
+        evaluate_operation(nothing, ReloadFileOperation(file))
+        @test occursin("again", drawn(get_iomap_output(iomap)))
+        @test !occursin("hello", drawn(get_iomap_output(iomap)))
+    end
+
     # A press inside the file goes to the file's content, and its answer names
     # the content; the file's own keys still answer.
     @testset "a press inside the file reaches its content" begin

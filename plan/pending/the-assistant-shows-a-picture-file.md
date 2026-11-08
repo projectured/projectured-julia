@@ -700,15 +700,36 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       - The set of the assistant in `test_assistant_verbs()` runs the code of §3.7 (a card and a zoom
         tab of one file), asserts that the card, the zoom tab and `find_open_file_document` share one
         `ImageFile`, that the file is held, and that the draw of the zoom tab reads it.
-      - Open problem, found and not fixed: a zoom tab of a file that `open_file_document!` made and
-        that reads nothing yet keeps drawing "empty document" after its first read. The file keeps
-        its history (`UndoBuffer`) and the load only replaces the document inside it
-        (`replace_wrapped_document!`), so `FileToContent` finds the same content and does not print
-        again, and `UndoBufferToAny` printed its content once. A print made after the read draws the
-        picture. A tab of `open_file!` (read at its open) and the follow of a picture that is
-        already read are not affected. Step 5 shows it in the live check; the owner decides where the
-        fix goes (the print of a history, or the load of an unread file).
-      - Counts, in `environment/all` of the worktree (offscreen SDL), with the count on `main` in
+      - A history follows the document that it holds. The print of an `UndoBuffer`
+        (`UndoBufferToAny.jl`) reconciles its one child by identity with
+        `make_reconciled_child_iomap_cell(() -> input.content, …)`, as `FileToContent` does for its
+        field, and its output, its reference maps, its reader and its gesture paths read the current
+        child (`content_iomap` is a computed cell). Before this, the print read `input.content` once, so
+        a buffer whose document `replace_wrapped_document!` replaced kept drawing the old document:
+        a file that read nothing yet kept drawing "empty document" after its first read, and a reload
+        of any file in a history drew the old text in a print with no `FileView`. A scratch run of the
+        new undo set on `main` (no change to `main`) fails 3 of 11: the output, the child input and the
+        drawn text stay the old document.
+      - The transform pane follows the canvas of its content, as the scroll pane does. It held the
+        elements of the first canvas of its content; now `content_canvas` is a cell of the output of
+        the content, the extent reads it, and the viewport reads the elements of its current value.
+      - The other wrappers with their own `replace_wrapped_document!`: `ArrangementDocument` follows
+        its field already (`ArrangingProjection` reconciles `input.document`); `MarkedText` keeps its
+        object and writes `text`, which its lines read in a cell; `Image` keeps itself. None changes.
+      - The assertion of `test_filechange()` about the reload of a holder is exact: the first draw of
+        the card of `b.txt` reads the file once (D14), the count of those reads is taken after that
+        read, and the reload of the holder adds none.
+      - Counts after the fix: `test_undo()` 141/141; `test_image()` 109/109 (the zoom tab asserts the
+        `GraphicsImage` of 320 by 240 after the first read); `test_filechange()` 234 passes and 1
+        broken; `test_file_tab()` 34/34 (a new set: F5 shows the new text in a print made before it,
+        with no view); `test_explorer()` 383/383; `test_dashboard_render()` 7/7;
+        `test_widget_transform_pane()` 37/37; `test_json_document()` 24/24;
+        `test_markdown_image_leaf()` 109/109; `test_widget_selection()` 107/107;
+        `test_routed_gesture()` 37/37; `test_slot_space()` 109/109; `test_layout_rules()` 532/532;
+        `test_assistant_documentation()` 3078/3078; `test_assistant_verbs()` 89/89;
+        `test_referenced_document_editor()` 134/134. In omnet-julia: `Pkg.precompile()` 61 packages,
+        no error, no overwrite, no undeclared binding; `test_simulation_embed_in_page()` 7/7.
+      - Counts of the first run, in `environment/all` of the worktree (offscreen SDL), with the count on `main` in
         brackets where `main` has the test: `test_image()` 108/108; `test_widget_transform_pane()`
         37/37 [37/37]; `test_file_tab()` 31/31 [31/31]; `test_filechange()` 232 passes and 1 broken
         [228 and 1 broken]; `test_dashboard_render()` 7/7 [7/7]; `test_assistant_documentation()`

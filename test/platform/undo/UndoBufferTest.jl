@@ -178,6 +178,35 @@ function test_undo_buffer()
                   Reference(FieldReferenceStep("undo_entries"))) === nothing
     end
 
+    @testset "the printer follows a replacement of the document that the buffer holds" begin
+        old = _make_list(["a"])
+        buffer = UndoBuffer(old)
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
+        @test iomap.output === old
+        replacement = _make_list(["x", "y"])
+        @test replace_wrapped_document!(buffer, replacement) === buffer
+        @test buffer.content === replacement
+        @test iomap.output === replacement
+        @test iomap.content_iomap.input === replacement
+        inner = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+        back = map_reference_backward(projection, iomap, inner)
+        @test get_reference_steps(back)[1] == FieldReferenceStep("content")
+        @test map_reference_forward(projection, iomap, back) == inner
+        # The same document keeps its print.
+        child = iomap.content_iomap
+        @test replace_wrapped_document!(buffer, replacement) === buffer
+        @test iomap.content_iomap === child
+        # The natural renderer draws the new document.
+        renderer = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
+        held = UndoBuffer(PrimitiveString("old"))
+        drawn = print_document(renderer, nothing, held, offer)
+        @test first.(_drawn_texts(drawn.output)) == ["old"]
+        replace_wrapped_document!(held, PrimitiveString("new"))
+        @test first.(_drawn_texts(drawn.output)) == ["new"]
+    end
+
     @testset "an edit through the buffer is recorded, taken back and put back" begin
         list = _make_list(["a", "b"])
         buffer = UndoBuffer(list)

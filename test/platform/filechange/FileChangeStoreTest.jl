@@ -795,9 +795,13 @@ function test_file_change_store()
                     @test b_file isa TextFile && get_filename(b_file) == paths["b.txt"]
                     @test get_file_disk_state(b_file).loaded_count < 0 && isempty(find_leaves())
                     @test find_open_file_document(paths["b.txt"]; editor) === b_file
-                    # The reload reads no held file. The card of b.txt has no view yet, so the print of the
-                    # file asks for its read, once.
-                    @test count(record -> occursin("b.txt", string(record)), get_background_work_store(editor).records) <= 1
+                    # The card of b.txt has no view yet, so the first draw of the file asks for its read
+                    # (D14). The reload of the holder adds no read of it.
+                    @test _run_frames_until(editor, () -> get_file_disk_state(b_file).loaded_count >= 0)
+                    count_reads() = count(record -> occursin("b.txt", string(record)),
+                                          get_background_work_store(editor).records)
+                    reads = count_reads()
+                    @test reads == 1
                     @test get_file_disk_state(b_file).read_count == 0
                     # @broken: a load writes the content of a file with no hold, so no holder holds the new file document and its file is not watched; G4 open question 10
                     @test_broken is_document_held(editor, b_file) && is_document_file_watched(b_file; store)
@@ -805,6 +809,7 @@ function test_file_change_store()
                     @test save_file!(PredFile(paths["h.pred"], Dashboard("three", Any[make_card("B", "b.txt"),
                                                                                     make_card("A", "a.txt")])), root)
                     evaluate_operation(editor, ReloadFileOperation(holder))
+                    @test count_reads() == reads
                     @test get_dashboard().title == "three" && isempty(find_leaves())
                     @test get_dashboard().cards[1].content === b_file && get_dashboard().cards[2].content === a_file
                     evaluate_operation(editor, ReleaseDocumentOperation(view))

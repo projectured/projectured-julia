@@ -7589,8 +7589,13 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
         visible_h === nothing || (content_ctx = with_visible_size(content_ctx; height = visible_h))
         content_iomap = print_child(recursion, content, content_ctx)
     end
-    content_w = content_iomap === nothing ? nothing : Cell(@computation Int32(content_iomap.output.w))
-    content_h = content_iomap === nothing ? nothing : Cell(@computation Int32(content_iomap.output.h))
+    # The canvas of the content now, as for a scroll pane: a content can print a new
+    # canvas, such as a file that is read after the pane printed, and its IO map then
+    # answers the new one; the extent and the viewport read it through this cell.
+    content_canvas = content_iomap === nothing ? nothing :
+        Cell(@computation content_iomap.output::GraphicsCanvas)
+    content_w = content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
+    content_h = content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
     vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
     vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
     elems = Any[]
@@ -7604,16 +7609,16 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
                               Cell(Int32(0)),
                               Cell(color_transparent),
                               Cell(nothing)))
-    if content_iomap !== nothing
-        inner_canvas = content_iomap.output::GraphicsCanvas
-        inner_elems_cv = inner_canvas.elements
+    if content_canvas !== nothing
         # Inner canvas stays at the origin; the transform carries pan + zoom.
+        viewed = Cell(@computation begin
+            canvas = content_canvas[]
+            inner_elems_cv = getfield(canvas, :elements)
+            held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(canvas)])
+            GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Int32(0), Int32(0), held, layout_none, true, Cell(nothing))
+        end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                      vw_cell, vh_cell,
-                                      Cell(GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Int32(0), Int32(0),
-                                                          inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
-                                                          layout_none, true, Cell(nothing))),
-                                      transform_cell,
+                                      vw_cell, vh_cell, viewed, transform_cell,
                                       Cell(nothing)))
     end
     outer_w = Cell(@computation Int32(Int(vw_cell[]) + tx))

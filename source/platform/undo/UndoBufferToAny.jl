@@ -40,7 +40,7 @@ UndoBufferToAnyProjection(; filter = is_undo_step) = UndoBufferToAnyProjection(f
     projection::Any
     input::Any           # the UndoBuffer
     output::Any          # computed: the content's own output
-    content_iomap::Any   # the content's child IoMap
+    content_iomap::Any   # computed: the content's child IoMap
 end
 
 # The one step from the buffer to what it holds. Every reference that crosses
@@ -51,9 +51,13 @@ const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 # ── Printer ──────────────────────────────────────────────────────────────────
 
 function print_document(p::UndoBufferToAnyProjection, recursion, input::UndoBuffer, ctx)
-    content_iomap = print_child(recursion, input.content,
-                                make_child_context(ctx, FieldReferenceStep("content")))
-    UndoBufferToAnyIoMap(p, input, Cell(@computation content_iomap.output), content_iomap)
+    # The child follows the `content` field by identity: a replacement of the document
+    # that the buffer holds (`replace_wrapped_document!`) prints the new document, and
+    # the same document keeps its print.
+    child = make_reconciled_child_iomap_cell(
+        () -> input.content,
+        v -> print_child(recursion, v, make_child_context(ctx, FieldReferenceStep("content"))))
+    UndoBufferToAnyIoMap(p, input, Cell(@computation child[].output), Cell(@computation child[]))
 end
 
 # ── Reference mapping ────────────────────────────────────────────────────────

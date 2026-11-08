@@ -44,6 +44,7 @@ function _collect_image_test_images(canvas, images = GraphicsImage[])
     for element in canvas.elements
         element isa GraphicsImage && push!(images, element)
         element isa GraphicsCanvas && _collect_image_test_images(element, images)
+        element isa GraphicsViewport && _collect_image_test_images(element.content, images)
     end
     images
 end
@@ -408,6 +409,8 @@ function test_image()
             zoom = WidgetTransformPane(file)
             @test get_edited_field(zoom) === :content
             tab = open_pane!(zoom; title = "Zoom", editor)
+            # A place that drew the file before it was read.
+            painted = _print_image_test_place(editor, WidgetTransformPane(file))
             step!()
             @test only(store.files).receiver === file
             # The draw of the zoom tab asks for the read: no view of the file draws it.
@@ -417,9 +420,16 @@ function test_image()
             end
             picture = get_edited_document(file)
             @test picture isa Image && picture.filename == path && picture.read_count == 0
-            # A new file at the path and a drain reach the same picture, with no view of the file,
-            # when a place draws it again.
-            painted = _print_image_test_place(editor, WidgetTransformPane(file))
+            # The place that drew the file before its read draws the picture now, at the size of
+            # the box that stands for a picture whose size is not known.
+            images = GraphicsImage[]
+            for _ in 1:10
+                step!()
+                images = _collect_image_test_images(painted.output)
+                isempty(images) || break
+            end
+            @test length(images) == 1 && (Int(images[1].w), Int(images[1].h)) == (320, 240)
+            # A new file at the path and a drain reach the same picture, with no view of the file.
             write(path, "other bytes")
             @test _wait_for_image_test_change(store)
             @test drain_file_changes!(; store) == 1
