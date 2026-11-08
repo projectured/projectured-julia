@@ -1,6 +1,7 @@
 # The assistant starts programs as tasks
 
-> **Kind:** plan · **Status:** a plan of 2026-11-05, re-checked at `main` `6b93bfcf3`. No step is done.
+> **Kind:** plan · **Status:** done. A plan of 2026-11-05, re-checked at `main` `6b93bfcf3`. Steps 1
+> to 5 landed on `main` on 2026-11-06 (`19e56d912`), and the live check of step 5 ran on 2026-11-09.
 > · **Stands on:** [task.md](../../documentation/package/platform/task/task.md),
 > [assistant.md](../../documentation/package/platform/assistant/assistant.md),
 > [naming-rules.md](../../documentation/rule/naming-rules.md),
@@ -279,7 +280,7 @@ in `environment/all`.
      the `Not started: two ended ERROR` line, the second start that throws, and a stop and a close.
    - `test_task_group_verbs()` (83 Pass); `test_assistant_documentation()`,
      `test_assistant_verbs()` and `test_referenced_document_editor()` together (3268 Pass).
-5. **The wake and the window.** **The automated test is done on 2026-11-06; the live check in `omnet_ide` and the move to `plan/done/` are open** (the MCP connection of `omnet_ide` was down). Test: a new testset in `test_assistant_wake()`
+5. **The wake and the window.** **The automated test is done on 2026-11-06, and the live check in `omnet_ide` on 2026-11-09.** Test: a new testset in `test_assistant_wake()`
    (`test/platform/conversation/AssistantWakeTest.jl`). A tool calls `run_tasks!` with a
    `ProgramTask` that sleeps 1 s, and the note says `The task group "the sleep" ended: `. Then a
    live check in `omnet_ide` through its MCP connection, with a chain of four programs whose third
@@ -287,6 +288,29 @@ in `environment/all`.
    the second step must show its lines while it runs. The fourth step must show `CANCEL` with
    `Not started: …`. `stop_tasks!` must end a `sleep 600` in less than 5 s. Then
    `Pkg.precompile()` runs in omnet-julia, and this plan moves to `plan/done/`.
+
+   **The live check is done on 2026-11-09,** in `omnet_ide` on `main` `d0b9c06c5` with the
+   branch `picture-file` on top, over a scratch copy of the `fifo` sample. A small HTTP client
+   called the MCP server of the window (`execute_julia_code`, `take_picture`), because the
+   session could not reconnect its own MCP connection. A click went in as a `WorkloadClick`
+   input through `send_workload_inputs!`.
+   - A chain `TaskGroup([...]; jobs = 1, stop_at_failure = true)` of `sleep 1`, a shell loop
+     that prints a line each second for 8 s, `false` and `echo four`: the first two end `DONE`,
+     `false` ends `ERROR (Non-zero exit code: 1)`, and the fourth ends
+     `CANCEL (Not started: fail ended ERROR)`. The summary card lists both reasons.
+   - While the second step runs, a press on its row shows its detail with the stream
+     `stdout · 5 lines`, the lines 1 to 5, and the earlier executions.
+   - `omnet_ide` opens with no Tasks tab (`run_omnet_ide` passes `tasks_tab = false`), and the
+     explorer lists the groups of the session: the node Tasks shows the badge `1 running` and
+     the ring on its icon, and its page lists the groups. The tab of a group that
+     `open_pane!` shows has the ring and `1/4` in its title. `run_tasks!` alone opens no tab.
+   - `stop_tasks!` ended a `sleep 600` about 0.1 s after the call: `CANCEL (Cancel by user)`,
+     and no `sleep` process stays.
+   - `Pkg.precompile()` of omnet-julia on these sources: no warning.
+   - Found: a group with the default `jobs` runs all its programs at once, so a chain needs
+     `jobs = 1`, as the docstring of `TaskGroup` says. `search_api` shows "(no documentation)"
+     for `TaskGroup`, although `read_resource` of the type shows the docstring with its mark, so
+     a model that reads only the hit line does not see the rule.
 
 
    What the implementation found:
