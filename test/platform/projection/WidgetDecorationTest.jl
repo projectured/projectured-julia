@@ -94,7 +94,7 @@ function test_document_decoration()
 
     @testset "an alert draws a plain icon in the color of its title, and a decorated one in its role" begin
         projection = RecursiveProjection(TypeDispatchingProjection(
-            WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+            WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
         collect_texts(canvas, found = GraphicsText[]) = begin
             for element in canvas.elements
                 element isa GraphicsText && push!(found, element)
