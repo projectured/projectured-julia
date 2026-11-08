@@ -67,6 +67,9 @@ See also `find_task_group`, `list_task_groups`, `TaskDocument` and `TaskGroupLis
   alone, in the whole place of the table and the split. Return on the table sets
   it, and Escape clears it. While it is set, Up and Down select the previous or
   the next task in the order of the table.
+- `collapsed_cards` — view state: a `Dict{String,Bool}` from the name of a card of
+  the pane to whether it is collapsed. A card whose name the dictionary does not
+  hold has the state that it starts with ([`make_collapsible_card`](@ref)).
 
 For the assistant.
 """
@@ -86,6 +89,7 @@ For the assistant.
     shown::Any
     table::Any
     is_detail_alone::Bool
+    collapsed_cards::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -150,7 +154,7 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),
                             Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing),
-                            Cell(false))
+                            Cell(false), Cell(Dict{String,Bool}()))
     _make_task_group_table!(doc)
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.

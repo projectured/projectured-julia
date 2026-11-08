@@ -274,12 +274,19 @@ function _make_group_reason_table(p, doc::TaskGroupDocument)
     (table, more)
 end
 
-# The card of a group, top to bottom: the title with the identifier and the
-# state, the words that chose the tasks and the jobs, the preparation, a badge
-# for each count, the progress, the time facts, the reasons of the unexpected
-# results, and the buttons. An inner group shows no actions of its own: its row
-# in the outer group stops it and runs it again.
-function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
+# The key of the summary card in `collapsed_cards`, and of the summary card of an
+# inner group, which shows beside it.
+const _SUMMARY_CARD_NAME = "Summary"
+const _INNER_SUMMARY_CARD_NAME = "Summary of the inner group"
+
+# The card of a group and the line of its buttons. The title of the card holds
+# the name with the identifier and the state, and a badge for each count; the card
+# holds the words that chose the tasks and the jobs, the preparation, the
+# progress, the time facts, and the reasons of the unexpected results. The card
+# folds, and a group remembers whether it did. The line of buttons stands outside
+# the card, so it stays when the card is folded. An inner group shows no actions
+# of its own: its row in the outer group stops it and runs it again.
+function _build_summary_card(p, doc::TaskGroupDocument, ctx; actions::Bool = true)
     group = get_task_group(doc)
     get_summary() = get_task_group_document_summary(doc)
     title = WidgetLabel(uppercasefirst(group.name))
@@ -287,15 +294,6 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     state = WidgetBadge("")
     set_cell_computation!(getfield(state, :content), () -> _get_group_state_role(doc, group)[1])
     set_cell_computation!(getfield(state, :role), () -> _get_group_state_role(doc, group)[2])
-    heading = HorizontalLayout(Any[title, identifier, state]; vertical_align = :center, gap = p.label_gap)
-
-    selection = _make_live_label(() -> begin
-        parts = String[]
-        description = getfield(doc, :description)[]
-        isempty(description) || push!(parts, description)
-        push!(parts, string(group.jobs, " at a time"))
-        (join(parts, " · "), p.muted_color)
-    end)
 
     # One badge for each code that has a result, and the tasks that run and wait.
     badges = HorizontalLayout(Any[]; vertical_align = :center, gap = p.label_gap)
@@ -311,6 +309,15 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
         counts.pending > 0 && push!(parts, WidgetBadge(string(counts.pending, " waiting")))
         Cell[Cell(x) for x in parts]
     end)
+    heading = HorizontalLayout(Any[title, identifier, state, badges]; vertical_align = :center, gap = p.label_gap)
+
+    selection = _make_live_label(() -> begin
+        parts = String[]
+        description = getfield(doc, :description)[]
+        isempty(description) || push!(parts, description)
+        push!(parts, string(group.jobs, " at a time"))
+        (join(parts, " · "), p.muted_color)
+    end)
 
     is_going() = getfield(doc, :status)[] in (:running, :stopping)
     run_all = _make_action_button(p, "Run all", editor -> evaluate_operation(editor, StartTaskGroupOperation(doc));
@@ -324,15 +331,18 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     rows = WidgetToggleGroup(Any["all", "running", "unexpected"];
                              values = Any["all", "running", "unexpected"],
                              target = getfield(doc, :row_filter)[], field = "value")
-    row = HorizontalLayout(actions ? Any[run_all, stop, again, rows] : Any[rows];
-                           vertical_align = :center, gap = p.button_gap)
+    buttons = HorizontalLayout(actions ? Any[run_all, stop, again, rows] : Any[rows];
+                               vertical_align = :center, gap = p.button_gap)
     progress = make_task_progress_bar(() -> get_summary().progress)
     preparation = _build_preparation_line(p, doc)
     (table, more) = _make_group_reason_table(p, doc)
     lines = Any[selection]
     preparation === nothing || push!(lines, preparation)
-    append!(lines, Any[badges, progress, _make_group_time_facts(p, doc), table, more, row])
-    WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill))
+    append!(lines, Any[progress, _make_group_time_facts(p, doc), table, more])
+    card = make_collapsible_card(ctx; title = heading,
+                                 content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill),
+                                 name = actions ? _SUMMARY_CARD_NAME : _INNER_SUMMARY_CARD_NAME)
+    (card, buttons)
 end
 
 # ── The preparation ──────────────────────────────────────────────────────────
@@ -362,10 +372,10 @@ end
 # The detail of the preparation: the pane of a preparation that is a group, or
 # the state, the facts, the earlier executions and the output of one that is one
 # task.
-function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
+function _build_preparation_detail(p, doc::TaskGroupDocument, ctx)
     preparation = get_task_group_preparation(doc)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
-    preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, bounded; actions = false))
+    preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, ctx; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
         _build_task_kind_part(p, getfield(preparation, :task)[], preparation),
         _build_earlier_executions(p, preparation),
@@ -456,10 +466,10 @@ _make_task_column_cell(cells::TaskCells, task, item::TaskDocument, key) =
 # The path from a group to its table.
 const _TABLE_STEP = FieldReferenceStep("table")
 
-# The steps from the root of the pane to the table: the split is the second child
+# The steps from the root of the pane to the table: the split is the third child
 # of the root, in a constraint, and the table is the first pane of the split, in a
 # constraint (`_build_group_parts`).
-const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("child"),
                             FieldReferenceStep("elements"), RangeReferenceStep(0, 1), FieldReferenceStep("child"))
 
 # ── The detail of one task ───────────────────────────────────────────────────
@@ -474,10 +484,10 @@ const _TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1
 # back, with the same `rest`. Every other path takes the defaults of `Projection`.
 
 # The steps from the root of the pane to the detail: the place below the summary card is
-# the second child of the root, in a constraint. It holds the split, whose second
+# the third child of the root, in a constraint. It holds the split, whose second
 # pane is the detail, in a constraint too, or the detail alone
 # (`_build_group_parts`).
-const _PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+const _PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("child"))
 const _DETAIL_STEPS = (_PLACE_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(1, 2),
                        FieldReferenceStep("child"))
 _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? _PLACE_STEPS : _DETAIL_STEPS
@@ -570,12 +580,12 @@ end
 # panes, which take 2 and 1: the document gets two thirds of the rest.
 const _PLACE_WEIGHT = 6.0
 
-function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
+function _build_detail(p, doc::TaskGroupDocument, ctx)
     group = get_task_group(doc)
     detail = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
         index = getfield(doc, :selected)[]
-        index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, bounded)]
+        index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, ctx)]
         documents = getfield(doc, :tasks)[]
         (1 <= index <= length(documents)) ||
             return Cell[Cell(_make_label("Press a row to see its task here.", p.muted_color))]
@@ -583,7 +593,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         # the detail of the task picked in it.
         inner = find_task_group_document(doc, index)
         inner === nothing ||
-            return Cell[Cell(x) for x in first(_build_group_parts(p, inner, bounded; actions = false))]
+            return Cell[Cell(x) for x in first(_build_group_parts(p, inner, ctx; actions = false))]
         document = documents[index]
         task = getfield(document, :task)[]
         # The header line, the error line and the buttons stand whole at the
@@ -866,22 +876,21 @@ get_document_decoration(group::ClosedTaskGroup) =
 # gives the detail the height that its rows leave. While `is_detail_alone` is
 # set, the place of the split holds the document of the kind of the selected task
 # and nothing else, or the detail alone when the task has no such document.
-function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
-    card = _build_summary_card(p, doc; actions)
+function _build_group_parts(p, doc::TaskGroupDocument, ctx; actions::Bool = true)
+    (card, buttons) = _build_summary_card(p, doc, ctx; actions)
     table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Content, weight_height = 1.0)
-    detail = _build_detail(p, doc, bounded)
+    detail = _build_detail(p, doc, ctx)
     split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
     place = LayoutConstraint(split; width = Fill, height = Fill)
     set_cell_computation!(getfield(place, :child), () -> begin
         getfield(doc, :is_detail_alone)[] || return split
         something(_find_alone_document(doc), detail)
     end)
-    (Any[card, place], detail)
+    (Any[card, buttons, place], detail)
 end
 
 function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
-    bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
-    (parts, detail) = _build_group_parts(p, doc, bounded)
+    (parts, detail) = _build_group_parts(p, doc, ctx)
     root = VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
@@ -1420,9 +1429,10 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
         make_object_field_widget_dispatch(make_widget_rows()), documents, Pair{Type,Any}[
             TaskStreamLines => ChainingProjection(lines, VerticalLayoutToGraphicsCanvas())])))
     Pair{Type,Any}[
-        TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
-                                                    document_minimum_height = get_style(:document_minimum_height)),
-                                                widgets()),
+        TaskGroupDocument => TaskCardScopeProjection(
+            ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
+                                   document_minimum_height = get_style(:document_minimum_height)),
+                               widgets())),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
         ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; section_gap = styles.section_gap,
                                                   label_gap = styles.label_gap, muted_color = styles.muted_color),

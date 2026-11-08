@@ -111,7 +111,7 @@ export get_work_item_identifier, describe_work_item_kind, stop_work_item!, descr
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
        collect_work_items, add_task_group!, remove_task_group!
 export TaskTheme, ScaledTaskTheme
-export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
+export TaskGroupDocumentToWidgetPane, make_task_progress_bar, make_collapsible_card,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
        make_task_group_list_tab_title, ClosedTaskGroupToWidgetPane, build_task_graphics_entry
 export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
@@ -133,6 +133,7 @@ include("TaskGroupDocument.jl")
 include("TaskWorkItem.jl")
 include("TaskGroupList.jl")
 include("TaskTheme.jl")
+include("TaskCard.jl")
 include("TaskGroupToWidget.jl")
 include("TaskPagesToWidget.jl")
 include("TaskVerbs.jl")
