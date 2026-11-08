@@ -47,13 +47,12 @@ are plain values:
   frame calls it again when the result changes. The task document holds it in
   `kind_document`, made when a view first reads it, and the same document until
   the result changes. The detail of the task shows it below its header and its
-  buttons, in a place of its own that is at least `document_minimum_height`
-  high. It draws by the method of `make_graphics_projection` for its type, as it
+  buttons, in a place of its own that takes its content height. It draws by the method of `make_graphics_projection` for its type, as it
   draws in any document, so the renderer of the views reads that seam too. A path
   reaches it, `tasks[i].kind_document`, and the pane maps that path to the card
   and back, as a page maps an embedded file: a person edits the document where
   it shows. A kind with no document answers `nothing`, and then the frame shows
-  only its header, its buttons, its `Process` group and its streams. The build
+  only its header, its buttons, its `Process` card and its streams. The build
   steps (`BuildCommandTask`, `BuildCopyTask`, `BuildRemoveTask`) and the
   background task of an agent give a `WidgetFactGroup`: the command, the exit code
   and the error line of a step; the kind, the tool call, the subagent, the output
@@ -439,12 +438,12 @@ runs again goes back into its place.
 
 ## The views
 
-`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card (below); a table with one row for each task;
+`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card (below) and the line of its buttons; a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
 buttons and its two streams. The table and the detail stand in a split that a
 person can drag. The table takes its rows up to half of the split, and the
 detail takes the rest, so a group of a few tasks gives the detail the height
-that its rows leave. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR`, when its result has one, is a line in the error colour under it, at most two lines cut with "…". The header line, the error line and the buttons stand whole at the top of the detail, and the body below them shares the rest of the height, so in a short detail the body gives up its height and the buttons stay. In the body come the document of the kind, in a place of its own with at least `document_minimum_height`; and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). A scroll area with no weight follows with the `Process` group of facts (`process`, and `elapsed` that counts on while the task runs; a fact with no value is left out) and the earlier executions. When the body is too short for all of it, the streams go below the edge first. Each stream is a muted `stdout · 22 lines` over the pane of its lines, or the muted word `stdout · empty` and no pane when it has no line; the first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
+that its rows leave. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR`, when its result has one, is a line in the error colour under it, at most two lines cut with "…". The header line, the error line and the buttons stand at the top of the detail. The whole detail is one column in a scroll area that grows down: each part takes the height of its content, no part has a weight, and the column scrolls when it is taller than its place. After the buttons come the document of the kind, in a place of its own, and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). Then come the cards `Process` (the `process` fact and `elapsed`, which counts on while the task runs; a fact with no value is left out, and a task with no fact has no card), `Earlier executions` (only when there are any), `stdout · 22 lines` and `stderr`. A stream card holds a box of the last lines of the stream, at most `stream_box_height` of `TaskTheme` high (ten lines of the widget font), which follows the end of the stream and scrolls back inside the box; a stream with no line is the muted word `stdout · empty` and no card. The first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -457,20 +456,25 @@ the list is the task that the `anchor` of the group names. A scroll far from the
 head writes the head of the list of the table, and the pane writes the anchor
 instead, as the owner of a list does; the list then starts again from that task.
 
-**The card of a group** reads top to bottom: the title, the name of the group with
-a capital first letter, with the identifier as an outline badge and a badge of
-the state (the word of the state in the accent role while the group runs or
-stops, no role before it started, the warning role after a stop, else the worst
-code in the role of the code); the words that chose the tasks (`description` of
+**The card of a group** folds, and the group remembers whether it did (view
+field `collapsed_cards`, under the name `Summary`; the card of an inner group is
+`Summary of the inner group`). It reads top to bottom: the title, the name of
+the group with a capital first letter, with the identifier as an outline badge, a
+badge of the state (the word of the state in the accent role while the group runs
+or stops, no role before it started, the warning role after a stop, else the worst
+code in the role of the code), and a badge for each count, `2 FAIL unexpected` in
+the role of its code, `1 running` in the accent role and `3 waiting` with no role,
+so the counts show when the card is folded; the words that chose the tasks (`description` of
 the document) and `4 at a time`, joined by ` · ` in muted text; the line of the
-preparation; a badge for each count, `2 FAIL unexpected` in the role of its code,
-`1 running` in the accent role and `3 waiting` with no role; the bar of the
-progress; the time facts in two groups side by side, `finished`, `elapsed` and
+preparation; the bar of the progress; the time facts in two groups side by side, `finished`, `elapsed` and
 `left`, then `slowest` and `rate` (`72 a minute`, `2.5 a minute`, or `12 an
 hour` when fewer than one a minute finish), a fact with no value left out; a
 table of the reasons of the unexpected results with the columns `count`,
 `reason` and `tasks` (five rows at most, then a muted `+3 more reasons`), which
-is not shown while no result is unexpected; and the actions on the whole group.
+is not shown while no result is unexpected. The actions on the whole group, Run
+all, Stop, Run unexpected again and the choice of rows (all, running,
+unexpected), stand in a line between the card and the table, outside the card, so
+they stay when the card is folded.
 A row of the table is one line: the reason and the names are cut with "…", and
 the tooltip holds the whole text; the names are the first three, then `and 197
 more`. The badges and
@@ -495,7 +499,9 @@ holds it, and an open that no navigator takes opens a tab.
 
 **A picture in a column.** A cell of a kind column shows the value that `get_task_column_value` gives. When the value is an `ImageFile`, the cell shows a small picture of the file, as a cell of any roster table does (`make_roster_value_cell`, [roster.md](../roster/roster.md)): at most `table_picture_height` high (a field of `WidgetTheme`, 120 by default), in its shape, and the row is as high as its highest cell. Any other value shows as text.
 
-**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the document of the kind of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no document of its kind keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail holds the document of the kind and the tree of the processes each in a place of its own, with no card: a constraint that gives the document a share of the height, and at least `document_minimum_height` of `TaskTheme`. The place takes 6 shares against 2 and 1 for the two output panes, so a picture or a table in the document fills its share and the two panes stay in the window. The header, the error line and the buttons are in a scroll area with no weight above the places, and the `Process` group and the earlier executions in one below them, so in a short detail they give up their height and scroll, the document keeps its least height, and the streams stay in the window. While the detail is alone and the selected task has a document of its kind, the place below the card of the group holds that document and nothing else, so it gets the whole size: the header, the buttons and the output panes are not drawn. A task with no document of its kind, and a row that is an inner group, show their detail. A path into the document is the path below its place, which is the place of the group in the alone view.
+**The cards that a pane remembers.** The pane draws a different detail for each row, so a card of the pane takes its state from the group, not from itself: the view field `collapsed_cards` of the group maps the name of a card to whether it is collapsed, and a name it does not hold has the state that its card starts with. A press on the chevron of such a card answers a `ReplaceViewStateOperation` of that field, which the undo does not record, as the sections of the appearance page do with `open_sections`. `make_collapsible_card(ctx; title, content, collapsed, name)` makes the card. The pane gives its group to everything it prints in a property of the printer context (`TaskCardScopeProjection`), so a page of a task type that the detail draws, such as the pages of omnet-julia, makes its cards with this one function and shares the field. The name of a card is its `title` when that is a string, or `name`, which a card with a changing title gives, such as `stdout` for `stdout · 22 lines`. With no group around it, as on a page in a navigator, the function returns a plain collapsible card that keeps its own state.
+
+**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the document of the kind of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no document of its kind keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail is one column in a scroll area that grows down, whose parts take the height of their content. While the detail is alone and the selected task has a document of its kind, the place below the line of buttons of the group holds that document in a scroll area that grows down, and nothing else: the header, the buttons and the cards of the task are not drawn. A task with no document of its kind, and a row that is an inner group, show their detail. A path into the document is the path below its place, which is the place of the group in the alone view.
 
 In a tree, the text of a task is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does. A task is a leaf, but a task that is a group has the tasks of its inner group under its node. A group has its tasks under its node, and its text says its identifier, its title, how many of its tasks finished and each code that came back unexpected (`T3 fingerprint tests · 37/40 · 2 FAIL`), with the icon of its tab. The list of groups has a node for each group, and a closed group says that it closed.
 
@@ -534,10 +540,14 @@ navigator around the page opens it, and Ctrl+press opens it in a new tab.
   of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
   its kind; a link to the page of the group of a task that is a group; the
   document of the kind, drawn in the page by the recursion, when the kind gives
-  one; the links of the kind; the
-  `Process` group; its executions, the newest first, each a link to its page; and
-  each stream of its current execution, as the last lines with a link to the
-  page of the stream, or `stdout · empty` when it has no line.
+  one; and the cards `Links` (the links of the kind, when it has any),
+  `Process`, `Executions` (the newest first, each a link to its page), and
+  `stdout` and `stderr`: each stream of its current execution, as the last
+  lines with a link to the page of the stream, or `stdout · empty` when it has no
+  line. The page is a column in a scroll area that grows down, and each card
+  folds and keeps its own state, because a page in a navigator has no group around
+  it. The page of an execution is the same column, with the cards `Links`,
+  `stdout` and `stderr`.
 - **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a
   shadow: its time, its verdict, its process,
   its times, its use of the machine and its reason, the page of the kind of its
