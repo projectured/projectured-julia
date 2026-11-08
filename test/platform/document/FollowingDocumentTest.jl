@@ -43,6 +43,12 @@ function test_following_document()
         @test copy.title === inner
     end
 
+    @testset "a document whose fields are cells can be followed, and another can not" begin
+        @test is_followable_document(first)
+        @test !is_followable_document((line = "a line",))
+        @test !is_followable_document("a text")
+    end
+
     @testset "the selection follows the document of the source" begin
         reference = ConcreteReference(FieldReferenceStep("title"))
         getfield(first, :selection)[] = reference

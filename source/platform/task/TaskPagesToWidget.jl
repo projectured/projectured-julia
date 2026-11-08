@@ -69,7 +69,7 @@ _get_execution_steps(k::Int) = (FieldReferenceStep("executions"), RangeReference
 # the link to its page and its last lines; an empty stream is the muted word
 # `stdout · empty`, with no card, no link and no lines. The part reads whether the
 # stream has a line in a cell of its own, so a later line does not build it again.
-function _build_stream_preview(p, ctx, document, steps, shadow, field::Symbol)
+function _build_stream_preview(p, document, steps, shadow, field::Symbol)
     name = field === :output ? "stdout" : "stderr"
     page = field === :output ? "stdout_page" : "stderr_page"
     has_lines = Cell(@computation getproperty(shadow, field).count > 0)
@@ -83,9 +83,8 @@ function _build_stream_preview(p, ctx, document, steps, shadow, field::Symbol)
             Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
         end)
         title = _make_label(() -> _format_stream_count(name, getproperty(shadow, field).count), p.muted_color)
-        Cell[Cell(make_collapsible_card(ctx; title, name,
-                                        content = VerticalLayout(Any[link, lines]; gap = p.section_gap,
-                                                                 child_width = Fill)))]
+        Cell[Cell(WidgetCard(; title, content = VerticalLayout(Any[link, lines]; gap = p.section_gap, child_width = Fill),
+                             collapsible = true))]
     end)
     Any[preview]
 end
@@ -103,11 +102,11 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.label_gap))
     push!(parts, _make_task_error_line(p, document))
     push!(parts, _build_task_page_actions(p, document, task, place))
-    push!(parts, _build_task_kind_part(p, task, document))
-    append!(parts, _build_task_links_cards(p, ctx, task))
-    push!(parts, _build_process_card(p, ctx, place === nothing ? nothing : first(place), document))
-    push!(parts, _build_task_page_executions(p, ctx, document))
-    push!(parts, _build_task_page_streams(p, ctx, document))
+    push!(parts, _build_task_kind_part(p, document))
+    append!(parts, _build_task_links_cards(p, task))
+    push!(parts, _build_process_card(p, place === nothing ? nothing : first(place), () -> document))
+    push!(parts, _build_task_page_executions(p, document))
+    push!(parts, _build_task_page_streams(p, document))
     root = WidgetScrollPane(VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap, child_width = Fill);
                             grows = (width = false, height = true))
     iomap = ChildrenIoMap(p, document, root, Cell(Any[]))
@@ -117,21 +116,31 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
 end
 
 # What the kind says about a task: its document, drawn by the recursion like
-# any document, and nothing when it gives none. It follows the document of the
-# kind.
-function _build_task_kind_part(p, task, document::TaskDocument)
+# any document, and nothing when it gives none. A document whose fields are cells
+# shows as its following copy (`make_following_document`), so its page is printed
+# one time, and its cards keep their fold when the result comes and the kind makes
+# its document again. Another document shows as it is.
+function _build_task_kind_part(p, document::TaskDocument)
     part = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    has_document = Cell(@computation getfield(document, :kind_document)[] !== nothing)
+    shown = Ref{Any}(nothing)
     set_cell_computation!(getfield(part.children, :elements), () -> begin
-        shown = getfield(document, :kind_document)[]
-        shown === nothing ? Cell[] : Cell[Cell(shown)]
+        has_document[] || return Cell[]
+        if shown[] === nothing
+            initial = getfield(document, :kind_document)[]
+            shown[] = is_followable_document(initial) ?
+                make_following_document(() -> something(getfield(document, :kind_document)[], initial)) :
+                Cell(@computation getfield(document, :kind_document)[])
+        end
+        Cell[shown[] isa Cell ? shown[] : Cell(shown[])]
     end)
     part
 end
 
 # The card `Links` with the links of the kind of a task, or no card for a kind
 # with none.
-_build_task_links_cards(p, ctx, task) = isempty(get_task_links(task)) ? Any[] :
-    Any[make_collapsible_card(ctx; title = "Links", content = _build_task_links(p, task))]
+_build_task_links_cards(p, task) = isempty(get_task_links(task)) ? Any[] :
+    Any[WidgetCard(; title = "Links", content = _build_task_links(p, task), collapsible = true)]
 
 # The links of the kind of a task among its facts, one a line: the name of the
 # fact, and the link (`get_task_links`). A kind with no links shows none.
@@ -176,7 +185,7 @@ end
 
 # The card `Executions` of the task: the executions, the newest first, each a link
 # to its page, with its verdict in the colour of its role.
-function _build_task_page_executions(p, ctx, document::TaskDocument)
+function _build_task_page_executions(p, document::TaskDocument)
     lines = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () -> begin
         executions = getfield(document, :executions)[]
@@ -192,20 +201,20 @@ function _build_task_page_executions(p, ctx, document::TaskDocument)
         end
         Cell[Cell(row) for row in rows]
     end)
-    make_collapsible_card(ctx; title = "Executions", content = lines)
+    WidgetCard(; title = "Executions", content = lines, collapsible = true)
 end
 
 # The last lines of each stream of the current execution, with the links to the
 # pages of the streams.
-function _build_task_page_streams(p, ctx, document::TaskDocument)
+function _build_task_page_streams(p, document::TaskDocument)
     streams = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(streams.children, :elements), () -> begin
         executions = getfield(document, :executions)[]
         isempty(executions) && return Cell[]
         k = length(executions)
         shadow = executions[k]
-        parts = vcat(_build_stream_preview(p, ctx, document, _get_execution_steps(k), shadow, :output),
-                     _build_stream_preview(p, ctx, document, _get_execution_steps(k), shadow, :error_output))
+        parts = vcat(_build_stream_preview(p, document, _get_execution_steps(k), shadow, :output),
+                     _build_stream_preview(p, document, _get_execution_steps(k), shadow, :error_output))
         Cell[Cell(part) for part in parts]
     end)
     streams
@@ -237,12 +246,12 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
         shown = make_task_kind_document(task, shadow.result)
         shown === nothing ? Cell[] : Cell[Cell(shown)]
     end)
-    streams = vcat(_build_stream_preview(p, ctx, shadow, (), shadow, :output),
-                   _build_stream_preview(p, ctx, shadow, (), shadow, :error_output))
+    streams = vcat(_build_stream_preview(p, shadow, (), shadow, :output),
+                   _build_stream_preview(p, shadow, (), shadow, :error_output))
     root = WidgetScrollPane(
         VerticalLayout(Any[HorizontalLayout(Any[WidgetLabel(get_document_title(shadow)), state];
                                             vertical_align = :center, gap = p.label_gap),
-                           facts, kind, _build_task_links_cards(p, ctx, task)..., streams...];
+                           facts, kind, _build_task_links_cards(p, task)..., streams...];
                        horizontal_align = :left, gap = p.section_gap, child_width = Fill);
         grows = (width = false, height = true))
     iomap = ChildrenIoMap(p, shadow, root, Cell(Any[]))

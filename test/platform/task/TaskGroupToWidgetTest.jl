@@ -68,16 +68,21 @@ end
 TaskModule.start_task(task::_TaskViewDocumentProbeTask; on_finish = nothing) =
     TaskModule.start_task(_TaskGroupProbeTask(task.name, task.script); on_finish)
 
-# A kind of task whose document of a result is a page that makes its card with
-# `make_collapsible_card`, folded at the start, as the pages of the task types do.
-struct _TaskViewCardDocument <: Document
-    name::String
+# A kind of task whose document is a page that makes its card one time, folded at
+# the start, and reads its document only in the content of the card, as the pages
+# of the task types do. Each card that a print makes is kept, so the count of the
+# cards is the count of the prints.
+@document struct _TaskViewCardDocument <: Document
+    name::Any
+    state::Any
 end
+const _TASK_VIEW_CARDS = Any[]
 struct _TaskViewCardToWidget <: Projection end
 function ProjecturedPlatform.ProjectionModule.print_document(p::_TaskViewCardToWidget, recursion,
                                                              document::_TaskViewCardDocument, ctx)
-    card = make_collapsible_card(ctx; title = "Command", content = WidgetLabel("run " * document.name),
-                                 collapsed = true)
+    content = WidgetLabel(() -> string("run ", getfield(document, :name)[], " · ", getfield(document, :state)[]))
+    card = WidgetCard(; title = "Command", content, collapsible = true, collapsed = true)
+    push!(_TASK_VIEW_CARDS, card)
     ChildrenIoMap(p, document, card, Cell(Any[]))
 end
 WidgetModule.make_graphics_projection(::Type{_TaskViewCardDocument}; measure, appearance) =
@@ -88,10 +93,14 @@ WidgetModule.make_graphics_projection(::Type{_TaskViewCardDocument}; measure, ap
                            text_theme = get_scaled_theme!(appearance, TextTheme))))
 struct _TaskViewCardProbeTask <: AbstractTask
     name::String
+    script::String
 end
 TaskModule.get_result_codes(::_TaskViewCardProbeTask) = RUN_RESULT_CODES
 TaskModule.format_task_parameters(task::_TaskViewCardProbeTask) = task.name
-TaskModule.make_task_kind_document(task::_TaskViewCardProbeTask, result) = _TaskViewCardDocument(task.name)
+TaskModule.make_task_kind_document(task::_TaskViewCardProbeTask, result) =
+    _TaskViewCardDocument(task.name, result === nothing ? "waits" : result.result)
+TaskModule.start_task(task::_TaskViewCardProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, task.script); on_finish)
 
 # A kind of task whose actions are asked each time the parts of its detail are
 # built, so the calls count the builds.
@@ -216,9 +225,8 @@ function _print_task_view(document; width = 1200, height = 900)
     (projection, print_document(projection, nothing, document, context))
 end
 
-# The projection of the pane of a group and its IO map: the first stage of the chain
-# below the wrapper that gives the cards of the pane their scope.
-_find_task_view_pane(projection, iomap) = (projection.inner.projections[1], iomap.inner_iomap.step_iomaps[1][])
+# The projection of the pane of a group and its IO map: the first stage of the chain.
+_find_task_view_pane(projection, iomap) = (projection.projections[1], iomap.step_iomaps[1][])
 
 _collect_task_view_words(document) =
     [text for (_, _, text) in _collect_task_view_texts(last(_print_task_view(document)).output)]
@@ -451,7 +459,8 @@ function test_task_views()
             words = _collect_task_view_words(document)
             @test "stdout · 1 line" in words && "hi" in words
             @test "stderr · empty" in words && !("stderr" in words) && !("stderr · 0 lines" in words)
-            # The parts of the detail are built again for the first line only.
+            # The parts of the detail are not built again when lines come: the slot
+            # of the stream shows its card, and only the count and the box follow.
             counted = wrap_task_group_document(TaskGroup([_TaskViewBuildProbeTask("counted")]; name = "builds", jobs = 1))
             task = only(getfield(counted, :tasks)[])
             execution = TaskExecution(task.task)
@@ -468,7 +477,7 @@ function test_task_views()
                 sync_document!(shadow, execution)
                 words = read()
                 @test string("stdout · ", k, k == 1 ? " line" : " lines") in words && line in words
-                @test _TASK_VIEW_BUILDS[] == builds + 1
+                @test _TASK_VIEW_BUILDS[] == builds
             end
         end
 
@@ -515,9 +524,7 @@ function test_task_views()
             # The box follows the end: the last line shows, and the first has scrolled out.
             @test only(t for t in texts if t[3] == "line 30")[2] < many[2] + many[4]
             @test only(t for t in texts if t[3] == "line 1")[2] < many[2]
-            # The cards carry the count of lines in their title, and are remembered by the name of the stream.
-            names = sort(collect(values(iomap.scope.names)))
-            @test names == ["Earlier executions", "Process", "Summary", "stderr", "stdout"]
+            # The cards carry the count of lines in their title.
             @test "stdout · 30 lines" in [t[3] for t in texts] && "stderr · 1 line" in [t[3] for t in texts]
             # A stream with no line is a muted word and no card.
             quiet = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("quiet", "exit 0")]; name = "quiet", jobs = 1))
@@ -526,7 +533,6 @@ function test_task_views()
             _, quiet_iomap = _print_task_view(quiet; height = 1200)
             words = [t[3] for t in _collect_task_view_texts(quiet_iomap.output)]
             @test "stdout · empty" in words && "stderr · empty" in words
-            @test !("stdout" in values(quiet_iomap.scope.names)) && !("stderr" in values(quiet_iomap.scope.names))
         end
 
         @testset "a path into the document of a result goes to its place and back" begin
@@ -543,14 +549,15 @@ function test_task_views()
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
             result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("kind_document"))
-            # The place is the fourth part of the column of the detail, below the
-            # header line, the error line and the buttons, in the second pane of
-            # the split below the line of buttons of the group; it holds the
-            # document itself.
+            # The place is the one part of the slot of the document, the fourth
+            # part of the column of the detail, below the header line, the error
+            # line and the buttons, in the second pane of the split below the line
+            # of buttons of the group; it holds the document itself, because the
+            # fields of the document are not cells.
             place = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
                     FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(3, 4),
-                    FieldReferenceStep("child"))
+                    FieldReferenceStep("children"), RangeReferenceStep(0, 1), FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [place..., FieldReferenceStep("line")]
@@ -638,39 +645,33 @@ function test_task_views()
             @test count(==("Run all"), words) == 1
         end
 
-        @testset "a card of a page is remembered by the pane, and a card in no pane keeps its own state" begin
-            tasks = [_TaskViewCardProbeTask("one"), _TaskViewCardProbeTask("two")]
+        # The detail shows a following copy of the documents of the kinds, so the
+        # page is printed one time: its card stays the same card, and keeps its
+        # fold, while rows are selected and when a result comes.
+        @testset "a card of a page is made one time, and keeps its fold while rows are selected" begin
+            empty!(_TASK_VIEW_CARDS)
+            tasks = [_TaskViewCardProbeTask("one", "exit 0"), _TaskViewCardProbeTask("two", "exit 0")]
             document = wrap_task_group_document(TaskGroup(tasks; name = "cards", jobs = 1))
             select_task_document!(document, 1)
-            projection, iomap = _print_task_view(document; height = 1200)
-            # A page prints when the output is read.
-            card_named(iomap, name) = (_collect_task_view_texts(iomap.output);
-                                       only(card for (card, key) in iomap.scope.names if key == name))
-            card = card_named(iomap, "Command")
+            _, iomap = _print_task_view(document; height = 1200)
+            words() = [t[3] for t in _collect_task_view_texts(iomap.output)]
+            @test !("run one · waits" in words())
+            card = only(_TASK_VIEW_CARDS)
             @test getfield(card, :collapsed)[]
-            @test isempty(getfield(document, :collapsed_cards)[])
-            # A press on the chevron is a write of the state of the group, which the undo does not record.
-            operation = read_intent(projection, iomap, ToggleCollapseOperation(card))
-            @test operation isa ReplaceViewStateOperation
-            evaluate_operation(nothing, operation)
-            @test getfield(document, :collapsed_cards)[] == Dict("Command" => false)
-            @test !getfield(card, :collapsed)[]
-            # Another row draws its card open, the first row again draws it open, and a press folds it.
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
+            @test "run one · waits" in words()
             select_task_document!(document, 2)
-            @test !getfield(card_named(last(_print_task_view(document; height = 1200)), "Command"), :collapsed)[]
+            @test "run two · waits" in words() && !("run one · waits" in words())
+            @test only(_TASK_VIEW_CARDS) === card && !getfield(card, :collapsed)[]
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
             select_task_document!(document, 1)
-            projection, iomap = _print_task_view(document; height = 1200)
-            card = card_named(iomap, "Command")
-            @test !getfield(card, :collapsed)[]
-            evaluate_operation(nothing, read_intent(projection, iomap, ToggleCollapseOperation(card)))
-            @test getfield(document, :collapsed_cards)[] == Dict("Command" => true)
-            select_task_document!(document, 2)
-            @test getfield(card_named(last(_print_task_view(document; height = 1200)), "Command"), :collapsed)[]
-            # Without a pane around it, a card is a plain card that keeps its own state.
-            plain = make_collapsible_card(nothing; title = "Command", content = WidgetLabel("x"), collapsed = true)
-            @test getfield(plain, :collapsible)[] && getfield(plain, :collapsed)[]
-            evaluate_operation(nothing, ToggleCollapseOperation(plain))
-            @test !getfield(plain, :collapsed)[]
+            @test !("run one · waits" in words())
+            @test only(_TASK_VIEW_CARDS) === card && getfield(card, :collapsed)[]
+            # The result makes the document of the kind again; the card stays.
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
+            wait_task_group_document(start_task_group_document!(document))
+            @test "run one · DONE" in words()
+            @test only(_TASK_VIEW_CARDS) === card && !getfield(card, :collapsed)[]
         end
 
         @testset "the card of a group names its kind, its state and its counts" begin

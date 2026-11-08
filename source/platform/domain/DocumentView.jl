@@ -95,8 +95,9 @@ time, and the state of that print, such as a folded card, stays when the source
 answers another document.
 
 A write of a whole field of the copy ends the following of that field, so write
-the document of the source. Each field must be a `ReactiveCell`; another kind of
-field throws an `ArgumentError`.
+the document of the source. Each field must be a `ReactiveCell`
+([`is_followable_document`](@ref)); another kind of field throws an
+`ArgumentError`.
 
 # Example
 
@@ -116,6 +117,16 @@ function make_following_document(source)
     make = Base.typename(type).wrapper
     make(map(name -> _make_following_cell(source, type, name, getfield(document, name)), fieldnames(type))...)
 end
+
+"""
+    is_followable_document(document) -> Bool
+
+Whether [`make_following_document`](@ref) can make a following copy of a document
+of the type of `document`: each field of it is a `ReactiveCell`, as each field of a
+`@document` with no field of another kind is.
+"""
+is_followable_document(document) =
+    !isempty(fieldnames(typeof(document))) && all(name -> getfield(document, name) isa ReactiveCell, fieldnames(typeof(document)))
 
 # The cell of the field `name` of a following copy: the same field of `source()`.
 _make_following_cell(source, type, name, ::ReactiveCell{T}) where {T} =

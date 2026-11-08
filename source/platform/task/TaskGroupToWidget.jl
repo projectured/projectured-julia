@@ -276,16 +276,12 @@ function _make_group_reason_table(p, doc::TaskGroupDocument)
     (table, more)
 end
 
-# The key of the summary card in `collapsed_cards`, and of the summary card of an
-# inner group, which shows beside it.
-const _SUMMARY_CARD_NAME = "Summary"
-const _INNER_SUMMARY_CARD_NAME = "Summary of the inner group"
-
 # The card of a group and the line of its buttons. The title of the card holds
 # the name with the identifier and the state, and a badge for each count; the card
 # holds the words that chose the tasks and the jobs, the preparation, the
 # progress, the time facts, and the reasons of the unexpected results. The card
-# folds, and a group remembers whether it did. The line of buttons stands outside
+# folds, and it is made one time for each print of the group, so it keeps its
+# fold while the person selects rows. The line of buttons stands outside
 # the card, so it stays when the card is folded. An inner group shows no actions
 # of its own: its row in the outer group stops it and runs it again.
 function _build_summary_card(p, doc::TaskGroupDocument, ctx; actions::Bool = true)
@@ -341,9 +337,8 @@ function _build_summary_card(p, doc::TaskGroupDocument, ctx; actions::Bool = tru
     lines = Any[selection]
     preparation === nothing || push!(lines, preparation)
     append!(lines, Any[progress, _make_group_time_facts(p, doc), table, more])
-    card = make_collapsible_card(ctx; title = heading,
-                                 content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill),
-                                 name = actions ? _SUMMARY_CARD_NAME : _INNER_SUMMARY_CARD_NAME)
+    card = WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.section_gap, child_width = Fill),
+                      collapsible = true)
     (card, buttons)
 end
 
@@ -379,10 +374,10 @@ function _build_preparation_detail(p, doc::TaskGroupDocument, ctx)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
     preparation isa TaskGroupDocument && return first(_build_group_parts(p, preparation, ctx; actions = false))
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
-        _build_task_kind_part(p, getfield(preparation, :task)[], preparation),
-        _build_earlier_executions_card(p, ctx, preparation),
-        _build_stream_card(p, ctx, preparation, :output),
-        _build_stream_card(p, ctx, preparation, :error_output)]
+        _build_task_kind_part(p, preparation),
+        _build_earlier_executions_card(p, () -> preparation),
+        _build_stream_part(p, () -> preparation, :output),
+        _build_stream_part(p, () -> preparation, :error_output)]
 end
 
 # A button that runs `action` while `enabled()` holds. A refused action is a
@@ -496,13 +491,15 @@ _get_detail_steps(doc::TaskGroupDocument) = getfield(doc, :is_detail_alone)[] ? 
 # area, and its content a column.
 const _COLUMN_STEPS = (FieldReferenceStep("content"), FieldReferenceStep("children"))
 
-# The parts of the column before the documents of the task: the header line, the
-# error line and the buttons.
-const _DETAIL_HEAD_COUNT = 3
-
-# The fields of a task document that the detail shows in a place, in this order,
-# each when it holds a document.
-const _DOCUMENT_FIELDS = (:kind_document, :process_tree)
+# The steps from the column of the detail to the place of each document of a
+# task: the slot of the field in the column, then the one place in the slot. The
+# slot of the document of the kind is the fourth part of the column, below the
+# header line, the error line and the buttons, and the slot of the tree of the
+# processes is the fifth (`_build_task_parts`).
+const _DOCUMENT_SLOT_STEPS = (kind_document = (RangeReferenceStep(3, 4), FieldReferenceStep("children"),
+                                               RangeReferenceStep(0, 1)),
+                              process_tree = (RangeReferenceStep(4, 5), FieldReferenceStep("children"),
+                                              RangeReferenceStep(0, 1)))
 
 # The document of the kind that the place below the card of the group holds while
 # the detail is alone: the one of the selected task, or `nothing` for a task that
@@ -532,12 +529,11 @@ function _find_document_places(doc::TaskGroupDocument)
                         FieldReferenceStep("kind_document")), (_PLACE_STEPS..., FieldReferenceStep("content"))))
         return places
     end
-    for field in _DOCUMENT_FIELDS
+    for field in keys(_DOCUMENT_SLOT_STEPS)
         getfield(documents[index], field)[] === nothing && continue
-        position = _DETAIL_HEAD_COUNT + length(places)
         push!(places, ((FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index),
                         FieldReferenceStep(String(field))),
-                       (_get_detail_steps(doc)..., _COLUMN_STEPS..., RangeReferenceStep(position, position + 1),
+                       (_get_detail_steps(doc)..., _COLUMN_STEPS..., _DOCUMENT_SLOT_STEPS[field]...,
                         FieldReferenceStep("child"))))
     end
     places
@@ -580,32 +576,124 @@ function _follow_detail_part!(detail, part, steps::Tuple; is_followed = _is_foll
     follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target), is_followed)
 end
 
-# The detail of the selected task: one column of parts in a scroll area that grows
-# down, each part the height of its content. The header line, the error line and
-# the buttons come first; then the document of the kind and the tree of the
-# processes of the task while it runs, each in a place of its own; then the cards
-# of the task (`_build_task_cards`). The maps of the pane find each document by
-# its place.
-function _build_detail(p, doc::TaskGroupDocument, ctx)
+# The task document of the selected row, or `nothing` while no row is selected,
+# while the preparation is selected, and for a row that is an inner group.
+function _find_selected_task_document(doc::TaskGroupDocument)
+    index = getfield(doc, :selected)[]
+    documents = getfield(doc, :tasks)[]
+    (1 <= index <= length(documents)) || return nothing
+    find_task_group_document(doc, index) === nothing || return nothing
+    documents[index]
+end
+
+# What the detail shows: `:preparation`, `:hint` while no row is selected,
+# `:group` for a row that is an inner group, and `:task` for a task. A symbol is
+# plain data, so a cell of it stops when another row of a task is selected.
+function _get_detail_mode(doc::TaskGroupDocument)
+    index = getfield(doc, :selected)[]
+    index == -1 && return :preparation
+    (1 <= index <= length(getfield(doc, :tasks)[])) || return :hint
+    find_task_group_document(doc, index) === nothing ? :task : :group
+end
+
+# A part of the detail that holds what `parts()` answers, each `nothing` left
+# out. It is the only reader of what it holds, so the column around it stays as
+# it is when the part shows something else, and the other parts of the column
+# do not print again.
+function _make_detail_slot(parts)
+    slot = VerticalLayout(Any[]; child_width = Fill)
+    set_cell_computation!(getfield(slot.children, :elements),
+                          () -> Cell[Cell(part) for part in parts() if part !== nothing])
+    slot
+end
+
+# The pages of the documents of the kinds of the tasks of a group, which the
+# detail and the place below the card show: for each type of document, one
+# document to show, and its place in the detail. A document whose fields are
+# cells shows as its following copy (`make_following_document`), one object for
+# the type, so a print of the page is made one time for each type, and the cards
+# of the page keep their fold while the person selects rows. Another document
+# shows as it is. `key` is the number of the type of the document of the
+# selected task, `0` when it has none: plain data, so a cell of it stops when
+# another task with a document of the same type is selected.
+struct _KindPages
+    types::Vector{Any}
+    shown::Vector{Any}          # for each type: a function that answers the document to show
+    places::Vector{Any}         # for each type: the `LayoutConstraint` of the document in the detail
+    key::Cell
+end
+
+# The document of the kind of the selected task, or `nothing`.
+_find_selected_kind_document(doc::TaskGroupDocument) =
+    (document = _find_selected_task_document(doc); document === nothing ? nothing : getfield(document, :kind_document)[])
+
+function _make_kind_pages(doc::TaskGroupDocument, detail)
+    pages = _KindPages(Any[], Any[], Any[], Cell(0))
+    set_cell_computation!(pages.key, () -> begin
+        shown = _find_selected_kind_document(doc)
+        shown === nothing ? 0 : _find_kind_page!(pages, doc, detail, shown)
+    end)
+    pages
+end
+
+# The number of the type of `shown` among the pages, with a new page for a new
+# type. The page of a type shows the document of the selected task while it is
+# of that type, and the last such document while it is not.
+function _find_kind_page!(pages::_KindPages, doc::TaskGroupDocument, detail, shown)
+    type = typeof(shown)
+    found = findfirst(t -> t === type, pages.types)
+    found === nothing || return found
+    last_shown = Ref{Any}(shown)
+    source = () -> begin
+        current = _find_selected_kind_document(doc)
+        current isa type && (last_shown[] = current)
+        last_shown[]
+    end
+    if is_followable_document(shown)
+        copy = make_following_document(source)
+        place = LayoutConstraint(copy; width = Fill)
+        push!(pages.shown, () -> copy)
+    else
+        place = LayoutConstraint(shown; width = Fill)
+        set_cell_computation!(getfield(place, :child), source)
+        push!(pages.shown, source)
+    end
+    _follow_detail_part!(detail, place, (_COLUMN_STEPS..., _DOCUMENT_SLOT_STEPS.kind_document...))
+    push!(pages.types, type)
+    push!(pages.places, place)
+    length(pages.types)
+end
+
+# The document that the place below the card shows while the detail is alone,
+# or `nothing` when the selected task has no document of its kind.
+_find_alone_page(pages::_KindPages) = (key = pages.key[]; key == 0 ? nothing : pages.shown[key]())
+
+# The parts of the detail of a task, made one time: the header line, the error
+# line and the buttons; the slot of the document of the kind and the slot of the
+# tree of the processes while the task runs; and the cards `Process` and
+# `Earlier executions` and the two streams. Each part reads the selected task in
+# a computation of its own, so a card stays the same card while the person
+# selects rows, and keeps its fold.
+function _build_task_parts(p, doc::TaskGroupDocument, detail, pages::_KindPages)
     group = get_task_group(doc)
-    column = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
-    detail = WidgetScrollPane(column; grows = (width = false, height = true))
-    set_cell_computation!(getfield(column.children, :elements), () -> begin
-        index = getfield(doc, :selected)[]
-        index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, ctx)]
-        documents = getfield(doc, :tasks)[]
-        (1 <= index <= length(documents)) ||
-            return Cell[Cell(_make_label("Press a row to see its task here.", p.muted_color))]
-        # A task that is a group shows its own pane: its card, its buttons, its
-        # table and the detail of the task picked in it.
-        inner = find_task_group_document(doc, index)
-        inner === nothing ||
-            return Cell[Cell(x) for x in first(_build_group_parts(p, inner, ctx; actions = false))]
-        document = documents[index]
+    selected = () -> _find_selected_task_document(doc)
+    header = _make_detail_slot(() -> begin
+        document = selected()
+        document === nothing && return Any[]
         task = getfield(document, :task)[]
-        header = HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
-                                      _make_task_header_note(p, document)];
-                                  vertical_align = :center, gap = p.label_gap)
+        Any[HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+                                 _make_task_header_note(p, document)];
+                             vertical_align = :center, gap = p.label_gap)]
+    end)
+    error_line = _make_detail_slot(() -> begin
+        document = selected()
+        document === nothing ? Any[] : Any[_make_task_error_line(p, document; max_lines = 2)]
+    end)
+    buttons = _make_detail_slot(() -> begin
+        document = selected()
+        document === nothing && return Any[]
+        index = getfield(doc, :selected)[]
+        task = getfield(document, :task)[]
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = editor -> _run_guarded("stop",
                                 () -> evaluate_operation(editor, StopTaskOperation(doc, index))))
@@ -619,43 +707,71 @@ function _build_detail(p, doc::TaskGroupDocument, ctx)
                       for (label, action) in get_task_actions(task)]
         page = WidgetButton("Open the task page"; size = p.button_size,
                             gestures = make_open_page_gestures(doc, _make_task_reference(index); domain = "task"))
-        buttons = HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)
-        parts = Any[header, _make_task_error_line(p, document; max_lines = 2), buttons]
-        for field in _DOCUMENT_FIELDS
-            shown = getfield(document, field)[]
-            shown === nothing && continue
-            place = LayoutConstraint(shown; width = Fill)
-            steps = (_COLUMN_STEPS..., RangeReferenceStep(length(parts), length(parts) + 1))
-            push!(parts, _follow_detail_part!(detail, place, steps))
-        end
-        append!(parts, _build_task_cards(p, ctx, doc, document))
-        Cell[Cell(x) for x in parts]
+        Any[HorizontalLayout(Any[page, stop, again, actions...]; vertical_align = :center, gap = p.button_gap)]
     end)
-    detail
+    kind = _make_detail_slot(() -> (key = pages.key[]; key == 0 ? Any[] : Any[pages.places[key]]))
+    processes = _make_detail_slot(() -> begin
+        document = selected()
+        tree = document === nothing ? nothing : getfield(document, :process_tree)[]
+        tree === nothing && return Any[]
+        Any[_follow_detail_part!(detail, LayoutConstraint(tree; width = Fill),
+                                 (_COLUMN_STEPS..., _DOCUMENT_SLOT_STEPS.process_tree...))]
+    end)
+    Cell[Cell(part) for part in Any[header, error_line, buttons, kind, processes,
+                                    _build_process_card(p, doc, selected),
+                                    _build_earlier_executions_card(p, selected),
+                                    _build_stream_part(p, selected, :output),
+                                    _build_stream_part(p, selected, :error_output)]]
 end
 
-# The cards of a task under its documents: its process, its earlier executions,
-# and its two streams.
-_build_task_cards(p, ctx, doc, document::TaskDocument) =
-    Any[_build_process_card(p, ctx, doc, document),
-        _build_earlier_executions_card(p, ctx, document),
-        _build_stream_card(p, ctx, document, :output),
-        _build_stream_card(p, ctx, document, :error_output)]
-
-# The card `Process`: the facts of the process of the task. It is not visible
-# while the task has no such fact.
-function _build_process_card(p, ctx, doc, document::TaskDocument)
-    facts = _make_task_process_group(doc, document)
-    card = make_collapsible_card(ctx; title = "Process", content = facts)
-    set_cell_computation!(getfield(card, :visible), () -> getfield(facts, :visible)[])
-    card
+# The detail of the selected task: one column of parts in a scroll area that
+# grows down, each part the height of its content (`_build_task_parts`). The
+# column keeps its parts while the person selects tasks: only a change between a
+# task, an inner group, the preparation and no row makes it again. The maps of
+# the pane find each document by its place. It answers the detail and the pages of
+# the kinds of the tasks (`_KindPages`).
+function _build_detail(p, doc::TaskGroupDocument, ctx)
+    column = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    detail = WidgetScrollPane(column; grows = (width = false, height = true))
+    pages = _make_kind_pages(doc, detail)
+    task_parts = _build_task_parts(p, doc, detail, pages)
+    mode = Cell(@computation _get_detail_mode(doc))
+    set_cell_computation!(getfield(column.children, :elements), () -> begin
+        shown = mode[]
+        shown === :task && return task_parts
+        shown === :preparation && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, ctx)]
+        shown === :hint && return Cell[Cell(_make_label("Press a row to see its task here.", p.muted_color))]
+        # A task that is a group shows its own pane: its card, its buttons, its
+        # table and the detail of the task picked in it.
+        inner = find_task_group_document(doc, getfield(doc, :selected)[])
+        Cell[Cell(x) for x in first(_build_group_parts(p, inner, ctx; actions = false))]
+    end)
+    (detail, pages)
 end
 
-# The card `Earlier executions`, not visible while the task has none.
-function _build_earlier_executions_card(p, ctx, document::TaskDocument)
-    card = make_collapsible_card(ctx; title = "Earlier executions", content = _build_earlier_executions(p, document))
-    set_cell_computation!(getfield(card, :visible), () -> !isempty(get_earlier_task_executions(document)))
-    card
+# The card `Process`: the facts of the process of the task that `selected()`
+# answers, in a slot that holds the card only while the task has such a fact. The
+# card is made one time, and only its content follows the task. A card reads
+# whether it is visible when it prints, so the slot, not the card, comes and goes,
+# and the parts around it do not print again.
+function _build_process_card(p, doc, selected)
+    facts = Cell(@computation (document = selected();
+                               document === nothing ? nothing : _make_task_process_group(doc, document)))
+    card = WidgetCard(; title = "Process", content = _make_detail_slot(() -> Any[facts[]]), collapsible = true)
+    shows = Cell(@computation (shown = facts[]; shown !== nothing && getfield(shown, :visible)[]))
+    _make_detail_slot(() -> Any[shows[] ? card : nothing])
+end
+
+# The card `Earlier executions` of the task that `selected()` answers, in a slot
+# that holds the card only while the task has such executions. The card is made
+# one time.
+function _build_earlier_executions_card(p, selected)
+    content = _make_detail_slot(() -> (document = selected();
+                                       document === nothing ? Any[] : Any[_build_earlier_executions(p, document)]))
+    card = WidgetCard(; title = "Earlier executions", content, collapsible = true)
+    shows = Cell(@computation (document = selected();
+                               document !== nothing && !isempty(get_earlier_task_executions(document))))
+    _make_detail_slot(() -> Any[shows[] ? card : nothing])
 end
 
 # The executions before the current one, the oldest first, each with its verdict
@@ -695,18 +811,20 @@ _has_stream_lines(document::TaskDocument, field::Symbol) = _get_stream_line_coun
 _format_stream_count(name::AbstractString, count::Integer) =
     count == 0 ? name * " · empty" : string(name, " · ", count, count == 1 ? " line" : " lines")
 
-# The card of one stream in the detail: its name and the count of its lines over
-# the box of its lines, or the muted word `stdout · empty` and no card. The part
+# The part of one stream of the task that `selected()` answers: a card with its
+# name and the count of its lines over the box of its lines, or the muted word
+# `stdout · empty` and no card. The card and the word are made one time. The part
 # reads whether the stream has a line in a cell of its own, which stays as it is
-# while lines come, so the first line builds the part again and a later line does
-# not. The card is remembered under the name of the stream, whatever the count.
-function _build_stream_card(p, ctx, document::TaskDocument, field::Symbol)
+# while lines come, so a line changes only the count and the box.
+function _build_stream_part(p, selected, field::Symbol)
     name = field === :output ? "stdout" : "stderr"
-    has_lines = Cell(@computation _has_stream_lines(document, field))
-    has_lines[] || return _make_label(name * " · empty", p.muted_color)
-    title = _make_label(() -> _format_stream_count(name, _get_stream_line_count(document, field)), p.muted_color)
-    make_collapsible_card(ctx; title, name,
-                          content = _build_output_pane(p, () -> collect_task_document_lines(document, field)))
+    count = () -> (document = selected(); document === nothing ? 0 : _get_stream_line_count(document, field))
+    has_lines = Cell(@computation count() > 0)
+    title = _make_label(() -> _format_stream_count(name, count()), p.muted_color)
+    lines = () -> (document = selected(); document === nothing ? String[] : collect_task_document_lines(document, field))
+    card = WidgetCard(; title, content = _build_output_pane(p, lines), collapsible = true)
+    empty = _make_label(name * " · empty", p.muted_color)
+    _make_detail_slot(() -> Any[has_lines[] ? card : empty])
 end
 
 # The lines of a stream in a box of at most `stream_box_height`, which scrolls
@@ -883,15 +1001,16 @@ get_document_decoration(group::ClosedTaskGroup) =
 function _build_group_parts(p, doc::TaskGroupDocument, ctx; actions::Bool = true)
     (card, buttons) = _build_summary_card(p, doc, ctx; actions)
     table = LayoutConstraint(getfield(doc, :table)[]; width = Fill, height = Content, weight_height = 1.0)
-    detail = _build_detail(p, doc, ctx)
-    split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
     alone = WidgetScrollPane(nothing; grows = (width = false, height = true))
-    set_cell_computation!(getfield(alone, :content), () -> _find_alone_document(doc))
+    (detail, pages) = _build_detail(p, doc, ctx)
+    split = WidgetSplitPane(:vertical, Any[table, LayoutConstraint(detail; width = Fill, height = Fill)])
+    set_cell_computation!(getfield(alone, :content), () -> _find_alone_page(pages))
+    # Plain data, so the place stays as it is while the person selects tasks.
+    shows_alone = Cell(@computation getfield(doc, :is_detail_alone)[] && pages.key[] != 0)
+    shows_detail_alone = Cell(@computation getfield(doc, :is_detail_alone)[] && pages.key[] == 0)
     place = LayoutConstraint(split; width = Fill, height = Fill)
-    set_cell_computation!(getfield(place, :child), () -> begin
-        getfield(doc, :is_detail_alone)[] || return split
-        _find_alone_document(doc) === nothing ? detail : alone
-    end)
+    set_cell_computation!(getfield(place, :child),
+                          () -> shows_alone[] ? alone : shows_detail_alone[] ? detail : split)
     (Any[card, buttons, place], detail, alone)
 end
 
@@ -1445,10 +1564,9 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
         make_object_field_widget_dispatch(make_widget_rows()), documents, Pair{Type,Any}[
             TaskStreamLines => ChainingProjection(lines, VerticalLayoutToGraphicsCanvas())])))
     Pair{Type,Any}[
-        TaskGroupDocument => TaskCardScopeProjection(
-            ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
-                                   stream_box_height = get_style(:stream_box_height)),
-                               widgets())),
+        TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...,
+                                                    stream_box_height = get_style(:stream_box_height)),
+                                                widgets()),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets()),
         ClosedTaskGroup => ChainingProjection(ClosedTaskGroupToWidgetPane(; section_gap = styles.section_gap,
                                                   label_gap = styles.label_gap, muted_color = styles.muted_color),
