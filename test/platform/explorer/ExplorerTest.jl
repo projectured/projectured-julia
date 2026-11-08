@@ -109,6 +109,42 @@ function _explorer_right_click(editor, backend, label)
     answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
 end
 
+# The texts of the frame with the rectangles of the viewports around each, in window
+# coordinates: a text a pane hides lies outside one of them.
+function _explorer_clipped_texts(backend)
+    found = Any[]
+    function walk(canvas, ox, oy, clips)
+        x = ox + Int(canvas.x)
+        y = oy + Int(canvas.y)
+        for element in canvas.elements
+            element = element isa Cell ? element[] : element
+            element isa ListNode && (element = element.value)
+            if element isa GraphicsText
+                push!(found, (String(element.text), x + Int(element.x), y + Int(element.y), copy(clips)))
+            elseif element isa GraphicsCanvas
+                walk(element, x, y, clips)
+            elseif element isa GraphicsViewport
+                vx, vy = x + Int(element.x), y + Int(element.y)
+                push!(clips, (vx, vy, Int(element.w), Int(element.h)))
+                walk(element.content, vx + round(Int, element.transform.e), vy + round(Int, element.transform.f), clips)
+                pop!(clips)
+            end
+        end
+    end
+    frame = last(rendered_output(backend))
+    walk(hasproperty(frame, :windows) ? frame.windows[1].content : frame, 0, 0, Any[])
+    found
+end
+
+# The place of the text `text` in the frame when no viewport around it hides it, or `nothing`.
+function _explorer_find_visible_text(backend, text)
+    for (drawn, x, y, clips) in _explorer_clipped_texts(backend)
+        drawn == text || continue
+        all(c -> c[1] <= x < c[1] + c[3] && c[2] <= y < c[2] + c[4], clips) && return (x, y)
+    end
+    nothing
+end
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -1028,6 +1064,30 @@ function test_explorer()
         (_, menu) = row_menu(format_tree_node_label(log))
         @test any(element -> element isa WidgetSeparator, menu.elements)
         @test "Clear the fault log" in labels(menu)
+    end
+
+    @testset "a dashboard in a card of a dashboard shows its cards, and a press at one reaches it" begin
+        inner = Dashboard("inner", Any[DashboardCard("leaf one", PrimitiveString("alpha")),
+                                       DashboardCard("leaf two", PrimitiveString("beta"))])
+        outer = Dashboard("outer", Any[DashboardCard("holds inner", inner)])
+        editor, backend = _explorer_window_editor(outer)
+        for _ in 1:4
+            drain_operations!(editor)
+            run_frame!(editor)
+        end
+        place = _explorer_find_visible_text(backend, "alpha")
+        @test place !== nothing && _explorer_find_visible_text(backend, "beta") !== nothing
+        # The pane of the inner dashboard has a height of its own, up to its range.
+        heights = [c[4] for (text, _, _, clips) in _explorer_clipped_texts(backend) if text == "alpha" for c in clips]
+        @test !isempty(heights) && all(h -> h > 0, heights)
+        if place !== nothing
+            x, y = place
+            _explorer_window_press!(editor, backend, MouseMove(x + 2, y + 2; time = 0.0))
+            _explorer_window_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+            selection = getfield(outer, :selection)[]
+            @test selection isa ConcreteReference
+            @test count(step -> step == FieldReferenceStep("content"), _nav_steps(selection)) >= 2
+        end
     end
 
     @testset "a dashboard shows its cards in columns, a key in a card reaches its content, and Insert adds a card" begin

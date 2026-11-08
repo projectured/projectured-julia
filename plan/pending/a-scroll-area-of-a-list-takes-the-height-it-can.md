@@ -125,7 +125,7 @@ without undoing A.
 
 ## 7. Steps (fixed)
 
-1. **Measure and test the case.** Add a test that prints a dashboard in a card of a dashboard and checks the
+1. **Measure and test the case.** **Done on 2026-11-08.** The test is the testset "a dashboard in a card of a dashboard shows its cards, and a press at one reaches it" in `ExplorerTest.jl`, with the helpers `_explorer_clipped_texts` and `_explorer_find_visible_text`, which read the viewport rectangles. Before step 2 it failed 2 of 2 assertions (the text `beta` is hidden, the viewports around `alpha` include a height of 0); `test_explorer()` was 379 passed, 2 failed. Cost: `_has_no_extent_along` on a finite canvas of 100 000 element cells takes 29 ms per check; the cell of the extent runs it again only when the canvas or an element cell changes, and only for a pane with no offer and a maximum. Add a test that prints a dashboard in a card of a dashboard and checks the
    viewport rectangle of the inner pane (height greater than 0 and equal to its maximum), the position of a
    card text inside the clip, and a press at that place that hits the card. The helpers `_nav_drawn` and
    `_nav_texts` do not clip; the test reads the viewport rectangles. Check that it fails now. Also measure the
