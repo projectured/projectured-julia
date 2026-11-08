@@ -145,7 +145,7 @@ without undoing A.
    regression.
 5. **Documentation.** **Done on 2026-11-08.** layout-rules.md §3 (the paragraph on a viewport with no offer) and the scroll-bars section of widget.md now say that a pane of a list takes the maximum of its range. `test_documentation()` 1 of 1, exit 0 (it prints 150 report lines, as a pass does). Change layout-rules.md §3 (the text on a viewport with no offer) and the scroll-pane
    section of widget.md: a pane of a list takes the maximum of its range. Test: `test_documentation()`.
-6. **Look at the pixels.** Start a fresh process, show a dashboard in a card, force the tree and read the pixels
+6. **Look at the pixels.** **Done on 2026-11-08, with a limit.** A fresh process (DISPLAY :0 exists) built the editor of the nested dashboards in a window of 1100 x 500 (headless backend), rendered its frame with the SDL offscreen renderer (`_render_canvas_offscreen!`), and read the pixels: both inner cards are drawn (`alpha` 168 and `beta` 154 pixels differ from the card background in a 32 x 12 rectangle at the place of each text), the picture shows the two cards and empty room under them as the decision says, and an Alt+press at `alpha` selected `cards[1].content.cards[1].content` (the string `alpha`). No native SDL window was opened. Start a fresh process, show a dashboard in a card, force the tree and read the pixels
    of the SDL backend: the cards of the inner dashboard are drawn, and Alt+click at one selects it.
 
 ## 8. Risks
