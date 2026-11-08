@@ -130,7 +130,6 @@ Tuple{typeof(Base.hash), Array{Tuple{Int64, Int64}, 1}, UInt64}
 Tuple{typeof(Base.hash), String}
 Tuple{typeof(Base.hash), Tuple{Int64, Int64}, UInt64}
 Tuple{typeof(Base.hashindex), Tuple{UInt64, Int64, Int64}, Int64}
-Tuple{typeof(Base.hashindex), Type, Int64}
 Tuple{typeof(Base.haskey), Base.Dict{Symbol, Any}, Symbol}
 Tuple{typeof(Base.in), Int64, Base.Set{Int64}}
 Tuple{typeof(Base.in), String, Base.Set{String}}
@@ -162,6 +161,7 @@ Tuple{typeof(Base.isempty), Base.Dict{String, Any}}
 Tuple{typeof(Base.isequal), Int64, Int64}
 Tuple{typeof(Base.isequal), Task, Task}
 Tuple{typeof(Base.isequal), Tuple{UInt64, Int64, Int64}, Tuple{UInt64, Int64, Int64}}
+Tuple{typeof(Base.isequal), Tuple{UInt64, UInt64}, Tuple{UInt64, UInt64}}
 Tuple{typeof(Base.isequal), UInt8}
 Tuple{typeof(Base.isfinite), Float64}
 Tuple{typeof(Base.isodd), Int64}
