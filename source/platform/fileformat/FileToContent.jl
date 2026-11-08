@@ -40,13 +40,6 @@ const _PATH_FILES_PROPERTY = :path_files
 
 _get_path_files(ctx) = get_property(ctx, _PATH_FILES_PROPERTY, ())
 
-# The property of a context that the print of a file gives to everything below it:
-# the cell of the files that the file shows, from the path that its document writes
-# to the file document ([`find_shown_file`](@ref)). The cell reads the `disk` state of
-# the file, so a print that reads it follows a load that changes the paths, also when
-# a history around the content keeps the print of the content over the load.
-const _SHOWN_FILES_PROPERTY = :shown_files
-
 # A repeat draws as a closed card with the title and the path of its file, which
 # opens to the content of the file. While the card is closed it has no content, so
 # it prints nothing below it; the card of this one place holds the state, and the
@@ -71,7 +64,6 @@ function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
         return ContentIoMap(p, file, Cell(card.output), Cell(card))
     end
     ctx = with_property(ctx, _PATH_FILES_PROPERTY, (path_files..., file))
-    ctx = with_property(ctx, _SHOWN_FILES_PROPERTY, Cell(@computation get_file_disk_state(file).shown_files))
     step = @reference_step(content)
     # Single-child reconciliation (`make_reconciled_child_iomap_cell`, not the plural
     # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a

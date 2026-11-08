@@ -164,10 +164,6 @@ What a file document knows of its file on disk:
   file whose `read_count` is past its `loaded_count` reads its text when it is drawn.
 - `text`, the background cell that reads the text of the file, or `nothing` while
   the file has none.
-- `shown_files`, a `Dict{String,Any}` from each path that the document of the file
-  shows (`collect_shown_file_paths`, as the document writes it) to the file document
-  that the editor holds for it; empty while the file shows none. A load sets it, and
-  the file holds the files of its values.
 
 Every file document keeps one in its field `disk`, as it keeps `filename` and
 `content`; [`get_file_disk_state`](@ref) reads it. The field is view state, so a save
@@ -184,7 +180,6 @@ writes none of it and a walk does not enter it.
     read_count::Int = 0
     loaded_count::Int = 0
     text::Any = nothing
-    shown_files::Any = Dict{String,Any}()
 end
 
 """

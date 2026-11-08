@@ -665,7 +665,8 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         exit handler of the code generator while a watcher thread compiled; the tests all passed.)
 - [x] **4. A file keeps the editor's one file document of each picture that it shows (D5, D10).** **Done on 2026-11-08.**
       **Replaced by D14 (owner, 2026-11-08):** the page keeps no table of its pictures; the image
-      holds its picture as a tab does. The code of this step is on main `24b941058` and does not stay.
+      holds its picture as a tab does. The code of this step (`7164886f6`) is reverted on 2026-11-08,
+      by the owner's choice before a push, and the plan of Q10 designs the hold of a picture.
       Needs step 5 of the plan of the save, which adds `open_file_document!`.
       `collect_shown_file_paths` in `FileFormatModule`, the field `shown_files` of `FileDiskState`
       with the file of each path, which `open_file_document!(path; editor)` answers, and the hold of

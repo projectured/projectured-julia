@@ -577,7 +577,6 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file), content)
-    open_shown_files!(editor, file)
     state = get_file_disk_state(file)
     if op.file_hash !== nothing
         state.file_hash = op.file_hash
@@ -600,79 +599,6 @@ function _splice_open_files(editor, file::FileDocument, content)
     (editor isa Editor && !isempty(get_filename(file))) || return content
     splice_held_files!(content, dirname(abspath(get_filename(file))),
                        path -> open_file_document!(editor, path))
-end
-
-"""
-    collect_shown_file_paths(document) -> Vector{String}
-
-The paths that `document` writes for the files that it shows, such as the images of a
-Markdown page, in the order that it writes them and as it writes them: a relative path
-is against the folder of the file that holds the document. A domain adds a method for
-its root document. It reads no disk. The default answers none.
-
-Use it to name the files that a document shows, so that the file which holds it keeps
-the editor's one file document of each ([`open_shown_files!`](@ref)).
-
-# Example
-
-    collect_shown_file_paths(markdown_root_1)    # ["images/chart.png"]
-
-See also `find_shown_file`.
-"""
-function collect_shown_file_paths end
-
-collect_shown_file_paths(document) = String[]
-
-"""
-    open_shown_files!(editor, file) -> nothing
-
-Give `file` the file document of each path that its document shows
-([`collect_shown_file_paths`](@ref)), against the folder of `file`: the one that
-`editor` holds open for the path, else a new one that reads nothing
-([`open_file_document!`](@ref)). They are the `shown_files` of its
-[`FileDiskState`](@ref). While `file` is held, it holds the files that it shows now and
-no longer those that it does not show; a path whose extension names no file type has
-no file. With no editor, or no name, it does nothing. A load calls it
-([`ReloadFileOperation`](@ref)), and so does the open of a file.
-"""
-function open_shown_files!(editor, file::FileDocument)
-    (editor isa Editor && !isempty(get_filename(file))) || return nothing
-    folder = dirname(abspath(get_filename(file)))
-    shown = Dict{String,Any}()
-    for path in collect_shown_file_paths(get_wrapped_document(get_file_content(file)))
-        full_path = normpath(joinpath(folder, path))
-        (haskey(shown, path) || !has_file_document_type(full_path)) && continue
-        picture = open_file_document!(editor, full_path)
-        picture === nothing || (shown[path] = picture)
-    end
-    state = get_file_disk_state(file)
-    before = collect(values(state.shown_files))
-    after = collect(values(shown))
-    state.shown_files = shown
-    released = Any[picture for picture in before if !any(other -> other === picture, after)]
-    acquired = Any[picture for picture in after if !any(other -> other === picture, before)]
-    (isempty(released) && isempty(acquired)) ||
-        evaluate_operation(editor, ChangeHeldDocumentsOperation(file, released, acquired))
-    nothing
-end
-
-"""
-    find_shown_file(context, path) -> FileDocument or nothing
-
-The file document that the file being printed keeps for `path`, a path as
-[`collect_shown_file_paths`](@ref) answers it, or `nothing` when it keeps none. A printer
-below [`FileToContent`](@ref) calls it inside a computation, which reads the shown files of
-the file, so the print follows a load that changes them. It reads no disk.
-
-Use it to draw a file that the document shows, such as the picture of an image.
-
-# Example
-
-    picture_1 = find_shown_file(context_1, "images/chart.png")
-"""
-function find_shown_file(context, path::AbstractString)
-    shown = get_property(context, _SHOWN_FILES_PROPERTY, nothing)
-    shown === nothing ? nothing : get(shown[], String(path), nothing)
 end
 
 # The selection of the editor after a load: it stays where it is, or when the new
