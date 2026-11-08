@@ -131,7 +131,7 @@ without undoing A.
    `_nav_texts` do not clip; the test reads the viewport rectangles. Check that it fails now. Also measure the
    cost of the check on a large finite canvas. Test: the new test in `test/platform/explorer/ExplorerTest.jl`
    (`test_explorer()`).
-2. **The extent of a pane on an axis.** Add one function in `WidgetToGraphics.jl` that tells the extent of a pane
+2. **The extent of a pane on an axis.** **Done on 2026-11-08.** `_pane_extent_along(axis, offer, content_cell, canvas_cell, minimum, maximum)` in `WidgetToGraphics.jl` (before `WidgetScrollPane`) answers `_pane_extent` when there is an offer, no canvas (a pane of parts) or no maximum, and else a cell that takes the maximum when `_has_no_extent_along(canvas_cell[], axis)`, the content's extent otherwise, between the minimum and the maximum. Used for width (`:x`) and height (`:y`) of `WidgetScrollPane`; `WidgetTransformPane` keeps `_pane_extent`. No cycle appeared. Tests: `test_explorer()` 383 passed (the new test passes), `test_scroll_pane_bar()` 4 of 4, `test_widget_rows_scroll()` 9 of 9, `test_pane_geometry()` 43 of 43, all exit 0. Add one function in `WidgetToGraphics.jl` that tells the extent of a pane
    on an axis from the offer, the placed canvas, the minimum and the maximum, with the rule of A, and use it at
    `:6622` (height and width). The content cell reads the canvas elements inside the cell. Tests:
    `test_scroll_pane_bar()`, `test_widget_rows_scroll()`, `test_pane_geometry()`, and the test of step 1.

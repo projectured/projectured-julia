@@ -6205,6 +6205,22 @@ function _pane_extent(offer, content_cell, minimum = nothing, maximum = nothing)
     end)
 end
 
+# The viewport extent of a scroll pane on `axis`. It is `_pane_extent`, except for a
+# pane with no offer whose content is a list along the axis: the list has no extent
+# to measure, so the viewport takes the `maximum` of its range, and not less than
+# the `minimum`. With no `maximum` there is no edge to take, and the extent is the
+# content's own. `canvas_cell` holds the canvas of the content, or is `nothing`.
+function _pane_extent_along(axis::Symbol, offer, content_cell, canvas_cell, minimum, maximum)
+    (offer !== nothing || canvas_cell === nothing || maximum === nothing) &&
+        return _pane_extent(offer, content_cell, minimum, maximum)
+    Cell(@computation begin
+        extent = _has_no_extent_along(canvas_cell[], axis) ? Int(maximum[]) :
+                 content_cell === nothing ? 0 : max(0, Int(content_cell[]))
+        minimum === nothing || (extent = max(extent, Int(minimum[])))
+        Int32(min(extent, Int(maximum[])))
+    end)
+end
+
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
 # How far down a pane shows its content, in pixels. The printer draws the content
@@ -6619,8 +6635,8 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
     content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
                 content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
-    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
-    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
+    vw_cell = _pane_extent_along(:x, offer_w, content_w, content_canvas, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent_along(:y, offer_h, content_h, content_canvas, inner_ctx.minimum_height, inner_ctx.maximum_height)
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
     inner_x = Cell(@computation Int32(-(content_canvas === nothing ?
