@@ -273,7 +273,7 @@ approval of the user.
     Both Julia builds do this, so steps 3 and 4 did not change it.
   - A new path package applies too: the store tracks every path package of the
     Manifest, so its root file is a new tracked file (C4).
-- [ ] **Step 6: the real IDE.** After the user approves the landing of both
+- [x] **Step 6: the real IDE.** After the user approves the landing of both
   worktrees: rebuild the `+merged` Julia, and found the IDE store with
   `bin/build_omnet_ide --found`. Then add a field to `WidgetTheme` in a copy of
   the change, and run `bin/build_omnet_ide`. The rebuild must apply it. Do not
@@ -285,6 +285,41 @@ approval of the user.
     This failure is on `main` without this plan (`IdeWorkloadTest.jl:17`, seen
     the same day on omnet 21ec66b1e). The old store and binary stay. The step
     waits for a fix of that workload step.
+  - 2026-11-07: the cause of that failure is in the workload, not in this plan.
+    `click("Run")` hit the Run of the protocol test runner, which the left pane
+    still showed, so the workload never ran the simulations, also on the good
+    states of 2026-11-04. The wait for `DONE` passed only while the status line
+    of the test page, "Before the tasks: preparing workload — DONE", wrapped, so
+    that "DONE" was a text of its own; after the landing one-system-for-space the
+    line fits. A bisect of seven states and a trace of the drawn texts found it.
+    The fix is on omnet main: 9964a6d45 runs the Runner before the test runner,
+    and 831a34b82 waits for `r"^Ran simulations"`, which the page of a finished
+    group says for any count of runs. A first wait for `7 DONE` held only for
+    the plain workload: `warm_omnet_ide` adds 17 sample file types, an INI file
+    and a NED file among them, so the founding found other runs.
+  - 2026-11-07: done. The founding (omnet main 831a34b82, projectured main
+    91311c4f2) passes in 46 min 53 s at a 24.5 GB peak and writes the store in
+    `build/omnet_ide/reactive-store`; the binary starts in 0.05 s. A new field
+    `rebuild_test_minimum::IconSize` at the end of `WidgetTheme` applies: the
+    rebuild takes 1 min 2 s at 4.1 GB, the server says `change B2
+    WidgetTheme.jl:4 WidgetTheme, 143 methods, 5 kept, 137 deleted` and
+    `applied 8 expressions and 0 removals`, and snapshot s2 has no refusal. With
+    the field removed, the next rebuild takes 17 s: a rebuild compares the
+    sources with the founding snapshot s1, so it applies 0 changed files. The
+    field was never committed.
+  - 2026-11-08: this step checked the apply, but it did not start the rebuilt
+    binary. A start after a rebuild crashed in `lookup_root`. The cause is in
+    the overlay writer of the Julia fork (`reactive_overlay_emit`,
+    `staticdata.c`). It put only the words that differ from the founding file
+    in a patch run. A memory reference is two words, its pointer and its owner.
+    A rewritten array keeps the pointer offset 0 and gets a new owner, so only
+    the owner was in the run. A start of a prelinked binary then added the new
+    data address to the old converted pointer. The fix puts both words of a
+    reference in a run when either word differs: julia merged-next 34672676c4,
+    pushed to levy/julia `merged`. After a library build, a server restart and
+    rebuild s3, the binary decodes all 106 015 method sources, and the IDE
+    window workload passes in 127 s. No test starts a prelinked binary with an
+    overlay. The owner declined a regression test.
 
 ## Not in this plan
 
