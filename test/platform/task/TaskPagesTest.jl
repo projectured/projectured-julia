@@ -114,6 +114,25 @@ function test_task_pages()
             @test opened isa OpenPageOperation && opened.document === _TASK_PAGE_LINKED
         end
 
+        @testset "the page is a column in a scroll area, and its cards keep their own state" begin
+            projection, iomap = _print_task_view(document; height = 300)
+            texts = _collect_task_view_texts(iomap.output)
+            words = [t[3] for t in texts]
+            # The column is taller than the window and the first parts stand at its top.
+            @test maximum(t[2] for t in texts) > 300
+            @test any(v -> v[4] <= 300 && v[3] >= 1000, _collect_task_view_viewports(iomap.output))
+            # The preview of a stream shows its last eight lines, over the link to its page.
+            @test "line 300" in words && "line 295" in words && !("line 294" in words)
+            # A card of a page that has no group around it folds by its own state.
+            cards = search_documents(iomap.step_iomaps[1][].output, node -> node isa WidgetCard && node.collapsible)
+            @test length(cards) == 4
+            @test Set(card.title for card in cards if card.title isa AbstractString) == Set(["Links", "Process", "Executions"])
+            executions = only(card for card in cards if card.title == "Executions")
+            @test executions.collapsible && !executions.collapsed
+            evaluate_operation(nothing, read_intent(projection, iomap, ToggleCollapseOperation(executions)))
+            @test executions.collapsed
+        end
+
         @testset "the page shows the header, the document of the kind, the process and the streams in order" begin
             kind_group = wrap_task_group_document(
                 TaskGroup([_TaskPageKindProbeTask("kinded", "echo hi")]; name = "kinds", jobs = 1); title = "kind tasks")
