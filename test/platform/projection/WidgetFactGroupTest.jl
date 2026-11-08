@@ -5,8 +5,7 @@
 _fact_stub = FixedMeasure(10, 18, 6, 0)      # every character is 10 wide, every line 18 tall
 _fact_theme = get_theme_defaults(WidgetTheme)
 _fact_proj() = RecursiveProjection(TypeDispatchingProjection(WidgetToGraphics(; measure = _fact_stub).dispatch))
-# One line of the text font of the theme.
-_fact_line = compute_line_box(_fact_stub, "x", resolve_font_role(_fact_theme.font, Appearance())).height
+_fact_line = compute_line_box(_fact_stub, "x", _fact_theme.font).height   # one line of the theme font
 
 # Every GraphicsText under a canvas as (text, x, y, colour), in the frame of the canvas.
 function _fact_texts(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int,StyleColor}[])
