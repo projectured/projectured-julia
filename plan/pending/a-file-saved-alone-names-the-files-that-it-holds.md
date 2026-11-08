@@ -687,7 +687,8 @@ through the reload (D7), so no test can check the open without the reload.
      map aligns the path of the file with a path in that layout. A press by coordinates works in an
      opened repeat (the second press of the test opens the repeat inside it). To make it editable,
      the content would show with no layout in between and a map of `content.<rest>` to the card, or
-     the layout would get a map of `content` to `children[1]`; no one has asked for it.
+     the layout would get a map of `content` to `children[1]`; no one has asked for it. The owner,
+     2026-11-08: a read-only opened repeat is "acceptable for now".
    - `get_path_files` is `_get_path_files` (one file; the name had two uses, so a text rename).
    - Tests: a set of `test_explorer()` has the tab of `first.pred` as the window (the frames end and
      one closed card shows), and a set presses the real pixel of the chevron in a window, with a
