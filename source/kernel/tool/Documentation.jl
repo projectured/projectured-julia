@@ -267,6 +267,18 @@ end
 # function, which stands above `function name end`, documents the signature `Union{}`.
 function _collect_binding_docs(mod::Module, sym::Symbol)
     binding = Base.Docs.Binding(mod, sym)
+    found = _collect_docs_of_binding(binding)
+    isempty(found) || return found
+    # A name that is an alias of a type or a function holds a value that another
+    # binding documents: `@document [M, C] struct Foo` documents `MFoo`.
+    isdefined(mod, sym) || return found
+    value = getfield(mod, sym)
+    (value isa Type || value isa Function) || return found
+    owner = Base.Docs.Binding(parentmodule(value), nameof(value))
+    owner == binding ? found : _collect_docs_of_binding(owner)
+end
+
+function _collect_docs_of_binding(binding::Base.Docs.Binding)
     found = Pair{Any,String}[]
     for documenting in Base.Docs.modules
         table = Base.Docs.meta(documenting; autoinit = false)

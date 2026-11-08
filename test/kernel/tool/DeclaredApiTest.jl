@@ -146,6 +146,24 @@ struct Action
 end
 end
 
+# A document type whose bare name is an alias of its native struct: the docstring
+# stands on the native struct, as `@document [M, C]` writes it.
+module ToyAliased
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.CellStructModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.ReferenceModule: Reference, EmptyReference
+export ToyAliasedBox
+"""
+    ToyAliasedBox(; lid)
+
+A box that a document holds under an alias.
+"""
+@document [M, C] struct ToyAliasedBox
+    lid::Bool = false
+end
+end
+
 # A module with a verb of its own under a name another module also gives. This
 # is the collision a declaration must refuse.
 module ToyRival
@@ -320,6 +338,17 @@ function test_declared_api()
         api = ToolModule._api_entries(Module[ToyDocumented])
         @test occursin("numbered toy", read_function_documentation("ToyDocumented", "toy_shape", "Int"; api))
         @test occursin("named toy", read_function_documentation("ToyDocumented", "toy_shape", "String"; api))
+    end
+
+    @testset "a document type whose name is an alias shows the docstring of its native struct" begin
+        @test nameof(ToyAliased.ToyAliasedBox) !== :ToyAliasedBox
+        doc = ToolModule._binding_doc(ToyAliased, :ToyAliasedBox)
+        @test !isempty(doc)
+        set = ToolSet(; api = Module[ToyAliased])
+        entry = only(filter(entry -> entry.kind == "type", ToolModule._api_index(set.api)))
+        @test entry.qualname == "ToyAliased.ToyAliasedBox"
+        @test entry.signature == "ToyAliasedBox(; lid)"
+        @test entry.summary == "A box that a document holds under an alias."
     end
 
     @testset "a function's documentation is reachable as a tool" begin
