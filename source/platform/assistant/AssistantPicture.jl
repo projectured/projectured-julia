@@ -72,7 +72,7 @@ end
 function _make_part_pictures!(draft::ConversationDraft)
     for part in collect(draft.parts)
         content = part.content
-        (content isa ImageDocument || has_text_form(content)) && continue
+        (content isa Union{ImageDocument, ImageFile} || has_text_form(content)) && continue
         filename = _make_picture_filename()
         _write_document_picture(content, filename) === nothing && continue
         part.content = ImageFile(filename)

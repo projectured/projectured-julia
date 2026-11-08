@@ -1,14 +1,15 @@
 # The pixels of an `Image` read from a real file with the SDL decoder, on a task
 # of the editor after a frame in which a paint asked for them, with no video: a
-# PNG that `write_image` wrote gives its size, and a file of another size at the
-# same path gives the new size after one more `read_count`.
+# PNG that `write_image` wrote gives its size, a file of another size at the same
+# path gives the new size after one more `read_count`, and a file with other pixels
+# and the same size gives the new pixels, although the answer writes no cell.
 
 function test_image_file_read()
     @testset "the pixels of a picture are read from a file on a task" begin
         directory = mktempdir()
         path = joinpath(directory, "chart.png")
-        write_picture(width, height) = write_image(WidgetButton("Chart"), NaturalToGraphics(; measure = FontFileMeasure()),
-                                                   path; width, height)
+        write_picture(width, height; label = "Chart") =
+            write_image(WidgetButton(label), NaturalToGraphics(; measure = FontFileMeasure()), path; width, height)
         write_picture(40, 30)
         picture = Image(path)
         label = print_document(RecursiveProjection(TypeDispatchingProjection(
@@ -30,6 +31,7 @@ function test_image_file_read()
             end
             false
         end
+        read_pixels() = ProjecturedKernel.ToolModule.run_with_evaluation_editor(() -> pixels[], editor)
         @test picture.natural_size === nothing
         @test read_in_frame!()
         @test picture.natural_size == (40, 30) && picture.failure === nothing
@@ -38,9 +40,21 @@ function test_image_file_read()
         picture.read_count = 1
         @test read_in_frame!()
         @test picture.natural_size == (64, 48)
+        # The same path with the same size and other pixels: the answer writes no cell, and the
+        # pixel cell answers the new bytes.
+        before = copy(read_pixels()[1])
+        runs = Ref(0)
+        watcher = Cell(@computation (runs[] += 1; picture.natural_size))
+        @test watcher[] == (64, 48) && runs[] == 1
+        write_picture(64, 48; label = "Another chart with a longer label")
+        picture.read_count = 2
+        @test read_in_frame!()
+        answer = read_pixels()
+        @test answer[2:3] == (64, 48) && answer[1] != before
+        @test picture.natural_size == (64, 48) && watcher[] == (64, 48) && runs[] == 1
         # A file that is gone fails as a value.
         rm(path)
-        picture.read_count = 2
+        picture.read_count = 3
         @test read_in_frame!()
         @test picture.failure isa Exception
     end

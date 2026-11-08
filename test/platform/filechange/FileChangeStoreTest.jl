@@ -436,6 +436,24 @@ function test_file_change_store()
             end
         end
 
+        @testset "F5 on a file that a person does not edit takes the hash of its time and size" begin
+            path = joinpath(mktempdir(), "results.vec")
+            write(path, "12345")
+            file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))
+            write(path, "1234567890")
+            evaluate_operation(nothing, ReloadFileOperation(file))
+            @test getfield(get_file_content(file), :value)[] == "10 bytes"
+            state = get_file_disk_state(file)
+            @test state.file_hash == hash(compute_file_stamp(path)) && state.file_stamp == compute_file_stamp(path)
+            @test state.file_hash != compute_file_text_hash(path)
+            # A file that a person edits takes the hash of its text.
+            text_path = joinpath(mktempdir(), "edited.txt")
+            write(text_path, "one\n")
+            text_file = make_file_tab(text_path)
+            evaluate_operation(nothing, ReloadFileOperation(text_file))
+            @test get_file_disk_state(text_file).file_hash == compute_file_text_hash(text_path)
+        end
+
         @testset "a folder with no notification is polled" begin
             store = FileChangeStore(; poll_interval = 0.05)
             try

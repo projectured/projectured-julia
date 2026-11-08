@@ -559,9 +559,10 @@ end
 end
 
 # The value span for a picture's content: when the content is a path to an image
-# file on disk, an inline `TextGraphics` carrying a lazily-decoded `ImageFile`
-# (which `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image, sized
-# to its natural extent capped at `max_w`); otherwise the path/placeholder text.
+# file on disk, an inline `TextGraphics` carrying an `Image` (which
+# `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image, sized to its
+# natural extent capped at `max_w`, and 720 by 460 until its pixels are read);
+# otherwise the path/placeholder text.
 # The field type on `SyntaxLeaf.value` is only a hint — the Cell holds either.
 function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
     if content isa GraphicsDocument
@@ -575,13 +576,10 @@ function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
         return TextGraphics(Cell(content), gw, gh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     if content isa AbstractString && !isempty(content) && isfile(String(content))
-        path = String(content)
-        img  = ImageFile(path)
-        raw  = getfield(img, :raw)
-        set_cell_computation!(raw, () -> (try decode_image(path) catch; nothing end))
-        _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
-        dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
-        dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        img  = Image(String(content))
+        _nat(i, fb) = (size = img.natural_size; size === nothing ? fb : Int(size[i]))
+        dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
+        dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(content === nothing ? "enter picture path" : string(content), placeholder)

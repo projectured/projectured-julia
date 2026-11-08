@@ -89,9 +89,9 @@ readers around the table carry to the arrangement. The caret of a field is a pat
 in the table that the table introduced (`‹column_headers[c]…›`). A table that does
 not print inside an arrangement has a plain header of labels.
 
-With `cells` set to `nothing`, a cell whose value is a picture, an `ImageFile`, shows
-the picture ([`make_roster_value_cell`](@ref)), at most `table_picture_height` of
-the widget theme high. A cell whose value is another document shows that document
+With `cells` set to `nothing`, a cell whose value is a picture, an `ImageDocument` or an
+`ImageFile`, shows the picture ([`make_roster_value_cell`](@ref)), at most
+`table_picture_height` of the widget theme high. A cell whose value is another document shows that document
 itself, the same object as in its item, so a key edits it through its own reader,
 as in any other place. A cell of any other value shows its text
 ([`format_roster_value`](@ref)), and a press there selects the item of the row, so
@@ -126,11 +126,11 @@ make_roster_cell(::Nothing, item, key, value) = WidgetLabel(() -> format_roster_
     make_roster_value_cell(value, picture_height) -> widget
 
 The cell of a table that shows the value of the cell `value` and follows it: a
-picture for an `ImageFile`, at most `picture_height` high in its shape, and the
-text of any other value ([`format_roster_value`](@ref)). The view decodes the
-picture from its file when it draws, so a value that names the same path again
-shows the file as it is then. A file that is gone, or a process that has no
-backend to decode it, gives an empty box. The row is as high as its highest
+picture for an `ImageDocument` or an `ImageFile`, at most `picture_height` high in
+its shape, and the text of any other value ([`format_roster_value`](@ref)). The
+picture reads its pixels on a task when a paint asks for them, so a value that
+names the same path again shows the file as it is then. Before the pixels come, and
+for a file that is gone, the cell shows a box. The row is as high as its highest
 cell, and the table offers a cell no width, so a column that is narrower than the
 picture clips it.
 
@@ -139,27 +139,14 @@ picture clips it.
     make_roster_value_cell(Cell(ImageFile("chart.png")), 120)
 """
 function make_roster_value_cell(value, picture_height::Integer)
-    label = WidgetLabel(() -> (shown = value[];
-                              shown isa ImageFile ? _decode_roster_picture(shown) : format_roster_value(shown)))
+    label = WidgetLabel(() -> (shown = value[]; _is_roster_picture(shown) ? shown : format_roster_value(shown)))
     bound = LayoutConstraint(label)
-    set_cell_computation!(getfield(bound, :max_height), () -> value[] isa ImageFile ? picture_height : nothing)
+    set_cell_computation!(getfield(bound, :max_height), () -> _is_roster_picture(value[]) ? picture_height : nothing)
     HorizontalLayout(Any[bound])
 end
 
-# `image` with its pixels decoded from its file when they are read, unless it has
-# them.
-function _decode_roster_picture(image::ImageFile)
-    raw = getfield(image, :raw)
-    peek(raw) === nothing || return image
-    filename = image.filename
-    set_cell_computation!(raw, () -> try
-        decode_image(filename)
-    catch exception
-        is_fault_exception(exception) || rethrow()
-        nothing
-    end)
-    image
-end
+# Whether the cell of `value` shows a picture: a picture, or a file of one.
+_is_roster_picture(value) = get_shown_picture(value) isa ImageDocument
 
 @iomap struct RosterRowsToWidgetIoMap
     projection::Any
@@ -430,7 +417,7 @@ function _make_row_cells(p::RosterRowsToWidget, row::RosterRow)
         value = get_cell_at(values, c)
         made = p.cells === nothing ? nothing : make_roster_cell(p.cells, row.item, row.columns[c], value)
         is_default = made === nothing
-        is_picture = is_default && c > 1 && peek(value) isa ImageFile
+        is_picture = is_default && c > 1 && _is_roster_picture(peek(value))
         label = !is_default ? made :
                 c == 1 ? _make_item_link(value) :
                 is_picture ? make_roster_value_cell(value, unwrap_cell(get_widget_style(p.widget, :table_picture_height))) :

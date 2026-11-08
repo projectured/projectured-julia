@@ -13,8 +13,9 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | `StyleText` | a `StyleFont` and a `StyleColor`, the pair that every text needs |
 | `StyleStroke` | a colour, a width and a `dash` |
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
-| `ImageFile`, `ImageMemory` | an image from a file or from memory |
+| `ImageMemory` | an image from memory |
 | `Image` | the picture that a file holds: its path, and pixels that a task reads after the frame that paints them |
+| `ImageFile` | the file document of a picture file: `content` is its `Image` |
 
 The package also defines about 80 colour constants, in curated ramps: `color_black`, `color_solarized_blue`, the Tailwind `color_zinc_*`, `color_slate_*` and `color_indigo_*` ramps. These are fixed colours for a document or a theme field that no colour setting follows; the palette that a role or a step of a ramp draws from is a separate set of ramps, under ["Colours"](#colours) below. A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
@@ -356,6 +357,16 @@ each with its alpha when it is below 1 (`save_appearance!`,
 `pixels` is a background cell (`make_background_cell`). Its input is the path and `read_count`. The work of its `source` decodes the file with `decode_image` and answers `(bytes, width, height)`, or the exception of a file that is missing or does not decode, as a value, so a read of the cell never throws. Each `Image` makes a `BackgroundSource` of its own, so the pictures that one frame paints decode in parallel, each on a task of the default pool. The `apply` of the cell returns an `ApplyImageAnswerOperation`, which writes the size into `natural_size`, or the exception into `failure`, and writes a cell only when its value changes. The operation drops the answer of a `read_count` that a newer count follows.
 
 A print reads `natural_size` and `failure`, which are `nothing` until the first answer, and never `pixels`. A label (`_push_content!`) and a text span (`_extract_image_data`) put the pixel cell itself into the `data` of their `GraphicsImage`. `GraphicsImage` keeps a cell as it is, so only the paint of a backend reads `data`, and only that read records the demand for the task. A picture with no `natural_size` measures 320 by 240 pixels, which the slot of the label fits, and a picture with no size or with a `failure` shows a box under its pixels. One more `read_count` gives the cell a new input: it answers its last pixels until the new ones come, and the next paint asks again.
+
+A copy of a picture (`copy_document`, with the plain policy or the policy of a copy gesture) is a new `Image` of the same path that reads nothing, as a load makes. A field-by-field copy would share the `source` and keep a pixel cell that nothing feeds. A policy that stops the copy at a document that it does not own (`is_descendable_for_copy`) gets the placeholder, as for any document.
+
+### A picture file
+
+`ImageFile(path)` is the file document of a picture file. It has the three fields of every file type: `filename`, `content` and `disk`. `content` is the `Image` that the file holds, and `get_edited_document` reaches it through a history. A person does not edit it (`is_editable_file_type` answers `false`), so Ctrl+S writes nothing and the decoration says "read only". `StyleModule.__init__` registers the extensions `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif`, so `read_document_file`, `make_file_tab` and the open of a file make one. `read_file_content(ImageFile, path)` answers `Image(path)` and reads no byte of the file, not even its time or its size. `ImageFile(path)` makes a new file document that no other place shares; a holder that must follow the file asks the editor for its one file document of the path with `open_file_document!`.
+
+A change of the file is a change of every file that a person does not edit. The file counts it in its `disk`, a task reads the file when a place draws the file, the hash of the time and the size decides whether the file loads, and the load gives the new `Image` to the history. `replace_wrapped_document!(::Image, document)` keeps the old picture when the new one has the same path, adds one to its `read_count` and drops the new picture, which nothing read. So the file keeps one picture with its pixels, and the pixel cell gets a new input. A picture of another path, and the seed of a file that is gone, replace the picture. F5 does the same: for a file that a person does not edit, `ReloadFileOperation` takes the hash of the time and the size, and reads no byte of the file.
+
+`get_shown_picture(content)` is what a holder draws for `content`: the `Image` that a picture file holds, and `content` itself for anything else. A label, a text span and the picture cell of a roster draw the picture through it. A roster cell shows a picture for a value for which it answers an `ImageDocument`, at most `table_picture_height` high in its shape, and a box 4 by 3 before the pixels come. The picture of a conversation, the image spans of Markdown, Book and RST, and the example documents make an `Image` and read no pixel on the loop.
 
 A script with no editor reads the pixels with `wait_for_cell!(getfield(picture, :pixels); editor = nothing)`. Make a picture where a document is built, never inside a computation, because a computation that makes one makes a new pixel cell at each run. A test gives a picture a source of its own with `_make_image(path, source)`; no public maker takes a source.
 

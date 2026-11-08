@@ -1722,8 +1722,9 @@ end
     _extract_image_data(span::TextGraphics)
 
 Extract the decoded image from a `TextGraphics` span's embedded document.
-For an `Image` it returns the pixel cell itself, which only the paint of a backend
-reads. Else it returns whatever the content's `.raw` cell holds, untouched:
+For an `Image`, or an `ImageFile` that holds one, it returns the pixel cell itself,
+which only the paint of a backend reads. Else it returns whatever the content's
+`.raw` cell holds, untouched:
 
 - a `(pixels::Vector{UInt8}, native_w, native_h)` tuple from the decoder —
   the native size travels with the bytes so the backend can build the
@@ -1732,7 +1733,7 @@ reads. Else it returns whatever the content's `.raw` cell holds, untouched:
 - or `nothing` until the image is decoded.
 """
 function _extract_image_data(span::TextGraphics)
-    content = span.content
+    content = get_shown_picture(span.content)
     content === nothing && return nothing
     content isa Image && return getfield(content, :pixels)
     hasproperty(content, :raw) ? content.raw : nothing
@@ -1751,7 +1752,7 @@ display size `w × h`:
   graphics"). The canvas is positioned via a fresh single-child wrapper so the
   persistent inner canvas's own `x`/`y` cells are never written from inside this
   layout cell.
-- otherwise (an `ImageFile`/`ImageMemory`, the original case) it is rasterized to
+- otherwise (an `Image`, an `ImageFile` or an `ImageMemory`) it is rasterized to
   a `GraphicsImage` from the content's decoded `.raw` bytes.
 
 The field type on `TextGraphics.content` is only a hint — the `Cell` holds either.

@@ -478,18 +478,15 @@ end
     placeholder::StyleText   = get_markdown_style(nothing, :marker_text)
 end
 
-# The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
-# `url` names a file on disk (sized to its natural extent, capped at `max_w`);
-# otherwise the url / a placeholder as text.
+# The image span: an inline `TextGraphics` with an `Image` when `url` names a file
+# on disk (sized to its natural extent, capped at `max_w`, and 720 by 460 until its
+# pixels are read); otherwise the url / a placeholder as text.
 function _md_image_value(url, placeholder::StyleText; max_w::Int = 640)
     if url isa AbstractString && !isempty(url) && isfile(String(url))
-        path = String(url)
-        img  = ImageFile(path)
-        raw  = getfield(img, :raw)
-        set_cell_computation!(raw, () -> (try decode_image(path) catch; nothing end))
-        _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
-        dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
-        dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        img  = Image(String(url))
+        _nat(i, fb) = (size = img.natural_size; size === nothing ? fb : Int(size[i]))
+        dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
+        dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(isempty(String(url)) ? "image" : String(url), placeholder)

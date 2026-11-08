@@ -1,7 +1,8 @@
 # Fragment of `StyleModule`.
 #
-# The image document domain. Provides file-backed and memory-backed image
-# documents. Both subtypes share the abstract `ImageDocument` base.
+# The image document domain. Provides the picture of a file, a memory-backed image
+# document and the file document of a picture file. The first two share the
+# abstract `ImageDocument` base.
 # ── Abstract base ──────────────────────────────────────────────────────────
 
 """
@@ -16,22 +17,6 @@ abstract type ImageDocument <: Document end
 @document struct ImageInsertion <: ImageDocument
     value::Any = nothing
 end
-
-# ── ImageFile ──────────────────────────────────────────────────────────────
-
-"""
-    ImageFile(filename)
-
-A file-backed image document.  `filename` is a `Cell` holding a `String` path
-and `raw` is a `Cell` holding the decoded image data (or `nothing` until loaded).
-"""
-@document struct ImageFile <: ImageDocument
-    filename::String
-    raw::Any
-end
-
-# Only `raw` needs filling; the trailing `selection` is filled by the macro.
-ImageFile(filename::AbstractString) = ImageFile(Cell(filename), Cell(nothing))
 
 # ── ImageMemory ────────────────────────────────────────────────────────────
 
@@ -147,11 +132,71 @@ function evaluate_operation(editor, operation::ApplyImageAnswerOperation)
     nothing
 end
 
+# A copy of a picture, such as a copy gesture stores, is a new picture of the same path
+# that reads nothing, as a load makes. A field-by-field copy would share the source of
+# the picture and keep a pixel cell that nothing feeds.
+copy_document(policy::CopyPolicy, image::Image) =
+    is_descendable_for_copy(policy, image) ? Image(image.filename) : make_copy_placeholder(policy, image)
+
 # A save writes the path of a picture, and a load makes a picture that reads nothing.
 pred_arguments(image::Image) = (image.filename,), Pair{Symbol,Any}[]
 make_pred_document(::Type{<:Image}, positional, keywords) = Image(only(positional))
 
 # ── set_cell_computation! delegation ───────────────────────────────────────────────────
 
-set_cell_computation!(img::ImageFile,   f::Function) = (set_cell_computation!(getfield(img, :raw), f); img)
 set_cell_computation!(img::ImageMemory, f::Function) = (set_cell_computation!(getfield(img, :raw), f); img)
+
+# ── ImageFile ──────────────────────────────────────────────────────────────
+
+"""
+    ImageFile(filename)
+
+The file document of a picture file: `content` is the [`Image`](@ref) that the file
+holds, and `disk` is its state against the disk, as for every file type. A person
+does not edit it, so a save writes nothing of it, and a change of the file adds one
+to the `read_count` of the picture that the file keeps. Making an `ImageFile` reads
+nothing: not a byte of the file, and not its time or its size.
+
+The extensions `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif` are this type, so
+`make_file_tab` and the open of a file make one. `ImageFile(filename)` makes a new
+document that no other place shares. A holder that must follow the file asks the
+editor for its one file document of the path with `open_file_document!`.
+
+# Example
+
+    picture_1 = ImageFile("media/throughput.png")
+    get_edited_document(picture_1)    # the Image of the file
+"""
+@document struct ImageFile <: FileDocument
+    filename::String
+    content::Any
+    disk::FileDiskState = FileDiskState()
+end
+
+ImageFile(filename::AbstractString) = ImageFile(String(filename), Image(filename))
+
+get_file_domain(::Type{<:ImageFile}) = Document
+is_editable_file_type(::Type{<:ImageFile}) = false
+read_file_content(::Type{<:ImageFile}, path::AbstractString) = Image(path)
+
+# A load of the file gives the history a new picture of the same path. The file keeps
+# the picture that holds the pixels, which asks for the new ones, and the new picture
+# is dropped: nothing read its pixel cell.
+function replace_wrapped_document!(image::Image, document)
+    (document isa Image && document.filename == image.filename) || return document
+    image.read_count += 1
+    image
+end
+
+"""
+    get_shown_picture(content)
+
+What a label or a text span draws for `content`: the picture that a picture file
+holds, through its history, and `content` itself for anything else. A holder that
+shows a picture file thus draws its picture.
+
+# Example
+
+    picture_1 = get_shown_picture(ImageFile("media/throughput.png"))   # an Image
+"""
+get_shown_picture(content) = content isa ImageFile ? get_edited_document(content) : content

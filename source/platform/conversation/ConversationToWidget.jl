@@ -360,25 +360,12 @@ _picture_card(p, image::ImageFile, part::ConversationPart) =
     _part_card(p, "picture", _make_picture_body(image, p.picture_height), part)
 
 # The image of a picture, at most `height` high, in the shape of the picture. The
-# view decodes the file for itself, so the part keeps only the name of the file,
-# and a file that is gone, or a process with no backend to decode it, shows an
-# empty box.
+# label draws the picture of the part, which reads its pixels on a task when a paint
+# asks for them. Before they come it is a box `4 * height ÷ 3` wide, and a file that
+# is gone, or a process with no backend to decode it, leaves that box.
 function _make_picture_body(image::ImageFile, height::Int)
-    filename = image.filename
-    raw = try
-        decode_image(filename)
-    catch exception
-        is_fault_exception(exception) || rethrow()
-        nothing
-    end
-    natural_width, natural_height = raw isa Tuple && length(raw) == 3 ?
-        (max(1, Int(raw[2])), max(1, Int(raw[3]))) : (4 * height ÷ 3, height)
-    shown_height = min(height, natural_height)
-    shown_width = max(1, round(Int, natural_width * shown_height / natural_height))
-    label = WidgetLabel(ImageFile(Cell(filename), Cell(raw)))
-    HorizontalLayout(Any[LayoutConstraint(label; min_width = shown_width, preferred_width = shown_width,
-                                          max_width = shown_width, min_height = shown_height,
-                                          preferred_height = shown_height, max_height = shown_height)])
+    label = WidgetLabel(image)
+    HorizontalLayout(Any[LayoutConstraint(label; max_height = height)])
 end
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.

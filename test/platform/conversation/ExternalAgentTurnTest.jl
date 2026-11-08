@@ -184,8 +184,18 @@ function test_external_agent_turn()
             @test label isa WidgetLabel && label.content isa ImageFile
             height = ConversationPartToWidget().picture_height
             @test constraint.max_height == height
-            # A file that can not be decoded keeps the box of a picture of 4:3.
-            @test constraint.max_width == 4 * height ÷ 3
+            # A picture that is not read yet is a box of the shape 4:3 that fits the height.
+            @test constraint.max_width === nothing
+            images = GraphicsImage[]
+            find_images!(node) = node isa GraphicsImage ? push!(images, node) :
+                                 node isa GraphicsCanvas ? foreach(e -> find_images!(e isa Cell ? e[] : e), node.elements) :
+                                 node isa GraphicsViewport ? find_images!(node.content) : nothing
+            find_images!(print_document(
+                RecursiveProjection(TypeDispatchingProjection(
+                    WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)),
+                nothing, card, with_exact_size(PrinterContext(); width = Cell(Int32(800)),
+                                               height = Cell(Int32(600)))).output)
+            @test length(images) == 1 && (Int(images[1].w), Int(images[1].h)) == (4 * height ÷ 3, height)
         end
 
         @testset "an agent that needs a sign-in gives a request, and a retry starts it" begin

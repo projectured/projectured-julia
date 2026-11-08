@@ -1229,21 +1229,18 @@ function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op:
 end
 
 # ── The picture ───────────────────────────────────────────────────────────────
-# A figure and an image draw the file `path` names, decoded lazily and capped in
+# A figure and an image draw the file `path` names, read on a task and capped in
 # width; a path that is not on disk falls back to the path as text. Modelled on
 # the markdown rendered image.
 
 function _rst_picture(path, placeholder::StyleText; max_w::Int = 640)
     if path isa AbstractString && !isempty(path) && isfile(String(path))
-        file = String(path)
-        image = ImageFile(file)
-        raw = getfield(image, :raw)
-        set_cell_computation!(raw, () -> (try decode_image(file) catch; nothing end))
-        natural(i, fallback) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fallback)
-        width  = Cell(@computation Int32(min(natural(2, 720), max_w)))
+        image = Image(String(path))
+        natural(i, fallback) = (size = image.natural_size; size === nothing ? fallback : Int(size[i]))
+        width  = Cell(@computation Int32(min(natural(1, 720), max_w)))
         height = Cell(@computation begin
-            w = min(natural(2, 720), max_w)
-            Int32(round(Int, natural(3, 460) * w / natural(2, 720)))
+            w = min(natural(1, 720), max_w)
+            Int32(round(Int, natural(2, 460) * w / natural(1, 720)))
         end)
         return TextGraphics(Cell(image), width, height, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end

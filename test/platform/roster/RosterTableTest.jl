@@ -47,8 +47,8 @@ function _roster_drawn_texts(node, found = Dict{String,Any}())
     found
 end
 
-# A chart, whose facet `picture` is a picture with its pixels, or `nothing` for a
-# chart of no width.
+# A chart, whose facet `picture` is the file of a picture of its size, or `nothing` for
+# a chart of no width.
 @document struct _RosterChart
     name::String
     width::Int
@@ -57,7 +57,14 @@ end
 RosterModule.get_item_facets(::Type{_RosterChart}) = ["picture" => "the picture of the chart"]
 RosterModule.compute_item_facet(chart::_RosterChart, ::Val{:picture}) =
     chart.width == 0 ? nothing :
-    ImageFile(Cell(chart.name * ".png"), Cell((fill(UInt8(255), 4 * chart.width * chart.height), chart.width, chart.height)))
+    chart.name == "held" ? _make_held_picture_file(chart.name * ".png", chart.width, chart.height) :
+    _make_sized_picture_file(chart.name * ".png", chart.width, chart.height)
+
+# The file of a picture as an editor holds it open: its picture is inside a history.
+function _make_held_picture_file(name::AbstractString, width::Integer, height::Integer)
+    file = _make_sized_picture_file(name, width, height)
+    ImageFile(name, UndoBuffer(get_edited_document(file)))
+end
 
 # Each drawn image as `(x, y, width, height)` on the canvas. The elements of a
 # canvas of a list are its nodes, from the first to the last.
@@ -411,6 +418,21 @@ function test_roster_table()
         # The other values stay text, and a value of nothing is an empty cell.
         texts = keys(_roster_drawn_texts(output))
         @test "wide" in texts && "none" in texts && !("nothing" in texts)
+    end
+
+    @testset "a record that holds the file of a picture shows the picture, as a record that holds a bare file does" begin
+        charts = CellVector(Cell[Cell(_RosterChart(name, 1000, 200)) for name in ("wide", "held")])
+        roster = link_roster!(Roster(CollectionItems(charts); columns = ["name", "picture"]), charts)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(2000)), height = Cell(Int32(600)))
+        shown = sort(_collect_roster_images(print_document(natural, nothing, roster, context).output); by = image -> image[2])
+        @test length(shown) == 2 && shown[1][3:4] == shown[2][3:4]
+        # A picture that is not read yet shows a box of the shape 4 to 3, at most the picture height high.
+        height = Int(get_scaled_theme!(Appearance(), WidgetTheme).table_picture_height)
+        pending = ImageFile("pending.png")
+        cell = make_roster_value_cell(Cell(pending), height)
+        box = _collect_roster_images(print_document(natural, nothing, cell, context).output)
+        @test length(box) == 1 && box[1][4] == height && box[1][3] == 4 * height ÷ 3
     end
 
     @testset "the marked row of a roster is the selected row of its table, also below the head of a list" begin

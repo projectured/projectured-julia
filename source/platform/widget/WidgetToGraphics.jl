@@ -1262,7 +1262,7 @@ end
 # ── Image / polymorphic content helpers ─────────────────────────────────────
 
 # Decoded pixel payload of an ImageDocument and its natural size, read straight
-# from the image's `raw` cell (filled by the backend's `decode_image_file!`):
+# from the image's `raw` cell:
 #   (data, natural_w, natural_h)  when decoded
 #   (nothing, 0, 0)               until decoded (printer draws a placeholder)
 # Mirrors TextToGraphics' `_extract_image_data`: the domain layer only *reads*
@@ -1843,7 +1843,7 @@ end
 # baseline of the line box of its text. An image has none.
 function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap)
     w = iomap.input
-    (w.visible == false || w.content isa ImageDocument) && return nothing
+    (w.visible == false || get_shown_picture(w.content) isa ImageDocument) && return nothing
     _, content_y = _get_content_offset(_get_box_geometry(iomap))
     font = _get_label_style(p, w).font
     spacing = w.line_spacing
@@ -1857,7 +1857,7 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        content = w.content
+        content = get_shown_picture(w.content)
         # A label may carry its own font+color (e.g. a chat card's title) that
         # overrides the theme's default label style — or a bare COLOUR, which
         # takes the theme's font and only changes the ink, or a bare FONT, which

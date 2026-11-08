@@ -20,9 +20,11 @@ import TOML
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: get_view_state_fields
+import ..DocumentModule: copy_document, get_view_state_fields, replace_wrapped_document!
 import ..OperationModule: evaluate_operation
-import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document
+import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document,
+                              FileDocument, FileDiskState, get_file_domain,
+                              is_editable_file_type, read_file_content, register_file_document_type!
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
@@ -76,7 +78,7 @@ export Inset, Point2D, inset_default,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
        AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
        apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-export ImageDocument, set_cell_computation!
+export ImageDocument, get_shown_picture, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
 export FontRole, TextRole, ThemeText, ThemeFont
@@ -123,5 +125,13 @@ include("Theme.jl")
 include("Appearance.jl")
 include("ColorTheme.jl")
 include("FontTheme.jl")
+
+# One module, one `__init__`. Registration is runtime state that a precompiled
+# image does not keep.
+function __init__()
+    for extension in (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+        register_file_document_type!(extension, ImageFile)
+    end
+end
 
 end # module

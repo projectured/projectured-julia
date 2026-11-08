@@ -8,12 +8,13 @@ The file-format slice of `ProjecturedPlatform` reads and writes a document as a 
 
 ### The choice by extension
 
-`write_document_file(document, path)` and `read_document_file(path)` are the two entry points. They route a path to one of three formats, in this order:
+`write_document_file(document, path)` and `read_document_file(path)` are the two entry points. They route a path to one of these formats, in this order:
 
 | Extension | Write | Read, file exists | Read, file missing |
 | --- | --- | --- | --- |
 | `.pdoc` | binary `save_document` | `load_document` | `DocumentNothing()` |
 | a registered file type with no natural parser: `.pred`, `.txt`, none | `save_file!` | `load_file` | the seed of the extension |
+| a picture: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif` | none: a person does not edit it | an `Image` of the path, which reads no byte | `DocumentNothing()` |
 | any other extension | `export_document` | `import_document` | the seed of the extension |
 
 The natural formats are the ones for which a domain registered a parser in the natural slice: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The format is the extension without its dot. The file types are the ones that `register_file_document_type!` names. That function is part of the serialization slice, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
@@ -49,13 +50,13 @@ The `@gestures` table of `FileDocument` has two keys. Ctrl+O is not one of them:
 | Key | Operation | What it does |
 | --- | --- | --- |
 | Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document; the file checks the disk first (see the next section) |
-| F5 | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; the file keeps the hash of the text that it read |
+| F5 | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; the file keeps the hash of the text that it read, or for a file that a person does not edit the hash of its time and size |
 
 The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing. In an editor, the reload first gives each `file("…")` of the new document the file document that the editor holds for that file, with `splice_held_files!` and `open_file_document!`, against the folder of the file; it reads no held file. With no editor, each reference stays a leaf. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
 
 ### The file against the disk
 
-Every file document keeps its state against the disk in one field, `disk`, of type `FileDiskState`, as it keeps `filename` and `content`. `get_file_disk_state(file)` reads it. The state holds `file_hash`, the hash of the text of the last load or save, `band`, the `FileBand` while the file changed on disk under edits that no save wrote, `file_stamp`, the time and the size of the file at the last read, load or save, the counts `read_count` and `loaded_count`, and `text`, the background cell that reads the text of the file. The field is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it. The constructor of each file type makes a new state, so two new files have two states. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash. `make_file_tab` sets `file_hash` to `compute_file_text_hash` of the file as it was just read, and `file_stamp` to `compute_file_stamp` of it. A file of a type that a person does not edit is not read for a hash.
+Every file document keeps its state against the disk in one field, `disk`, of type `FileDiskState`, as it keeps `filename` and `content`. `get_file_disk_state(file)` reads it. The state holds `file_hash`, the hash of the text of the last load or save, `band`, the `FileBand` while the file changed on disk under edits that no save wrote, `file_stamp`, the time and the size of the file at the last read, load or save, the counts `read_count` and `loaded_count`, and `text`, the background cell that reads the text of the file. The field is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it. The constructor of each file type makes a new state, so two new files have two states. The history keeps only `saved_entry` and `has_unsaved_edits`, and it holds no hash. `make_file_tab` sets `file_hash` to `compute_file_text_hash` of the file as it was just read, and `file_stamp` to `compute_file_stamp` of it. A file of a type that a person does not edit is not read for a hash: its read, and F5, take the hash of the time and the size.
 
 **A file reads its text when it is drawn.** Each change that the watch reports adds one to `read_count`. `text` is a background cell of the path and `read_count`: the view of a file reads it (`demand_file_text`) while `read_count` is past `loaded_count`, a task waits until the file is whole, hashes it and parses it after the frame, and `ApplyFileTextOperation` stores the answer. The cell is made where the file enters the window (`ensure_file_text_cell!`) and by `make_unread_file`. The watch reads no text, and no print, reader or computation reads the disk. A file that is held again after a change counts it at its acquire (`is_file_stale`: another time or size than `file_stamp`).
 

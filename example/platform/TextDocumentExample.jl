@@ -42,22 +42,10 @@ function make_text_with_image_example()
     )
 end
 
-# Build an ImageFile whose decoded RGBA pixels are produced lazily — the
-# decode thunk runs only when the image is actually rendered (when an SDL
-# video context exists), so constructing the example document never touches
-# SDL. A decode failure degrades to `nothing` rather than throwing.
-function _load_inline_image(name::AbstractString)
-    path = joinpath(@__DIR__, "..", "..", "asset", "image", name)
-    img = ImageFile(path)
-    set_cell_computation!(getfield(img, :raw), () -> begin
-        try
-            decode_image(path)
-        catch
-            nothing
-        end
-    end)
-    img
-end
+# The picture of an asset file. It reads nothing when it is built: a task decodes
+# the pixels after the frame that paints them, so constructing the example document
+# never touches SDL.
+_load_inline_image(name::AbstractString) = Image(joinpath(@__DIR__, "..", "..", "asset", "image", name))
 
 # ── Atomic text documents ───────────────────────────────────────────────────
 # One minimal `TextBlock` per text structure — the hand-authored building blocks

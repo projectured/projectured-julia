@@ -8,6 +8,7 @@
 # | `.pdoc`   | binary `save_document` | `load_document` | `DocumentNothing` |
 # | natural   | `export_document`      | `import_document` | the domain's seed |
 # | a file type without a natural format (`.pred`, `.txt`, none) | `save_file!` | `load_file` | the extension's seed |
+# | a picture (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`) | none: a person does not edit it | an `Image` of the path, which reads no byte | `DocumentNothing` |
 #
 # The natural formats are the ones a domain registered a parser for:
 # `.json`, `.xml`, `.yaml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The third
@@ -549,7 +550,9 @@ reference stays a leaf.
 
 The file keeps the hash of the text that it read and takes its band away.
 `file_hash` is the hash that the task computed for `content`; with none, the
-file on disk is hashed now ([`compute_file_text_hash`](@ref)). The file counts every
+file on disk is hashed now ([`compute_file_text_hash`](@ref)). A file that a person
+does not edit ([`is_editable_file_type`](@ref)) takes the hash of its time and its
+size, and reads no byte of its file. The file counts every
 change that was reported so far as read.
 
 A selection of the editor that names a part which the new document lacks becomes the
@@ -581,7 +584,7 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     if op.file_hash !== nothing
         state.file_hash = op.file_hash
     elseif !isempty(get_filename(file))
-        state.file_hash = compute_file_text_hash(abspath(get_filename(file)))
+        state.file_hash = _compute_loaded_file_hash(file, abspath(get_filename(file)))
     end
     op.content === nothing && !isempty(get_filename(file)) &&
         (state.file_stamp = compute_file_stamp(abspath(get_filename(file))))
@@ -590,6 +593,12 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     _repair_selection!(editor)
     nothing
 end
+
+# The hash of the file at `path` that a load without a hash gives `file`: the hash of
+# its text, or for a file that a person does not edit, the hash of its time and its
+# size, as the read on a task takes it. The latter reads no byte.
+_compute_loaded_file_hash(file::FileDocument, path::AbstractString) =
+    is_editable_file_type(typeof(file)) ? compute_file_text_hash(path) : hash(compute_file_stamp(path))
 
 # `content`, loaded for `file`, with each `file("…")` in it given the file document
 # that `editor` holds for that file, else a new one that reads nothing

@@ -5957,20 +5957,6 @@ function decode_sdl_image(filename::AbstractString)
     (data, w, h)
 end
 
-"""
-    decode_image_file!(img::ImageFile)
-
-Decode `img.filename` via SDL2_image and populate `img.raw` with a tuple
-`(data::Vector{UInt8}, width::Int32, height::Int32)`.
-"""
-function decode_image_file!(img::ImageFile)
-    fn = img.filename::AbstractString
-    isempty(fn) && return img
-    result = decode_sdl_image(fn)
-    img.raw = result
-    img
-end
-
 # Image decode via the generic seam.
 BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename)
 

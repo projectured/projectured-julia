@@ -493,7 +493,7 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
         because the worktree has no manifest for `package/ProjecturedPlatformTest`. The platform
         layering guard gives 5 pass and 2 fail, and the slice edges 1 pass and 1 fail, both for
         files outside the style slice (`appearance`, `assistant`), as on main.
-- [ ] **2. A picture file is a file that a person does not edit, and a load keeps its picture.**
+- [x] **2. A picture file is a file that a person does not edit, and a load keeps its picture.**
       In `Image.jl`: `ImageFile <: FileDocument` with the fields `filename`, `content` and `disk`,
       `ImageFile(path)` and the constructor of a path and a content, `is_editable_file_type`,
       `read_file_content`, `get_file_domain`, and `replace_wrapped_document!(::Image, document)`
@@ -526,6 +526,66 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       because no narrower test prints their pictures. In omnet-julia:
       `test_chart_comparison_document()`, `test_legacy_store_entry_pages()`,
       `test_simulation_embed_in_page()` and `Pkg.precompile()`.
+      Done on branch `picture-file`, with a commit in omnet-julia on its branch `picture-file`.
+      Decisions and facts of the step:
+      - `ImageFile <: FileDocument` has the fields `filename`, `content` and `disk`. `ImageFile(path)`
+        is `ImageFile(String(path), Image(path))`. `get_file_domain` answers `Document`, as for
+        `LegacyResultFile`: `find_file_extension` answers `nothing` for an `Image`, and only a `.pred`
+        file writes a picture that no file holds. `get_document_title` is the one of every file
+        document. `StyleModule.__init__` registers the five extensions (the serialization slice
+        has one `__init__` for all its fragments, the style slice now has one too).
+      - `replace_wrapped_document!(image::Image, document)` keeps the old picture and adds one to its
+        `read_count` for an `Image` of the same path, and answers `document` for anything else: a
+        file that is gone loads `DocumentNothing()`.
+      - F5: `ReloadFileOperation` with no hash calls `_compute_loaded_file_hash`, which takes the hash
+        of the text for a file that a person edits and `hash(compute_file_stamp(path))` for any other.
+        It is the hash that `ApplyFileTextOperation` already compares.
+      - One new public name, `get_shown_picture(content)` in `Image.jl`: the `Image` that an
+        `ImageFile` holds (through its history), else `content`. The label, the text span and the
+        picture cell of a roster call it, so the rule is in one place. A picture file that holds
+        `DocumentNothing()` (not read yet) draws as the text of that document until its read comes.
+      - The roster cell shows a picture for any value for which `get_shown_picture` answers an
+        `ImageDocument`, so an `Image` or an `ImageMemory` as a value is a picture cell too.
+        The conversation body is `LayoutConstraint(WidgetLabel(file); max_height = height)`: the box
+        before the pixels is the 320 by 240 measure fitted to the height, which is 4:3, and it has
+        no `max_width`. Markdown, Book and RST size the span from `natural_size`, and from 720 by 460
+        until the first answer, as before for a file that did not decode.
+      - Tests that gave an `ImageFile` its pixels in hand (`RosterTableTest.jl`,
+        `TaskGroupToWidgetTest.jl`) use `_make_sized_picture_file(name, width, height)` of
+        `ImageTest.jl`: a picture whose `natural_size` is set and whose work runs nowhere.
+        `LegacyStoreEntryPageTest.jl` of omnet-julia reads the pixel cell of each drawn picture with
+        `wait_for_cell!(cell; editor = nothing)` before it measures, and a picture that is gone
+        answers an exception.
+      - Review item 1, a copy of a picture. Four paths copy a document that can hold an `Image`:
+        `copy_document(value)` (plain policy), the copy gesture (`ClipboardCopyPolicy`), the
+        versioning snapshot (`VersioningToAny.jl:169`) and the history of a file. The field-by-field
+        copy shared the `BackgroundSource` and made a plain cell of the pixel cell, which nothing
+        feeds, and the `apply` of the copy never existed. `copy_document(::CopyPolicy, ::Image)`
+        now answers `Image(image.filename)`, or the placeholder of a policy that stops the copy
+        (`is_descendable_for_copy`), so `DuplicatePolicy` still shares the picture. Test: a copy by
+        the plain and the clipboard policy, of a picture and of the picture file that holds it, is
+        a new `Image` with its own cell and source that has read nothing, and it fails alone for a
+        path that is gone. Not covered: the kinded copy `copy_document(K, document)` of a reflection
+        shadow, and the copy of a `disk` state, whose `text` box a copied file shares with the
+        file it was copied from. Both hold for every file document and are not new here.
+      - Review item 2, a rewrite that keeps the size. `test_image_file_read()` writes other pixels
+        of the same size at the same path, adds one to `read_count`, and the pixel cell answers
+        other bytes of the same size while `natural_size` and the computation that watches it
+        stay unwritten (the `apply` writes no cell).
+      - The omnet-julia commit also fixes the comment of `_icon_image`, which named `ImageFile` and
+        its `raw`.
+      - Counts, all in `environment/all` of the worktree (offscreen SDL): `test_image()` 97/97;
+        `test_filechange()` 232 passes and 1 broken; `test_roster_table()` 63/63; `test_task_views()`
+        82/82; `test_markdown_image_leaf()` 109/109; `test_explorer()` 383/383; `test_book()` 33/33;
+        `test_rst()` 115/115; `test_widget_button_behavior()` and `test_inline_image_caret()` (258/258)
+        with no fail; `test_image_file_read()` 11/11. `test_external_agent_turn()` gives 141 passed,
+        49 failed, 32 errored in the worktree and 140 passed, 49 failed, 32 errored on `main`
+        (`McpServer` takes a `NamedTuple` as the editor; the step adds one assertion that passes).
+        In omnet-julia: `Pkg.precompile()` 91 packages, no error, no overwrite and no undeclared
+        binding; `test_chart_comparison_document()` 21/21; `test_chart_picture_columns()` 29/29;
+        `test_legacy_store_entry_pages()` 20/20; `test_simulation_embed_in_page()` 7/7;
+        `test_chart_test_task()` 73 passes and 1 broken; `test_chart_baseline_document()` 9/9;
+        `test_chart_comparison_group()` 19/19.
 - [ ] **3. The picture is a view.** `ImageToWidget` in `source/platform/natural/ImageToWidget.jl`,
       its row in `NaturalProjection.jl`, and Ctrl+1 and Ctrl+0. The choice of D11 is a field of
       `FileView` (`FileView.jl`), and `FileViewToWidget` gives its view to the print of its file as

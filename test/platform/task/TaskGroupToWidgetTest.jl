@@ -126,7 +126,7 @@ TaskModule.make_task_kind_document(::_TaskViewTableProbeTask, result) = result =
 
 # A kind of task whose column `picture` gives a picture once the task has a
 # result: the picture of the shape that the task name says, `wide` or `tall`, with
-# its pixels in hand so that no backend decodes; any other name gives no picture.
+# its natural size in hand so that no backend decodes; any other name gives no picture.
 # The column `note` gives text.
 struct _TaskPictureProbeTask <: AbstractTask
     name::String
@@ -141,8 +141,7 @@ function TaskModule.get_task_column_value(task::_TaskPictureProbeTask, result, c
     result === nothing && return nothing
     column == "note" && return "note of " * task.name
     shape = get(_TASK_PICTURE_SHAPES, task.name, nothing)
-    shape === nothing ? nothing :
-        ImageFile(Cell(task.name * ".png"), Cell((fill(UInt8(255), 4 * shape[1] * shape[2]), shape[1], shape[2])))
+    shape === nothing ? nothing : _make_sized_picture_file(task.name * ".png", shape[1], shape[2])
 end
 TaskModule.start_task(task::_TaskPictureProbeTask; on_finish = nothing) =
     TaskModule.start_task(_TaskGroupProbeTask(task.name, "exit 0"); on_finish)
