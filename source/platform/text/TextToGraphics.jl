@@ -1722,7 +1722,8 @@ end
     _extract_image_data(span::TextGraphics)
 
 Extract the decoded image from a `TextGraphics` span's embedded document.
-Returns whatever the content's `.raw` cell holds, untouched:
+For an `Image` it returns the pixel cell itself, which only the paint of a backend
+reads. Else it returns whatever the content's `.raw` cell holds, untouched:
 
 - a `(pixels::Vector{UInt8}, native_w, native_h)` tuple from the decoder —
   the native size travels with the bytes so the backend can build the
@@ -1733,6 +1734,7 @@ Returns whatever the content's `.raw` cell holds, untouched:
 function _extract_image_data(span::TextGraphics)
     content = span.content
     content === nothing && return nothing
+    content isa Image && return getfield(content, :pixels)
     hasproperty(content, :raw) ? content.raw : nothing
 end
 

@@ -6,9 +6,12 @@ appearance of a view. Colors are stored as normalized Float64 components in [0, 
 """
 module StyleModule
 
+using ..BackendModule
 using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
+using ..EditorModule
+using ..OperationModule
 using ..ReferenceModule
 using ..SettingsModule
 using ..EventModule
@@ -17,7 +20,9 @@ import TOML
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..SerializationModule: is_pred_constructible
+import ..DocumentModule: get_view_state_fields
+import ..OperationModule: evaluate_operation
+import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,

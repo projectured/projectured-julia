@@ -448,7 +448,7 @@ The dependencies: step 1 needs no other plan. Step 2 needs step 1. Steps 3 and 4
 Step 5 needs steps 1 to 4. The plans that the steps need are on main: G4 steps 1 to 3 and steps 1
 to 5 of the plan of the save. No step needs the plan of G4 open question 10.
 
-- [ ] **1. A picture reads its pixels on a task, and only a paint reads them.** `Image` in
+- [x] **1. A picture reads its pixels on a task, and only a paint reads them.** `Image` in
       `Image.jl`: its fields, which hold the path, `read_count`, the pixel cell, `natural_size` and
       `failure`, its source, its work, its `apply` and `pred_arguments`. A label and a text span
       draw an `Image` from `natural_size` and `failure` in the print, and put its pixel cell into
@@ -467,6 +467,32 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       `test_image_file_read()` in `test/backend/sdl/projection/ImageFileReadTest.jl`: a PNG that
       `write_image` wrote decodes on a task of the default pool and gives its size, and a file of
       another size at the same path gives the new size after one more `read_count`.
+      Done on branch `picture-file`. Decisions and facts of the step:
+      - `Image` has six fields, in this order: `filename`, `read_count`, `pixels` (the
+        background cell), `natural_size`, `failure`, `source`. It has no defaults, so the macro
+        writes no keyword constructor that the outer `Image(filename)` could collide with. All
+        fields but `filename` are view state (`get_view_state_fields`), so a walk does not enter
+        `pixels` and a save writes the path only (`pred_arguments`, `make_pred_document`).
+      - The test source: `_make_image(filename, source)` is the internal constructor, and
+        `Image(filename)` calls it with `_make_image_source()`. No public maker takes a `source`.
+        A test calls `StyleModule._make_image`.
+      - `ApplyImageAnswerOperation(image, read_count, answer)` is the `apply`. Like
+        `ApplyFolderListingOperation`, it drops the answer of an older `read_count` and writes
+        plain fields directly, so undo records none. It is not exported.
+      - `Cell(cell)` nests a cell in a cell. `GraphicsImage` therefore keeps a `Cell` given as
+        `data` (`_make_image_data_cell`), so `img.data` reads through the pixel cell. SDL, PDF and
+        web read `img.data` as a plain value and need no change: an exception as the answer
+        draws nothing there.
+      - A label puts a box under the pixels while `natural_size` is `nothing` or `failure` is
+        set. A text span takes its size from its holder and reads neither cell.
+      - The style slice uses `using ..BackendModule`, `..EditorModule` and `..OperationModule`
+        bare, because the layering guard refuses a symbol list on a `using`.
+      - Counts: `test_image()` 28/28; `test_widget_button_behavior()` 134 passes in 25 sets, no
+        fail; `test_inline_image_caret()` 258/258; `test_text_to_graphics()` no fail;
+        `test_image_file_read()` (SDL, offscreen) 7/7. The tests ran in `environment/all`,
+        because the worktree has no manifest for `package/ProjecturedPlatformTest`. The platform
+        layering guard gives 5 pass and 2 fail, and the slice edges 1 pass and 1 fail, both for
+        files outside the style slice (`appearance`, `assistant`), as on main.
 - [ ] **2. A picture file is a file that a person does not edit, and a load keeps its picture.**
       In `Image.jl`: `ImageFile <: FileDocument` with the fields `filename`, `content` and `disk`,
       `ImageFile(path)` and the constructor of a path and a content, `is_editable_file_type`,

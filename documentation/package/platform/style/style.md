@@ -14,6 +14,7 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | `StyleStroke` | a colour, a width and a `dash` |
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
 | `ImageFile`, `ImageMemory` | an image from a file or from memory |
+| `Image` | the picture that a file holds: its path, and pixels that a task reads after the frame that paints them |
 
 The package also defines about 80 colour constants, in curated ramps: `color_black`, `color_solarized_blue`, the Tailwind `color_zinc_*`, `color_slate_*` and `color_indigo_*` ramps. These are fixed colours for a document or a theme field that no colour setting follows; the palette that a role or a step of a ramp draws from is a separate set of ramps, under ["Colours"](#colours) below. A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
@@ -348,6 +349,16 @@ table that names it, and a step of a ramp as a table of its hue and its step,
 each with its alpha when it is below 1 (`save_appearance!`,
 `load_appearance!`).
 
+### A picture of a file
+
+`Image(path)` is the picture that a file holds. Making it reads nothing and runs no work. It has six fields: `filename`, `read_count`, `pixels`, `natural_size`, `failure` and `source`. All but `filename` are view state: a save writes the path only (`pred_arguments`), a load makes a picture that reads nothing, and undo records no change of them.
+
+`pixels` is a background cell (`make_background_cell`). Its input is the path and `read_count`. The work of its `source` decodes the file with `decode_image` and answers `(bytes, width, height)`, or the exception of a file that is missing or does not decode, as a value, so a read of the cell never throws. Each `Image` makes a `BackgroundSource` of its own, so the pictures that one frame paints decode in parallel, each on a task of the default pool. The `apply` of the cell returns an `ApplyImageAnswerOperation`, which writes the size into `natural_size`, or the exception into `failure`, and writes a cell only when its value changes. The operation drops the answer of a `read_count` that a newer count follows.
+
+A print reads `natural_size` and `failure`, which are `nothing` until the first answer, and never `pixels`. A label (`_push_content!`) and a text span (`_extract_image_data`) put the pixel cell itself into the `data` of their `GraphicsImage`. `GraphicsImage` keeps a cell as it is, so only the paint of a backend reads `data`, and only that read records the demand for the task. A picture with no `natural_size` measures 320 by 240 pixels, which the slot of the label fits, and a picture with no size or with a `failure` shows a box under its pixels. One more `read_count` gives the cell a new input: it answers its last pixels until the new ones come, and the next paint asks again.
+
+A script with no editor reads the pixels with `wait_for_cell!(getfield(picture, :pixels); editor = nothing)`. Make a picture where a document is built, never inside a computation, because a computation that makes one makes a new pixel cell at each run. A test gives a picture a source of its own with `_make_image(path, source)`; no public maker takes a source.
+
 ### The zoom and the scales
 
 The size of things on the screen comes from the `Appearance` of an editor: its
@@ -393,7 +404,7 @@ width, ascent, descent = compute_text_extent("hello", StyleFont("Ubuntu Mono", 2
 font_logical_size(StyleFont("Ubuntu Mono", 20))   # 20, the font's own size
 ```
 
-- Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
+- Test: no package suite exists. `test_image()` covers `Image`, and `test_image_file_read()` of the SDL package reads real files. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
 
 ## Limits
 

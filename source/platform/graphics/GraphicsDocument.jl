@@ -767,7 +767,8 @@ end
 """
     GraphicsImage(x, y, w, h, data)
 
-A picture of pixels at a place and of a size.
+A picture of pixels at a place and of a size. `data` is the pixels, or a cell that
+holds them: a backend reads the cell when it paints the image.
 
 `data` is a `Vector{UInt8}` of `w * h * 4` bytes in the order red, green, blue,
 alpha for each pixel, or a tuple `(bytes, width, height)` when the pixels have
@@ -795,9 +796,14 @@ end
 function GraphicsImage(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber, data)
     GraphicsImage(_make_pixel_cell(x), _make_pixel_cell(y),
                   _make_pixel_cell(w), _make_pixel_cell(h),
-                  Cell(data),
+                  _make_image_data_cell(data),
                   Cell(nothing))
 end
+
+# The pixels of an image: a value, or the cell that holds them, which the paint of
+# a backend reads and no print does.
+_make_image_data_cell(data::Cell) = data
+_make_image_data_cell(data) = Cell(data)
 
 # ── Fence ──────────────────────────────────────────────────────────────────
 

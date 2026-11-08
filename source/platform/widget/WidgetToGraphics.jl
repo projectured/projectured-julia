@@ -1275,6 +1275,16 @@ function _image_payload(img::ImageDocument)
     (raw, 0, 0)
 end
 
+# An `Image` answers its pixel cell itself, which only the paint of a backend
+# reads, and its natural size from the plain cell `natural_size`. Until the first
+# answer it measures as `_UNMEASURED_IMAGE_SIZE`, which the slot of the label then fits.
+const _UNMEASURED_IMAGE_SIZE = (320, 240)
+
+function _image_payload(img::Image)
+    width, height = img.natural_size === nothing ? _UNMEASURED_IMAGE_SIZE : img.natural_size
+    (getfield(img, :pixels), width, height)
+end
+
 # The rendered content size of a widget's polymorphic `content`: an ImageDocument
 # measures to its natural size, anything else is stringified and text-measured.
 function _content_size(measure, font::StyleFont, content)
@@ -1309,6 +1319,9 @@ function _push_content!(elems::Vector, measure, label::StyleText, content,
             # Not decoded yet — keep layout stable with a placeholder.
             _push_panel!(elems, x, y, cw, ch; fill = placeholder_color)
         else
+            # A picture with no size yet, or whose read failed, shows a box under its pixels.
+            content isa Image && (content.natural_size === nothing || content.failure !== nothing) &&
+                _push_panel!(elems, x, y, cw, ch; fill = placeholder_color)
             push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
         end
     else
