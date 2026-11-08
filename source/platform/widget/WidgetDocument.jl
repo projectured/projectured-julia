@@ -1648,13 +1648,16 @@ const _PANE_FITS = (width = false, height = false)
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
 """
-    WidgetTransformPane(content; transform, position, size,
+    WidgetTransformPane(content; transform, position, size = Point2D(0, 0),
                         grows = (width = false, height = false), <base kwargs>)
 
 A pane that applies a 2-D affine [`AffineTransform`](@ref) to its `content` —
 the unification of scrolling (a pure translation) and zooming (a pure scale).
 The pane projects to a clipping `GraphicsViewport` whose `transform` carries the
 matrix, so content is magnified/panned inside a fixed on-screen box.
+
+`size` is the authored size of the pane; `Point2D(0, 0)` authors none, so the pane
+takes the slot that its parent gives.
 
 `transform` is **transient view state** (like `WidgetScrollPane.scroll_position`)
 — it is not serialised. It defaults to `affine_identity`. Gestures edit it via a
@@ -1667,6 +1670,20 @@ the wheel, so a fast run pans more at each notch.
 
 `grows` says for each axis whether the content fits the view or grows past it,
 as on a `WidgetScrollPane`.
+
+Use it to let the person zoom and pan a picture or a drawing that does not scroll
+on its own. A tab holds the `content` of the pane, so a picture file in a zoom tab
+follows its file.
+
+# Example
+
+    picture_1 = open_file_document!("media/throughput.png")
+    zoom_tab_1 = open_pane!(WidgetTransformPane(picture_1); title = "Throughput")
+    show_pane!(zoom_tab_1)
+
+See also `open_pane!` and `ImageFile`.
+
+For the assistant.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
@@ -1686,7 +1703,7 @@ end
 function WidgetTransformPane(content;
                             transform::AffineTransform=affine_identity,
                             position=nothing,
-                            size=nothing,
+                            size=Point2D(0, 0),
                             grows::NamedTuple=(width = false, height = false),
                             visible::Bool=true,
                             margin=nothing, border=nothing, padding=nothing,
@@ -4114,3 +4131,6 @@ _get_field_keywords(widget::WidgetDocument, left_out::Tuple) =
 # A person sees through a scroll pane to what it shows, which names the pane.
 get_edited_field(::WidgetScrollPane) = :content
 get_document_title(pane::WidgetScrollPane) = get_document_title(pane.content)
+
+# A person sees through a transform pane to what it zooms, as through a scroll pane.
+get_edited_field(::WidgetTransformPane) = :content

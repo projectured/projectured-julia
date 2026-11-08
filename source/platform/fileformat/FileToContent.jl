@@ -69,9 +69,11 @@ function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a
     # collection, so there is exactly one child to reconcile by identity.
     # Reading `get_file_content(file)` inside the thunk is what makes the
-    # printed output re-derive when `F5` replaces the cell wholesale.
+    # printed output re-derive when `F5` replaces the cell wholesale. The thunk also
+    # asks for the read of the file when a change is unread, as the view of a file does,
+    # so a place that draws a file with no view reads it at its first draw.
     child = make_reconciled_child_iomap_cell(
-        () -> get_file_content(file),
+        () -> (demand_file_text(file); get_file_content(file)),
         v -> print_child(_get_content_recursion(p, recursion, v), v, make_child_context(ctx, file, step)))
     ContentIoMap(p, file, Cell(@computation child[].output),
                  Cell(@computation child[]))

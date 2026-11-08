@@ -250,6 +250,24 @@ replace_referenced_value!(notes_1["done"], parse_natural_text(:json, "true"))
 save_file_to_disk!(notes_tab_1)
 ```
 
+A picture file is a file document too. Get it with `open_file_document!`, so that a
+card, a zoom tab and a file tab share one document of the path, and each of them
+shows the new picture after a program writes the file again:
+
+```julia
+throughput_1 = open_file_document!("media/throughput-new.png")
+delay_1 = open_file_document!("media/delay-new.png")
+charts_1 = Dashboard("Charts", [DashboardCard("Throughput", throughput_1),
+                                DashboardCard("Delay", delay_1)])
+open_pane!(charts_1; title = "Charts")
+zoom_tab_1 = open_pane!(WidgetTransformPane(throughput_1); title = "Throughput")
+show_pane!(zoom_tab_1)
+```
+
+A document that a call returns shows as a live card, so a picture file as the last
+value shows its picture in the conversation. The conversation holds no document, so
+that picture does not follow its file.
+
 `read_document_file(path)` reads a file into a document without a tab, and
 `write_document_file(document, path)` writes a document to a file.
 

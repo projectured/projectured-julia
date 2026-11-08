@@ -162,10 +162,18 @@ The extensions `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif` are this type, so
 document that no other place shares. A holder that must follow the file asks the
 editor for its one file document of the path with `open_file_document!`.
 
+Use it to show a picture file in a card of a dashboard or in a zoom tab. The card
+and the tab show the new picture after a program writes the file again.
+
 # Example
 
-    picture_1 = ImageFile("media/throughput.png")
-    get_edited_document(picture_1)    # the Image of the file
+    picture_1 = open_file_document!("media/throughput.png")
+    card_1 = DashboardCard("Throughput", picture_1)
+    dashboard_1 = Dashboard("Charts", Any[card_1])
+
+See also `open_file_document!` and `DashboardCard`.
+
+For the assistant.
 """
 @document struct ImageFile <: FileDocument
     filename::String

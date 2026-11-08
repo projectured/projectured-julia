@@ -654,7 +654,7 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
         `test_explorer()` 383/383; `test_filechange()` 232 passes and 1 broken;
         `test_user_interface_file()` 22/22; `test_dataframes()` 608/608. `test_graph()` gives 632 passes, 4 fails and 2 errors in the worktree and the same on `main`
         (`GraphScrollPaneTest.jl:183-210`, the click into a vertex key).
-- [ ] **4. The assistant reaches the picture, and a zoom tab follows its file.**
+- [x] **4. The assistant reaches the picture, and a zoom tab follows its file.**
       `get_edited_field(::WidgetTransformPane) = :content` in `WidgetDocument.jl`. `FileToContent`
       asks for the text of its file where it reads the content (D14, `FileToContent.jl:60-73`). The
       mark at the end of the docstrings of `ImageFile` and `WidgetTransformPane`, and the example of
@@ -672,6 +672,56 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       `test_referenced_document_editor()`, because a new docstring can move the rank of
       `search_api`. Compare each count with a run on `main`. In omnet-julia,
       `test_simulation_embed_in_page()`, because a tab now holds the content of a transform pane.
+      Done on branch `picture-file`; omnet-julia needs no change. Decisions and facts of the step:
+      - `get_edited_field(::WidgetTransformPane) = :content` stands beside the one of the scroll
+        pane in `WidgetDocument.jl`. A tab holds the pane and its content, so `open_file!(path)`
+        answers a zoom tab of that file, and the close of the tab releases the file.
+      - `FileToContent` calls `demand_file_text(file)` in the thunk that reads the content, so the
+        ask is inside the cell that re-derives the print when the count of changes grows. A second
+        ask in one frame records no second demand.
+      - `WidgetTransformPane(content)` with no `size` failed: the field is declared `Point2D` and the
+        constructor defaulted to `nothing`. The default is `Point2D(0, 0)` now, which the printer
+        already reads as "no authored size", so every caller that passes a size is unchanged.
+      - The docstring of `ImageFile` ends with the mark, and its example gets the file with
+        `open_file_document!` and puts it in a `DashboardCard` (D6). The docstring of
+        `WidgetTransformPane` ends with the mark and shows a zoom tab. The example of §3.7 stands in
+        "Work with files" of `orientation.md`; the word document in its prose is not in
+        backticks, because `test_assistant_documentation` refuses a backticked name that no model
+        can write.
+      - `test_filechange()`: in "a reload of a holder gives each file(…) the file document of the
+        editor, and reads no held file" the card of `b.txt` has no view yet, so the print of the file
+        asks for its read (D14). The assertion allows that one read: `count(...) <= 1` in place of
+        `isempty`.
+      - A frame of an editor with no window paints nothing, and a pane takes the extent of its content
+        by `w` and `h`. The new set in `test_image()` prints a `WidgetTransformPane(file)` and reads
+        those two in each step, as a paint does. A walk with `search_documents` reads the thunk with
+        background work off (`is_background_work_allowed`) and so consumes the change; the set does
+        not use one.
+      - The set of the assistant in `test_assistant_verbs()` runs the code of §3.7 (a card and a zoom
+        tab of one file), asserts that the card, the zoom tab and `find_open_file_document` share one
+        `ImageFile`, that the file is held, and that the draw of the zoom tab reads it.
+      - Open problem, found and not fixed: a zoom tab of a file that `open_file_document!` made and
+        that reads nothing yet keeps drawing "empty document" after its first read. The file keeps
+        its history (`UndoBuffer`) and the load only replaces the document inside it
+        (`replace_wrapped_document!`), so `FileToContent` finds the same content and does not print
+        again, and `UndoBufferToAny` printed its content once. A print made after the read draws the
+        picture. A tab of `open_file!` (read at its open) and the follow of a picture that is
+        already read are not affected. Step 5 shows it in the live check; the owner decides where the
+        fix goes (the print of a history, or the load of an unread file).
+      - Counts, in `environment/all` of the worktree (offscreen SDL), with the count on `main` in
+        brackets where `main` has the test: `test_image()` 108/108; `test_widget_transform_pane()`
+        37/37 [37/37]; `test_file_tab()` 31/31 [31/31]; `test_filechange()` 232 passes and 1 broken
+        [228 and 1 broken]; `test_dashboard_render()` 7/7 [7/7]; `test_assistant_documentation()`
+        3078/3078 [3062 passes and 1 error: `describe_task` calls `get_task_document_result` in its
+        example]; `test_assistant_verbs()` 89/89 [83/83]; `test_referenced_document_editor()` 134/134
+        [134/134]. Also `test_widget_selection()` 107/107, `test_routed_gesture()` 37/37,
+        `test_slot_space()` 109/109, `test_widget_select_dropdown()` 38/38 and `test_layout_rules()`
+        532/532, because they build a transform pane. In omnet-julia, with the scratch environment
+        (`pathof` gives both worktrees): `Pkg.precompile()` 62 packages in 194 s, no error, no
+        overwrite and no undeclared binding (one warning that the manifest is older than the
+        project, as before); `test_simulation_embed_in_page()` 7/7. The tests did not run under
+        `unshare -rn`, because a `bounded-run` job refuses it (`/proc/self/uid_map`); `ollama ps`
+        showed no model before and after.
 - [ ] **5. The live check in `omnet_ide`.** Through its MCP connection, the assistant gets three
       charts with `open_file_document!`, fills a dashboard with them, opens one in a file tab with
       `open_file!` and in a `WidgetTransformPane`, and returns one picture file from a call. A

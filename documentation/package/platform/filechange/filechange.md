@@ -36,7 +36,7 @@ A watcher reads nothing of a changed file. It compares the time and the size of 
 
 A file document is the receiver of its own file. It adds one to the count of changes in its `disk` field (`FileDiskState`), and it reads the file when a view of it is drawn:
 
-1. The text of a file is a background cell in `disk`. Its inputs are the path and the count of changes. A view of the file reads the cell (`demand_file_text`) while the count is past the count that the file loaded. The read records a demand, and after the frame a task waits until the file is whole, hashes it and parses it. A file that nothing draws reads nothing: a card below the screen of a dashboard waits until a scroll shows it.
+1. The text of a file is a background cell in `disk`. Its inputs are the path and the count of changes. A view of the file reads the cell (`demand_file_text`) while the count is past the count that the file loaded, and the print of the file asks in the same way (`FileToContent`), so a zoom tab around a file, which has no view of the file, follows it too. A second ask in one frame records no second demand. The read records a demand, and after the frame a task waits until the file is whole, hashes it and parses it. A file that nothing draws reads nothing: a card below the screen of a dashboard waits until a scroll shows it.
 2. The answer is stored by `ApplyFileTextOperation`, with the check of a change:
 
 | Answer | What the file does |

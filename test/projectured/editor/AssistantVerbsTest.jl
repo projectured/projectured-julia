@@ -301,6 +301,35 @@ function test_assistant_verbs()
             @test any(text -> occursin(expected, text), texts)
         end
     end
+
+    @testset "tell: a picture file shows in a card and in a zoom tab, and both hold one file document" begin
+        write(joinpath(directory, "throughput.png"), "not decoded")
+        answer = _run_assistant_code(editor, """
+            throughput_1 = open_file_document!("$(joinpath(directory, "throughput.png"))")
+            charts_1 = Dashboard("Charts", Any[DashboardCard("Throughput", throughput_1)])
+            open_pane!(charts_1; title = "Charts")
+            zoom_tab_1 = open_pane!(WidgetTransformPane(throughput_1); title = "Zoom")
+            show_pane!(zoom_tab_1)
+            throughput_1
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        picture_file = find_open_file_document(joinpath(directory, "throughput.png"); editor)
+        @test picture_file isa ImageFile
+        zoom = get_document(find_pane("Zoom"; editor))
+        @test zoom.content isa WidgetTransformPane && zoom.content.content === picture_file
+        charts = get_document(find_pane("Charts"; editor)).content
+        @test charts.cards[1].content === picture_file
+        @test is_document_held(editor, picture_file)
+        # The draw of the zoom tab, a place with no view of the file, asks for the read.
+        deadline = time() + 30
+        while time() < deadline && !(get_edited_document(picture_file) isa Image)
+            drain_operations!(editor)
+            run_frame!(editor)
+            sleep(0.02)
+        end
+        @test get_edited_document(picture_file) isa Image
+    end
 end
 end
 

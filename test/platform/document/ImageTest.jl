@@ -57,6 +57,27 @@ _print_image_test_span(picture) = _collect_image_test_images(print_document(
     TextToGraphics(measure = FixedMeasure(10, 18, 6, 0)),
     TextBlock(TextLine(TextGraphics(picture, 64, 48)))).output)
 
+# A paint of the window reads the output of each place that it draws. A frame of an
+# editor with no window paints nothing, so a test prints the place itself and reads its
+# output in each step.
+function _print_image_test_place(editor, place)
+    run_with_evaluation_editor(editor) do
+        print_document(RecursiveProjection(NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))),
+                       nothing, place, PrinterContext())
+    end
+end
+
+function _paint_image_test_place!(editor, place_iomap)
+    walk(element) = if element isa GraphicsCanvas
+        (element.w, element.h)
+        foreach(walk, element.elements)
+    elseif element isa GraphicsViewport
+        walk(element.content)
+    end
+    run_with_evaluation_editor(() -> walk(place_iomap.output), editor)
+    nothing
+end
+
 # Apply what the tasks posted to `editor`, until `cell` is final, for at most ten
 # seconds.
 function _wait_until_image_test_final(editor, cell)
@@ -362,6 +383,58 @@ function test_image()
                 sleep(0.02)
             end
             @test get_edited_document(second) isa Image && get_edited_document(second).filename == second_path
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
+        end
+    end
+
+    @testset "a zoom tab holds the picture file, reads it at its first draw and follows it" begin
+        folder = mktempdir()
+        path = joinpath(folder, "zoom.png")
+        write(path, "one")
+        editor = build_editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                              backend = HeadlessBackend(), devices = Device[], window = false, tabs = true,
+                              appearance = false, settings = Settings(), file_change = true)
+        painted = nothing
+        step!() = (drain_operations!(editor); run_frame!(editor);
+                   painted === nothing || _paint_image_test_place!(editor, painted); sleep(0.02))
+        try
+            # The window holds its tabs before the zoom tab opens.
+            step!()
+            store = get_session_file_change_store(; editor)
+            # The file reads nothing until a place draws it, and only the zoom tab holds it.
+            file = open_file_document!(path; editor)
+            @test file isa ImageFile && get_edited_document(file) isa DocumentNothing
+            zoom = WidgetTransformPane(file)
+            @test get_edited_field(zoom) === :content
+            tab = open_pane!(zoom; title = "Zoom", editor)
+            step!()
+            @test only(store.files).receiver === file
+            # The draw of the zoom tab asks for the read: no view of the file draws it.
+            deadline = time() + 30
+            while time() < deadline && !(get_edited_document(file) isa Image)
+                step!()
+            end
+            picture = get_edited_document(file)
+            @test picture isa Image && picture.filename == path && picture.read_count == 0
+            # A new file at the path and a drain reach the same picture, with no view of the file,
+            # when a place draws it again.
+            painted = _print_image_test_place(editor, WidgetTransformPane(file))
+            write(path, "other bytes")
+            @test _wait_for_image_test_change(store)
+            @test drain_file_changes!(; store) == 1
+            deadline = time() + 30
+            while time() < deadline && picture.read_count < 1
+                step!()
+            end
+            @test get_edited_document(file) === picture && picture.read_count == 1
+            # The tab that holds the file is the zoom tab, and its close releases the file.
+            @test get_document(open_file!(path; editor)) === get_document(tab)
+            @test count(w -> w.receiver === file, store.files) == 1
+            close_pane!(tab; editor)
+            step!()
+            @test isempty(store.files)
+            @test find_open_file_document(path; editor) === nothing
         finally
             foreach(step -> step(editor), editor.stop_steps)
         end
