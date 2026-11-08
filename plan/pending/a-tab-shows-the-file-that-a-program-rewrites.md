@@ -619,6 +619,23 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         `test_open_page_operation()` 95, `test_file_tab()` 31, `test_file_watch_window()` 16,
         `test_user_interface_file()` 22, all Pass; `test_application()` 399 Pass, 1 Fail
         (`ApplicationTest.jl:1008`), 2 Broken, the counts of the base.
+      - [x] **Fix after the landing: a crash at the exit of `test_filechange()`.** Found on
+        2026-11-08: Julia ends with a SIGSEGV in 3 of 3 runs after all tests pass, on 1.13.1 and
+        on the fork; before step 2 (`3b4505b7c`), 0 of 3. The tests drive frames by hand, so the
+        loop of an editor never ends and its stop step `close_file_change_store!` never runs. At
+        exit Julia removes the folders of `mktempdir()`, a watcher wakes, the stamp of a removed
+        file is `nothing`, and `stamp == watched.stamp` on a field of type `Any` compiles
+        `==(::Nothing, ::Tuple)` for the first time, which crashes while the process exits. The
+        application closes its stores at the end of its loop, so a quit does not hit it. The
+        owner chose fixes A and B on 2026-11-08:
+        - A: each test that starts a watcher stops it in `finally`: an editor built with
+          `file_change = true` runs its stop steps, and a `FileChangeStore()` of a test is closed
+          with `close_file_change_store!`.
+        - B: `WatchedFile.stamp` is a `Union{Nothing,Tuple{Float64,Int64}}` and
+          `WatchedFolder.stamp` a `Union{Nothing,Float64}`, the types that `compute_file_stamp`
+          and `_get_folder_stamp` give, so a watcher compiles no method while it runs.
+        **Done on 2026-11-08.** `test_filechange()` three runs: 264 Pass, 1 Broken, exit code 0 each; `test_explorer()`: 392 Pass, exit code 0.
+        - Not done: a report to Julia (option C).
 - [x] **3. A load keeps the selection where it can (D6).** **Done on 2026-11-07.** The evaluation of `ReloadFileOperation`
       in `DocumentFile.jl`. Remove the limit from `filechange.md`. Test: `test_filechange()`, a new set
       with an editor. The caret is in the third paragraph, and the file loses two paragraphs. After

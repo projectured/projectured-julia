@@ -48,47 +48,55 @@ function test_filesystem_document()
             @test make_filesystem_pathname(joinpath(dir, "a.jl")) isa FileSystemFile
             # An acquire watches the folder and reads nothing, also after frames.
             editor = _make_folder_editor()
-            evaluate_operation(editor, AcquireDocumentOperation(root))
-            for _ in 1:10
-                drain_operations!(editor)
-                ProjecturedKernel.EditorModule.start_background_cell_work!(editor)
-                sleep(0.05)
+            try
+                evaluate_operation(editor, AcquireDocumentOperation(root))
+                for _ in 1:10
+                    drain_operations!(editor)
+                    ProjecturedKernel.EditorModule.start_background_cell_work!(editor)
+                    sleep(0.05)
+                end
+                @test root.state === :unread && !root.reading && isempty(root.elements)
+                evaluate_operation(editor, ReleaseDocumentOperation(root))
+            finally
+                close_file_change_store!(find_file_change_store(editor))
             end
-            @test root.state === :unread && !root.reading && isempty(root.elements)
-            evaluate_operation(editor, ReleaseDocumentOperation(root))
         end
 
         @testset "a part that asks reads the names, their kinds and the emptiness of each sub-folder" begin
             editor = _make_folder_editor()
-            root = make_filesystem_pathname(dir)
-            evaluate_operation(editor, AcquireDocumentOperation(root))
-            ask() = demand_tree_children(root)
-            @test _wait_for_folder(() -> root.state === :read, editor; ask)
-            @test _get_entry_names(root) == ["a.jl", "empty", "sub"]
-            (file, empty, sub) = collect(root.elements)
-            @test file isa FileSystemFile && empty isa FileSystemDirectory && sub isa FileSystemDirectory
-            @test sub.state === :unread && has_folder_entries(sub) === true
-            @test has_folder_entries(empty) === false
-            store = find_file_change_store(editor)
-            @test is_folder_watched(dir; store, receiver = root)
-            @test is_folder_watched(sub.pathname; store, receiver = root)
+            try
+                root = make_filesystem_pathname(dir)
+                evaluate_operation(editor, AcquireDocumentOperation(root))
+                ask() = demand_tree_children(root)
+                @test _wait_for_folder(() -> root.state === :read, editor; ask)
+                @test _get_entry_names(root) == ["a.jl", "empty", "sub"]
+                (file, empty, sub) = collect(root.elements)
+                @test file isa FileSystemFile && empty isa FileSystemDirectory && sub isa FileSystemDirectory
+                @test sub.state === :unread && has_folder_entries(sub) === true
+                @test has_folder_entries(empty) === false
+                store = find_file_change_store(editor)
+                @test is_folder_watched(dir; store, receiver = root)
+                @test is_folder_watched(sub.pathname; store, receiver = root)
 
-            # A new file is one entry more, and each entry that stays keeps its document.
-            write(joinpath(dir, "c.jl"), "")
-            @test _wait_for_folder(() -> length(root.elements) == 4, editor; ask)
-            @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
-            @test root.elements[1] === file && root.elements[3] === empty && root.elements[4] === sub
+                # A new file is one entry more, and each entry that stays keeps its document.
+                write(joinpath(dir, "c.jl"), "")
+                @test _wait_for_folder(() -> length(root.elements) == 4, editor; ask)
+                @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
+                @test root.elements[1] === file && root.elements[3] === empty && root.elements[4] === sub
 
-            # A sub-folder that gets its first entry says so.
-            write(joinpath(dir, "empty", "d.jl"), "")
-            @test _wait_for_folder(() -> has_folder_entries(empty) === true, editor)
+                # A sub-folder that gets its first entry says so.
+                write(joinpath(dir, "empty", "d.jl"), "")
+                @test _wait_for_folder(() -> has_folder_entries(empty) === true, editor)
 
-            # The release stops the watches and keeps the entries.
-            evaluate_operation(editor, ReleaseDocumentOperation(root))
-            @test !is_folder_watched(dir; store) && !is_folder_watched(sub.pathname; store)
-            @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
-            rm(joinpath(dir, "c.jl"))
-            rm(joinpath(dir, "empty", "d.jl"))
+                # The release stops the watches and keeps the entries.
+                evaluate_operation(editor, ReleaseDocumentOperation(root))
+                @test !is_folder_watched(dir; store) && !is_folder_watched(sub.pathname; store)
+                @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
+                rm(joinpath(dir, "c.jl"))
+                rm(joinpath(dir, "empty", "d.jl"))
+            finally
+                close_file_change_store!(find_file_change_store(editor))
+            end
         end
 
         @testset "a caller with no editor reads at once, down to a depth" begin
@@ -101,30 +109,34 @@ function test_filesystem_document()
 
         @testset "a workspace shares one listing, and each explorer holds its own open folders" begin
             editor = _make_folder_editor()
-            workspace = Workspace([WorkspaceFolder("project", dir)])
-            project = workspace.folders[1].directory
-            @test project isa FileSystemDirectory && project.state === :unread
-            left = WorkspaceExplorer(workspace)
-            right = WorkspaceExplorer(workspace)
-            @test haskey(left.open, project) && haskey(right.open, project)
-            evaluate_operation(editor, AcquireDocumentOperation(left))
-            @test _wait_for_folder(() -> project.state === :read, editor; ask = () -> demand_tree_children(project))
-            # The second explorer reads nothing again: an acquire reads nothing, and
-            # the listing that the first read found belongs to the folder as it is.
-            evaluate_operation(editor, AcquireDocumentOperation(right))
-            @test !project.reading && project.read_count == 0
-            store = find_file_change_store(editor)
-            evaluate_operation(editor, ReleaseDocumentOperation(left))
-            @test is_folder_watched(dir; store, receiver = project)
-            evaluate_operation(editor, ReleaseDocumentOperation(right))
-            @test !is_folder_watched(dir; store, receiver = project)
-            # A duplicate shares the workspace and copies the open folders.
-            duplicate = make_document_duplicate(left)
-            @test duplicate isa WorkspaceExplorer && duplicate.workspace === workspace
-            @test duplicate.open == left.open && duplicate.open !== left.open
-            # A file of the workspace keeps the name and the place of each folder.
-            @test ProjecturedPlatform.SerializationModule.pred_arguments(workspace.folders[1]) ==
-                  ((), Pair{Symbol,Any}[:name => "project", :pathname => dir])
+            try
+                workspace = Workspace([WorkspaceFolder("project", dir)])
+                project = workspace.folders[1].directory
+                @test project isa FileSystemDirectory && project.state === :unread
+                left = WorkspaceExplorer(workspace)
+                right = WorkspaceExplorer(workspace)
+                @test haskey(left.open, project) && haskey(right.open, project)
+                evaluate_operation(editor, AcquireDocumentOperation(left))
+                @test _wait_for_folder(() -> project.state === :read, editor; ask = () -> demand_tree_children(project))
+                # The second explorer reads nothing again: an acquire reads nothing, and
+                # the listing that the first read found belongs to the folder as it is.
+                evaluate_operation(editor, AcquireDocumentOperation(right))
+                @test !project.reading && project.read_count == 0
+                store = find_file_change_store(editor)
+                evaluate_operation(editor, ReleaseDocumentOperation(left))
+                @test is_folder_watched(dir; store, receiver = project)
+                evaluate_operation(editor, ReleaseDocumentOperation(right))
+                @test !is_folder_watched(dir; store, receiver = project)
+                # A duplicate shares the workspace and copies the open folders.
+                duplicate = make_document_duplicate(left)
+                @test duplicate isa WorkspaceExplorer && duplicate.workspace === workspace
+                @test duplicate.open == left.open && duplicate.open !== left.open
+                # A file of the workspace keeps the name and the place of each folder.
+                @test ProjecturedPlatform.SerializationModule.pred_arguments(workspace.folders[1]) ==
+                      ((), Pair{Symbol,Any}[:name => "project", :pathname => dir])
+            finally
+                close_file_change_store!(find_file_change_store(editor))
+            end
         end
     end
 
@@ -144,12 +156,16 @@ function test_filesystem_document()
             mkpath(large)
             foreach(k -> touch(joinpath(large, string("file", lpad(k, 4, '0'), ".txt"))), 1:5000)
             editor = _make_folder_editor()
-            folder = make_filesystem_pathname(large)
-            evaluate_operation(editor, AcquireDocumentOperation(folder))
-            @test _wait_for_folder(() -> folder.state === :read, editor; ask = () -> demand_tree_children(folder))
-            @test length(folder.elements) == 5000 && folder.read_count == 0
-            @test basename(folder.elements[1].pathname) == "file0001.txt"
-            evaluate_operation(editor, ReleaseDocumentOperation(folder))
+            try
+                folder = make_filesystem_pathname(large)
+                evaluate_operation(editor, AcquireDocumentOperation(folder))
+                @test _wait_for_folder(() -> folder.state === :read, editor; ask = () -> demand_tree_children(folder))
+                @test length(folder.elements) == 5000 && folder.read_count == 0
+                @test basename(folder.elements[1].pathname) == "file0001.txt"
+                evaluate_operation(editor, ReleaseDocumentOperation(folder))
+            finally
+                close_file_change_store!(find_file_change_store(editor))
+            end
         end
     end
 end

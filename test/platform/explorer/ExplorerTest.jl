@@ -552,34 +552,38 @@ function test_explorer()
         # The editor has settings, so a file that it opens keeps a history, which says
         # that the file has no edits.
         editor, backend = _nav_editor(explorer; tabs = true, file_change = true, settings = Settings())
-        evaluate_operation(editor, AcquireDocumentOperation(explorer))
-        frame!() = (drain_operations!(editor); run_frame!(editor))
-        wait_for_text(text) = (for _ in 1:100
-                                   frame!()
-                                   _nav_has_text(backend, text) && return true
-                                   sleep(0.02)
-                               end; false)
-        for label in ("Files", "work")
-            _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
-            @test wait_for_text(label == "Files" ? "work" : "a.json")
+        try
+            evaluate_operation(editor, AcquireDocumentOperation(explorer))
+            frame!() = (drain_operations!(editor); run_frame!(editor))
+            wait_for_text(text) = (for _ in 1:100
+                                       frame!()
+                                       _nav_has_text(backend, text) && return true
+                                       sleep(0.02)
+                                   end; false)
+            for label in ("Files", "work")
+                _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+                @test wait_for_text(label == "Files" ? "work" : "a.json")
+            end
+            # The caret goes into the first file, then another file takes the page.
+            _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
+            @test wait_for_text("abc")
+            texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+            (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+            _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+            file = workspace.folders[1].directory.elements[1]
+            shown = file.document
+            _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
+            @test wait_for_text("xyz")
+            store = get_session_file_change_store(; editor)
+            @test !is_document_file_watched(shown; store)
+            # The first file changes while its page is not shown, and Back shows the new text.
+            write(joinpath(root, "a.json"), "{\"name\": \"new\"}")
+            _nav_press!(editor, backend, _nav_click(backend, _NAV_BACK))
+            @test wait_for_text("new")
+            @test !_nav_has_text(backend, "abc") && file.document === shown
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
         end
-        # The caret goes into the first file, then another file takes the page.
-        _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
-        @test wait_for_text("abc")
-        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
-        (_, x, y) = texts[argmax([entry[2] for entry in texts])]
-        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
-        file = workspace.folders[1].directory.elements[1]
-        shown = file.document
-        _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
-        @test wait_for_text("xyz")
-        store = get_session_file_change_store(; editor)
-        @test !is_document_file_watched(shown; store)
-        # The first file changes while its page is not shown, and Back shows the new text.
-        write(joinpath(root, "a.json"), "{\"name\": \"new\"}")
-        _nav_press!(editor, backend, _nav_click(backend, _NAV_BACK))
-        @test wait_for_text("new")
-        @test !_nav_has_text(backend, "abc") && file.document === shown
     end
 
     @testset "the page of the open files is a table of the files, which a person filters and opens" begin
@@ -1348,64 +1352,68 @@ function test_explorer()
                                           DashboardCard("later", TextFile("later.txt", "y"))])
             @test save_file!(PredFile(work_path, saved), root)
             editor, backend = _nav_editor(PrimitiveString("x"); file_change = true, settings = Settings())
-            store = get_session_file_change_store(; editor)
-            open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
-            # Frames until `done()` holds, and a draw of a view as the frame of a window draws it: the
-            # print of a view demands the text of its file in the evaluation of the editor.
-            function run_until(done; seconds = 30)
-                deadline = time() + seconds
-                while time() < deadline
-                    drain_operations!(editor)
-                    run_frame!(editor)
-                    done() && return true
-                    sleep(0.02)
+            try
+                store = get_session_file_change_store(; editor)
+                open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
+                # Frames until `done()` holds, and a draw of a view as the frame of a window draws it: the
+                # print of a view demands the text of its file in the evaluation of the editor.
+                function run_until(done; seconds = 30)
+                    deadline = time() + seconds
+                    while time() < deadline
+                        drain_operations!(editor)
+                        run_frame!(editor)
+                        done() && return true
+                        sleep(0.02)
+                    end
+                    false
                 end
-                false
+                draw(view) = run_with_evaluation_editor(editor) do
+                    length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
+                end
+                is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
+                # A tab shows notes.txt.
+                tab_file = open_file(notes_path)
+                tab_view = make_file_view(tab_file)
+                evaluate_operation(editor, AcquireDocumentOperation(tab_view))
+                @test find_open_file_document(notes_path; editor) === tab_file
+                # The open of the dashboard reads no held file.
+                holder = open_file(work_path)
+                dashboard = get_wrapped_document(get_file_content(holder))
+                @test dashboard isa Dashboard && length(dashboard.cards) == 2
+                @test dashboard.cards[1].content === tab_file
+                later = dashboard.cards[2].content
+                @test later isa TextFile && get_filename(later) == later_path
+                @test find_open_file_document(later_path; editor) === later
+                state = get_file_disk_state(later)
+                @test state.loaded_count < 0 && state.read_count == 0 && state.file_hash === nothing
+                @test get_file_content(later) isa UndoBuffer
+                run_until(() -> false; seconds = 0.5)
+                @test isempty(get_background_work_store(editor).records)
+                # A second open of the path gives the same file document.
+                @test open_file_document!(later_path; editor) === later
+                # Before the read, the view says that it reads, and the file refuses a save.
+                later_view = make_file_view(later)
+                evaluate_operation(editor, AcquireDocumentOperation(later_view))
+                @test draw(later_view) == 2
+                reading = print_document(FileViewToWidget(), nothing, later_view, nothing).output.children[1]
+                @test reading.child.content == "later.txt \u00b7 reading"
+                @test evaluate_operation(nothing, SaveFileOperation(later)) === false
+                @test read(later_path, String) == "later on disk\n"
+                # A save of the dashboard writes the file in each card as the file that it shows.
+                text = cut_file_text(PredFile(work_path, dashboard), root)
+                @test occursin("file(\"notes.txt\")", text) && occursin("file(\"later.txt\")", text)
+                @test !occursin("later on disk", text) && !occursin("FileDiskState", text)
+                # The read comes after the frame, once, and the view stops saying that it reads.
+                @test run_until(() -> is_read(later))
+                reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
+                @test reads == 1 && state.loaded_count >= 0
+                @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
+                @test draw(later_view) == 1
+                evaluate_operation(editor, ReleaseDocumentOperation(later_view))
+                evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
             end
-            draw(view) = run_with_evaluation_editor(editor) do
-                length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
-            end
-            is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
-            # A tab shows notes.txt.
-            tab_file = open_file(notes_path)
-            tab_view = make_file_view(tab_file)
-            evaluate_operation(editor, AcquireDocumentOperation(tab_view))
-            @test find_open_file_document(notes_path; editor) === tab_file
-            # The open of the dashboard reads no held file.
-            holder = open_file(work_path)
-            dashboard = get_wrapped_document(get_file_content(holder))
-            @test dashboard isa Dashboard && length(dashboard.cards) == 2
-            @test dashboard.cards[1].content === tab_file
-            later = dashboard.cards[2].content
-            @test later isa TextFile && get_filename(later) == later_path
-            @test find_open_file_document(later_path; editor) === later
-            state = get_file_disk_state(later)
-            @test state.loaded_count < 0 && state.read_count == 0 && state.file_hash === nothing
-            @test get_file_content(later) isa UndoBuffer
-            run_until(() -> false; seconds = 0.5)
-            @test isempty(get_background_work_store(editor).records)
-            # A second open of the path gives the same file document.
-            @test open_file_document!(later_path; editor) === later
-            # Before the read, the view says that it reads, and the file refuses a save.
-            later_view = make_file_view(later)
-            evaluate_operation(editor, AcquireDocumentOperation(later_view))
-            @test draw(later_view) == 2
-            reading = print_document(FileViewToWidget(), nothing, later_view, nothing).output.children[1]
-            @test reading.child.content == "later.txt \u00b7 reading"
-            @test evaluate_operation(nothing, SaveFileOperation(later)) === false
-            @test read(later_path, String) == "later on disk\n"
-            # A save of the dashboard writes the file in each card as the file that it shows.
-            text = cut_file_text(PredFile(work_path, dashboard), root)
-            @test occursin("file(\"notes.txt\")", text) && occursin("file(\"later.txt\")", text)
-            @test !occursin("later on disk", text) && !occursin("FileDiskState", text)
-            # The read comes after the frame, once, and the view stops saying that it reads.
-            @test run_until(() -> is_read(later))
-            reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
-            @test reads == 1 && state.loaded_count >= 0
-            @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
-            @test draw(later_view) == 1
-            evaluate_operation(editor, ReleaseDocumentOperation(later_view))
-            evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
         finally
             rm(root; recursive = true, force = true)
         end
@@ -1420,35 +1428,39 @@ function test_explorer()
             write(picture_path, "pixels")
             write(page_path, "chart.xpicture\n")
             editor, _ = _nav_editor(PrimitiveString("x"); file_change = true, settings = Settings())
-            open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
-            # The open of a page gives it the file document of the picture that it shows.
-            page = open_file(page_path)
-            shown = get_file_disk_state(page).shown_files
-            @test collect(keys(shown)) == ["chart.xpicture"]
-            picture = shown["chart.xpicture"]
-            @test picture isa _ExplorerShownPictureFile && find_open_file_document(picture_path; editor) === picture
-            # A dashboard with the page in a card writes the file of the page, and neither the files
-            # that it shows nor the state of any file.
-            dashboard = Dashboard("work", Any[DashboardCard("page", page)])
-            text = cut_file_text(PredFile(work_path, dashboard), root)
-            @test occursin("file(\"chart.xpage\")", text)
-            @test !occursin("chart.xpicture", text) && !occursin("shown_files", text) && !occursin("FileDiskState", text)
-            @test !occursin("content_view", text) && !occursin("pixels", text)
-            # The saved dashboard reads again: its card gets a page that reads nothing yet, and the
-            # load of that page gives it the file of the picture, which the saved content still does not name.
-            @test save_file!(PredFile(work_path, dashboard), root)
-            holder = open_file(work_path)
-            card_page = get_wrapped_document(get_file_content(holder)).cards[1].content
-            @test card_page isa _ExplorerShownPageFile && find_open_file_document(page_path; editor) === card_page
-            @test isempty(get_file_disk_state(card_page).shown_files)
-            evaluate_operation(editor, ReloadFileOperation(card_page))
-            @test collect(keys(get_file_disk_state(card_page).shown_files)) == ["chart.xpicture"]
-            @test get_file_disk_state(card_page).shown_files["chart.xpicture"] === picture
-            @test cut_file_text(PredFile(work_path, get_wrapped_document(get_file_content(holder))), root) == text
-            # A page that another read finds with no editor shows no file, and saves the same text.
-            alone = make_file_tab(page_path, UndoBuffer)
-            @test isempty(get_file_disk_state(alone).shown_files)
-            @test cut_file_text(PredFile(work_path, Dashboard("work", Any[DashboardCard("page", alone)])), root) == text
+            try
+                open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
+                # The open of a page gives it the file document of the picture that it shows.
+                page = open_file(page_path)
+                shown = get_file_disk_state(page).shown_files
+                @test collect(keys(shown)) == ["chart.xpicture"]
+                picture = shown["chart.xpicture"]
+                @test picture isa _ExplorerShownPictureFile && find_open_file_document(picture_path; editor) === picture
+                # A dashboard with the page in a card writes the file of the page, and neither the files
+                # that it shows nor the state of any file.
+                dashboard = Dashboard("work", Any[DashboardCard("page", page)])
+                text = cut_file_text(PredFile(work_path, dashboard), root)
+                @test occursin("file(\"chart.xpage\")", text)
+                @test !occursin("chart.xpicture", text) && !occursin("shown_files", text) && !occursin("FileDiskState", text)
+                @test !occursin("content_view", text) && !occursin("pixels", text)
+                # The saved dashboard reads again: its card gets a page that reads nothing yet, and the
+                # load of that page gives it the file of the picture, which the saved content still does not name.
+                @test save_file!(PredFile(work_path, dashboard), root)
+                holder = open_file(work_path)
+                card_page = get_wrapped_document(get_file_content(holder)).cards[1].content
+                @test card_page isa _ExplorerShownPageFile && find_open_file_document(page_path; editor) === card_page
+                @test isempty(get_file_disk_state(card_page).shown_files)
+                evaluate_operation(editor, ReloadFileOperation(card_page))
+                @test collect(keys(get_file_disk_state(card_page).shown_files)) == ["chart.xpicture"]
+                @test get_file_disk_state(card_page).shown_files["chart.xpicture"] === picture
+                @test cut_file_text(PredFile(work_path, get_wrapped_document(get_file_content(holder))), root) == text
+                # A page that another read finds with no editor shows no file, and saves the same text.
+                alone = make_file_tab(page_path, UndoBuffer)
+                @test isempty(get_file_disk_state(alone).shown_files)
+                @test cut_file_text(PredFile(work_path, Dashboard("work", Any[DashboardCard("page", alone)])), root) == text
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
         finally
             rm(root; recursive = true, force = true)
         end
@@ -1467,33 +1479,37 @@ function test_explorer()
             view = make_file_view(tab_file)
             # The tab of the first file is the window; the second file reads when a view of it is drawn.
             editor, backend = _nav_editor(view; file_change = true)
-            evaluate_operation(editor, ReloadFileOperation(tab_file))
-            evaluate_operation(editor, AcquireDocumentOperation(view))
-            held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
-            second_view = make_file_view(held_second)
-            evaluate_operation(editor, AcquireDocumentOperation(second_view))
-            run_with_evaluation_editor(editor) do
-                length(print_document(FileViewToWidget(), nothing, second_view, nothing).output.children)
+            try
+                evaluate_operation(editor, ReloadFileOperation(tab_file))
+                evaluate_operation(editor, AcquireDocumentOperation(view))
+                held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
+                second_view = make_file_view(held_second)
+                evaluate_operation(editor, AcquireDocumentOperation(second_view))
+                run_with_evaluation_editor(editor) do
+                    length(print_document(FileViewToWidget(), nothing, second_view, nothing).output.children)
+                end
+                is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
+                deadline = time() + 60
+                while time() < deadline && !is_read(held_second)
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                    sleep(0.02)
+                end
+                # The frames end: the slot of the first file in the second holds the tab, and the frame
+                # draws the first file once more as a closed card with its title and its path.
+                @test is_read(held_second)
+                @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
+                for _ in 1:3
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                end
+                @test Base.gc_live_bytes() < 3 * 2^30
+                closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
+                @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
+                @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
             end
-            is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
-            deadline = time() + 60
-            while time() < deadline && !is_read(held_second)
-                drain_operations!(editor)
-                run_frame!(editor)
-                sleep(0.02)
-            end
-            # The frames end: the slot of the first file in the second holds the tab, and the frame
-            # draws the first file once more as a closed card with its title and its path.
-            @test is_read(held_second)
-            @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
-            for _ in 1:3
-                drain_operations!(editor)
-                run_frame!(editor)
-            end
-            @test Base.gc_live_bytes() < 3 * 2^30
-            closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
-            @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
-            @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
         finally
             rm(root; recursive = true, force = true)
         end
@@ -1549,25 +1565,33 @@ function test_explorer()
             holder = PredFile(joinpath(root, "holder.pred"),
                               Dashboard("both", Any[DashboardCard("one", note), DashboardCard("two", note)]))
             editor, backend = _nav_editor(make_file_view(holder); file_change = true)
-            for _ in 1:3
-                drain_operations!(editor)
-                run_frame!(editor)
+            try
+                for _ in 1:3
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                end
+                closed = string(Char(0xe06f))
+                @test count(entry -> occursin("hello", entry[1]), _nav_texts(backend)) == 2
+                @test _nav_count(backend, closed) == 0
+                # a.pred holds b.pred, which holds c.pred.
+                names = ("a.pred", "b.pred", "c.pred")
+                files = [PredFile(joinpath(root, name), Dashboard(name[1:1], Any[])) for name in names]
+                push!(files[1].content.cards, DashboardCard("to b", files[2]))
+                push!(files[2].content.cards, DashboardCard("to c", files[3]))
+                chain_editor, chain_backend = _nav_editor(make_file_view(files[1]); file_change = true)
+                try
+                    for _ in 1:3
+                        drain_operations!(chain_editor)
+                        run_frame!(chain_editor)
+                    end
+                    @test _nav_has_text(chain_backend, "to b") && _nav_has_text(chain_backend, "to c")
+                    @test _nav_count(chain_backend, closed) == 0
+                finally
+                    foreach(step -> step(chain_editor), chain_editor.stop_steps)
+                end
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
             end
-            closed = string(Char(0xe06f))
-            @test count(entry -> occursin("hello", entry[1]), _nav_texts(backend)) == 2
-            @test _nav_count(backend, closed) == 0
-            # a.pred holds b.pred, which holds c.pred.
-            names = ("a.pred", "b.pred", "c.pred")
-            files = [PredFile(joinpath(root, name), Dashboard(name[1:1], Any[])) for name in names]
-            push!(files[1].content.cards, DashboardCard("to b", files[2]))
-            push!(files[2].content.cards, DashboardCard("to c", files[3]))
-            chain_editor, chain_backend = _nav_editor(make_file_view(files[1]); file_change = true)
-            for _ in 1:3
-                drain_operations!(chain_editor)
-                run_frame!(chain_editor)
-            end
-            @test _nav_has_text(chain_backend, "to b") && _nav_has_text(chain_backend, "to c")
-            @test _nav_count(chain_backend, closed) == 0
         finally
             rm(root; recursive = true, force = true)
         end
@@ -1581,44 +1605,48 @@ function test_explorer()
             dashboard = Dashboard("Study", Any[DashboardCard("First", first_page)])
             explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
             editor, backend = _nav_editor(explorer; tabs = true, clipboard = true, undo = true, file_change = true)
-            store = get_session_file_change_store(; editor)
-            watched(file) = is_document_file_watched(file; store)
-            # A page that no holder shows holds nothing.
-            @test !is_document_held(editor, first_page) && !watched(first_page)
-            evaluate_operation(editor, AcquireDocumentOperation(explorer))
-            _nav_press!(editor, backend, _explorer_click(backend, "Study"))
-            @test get_navigator_page(explorer.navigator) === dashboard
-            @test is_document_held(editor, dashboard)
-            @test is_document_held(editor, first_page) && watched(first_page)
-            cards = ReferencedDocument(dashboard.cards, annotate_reference_types(
-                editor.document, extend_reference(strip_reference_types(find_document_path(editor.document, dashboard)),
-                                                  FieldReferenceStep("cards"))))
-            # Insert on the page adds a card whose content is held.
-            _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
-            _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
-            @test length(dashboard.cards) == 2 && is_document_held(editor, dashboard.cards[2].content)
-            # A paste at the caret on the page holds the content of the card.
-            _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
-            editor.document.slice = pasted
-            _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
-            @test length(dashboard.cards) == 3 && dashboard.cards[3].content === pasted
-            @test is_document_held(editor, pasted) && watched(pasted)
-            # An insert of a verb holds it too, and an undo takes the insert back.
-            insert_elements!(cards, 4, Any[DashboardCard("Inserted", inserted)]; editor)
-            @test length(dashboard.cards) == 4
-            @test is_document_held(editor, inserted)
-            @test watched(inserted)
-            history = only(search_documents(editor.document, node -> node isa UndoBuffer))
-            evaluate_operation(editor, UndoOperation(history))
-            @test length(dashboard.cards) == 3
-            @test !is_document_held(editor, inserted) && !watched(inserted)
-            evaluate_operation(editor, RedoOperation(history))
-            @test length(dashboard.cards) == 4 && is_document_held(editor, inserted) && watched(inserted)
-            # A removal releases the content of the card.
-            delete_elements!(cards, 3; editor)
-            @test length(dashboard.cards) == 3
-            @test !is_document_held(editor, pasted) && !watched(pasted)
-            @test is_document_held(editor, first_page) && is_document_held(editor, inserted)
+            try
+                store = get_session_file_change_store(; editor)
+                watched(file) = is_document_file_watched(file; store)
+                # A page that no holder shows holds nothing.
+                @test !is_document_held(editor, first_page) && !watched(first_page)
+                evaluate_operation(editor, AcquireDocumentOperation(explorer))
+                _nav_press!(editor, backend, _explorer_click(backend, "Study"))
+                @test get_navigator_page(explorer.navigator) === dashboard
+                @test is_document_held(editor, dashboard)
+                @test is_document_held(editor, first_page) && watched(first_page)
+                cards = ReferencedDocument(dashboard.cards, annotate_reference_types(
+                    editor.document, extend_reference(strip_reference_types(find_document_path(editor.document, dashboard)),
+                                                      FieldReferenceStep("cards"))))
+                # Insert on the page adds a card whose content is held.
+                _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+                _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+                @test length(dashboard.cards) == 2 && is_document_held(editor, dashboard.cards[2].content)
+                # A paste at the caret on the page holds the content of the card.
+                _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+                editor.document.slice = pasted
+                _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+                @test length(dashboard.cards) == 3 && dashboard.cards[3].content === pasted
+                @test is_document_held(editor, pasted) && watched(pasted)
+                # An insert of a verb holds it too, and an undo takes the insert back.
+                insert_elements!(cards, 4, Any[DashboardCard("Inserted", inserted)]; editor)
+                @test length(dashboard.cards) == 4
+                @test is_document_held(editor, inserted)
+                @test watched(inserted)
+                history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+                evaluate_operation(editor, UndoOperation(history))
+                @test length(dashboard.cards) == 3
+                @test !is_document_held(editor, inserted) && !watched(inserted)
+                evaluate_operation(editor, RedoOperation(history))
+                @test length(dashboard.cards) == 4 && is_document_held(editor, inserted) && watched(inserted)
+                # A removal releases the content of the card.
+                delete_elements!(cards, 3; editor)
+                @test length(dashboard.cards) == 3
+                @test !is_document_held(editor, pasted) && !watched(pasted)
+                @test is_document_held(editor, first_page) && is_document_held(editor, inserted)
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
         finally
             rm(root; recursive = true, force = true)
         end

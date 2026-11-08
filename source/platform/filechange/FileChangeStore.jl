@@ -12,7 +12,7 @@ mutable struct WatchedFile
     file::FileDocument
     path::String
     receiver::Any
-    stamp::Any
+    stamp::Union{Nothing,Tuple{Float64,Int64}}
 end
 
 # A receiver that watches a folder, the absolute path of the folder, and the time
@@ -20,7 +20,7 @@ end
 mutable struct WatchedFolder
     path::String
     receiver::Any
-    stamp::Any
+    stamp::Union{Nothing,Float64}
 end
 
 WatchedFile(file::FileDocument, path::String, receiver) = WatchedFile(file, path, receiver, compute_file_stamp(path))
