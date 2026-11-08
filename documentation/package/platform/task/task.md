@@ -318,8 +318,9 @@ a timer stops the process as a stop does, the task ends `ERROR` with the reason
 the disk before the start: a folder that does not exist makes `run` throw, and the
 group ends the task as a `TaskStartFailure`.
 
-The views of the kind: the columns `name` and `command`, the facts `command:`,
-`folder:`, `environment:` (the added variables only) and `exit code:`, and the
+The views of the kind: the columns `name` and `command`, a page of the facts
+`command`, `folder`, `environment` (the added variables only) and `exit code`
+(`make_task_kind_document`), and the
 marks of a line: `error:` or `fatal:` in any case is `:error`, `warning:` is
 `:warning`, so the button First error of the stream page and the counts of the
 marks work.

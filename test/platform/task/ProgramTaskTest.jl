@@ -77,11 +77,12 @@ function test_program_task()
             @test get_task_columns(task) == ["name" => 2, "command" => 4]
             @test format_task_column(task, "name") == "checkout"
             @test format_task_column(task, "command") == "git checkout --detach 3fa2c1d"
-            @test format_task_details(task, nothing) ==
-                  ["command: git checkout --detach 3fa2c1d", "folder: /work", "environment: A=1 B=2"]
+            facts(task, result) = [fact.label => fact.value for fact in collect(make_task_kind_document(task, result).facts)]
+            @test facts(task, nothing) ==
+                  ["command" => "git checkout --detach 3fa2c1d", "folder" => "/work", "environment" => "A=1 B=2"]
             @test _make_program(`make`).name == "make"
             result = _run_program(_make_program(`sh -c "exit 2"`)).result
-            @test last(format_task_details(result.task, result)) == "exit code: 2"
+            @test last(facts(result.task, result)) == ("exit code" => "2")
         end
 
         @testset "the constructor refuses what it does not run" begin

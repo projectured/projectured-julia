@@ -135,11 +135,12 @@ function find_task_output_mark(::ProgramTask, ::Symbol, line::AbstractString)
     occursin("warning:", lowered) ? :warning : nothing
 end
 
-function format_task_details(task::ProgramTask, result)
-    lines = String["command: " * join(task.arguments, " "), "folder: " * task.working_directory]
+# The page of a program: its command, its folder, the variables that it adds and
+# the exit code of its process. A fact that has no value is left out.
+function make_task_kind_document(task::ProgramTask, result)
+    facts = Pair{String,String}["command" => join(task.arguments, " "), "folder" => task.working_directory]
     isempty(task.environment) ||
-        push!(lines, "environment: " * join(("$key=$value" for (key, value) in sort!(collect(task.environment))), " "))
-    result isa ProgramResult && result.exit_code !== nothing &&
-        push!(lines, "exit code: " * string(result.exit_code))
-    lines
+        push!(facts, "environment" => join(("$key=$value" for (key, value) in sort!(collect(task.environment))), " "))
+    result isa ProgramResult && result.exit_code !== nothing && push!(facts, "exit code" => string(result.exit_code))
+    WidgetFactGroup(facts)
 end

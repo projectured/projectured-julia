@@ -2,12 +2,11 @@
 # pairs. The labels stand in one column as wide as the widest label, the values in
 # a column beside it, and every gap, font and colour comes from the theme.
 
-_fact_font = StyleFont("Ubuntu Mono", 20)
 _fact_stub = FixedMeasure(10, 18, 6, 0)      # every character is 10 wide, every line 18 tall
 _fact_theme = get_theme_defaults(WidgetTheme)
-_fact_proj() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(_fact_font; measure = _fact_stub).dispatch))
-_fact_line = compute_line_box(_fact_stub, "x", _fact_theme.font).height   # one line of the theme font
+_fact_proj() = RecursiveProjection(TypeDispatchingProjection(WidgetToGraphics(; measure = _fact_stub).dispatch))
+# One line of the text font of the theme.
+_fact_line = compute_line_box(_fact_stub, "x", resolve_font_role(_fact_theme.font, Appearance())).height
 
 # Every GraphicsText under a canvas as (text, x, y, colour), in the frame of the canvas.
 function _fact_texts(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int,StyleColor}[])
