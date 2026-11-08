@@ -36,6 +36,13 @@ function test_web_backend()
         @test isempty(plain["heads"]) && plain["pts"] == [[0, 0], [100, 0]]
     end
 
+    @testset "a digit key has the name of its digit" begin
+        names = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+        for (digit, name) in zip(0:9, names)
+            @test _WEB.convert_web_key_to_symbol(string(digit), "Digit$digit", ModifierKeys(ctrl = true)) === name
+        end
+    end
+
     @testset "a text goes to the browser as the layout measured it" begin
         # The browser draws each character at its pen position on the baseline,
         # so the node carries the ascent of the box, one offset per character,

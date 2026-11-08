@@ -205,6 +205,8 @@ function NaturalToGraphics(; measure::TextMeasure,
             DocumentNothing => PhraseToGraphics(_ -> "empty document", style, text),
             # A graphics document is graphics already, and it draws as itself.
             GraphicsDocument => GraphicsToGraphics(),
+            # A picture draws its pixels as a label does, or the box that stands for them.
+            ImageDocument   => ImageToWidget(),
             TextDocument    => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,

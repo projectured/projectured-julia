@@ -38,7 +38,7 @@ of this plan changes a file there.
 | The paint of the backend | `_render_canvas!`, `SdlBackend.jl:2034-2101`; `_render_image!`, `:1988-2005`; `_record_painted_element!`, `:2450-2462`; `_compute_first_drawn_index`, `:2105-2107`; `compute_first_visible_index`, `GraphicsDocument.jl:1092-1099` | The render and the dirty walk read the `data` of an image when they visit it. They skip the elements outside the clip only in a canvas with `layout_vertical` or `layout_horizontal` and no overlap: the lines of a text (`TextToGraphics.jl:696`) and the list layouts (`LayoutList.jl:144`, `GridList.jl:146`). The canvases of `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout` and `StackLayout` have `layout_none` (`LayoutToGraphics.jl:1014`, `:1337`, `:1842`, `:2062`, `:2227`), so the render and the walk visit each of their elements, also outside the clip. The paint runs in the print stage, with the editor of the evaluation, before `start_background_cell_work!` (`EditorLoop.jl:113-122`, `ReadEvaluatePrint.jl:164`). |
 | A picture in a tab or a card | the renderer table, `NaturalProjection.jl:132-240`; `FileToContent`, `FileToContent.jl:60-73` | No row names `ImageDocument`. A file document draws its content through the recursion. An `ImageFile` falls to the reflection row and draws as its fields. |
 | A picture in a cell | `make_roster_value_cell`, `RosterToGraphics.jl:122-144`; `WidgetTheme.jl:223-224` | A cell of a roster or of a task table shows an `ImageFile` at most 120 px high. |
-| Zoom and pan of any content | `WidgetTransformPane`, `WidgetDocument.jl:1640-1688`; its wheel, `WidgetToGraphics.jl:7587-7608`; its keys, `:7653-7667` | Ctrl+wheel zooms about the pointer, the wheel pans, and Ctrl+0 resets the zoom when it is not reset. The keys come after the content, so a key that the content reads first does not reach the zoom. Its docstring has no mark, and `WidgetDocument` has none (`WidgetDocument.jl:5`). It has no `get_edited_field`, so a tab does not hold its content: a tab holds each layer that `get_edited_field` or `get_wrapped_document` names (`PaneSurgery.jl:574-588`, `PaneDocument.jl:381-402`). `WidgetScrollPane` has the mark and the field (`WidgetDocument.jl:1590`, `:4047`). The window binds Ctrl+0 too (`AppearanceDocument.jl:41`), and nothing binds Ctrl+1. |
+| Zoom and pan of any content | `WidgetTransformPane`, `WidgetDocument.jl:1640-1688`; its wheel, `WidgetToGraphics.jl:7587-7608`; its keys, `:7653-7667` | Ctrl+wheel zooms about the pointer, the wheel pans, and Ctrl+0 resets the zoom when it is not reset. The keys come after the content, so a key that the content reads first does not reach the zoom. Its docstring has no mark, and `WidgetDocument` has none (`WidgetDocument.jl:5`). It has no `get_edited_field`, so a tab does not hold its content: a tab holds each layer that `get_edited_field` or `get_wrapped_document` names (`PaneSurgery.jl:574-588`, `PaneDocument.jl:381-402`). `WidgetScrollPane` has the mark and the field (`WidgetDocument.jl:1590`, `:4047`). The window binds Ctrl+0 too (`AppearanceDocument.jl:41`), and nothing binds Ctrl+1; the backends name the `0` key only (`:zero`). |
 | A read off the loop | `BackgroundSource`, `BackgroundCells.jl:8-35`; `make_background_cell`, `:181-232`; `wait_for_cell!`, `:404-440` | A read records a demand and never waits. A second read in the same frame records no second demand. After the print of a frame, the editor runs the work of each source on a task of the default pool (`:310-334`, `BackgroundWork.jl:89-101`). `apply` stores an answer in the document by an operation. With no editor, `wait_for_cell!` computes the value on the task that calls it. |
 | A holder that counts its reads | `_make_unread_folder`, `FileSystemDocument.jl:370-391` | The input of the listing of a folder is the path and a read count (`:379-382`), and a change of the folder adds one to the count (`:622`). |
 | The watch and the read of a file | `acquire_document!(editor, ::FileDocument)`, `FileChangeStore.jl:255-262`; `receive_file_change!`, `DocumentFile.jl:765-786`; `_read_file_text_answer`, `:800-811`; `_make_file_text_cell`, `:821-830`; `demand_file_text`, `:854-860`; `ApplyFileTextOperation`, `:891-925`; `ReloadFileOperation`, `:564-593` | A held file document watches its file (`watch_document_file!`, `FileChangeStore.jl:113-133`), is the receiver of its watch, and is in the open files of the editor (`add_open_file!`, `OpenFileList.jl:182-187`). A file that changed while it was not held counts a change at its acquire (`is_file_stale`, `DocumentFile.jl:869-873`). The watcher compares the time and the size of a file and notes its path (`_mark_changed_files!`, `FileChangeStore.jl:373-389`). The drain calls `receive_file_change!` (`:416`), and a file adds one to `read_count` of its disk state. Only the view of a file asks for the read (`FileViewToWidget.jl:72`): then a task waits until the file is whole and reads it. For a type that a person does not edit the read takes the hash of the time and the size, never of the text, and the content from `read_file_content_again` (`:645-648`). `ApplyFileTextOperation` changes nothing for an equal hash, and else loads a file that a person does not edit. The load gives the new content to the wrapper with `replace_wrapped_document!` (`:579`), and a history gives it to the document that it holds first (`UndoDocument.jl:118-122`). F5 with no content hashes the whole text of the file (`:580-583`), also for a type that a person does not edit. |
@@ -188,24 +188,29 @@ label draws them. Before the first answer it draws a box with the path. After a 
 draws the path and the reason from `failure`. A tab of a picture takes the base name of its file
 from `get_document_title(::FileDocument)` (`DocumentFile.jl:252`).
 
-The size comes from the holder, and the view of each place keeps the choice of Ctrl+1 (D4, D8,
-D11):
+The size comes from the holder, and the scroll pane of each place keeps the choice of Ctrl+1 (D4,
+D8, D11):
 
 - **Fit.** The picture draws at its natural size, or smaller in its shape to fit the maximum of its
   slot. It never draws larger. A card, a cell and a tab give such a slot. In a view of a file the
   slot has the width of the place and no maximum height (`FileView.jl:46-47`). So the picture fits
   the width, and the place scrolls a taller picture.
-- **Natural size.** Ctrl+1 draws the picture at its natural size: one pixel of the image to one
-  pixel of the screen. The scroll pane of the view scrolls a picture that is larger than the view,
-  on either axis (`WidgetDocument.jl:1537-1539`). Ctrl+0 goes back to the fit, which stays the
-  default. Each place keeps the choice in a field of its `FileView` (D11). `FileViewToWidget`
-  gives its view to the print of its file as a context property. The picture view takes the choice
-  from that property only when that view shows this picture. For Ctrl+1 its reader returns a
-  `ReplaceViewStateOperation` that writes the choice, so no history records it. The reader returns
-  an operation for Ctrl+1 only at the fit, and for Ctrl+0 only at the natural size. Otherwise it
-  returns `nothing`, so Ctrl+0 still reaches a transform pane and the zoom of the window. A picture
-  with no view of a file around it, such as a picture in a label, a cell or a zoom tab, stays at
-  the fit, and its reader returns `nothing` for both keys.
+- **Natural size.** The place gives the width limit, and the content only follows it: a picture
+  shrinks to fit (`_fit_image_size`), a text wraps (`WordWrapping.jl`), and a layout shares the
+  width (`LayoutToGraphics.jl`, `GridList.jl`). "Natural size" means that the place gives no
+  limit, so the choice belongs to the place, the scroll pane, and not to the picture. A
+  `WidgetScrollPane` has the view state `at_natural_size`, `false` by default. While it is
+  `true`, the pane gives its content no limit on either axis, as an axis that grows does, and
+  scrolls it (`WidgetToGraphics.jl`, the print of the pane). With it `false`, `grows` stays the
+  rule of the pane, and no layout changes. Ctrl+1 (`KeyDown(:one; ctrl)`) in the reader of
+  every scroll pane returns a `ReplaceViewStateOperation` that sets the field, only while it is
+  `false`. Ctrl+0 returns one that clears it, only while it is `true`. Otherwise the reader
+  returns `nothing`, so Ctrl+0 still reaches a transform pane and the zoom of the window. The
+  keys of the pane come after its content, so a content that reads them wins. No history
+  records the choice, and a save does not write it. Each place has its own scroll pane, so
+  Ctrl+1 in a tab leaves a card of the same file at the fit. The picture view has no key code,
+  and `FileView` has no field for the choice. A picture in a label or a cell, with no scroll pane
+  around it, has no Ctrl+1.
 - **Zoom.** In a `WidgetTransformPane` around a picture file, Ctrl+wheel zooms about the pointer,
   the wheel pans, and Ctrl+0 resets the zoom. The pixels keep their natural resolution.
 
@@ -353,8 +358,8 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   `ImageFileWatch.jl`. It is a second way to follow a file, and it counts against the limit of 1000
   folders of a store. Rejected: a new kind of watch. Rejected: a watcher that reads a picture file
   again and gives it to the picture, because the watch reads nothing (D12).
-- **D4. The size comes from the holder.** The holder gives the slot and the zoom, and the view of
-  each place keeps the choice of Ctrl+1 (D8, D11). Rejected: a field for a size or a zoom factor. A
+- **D4. The size comes from the holder.** The holder gives the slot and the zoom, and the scroll pane
+  of each place keeps the choice of Ctrl+1 (D8, D11). Rejected: a field for a size or a zoom factor. A
   tab would have two zooms, and a picture in a card would take the wheel from the dashboard.
 - **D5. No caption field.** Rejected: a `caption` field, which repeats the title of a card.
 - **D6. The type keeps its name `ImageFile`.** "Image" is the word of a Markdown image and of the
@@ -365,10 +370,13 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   G4.** The owner decided the order on 2026-11-05. Steps 1 to 4 of `reflection-api` are on main,
   so a name reaches the assistant only by the mark `For the assistant.` (§3.7). Rejected: this plan
   lands first, before the mark rule is on main.
-- **D8. Ctrl+1 shows a picture at its natural size.** The owner decided this on 2026-11-05 (open
-  question 3, option A): one pixel of the image to one pixel of the screen. The binding belongs to
-  the picture view, because only a picture knows its natural size. The fitted view stays the
-  default, and Ctrl+0 goes back to it. Rejected: no key, so that the person zooms with Ctrl+wheel.
+- **D8. Ctrl+1 shows the content of a scroll pane at its natural size.** The owner decided the
+  key on 2026-11-05 (open question 3, option A): one pixel of the image to one pixel of the
+  screen. The owner decided on 2026-11-08 that the binding belongs to every scroll pane and not
+  to the picture view (open question 13): the place gives the limit, so the place keeps the
+  choice. The fitted view stays the default, and Ctrl+0 goes back to the rule of the pane.
+  Rejected: no key, so that the person zooms with Ctrl+wheel. Rejected: the key in the picture
+  view, because only a picture would get it.
 - **D9. The content of a picture file is its picture, `Image <: ImageDocument`.** The owner decided
   the name on 2026-11-05: the content of a file type is named for what it is, as a `JsonFile` holds
   a `JsonObject`. `Image` holds the path, `read_count`, the pixel cell, `natural_size` and `failure`
@@ -393,14 +401,18 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   first. Rejected: one source for the editor. One task then decodes every picture of a frame one
   after another, which is slower for a dashboard of 17 charts. Rejected: a picture with no source
   until a holder gives one. The open and the assistant make a picture before a holder has it.
-- **D11. Each place keeps its choice of Ctrl+1 in its view.** Decided by the assistant on
-  2026-11-05 from the owner's G4 D2: the state of a view belongs to each place that shows a file.
-  The view of a place (`FileView`, which `make_document_view(::FileDocument)` makes, G4 D12) keeps
-  the choice in a field, as its scroll pane keeps the scroll place. A write of it adds no undo
-  step, and a save does not write it. Ctrl+1 in a tab leaves a card of the same file at the fit.
-  The binding stays in the picture view (D8), which takes the choice from the view of its place
-  through a context property (§3.4). Rejected: the choice as view state of the picture, shared by
-  every place that shows one file. Rejected: a field of the holder.
+- **D11. Each place keeps its choice of Ctrl+1 in its scroll pane.** Decided by the owner on
+  2026-11-08, the generic form (open question 13). It follows the owner's G4 D2: the state of a
+  view belongs to each place that shows a file. The view of a place (`FileView`, G4 D12) has a
+  scroll pane of its own, and that pane keeps the choice in the field `at_natural_size`, as it
+  keeps the scroll place. A write of it adds no undo step (`ReplaceViewStateOperation`), and a
+  save does not write it (`get_view_state_fields`, `pred_arguments`). Ctrl+1 in a tab leaves a
+  card of the same file at the fit. Rejected: a field of `FileView` that the picture reads
+  through a context property, because only a picture would get the key, and the picture would
+  read a field of the view by a name that it cannot check. Rejected: the key in the view of a
+  file, only for a file that shows a picture, because that check is a special case. Rejected: the
+  choice as view state of the picture, shared by every place that shows one file. Rejected: a
+  field of the holder.
 - **D12. The watch only reports a change.** Decided by the owner on 2026-11-05 with G4 D4: every
   outside read is a background cell, and the watch reads no text and computes no hash for any file
   kind. Each change that the watch reports adds one to a count of changes. The input of the pixel
@@ -586,21 +598,62 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
         `test_legacy_store_entry_pages()` 20/20; `test_simulation_embed_in_page()` 7/7;
         `test_chart_test_task()` 73 passes and 1 broken; `test_chart_baseline_document()` 9/9;
         `test_chart_comparison_group()` 19/19.
-- [ ] **3. The picture is a view.** `ImageToWidget` in `source/platform/natural/ImageToWidget.jl`,
-      its row in `NaturalProjection.jl`, and Ctrl+1 and Ctrl+0. The choice of D11 is a field of
-      `FileView` (`FileView.jl`), and `FileViewToWidget` gives its view to the print of its file as
-      a context property (§3.4). Update the row list of `natural.md` and the view of a file in
-      `fileformat.md`. Test: the new `test_image_to_widget()` in
-      `test/platform/projection/ImageToWidgetTest.jl`, with a test source that answers pixels of 400
-      by 300. Before the answer, a slot 200 wide draws a box 200 by 150 with the path. After it, a
-      slot 200 wide draws 200 by 150. A slot 800 wide draws 400 by 300, and so does a scroll pane
-      that grows on both axes. Three pictures in a `HorizontalLayout` 600 wide with `Fill` draw 200
-      wide each. A `DashboardCard` draws the picture at the width of the card. A failed read draws
-      the path and the reason. Ctrl+1 in a tab 200 wide draws the picture 400 by 300, no history
-      records it, and a card of the same file stays at 200 by 150. Ctrl+0 draws it 200 by 150
-      again. At the fit, the reader returns `nothing` for Ctrl+0. A picture in a label returns
-      `nothing` for Ctrl+1. Then `test_file_tab()`, `test_explorer()`, `test_filechange()` and
-      `test_user_interface_file()`, because `FileView` gets a field that a save must not write.
+- [x] **3. The picture is a view, and every scroll pane reads Ctrl+1 and Ctrl+0.**
+      `ImageToWidget` in `source/platform/natural/ImageToWidget.jl`, and its row in
+      `NaturalProjection.jl` for `ImageDocument`. `WidgetScrollPane` gets the view-state field
+      `at_natural_size` (D8, D11); its printer gives the content no limit on an axis when the field
+      is true or the pane grows there; its reader answers Ctrl+1 and Ctrl+0. The ten digit keys get
+      the names `:zero` to `:nine` in `SdlBackend.jl` and `WebBackend.jl`, and in the key list of
+      `KeyboardEvent.jl`. `FileView` and `FileViewToWidget` do not change, and the picture view has no
+      key code. Update the row list of `natural.md`, the scroll pane in `widget.md` and the view of a
+      file in `fileformat.md`. Test: the new `test_image_to_widget()` in
+      `test/platform/projection/ImageToWidgetTest.jl`, with a picture of 400 by 300 whose natural size
+      is set and whose work runs nowhere. Before the answer, a slot 200 wide draws a box 200 by 150
+      and the path. After it, a slot 200 wide draws 200 by 150; a slot 800 wide draws 400 by 300, and
+      so does a scroll pane that grows on both axes. Three pictures in a `HorizontalLayout` 600 wide
+      with `Fill` draw 200 wide each at x 0, 200 and 400. The card of a dashboard draws the picture
+      at the width of the card. A failed read draws the path and the reason. Ctrl+1 in a view 200
+      wide draws 400 by 300, the answer is a `ReplaceViewStateOperation`, and a second view of the
+      same file stays at 200 by 150; Ctrl+0 draws 200 by 150 again. At the fit the reader returns
+      `nothing` for Ctrl+0, and at the natural size for Ctrl+1. A picture in a label returns
+      `nothing` for both. A text in a scroll pane wraps, stops wrapping after Ctrl+1, and wraps again
+      after Ctrl+0. A save writes no `at_natural_size`. Then the tests of the pane, the layout and the
+      key names, `test_file_tab()`, `test_explorer()`, `test_filechange()`,
+      `test_user_interface_file()` and `test_dataframes()`.
+      Done on branch `picture-file`. Decisions and facts of the step:
+      - `at_natural_size::Bool` is the field after `wheel_run`. It is in
+        `get_view_state_fields(WidgetScrollPane)` and left out of `pred_arguments`. The full
+        positional constructor of the pane has one more argument; the four callers (the parts of a
+        table, the rows pane, the graph pane) pass `Cell(false)`.
+      - The printer reads `w.at_natural_size ? (width = true, height = true) : w.grows` where it
+        read `grows`. An axis that grows gives the content the view as its minimum and no maximum,
+        so the pane scrolls it. With the field false nothing changes for any content.
+      - The reader (`_read_pane_size_choice`) runs after the content and before the self-scroll. It
+        matches `KeyDown(:one; ctrl)` and `KeyDown(:zero; ctrl)` and answers `nothing` when the key
+        would not change the field.
+      - Key names: before this step the `1` to `9` keys were `:char` in SDL and web, and the `0` key
+        was `:zero`. The backends map the top row and the keypad. No reader in `source/` and no test
+        read a digit as `:char`. `test_sdl_keysym` and `test_web_backend` got a set each.
+      - `ImageToWidget` prints a label of the picture through the recursion, with the range of the
+        slot made bounded (`with_bounded_size`): a label in an exact range would stretch the pixels to
+        the slot. A `WidgetScrollPane` at its rule gives an exact width, so without the bound a
+        picture of 400 pixels in a tab of 800 would draw 800 wide. The pending state is a
+        `VerticalLayout` of the label and a label with the path (a `StackLayout` clears the maximum
+        of its children, so the fit would be lost). The failed state is one label with the path and
+        the reason, which wraps at the slot.
+      - The row maps nothing of its own and delegates the maps and the reader to the label.
+      - A `FileView` in a test needs a selection in the file for a key to pass the layout of the
+        view; a tab has one. A card of a dashboard is a `WidgetCard` over the view of its content
+        (`DashboardToWidget.jl:85`), and the test prints that card; the rows of the dashboard are a
+        list that the test does not walk.
+      - Counts, all in `environment/all` of the worktree (offscreen SDL): `test_image_to_widget()`
+        31/31; `test_widget_transform_pane()` 37/37; `test_scroll_pane_axis_size()` 8/8;
+        `test_scroll_pane_parts()` 27/27; `test_scroll_layout()` 29/29; `test_layout_rules()`
+        532/532; `test_widget_table()` 17/17; `test_appearance_wrapper()` 55/55; `test_sdl_keysym()`
+        88/88; `test_web_backend()` 154/154; `test_image()` 97/97; `test_file_tab()` 31/31;
+        `test_explorer()` 383/383; `test_filechange()` 232 passes and 1 broken;
+        `test_user_interface_file()` 22/22; `test_dataframes()` 608/608. `test_graph()` gives 632 passes, 4 fails and 2 errors in the worktree and the same on `main`
+        (`GraphScrollPaneTest.jl:183-210`, the click into a vertex key).
 - [ ] **4. The assistant reaches the picture, and a zoom tab follows its file.**
       `get_edited_field(::WidgetTransformPane) = :content` in `WidgetDocument.jl`. `FileToContent`
       asks for the text of its file where it reads the content (D14, `FileToContent.jl:60-73`). The
@@ -681,6 +734,14 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
   (`DocumentFile.jl:99`) and `make_file_tab` reads the time and the size on the loop.
 - **omnet-julia keeps one decode on the loop:** the icon of a module.
 - **Book and RST keep `isfile` in the print** until G4 step 5a (open question 10).
+- **Ctrl+1 works in every scroll pane.** A text in the Files pane or in the conversation stops
+  wrapping until Ctrl+0.
+- **Two Ctrl+0 after a Ctrl+1.** After Ctrl+1 the first Ctrl+0 goes to the pane, and the next one
+  goes to the window zoom.
+- **A layout that only fills its place** takes the width of its parts after Ctrl+1, such as a
+  dashboard.
+- **The key names change gestures.** The digit keys `1` to `9` were `:char` and are now `:one` to
+  `:nine`. No reader in `source/` and no test depended on `:char` for a digit.
 - **The rank of `search_api` can move.** Step 4 runs the tests of the rank.
 
 Not in this plan: a special tab of a picture file (D1), the image span of Markdown that holds its
@@ -713,7 +774,8 @@ questions follow.
    (D9). The question was: what is the name of the picture that a picture file holds, and how does
    it keep itself at a load?
 7. **The choice of Ctrl+1** (D11). Decided by the assistant on 2026-11-05 from the owner's G4 D2
-   (the state of a view belongs to each place): each place keeps its own choice, in its view. The
+   (the state of a view belongs to each place): each place keeps its own choice. The owner moved
+   it from the view to the scroll pane of the place on 2026-11-08 (question 13). The
    question was: Ctrl+1 in a tab also changes a card that shows the same file. Is that acceptable,
    or must each place keep its own choice?
 8. **A plan in omnet-julia.** Decided by the assistant on 2026-11-05, as for G8 and G9: step 2
@@ -738,3 +800,9 @@ questions follow.
 12. **The source of a new picture file.** Answered by the owner on 2026-11-05: option A, each
     picture has a source of its own (D10). The question was: must `open_file_document!` take a
     keyword `source` that a new picture file takes, or does G4 accept a source for each picture?
+13. **Where the key of the natural size lives.** Answered by the owner on 2026-11-08: the generic
+    form (D8, D11). The question was: which is the more generic, more correct, more future proof,
+    ignoring backward compatibility? Every scroll pane reads Ctrl+1 and Ctrl+0 and keeps the
+    field `at_natural_size`; the picture view and `FileView` have no key and no field for it. The
+    ten digit keys got the names `:zero` to `:nine` in the SDL and web backends, as the letter
+    keys have `:a` to `:z`, because no backend named the `1` key.

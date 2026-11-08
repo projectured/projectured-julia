@@ -89,7 +89,7 @@ export ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap, ArrangementG
        ArrangementGroupRowsToWidgetIoMap
 export NaturalToGraphics, make_natural_primitive_row,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
-export TooltipContentToVerticalLayout, TooltipNoteToVerticalLayout, make_natural_tooltip_row
+export ImageToWidget, TooltipContentToVerticalLayout, TooltipNoteToVerticalLayout, make_natural_tooltip_row
 
 
 include("NaturalNotation.jl")
@@ -98,5 +98,6 @@ include("NaturalArrangement.jl")
 include("NaturalProjection.jl")
 include("TooltipContentToLayout.jl")
 include("TooltipNoteToLayout.jl")
+include("ImageToWidget.jl")
 
 end # module

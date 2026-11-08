@@ -113,6 +113,9 @@ end
 # Key mapping (server-side; the key names of sdl_keysym_to_symbol)
 # ════════════════════════════════════════════════════════════════════════
 
+# The names of the digit keys `0` to `9`, in order.
+const _DIGIT_KEYS = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+
 """
     convert_web_key_to_symbol(key, code, mods) -> Symbol
 
@@ -121,7 +124,7 @@ to the backend-agnostic key vocabulary, with the names that `sdl_keysym_to_symbo
 gives. The browser reports the character that a key types, so a character that
 SDL names only on the keypad, such as `*`, has its name here on every key.
 A letter key `a` to `z` or `A` to `Z` has the name of its lower-case letter,
-`:a` to `:z`. Printable keys whose specific identity is not tracked return
+`:a` to `:z`. A digit key has the name of its digit, `:zero` to `:nine`. Printable keys whose specific identity is not tracked return
 `:char` (the character itself arrives separately via a `keypress` → `KeyPress`).
 """
 function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
@@ -173,7 +176,7 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c == ']' && return :right_bracket
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus
-        c == '0' && return :zero          # Ctrl+0 — reset transform/zoom
+        '0' <= c <= '9' && return _DIGIT_KEYS[c - '0' + 1]
         lc = lowercase(c)
         'a' <= lc <= 'z' && return Symbol(lc)
         return :char

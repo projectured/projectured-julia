@@ -6708,7 +6708,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # extent too.
         # On an axis that grows and has no offer, the content gets the minimum of
         # the range and no edge, and the edge is its visible extent.
-        grows = w.grows
+        grows = w.at_natural_size ? (width = true, height = true) : w.grows
         content_ctx = inner_ctx
         content_ctx = offer_w !== nothing ?
             with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)) :
@@ -7229,7 +7229,20 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     op === nothing ||
         return read_container_gesture(_show_pane_selection(p, iomap, op), evt, iomap.input;
                                       steps = (FieldReferenceStep("content"),))
+    size_choice = _read_pane_size_choice(iomap.input, evt)
+    size_choice === nothing || return read_container_gesture(size_choice, evt, iomap.input)
     read_container_gesture(_self_scroll(p, iomap, canvas, evt), evt, iomap.input)
+end
+
+# Ctrl+1 gives the content of the pane its natural size, and Ctrl+0 gives the size
+# back to the rule of the pane. Each key answers only when it changes the choice, so
+# Ctrl+0 on a pane at its rule goes on to a transform pane and the zoom of the window.
+function _read_pane_size_choice(w::WidgetScrollPane, evt)
+    @gesture_case evt begin
+        KeyDown(:one; ctrl)  => return w.at_natural_size ? nothing : _write_view_state(w, "at_natural_size", true)
+        KeyDown(:zero; ctrl) => return w.at_natural_size ? _write_view_state(w, "at_natural_size", false) : nothing
+    end
+    nothing
 end
 
 # The answer of the content of a pane in the input of the pane, with the scroll
@@ -10978,10 +10991,10 @@ function _print_rows_pane(p, recursion, w, ctx)
     colors = _get_box_colors(p, w)
     left, top, right, bottom = _get_sides_outside(box, :padding)
     # Positional: content, position, size, grows, scroll_position, follow_end,
-    # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
+    # wheel_run, at_natural_size, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
     pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), getfield(w, :scroll_position), Cell(nothing),
-                            Cell(nothing),
+                            Cell(nothing), Cell(false),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
                             Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),

@@ -456,11 +456,15 @@ open_url!(::SdlBackend, address::AbstractString) = SDL_OpenURL(address) == 0
 # Keyboard
 # ════════════════════════════════════════════════════════════════════════
 
+# The names of the digit keys `0` to `9`, in order.
+const _DIGIT_KEYS = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+
 """
     sdl_keysym_to_symbol(keysym::Int32) -> Symbol
 
 Map an SDL keysym integer to the backend-agnostic key symbol vocabulary.
-Each letter key has the name of its lower-case letter, `:a` to `:z`.
+Each letter key has the name of its lower-case letter, `:a` to `:z`, and each digit key
+has the name of its digit, `:zero` to `:nine`.
 Returns `:char` for printable keys whose specific identity is not tracked
 (the character value arrives separately via `SDL_TEXTINPUT`).
 """
@@ -514,7 +518,9 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(1073741911) && return :equals   # keypad '+'
     keysym == Int32(45)         && return :minus    # '-' — remove from collection
     keysym == Int32(1073741910) && return :minus    # keypad '-'
-    keysym == Int32(48)         && return :zero     # '0' — reset transform/zoom (Ctrl+0 / Ctrl+Alt+0)
+    # Digits: the top row and the keypad name a digit key `:zero` to `:nine`.
+    Int32(48) <= keysym <= Int32(57) && return _DIGIT_KEYS[keysym - Int32(48) + 1]
+    Int32(1073741913) <= keysym <= Int32(1073741921) && return _DIGIT_KEYS[keysym - Int32(1073741913) + 2]
     keysym == Int32(1073741922) && return :zero     # keypad '0'
     keysym == Int32(1073741881) && return :caps_lock
     # Modifier-only keys

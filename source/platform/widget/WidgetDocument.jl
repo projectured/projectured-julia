@@ -1556,6 +1556,15 @@ second after a scroll. Then the thumb fades out. Each of `vertical_scroll_bar` a
 `(time, direction, distance)`, or `nothing`. A fast run of notches scrolls more
 at each notch, and the pane reads the run to know how much.
 
+`at_natural_size` is view state too, `false` by default. The place gives the
+width and the height of the view, and the content follows them: a picture shrinks
+to fit, a text wraps, a layout shares the width. While `at_natural_size` is
+`true`, the pane gives its content no limit on either axis, as an axis that grows
+does, so the content takes its natural size and the pane scrolls it. Ctrl+1 sets
+it, and Ctrl+0 clears it, when the content reads neither key. Each pane keeps its
+own choice, and `grows` stays the rule of the pane when the choice is off. A
+history does not record the choice, and a save does not write it.
+
 Use it to show a long table or a long text inside a bounded `size`. With
 `follow_end = true` the pane keeps the end of its content in view as content is
 added, which is what a log or a transcript wants.
@@ -1597,6 +1606,7 @@ For the assistant.
     scroll_position::Point2D
     follow_end::Union{Bool,Nothing}
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
+    at_natural_size::Bool        # view state: the content has no limit on either axis
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
@@ -1621,7 +1631,7 @@ function WidgetScrollPane(content;
                      Cell(position), Cell(size), Cell(_make_pane_grows(grows)),
                      scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end), Cell(nothing),
-                     Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
+                     Cell(false), Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -4073,7 +4083,11 @@ pred_arguments(shell::WidgetShell) =
 # A saved window keeps a scroll pane whole: what it holds, its size, and where it
 # was scrolled, but not the run of the wheel. A list of the Help menu is a tab of
 # this kind.
-pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
+pred_arguments(pane::WidgetScrollPane) =
+    (pane.content,), _get_field_keywords(pane, (:wheel_run, :at_natural_size))
+
+# The size of the content is a choice of the view of a pane, and no part of what it holds.
+get_view_state_fields(::Type{<:WidgetScrollPane}) = (:at_natural_size,)
 
 # A transform pane writes what it holds first, as its constructor takes it, and
 # its other fields, but the run of the wheel.

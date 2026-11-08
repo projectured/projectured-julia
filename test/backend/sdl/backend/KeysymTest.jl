@@ -17,6 +17,19 @@ function test_sdl_keysym()
         end
     end
 
+    # The digit keys, on the top row (the code of the digit) and on the keypad, have the
+    # names of their digits.
+    @testset "every digit key has the name of its digit" begin
+        names = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+        for (digit, name) in zip(0:9, names)
+            @test ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(48 + digit)) === name
+            keypad = digit == 0 ? 1073741922 : 1073741912 + digit
+            @test ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(keypad)) === name
+        end
+        @test ProjecturedSDL.SdlModule.sdl_to_keydown(Int32(49), UInt16(0x0040), false; time = 0.0) ==
+              KeyDown(:one, ModifierKeys(ctrl = true); time = 0.0)
+    end
+
     # The same table through the constructor of the event that the poll calls.
     @testset "sdl_to_keydown names every letter key by its letter" begin
         for (keysym, letter) in zip(97:122, 'a':'z')

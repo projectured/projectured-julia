@@ -161,7 +161,7 @@ end
 # cell and a rule as its own padding. It has no fill, because the table draws
 # its bands behind it, and no bar.
 _make_part_pane(grid, offset::Cell, padding::Inset) =
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing), Cell(false),
                      Cell(nothing), Cell(nothing), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing))
@@ -181,9 +181,9 @@ _make_part_pane(grid, offset::Cell, padding::Inset) =
 function _make_cells_pane(w::WidgetTable, grid, offset::Cell, padding::Inset)
     target = Cell(@computation _get_table_bar_target(w))
     # Positional: content, position, size, grows, scroll_position, follow_end,
-    # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
+    # wheel_run, at_natural_size, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
     # border, padding, style, tooltip, selection, mouse_target.
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), offset, Cell(nothing), Cell(nothing), Cell(false),
                      getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
