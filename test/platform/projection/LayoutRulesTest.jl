@@ -315,6 +315,37 @@ end
     end
 end
 
+@testset "a scroll area with no offer takes the maximum of its range for a list, and keeps the extent of a finite or empty content" begin
+    columns = Any[Fixed(90), Fixed(90), Fixed(90)]
+    lazy_grid(count) = GridLayout(_rules_lazy_rows(count, Ref(0)), 3; column_policies = columns)
+    drawn(content, minimum, maximum) = _rules_drawn(WidgetScrollPane(content), :height, minimum, maximum)
+    empty_grid() = (grid = lazy_grid(1); set_cell_value!(getfield(grid, :children), nothing); grid)
+    # A list of three rows is as tall as the maximum, and not less than the minimum.
+    @test drawn(lazy_grid(3), nothing, 300) == 300
+    @test drawn(lazy_grid(3), 50, 300) == 300
+    @test drawn(lazy_grid(10_000_000), nothing, 300) == 300
+    # With no maximum there is no edge to take.
+    @test drawn(lazy_grid(3), nothing, nothing) == 0
+    @test drawn(lazy_grid(3), 50, nothing) == 50
+    # A finite content keeps its own height, and an empty one has none.
+    lines = drawn(_rules_lines(3), nothing, nothing)
+    @test 0 < lines < 300 && drawn(_rules_lines(3), nothing, 300) == lines
+    @test drawn(_rules_lines(0), nothing, 300) == 0
+    @test drawn(empty_grid(), nothing, 300) == 0
+    table = WidgetTable(Any["a", "b"], Any[])
+    header = drawn(table, nothing, nothing)
+    @test header < 300 && drawn(table, nothing, 300) == header
+    # The first row of an empty list gives the pane its height, and the loss of the last
+    # row gives it back.
+    grid = empty_grid()
+    pane = print_document(_rules_projection(), nothing, WidgetScrollPane(grid), _rules_context(:height, nothing, 300)).output
+    @test Int(pane.h[]) == 0
+    set_cell_value!(getfield(grid, :children), _rules_lazy_rows(3, Ref(0)))
+    @test Int(pane.h[]) == 300
+    set_cell_value!(getfield(grid, :children), nothing)
+    @test Int(pane.h[]) == 0
+end
+
 @testset "a lazy grid in an area that grows builds the rows that show" begin
     built = Ref(0)
     grid = GridLayout(_rules_lazy_rows(10_000_000, built), 3;

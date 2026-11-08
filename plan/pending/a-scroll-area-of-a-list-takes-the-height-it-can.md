@@ -135,7 +135,7 @@ without undoing A.
    on an axis from the offer, the placed canvas, the minimum and the maximum, with the rule of A, and use it at
    `:6622` (height and width). The content cell reads the canvas elements inside the cell. Tests:
    `test_scroll_pane_bar()`, `test_widget_rows_scroll()`, `test_pane_geometry()`, and the test of step 1.
-3. **The empty and the finite cases.** Tests that an empty vertical layout, an empty list, an empty table and a
+3. **The empty and the finite cases.** **Done on 2026-11-08.** One testset in `LayoutRulesTest.jl` ("a scroll area with no offer takes the maximum of its range for a list ..."): a lazy grid of 3 rows and of 10 000 000 rows gives 300 in the range (nothing, 300) and (50, 300), 0 with no maximum, 50 with minimum 50 and no maximum; a column of 3 lines, an empty column, a grid of a list with no rows (`children = nothing`) and an empty table keep their own height; a grid that gets its first row goes from 0 to 300 and back to 0 when its rows go. A dashboard with no card prints a `WidgetLabel`, a finite content, so the finite case covers it; it is not printed alone in this test. `test_layout_rules()` 532 of 532, exit 0. Tests that an empty vertical layout, an empty list, an empty table and a
    dashboard with no card keep a height of `0`, and that the first row of a list that was empty gives the pane
    its height, and the removal of the last row gives it back. Test: the same files, narrow.
 4. **The suites that size by these rules.** `test_layout_rules()` (including the lazy grid of ten million rows),
