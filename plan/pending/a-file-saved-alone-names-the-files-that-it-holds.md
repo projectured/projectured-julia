@@ -663,19 +663,39 @@ through the reload (D7), so no test can check the open without the reload.
    - Measured with the reproduction script: before, the process reached 8 GB (killed, OOM) in 4
      minutes in `_run_frames_until`; after, it ends in 22 seconds with 100 MB live, and five more
      frames and a hand draw take 0.0 s each.
-   - Limit: the paths of the file are not mapped into an opened repeat (the card shows the content
-     in a layout, and no map aligns the two), so the caret does not go into an opened repeat and a
-     click there selects nothing. The repeat is for reading. A map for it would need a map for the
-     layout around the content.
-   - Tests: a set of `test_explorer()` has the tab of `first.pred` as the window, and after
-     `second.pred` reads the frame draws one closed card ("first.pred", its path, the right-pointing
-     chevron) and memory stays low. A direct print with the path `(tab, second)` gives a closed
-     card without content; `ToggleCollapseOperation` opens it, and then "to second" shows and the
-     card of `second.pred` in it is closed. A second set has two cards of one file in one dashboard
-     (both show the text) and the chain `a.pred` → `b.pred` → `c.pred` (no closed card). A click on
-     the chevron in the headless window did not reach the card (measured), so the test toggles
-     the operation.
-   - Results (projectured-julia): `test_explorer()` 376 pass (16 new); `test_pred_file()` 87 pass;
+   - The press on the chevron (second commit of 5b). The first test toggled with
+     `ToggleCollapseOperation` because a press in a headless editor with no window did not fold
+     even a plain collapsible card: with no window a dashboard has no hit region (measured; a plain
+     card in a `Dashboard` takes the press only in a window, `_explorer_window_editor`). In a
+     window, the press on the chevron of a repeat reaches the card by the coordinates of the
+     pointer, through the readers of the layouts and the cards above it. Measured with a debug
+     print in `_read_card_click`, in a window, before and after the change to the map below. So the
+     first test hid a defect of its harness, not of the print.
+   - A press on the repeat of a cycle of dashboards (a dashboard holds a card of a file that holds a
+     dashboard) still does not arrive in a window, with a plain collapsible card in the same place
+     and no file at all: a card of a dashboard that holds a dashboard takes presses only in the first
+     ~70 pixels of its height (measured with presses at 20 to 160 pixels), so a chevron two
+     dashboards deep lies outside the region that the card hits, and a person scrolls the inner
+     page to reach it. That is the height of a dashboard in a card, and not the repeat; it is not
+     changed here. The test of the press uses cards of files, which have no such clip.
+   - The print of a repeat answers a `ContentIoMap` whose input is the file and whose inner map is
+     the map of the card, as for a file that is not a repeat, so a parent that follows a route finds
+     the file. `_is_repeated_file` tells the two (the inner map is not the map of the content of the
+     file). A repeat reads a gesture with the reader of its card and maps no path, forward or
+     backward, so the paths of the file are not mapped into an opened repeat: the caret does not
+     enter it and a key does not edit it, because the card shows the content in a layout, and no
+     map aligns the path of the file with a path in that layout. A press by coordinates works in an
+     opened repeat (the second press of the test opens the repeat inside it). To make it editable,
+     the content would show with no layout in between and a map of `content.<rest>` to the card, or
+     the layout would get a map of `content` to `children[1]`; no one has asked for it.
+   - `get_path_files` is `_get_path_files` (one file; the name had two uses, so a text rename).
+   - Tests: a set of `test_explorer()` has the tab of `first.pred` as the window (the frames end and
+     one closed card shows), and a set presses the real pixel of the chevron in a window, with a
+     file of a card that holds a file of a card that holds the first file: one press opens the
+     repeat of `a.pred` (one more level; the repeat of `b.pred` in it is closed), and a second press
+     opens that one (the repeat of `a.pred` in it is closed again). Two cards of one file, and the
+     chain `a.pred` → `b.pred` → `c.pred`, show whole.
+   - Results (projectured-julia): `test_explorer()` 379 pass (19 new); `test_pred_file()` 87 pass;
      `test_filechange()` 228 pass and 1 broken; `test_file_tab()` 31; `test_user_interface_file()` 22;
      `test_assistant_documentation()` and `test_assistant_verbs()` pass as before.
      `test_platform_layering()` fails the same two sets as main. omnet-julia: `test_demo_catalog()`,

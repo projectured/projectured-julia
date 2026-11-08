@@ -1426,23 +1426,47 @@ function test_explorer()
             closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
             @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
             @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
-            # The same place, printed with the files of its path, is a closed card that holds no content.
-            path_files = (tab_file, held_second)
-            property = ProjecturedPlatform.FileFormatModule._PATH_FILES_PROPERTY
-            context = PrinterContext(EmptyReference(), nothing, nothing, Dict{Symbol,Any}(property => path_files))
-            iomap = run_with_evaluation_editor(editor) do
-                print_document(FileToContent(), editor.projection, tab_file, context)
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a press on the chevron of a repeat opens it one level, and the repeat in it is closed again" begin
+        root = mktempdir()
+        try
+            # a.pred holds a card of b.pred, which holds a card of a.pred.
+            card_a, card_b = WidgetCard(; title = "A", content = nothing), WidgetCard(; title = "B", content = nothing)
+            file_a, file_b = PredFile(joinpath(root, "a.pred"), card_a), PredFile(joinpath(root, "b.pred"), card_b)
+            set_cell_value!(getfield(card_a, :content), file_b)
+            set_cell_value!(getfield(card_b, :content), file_a)
+            editor, backend = _explorer_window_editor(make_file_view(file_a))
+            closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
+            frames!() = for _ in 1:4
+                drain_operations!(editor)
+                run_frame!(editor)
             end
-            card = iomap.input
-            @test card isa WidgetCard && card.collapsible && card.collapsed === true
-            @test card.title == "first.pred" && occursin("first.pred", card.description)
-            count_texts(text) = count(entry -> entry[1] == text, _nav_drawn(iomap.output))
-            @test count_texts(closed) == 1 && count_texts("to second") == 0
-            # A click on its chevron opens it: one more level shows, and the repeat in it is closed.
-            evaluate_operation(editor, ToggleCollapseOperation(card))
-            @test card.collapsed === false
-            @test count_texts("to second") == 1 && count_texts("second.pred") == 1
-            @test count_texts(opened) == 1 && count_texts(closed) == 1
+            # The press is on the pixel of the chevron that the frame drew, below the first card.
+            press_chevron!(glyph) = begin
+                (_, x, y) = first(filter(entry -> entry[1] == glyph && entry[3] > 30, _nav_texts(backend)))
+                _explorer_window_press!(editor, backend, MouseMove(x + 4, y + 8; time = 0.0))
+                _explorer_window_press!(editor, backend, MouseClick(:left, x + 4, y + 8, 1, ModifierKeys(); time = 0.0))
+                frames!()
+            end
+            frames!()
+            @test Base.gc_live_bytes() < 3 * 2^30
+            @test _nav_count(backend, closed) == 1 && _nav_count(backend, opened) == 0
+            @test _nav_count(backend, "a.pred") == 1 && _nav_count(backend, "b.pred") == 0
+            # One press opens the repeat of a.pred: its content shows once more, and the repeat of
+            # b.pred in it is closed.
+            press_chevron!(closed)
+            @test _nav_count(backend, opened) == 1 && _nav_count(backend, closed) == 1
+            @test _nav_count(backend, "a.pred") == 1 && _nav_count(backend, "b.pred") == 1
+            @test _nav_count(backend, "A") == 2 && _nav_count(backend, "B") == 1
+            # A press on that one opens one level more, and the repeat in it is closed again.
+            press_chevron!(closed)
+            @test _nav_count(backend, opened) == 2 && _nav_count(backend, closed) == 1
+            @test _nav_count(backend, "A") == 2 && _nav_count(backend, "B") == 2
+            @test Base.gc_live_bytes() < 3 * 2^30
         finally
             rm(root; recursive = true, force = true)
         end
