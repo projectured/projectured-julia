@@ -467,6 +467,15 @@ end
                             backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
                             shell = true, gesture_log = true)
     @test "Gesture log" in labels(get_wrapped_document(recorded.document).windows[1].content.toolbar)
+    # The menus of the host go on the bar after File and View, and Help stays last.
+    run_menu = WidgetMenuItem("Run"; submenu = WidgetMenu(Any[make_window_command("Go", _ -> nothing)]))
+    hosted = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
+                          shell = (; menus = [run_menu]))
+    hosted_bar = get_wrapped_document(hosted.document).windows[1].content.menu_bar
+    @test labels(hosted_bar) == ["File", "View", "Run", "Help"]
+    @test hosted_bar.elements[3] === run_menu
+    @test labels(shell.menu_bar) == ["File", "View", "Help"]
     # The shell is off by default.
     plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[])

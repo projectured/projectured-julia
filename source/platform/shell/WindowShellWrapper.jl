@@ -2,7 +2,7 @@
 # `build_editor`.
 
 """
-    shell = true | (; assistant, explorer, files, about, status_bar, measure, appearance)
+    shell = true | (; assistant, explorer, files, about, status_bar, measure, appearance, tools, menus)
 
 The wrapper of `build_editor` that puts the root document in the chrome of a
 window: a `WidgetShell` whose bands are the menu bar of
@@ -37,6 +37,9 @@ offers the gesture help and the command palette only when `gesture_help` and
   `Appearance` of the `appearance` wrapper of the same editor.
 - `tools` adds buttons at the end of the toolbar, such as the button of a tool
   that this package does not name; `make_mcp_log_tool()` is one.
+- `menus` adds the menus of the host to the menu bar, after File and View and
+  before Help: each is a `WidgetMenuItem` with a submenu, as `extra` of
+  [`make_window_menu_bar`](@ref) takes it.
 
 A root that is a shell already keeps its bands.
 """
@@ -51,10 +54,11 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
     # The Help menu offers a tool of a wrapper only when that wrapper is on.
     gesture_help = haskey(parts.arguments, :gesture_help)
     command_palette = haskey(parts.arguments, :command_palette)
+    menus = collect(Any, get(options, :menus, ()))
     parts.document = make_window_shell_document(document;
         menu_bar = about === nothing ?
-            make_window_menu_bar(; recorded, gesture_help, command_palette) :
-            make_window_menu_bar(; recorded, about, gesture_help, command_palette),
+            make_window_menu_bar(; recorded, extra = menus, gesture_help, command_palette) :
+            make_window_menu_bar(; recorded, extra = menus, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
                                         explorer = get(options, :explorer, nothing),
                                         files = get(options, :files, nothing), recorded,
