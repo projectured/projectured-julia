@@ -79,13 +79,14 @@ lines, and so does `TextToGraphics.jl` up to its line 1722. A row gives the G3 l
 
 ### 2.1 The measurement at `6b93bfcf3`
 
-**The counts of this section were taken at `6b93bfcf3` on 2026-11-05, and this revision did not take
-them again.** The plan names no command or test that gives them: the script stood in a scratchpad
-that is gone, and only its output stays, in the log of the `bounded-run` job `count-reads` (34 s).
-Two facts of main change what the counts describe. The dashboard of row 2 has a grid of a list on
-every page since `741d14cc4` (§2). G3 gives an image the pixel cell of its picture as its `data`, so
-a read of `data` asks for the pixels (§2). §4.8 and step 6 use the counts. The tests of steps 2 to
-5 assert the cards that are read by their numbers, and do not use the counts.
+**The first table was taken at `6b93bfcf3` on 2026-11-05. The two tables after it were taken on
+2026-11-09 at the base and at the head of the branch `layout-paints`.** The script of the first
+table stood in a scratchpad that is gone, and only its output stays, in the log of the
+`bounded-run` job `count-reads`. The script of the later tables is written again from the
+description below. Two facts of main change what the first counts describe. The dashboard of row 2
+has a grid of a list on every page since `741d14cc4` (§2). G3 gives an image the pixel cell of its
+picture as its `data`, so a read of `data` asks for the pixels (§2). §4.8 uses the counts. The tests
+of steps 2 to 5 assert the cards that are read by their numbers, and do not use the counts.
 
 A script outside the repository ran through `workspace/bin/bounded-run` in `environment/all`, with
 `SDL_VIDEODRIVER=dummy`. It made 60 cards. Each card holds a canvas of 200 by 200 pixels with one
@@ -109,6 +110,47 @@ walk of the drawn tree.
 
 With pictures of 200 by 120 pixels the counts on the screen are 9, 9, 12, 12, 4, 6 and 4, and the
 reads are the same in kind: 9 and 4 for the two lists, 60 for each layout of a vector.
+
+The same script ran again at the base of the branch (`main` `14121813b`) and at its head, with the
+same 60 cards, the same window and the same walks. It is outside the repository, and it adds the
+flow, which prints now. A run reports for each document the pictures on the screen, the reads of the
+print, the reads of the render, the reads of a walk on a fresh print, and the records and guards of
+that walk. The print reads 0 pictures in every row, at the base and at the head. Pictures of 200 by
+200 pixels:
+
+| Document | On the screen | Render reads, base | Render reads, head | Walk reads, base | Walk reads, head | Walk records, guards, base | Walk records, guards, head |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Dashboard`, page with a height: a grid of a list | 6 | 6 | 6 | 6 | 6 | 80, 43 | 81, 44 |
+| `Dashboard`, page with no height | 6 | 6 | 6 | 6 | 6 | 87, 49 | 88, 50 |
+| Scroll pane, `GridLayout` of a vector, 3 columns of `Relative(1)` | 9 | 60 | 9 | 60 | 9 | 191, 127 | 42, 29 |
+| Scroll pane, `GridLayout` of a vector, 3 columns of `Content` | 9 | 60 | 9 | 60 | 9 | 191, 127 | 42, 29 |
+| Scroll pane, `VerticalLayout` of a vector | 3 | 60 | 3 | 60 | 3 | 191, 127 | 21, 14 |
+| Scroll pane that grows to the side, `HorizontalLayout` of a vector | 6 | 60 | 6 | 60 | 6 | 191, 127 | 30, 20 |
+| Scroll pane, `VerticalLayout` of a list | 3 | 3 | 3 | 3 | 3 | 16, 13 | 16, 13 |
+| Scroll pane, `FlowLayout` | 15 | 60 | 15 | 60 | 15 | 191, 127 | 60, 41 |
+
+With pictures of 200 by 120 pixels:
+
+| Document | On the screen | Render reads, base | Render reads, head | Walk reads, base | Walk reads, head | Walk records, guards, base | Walk records, guards, head |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Dashboard`, page with a height | 9 | 9 | 9 | 9 | 9 | 108, 56 | 109, 57 |
+| `Dashboard`, page with no height | 9 | 9 | 9 | 9 | 9 | 115, 62 | 116, 63 |
+| Scroll pane, `GridLayout` of a vector, `Relative(1)` | 15 | 60 | 15 | 60 | 15 | 191, 127 | 62, 43 |
+| Scroll pane, `GridLayout` of a vector, `Content` | 15 | 60 | 15 | 60 | 15 | 191, 127 | 62, 43 |
+| Scroll pane, `VerticalLayout` of a vector | 5 | 60 | 5 | 60 | 5 | 191, 127 | 27, 18 |
+| Scroll pane that grows to the side, `HorizontalLayout` of a vector | 6 | 60 | 6 | 60 | 6 | 191, 127 | 30, 20 |
+| Scroll pane, `VerticalLayout` of a list | 5 | 5 | 5 | 5 | 5 | 22, 17 | 22, 17 |
+| Scroll pane, `FlowLayout` | 25 | 60 | 25 | 60 | 25 | 191, 127 | 92, 63 |
+
+At the head the render and the walk read exactly the pictures on the screen, in every row and for
+both sizes. A layout of a vector reads 60 pictures at the base and the pictures on the screen at the
+head, and a layout of a list reads the pictures on the screen at both. The walk of a layout of a
+vector has 191 records and 127 guards at the base, whatever the layout, because it records each of
+the 60 cards; at the head it has between 21 and 60 records. The dashboard
+pages, which have a grid of a list at the base, change by one record and one guard. The records and
+guards of the base differ from those of `6b93bfcf3` because main changed in between. The risk of
+G3 "A plain layout reads each of its pictures" ends with this plan: no layout of the table reads a
+picture off the screen.
 
 So the report held for every layout of a vector, and it was wrong for the case it named. A
 dashboard on a page with a height, which is a dashboard in a tab or in a pane, already reads 6
@@ -237,8 +279,11 @@ one child gets the same shape, so the output of a layout has one form, and a ref
 one form.
 
 The first walk of 60 cards in a column recorded 491 graphics and made 247 guards at `6b93bfcf3`; a
-column of a list recorded 31 and made 19 (§2.1). Step 6 measures both again, at the base of the
-branch and after the steps.
+column of a list recorded 31 and made 19 (§2.1). At the base of the branch the column of a vector
+records 191 and makes 127, and the column of a list records 16 and makes 13. At the head the column
+of a vector records 21 and makes 14, and the column of a list records 16 and makes 13. The
+canvases of §4.3 add no record or guard to the column of a list, and the column of a vector
+records the cards on the screen only.
 
 ### 4.9 What a print still reads
 
