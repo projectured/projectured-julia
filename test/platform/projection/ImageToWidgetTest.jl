@@ -15,7 +15,8 @@ const _ITW_PROJECTION = NaturalToGraphics(; measure = _ITW_MEASURE)
 # false it has no natural size yet.
 function _itw_make_picture(width, height; answered = true)
     source = BackgroundSource(inputs -> Any[nothing for _ in inputs]; description = "the pixels of a test picture")
-    picture = ProjecturedPlatform.StyleModule._make_image("chart.png", source)
+    size_source = BackgroundSource(inputs -> Any[nothing for _ in inputs]; description = "the sizes of test pictures")
+    picture = ProjecturedPlatform.StyleModule._make_image("chart.png", source, size_source)
     answered && (picture.natural_size = (Int(width), Int(height)))
     picture
 end

@@ -8,10 +8,11 @@ their natural size or smaller in their shape to fit the slot that the place give
 (`WidgetLabel`). The slot decides the size, and a place that gives no limit, such as a
 scroll pane at its natural size, shows the pixels as they are.
 
-An [`Image`](@ref) that has no answer yet draws a box in the shape of the pixels it will
-have, with its path under it. After a failed read it draws the path and the reason. Both
-read the plain cells `natural_size` and `failure` of the picture, never its pixels,
-so the print asks for no decode: only the paint of a backend does.
+An [`Image`](@ref) whose size is not known yet draws a box with its path under it. After a
+failed read it draws the path and the reason. Both read `failure` and
+[`get_image_natural_size`](@ref) of the picture, which asks a task for the size in the
+head of the file, never its pixels, so the print asks for no decode: only the paint of a
+backend does.
 
 The picture has no part of its own, so the projection maps no reference and reads
 the gestures of the widget that it draws.
@@ -34,7 +35,7 @@ _make_shown_image_widget(::ImageDocument, label) = label
 function _make_shown_image_widget(image::Image, label)
     failure = image.failure
     failure === nothing || return WidgetLabel(string(image.filename, ": ", sprint(showerror, failure)))
-    image.natural_size === nothing || return label
+    get_image_natural_size(image) === nothing || return label
     VerticalLayout(Any[label, WidgetLabel(image.filename)])
 end
 

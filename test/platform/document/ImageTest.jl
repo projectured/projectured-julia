@@ -30,6 +30,16 @@ function _make_image_test_source(calls, size)
     end
 end
 
+# A source of sizes whose work records the inputs of each run and answers `answer[]`
+# for each of them.
+function _make_image_test_size_source(calls, answer)
+    calls_lock = ReentrantLock()
+    BackgroundSource(; description = "the sizes of test pictures") do inputs
+        lock(() -> push!(calls, copy(inputs)), calls_lock)
+        Any[answer[] for _ in inputs]
+    end
+end
+
 # An editor that draws nothing, with an IoMap, so that a read in a frame records a
 # demand.
 function _make_image_test_editor()
@@ -53,6 +63,24 @@ _print_image_test_label(picture) = _collect_image_test_images(print_document(
     RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch)),
     nothing, WidgetLabel(picture), PrinterContext()).output)
+
+# The elements of the label of `picture`, printed in a frame of `editor`.
+_print_image_test_label_elements(editor, picture) = run_with_evaluation_editor(editor) do
+    print_document(
+        RecursiveProjection(TypeDispatchingProjection(
+            WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch)),
+        nothing, WidgetLabel(picture), PrinterContext()).output.elements |> collect
+end
+
+# The texts of a canvas, at any depth.
+function _collect_image_test_texts(canvas, texts = String[])
+    for element in canvas.elements
+        element isa GraphicsText && push!(texts, string(element.text))
+        element isa GraphicsCanvas && _collect_image_test_texts(element, texts)
+        element isa GraphicsViewport && _collect_image_test_texts(element.content, texts)
+    end
+    texts
+end
 
 _print_image_test_span(picture) = _collect_image_test_images(print_document(
     TextToGraphics(measure = FixedMeasure(10, 18, 6, 0)),
@@ -96,7 +124,8 @@ end
 # that measures what a picture draws needs no pixels.
 function _make_sized_picture_file(name::AbstractString, width::Integer, height::Integer)
     source = BackgroundSource(inputs -> Any[nothing for _ in inputs]; description = "the pixels of a sized test picture")
-    picture = ProjecturedPlatform.StyleModule._make_image(name, source)
+    size_source = BackgroundSource(inputs -> Any[nothing for _ in inputs]; description = "the sizes of sized test pictures")
+    picture = ProjecturedPlatform.StyleModule._make_image(name, source, size_source)
     picture.natural_size = (Int(width), Int(height))
     ImageFile(name, picture)
 end
@@ -208,6 +237,133 @@ function test_image()
         @test any(element -> element isa GraphicsRect, elements)
     end
 
+    @testset "a label in a frame asks for the size and not the pixels" begin
+        calls = Vector{Any}[]
+        size_calls = Vector{Any}[]
+        picture = ProjecturedPlatform.StyleModule._make_image(
+            "a.png", _make_image_test_source(calls, Ref((8, 9))),
+            _make_image_test_size_source(size_calls, Ref((4, 3))))
+        editor = _make_image_test_editor()
+        elements = _print_image_test_label_elements(editor, picture)
+        @test (Int(only(filter(e -> e isa GraphicsImage, elements)).w),
+               Int(only(filter(e -> e isa GraphicsImage, elements)).h)) == (320, 240)
+        @test isempty(size_calls)
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, getfield(picture, :head_size))
+        @test size_calls == [[("a.png", 0)]]
+        @test isempty(calls)
+        @test picture.natural_size == (4, 3) && picture.failure === nothing && picture.decoded_count == -1
+        elements = _print_image_test_label_elements(editor, picture)
+        image = only(filter(e -> e isa GraphicsImage, elements))
+        @test (Int(image.w), Int(image.h)) == (4, 3)
+        # The pixels have not come, so a box lies under the image.
+        @test any(element -> element isa GraphicsRect, elements)
+        @test findfirst(e -> e isa GraphicsRect, elements) < findfirst(e -> e isa GraphicsImage, elements)
+        @test isempty(calls)
+    end
+
+    @testset "the decode wins over the head for the same read" begin
+        ApplyImageAnswerOperation = ProjecturedPlatform.StyleModule.ApplyImageAnswerOperation
+        # The head answers first, then the decode.
+        calls = Vector{Any}[]
+        size_calls = Vector{Any}[]
+        picture = ProjecturedPlatform.StyleModule._make_image(
+            "a.png", _make_image_test_source(calls, Ref((6, 5))),
+            _make_image_test_size_source(size_calls, Ref((4, 3))))
+        editor = _make_image_test_editor()
+        _print_image_test_label_elements(editor, picture)
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, getfield(picture, :head_size))
+        @test picture.natural_size == (4, 3)
+        pixels = getfield(picture, :pixels)
+        run_with_evaluation_editor(() -> pixels[], editor)
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, pixels)
+        @test picture.natural_size == (6, 5) && picture.decoded_count == 0
+        # A size answer after the decode is dropped and runs no reader of `natural_size`.
+        runs = Ref(0)
+        watcher = Cell(@computation (runs[] += 1; picture.natural_size))
+        @test watcher[] == (6, 5) && runs[] == 1
+        evaluate_operation(nothing, ApplyImageAnswerOperation(picture, 0, (4, 3), false))
+        @test picture.natural_size == (6, 5) && watcher[] == (6, 5) && runs[] == 1
+        # The decode answers first, then the head.
+        other = ProjecturedPlatform.StyleModule._make_image(
+            "b.png", _make_image_test_source(Vector{Any}[], Ref((6, 5))),
+            _make_image_test_size_source(Vector{Any}[], Ref((4, 3))))
+        wait_for_cell!(getfield(other, :pixels); editor = nothing)
+        @test other.natural_size == (6, 5) && other.decoded_count == 0
+        evaluate_operation(nothing, ApplyImageAnswerOperation(other, 0, (4, 3), false))
+        @test other.natural_size == (6, 5)
+    end
+
+    @testset "a file that does not exist shows its failure with no paint" begin
+        calls = Vector{Any}[]
+        path = joinpath(mktempdir(), "missing.png")
+        picture = ProjecturedPlatform.StyleModule._make_image(path, _make_image_test_source(calls, Ref((4, 3))))
+        editor = _make_image_test_editor()
+        iomap = _print_image_test_place(editor, picture)
+        _paint_image_test_place!(editor, iomap)
+        @test picture.failure === nothing
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, getfield(picture, :head_size))
+        @test picture.failure isa SystemError && picture.natural_size === nothing
+        texts = run_with_evaluation_editor(() -> _collect_image_test_texts(iomap.output), editor)
+        @test any(text -> startswith(text, path) && occursin("SystemError", text), texts)
+        @test isempty(calls)
+    end
+
+    @testset "a file that holds text gets no size and no failure from its head, then the size of its decode" begin
+        path = joinpath(mktempdir(), "text.png")
+        write(path, "not a picture")
+        picture = ProjecturedPlatform.StyleModule._make_image(
+            path, _make_image_test_source(Vector{Any}[], Ref((4, 3))))
+        answer = wait_for_cell!(getfield(picture, :head_size); editor = nothing)
+        @test answer === nothing
+        @test picture.natural_size === nothing && picture.failure === nothing && picture.decoded_count == -1
+        wait_for_cell!(getfield(picture, :pixels); editor = nothing)
+        @test picture.natural_size == (4, 3) && picture.decoded_count == 0
+    end
+
+    @testset "one more read count asks for the head again" begin
+        ApplyImageAnswerOperation = ProjecturedPlatform.StyleModule.ApplyImageAnswerOperation
+        size_calls = Vector{Any}[]
+        answer = Ref{Any}((4, 3))
+        picture = ProjecturedPlatform.StyleModule._make_image(
+            "a.png", _make_image_test_source(Vector{Any}[], Ref((8, 9))),
+            _make_image_test_size_source(size_calls, answer))
+        editor = _make_image_test_editor()
+        head = getfield(picture, :head_size)
+        _print_image_test_label_elements(editor, picture)
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, head)
+        @test size_calls == [[("a.png", 0)]] && picture.natural_size == (4, 3)
+        answer[] = (6, 5)
+        picture.read_count = 1
+        _print_image_test_label_elements(editor, picture)
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, head)
+        @test size_calls == [[("a.png", 0)], [("a.png", 1)]]
+        @test picture.natural_size == (6, 5)
+        # The answer of read 0 that comes after it is dropped.
+        evaluate_operation(nothing, ApplyImageAnswerOperation(picture, 0, (4, 3), false))
+        @test picture.natural_size == (6, 5)
+    end
+
+    @testset "a picture whose decode answered asks for no head in a frame" begin
+        size_calls = Vector{Any}[]
+        picture = ProjecturedPlatform.StyleModule._make_image(
+            "a.png", _make_image_test_source(Vector{Any}[], Ref((6, 5))),
+            _make_image_test_size_source(size_calls, Ref((4, 3))))
+        wait_for_cell!(getfield(picture, :pixels); editor = nothing)
+        @test picture.decoded_count == 0
+        editor = _make_image_test_editor()
+        elements = _print_image_test_label_elements(editor, picture)
+        @test (Int(only(filter(e -> e isa GraphicsImage, elements)).w),
+               Int(only(filter(e -> e isa GraphicsImage, elements)).h)) == (6, 5)
+        start_background_cell_work!(editor)
+        @test isempty(size_calls)
+    end
+
     @testset "a save writes the path of a picture and a load makes a picture that reads nothing" begin
         picture = Image("c.png")
         positional, keywords = pred_arguments(picture)
@@ -215,7 +371,7 @@ function test_image()
         loaded = make_pred_document(Image, positional, keywords)
         @test loaded isa Image && loaded.filename == "c.png" && loaded.natural_size === nothing
         @test get_view_state_fields(Image) ==
-              (:read_count, :pixels, :natural_size, :failure, :source)
+              (:read_count, :pixels, :head_size, :decoded_count, :natural_size, :failure, :source)
     end
 
     @testset "the extensions of a picture are an ImageFile that a person does not edit" begin

@@ -41,19 +41,27 @@ task fills after the frame in which a paint asked for them (`make_background_cel
 The work decodes the file with `decode_image` and answers the pixels, or the
 exception of a file that does not exist or does not decode, as a value.
 
-A print reads two plain cells and never the pixels: `natural_size`, the
-`(width, height)` of the pixels, and `failure`, the exception of the read. Both are
+A print reads plain cells and never the pixels: `natural_size`, the
+`(width, height)` of the picture, and `failure`, the exception of the read. Both are
 `nothing` until the first answer. A label and a text span put the pixel cell
 itself into their `GraphicsImage`, so only the paint of a backend reads it.
 
-`read_count` counts the changes of the file. One more gives the pixel cell a new
-input: it answers its last pixels until the new ones come, and the next paint
-asks again. `natural_size` and `failure` change only when the answer differs
-from what they hold. All of them are view state: a save writes the path only, and
-undo records none of their changes.
+The size comes from two reads. `head_size` is a background cell whose work reads the
+size from the head of the file with no decode (`read_image_size`), and
+[`get_image_natural_size`](@ref) is the call of a print for the size: it asks for the
+head while the decode of this read has not answered. `decoded_count` is the
+`read_count` whose decode answered, and −1 until the first decode answers. For one
+read the decode wins over the head, because the paint draws the pixels of the decode.
 
-Each `Image` has a `BackgroundSource` of its own, so the pictures that one frame
-paints decode in parallel.
+`read_count` counts the changes of the file. One more gives the pixel cell and the
+head cell a new input: each answers its last answer until the new one comes, and the
+next print asks for the head again. `natural_size` and `failure` change only when the
+answer differs from what they hold. All fields but `filename` are view state: a save
+writes the path only, and undo records none of their changes.
+
+Each `Image` has a `BackgroundSource` of its own for its pixels, so the pictures that
+one frame paints decode in parallel. The head cells of all pictures share one source,
+so the sizes that one frame asks for are read on one task.
 
 # Example
 
@@ -65,26 +73,68 @@ paints decode in parallel.
     filename::String
     read_count::Int
     pixels::Any
+    head_size::Any
+    decoded_count::Int
     natural_size::Any
     failure::Any
     source::Any
 end
 
-get_view_state_fields(::Type{<:Image}) = (:read_count, :pixels, :natural_size, :failure, :source)
+get_view_state_fields(::Type{<:Image}) =
+    (:read_count, :pixels, :head_size, :decoded_count, :natural_size, :failure, :source)
 
 Image(filename::AbstractString) = _make_image(filename, _make_image_source())
 
-# The picture of `filename` whose pixels `source` reads. `Image` passes a source of
-# its own; a test passes one whose work it can count.
-function _make_image(filename::AbstractString, source::BackgroundSource)
+# The work that reads the sizes of the pictures of one frame from the heads of their
+# files off the loop: the size of each path, `nothing` for a file whose head says none,
+# or the exception of a file that can not be opened, so one bad file fails no other.
+# It holds its work and its description; the demands are in each editor.
+const _IMAGE_SIZE_SOURCE =
+    BackgroundSource(inputs -> Any[_read_image_head_answer(path) for (path, _) in inputs];
+                     description = "the sizes of pictures")
+
+function _read_image_head_answer(path::AbstractString)
+    try
+        read_image_size(path)
+    catch exception
+        exception
+    end
+end
+
+# The picture of `filename` whose pixels `source` reads and whose size `size_source`
+# reads. `Image` passes a source of its own for the pixels and the shared source of the
+# sizes; a test passes sources whose work it can count.
+function _make_image(filename::AbstractString, source::BackgroundSource,
+                     size_source::BackgroundSource = _IMAGE_SIZE_SOURCE)
     path = Cell(String(filename))
     read_count = Cell(0)
     holder = Ref{Any}(nothing)
     pixels = make_background_cell(source, () -> (path[], read_count[]);
-                                  apply = (inputs, answer) -> ApplyImageAnswerOperation(holder[], last(inputs), answer))
-    image = Image(path, read_count, pixels, Cell(nothing), Cell(nothing), Cell(source))
+                                  apply = (inputs, answer) -> ApplyImageAnswerOperation(holder[], last(inputs), answer, true))
+    head_size = make_background_cell(size_source, () -> (path[], read_count[]);
+                                     apply = (inputs, answer) -> ApplyImageAnswerOperation(holder[], last(inputs), answer, false))
+    image = Image(path, read_count, pixels, head_size, Cell(-1), Cell(nothing), Cell(nothing), Cell(source))
     holder[] = image
     image
+end
+
+"""
+    get_image_natural_size(image::Image)
+
+The `(width, height)` that a print gives `image`, or `nothing` until a size is known.
+It asks for the head of the file while the decode of this read has not answered, so a
+task reads the size after the frame and the next frame has it; a picture whose decode
+answered asks for no head. Outside an editor it asks for nothing.
+
+# Example
+
+    picture_1 = Image("media/throughput.png")
+    wait_for_cell!(getfield(picture_1, :head_size); editor = nothing)
+    get_image_natural_size(picture_1)    # (width, height)
+"""
+function get_image_natural_size(image::Image)
+    image.decoded_count == image.read_count || getfield(image, :head_size)[]
+    image.natural_size
 end
 
 # The work that decodes the pictures of one source off the loop: the pixels of
@@ -105,27 +155,39 @@ end
 _get_image_answer_size(answer) = (Int(answer[2]), Int(answer[3]))
 
 """
-    ApplyImageAnswerOperation(image, read_count, answer)
+    ApplyImageAnswerOperation(image, read_count, answer, is_pixel_answer)
 
-Write what a read of `image` found: the size of its pixels into `natural_size`, or
-the exception of the read into `failure`. A cell whose value stays the same is not
-written. The answer of a read that a newer read follows is dropped: `read_count`
-names the read. It is a write of view state, so undo records none.
+Write what a read of `image` found: the size into `natural_size`, or the exception of
+the read into `failure`. A cell whose value stays the same is not written. The answer
+of a read that a newer read follows is dropped: `read_count` names the read.
+
+`is_pixel_answer` is `true` for the answer of the pixel cell, which writes
+`decoded_count` and wins over the head for its read, and `false` for the answer of the
+head cell. A size answer for a read whose decode answered is dropped; a size answer of
+`nothing` writes nothing; a size clears `failure`. It is a write of view state, so undo
+records none.
 """
 struct ApplyImageAnswerOperation <: Operation
     image::Image
     read_count::Int
     answer::Any
+    is_pixel_answer::Bool
 end
 
 function evaluate_operation(editor, operation::ApplyImageAnswerOperation)
     image = operation.image
     operation.read_count == image.read_count || return nothing
     answer = operation.answer
+    if operation.is_pixel_answer
+        image.decoded_count == operation.read_count || (image.decoded_count = operation.read_count)
+    else
+        image.decoded_count == operation.read_count && return nothing
+        answer === nothing && return nothing
+    end
     if answer isa Exception
         isequal(image.failure, answer) || (image.failure = answer)
     else
-        size = _get_image_answer_size(answer)
+        size = operation.is_pixel_answer ? _get_image_answer_size(answer) : answer
         image.failure === nothing || (image.failure = nothing)
         isequal(image.natural_size, size) || (image.natural_size = size)
     end

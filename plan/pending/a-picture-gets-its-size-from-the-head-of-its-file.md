@@ -376,7 +376,7 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       in the style slice. `test_platform_layering` fails 2 of 21 on
       `AssistantList.jl` (`PaneModule.find_pane_tab_layer` is not exported) and on the import forms
       of other modules; no finding names a file of this step.
-- [ ] **2. A print asks for the size of a picture, and a task reads it from the head of its file (D3
+- [x] **2. A print asks for the size of a picture, and a task reads it from the head of its file (D3
       to D7, D9, D10, D12).** `Image.jl`: the fields `head_size` and `decoded_count`, the constant
       `_IMAGE_SIZE_SOURCE`, the third argument of `_make_image`, the field `is_pixel_answer` and the
       rules of §4.3 in `ApplyImageAnswerOperation`, `get_image_natural_size`, `get_view_state_fields`,
@@ -407,6 +407,25 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       Then `test_image_to_widget()`, `test_roster_table()`, `test_task_views()`,
       `test_external_agent_turn()`, `test_image_file_read()`, `test_dashboard_render()` and
       `test_layout_render()`.
+
+      Done on `picture-size`. Facts found: `Image` has eight fields, `filename`, `read_count`,
+      `pixels`, `head_size`, `decoded_count`, `natural_size`, `failure` and `source`; seven are view
+      state (the plan said "the eight": `filename` is not). `head_size` is read as
+      `getfield(image, :head_size)[]`, because a property read of a `@document` field unwraps the
+      cell. `_IMAGE_SIZE_SOURCE` holds its work (`_read_image_head_answer`, which answers the size,
+      `nothing`, or the exception as a value) and the description "the sizes of pictures".
+      `ApplyImageAnswerOperation(image, read_count, answer, is_pixel_answer)` follows §4.3: a pixel
+      answer writes `decoded_count`; a size answer is dropped when `decoded_count` equals its read,
+      writes nothing for `nothing`, and otherwise clears `failure` and writes the size or the
+      exception. `get_image_natural_size` is exported by `StyleModule`. The box under the pixels
+      stands while `decoded_count < 0` or `failure` is set. `_make_sized_picture_file` and
+      `_itw_make_picture` pass a size source that answers `nothing`; no other test changed. A test
+      must force the elements of a label inside the frame (`collect`), else the lazy cells run
+      outside the editor and record no demand. Counts before and after: `test_image` 109 and 144,
+      `test_image_to_widget` 31 and 31, `test_roster_table` 63 and 63, `test_task_views` 167 and 167,
+      `test_image_file_read` 23 and 23, `test_dashboard_render` 7 and 7, `test_layout_render` 99 and
+      99, `test_external_agent_turn` 141 pass, 49 fail, 32 error before and after, with the same
+      failing lines. style.md ("A picture of a file") and natural.md (row 6) say the new design.
 - [ ] **3. An image span of Markdown, Book and RST asks for the size (D5).** The helpers of
       `MarkdownToSyntax.jl:487`, `BookToSyntax.jl:580` and `RstToSyntax.jl:1239` call
       `get_image_natural_size`, and the comment of the Markdown span (`MarkdownToSyntax.jl:481-483`)
