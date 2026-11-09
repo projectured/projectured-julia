@@ -68,6 +68,8 @@ The reader has the same shape. An edit in a span of child `i` goes to the reader
 
 `SyntaxListToText` prints a lazy list of syntax as a lazy list of the lines of its elements, with no separator between two elements, because a line implies its break. Element `k` maps to the run of its lines, counted from the head, and a part of an element maps to the line, the span and the characters that hold it.
 
+**A range maps when one part holds it.** A non-empty range of characters maps in both directions when all of its characters are in the value of one leaf: the backward map gives `.value{s:e}` with the direction of the range, and the forward map gives the flat range of those characters. Each map finds the part of the first character and of the last character of the range, so a range that ends at the border of a value and its delimiter belongs to the value. A range with a character in a delimiter, in the chrome of a compound, in an indentation that a level widened, or in two children has no image, and the key that would make it declines. `SyntaxListToText` maps no caret back, so it maps no range either.
+
 At the seam between a value and its closing delimiter, the backward map of a leaf returns `value{n}` and not `close{0}`. The two are the same place on the screen, but only the value is editable. Without this, the only caret of an empty string could not be reached.
 
 ### Tree gestures

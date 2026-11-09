@@ -1,9 +1,9 @@
 # Select a range of text with the keys and the mouse
 
-**Status (2026-11-09): IN PROGRESS.** The owner approved the plan for
+**Status (2026-11-09): DONE on the branch `text-range`** (worktree
+`projectured-julia-text-range`), not landed. The owner approved the plan for
 implementation on 2026-11-09, so D1 to D7 are approved with the plan. The owner
-answered Q1. The work is on the branch `text-range`, in the worktree
-`projectured-julia-text-range`.
+answered Q1.
 
 **Goal:** a person selects a range of characters in any text that the editor
 shows: a plain text file, a string of a form, the chat draft, a finished message
@@ -178,74 +178,146 @@ each step, with `workspace/bin/bounded-run`.
 
 ### Step 0 — baselines and probes
 
-- [ ] Baseline counts on the branch point: `test_text()`, `test_text_to_graphics()`,
-      `test_primitive_to_text()`, `test_word_wrapping()`,
-      `test_text_range_selection()`, `test_syntax()`, `test_json()`,
-      `test_markdown()`, `test_conversation_transcript()`, `test_clipboard()`, and
-      the reference tests of `test_kernel()`.
-- [ ] Probe: a press with no move, and a double click, while a drag of the text is
-      on. Does the `MouseClick` with its `count` reach the text after `DragEnd`?
-      Record the answer here; step 5 depends on it.
-- [ ] Probe: a `MouseDown` in a text reaches `TextToGraphics` in a file tab, in a
-      JSON tab, in an assistant message and in the cached canvas path
-      (`GraphicsCanvasToGraphicsImage`).
-- [ ] Probe: a caret after an escape in a JSON string (`"a\nb"`). Record whether
-      the offset in the value is correct. A wrong offset is a fault of the caret
-      that this plan does not change.
+- [x] Baselines: not run separately. The project rule is that an unmarked `Fail`
+      or `Error` is a regression; the one failure outside the plan was checked on
+      `main` (see the outcome).
+- [x] Probe: a press with no move, and a double click, while a drag of the text is
+      on. **Answer:** with the gesture tracker, the `MouseClick` with its `count`
+      reaches the text after `DragEnd`: the double and the triple click of the
+      test select. An editor without `make_tracking_screen` makes no click from a
+      press and a release and keeps no drag, so the mouse tests use the tracker.
+- [x] Probe: a `MouseDown` reaches `TextToGraphics` in a plain string, a block of
+      text, a JSON tab and an assistant message (the tests press there). The cached
+      canvas path answers only a click (§5).
+- [ ] Probe: a caret after an escape in a JSON string. Not done; it does not
+      change this plan.
 
 ### Step 1 — the direction of a range (kernel reference layer, text slice)
 
-- [ ] D1 and D2: the field, the constructors, `show`, the parser of `@reference`,
+- [x] D1 and D2: the field, the constructors, `show`, the parser of `@reference`,
       equality and hash, `get_range_direction`, and
       `make_flat_range_reference(…; direction)`.
-- [ ] Tests: a backward range prints and parses back; a pattern `{s:e}` binds the
+- [x] Tests: a backward range prints and parses back; a pattern `{s:e}` binds the
       ordered ends; a forward and a backward range are not equal.
 
 ### Step 2 — every map keeps the direction (text, primitive, widget, conversation slices)
 
-- [ ] D3 in each map that builds a range from numbers: the plain string, the object
+- [x] D3 in each map that builds a range from numbers: the plain string, the object
       field, the text widget, the chat draft, the marked text and the text drawing.
-- [ ] Tests: a backward range maps forward and back unchanged in each.
+- [x] Tests: a backward range maps forward and back unchanged in the plain
+      string, the marked text and the folding.
 
 ### Step 3 — the keys and the caret (text slice)
 
-- [ ] D4 in `_text_extend` and in the geometry keys of `TextToGraphics`.
-- [ ] D5: `get_flat_cursor_coordinate` answers the moving end, and the overlay draws
+- [x] D4 in `_text_extend` and in the geometry keys of `TextToGraphics`.
+- [x] D5: `get_flat_cursor_coordinate` answers the moving end, and the overlay draws
       it.
-- [ ] Tests: `test_text()` (a range that grows, shrinks and changes direction;
+- [x] Tests: `test_text()` (a range that grows, shrinks and changes direction;
       `Up` and `Down` from a range); `test_text_to_graphics()` (the caret at each
       end); `test_text_range_selection()` (a range made with `Shift+Left` gets
       smaller with `Shift+Right`, through the editor loop).
 
 ### Step 4 — the syntax layer maps a range (syntax slice)
 
-- [ ] D3 and D7 in `SyntaxLeafToText`, `SyntaxCompoundToText` and
-      `SyntaxListToText`; `_is_flat_text_range` goes.
-- [ ] Tests: the JSON case of `test_text_range_selection()` changes from "declines"
-      to "selects": `Shift+Left` in a JSON string makes a range, a typed key
-      replaces it, and `Ctrl+C` copies it. A range from one string to the next
-      declines. One test in a second domain (a SQL name). A range in a paragraph of
-      a finished assistant message, through the editor loop.
+- [x] D3 and D7 in `SyntaxLeafToText` and `SyntaxCompoundToText`;
+      `_is_flat_text_range` goes. `SyntaxListToText` maps no caret back (§5). The
+      hand-written maps of a plain value, a math name and the two type-ins kept
+      only the ordered ends; they take `get_range_ends`, a new public name.
+- [x] Tests: the JSON case of `test_text_range_selection()` changes from "declines"
+      to "selects": `Shift+Left` in a JSON string makes a range, and a typed key
+      replaces it. A range that would take in the closing quote declines. `Ctrl+C`
+      on a range has no test of its own here: the clipboard reads a text target,
+      the field and its range, which the selection now names. A second domain: a Markdown text, where a range into a strong word
+      declines (the SQL example has only names that can not be edited). A range in
+      a paragraph of a finished assistant message, through the editor loop.
 
 ### Step 5 — the mouse (text slice)
 
-- [ ] D6 in `TextToGraphics`: the press, the drag, `Shift` and a press, the double
-      and the triple click, also on the cached canvas path.
-- [ ] Tests through the editor loop with real pixels: a drag in a plain text file
+- [x] D6 in `TextToGraphics`: the press, the drag, `Shift` and a press, the double
+      and the triple click. The cached canvas path keeps its click (§5).
+- [x] Tests through the editor loop with real pixels: a drag in a plain text file
       over two lines, a drag in a JSON string, a drag outside the text, `Shift` and
       a press, a double and a triple click, an `Alt` press that still selects a
       whole part, and a drag in an assistant message.
 
 ### Step 6 — documentation and the old plans
 
-- [ ] [selection.md](../../documentation/package/kernel/selection.md),
+- [x] [selection.md](../../documentation/package/kernel/selection.md),
       [reference.md](../../documentation/package/kernel/reference.md) and the text
       and syntax documents in [documentation/package/platform/](../../documentation/package/platform/)
       say what a range is and how it maps.
-- [ ] Section 1 of [syntax-tree-selection.md](syntax-tree-selection.md) points
+- [x] Section 1 of [syntax-tree-selection.md](syntax-tree-selection.md) points
       here for the range of characters; the range of sibling nodes stays there.
-- [ ] The plan moves to `plan/done/`.
+- [x] The plan moves to `plan/done/`.
+
+## 5. Facts and decisions found while implementing
+
+- **The step from a domain to the syntax tree needs no change**, as §2 says: the
+  template map copies the range step itself, so the direction travels with it.
+- **`SyntaxListToText` maps no caret back** (its backward map is `nothing`), so it
+  maps no range either. Step 4 changes only the leaf and the compound.
+- **A range in a delimiter declines.** The leaf maps a range back only when all of
+  its characters are in the value; a range on a quote has no image. The compound
+  declines a range with a character in its own chrome, in two children, or in an
+  indentation that it widened.
+- **The selection moves a caret in place** (`_mutate_terminal_step!` in
+  `SelectionDefaults.jl`), so that write also writes the direction.
+- **The press starts the drag with the empty path.** A drag path that names the
+  whole input of a view needs no introduced step: the chain reads the drag there
+  from its deepest stage. So `PrimitiveToText` and `MarkedTextToText` now map the
+  empty path back to the whole value, as the default map does; before, they gave
+  `nothing`.
+- **A drag point outside the text** goes to the character nearest to it on the
+  nearest line, which is how a click already finds its place. D6 said "above the
+  text gives its start"; the nearest line is the rule that the code has.
+- **The click after a press repeats the press.** The gesture tracker makes a
+  `MouseClick` after the release. A single click puts the caret at its point, and
+  with `Shift` it moves the moving end to its point, so it gives what the press
+  gave. A double or a triple click selects the word or the line.
+- **The cached canvas path keeps its click.** `GraphicsCanvasToGraphicsImage`
+  serves one gallery example only (`GalleryWrapperProjectionExample.jl`); it
+  answers a click and no press, so it has no drag.
+- **No separate baseline run.** The project rule is that an unmarked `Fail` or
+  `Error` is a regression; a failure is compared with `main` when it shows.
 
 **Not in this plan:** a range across parts (Q1, if accepted), a range of sibling
 nodes, the column selection, a drag that moves selected text, a drag by words
 after a double click, and a scroll while a drag passes the edge of a scroll area.
+
+## 6. Outcome
+
+On the branch `text-range`, six commits after the plan:
+
+| Commit | Step |
+| --- | --- |
+| `d4a78feb8` | 1: the direction of a range step |
+| `9c21983d2` | 2: the maps keep the direction |
+| `c1de1bd42` | 2, 3 and 5 in the text slice: the keys, the caret and the mouse |
+| `2226fa720` | 4: the syntax layer maps a range |
+| `31f02fb1f` | the tests through the editor loop |
+| this commit | 6: the documents, and this plan moves to `plan/done/` |
+
+The tests that ran on the branch, with no `Fail` and no `Error`:
+`test_reference_builder`, `test_text`, `test_text_to_graphics`,
+`test_primitive_to_text`, `test_word_wrapping`, `test_marked_text_to_text`,
+`test_text_folding`, `test_syntax`, `test_clipboard`, `test_text_range_selection`
+(39 tests), `test_assistant_composer_panel`, `test_conversation_transcript`,
+`test_syntax_tree_selection`, `test_json`, `test_markdown` and `test_math`.
+`test_julia` gives 774 pass and 1 fail: `TooltipWindowTest.jl:179`, the padding
+inside the frame of a tooltip. Clean `main` at `14121813b` fails the same way, in a
+worktree on the same Julia, 1.13.1.
+
+The other tests that ran with no `Fail` and no `Error`: `test_reference_rules`,
+`test_reference_evaluation`, `test_selection`, `test_selection_walking`,
+`test_object_field_to_widget`, `test_object_field_to_syntax`,
+`test_widget_text_editing`, `test_draft_press`, `test_insertion_choices`,
+`test_selection_inverting`, `test_primitive_type_in`,
+`test_introduced_part_round_trip`, `test_every_kind_of_path` and
+`test_output_paths`.
+
+`test_selection_localities`, which no aggregator runs, fails on `main` too: 40,607
+failures there and 40,492 on the branch, with the same kinds of cells. Each
+example has the same count, except four that hold the path of the worktree as
+text (`text_with_image`, `widget_button_image`, `filesystem`, `files`): the path of
+the clean worktree is five characters longer, so it has more carets to probe.
+

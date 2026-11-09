@@ -128,7 +128,7 @@ Each step descends one level into a document tree. The full vocabulary:
 | `FieldReferenceStep("foo")` | the field named `foo` | resolved by `getfield(doc, :foo)`, unwrapping a `Cell` if needed — struct field names are public API |
 | `ElementReferenceStep(i)` | the *i*-th element of a sequence | constructor alias for `RangeReferenceStep(i-1, i)`; 1-based (Julia convention) |
 | `PositionReferenceStep(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReferenceStep(k, k)`; a zero-width cursor, 0-based |
-| `RangeReferenceStep(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
+| `RangeReferenceStep(s, e[, direction])` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases; `direction` is the end that moves |
 | `ProjectionReferenceStep(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
 | `PointReferenceStep(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
 | `TextRangeReferenceStep(s, e)` / `TextColumnReferenceStep` / `TextSpanReferenceStep` | a text selection — stream cursor / column box / bounding box | visual `text/`; text-domain endpoints, same `(start, stop)` payload, the type selects the geometry |
@@ -177,6 +177,19 @@ Both are encoded as the same underlying `RangeReferenceStep(start, stop)`: `[i]`
 `{1:3}` and `[2, 3]` are therefore the same step. Write whichever counts what
 you are thinking about: an insert counts boundaries, and a selection of items
 counts items.
+
+**A range has a direction.** `start <= stop` always holds, and the third field,
+`direction`, names the end of a selected range that a key or a drag moves:
+`:forward`, the default, moves `stop`, and `:backward` moves `start`. The other
+end is the anchor, and the caret of a text range is drawn at the end that moves.
+`{i:j}` writes the anchor first, so `{5:3}` is the backward range from 3 to 5, and
+the step prints so. A pattern `{s:e}` in `@reference_case` binds the ordered ends,
+`s = 3` and `e = 5`. A caret is always forward. `make_range_reference_step(anchor,
+moving)` makes a step from two ends in either order, and
+`get_range_direction(reference)` reads the direction of the last step of a
+reference. A map that builds the range of its output from the numbers of the
+range of its input copies the direction with them, so a selection keeps its
+direction from the root to the text and back.
 
 The same convention applies regardless of what the items are. In an array, `[1]`
 is the first element and `{0}` is the cursor before it. In a string, `[1]` is

@@ -146,8 +146,8 @@ actually changed.
 replace_selection!(document, new_path)
 ```
 
-A caret move within one leaf mutates only that step's `start`/`stop` cells (the
-terminal `RangeReferenceStep`'s bounds are themselves cells, shared across every
+A caret move within one leaf mutates only that step's `start`, `stop` and
+`direction` cells (the terminal `RangeReferenceStep`'s fields are themselves cells, shared across every
 level the path passes through), leaving every routing ancestor's `selection`
 cell untouched — so redrawing after a caret move repaints only the caret, not
 every node between it and the root. Where the new path structurally diverges
