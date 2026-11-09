@@ -361,6 +361,16 @@ their choices stay as they were.
   no event, no payload and no channel. This plan does not change: until that plan lands, a picture
   that the screen has not shown is about 320 by 240, and it moves what is below it when it is read.
   Rejected: option A, accept the move with no plan for it.
+- **D13. A gap is never negative** (steps 2 to 4). The owner's answer on 2026-11-09, option A. A row,
+  a column, a grid and a flow put their children one after the other and declare no overlap, so the
+  backend stops at the first child past the edge and repaints one child alone. A stack layout holds
+  children that overlap. The constructors of `HorizontalLayout`, `VerticalLayout`, `GridLayout`
+  (`horizontal_gap`, `vertical_gap`, `row_gaps`), `FormLayout` and `FlowLayout` throw an
+  `ArgumentError` that names the field and the value, and a gap set negative later gives the same
+  error where the print reads it (`make_layout_gap_cell`), which the editor shows as a fault of the
+  view; the kernel has no check for the value of a field and gets none. `AnchoredLayout` keeps its
+  `stacking_gap`, because that layout declares no axis. Rejected: option B, each layout follows the
+  sign of its gap and makes the canvas of its children again when the sign changes.
 
 ## 6. Steps
 
@@ -517,11 +527,10 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       at the end. The build carries the line plan, and `FlowLayoutIoMap` (new, mirroring
       `GridLayoutIoMap` with one field) carries `lines`, the line of each child; the two reference maps
       call `_children_forward` and `_children_backward` with `ordered = true` and `rows = iomap.lines`,
-      the keyword of step 3, so no map computes the plan again. The case that keeps `layout_none` with
-      overlap is a negative gap: with `horizontal_gap < 0` the children of a line can overlap, with
-      `vertical_gap < 0` the lines can; the gaps are read when the flow prints, so a gap that changes its
-      sign later keeps the layout of the print. No flow of the repository has a negative gap. The
-      geometry of the test is computed by `compute_shown_cards`: with the cards of 200 pixels and
+      the keyword of step 3, so no map computes the plan again. No flow has a layout with overlap: a gap is never negative (D13), so the children of a line and
+      the lines always declare their axis and no overlap. The baseline of a flow is that of its first child
+      that has one (`find_first_baseline_in_entries`, shared with `ChildrenIoMap`), so a flow in a row on
+      the baseline aligns on it. The geometry of the test is computed by `compute_shown_cards`: with the cards of 200 pixels and
       `max_width` 1000 a line holds 5 cards and the lines start at 0, 200, 400, so the window of 500
       shows the lines 1 to 3, the cards 1 to 15 (the plan text said 6, which is the row of 6 in a
       window of 1100 and not a flow of 5 in a line), and after a scroll of 300 the cards 6 to 20 (the
@@ -530,14 +539,15 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       before the first paint reads the cards 1 to 9. The forward map of the card `k` is
       `elements[1].elements[line].elements[place]`, and the backward map returns `children[k]`; both
       are asserted. `test_layout_closeout` reads the flow output in the new form (the canvas of the
-      lines and the ring). Counts, before and after: `test_layout_render` 39 and 95 passed;
-      `test_graphics_layout` 23 and 23; `test_layout_rules` 588 passed and 10 broken, and the same;
-      `test_slot_space` 111 and 111; `test_size_range_child_rule` 19 and 19; `test_widget_text_fit` 26
-      and 26; `test_outline` 26 and 26; `test_system_process` 79 passed and 1 failed, and 80 passed (the
-      failure is not in the flow); `test_layout_closeout` 48 passed, 6 failed and 6 errored, and 49
-      passed, 6 failed and 6 errored: the same 12 are the checks of the grid in "a Fixed column clips
-      what it holds", "a cell wider than its column" and "a column is at least its minimum", which read
-      the form of the grid before step 3 and are not changed here.
+      lines and the ring). Counts, before and after, at `b44d6fbbc` and at the step: `test_layout_render` 39 and 95
+      passed; `test_graphics_layout` 23 and 23; `test_layout_rules` 588 passed and 10 broken, and the
+      same; `test_layout_closeout` 48 passed, 6 failed and 6 errored, and 92 passed (the grid checks
+      are fixed in their own commit, and a set for the gap is new); `test_baseline_alignment` 3 and
+      5; `test_slot_space` 111 and 111; `test_size_range_child_rule` 19 and 19; `test_widget_text_fit`
+      26 and 26; `test_outline` 26 and 26; `test_system_process` 79 passed and 1 failed, and 80;
+      `test_research_to_widget` 121 and 121; `test_workflow_to_widget` 72 and 72; `test_dataframes` 613
+      and 613; `test_layout_list` 101 and 101; `test_settings_tab` 55 and 55; `test_appearance_tab`
+      159 and 159.
 - [ ] **5. An image outside the clip reads only its box (D5).** `SdlBackend.jl`: one predicate selects
       what a canvas draws, where each walk tests a fence today: the render (`:2047`, `:2066`, `:2087`),
       the record (`:2521`), the walk (`:2832`, `:2893`, `:2914`, `:2929`), the move (`:3123`), the forget

@@ -192,7 +192,7 @@ function _make_layout_list_node(recursion, doc, ctx, state::LayoutListState, cro
     printed = _link_layout_list_child(recursion, doc, ctx, state, k, document_node.value,
                                       _get_layout_list_child_space(ctx, axis, document_node))
     width, height = printed.width, printed.height
-    gap = getfield(doc, :gap)
+    gap = make_layout_gap_cell(doc, :gap)
     align = getfield(doc, axis === :y ? :horizontal_align : :vertical_align)
     # The main axis: from the neighbour it was reached from.
     main = if before !== nothing

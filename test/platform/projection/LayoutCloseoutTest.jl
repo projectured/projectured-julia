@@ -202,6 +202,48 @@ end
     @test Int(cell(withheld).h[]) < 200
 end
 
+# A gap is never negative: a row, a column, a grid and a flow put their children one after the
+# other and declare no overlap.
+@testset "a gap is never negative" begin
+    cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
+    list() = ListNode(WidgetLabel("a"))
+    function names_field(make, field)
+        error = try make(); nothing catch caught; caught end
+        error isa ArgumentError && occursin(string(field), error.msg) && occursin("-3", error.msg)
+    end
+    @test names_field(() -> HorizontalLayout(cells(); gap = -3), :gap)
+    @test names_field(() -> HorizontalLayout(list(); gap = -3), :gap)
+    @test names_field(() -> VerticalLayout(cells(); gap = -3), :gap)
+    @test names_field(() -> VerticalLayout(list(); gap = -3), :gap)
+    @test names_field(() -> GridLayout(cells(), 2; horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> GridLayout(cells(), 2; vertical_gap = -3), :vertical_gap)
+    @test names_field(() -> GridLayout(list(), 2; horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> GridLayout(cells(), 2; row_gaps = Any[nothing, -3]), :row_gaps)
+    @test names_field(() -> FormLayout([(WidgetLabel("a"), WidgetLabel("b"))]; vertical_gap = -3), :vertical_gap)
+    @test names_field(() -> FlowLayout(cells(); horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> FlowLayout(cells(); vertical_gap = -3), :vertical_gap)
+    # A gap of 0 prints, and so does an entry of `row_gaps` that is `nothing`.
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
+    for document in (HorizontalLayout(cells(); gap = 0), VerticalLayout(cells(); gap = 0),
+                     GridLayout(cells(), 2; row_gaps = Any[nothing, 0]), FlowLayout(cells()))
+        @test Int(print_document(proj, nothing, document, ctx).output.w[]) >= 0
+    end
+    # A gap set negative after the print gives the error where the print reads it.
+    row = HorizontalLayout(cells(); gap = 4)
+    io = print_document(proj, nothing, row, ctx)
+    @test Int(io.output.w[]) > 0
+    row.gap = -10
+    @test_throws ArgumentError io.output.w[]
+    row.gap = 4
+    @test Int(io.output.w[]) > 0
+    flow = FlowLayout(cells(); horizontal_gap = 4)
+    flow_io = print_document(proj, nothing, flow, ctx)
+    @test Int(flow_io.output.w[]) > 0
+    flow.horizontal_gap = -10
+    @test_throws ArgumentError flow_io.output.w[]
+end
+
 @testset "StackLayout active shows exactly one page" begin
     # The full widget pipeline registers StackLayout (the layout-only example omits it).
     wproj = make_widget_projection_example()

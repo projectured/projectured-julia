@@ -986,7 +986,7 @@ end
 # `doc.children` so the enclosing `build` cell re-runs on structural changes,
 # while the per-child size/position cells stay lazy.
 function _hl_build(recursion, doc, ctx)
-    gap_cell   = getfield(doc, :gap)
+    gap_cell   = make_layout_gap_cell(doc, :gap)
     align_cell = getfield(doc, :vertical_align)
     n = length(doc.children)
 
@@ -1300,7 +1300,7 @@ get_visible_height(ctx) =
     ctx.minimum_height !== nothing ? ctx.minimum_height : get_property(ctx, :visible_height)
 
 function _vl_build(recursion, doc, ctx)
-    gap_cell   = getfield(doc, :gap)
+    gap_cell   = make_layout_gap_cell(doc, :gap)
     align_cell = getfield(doc, :horizontal_align)
     n = length(doc.children)
 
@@ -1699,8 +1699,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
 
     cols_cell = getfield(doc, :columns)
-    hgap      = getfield(doc, :horizontal_gap)
-    vgap      = getfield(doc, :vertical_gap)
+    hgap      = make_layout_gap_cell(doc, :horizontal_gap)
+    vgap      = make_layout_gap_cell(doc, :vertical_gap)
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
     column_align_cell = getfield(doc, :column_align)
@@ -1766,7 +1766,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     function gap_above(r::Int)
         gaps = doc.row_gaps
         gap = gaps isa AbstractVector && 2 <= r <= length(gaps) ? gaps[r] : nothing
-        gap === nothing ? Int(vgap[])::Int : Int(gap)::Int
+        gap === nothing ? Int(vgap[])::Int : Int(check_layout_gap(gap, :row_gaps))::Int
     end
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
                                    reads = k -> !offers_to_row_cells(k),
@@ -2143,8 +2143,8 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             limit = authored === nothing ? Int(typemax(Int32)) : Int(authored)
             edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[]) - space_width))
         end)
-        hgap_cell  = getfield(doc, :horizontal_gap)
-        vgap_cell  = getfield(doc, :vertical_gap)
+        hgap_cell  = make_layout_gap_cell(doc, :horizontal_gap)
+        vgap_cell  = make_layout_gap_cell(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)
         valign     = getfield(doc, :vertical_align)
         line_plan = _fl_line_plan(n, child_iomaps, max_w_cell, hgap_cell)
@@ -2209,32 +2209,25 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     width = Cell(@computation Int32(build[].w[]))
     height = Cell(@computation Int32(build[].h[]))
     # The lines stand one under the other in the order of their numbers, and the
-    # children of a line from left to right, none over its neighbour, as long as
-    # a gap is not negative. A gap is read when the flow prints: a flow with a
-    # negative gap declares no axis for the lines or for the children of a line.
-    ordered_lines = peek(getfield(doc, :vertical_gap)) >= 0
-    ordered_children = peek(getfield(doc, :horizontal_gap)) >= 0
-    line_canvases = _make_flow_line_canvases(build, width,
-                                                  ordered_children ? layout_horizontal : layout_none,
-                                                  !ordered_children)
+    # children of a line from left to right, none over its neighbour: a gap is
+    # never negative.
+    line_canvases = _make_flow_line_canvases(build, width)
     lines_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
-                                  CellVector(line_canvases),
-                                  ordered_lines ? layout_vertical : layout_none, !ordered_lines,
+                                  CellVector(line_canvases), layout_vertical, false,
                                   Cell(nothing))
     outer = _make_children_beside_ring(lines_canvas, ring, width, height)
     FlowLayoutIoMap(p, doc, outer, Cell(@computation build[].entries),
                     Cell(@computation build[].lines[]))
 end
 
-# The canvas of each line of a flow: `axis` orders its children, `overlapping`
-# says whether they can overlap on it. A line canvas stands at the top of its
+# The canvas of each line of a flow, which orders its children from left to right
+# and declares no overlap. A line canvas stands at the top of its
 # line, is as tall as the line and as wide as the flow, and holds the children of
 # the line in the frame of the line (the `y` of a child is its `y` in the flow
 # less the top of the line). A line keeps its canvas while the flow keeps its
 # build, so a reflow that leaves a line where it is leaves its canvas and the
 # wrappers of its children.
-function _make_flow_line_canvases(build::Cell, width::Cell, axis::LayoutDirection,
-                                  overlapping::Bool)
+function _make_flow_line_canvases(build::Cell, width::Cell)
     canvases = GraphicsCanvas[]
     owner = Ref{Any}(nothing)
     @computation begin
@@ -2245,14 +2238,13 @@ function _make_flow_line_canvases(build::Cell, width::Cell, axis::LayoutDirectio
         end
         count = made.line_count[]
         while length(canvases) < count
-            push!(canvases, _make_flow_line_canvas(made, length(canvases) + 1, width, axis, overlapping))
+            push!(canvases, _make_flow_line_canvas(made, length(canvases) + 1, width))
         end
         canvases[1:count]
     end
 end
 
-function _make_flow_line_canvas(made, line::Int, width::Cell, axis::LayoutDirection,
-                                overlapping::Bool)
+function _make_flow_line_canvas(made, line::Int, width::Cell)
     top = made.line_top[line]
     in_line_y = Dict{Int,Cell}()
     placed = IdDict{Any,Any}()
@@ -2269,7 +2261,7 @@ function _make_flow_line_canvas(made, line::Int, width::Cell, axis::LayoutDirect
         _place_child_outputs(members, placed)
     end))
     GraphicsCanvas(Cell(Int32(0)), top, width, Cell(@computation Int32(made.line_h[line][])),
-                   children, axis, overlapping, Cell(nothing))
+                   children, layout_horizontal, false, Cell(nothing))
 end
 
 function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)

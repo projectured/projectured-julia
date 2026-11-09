@@ -178,8 +178,8 @@ function _print_grid_column_list(p, recursion, doc, ctx)
      (row_policy.weight === nothing || row_policy.weight == 0)) ||
         error("GridLayout: a grid whose columns are a list needs its rows Fixed, not ",
               repr(row_policy))
-    hgap = getfield(doc, :horizontal_gap)
-    vgap = getfield(doc, :vertical_gap)
+    hgap = make_layout_gap_cell(doc, :horizontal_gap)
+    vgap = make_layout_gap_cell(doc, :vertical_gap)
     state = GridListState(0, Dict{Int,Any}(), Cell(nothing), Cell(nothing), Dict{Int,Any}(),
                           make_kept_list_prints(() -> doc.children))
     # A new head in `column_policies` builds the columns again, and the cells of

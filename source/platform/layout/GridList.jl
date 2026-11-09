@@ -113,8 +113,8 @@ function _print_grid_list(p, recursion, doc, ctx)
     # weighted column is its share.
     avail_w = ctx === nothing ? nothing : first(_gl_divided_extent(ctx.minimum_width, ctx.maximum_width))
     _check_grid_list(n, peek_column_policy, row_policy, avail_w)
-    hgap = getfield(doc, :horizontal_gap)
-    vgap = getfield(doc, :vertical_gap)
+    hgap = make_layout_gap_cell(doc, :horizontal_gap)
+    vgap = make_layout_gap_cell(doc, :vertical_gap)
     # Every column is given its extent, so no cell is read to find it.
     no_content = Cell[Cell(0) for _ in 1:n]
     col_extents = _gl_extents_cell(getfield(doc, :columns), policy_of_column, no_content, hgap,
@@ -270,7 +270,7 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
     end
     state.built[k] = (canvas, entries, row_h)
     note_kept_list_link!(state.prints, k)
-    vgap = getfield(doc, :vertical_gap)
+    vgap = make_layout_gap_cell(doc, :vertical_gap)
     if before !== nothing
         before_canvas = before.value
         set_cell_computation!(getfield(canvas, :y),
