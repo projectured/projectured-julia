@@ -3,7 +3,8 @@
 > **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-05 at `main` `6b93bfcf3`,
 > revised on 2026-11-09 at `main` `d0b9c06c5` and the G3 branch `picture-file` (`92e96eb1a`).
 > Nothing is built. The owner answered open questions 1 to 6 on 2026-11-05, and has not approved
-> the plan for implementation. Open question 7 is new. · **Needs:** G3 on main (D0) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md)
+> the plan for implementation. The owner answered open question 7 on 2026-11-09 (option B, D12).
+> · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md)
 > (its open question 9), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
 > · **Stands on:** [layout.md](../../documentation/package/platform/layout/layout.md),
 > [graphics.md](../../documentation/package/platform/graphics/graphics.md),
@@ -261,6 +262,7 @@ question 7).
   search. The other containers hold a small fixed count of parts, and the canvas around them skips
   them whole.
 - A print of a layout of a vector that prints only the children on the screen (§4.9).
+- The size of a picture apart from its pixels (D12). A plan of its own gives it after this plan.
 
 ## 5. Decisions
 
@@ -348,6 +350,13 @@ their choices stay as they were.
   it reads every picture,
   also off the screen. The PDF writer draws every page, because a PDF shows every page. Rejected for
   now: a plan of its own for the web backend after this plan, and a step of this plan.
+- **D12. A picture gets its size apart from its pixels, in a plan of its own after this plan**
+  (§4.10). Decided by the owner on 2026-11-09 (open question 7, option B). A print asks for the
+  size, and a task reads it from the head of the file with no decode. Only a paint asks for the
+  pixels. The size is one more background cell of the picture, as the pixels are, so the plan adds
+  no event, no payload and no channel. This plan does not change: until that plan lands, a picture
+  that the screen has not shown is about 320 by 240, and it moves what is below it when it is read.
+  Rejected: option A, accept the move with no plan for it.
 
 ## 6. Steps
 
@@ -543,7 +552,9 @@ step runs an aggregate suite.
 6. **The web backend (D11).** Answered by the owner on 2026-11-05: option C for now, no change;
    the web backend reads every picture (D11). The question was: must the web backend skip what is off the screen too, in a plan of its
    own? The assistant recommends to decide after this plan.
-7. **A picture that the screen has not shown yet has no size.** Asked on 2026-11-09; open.
+7. **A picture that the screen has not shown yet has no size.** Answered by the owner on
+   2026-11-09: option B, a plan of its own after this plan gives a picture its size apart from its
+   pixels (D12).
 
    A column of pictures in a tab. A picture gets its size when its pixels are read (G3). After this
    plan, only a picture on the screen is read, so a picture below the screen is a box of about 320
@@ -601,5 +612,5 @@ step runs an aggregate suite.
    calculates it". Here the print needs the size, and only the paint needs the pixels. Until B
    lands, A holds.
 
-   The question: must a picture read its size apart from its pixels, in a plan of its own after this
+   The question was: must a picture read its size apart from its pixels, in a plan of its own after this
    plan (B)? Or is it acceptable that a picture that comes on the screen moves what is below it (A)?
