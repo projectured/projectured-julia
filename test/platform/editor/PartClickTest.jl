@@ -224,6 +224,19 @@ _pc_select!(session, path) =
 
 _pc_count!(session, key) = (session.counts[key] = get(session.counts, key, 0) + 1)
 
+# The first frames of `backtrace` in the source of a package, as " at file:line <
+# file:line", so a line of failure names where a throw comes from.
+function _pc_format_origin(backtrace; count = 3)
+    frames = String[]
+    for frame in stacktrace(backtrace)
+        file = string(frame.file)
+        occursin(r"/(source|example)/", file) || continue
+        push!(frames, "$(basename(file)):$(frame.line)")
+        length(frames) == count && break
+    end
+    isempty(frames) ? "" : " at " * join(frames, " < ")
+end
+
 # The checks at the centre of `element`.
 function _pc_check_point!(session, element)
     base = session.base
@@ -305,6 +318,11 @@ for `document`, at most `limit` of them. Answer one line for each answer that is
 not at the innermost part under the point. `counts` gets the number of the
 points, the carets, the whole selections and the moves that the walk checked, so
 a caller can assert that it checked something.
+
+The elements of `document` are those below the node of its forward image. A
+document with no forward image gets one line and no press: the walk can not tell
+its elements from those of the window, such as the close button of a tab. A press
+that removes `document` from the editor stops the walk with one line.
 """
 function walk_part_clicks(document, projection; width = 1200, height = 800, limit = 200, label = "",
                           counts = Dict{Symbol,Int}())
@@ -329,13 +347,12 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
     parts = _pc_collect_parts(editor, document, base, output)
     failures = String[]
     index = findfirst(part -> part.path == base, parts)
-    shown = if index === nothing
-        push!(failures, "$label: the document has no forward image, so every element of the window is pressed")
-        elements
-    else
-        node = parts[index].node
-        filter(element -> element.node === node || any(above -> above === node, element.above), elements)
+    if index === nothing
+        counts[:elements] = 0
+        return ["$label: the document has no forward image, so no element is pressed"]
     end
+    node = parts[index].node
+    shown = filter(element -> element.node === node || any(above -> above === node, element.above), elements)
     counts[:elements] = length(shown)
     session = (; editor, root, base, output, window_id = _pc_read_value(window.id), window_box, elements,
                parts, failures, counts, label, clock = Ref(time() - 1.0e6))
@@ -344,8 +361,14 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
             _pc_check_point!(session, element)
         catch exception
             x, y = _pc_get_center(element.box)
-            push!(failures, "$label ($x, $y): throws " * first(sprint(showerror, exception), 300))
+            push!(failures, "$label ($x, $y): throws " * first(sprint(showerror, exception), 300) *
+                            _pc_format_origin(catch_backtrace()))
             _pc_count!(session, :throws)
+        end
+        if find_document_path(root, document) === nothing
+            x, y = _pc_get_center(element.box)
+            push!(failures, "$label ($x, $y): a press removes the document from the editor, so the walk stops")
+            break
         end
     end
     failures
