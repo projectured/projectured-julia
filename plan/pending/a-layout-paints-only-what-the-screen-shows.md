@@ -376,7 +376,7 @@ The order: step 1 first, because steps 2 to 5 count reads inside a scroll pane, 
 its content the right edges only after step 1. Main fixed the fault of the flow in `fb9e8a171`
 (open question 5). Step 5 can come before step 2 or after step 4.
 
-- [ ] **1. A viewport gives its content the part of its box that the clip shows (D4).**
+- [x] **1. A viewport gives its content the part of its box that the clip shows (D4).**
       `SdlBackend.jl`: `_dispatch_render_elem!` (`:2128-2129`) passes the edges to `_render_viewport!`
       (`:1304`). One function cuts the box of a viewport by the edges in force, and the render
       (`:1314`), the record (`:2545-2552`), the walk (`:2956-2970`), the guard (`:3523-3525`), the move
@@ -389,6 +389,22 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       lower half, by their numbers, and a walk on a fresh print reads the same rows. Then
       `test_partial_paint()`, `test_dirty_rect()` and `test_dashboard_render()`, and
       `test_scroll_work()`, which compares each frame of a partial paint with a full paint.
+      Done on `layout-paints`. Facts found: `_compute_viewport_content_place` takes the box, the
+      content, the transform and the edges in force, and answers `nothing` when the cut is empty
+      (`_cut_viewport_box`); the 7-argument form is gone. The render, the record
+      (`_record_painted_viewport!`), the walk (`_collect_viewport_dirty!`), the guard, the move
+      (`_record_moved_viewport!`), the forget of the records (`_forget_viewport_content!`, new) and the
+      paint of the rectangles (`_collect_cover_element!`) all call it, and each of the first three
+      gets the edges in force as a new parameter. A viewport whose cut is empty records its box and
+      forgets the records of its content between the edges that the last recording used, which the
+      record of the viewport keeps as the 4th item of `res.painted.viewports[key]` (`nothing` when the
+      edges showed none of it), so the forget reads no element that never showed and a content that
+      comes into view again is recorded as new and painted. The 4th item lives and goes with the
+      record of the viewport, so it needs no field and no forget of its own; the change test of the
+      walk compares the first 3 items only. The moved viewport is recorded again when the cut by the
+      new edges differs from the cut by the old edges. Under a scale the cut rounds out (floor of the
+      near edge, ceil of the far edge) where the box rounded to the nearest, so no element that shows
+      is lost. `test_scroll_work()` fails twice in the set "a Julia file in a focused tab" at the base of the branch too, a known failure on main.
 - [ ] **2. A row and a column order their children on their axis (D1, D3).**
       `LayoutToGraphics.jl`: the print of the row (`:1002-1016`) and of the column (`:1321-1339`) puts
       the children in a canvas with `layout_horizontal` or `layout_vertical` and no overlap, and that

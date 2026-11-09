@@ -118,7 +118,8 @@ end
 # What the dirty walk remembers of each graphic from the frame that painted it,
 # keyed by its placement (`_make_placement_key`): the place of every graphic (the
 # absolute content origin of a canvas, the origin of the container of any other),
-# the box, the content and the transform of a viewport, the keys of the elements
+# the box, the content and the transform of a viewport and the edges that its content
+# was recorded between (`nothing` when the edges showed none of it), the keys of the elements
 # that a canvas drew, and the signature of each leaf (`_compute_leaf_signature`).
 # The walk compares this frame with it by value. `baseline` is the count of
 # records after the last full paint; it bounds how many records of graphics that
@@ -130,7 +131,7 @@ end
 # walk tested (`_collect_dirty_elem!`), which a test and a measurement read.
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
-    viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}
+    viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform,Union{Nothing,NTuple{4,Int}}}}
     members::Dict{UInt,Vector{UInt}}
     signatures::Dict{UInt,UInt}
     baseline::Int
@@ -1304,20 +1305,24 @@ end
 # device pixels, and it sets the scale of its content after the clip: no scale
 # rounds a clip.
 #
+# `edges` are the edges in force around the viewport. Its content gets the part of
+# its box that they show, and a viewport that they show none of draws nothing and
+# reads no element of its content.
+#
 # In a partial paint, `key` is the placement key of the viewport. Its content
 # skips what misses the rectangle in paint, except under a scale: the records
 # there are in the units of the content.
 function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int,
-                          ratio::Float64; paint::Union{Nothing,_PartialPaint} = nothing,
-                          key::UInt = UInt(0))
-    vx = Int(vp.x) + ox
-    vy = Int(vp.y) + oy
-    vw = Int(vp.w)
-    vh = Int(vp.h)
+                          outer_edges::_ClipEdges, ratio::Float64;
+                          paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
+    vx, vy, vx1, vy1 = _get_viewport_geometry(vp, ox, oy)[1]
+    vw = vx1 - vx
+    vh = vy1 - vy
     canvas = vp.content::GraphicsCanvas
-    cx, cy = Int(canvas.x), Int(canvas.y)
     M = vp.transform::AffineTransform
-    org_x, org_y, edges = _compute_viewport_content_place(vx, vy, vw, vh, cx, cy, M)
+    place = _compute_viewport_content_place((vx, vy, vx1, vy1), canvas, M, outer_edges)
+    place === nothing && return nothing
+    org_x, org_y, edges = place
     # Only the scale (a, d) and the translation (e, f) of a transform count; a
     # rotation or a shear is dropped.
     plain = _is_plain_viewport_transform(M)
@@ -1346,24 +1351,43 @@ _is_plain_viewport_transform(M::AffineTransform) =
     M === affine_identity ||
     (M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0 && is_affine_axis_aligned(M))
 
-# Where a viewport with the absolute box `(vx, vy, vw, vh)` draws its content at the
-# content offset `(cx, cy)`: the content origin and the edges of the clip that
-# `_render_canvas!` gets, in the units the content is drawn in. The render and the
-# dirty walk both read it, so the walk visits what the render draws.
+# Where a viewport with the absolute `box` draws its `content`, which clips to the
+# `edges` in force around the viewport: the content origin and the edges of the
+# clip that `_render_canvas!` gets, in the units the content is drawn in; or
+# `nothing` when the edges show no part of the box. The edges are the box cut by
+# the edges in force, so a canvas in the content searches the part that shows,
+# and its origin stays at the box. The render, the record, the dirty walk, the
+# guard, the move, the forget of the records and the paint of the rectangles all
+# read it, so the walk visits what the render draws.
+#
+# The box and the edges in force are in the units of the canvas around the
+# viewport; under a scale the cut is turned into the units of the content, and
+# rounds out so that no element that shows is lost.
 #
 # Under a scale, a content-local element coord `l` must land at viewport-space
 # `t + s*(c+l)`; under the scaled renderer the passed origin is therefore
 # `(v+t)/s + c`. Rotation/shear (off-diagonal) is dropped: only the scale (a, d)
 # and translation (e, f) are honoured.
-function _compute_viewport_content_place(vx::Int, vy::Int, vw::Int, vh::Int, cx::Int, cy::Int,
-                                     M::AffineTransform)
+function _compute_viewport_content_place(box::NTuple{4,Int}, content::GraphicsCanvas, M::AffineTransform,
+                                         edges::_ClipEdges)
+    cut = _cut_viewport_box(box, edges)
+    cut === nothing && return nothing
+    vx, vy = box[1], box[2]
+    cx, cy = Int(content.x), Int(content.y)
     _is_plain_viewport_transform(M) &&
-        return (vx + cx, vy + cy, _ClipEdges(vx, vy, vx + vw, vy + vh))
+        return (vx + cx, vy + cy, _ClipEdges(cut...))
     sx = M.a == 0.0 ? 1.0 : M.a
     sy = M.d == 0.0 ? 1.0 : M.d
     (round(Int, (vx + M.e) / sx) + cx, round(Int, (vy + M.f) / sy) + cy,
-     _ClipEdges(round(Int, vx / sx), round(Int, vy / sy),
-                round(Int, (vx + vw) / sx), round(Int, (vy + vh) / sy)))
+     _ClipEdges(floor(Int, cut[1] / sx), floor(Int, cut[2] / sy),
+                ceil(Int, cut[3] / sx), ceil(Int, cut[4] / sy)))
+end
+
+# The part of `box` that the clip between `edges` shows, or `nothing` when it
+# shows none.
+function _cut_viewport_box(box::NTuple{4,Int}, edges::_ClipEdges)
+    cut = _intersect_boxes(box, _get_edges_box(edges))
+    cut[1] < cut[3] && cut[2] < cut[4] ? cut : nothing
 end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
@@ -2132,7 +2156,7 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     elseif elem isa GraphicsArc
         _render_arc!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
-        _render_viewport!(renderer, elem, ox, oy, ratio; paint, key)
+        _render_viewport!(renderer, elem, ox, oy, edges, ratio; paint, key)
     elseif elem isa GraphicsImage
         _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
@@ -2309,7 +2333,7 @@ _has_overlap(a::NTuple{4,Int}, b::NTuple{4,Int}) =
 function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowResources)
     isempty(region.rects) && return nothing
     boxes = NTuple{4,Int}[]
-    for (box, _, transform) in values(res.painted.viewports)
+    for (box, _, transform, _) in values(res.painted.viewports)
         _is_plain_viewport_transform(transform) && continue
         window_box = (clamp(box[1], 0, res.width), clamp(box[2], 0, res.height),
                       clamp(box[3], 0, res.width), clamp(box[4], 0, res.height))
@@ -2459,7 +2483,7 @@ function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::
     res.painted.recordings += 1
     elem isa GraphicsCanvas &&
         return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
-    elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy)
+    elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy, edges)
     res.painted.origins[key] = (ox, oy)
     signature = _compute_leaf_signature(elem)
     signature === nothing ? delete!(res.painted.signatures, key) :
@@ -2545,16 +2569,22 @@ function _record_painted_node!(res::SdlWindowResources, node::ListNode, value, l
                                                        ox, oy, edges))
 end
 
-# A viewport at the content origin `(ox, oy)`. Its bounds are its box, because it
-# clips its content; its content is recorded at the place and to the extent the
-# render draws it with.
+# A viewport at the content origin `(ox, oy)` between `edges`. Its bounds are its
+# box, because it clips its content; its content is recorded at the place and to
+# the extent the render draws it with. A viewport that the edges show none of
+# keeps the record of its box and none of its content.
 function _record_painted_viewport!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt,
-                                   ox::Int, oy::Int)
+                                   ox::Int, oy::Int, edges::_ClipEdges)
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     res.painted.origins[key] = (ox, oy)
-    res.painted.viewports[key] = (box, objectid(content), transform)
-    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
-    _record_painted_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges)
+    place = _compute_viewport_content_place(box, content, transform, edges)
+    if place === nothing
+        _forget_unshown_viewport_content!(res, content, key)
+    end
+    res.painted.viewports[key] = (box, objectid(content), transform,
+                                  place === nothing ? nothing : _get_edges_box(place[3]))
+    place === nothing ||
+        _record_painted_canvas!(res, content, _make_placement_key(content, key), place...)
     _record_bounds!(res, key, _is_empty_box(box) ? nothing : box)
 end
 
@@ -2565,10 +2595,6 @@ function _get_viewport_geometry(vp::GraphicsViewport, ox::Int, oy::Int)
     ((vx, vy, vx + Int(vp.w), vy + Int(vp.h)), vp.content::GraphicsCanvas,
      vp.transform::AffineTransform)
 end
-
-_compute_viewport_content_place(box::NTuple{4,Int}, content::GraphicsCanvas, M::AffineTransform) =
-    _compute_viewport_content_place(box[1], box[2], box[3] - box[1], box[4] - box[2],
-                                Int(content.x), Int(content.y), M)
 
 function _record_bounds!(res::SdlWindowResources, key::UInt, b::Union{Nothing,NTuple{4,Int}})
     b === nothing ? delete!(res.dirty_bounds, key) : (res.dirty_bounds[key] = b)
@@ -2936,7 +2962,7 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int,
     walk.visits[] += 1
     elem isa GraphicsCanvas &&
         return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, walk)
-    elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, walk)
+    elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, edges, walk)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
     record = () -> _record_painted_element!(res, elem, key, ox, oy, edges)
     _is_painted(res, key) || return _union_unit!(res, walk, key, record)
@@ -2954,22 +2980,31 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int,
 end
 
 # A viewport clips its content, so its dirty contribution is clamped to its own
-# box. If the viewport moved, was resized, shows another canvas or has another
+# box, and its content is walked between the part of the box that `outer_edges`
+# show. If the viewport moved, was resized, shows another canvas or has another
 # transform, its old and its new box are dirty. Its bounds are its box, so only
 # such a change changes them. The content collects into a region of its own,
 # which is clipped to the box after the walk, when the recordings inside the
 # content have added their rectangles.
 function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt,
-                                  ox::Int, oy::Int, walk::_DirtyWalk)::Bool
+                                  ox::Int, oy::Int, outer_edges::_ClipEdges, walk::_DirtyWalk)::Bool
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     painted = get(res.painted.viewports, key, nothing)
-    if painted != (box, objectid(content), transform)
+    if painted === nothing || painted[1:3] != (box, objectid(content), transform)
         painted === nothing || _add_dirty_rect!(walk.region, painted[1])
         _add_dirty_rect!(walk.region, box)
-        return _defer!(walk, () -> _record_painted_viewport!(res, vp, key, ox, oy))
+        return _defer!(walk, () -> _record_painted_viewport!(res, vp, key, ox, oy, outer_edges))
     end
-    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
     content_key = _make_placement_key(content, key)
+    place = _compute_viewport_content_place(box, content, transform, outer_edges)
+    if place === nothing
+        # The edges show none of the viewport: its content is neither read nor
+        # recorded, and the records of an earlier paint go.
+        _forget_unshown_viewport_content!(res, content, key)
+        return false
+    end
+    cox, coy, cedges = place
+    res.painted.viewports[key] = (painted[1], painted[2], painted[3], _get_edges_box(cedges))
     # A content that only moved is a move: the walk tests nothing in it, and it
     # records the content at its new place. The second phase compares by value,
     # where a guard says nothing, so it takes no move.
@@ -3177,7 +3212,8 @@ function _move_records!(res::SdlWindowResources, key::UInt, offset::NTuple{2,Int
     origin === nothing || (res.painted.origins[key] = (origin[1] + offset[1], origin[2] + offset[2]))
     geometry = get(res.painted.viewports, key, nothing)
     geometry === nothing ||
-        (res.painted.viewports[key] = (_move_box(geometry[1], offset), geometry[2], geometry[3]))
+        (res.painted.viewports[key] = (_move_box(geometry[1], offset), geometry[2], geometry[3],
+                                       geometry[4] === nothing ? nothing : _move_box(geometry[4], offset)))
     bounds = get(res.dirty_bounds, key, nothing)
     bounds === nothing && return nothing
     res.dirty_bounds[key] = _move_box(bounds, offset)
@@ -3225,16 +3261,21 @@ function _record_moved_viewport!(res::SdlWindowResources, vp::GraphicsViewport, 
                                  rects::Vector{NTuple{4,Int}})
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     if !_is_plain_viewport_transform(transform) ||
+       _cut_viewport_box(box, edges) != _cut_viewport_box(box, old_edges) ||
        (edges != old_edges && (_is_crossing_box(box, _get_edges_box(edges)) ||
                                _is_crossing_box(box, _get_edges_box(old_edges))))
         # Recorded again at its new place, so the guards of its content are made
         # again too.
-        b = _record_painted_viewport!(res, vp, key, ox, oy)
+        b = _record_painted_viewport!(res, vp, key, ox, oy, edges)
         b === nothing || push!(rects, b)
         return (b, true)
     end
     _move_records!(res, key, offset)
-    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+    place = _compute_viewport_content_place(box, content, transform, edges)
+    place === nothing && return (_is_empty_box(box) ? nothing : box, false)
+    cox, coy, cedges = place
+    geometry = res.painted.viewports[key]
+    res.painted.viewports[key] = (geometry[1], geometry[2], geometry[3], _get_edges_box(cedges))
     _, below = _record_moved_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges, cedges,
                                      offset, rects)
     (_is_empty_box(box) ? nothing : box, below)
@@ -3262,11 +3303,36 @@ function _forget_recorded_element!(res::SdlWindowResources, elem, key::UInt, ox:
         _forget_recorded_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elseif elem isa GraphicsViewport
         box, content, transform = _get_viewport_geometry(elem, ox, oy)
-        cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
-        content_key = _make_placement_key(content, key)
-        _forget_painted!(res, content_key)
-        _forget_recorded_canvas!(res, content, content_key, cox, coy, cedges)
+        _forget_viewport_content!(res, content, key, box, transform, edges)
     end
+    nothing
+end
+
+# Forget the records of the content of the viewport placed at `key`, which the edges
+# of the last recording showed none of any more: exactly the elements between the
+# edges that it recorded the content with, which the record of the viewport keeps.
+function _forget_unshown_viewport_content!(res::SdlWindowResources, content::GraphicsCanvas, key::UInt)
+    content_key = _make_placement_key(content, key)
+    geometry = get(res.painted.viewports, key, nothing)
+    origin = get(res.painted.origins, content_key, nothing)
+    _forget_painted!(res, content_key)
+    if geometry !== nothing
+        res.painted.viewports[key] = (geometry[1], geometry[2], geometry[3], nothing)
+        geometry[4] === nothing || origin === nothing ||
+            _forget_recorded_canvas!(res, content, content_key, origin[1], origin[2], _ClipEdges(geometry[4]...))
+    end
+    nothing
+end
+
+# Forget the records of the content of the viewport placed at `key`, which a
+# recording between `edges` wrote.
+function _forget_viewport_content!(res::SdlWindowResources, content::GraphicsCanvas, key::UInt,
+                                   box::NTuple{4,Int}, transform::AffineTransform, edges::_ClipEdges)
+    content_key = _make_placement_key(content, key)
+    _is_painted(res, content_key) || return nothing
+    _forget_painted!(res, content_key)
+    place = _compute_viewport_content_place(box, content, transform, edges)
+    place === nothing || _forget_recorded_canvas!(res, content, content_key, place...)
     nothing
 end
 
@@ -3527,8 +3593,9 @@ function _read_guarded_element(res::SdlWindowResources, elem, key::UInt, ox::Int
         _read_guard!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elseif elem isa GraphicsViewport
         box, content, transform = _get_viewport_geometry(elem, ox, oy)
-        cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
-        _read_guard!(res, content, _make_placement_key(content, key), cox, coy, cedges)
+        place = _compute_viewport_content_place(box, content, transform, edges)
+        place === nothing ||
+            _read_guard!(res, content, _make_placement_key(content, key), place...)
     elseif !(elem isa GraphicsFence)
         for name in fieldnames(typeof(elem))
             (is_view_state_field(name) || name === :prev || name === :next) && continue
@@ -3715,7 +3782,9 @@ function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowRes
     elseif elem isa GraphicsViewport
         box, content, transform = _get_viewport_geometry(elem, ox, oy)
         if _is_plain_viewport_transform(transform)
-            cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+            place = _compute_viewport_content_place(box, content, transform, edges)
+            place === nothing && return nothing
+            cox, coy, cedges = place
             return _collect_cover_canvas!(rects, res, content, _make_placement_key(content, key), cox, coy,
                                           cedges, _intersect_boxes(clip, box), move, nested)
         end

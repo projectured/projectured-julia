@@ -61,8 +61,9 @@ function _sw_find_unlaid_canvases(res, canvas; limit::Int = 200)
             visit_canvas(elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
         elseif elem isa GraphicsViewport
             box, content, transform = SDL._get_viewport_geometry(elem, ox, oy)
-            cox, coy, cedges = SDL._compute_viewport_content_place(box, content, transform)
-            visit_canvas(content, SDL._make_placement_key(content, key), cox, coy, cedges)
+            place = SDL._compute_viewport_content_place(box, content, transform, edges)
+            place === nothing ||
+                visit_canvas(content, SDL._make_placement_key(content, key), place...)
         end
         nothing
     end
