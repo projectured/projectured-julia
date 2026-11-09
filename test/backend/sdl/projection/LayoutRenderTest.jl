@@ -265,5 +265,100 @@ end
     @test isempty(differing)
 end
 
+# A flow of 60 cards in a pane that grows down. The cards touch: no gap. A line holds as many
+# cards as fit in `max_width`, and the card in line `r` and place `c` is card
+# `(r - 1) * per_line + c`.
+function make_flow_pane(max_width::Int, read::Vector{Int})
+    scroll = Cell(Point2D(0, 0))
+    layout = FlowLayout(make_cards(read); max_width, horizontal_gap = 0, vertical_gap = 0)
+    (pane = WidgetScrollPane(layout; grows = tall, scroll_position = scroll), layout = layout, scroll = scroll)
+end
+
+# `max_width` 1000 puts 5 cards in a line and the lines at 0, 200, 400, ...: the window of 500
+# shows the lines 1 to 3, the cards 1 to 15; after a scroll of 300 it shows the lines 2 to 4 (the
+# fifth starts on the far edge), the cards 6 to 20. A `max_width` of 600 puts 3 cards in a line.
+flow_cards = compute_shown_cards(5, card_size, 0, 0)
+flow_cards_after = compute_shown_cards(5, card_size, 0, 300)
+
+@testset "a flow: the render reads the cards of the lines that the clip shows" begin
+    @test flow_cards == collect(1:15)
+    read = Int[]
+    iomap = print_pane(make_flow_pane(1000, read).pane)
+    @test isempty(read)
+    render!(iomap.output)
+    @test sort(read) == flow_cards
+end
+
+@testset "a flow: a walk on a fresh print reads the same cards" begin
+    read = Int[]
+    iomap = print_pane(make_flow_pane(1000, read).pane)
+    @test SDL._compute_dirty_region(make_res(), iomap.output) !== nothing
+    @test sort(read) == flow_cards
+end
+
+@testset "a flow: a scroll reads the cards that come on the screen and no other" begin
+    read = Int[]
+    parts = make_flow_pane(1000, read)
+    iomap = print_pane(parts.pane)
+    render!(iomap.output)
+    empty!(read)
+    parts.scroll[] = Point2D(0, 300)
+    render!(iomap.output)
+    @test flow_cards_after == collect(6:20)
+    @test sort(read) == setdiff(flow_cards_after, flow_cards)
+end
+
+@testset "a flow: a new width moves cards to other lines, and the pixels of a partial paint equal a full paint" begin
+    read = Int[]
+    parts = make_flow_pane(1000, read)
+    iomap = print_pane(parts.pane)
+    differing = find_differing_frames(iomap.output,
+        [() -> (parts.layout.max_width = 600), () -> (parts.scroll[] = Point2D(0, 300)),
+         () -> (parts.layout.max_width = 1000), () -> (parts.scroll[] = Point2D(0, 0))])
+    @test isempty(differing)
+end
+
+@testset "a flow: a new width before the first paint reads the cards of the new lines" begin
+    read = Int[]
+    parts = make_flow_pane(1000, read)
+    iomap = print_pane(parts.pane)
+    parts.layout.max_width = 600
+    render!(iomap.output)
+    # Lines of 3 cards at 0, 200, 400: the cards 1 to 9 show.
+    @test sort(read) == compute_shown_cards(3, card_size, 0, 0)
+end
+
+# The reference of card `k` in a flow of 5 cards in a line, printed alone: the canvas of the lines,
+# the canvas of line `ceil(k / 5)`, and the wrapper of the card at its place in that line, then
+# the card. Back, it is the card again.
+@testset "a flow: the reference of a card maps forward through its line and back" begin
+    read = Int[]
+    flow_iomap = getfield(print_pane(make_flow_pane(1000, read).layout), :inner_iomap)
+    flow_iomap isa Cell && (flow_iomap = flow_iomap[])
+    @test flow_iomap isa ProjecturedPlatform.LayoutModule.FlowLayoutIoMap
+    @test flow_iomap.lines == [cld(k, 5) for k in 1:60]
+    projection = flow_iomap.projection
+    step_of(reference, name) = (@test reference.head.name == name; reference.tail)
+    index_of(reference) = (reference.head.start, reference.tail)
+    for k in (1, 5, 6, 14, 60)
+        card = ConcreteReference(FieldReferenceStep("children"),
+                                 ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))
+        forward = projection_module.map_reference_forward(projection, flow_iomap, card)
+        @test forward !== nothing
+        rest = step_of(forward, "elements")
+        first_step, rest = index_of(rest)
+        rest = step_of(rest, "elements")
+        line_step, rest = index_of(rest)
+        rest = step_of(rest, "elements")
+        place_step, rest = index_of(rest)
+        @test first_step == 0
+        @test line_step == cld(k, 5) - 1
+        @test place_step == mod(k - 1, 5)
+        back = projection_module.map_reference_backward(projection, flow_iomap, forward)
+        @test back !== nothing
+        @test repr(strip_reference_types(back)) == repr(card)
+    end
+end
+
 end
 end

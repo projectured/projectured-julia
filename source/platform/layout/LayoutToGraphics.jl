@@ -99,9 +99,25 @@ invalidates only the downstream geometry cells.
     places::Cell
 end
 
-# Routing / forward helpers below read only `iomap.child_iomaps`; both iomap
-# shapes carry that field, so they accept either.
-const _LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap}
+"""
+    FlowLayoutIoMap
+
+Like `ChildrenIoMap` (the same `projection` / `input` / `output` and the routing
+entries in `child_iomaps`), plus `lines::Cell`, the line of each child that the
+print placed it in (`_fl_line_plan`). The output holds a canvas for each line, so
+the reference maps need the line of each child, and they read it here.
+"""
+@iomap struct FlowLayoutIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Cell
+    lines::Cell
+end
+
+# Routing / forward helpers below read only `iomap.child_iomaps`; every iomap
+# shape carries that field, so they accept any of them.
+const _LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap, FlowLayoutIoMap}
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -1989,9 +2005,9 @@ end
 map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference; ordered = true, rows = first.(iomap.places))
 
-# A grid holds its cells in entries of a place and an IoMap, so a route reaches
-# the cell it names through the kernel's default reader.
-ProjectionModule.get_child_iomaps(iomap::GridLayoutIoMap) =
+# A grid and a flow hold their cells in entries of a place and an IoMap, so a
+# route reaches the cell it names through the kernel's default reader.
+ProjectionModule.get_child_iomaps(iomap::Union{GridLayoutIoMap, FlowLayoutIoMap}) =
     Any[last(entry) for entry in iomap.child_iomaps
         if entry isa Tuple && !isempty(entry) && last(entry) isa IoMap]
 
@@ -2181,29 +2197,94 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
+        line_top = Cell[Cell(@computation Int32(line_y[ln][] + space_top)) for ln in 1:n]
+        lines = Cell(@computation Int[first(step) for step in line_plan[]])
         outer_w = space_width == 0 ? lines_w : Cell(@computation lines_w[] + space_width)
         outer_h = space_height == 0 ? lines_h : Cell(@computation lines_h[] + space_height)
         ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
-        (w = outer_w, h = outer_h, entries = entries)
+        (w = outer_w, h = outer_h, entries = entries, line_plan = line_plan,
+         line_count = line_count, line_top = line_top, line_h = line_h, lines = lines)
     end)
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
+    width = Cell(@computation Int32(build[].w[]))
+    height = Cell(@computation Int32(build[].h[]))
+    # The lines stand one under the other in the order of their numbers, and the
+    # children of a line from left to right, none over its neighbour, as long as
+    # a gap is not negative. A gap is read when the flow prints: a flow with a
+    # negative gap declares no axis for the lines or for the children of a line.
+    ordered_lines = peek(getfield(doc, :vertical_gap)) >= 0
+    ordered_children = peek(getfield(doc, :horizontal_gap)) >= 0
+    line_canvases = _make_flow_line_canvases(build, width,
+                                                  ordered_children ? layout_horizontal : layout_none,
+                                                  !ordered_children)
+    lines_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                                  CellVector(line_canvases),
+                                  ordered_lines ? layout_vertical : layout_none, !ordered_lines,
+                                  Cell(nothing))
+    outer = _make_children_beside_ring(lines_canvas, ring, width, height)
+    FlowLayoutIoMap(p, doc, outer, Cell(@computation build[].entries),
+                    Cell(@computation build[].lines[]))
+end
+
+# The canvas of each line of a flow: `axis` orders its children, `overlapping`
+# says whether they can overlap on it. A line canvas stands at the top of its
+# line, is as tall as the line and as wide as the flow, and holds the children of
+# the line in the frame of the line (the `y` of a child is its `y` in the flow
+# less the top of the line). A line keeps its canvas while the flow keeps its
+# build, so a reflow that leaves a line where it is leaves its canvas and the
+# wrappers of its children.
+function _make_flow_line_canvases(build::Cell, width::Cell, axis::LayoutDirection,
+                                  overlapping::Bool)
+    canvases = GraphicsCanvas[]
+    owner = Ref{Any}(nothing)
+    @computation begin
+        made = build[]
+        if owner[] !== made.line_plan
+            empty!(canvases)
+            owner[] = made.line_plan
+        end
+        count = made.line_count[]
+        while length(canvases) < count
+            push!(canvases, _make_flow_line_canvas(made, length(canvases) + 1, width, axis, overlapping))
+        end
+        canvases[1:count]
+    end
+end
+
+function _make_flow_line_canvas(made, line::Int, width::Cell, axis::LayoutDirection,
+                                overlapping::Bool)
+    top = made.line_top[line]
+    in_line_y = Dict{Int,Cell}()
+    placed = IdDict{Any,Any}()
+    children = CellVector(Computation(function ()
+        plan = made.line_plan[]
+        members = Tuple{Cell,Cell,Any}[]
+        for i in eachindex(made.entries)
+            plan[i][1] == line || continue
+            x, y, child = made.entries[i]
+            push!(members, (x, get!(in_line_y, i) do
+                                   Cell(@computation Int32(Int(y[]) - Int(top[])))
+                               end, child))
+        end
+        _place_child_outputs(members, placed)
+    end))
+    GraphicsCanvas(Cell(Int32(0)), top, width, Cell(@computation Int32(made.line_h[line][])),
+                   children, axis, overlapping, Cell(nothing))
 end
 
 function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true, rows = iomap.lines)
 end
 
 map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true, rows = iomap.lines)
 
-function read_intent(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+# The baseline of a flow is that of its first child that has one, in the frame of
+# the flow, as for a row or a column.
+find_first_baseline(iomap::FlowLayoutIoMap) =
+    find_first_baseline_in_entries(unwrap_cell(iomap.child_iomaps))
+
+function read_intent(::FlowLayoutToGraphicsCanvas, iomap::FlowLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 

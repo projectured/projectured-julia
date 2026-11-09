@@ -498,7 +498,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       78 and 78; `test_scroll_work` 14 passed and 2 failed, before and after, the failure of the
       base of the branch.
 
-- [ ] **4. A flow orders its lines, and each line its children (D2, D3).** `LayoutToGraphics.jl`:
+- [x] **4. A flow orders its lines, and each line its children (D2, D3).** `LayoutToGraphics.jl`:
       the print of the flow
       (`:1984-2086`) puts the children of each line in a line canvas from the line plan, the lines in a
       canvas with `layout_vertical`, and that canvas beside the ring. Its forward and backward maps
@@ -506,6 +506,38 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       `test_layout_render()`, a new set. A flow of 60 cards with 6 on the screen reads those 6. A new
       width moves cards to other lines, and the pixels of the partial paint then equal a full paint.
       Then `test_graphics_layout()` and `test_layout_rules()`.
+      Done on `layout-paints`. Facts found: the output of the flow is the form of the grid: a canvas
+      with no layout that holds the canvas of the lines (`layout_vertical`, no overlap, the size of the
+      flow) and the ring. Line `r` is a canvas at the top of the line (`line_y` plus the space above),
+      as tall as the line and as wide as the flow, with `layout_horizontal` and no overlap, and its
+      children stand in the frame of the line (the `y` of a child is `child_y` less the top of the
+      line; the `x` is the `x` in the flow). The lines are made in a computation of their own
+      (`_make_flow_line_canvases`), because the count of lines follows the widths; a line keeps its
+      canvas and the wrappers of its children while the build stays, and a reflow adds or drops canvases
+      at the end. The build carries the line plan, and `FlowLayoutIoMap` (new, mirroring
+      `GridLayoutIoMap` with one field) carries `lines`, the line of each child; the two reference maps
+      call `_children_forward` and `_children_backward` with `ordered = true` and `rows = iomap.lines`,
+      the keyword of step 3, so no map computes the plan again. The case that keeps `layout_none` with
+      overlap is a negative gap: with `horizontal_gap < 0` the children of a line can overlap, with
+      `vertical_gap < 0` the lines can; the gaps are read when the flow prints, so a gap that changes its
+      sign later keeps the layout of the print. No flow of the repository has a negative gap. The
+      geometry of the test is computed by `compute_shown_cards`: with the cards of 200 pixels and
+      `max_width` 1000 a line holds 5 cards and the lines start at 0, 200, 400, so the window of 500
+      shows the lines 1 to 3, the cards 1 to 15 (the plan text said 6, which is the row of 6 in a
+      window of 1100 and not a flow of 5 in a line), and after a scroll of 300 the cards 6 to 20 (the
+      fifth line starts on the far edge). A new width of 600 puts 3 cards in a line; the pixels of the
+      partial paint equal a full paint through the change of width and two scrolls, and a width set
+      before the first paint reads the cards 1 to 9. The forward map of the card `k` is
+      `elements[1].elements[line].elements[place]`, and the backward map returns `children[k]`; both
+      are asserted. `test_layout_closeout` reads the flow output in the new form (the canvas of the
+      lines and the ring). Counts, before and after: `test_layout_render` 39 and 95 passed;
+      `test_graphics_layout` 23 and 23; `test_layout_rules` 588 passed and 10 broken, and the same;
+      `test_slot_space` 111 and 111; `test_size_range_child_rule` 19 and 19; `test_widget_text_fit` 26
+      and 26; `test_outline` 26 and 26; `test_system_process` 79 passed and 1 failed, and 80 passed (the
+      failure is not in the flow); `test_layout_closeout` 48 passed, 6 failed and 6 errored, and 49
+      passed, 6 failed and 6 errored: the same 12 are the checks of the grid in "a Fixed column clips
+      what it holds", "a cell wider than its column" and "a column is at least its minimum", which read
+      the form of the grid before step 3 and are not changed here.
 - [ ] **5. An image outside the clip reads only its box (D5).** `SdlBackend.jl`: one predicate selects
       what a canvas draws, where each walk tests a fence today: the render (`:2047`, `:2066`, `:2087`),
       the record (`:2521`), the walk (`:2832`, `:2893`, `:2914`, `:2929`), the move (`:3123`), the forget

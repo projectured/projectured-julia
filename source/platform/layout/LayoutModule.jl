@@ -22,6 +22,7 @@ using ..EventModule
 using ..FocusModule
 using ..GestureModule
 using ..GraphicsModule
+import ..GraphicsModule: find_first_baseline
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

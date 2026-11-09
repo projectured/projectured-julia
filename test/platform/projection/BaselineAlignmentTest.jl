@@ -46,4 +46,33 @@ function test_baseline_alignment()
     line = baseline(row.texts["big"])
     @test any(b -> b[2] + b[4] == line, row.boxes)
 end
+
+@testset "a flow has the baseline of its first child, and a row on the baseline aligns on it" begin
+    big = StyleFont("Ubuntu", 40)
+    measure = FixedMeasure(10, 12, 4, 0; fonts = Dict(big => FontMetrics(24, 8, 0)))
+    projection = make_widget_projection_example(; measure)
+    context() = PrinterContext(EmptyReference(), nothing, nothing, Dict{Symbol,Any}())
+    print_alone(document) = print_document(projection, nothing, document, context())
+    # A flow has the baseline of its first child that has one, so in a row on the baseline
+    # the flow stands so that its first text meets the text beside it.
+    row = HorizontalLayout(Any[WidgetLabel("small"),
+                               FlowLayout(Any[WidgetLabel("big"; text_style = big)])];
+                           vertical_align = :baseline)
+    canvas = get_iomap_output(print_alone(row))
+    found = Dict{String,Int}()
+    walk(node, oy) = begin
+        node = unwrap_cell(node)
+        if node isa GraphicsText
+            found[String(unwrap_cell(node.text))] =
+                oy + Int(node.y) + (unwrap_cell(node.font) == big ? 24 : 12)
+        elseif node isa GraphicsCanvas
+            foreach(element -> walk(element, oy + Int(node.y)), unwrap_cell(node.elements))
+        end
+    end
+    walk(canvas, 0)
+    # The text of the flow stands at the top of the row and its baseline is the ascent of the
+    # big font, 24; the small text beside it stands on that line.
+    @test found["big"] == 24
+    @test found["small"] == 24
+end
 end

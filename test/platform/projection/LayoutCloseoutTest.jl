@@ -131,12 +131,15 @@ end
     @test Int(at_wide.output.w[]) == 400
     @test Int(at_narrow.output.w[]) == 150
     @test Int(at_narrow.output.h[]) > Int(at_wide.output.h[])
-    # A child is as wide as its word, not as wide as the offer. The element
-    # after the five children is the selection ring, which draws nothing here.
-    drawn = collect(at_narrow.output.elements)
-    @test length(drawn) == 6
-    @test drawn[end] isa GraphicsRect && Int(drawn[end].w) == 0
-    for wrapper in drawn[1:5]
+    # A child is as wide as its word, not as wide as the offer. The output holds
+    # the canvas of the lines, a canvas for each line, and after it the selection
+    # ring, which draws nothing here.
+    parts = collect(at_narrow.output.elements)
+    @test length(parts) == 2
+    @test parts[2] isa GraphicsRect && Int(parts[2].w) == 0
+    wrappers = [wrapper for line in collect(parts[1].elements) for wrapper in collect(line.elements)]
+    @test length(wrappers) == 5
+    for wrapper in wrappers
         child = only(collect(wrapper.elements))
         @test Int(child.w) < 150
     end
