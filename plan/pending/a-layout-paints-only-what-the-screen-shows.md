@@ -5,7 +5,7 @@
 > The owner answered open questions 1 to 6 on 2026-11-05 and open question 7 on 2026-11-09 (option
 > B, D12), and approved the plan for implementation on 2026-11-09, with step 1 in it (D4). The work
 > runs on the branch `layout-paints`.
-> · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md)
+> · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md)
 > (its open question 9), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
 > · **Stands on:** [layout.md](../../documentation/package/platform/layout/layout.md),
 > [graphics.md](../../documentation/package/platform/graphics/graphics.md),
