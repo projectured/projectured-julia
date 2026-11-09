@@ -2,8 +2,9 @@
 
 > **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-05 at `main` `6b93bfcf3`,
 > revised on 2026-11-09 at `main` `d0b9c06c5` and the G3 branch `picture-file` (`92e96eb1a`).
-> Nothing is built. The owner answered open questions 1 to 6 on 2026-11-05, and has not approved
-> the plan for implementation. The owner answered open question 7 on 2026-11-09 (option B, D12).
+> The owner answered open questions 1 to 6 on 2026-11-05 and open question 7 on 2026-11-09 (option
+> B, D12), and approved the plan for implementation on 2026-11-09, with step 1 in it (D4). The work
+> runs on the branch `layout-paints`.
 > · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md)
 > (its open question 9), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
 > · **Stands on:** [layout.md](../../documentation/package/platform/layout/layout.md),
@@ -307,7 +308,10 @@ their choices stay as they were.
   or an outer pane cuts reads its rows up to its own edge: a row of cards that the edge of a pane
   cuts, or a table in a page that scrolls. Each tab and each card of a dashboard shows a `FileView`,
   a scroll pane (G4 step 1a), so a card that the edge of the dashboard cuts is the common case.
-  Rejected: the cut in the render only. The walk and the
+  The owner asked on 2026-11-09 whether D4 is generally useful, and kept it in this plan: the rule
+  "what does not show is not read" then holds for a pane in a pane at any depth, although the gain
+  today is only the hidden part of the panes that an edge cuts. Rejected by the owner: step 1 out of
+  this plan, as a limit that layout.md states. Rejected: the cut in the render only. The walk and the
   guard then read what the render does not draw, and [sdl.md](../../documentation/package/backend/sdl/sdl.md)
   requires that the walk visits what the render draws.
 - **D5. An image outside the clip reads only its box** (§4.5). Decided by the owner on 2026-11-05
