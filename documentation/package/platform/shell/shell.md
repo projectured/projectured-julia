@@ -126,7 +126,7 @@ The `context_menu` field of `WidgetShell` holds the menu of the window itself. T
 
 ### The file dialogs
 
-`open_file_dialog!(; directory)` and `save_file_dialog!(file; directory)` open a `WidgetDialog` over a `FileSystemChooser` as a window of its own. Both are built on `make_file_dialog`, because the chooser only chooses a path. The open command then applies `OpenFileOperation`, and the save command sets `file.filename` and applies `SaveFileOperation`. [filesystem.md](../filesystem/filesystem.md) describes the chooser.
+`open_file_dialog!(; directory)` and `save_file_dialog!(file; directory)` open a `WidgetDialog` over a `FileSystemChooser` as a window of its own. Both are built on `open_path_dialog!(take; directory, title, confirm)`, which opens the dialog of `make_file_dialog` and gives the chosen path to `take` when the person confirms, because the chooser only chooses a path. A host opens a dialog of its own with it, such as one that chooses the folder of a project. The open command then applies `OpenFileOperation`, and the save command sets `file.filename` and applies `SaveFileOperation`. [filesystem.md](../filesystem/filesystem.md) describes the chooser.
 
 ## How it fits
 

@@ -32,12 +32,31 @@ It opens the dialog; the path is taken when the person confirms, and
 `OpenFileOperation` is what opens it, so a file opened here lands in a tab
 exactly as a file opened from the explorer does.
 """
-function open_file_dialog!(; directory::AbstractString = pwd(), editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "open_file_dialog!") do
-        dialog, chooser = make_file_dialog(directory, "Open", "Open")
-        _show_file_dialog!(editor, dialog, chooser) do path
-            isfile(path) ? OpenFileOperation(path) : nothing
-        end
+open_file_dialog!(; directory::AbstractString = pwd(), editor = get_evaluation_editor()) =
+    open_path_dialog!(path -> isfile(path) ? OpenFileOperation(path) : nothing;
+                      directory, title = "Open", confirm = "Open", editor)
+
+"""
+    open_path_dialog!(take; directory = pwd(), title, confirm,
+                      editor = get_evaluation_editor()) -> Nothing
+
+Open a dialog that chooses a path, in a window of its own, and give the chosen
+path to `take` when the person confirms. `take(path)` answers the operation that
+the confirm runs, or `nothing` for a path that it does not take. `title` names
+what the dialog is for, and `confirm` is the label of the button that takes the
+path.
+
+Open and Save As are two of these. A host makes others, such as a dialog that
+chooses the folder of a project: the person presses a file of the folder, types
+the name of a folder, or confirms with no name to choose the folder that the
+dialog shows.
+"""
+function open_path_dialog!(take::Function; directory::AbstractString = pwd(),
+                           title::AbstractString, confirm::AbstractString,
+                           editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_path_dialog!") do
+        dialog, chooser = make_file_dialog(directory, title, confirm)
+        _show_file_dialog!(take, editor, dialog, chooser)
     end
 end
 
@@ -51,16 +70,9 @@ and this does both in order: the file takes the name, and then it is written, by
 one operation that writes a file. The write has no check of the disk, because the
 person chose the name, and the file keeps the hash of the text that it wrote.
 """
-function save_file_dialog!(file; directory::AbstractString = pwd(),
-                           editor = get_evaluation_editor())
-    run_on_editor_task!(editor; description = "save_file_dialog!") do
-        dialog, chooser = make_file_dialog(directory, "Save as", "Save")
-        _show_file_dialog!(editor, dialog, chooser) do path
-            isempty(basename(path)) && return nothing
-            _make_save_as_operation(file, path)
-        end
-    end
-end
+save_file_dialog!(file; directory::AbstractString = pwd(), editor = get_evaluation_editor()) =
+    open_path_dialog!(path -> isempty(basename(path)) ? nothing : _make_save_as_operation(file, path);
+                      directory, title = "Save as", confirm = "Save", editor)
 
 # The file takes the name, and the save of what the dialog was given writes it.
 function _make_save_as_operation(file, path)

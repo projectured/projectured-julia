@@ -106,6 +106,19 @@ end
     window = last(scene.windows)
     @test window.id === :file_dialog && window.style === :floating
     @test window.content isa WidgetDialog
+    # A dialog of a host gives the chosen path to its own function at the confirm:
+    # with no name typed, that is the folder that the dialog shows. It takes the
+    # window of the dialog, which has one id for every dialog.
+    chosen = String[]
+    open_path_dialog!(path -> (push!(chosen, path); nothing);
+                      directory, title = "Add a folder", confirm = "Add", editor)
+    @test length(scene.windows) == 2
+    host = last(scene.windows)
+    @test host.title == "Add a folder" && host.content isa WidgetDialog
+    confirm = last(collect(host.content.buttons))
+    @test string(confirm.action.label) == "Add"
+    confirm.action.callback(nothing)
+    @test chosen == [directory]
 end
 
 @testset "Save As gives the file its name and then writes it" begin
