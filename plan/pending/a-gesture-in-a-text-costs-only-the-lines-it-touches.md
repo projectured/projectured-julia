@@ -143,7 +143,7 @@ approves.
    `test/kernel/cell/`: a cell with 100_000 readers, of which 1_000 detach; the time
    for each detach is flat in the count of readers. Run `test_kernel()` and
    `test_cell()`. Commit.
-6. [ ] **A vertical layout that the paint stops at.** `LayoutToGraphics`: the axis and
+6. [x] **A vertical layout that the paint stops at.** `LayoutToGraphics`: the axis and
    no overlap for a vertical and a horizontal layout, and the place of each child
    from sums of aligned blocks. Run `test_platform()`, `test_sdl()`, the partial paint
    test (`test_partial_paint()`), and the window guards. Commit.
@@ -174,7 +174,12 @@ approves.
   `_compute_child_lines`), the folding (`_find_shown_elements`), the numbers of the
   lines, the gutter, the heights for the scroll pane (`_pane_scroll_y`) and the
   groups of `TextToGraphics`. Each stage visits every line when the file opens. It
-  needs a plan of its own: a print of the lines that the view shows.
+  needs a plan of its own: a print of the lines that the view shows. For a layout
+  of many children that plan lays out only the children that the view shows, and
+  gives each other child an estimated height until it comes into view, as code
+  editors and browsers do; the scroll bar shows an estimate until every child was
+  seen. The owner, 2026-10-26, to "Do you want me to do step 6 this way, and keep
+  the lazy layout for the plan of the open?": "yes".
 - The other documents of step 5 of the guards plan: the data frame, the Explorer,
   the chart, the tabs, the transcript and the MCP log view.
 - The other text stages that map flat runs over every line (`WordWrapping`,
@@ -448,4 +453,63 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
   parts of `test_platform()`: the counts of `frame-guards`.
   `test_position_navigations()` and `test_click_roundtrips()`: 9081 pass, 5 broken,
   with the five warnings of step 3. The window guards: 27 pass, 9 broken.
+
+### Step 6: a vertical layout that the paint stops at
+
+- **The decision.** The canvas of a column held its children and, after them, the
+  ring over a child selected as a whole, which lies over the children, so the canvas
+  could name no axis. Two ways were open: an outer canvas with the stack of the
+  children and the ring beside it, which changes each output reference into a
+  column by one step, or a ring in the wrapper of each child. The owner asked
+  whether the layout of every child happens anyway. It does, once, when the file
+  opens: a place needs the heights above it, and the size of the page needs every
+  height. After the open, a gesture that keeps the height of its child moves
+  nothing, and a place reads log2 of the count of children. The owner chose the
+  outer canvas and the sums for this step, and the lazy layout of the children out
+  of view for the plan of the open (see Not in this plan).
+- **The places.** `PlaceBlocks` moved from the text projection to the layout module,
+  public, with `get_block_total`, `get_total_before` and `find_place_at`, in
+  `source/platform/layout/PlaceBlocks.jl`, beside `compute_axis_offsets`. The text
+  projection uses it from there. A column keeps the heights of its children with
+  the gap after each, and their widths; a row keeps the widths with the gaps, the
+  baselines, and how low each child reaches. The place of a child, the width and
+  the height of the layout read them.
+- **The canvas.** `_make_stack_canvas`: an outer canvas, `layout_none` with overlap,
+  holds the stack of the children, `layout_vertical` or `layout_horizontal` with no
+  overlap, and the ring. The forward map puts the step to the stack before the node
+  of a child (`_stack_children_forward`), and the backward map takes it off
+  (`_stack_children_backward`). A point maps as before; the ring has no pre-image.
+- **The stack has no size of its own.** The first form gave the stack the size of the
+  layout. A laid-out canvas with a size states its extent (`has_declared_extent`),
+  so a query of its size read its box and not what its children draw, and the
+  table on the page of a folder got a smaller offer: 22 pixels wide in place of 207,
+  and no row. `test_explorer()` found it ("a folder with no place asks for its place
+  on its page, and reads there"). Six variants of the step, with a probe of the
+  output tree of that test (`/var/tmp/text-gestures/explorer_probe.jl`), found the
+  cause: the row with its old code failed (A); the column with the new sums and its
+  old canvas passed (B); size cells of its own for the stack failed (D); the stack
+  with no axis passed (E); the stack with an axis and no size passed (F). So the
+  stack has no size of its own, as the stack of the lines of a text, and the outer
+  canvas keeps the size of the layout.
+- **A test that walked the old structure.** `AnchorPointTest.jl` walks the output
+  canvas to the ground truth by element indices; its walks into a column go through
+  the stack now.
+- **A failure that is not of this step.** `test_tree_render()` of the SDL suite fails
+  3 of its checks on `frame-guards` too ("a tree builds the nodes of the rows it
+  draws": no node is built).
+- **Tests.** `test_platform()`: 166767 pass, 12 broken, no failure.
+  `test_explorer()`: 240 pass. `test_sdl()`: 996 pass, and the 3 checks of
+  `test_tree_render()` that fail on `frame-guards` too. `test_markdown()` and
+  `test_dataframes()`: 880 pass. The window guards: 31 pass, 7 broken; the markers of
+  the typed character and of the move of the pointer in the Markdown file came off.
+  The minimum frame at 3_000 paragraphs:
+
+  | Gesture in the Markdown file | `frame-guards` | Step 6 |
+  |---|---|---|
+  | A typed character | 438 ms | 2.2 ms |
+  | A move of the pointer | 31.5 ms | 0.85 ms |
+  | A click on a line | 86 ms | 10.4 ms |
+
+  The click still grows: its read stage finds the child at the point by a search of
+  every child of the column (`_route_to_children`), 9.4 ms of the 10.4.
 

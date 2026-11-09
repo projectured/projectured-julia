@@ -133,79 +133,6 @@ _get_caret_x(measure::TextMeasure, text::AbstractString, font::StyleFont, positi
 
 # ── The places of the lines ────────────────────────────────────────────
 
-# A value of each place of a text, combined over aligned blocks of places: a block
-# of `size` places, a power of two, starts after a multiple of `size`, and it
-# combines the totals of its two halves. `read_value(L)` reads the value of place
-# `L` from its cells, and `combine` is `+` or `max`. The total of the places before
-# a place combines the blocks of the binary form of their count, so it reads cells
-# to a depth of log2 of the count of places, and never a chain of every place
-# before it, which would overflow the stack of the first read. The cell of a block
-# and of a total is made at its first read, and kept.
-struct _PlaceBlocks{T}
-    read_value::Function
-    combine::Function
-    blocks::Dict{Tuple{Int,Int},Cell}
-    prefixes::Dict{Int,Cell}
-end
-
-_PlaceBlocks{T}(read_value::Function, combine::Function) where {T} =
-    _PlaceBlocks{T}(read_value, combine, Dict{Tuple{Int,Int},Cell}(), Dict{Int,Cell}())
-
-# The total of the `size` places from `first`.
-function _get_block_total(blocks::_PlaceBlocks{T}, first::Int, size::Int) where {T}
-    size == 1 && return blocks.read_value(first)::T
-    cell = get!(blocks.blocks, (first, size)) do
-        half = size ÷ 2
-        Cell(@computation blocks.combine(_get_block_total(blocks, first, half),
-                                         _get_block_total(blocks, first + half, half)))
-    end
-    cell[]::T
-end
-
-# The total of the places before place `L`: the blocks of the binary form of
-# `L - 1`, the largest first, so the totals of all places share their blocks.
-function _get_prefix_total(blocks::_PlaceBlocks{T}, L::Int) where {T}
-    cell = get!(blocks.prefixes, L) do
-        L == 1 && return Cell(zero(T))
-        Cell(Computation(function ()
-            total = zero(T)
-            first = 1
-            size = prevpow(2, L - 1)
-            while first < L
-                if first + size <= L
-                    total = blocks.combine(total, _get_block_total(blocks, first, size))
-                    first += size
-                end
-                size ÷= 2
-            end
-            total
-        end))
-    end
-    cell[]::T
-end
-
-# The place among the first `count` that holds `offset` in a sum of lengths, and
-# the offset where that place starts: the last place that starts at or before
-# `offset`, found by a descent through the blocks, the largest first. An offset
-# past the end is in the last place.
-function _find_place_at(blocks::_PlaceBlocks{T}, offset, count::Int) where {T}
-    place = 1
-    start = zero(T)
-    size = prevpow(2, count)
-    while size >= 1
-        if place + size - 1 <= count
-            total = _get_block_total(blocks, place, size)
-            if start + total <= offset
-                start += total
-                place += size
-            end
-        end
-        size ÷= 2
-    end
-    place <= count && return (place, start)
-    (count, start - _get_block_total(blocks, count, 1))
-end
-
 # The lines of a printed text and the sums that place a point and a flat offset on
 # them: the groups (`_line_groups`), the `TextLine` of each group, the cells of each
 # place, the line distances, and the flat lengths of the places, each with the
@@ -222,15 +149,15 @@ struct _TextPlaces
     lines::Cell
     group_lines::Cell
     get_line_cells::Function
-    distances::_PlaceBlocks{Float64}
-    caret_lengths::_PlaceBlocks{Int}
-    box_lengths::_PlaceBlocks{Int}
+    distances::PlaceBlocks{Float64}
+    caret_lengths::PlaceBlocks{Int}
+    box_lengths::PlaceBlocks{Int}
 end
 
 _find_flat_line(places::_TextPlaces, flat::Int) =
-    flat < 0 ? nothing : _find_place_at(places.caret_lengths, flat, length(places.lines[]))
+    flat < 0 ? nothing : find_place_at(places.caret_lengths, flat, length(places.lines[]))
 
-_get_flat_line_start(places::_TextPlaces, i::Int) = _get_prefix_total(places.caret_lengths, i)
+_get_flat_line_start(places::_TextPlaces, i::Int) = get_total_before(places.caret_lengths, i)
 
 # The segments of the line at place `L`, with the span paths of the block, at the
 # place of the line below `top`.
@@ -534,7 +461,7 @@ end
 function _find_caret_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
     places = iomap.places
     places === nothing && return nothing
-    L = first(_find_place_at(places.distances, Float64(y), length(places.lines[])))
+    L = first(find_place_at(places.distances, Float64(y), length(places.lines[])))
     coordinates = SegmentCoordinate[]
     for line in _find_segment_line(places, L - 1, -1):_find_segment_line(places, L + 1, 1)
         append!(coordinates, _get_line_segments(places, line))
@@ -728,14 +655,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     line_entries = IdDict{Any,NamedTuple}()
     place_entries = Dict{Int,NamedTuple}()
     # The line distances, the widths and the flat lengths of the places, each
-    # combined over aligned blocks of places (`_PlaceBlocks`). The offset of a line,
+    # combined over aligned blocks of places (`PlaceBlocks`). The offset of a line,
     # the width of the text and the line of a flat offset each read cells to a depth
     # of log2 of the count of lines. The flat length of a place counts the break
     # after it, so the flat offset of a line is the sum of the places above it.
-    distances = _PlaceBlocks{Float64}(L -> get_line_cells(L).distance[], +)
-    widths = _PlaceBlocks{Int}(L -> get_line_cells(L).layout[].width, max)
-    caret_lengths = _PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].caret + 1, +)
-    box_lengths = _PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].box + 1, +)
+    distances = PlaceBlocks{Float64}(L -> get_line_cells(L).distance[], +)
+    widths = PlaceBlocks{Int}(L -> get_line_cells(L).layout[].width, max)
+    caret_lengths = PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].caret + 1, +)
+    box_lengths = PlaceBlocks{Int}(L -> get_line_cells(L).flat_lengths[].box + 1, +)
     function make_line_entry(line_layout::Cell, line_y::Cell, flat_lengths::Cell)
         line_h = Cell(@computation Int32(line_layout[].height))
         line_distance = Cell(@computation line_layout[].distance)
@@ -769,7 +696,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
                                                           block_font))
             line_y = Cell(Computation(function ()
                 L = get(line_places[], line, nothing)
-                L === nothing ? Int32(0) : Int32(round(Int, _get_prefix_total(distances, L)))
+                L === nothing ? Int32(0) : Int32(round(Int, get_total_before(distances, L)))
             end))
             make_line_entry(line_layout, line_y, Cell(@computation _compute_flat_lengths(_make_line_group(line))))
         end
@@ -780,7 +707,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         line === nothing || return get_line_cells(line::TextLine)
         get!(place_entries, L) do
             line_layout = Cell(@computation _layout_group(p, spacing, lines_cell[][L], 0, nothing, true, block_font))
-            make_line_entry(line_layout, Cell(@computation Int32(round(Int, _get_prefix_total(distances, L)))),
+            make_line_entry(line_layout, Cell(@computation Int32(round(Int, get_total_before(distances, L)))),
                             Cell(@computation _compute_flat_lengths(lines_cell[][L])))
         end
     end
@@ -906,7 +833,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
-    canvas_w = Cell(Computation(() -> Int32(_get_prefix_total(widths, length(lines_cell[]) + 1))))
+    canvas_w = Cell(Computation(() -> Int32(get_total_before(widths, length(lines_cell[]) + 1))))
     canvas_h = Cell(Computation(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
@@ -1284,8 +1211,8 @@ function _collect_flat_range_segments(places::_TextPlaces, range, top::Int)
     lengths = space === :caret ? places.caret_lengths : places.box_lengths
     measure_span = space === :caret ? get_flat_length : _box_flat_length
     count = length(places.lines[])
-    first_line, base = _find_place_at(lengths, start, count)
-    last_line = first(_find_place_at(lengths, stop, count))
+    first_line, base = find_place_at(lengths, start, count)
+    last_line = first(find_place_at(lengths, stop, count))
     _collect_range_segments(places, first_line, last_line, base, measure_span, top)
 end
 

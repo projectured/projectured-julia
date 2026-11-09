@@ -908,15 +908,9 @@ end
 
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
-function _hl_child_x_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    Cell(Computation(function ()
-        x = 0
-        for j in 1:(i-1)
-            x += _child_w(child_iomaps[j]) + gap_cell[]
-        end
-        Int32(x)
-    end))
-end
+# The left edge of child `i` of a row: the widths of the children before it, each
+# with the gap after it, from the blocks of `widths` (`PlaceBlocks`).
+_hl_child_x_cell(i::Int, widths::PlaceBlocks{Int}) = Cell(@computation Int32(get_total_before(widths, i)))
 
 """Position helper for the main axis when extrinsic allocation is in effect."""
 function _hl_alloc_child_x_cell(i::Int, actual_w_cells::Vector{Cell}, gap_cell::Cell)
@@ -958,15 +952,9 @@ end
 # or its bottom edge when it draws no text, as CSS takes it.
 _child_baseline(cim) = something(find_first_baseline(cim), _child_h(cim))
 
-function _vl_child_y_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    Cell(Computation(function ()
-        y = 0
-        for j in 1:(i-1)
-            y += _child_h(child_iomaps[j]) + gap_cell[]
-        end
-        Int32(y)
-    end))
-end
+# The top of child `i` of a column: the heights of the children above it, each
+# with the gap after it, from the blocks of `heights` (`PlaceBlocks`).
+_vl_child_y_cell(i::Int, heights::PlaceBlocks{Int}) = Cell(@computation Int32(get_total_before(heights, i)))
 
 function _vl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, align_cell::Cell)
     Cell(Computation(function ()
@@ -1063,45 +1051,32 @@ function _hl_build(recursion, doc, ctx)
         end)
     end
 
+    # The places of the children over aligned blocks (`PlaceBlocks`), as a column
+    # keeps them: the width of each with the gap after it, the baseline of each, and
+    # how low each reaches in the row.
+    widths = PlaceBlocks{Int}(i -> Int(_child_w(child_iomaps[i])) + Int(gap_cell[]), +)
+    baselines = PlaceBlocks{Int}(i -> Int(_child_baseline(child_iomaps[i])), max)
+
     # A row on the baseline stands each child so that its baseline meets the
     # lowest baseline of the row; the row is as tall as the lowest child reaches.
-    row_baseline = Cell(Computation(function ()
-        align_cell[] === :baseline || return 0
-        b = 0
-        for cim in child_iomaps
-            b = max(b, _child_baseline(cim))
-        end
-        b
-    end))
-    outer_h = Cell(Computation(function ()
-        on_baseline = align_cell[] === :baseline
-        h = 0
-        for cim in child_iomaps
-            ch = _child_h(cim)
-            on_baseline && (ch += row_baseline[] - _child_baseline(cim))
-            ch > h && (h = ch)
-        end
-        h
-    end))
+    row_baseline = Cell(@computation align_cell[] === :baseline ? get_total_before(baselines, n + 1) : 0)
+    reaches = PlaceBlocks{Int}(function (i)
+        cim = child_iomaps[i]
+        Int(_child_h(cim)) + (align_cell[] === :baseline ? row_baseline[] - Int(_child_baseline(cim)) : 0)
+    end, max)
+    outer_h = Cell(@computation get_total_before(reaches, n + 1))
     outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     # Distributing an edge means occupying it. A shared minimum is a sum, which
     # is at least the minimum.
-    outer_w = (filling && floor_w === nothing) ? Cell(@computation Int(avail_w[])) : Cell(Computation(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_w(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end))
+    outer_w = (filling && floor_w === nothing) ? Cell(@computation Int(avail_w[])) :
+              Cell(@computation n == 0 ? 0 : get_total_before(widths, n + 1) - Int(gap_cell[]))
     outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
+        push!(child_x, _hl_child_x_cell(i, widths))
         push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell, row_baseline))
     end
 
@@ -1389,34 +1364,27 @@ function _vl_build(recursion, doc, ctx)
         end)
     end
 
-    outer_w = Cell(Computation(function ()
-        w = 0
-        for cim in child_iomaps
-            cw = _child_w(cim)
-            cw > w && (w = cw)
-        end
-        w
-    end))
+    # The places of the children over aligned blocks (`PlaceBlocks`): the height of
+    # each with the gap after it, and the width of each. The top of a child and the
+    # extent of the column each read log2 of the count of children, so a child that
+    # keeps its extent moves nothing, and one that changes it computes again only
+    # the blocks that hold it.
+    heights = PlaceBlocks{Int}(i -> Int(_child_h(child_iomaps[i])) + Int(gap_cell[]), +)
+    widths = PlaceBlocks{Int}(i -> Int(_child_w(child_iomaps[i])), max)
+    outer_w = Cell(@computation get_total_before(widths, n + 1))
     outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     # Distributing an offer means occupying it. A shared minimum is a sum, which
     # is at least the minimum.
-    outer_h = (filling && floor_h === nothing) ? Cell(@computation Int(avail_h[])) : Cell(Computation(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_h(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end))
+    outer_h = (filling && floor_h === nothing) ? Cell(@computation Int(avail_h[])) :
+              Cell(@computation n == 0 ? 0 : get_total_before(heights, n + 1) - Int(gap_cell[]))
     outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _vl_child_x_cell(i, child_iomaps, outer_w, align_cell))
-        push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
+        push!(child_y, _vl_child_y_cell(i, heights))
     end
 
     entries = Tuple{Cell,Cell,Any}[]

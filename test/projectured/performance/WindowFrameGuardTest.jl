@@ -282,8 +282,7 @@ const _WINDOW_GUARD_DOCUMENTS = (
 const _WINDOW_GUARD_GROWING = Set{Tuple{String,String}}([
     ("a Julia file", "a caret move by a line"), ("a Julia file", "a click on a line"),
     ("a Julia file", "a move of the pointer over the document"),
-    ("a Markdown file", "a key that types a character"), ("a Markdown file", "a click on a line"),
-    ("a Markdown file", "a move of the pointer over the document")])
+    ("a Markdown file", "a click on a line")])
 
 # A frame of a window takes up to seconds, so a window scene warms up for 3 frames
 # and measures 5.
