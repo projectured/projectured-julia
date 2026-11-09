@@ -2,11 +2,12 @@
 
 > **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-05 at `main` `6b93bfcf3`,
 > revised on 2026-11-09 at `main` `d0b9c06c5` and the G3 branch `picture-file` (`92e96eb1a`).
+> Done on 2026-11-09: steps 1 to 6 are built and checked on the branch `layout-paints`.
 > The owner answered open questions 1 to 6 on 2026-11-05 and open question 7 on 2026-11-09 (option
 > B, D12), and approved the plan for implementation on 2026-11-09, with step 1 in it (D4). The work
 > runs on the branch `layout-paints`.
-> · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md)
-> (its open question 9), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
+> · **Needs:** G3 on main (D0), which landed on 2026-11-09 (`776199253`) · **Sibling plans:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md)
+> (its open question 9), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md)
 > · **Stands on:** [layout.md](../../documentation/package/platform/layout/layout.md),
 > [graphics.md](../../documentation/package/platform/graphics/graphics.md),
 > [sdl.md](../../documentation/package/backend/sdl/sdl.md),
@@ -642,7 +643,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       `test_widget_transform_pane` 37 to 37. The plan text said 'the card below its title' read by a
       pane's edge; the test uses cards of 200 pixels with the picture at y = 100, so card 3 starts its
       picture exactly at the window's end (500).
-- [ ] **6. The measurement, and the close.** The script of §2.1 is gone (§2.1), so write it again
+- [x] **6. The measurement, and the close.** The script of §2.1 is gone (§2.1), so write it again
       from §2.1: the documents of its table, the flow among them, each image with a computed `data`
       cell that counts its reads, printed with
       `NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))` in an exact range of 1100 by 500
@@ -653,6 +654,21 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       risk of G3 "A plain layout reads each of its pictures" ends with this plan, and does not change
       G3. Run `Pkg.precompile()` in omnet-julia, which prints these layouts. Move this plan to
       `plan/done/`.
+      Done on `layout-paints`. Facts found: the script is outside the repository
+      (`measure_layout_reads.jl`, run by `bounded-run` as `lp-s6-head200`, `lp-s6-head120`,
+      `lp-s6-base` and `lp-s6-base2`). It measures the eight rows of §2.1, the flow included, for
+      pictures of 200 by 200 and of 200 by 120 pixels. The base is a checkout of `main` `14121813b`.
+      The tables are in §2.1. At the head the render and the walk read exactly the pictures on the
+      screen in all 16 cases, and the print reads none. At the base a layout of a vector, the flow
+      included, reads 60 in both phases. Nothing at the head differs from §4. The walk of the column
+      of a vector has 21 records and 14 guards at the head against 191 and 127 at the base, and the
+      column of a list has 16 and 13 at both, which §4.8 states. The dashboard rows read 6 and 9
+      pictures at the base already, because their grid is a list (§2.1). The risk of G3 "A plain
+      layout reads each of its pictures" ends with this plan; `plan/done/the-assistant-shows-a-picture-file.md`
+      stays as it closed. `Pkg.precompile()` of `omnet-julia/environment/all` against the worktree
+      of this branch (the project and the manifest copied to a scratch folder with the
+      projectured-julia paths set to the worktree) ended with no error: 92 dependencies
+      precompiled in 1066 s (`bounded-run` job `lp-s6-omnet`, 13G, one precompile task).
 
 ## 7. Tests
 
