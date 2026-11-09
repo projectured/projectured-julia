@@ -548,7 +548,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       `test_research_to_widget` 121 and 121; `test_workflow_to_widget` 72 and 72; `test_dataframes` 613
       and 613; `test_layout_list` 101 and 101; `test_settings_tab` 55 and 55; `test_appearance_tab`
       159 and 159.
-- [ ] **5. An image outside the clip reads only its box (D5).** `SdlBackend.jl`: one predicate selects
+- [x] **5. An image outside the clip reads only its box (D5).** `SdlBackend.jl`: one predicate selects
       what a canvas draws, where each walk tests a fence today: the render (`:2047`, `:2066`, `:2087`),
       the record (`:2521`), the walk (`:2832`, `:2893`, `:2914`, `:2929`), the move (`:3123`), the forget
       of the records (`:3284`), the nodes of a list (`:3301-3389`), the guard (`:3510`, `:3526`) and the
@@ -564,6 +564,39 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       change paints nothing. Then `test_layout_render()`, with a set where the edge of the pane cuts
       a card below its title and the card reads no picture, `test_partial_paint()`,
       `test_part_picture()` and `test_scroll_work()`.
+      Done on `layout-paints`. Facts found: the predicate is `_is_drawn_element(elem, ox, oy,
+      edges)`. It is false for a fence, and for an image whose box (`x`, `y`, `w`, `h` at the origin
+      of its canvas) misses the edges, the far edge exclusive; it reads those four cells only. The
+      render (the three loops of `_render_canvas!`, through `_find_render_coordinate` so that a read
+      that throws is a recorded fault), the record (`_record_painted_element!` and
+      `_record_painted_canvas!`), the walk (`_collect_elements_dirty!`, `_collect_new_elements_dirty!`,
+      `_refresh_canvas_bounds!`, `_collect_dirty_elem!`, `_collect_listnode_dirty!`), the move
+      (`_record_moved_canvas!`), the forget of the records (`_forget_recorded_canvas!`), the nodes of a
+      list (`_collect_drawn_nodes`), the guard (`_read_guarded_cells`) and the paint of the rectangles
+      (`_collect_cover_canvas!`) all call it, and no walk tests a fence of its own. The early stop is
+      tested before the predicate, so an image past the far edge ends a search as any element does,
+      and a stale leaf is still tested before the predicate reads its place. The records need no
+      change: an image that the predicate drops has no record, as an element past the early stop has
+      none. One that was painted and is now outside is cleared like an element that left the view (the
+      keys of `members` differ, `_clear_members_not_drawn!`; in a list `_clear_left_view!`, and
+      `_clear_left_view_nodes!` takes the clip so that it passes an unpainted image outside it as it
+      passes a fence). One that comes in by a scroll is in `now` and not in `before` in
+      `_record_moved_canvas!`, so it is recorded as new and its bounds join the rectangles of the
+      strip. The guard of that canvas is made again in that frame (its members differ) and reads the
+      image then. The step needs no field, no event and no change of a record. The test (`test_laid_out_canvas()`,
+      two images in a viewport, the second at the far edge) shows: the render, a walk on a fresh print
+      and the guard read image 1 only; a scroll by 50 pixels copies the pixels and reads image 2 in
+      that frame (the sets compare each frame with a full paint and read one pixel of image 2); a new
+      value of its pixels is read in the next frame; a frame with no change paints nothing and reads
+      nothing. `test_layout_render()`: in a column of cards with a title bar and a picture from y =
+      100, the window ends at 500 where the picture of card 3 starts, so the render and a fresh walk
+      read the pictures of cards 1 and 2 only. Counts, `lp-s5-a` against the base at `feab835eb`:
+      `test_laid_out_canvas` 32 to 48, `test_layout_render` 95 to 99, `test_partial_paint` 78 to 78,
+      `test_part_picture` 13 passed, `test_scroll_work` 14 passed and 2 failed (the known failure) to
+      the same, `test_dirty_rect` 97 to 97, `test_dashboard_render` 7 to 7,
+      `test_widget_transform_pane` 37 to 37. The plan text said 'the card below its title' read by a
+      pane's edge; the test uses cards of 200 pixels with the picture at y = 100, so card 3 starts its
+      picture exactly at the window's end (500).
 - [ ] **6. The measurement, and the close.** The script of §2.1 is gone (§2.1), so write it again
       from §2.1: the documents of its table, the flow among them, each image with a computed `data`
       cell that counts its reads, printed with

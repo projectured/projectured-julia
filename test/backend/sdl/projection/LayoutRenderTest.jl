@@ -360,5 +360,32 @@ end
     end
 end
 
+# Cards of 200 pixels with a title bar at the top and a picture from y = 100 on. The pixels of the
+# picture of card `k` are a cell that pushes `k` to `read` when something reads it.
+function make_titled_cards(read::Vector{Int})
+    Any[GraphicsCanvas(Any[GraphicsRect(0, 0, card_size, 20),
+                           GraphicsImage(0, 100, card_size, 100,
+                               Cell(Computation(() -> (push!(read, k);
+                                    repeat(UInt8[4 * k, 255 - 4 * k, 128, 255], card_size * 100)))))];
+                       w = card_size, h = card_size) for k in 1:60]
+end
+
+@testset "a column: the edge of the pane cuts a card below its title and the card reads no picture" begin
+    # The window ends at 500, where the picture of card 3 starts (400 + 100). Its title at 400 to
+    # 420 shows, and its picture does not.
+    read = Int[]
+    pane = WidgetScrollPane(VerticalLayout(make_titled_cards(read));
+                            grows = (width = false, height = true), scroll_position = Cell(Point2D(0, 0)))
+    iomap = print_pane(pane)
+    @test isempty(read)
+    render!(iomap.output)
+    @test sort(read) == [1, 2]
+    read = Int[]
+    iomap = print_pane(WidgetScrollPane(VerticalLayout(make_titled_cards(read));
+                       grows = (width = false, height = true), scroll_position = Cell(Point2D(0, 0))))
+    @test SDL._compute_dirty_region(make_res(), iomap.output) !== nothing
+    @test sort(read) == [1, 2]
+end
+
 end
 end

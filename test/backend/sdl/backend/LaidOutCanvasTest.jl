@@ -199,6 +199,81 @@ end
     @test sort(read) == collect(501:560)
 end
 
+# A canvas with no layout, in a viewport of 100 by 100 pixels at (20, 20), holds two
+# images of 100 by 100: image 1 at the top of the content and image 2 below it, at
+# y = 100, which lies at the far edge of the viewport. The pixels of an image are a
+# cell that pushes its number to `read` when it computes. The pixels of image 2
+# follow `shade`. The content scrolls by `scroll`.
+function make_two_images(read::Vector{Int}, shade::Cell, scroll::Cell)
+    pixels(c) = repeat(UInt8[c, 255 - c, 128, 255], 100 * 100)
+    first_image = GraphicsImage(0, 0, 100, 100, Cell(Computation(() -> (push!(read, 1); pixels(0x40)))))
+    second_image = GraphicsImage(0, 100, 100, 100,
+                                 Cell(Computation(() -> (push!(read, 2); pixels(shade[])))))
+    content = GraphicsCanvas(Any[first_image, second_image]; y = () -> -scroll[], w = 100, h = 200)
+    GraphicsCanvas(Any[GraphicsViewport(20, 20, 100, 100, content)]; w = 400, h = 300)
+end
+
+# The colour of the pixel `(x, y)` of the surface of `off`.
+function read_pixel(off, x::Int, y::Int)
+    surface = unsafe_load(off.surface)
+    pixels = unsafe_wrap(Array, Ptr{UInt8}(surface.pixels), Int(surface.pitch) * Int(surface.h))
+    offset = y * Int(surface.pitch) + 4x
+    pixels[offset + 1:offset + 4]
+end
+
+@testset "an image below the edge of a viewport reads its box and no pixel" begin
+    shade, scroll = Cell(0x80), Cell(0)
+    read = Int[]
+    render(make_two_images(read, shade, scroll))
+    @test read == [1]
+    read = Int[]
+    @test SDL._compute_dirty_rect(make_res(), make_two_images(read, shade, scroll)) !== nothing
+    @test read == [1]
+    read = Int[]
+    window = make_two_images(read, shade, scroll)
+    SDL._read_guard!(make_res(), window, UInt(0), 0, 0, SDL._ClipEdges(0, 0, 400, 300))
+    @test read == [1]
+
+    # A scroll of 50 pixels copies the pixels of the viewport. Image 2 comes into
+    # view in the strip below and is read in that frame; image 1 keeps its pixels.
+    read = Int[]
+    window = make_two_images(read, shade, scroll)
+    partial = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    full = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    try
+        state = SDL.make_offscreen_paint_state(partial)
+        function paint_frame()
+            rects = SDL.render_offscreen_changes!(partial, state, window; background)
+            SDL._render_canvas_offscreen!(full, window, 400, 300, background)
+            @test read_pixels(partial) == read_pixels(full)
+            rects
+        end
+        paint_frame()
+        @test read == [1]
+        before = read_pixel(full, 40, 100)
+        empty!(read)
+        scroll[] = 50
+        paint_frame()
+        @test !isempty(state.last_copies)
+        @test read == [2]
+        shown = read_pixel(full, 40, 100)
+        @test shown != before
+        # The pixels of image 2 change in the frame after.
+        empty!(read)
+        shade[] = 0xc0
+        paint_frame()
+        @test read == [2]
+        @test read_pixel(full, 40, 100) != shown
+        # A frame with no change paints nothing and reads nothing.
+        empty!(read)
+        @test isempty(paint_frame())
+        @test isempty(read)
+    finally
+        SDL.close_offscreen_renderer(partial)
+        SDL.close_offscreen_renderer(full)
+    end
+end
+
 
 # An endless list of rows: each `next` is computed when a reader reads it. A read
 # past 10000 nodes throws, so a walk that does not stop fails the test and does
