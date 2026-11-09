@@ -1,12 +1,12 @@
 # The assistant shows a picture file
 
 > **Kind:** plan · **Status:** a plan, written 2026-11-05, revised on 2026-11-08 at `main`
-> `aaa2ecf94` to G4 D10, G4 D14 and the file document. Steps 1 to 4 are built on branch
-> `picture-file`, rebased on `main` `d0b9c06c5` on 2026-11-09; step 5 is done except two items
-> that a person checks by hand. Not on main.
-> · **Sibling plans:** G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
-> G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md), and the plan of the
-> save [a-file-saved-alone-names-the-files-that-it-holds.md](a-file-saved-alone-names-the-files-that-it-holds.md)
+> `aaa2ecf94` to G4 D10, G4 D14 and the file document. Done on 2026-11-09: steps 1 to 5 are
+> built and checked, and the branch `picture-file` landed on `main` `776199253` with omnet
+> `b9150323a` on 2026-11-09.
+> · **Sibling plans:** G4 [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md),
+> G5 [the-assistant-fills-a-live-table.md](../pending/the-assistant-fills-a-live-table.md), and the plan of the
+> save [a-file-saved-alone-names-the-files-that-it-holds.md](../pending/a-file-saved-alone-names-the-files-that-it-holds.md)
 > · **Needs:** G4 steps 1 to 3 and steps 1 to 5 of the plan of the save, all on main. No step needs
 > the plan of G4 open question 10 (§3.8) · **Stands on:** [style.md](../../documentation/package/platform/style/style.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
@@ -745,7 +745,7 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
         project, as before); `test_simulation_embed_in_page()` 7/7. The tests did not run under
         `unshare -rn`, because a `bounded-run` job refuses it (`/proc/self/uid_map`); `ollama ps`
         showed no model before and after.
-- [ ] **5. The live check in `omnet_ide`.** Through its MCP connection, the assistant gets three
+- [x] **5. The live check in `omnet_ide`.** Through its MCP connection, the assistant gets three
       charts with `open_file_document!`, fills a dashboard with them, opens one in a file tab with
       `open_file!` and in a `WidgetTransformPane`, and returns one picture file from a call. A
       script writes a new PNG at the path of the zoomed chart. `take_picture` must show the new
@@ -756,7 +756,7 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       Ctrl+wheel must zoom the transform tab. Then `Pkg.precompile()` runs in omnet-julia, and this
       plan moves to `plan/done/`.
 
-      **Done on 2026-11-09, except two items below,** on `picture-file` `92e96eb1a` and omnet
+      **Done on 2026-11-09** on `picture-file` `92e96eb1a` and omnet
       `b9150323a` (both on their main). The IDE ran as `run_window_command(…; entry =
       run_omnet_ide, …) <root> --mcp` in an environment that loads both worktrees, over a scratch
       copy of the `fifo` sample with three charts of the fragmentation showcase in `media/`. The
@@ -774,11 +774,12 @@ to 5 of the plan of the save. No step needs the plan of G4 open question 10.
       - Ctrl+1 in the file tab shows the chart at its natural size, 1517 px wide, and the card
         stays at the fit. Ctrl+0 fits it again.
       - `Pkg.precompile()` of omnet-julia on the rebased worktrees: no warning.
-      - **Not checked live:** Ctrl+wheel in the zoom tab, because the SDL backend gives a sent
-        input to the window only for a move, a button, a key and a character
-        (`SdlWorkload.jl`), and `test_widget_transform_pane()` covers it; and a picture file as
-        the value of a call in the conversation of the window, because the MCP client is not that
-        conversation. A person checks both by hand.
+      - **Checked by hand by the owner on 2026-11-09,** in an IDE that ran from both main
+        checkouts after the landing: Ctrl+wheel in the zoom tab zooms the chart, and a picture
+        file as the value of a call in the conversation of the window shows the chart. The MCP
+        client could not check these two: the SDL backend gives a sent input to the window only
+        for a move, a button, a key and a character (`SdlWorkload.jl`), and the MCP client is not
+        that conversation.
       - **Found:** F1, the command palette and `run_command!` do not offer Ctrl+1 and Ctrl+0,
         because a scroll pane reads them with `@gesture_case` in its reader and not as a binding.
         The zoom keys of a transform pane are read in the same way. `describe_commands` of the

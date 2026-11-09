@@ -4,7 +4,7 @@
 > again on 2026-11-06 after the owner's decision D10: the file document watches its file and keeps
 > the hash and the band, and the page goes away. Steps 1 and 1a are built on the branch
 > `file-rewrites`; step 1b changes the view of step 1a into the view of a file. · **Sibling plan:** G3
-> [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md) · **Stands on:**
+> [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md) · **Stands on:**
 > [a-window-watches-its-open-files.md](../done/a-window-watches-its-open-files.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
 > [fileformat.md](../../documentation/package/platform/fileformat/fileformat.md),

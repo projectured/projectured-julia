@@ -5,7 +5,7 @@
 > the decisions of G3 and G4. The owner approved the implementation on 2026-11-05. Steps 1 to 4 are
 > built in the worktree `projectured-julia-held-files`, branch `held-files`, with omnet-julia in
 > `omnet-julia-held-files`, branch `held-files`. ·
-> **Needed by:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md),
+> **Needed by:** G3 [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md),
 > G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
 > step 2 for steps 5 and 6 · **Order:** the owner moved step 5 forward on 2026-11-06 ("Yes"): it
