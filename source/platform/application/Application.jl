@@ -220,7 +220,10 @@ function make_application_content_projections(; measure = FontFileMeasure(),
                                                             :slot_padding),
                                                         button_gap = get_widget_style(
                                                             get_scaled_theme!(appearance, WidgetTheme),
-                                                            :button_gap)),
+                                                            :button_gap),
+                                                        label_gap = get_widget_style(
+                                                            get_scaled_theme!(appearance, WidgetTheme),
+                                                            :label_gap)),
                                                     substitute = FaultToWidget())),
                                                 NaturalToGraphics(measure = measure, extra = conversation_rows,
                                                                   appearance = appearance)),

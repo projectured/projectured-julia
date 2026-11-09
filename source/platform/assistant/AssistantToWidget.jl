@@ -11,8 +11,8 @@
 const _MAIN_WEIGHT = 1.0
 
 """
-    AssistantToWidgetSplitPane(theme; slot_padding, button_gap)
-    AssistantToWidgetSplitPane(; composer_min_height, button_gap, slot_padding)
+    AssistantToWidgetSplitPane(theme; slot_padding, button_gap, label_gap)
+    AssistantToWidgetSplitPane(; composer_min_height, button_gap, label_gap, slot_padding)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
@@ -26,14 +26,16 @@ values of the default themes.
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
     button_gap::Int = get_widget_style(nothing, :button_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
     slot_padding::Inset = get_widget_style(nothing, :slot_padding)
 end
 
 AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme};
                            slot_padding = get_widget_style(nothing, :slot_padding),
-                           button_gap = get_widget_style(nothing, :button_gap)) =
+                           button_gap = get_widget_style(nothing, :button_gap),
+                           label_gap = get_widget_style(nothing, :label_gap)) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
-                                 button_gap, slot_padding)
+                                 button_gap, label_gap, slot_padding)
 
 """
     AssistantToWidgetCard(; title, transcript_height, cell_height)
@@ -105,8 +107,11 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # two, stay as they are, and a click on it is a click on a part that the view
     # drew. The row is a slot of the height of its content.
     wakes = make_assistant_wakes_box(a)
-    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a),
-             WidgetLabel("Wakes left:"), wakes]
+    # The label of the spin box stands closer to it than to the buttons, and the
+    # row puts the middle of each item on one line.
+    wake_group = HorizontalLayout(Any[WidgetLabel("Wakes left:"), wakes];
+                                  vertical_align = :center, gap = projection.label_gap)
+    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a), wake_group]
     if a.backend === :acp
         push!(items, _make_assistant_work_button(a))
         # One line, cut with "…" where the row ends: a narrow pane shows its start,
@@ -116,7 +121,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
         set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
         append!(items, Any[make_agent_option_bar(a), usage])
     end
-    row = HorizontalLayout(items; gap = projection.button_gap)
+    row = HorizontalLayout(items; vertical_align = :center, gap = projection.button_gap)
     push!(panes, LayoutConstraint(row; height = Content))
     column = WidgetSplitPane(:vertical, panes)
     iomap = AssistantToWidgetSplitPaneIoMap(projection, a, column, wakes)
@@ -377,7 +382,8 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     slot_padding = get_widget_style(widget_theme, :slot_padding)
     button_gap = get_widget_style(widget_theme, :button_gap)
-    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding, button_gap),
+    label_gap = get_widget_style(widget_theme, :label_gap)
+    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding, button_gap, label_gap),
                    AssistantList => ChainingProjection(AssistantListToWidgetPane(theme; widget_theme),
                                                        VerticalLayoutToGraphicsCanvas()),
                    AssistantWork => ChainingProjection(AssistantWorkToWidget(theme; widget_theme),

@@ -41,6 +41,14 @@ _btn(; kw...) = print_document(proj, WidgetButton("Save"; kw...)).output
     @test Int(iconed.w[]) > Int(plain.w[])                 # icon + gap widens it
 end
 
+@testset "an icon with no label sits in the middle of its button" begin
+    b = print_document(proj, WidgetButton(""; icon = :stop)).output
+    glyph = only(t for t in _prims_of(b, GraphicsText) if _is_icon_glyph(t))
+    x = Int(_icon_value(glyph.x))
+    size = _icon_value(glyph.font).size
+    @test abs(2x + size - Int(b.w[])) <= 1                 # its middle is the button's
+end
+
 @testset "an unknown icon name is a no-op (no draw, no width)" begin
     plain = _btn()
     none  = _btn(icon = :no_such_icon)

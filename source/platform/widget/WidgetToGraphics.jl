@@ -2570,12 +2570,13 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         inset_width, inset_height = _get_inset_total(box)
         content_x, content_y = _get_content_offset(box)
         # An optional leading icon: a square of the height of the label times the icon
-        # scale, with a gap before the label. The button is as tall as the larger of
-        # the icon and the label. An unknown icon name contributes nothing.
+        # scale, with a gap before the label. A button with no label has no gap, so
+        # its icon sits in the middle. The button is as tall as the larger of the
+        # icon and the label. An unknown icon name contributes nothing.
         icon = _button_icon(w)
         icon_sz = scale_length(content_height, p.icon_size)
         icon_w  = icon_width(icon, icon_sz)
-        icon_gap = icon_w > 0 ? p.label_gap : 0
+        icon_gap = icon_w > 0 && content_width > 0 ? p.label_gap : 0
         full_w = icon_w + icon_gap + content_width
         full_h = max(icon_w, content_height)
         button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
