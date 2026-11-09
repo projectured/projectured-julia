@@ -1,7 +1,8 @@
 # A picture gets its size from the head of its file
 
 > **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-09 at `main` `7dd836aaf`
-> on the branch `picture-size`. It is not approved, and no step is built.
+> on the branch `picture-size`. The owner approved it for implementation on 2026-11-09, with its
+> proposed decisions. The work runs on the branch `picture-size`.
 > · **Needs:** the plan of the layout on main, which it is since `2a3f4b7a8`
 > · **Sibling plans:** the parent [a-layout-paints-only-what-the-screen-shows.md](../done/a-layout-paints-only-what-the-screen-shows.md)
 > (its D12, §4.7, §4.10 and the risk "A picture that comes on the screen moves what is after it"),
