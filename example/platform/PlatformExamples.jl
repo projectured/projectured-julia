@@ -284,6 +284,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "button",                make_widget_button_document_example),
     AtomicDocument(:widget, "card",                  make_widget_card_document_example),
     AtomicDocument(:widget, "checkbox",              make_widget_checkbox_document_example),
+    AtomicDocument(:widget, "choice_list",           make_widget_choice_list_document_example),
     AtomicDocument(:widget, "composite",             make_widget_composite_document_example),
     AtomicDocument(:widget, "context_menu",          make_widget_context_menu_document_example),
     AtomicDocument(:widget, "dialog",                make_widget_dialog_document_example),
@@ -345,10 +346,9 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:collection, "vector",    make_collection_document_example),
     AtomicDocument(:collection, "table",     make_cell_table_document_example),
     AtomicDocument(:collection, "list_node", make_list_node_document_example),
-    # A navigator, the copy of its address in the path view, and its list of choices.
-    AtomicDocument(:navigator, "navigator",   make_navigator_document_example),
-    AtomicDocument(:navigator, "address",     make_navigator_address_document_example),
-    AtomicDocument(:navigator, "choice_list", make_navigator_choice_list_document_example),
+    # A navigator, and the copy of its address in the path view.
+    AtomicDocument(:navigator, "navigator", make_navigator_document_example),
+    AtomicDocument(:navigator, "address",   make_navigator_address_document_example),
     # A tree of documents, a plan and one of its steps, and the processes of an
     # agent and one of them.
     AtomicDocument(:tree, "tree", make_document_tree_document_example),

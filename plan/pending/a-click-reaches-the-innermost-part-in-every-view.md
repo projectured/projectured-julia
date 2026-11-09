@@ -1,6 +1,6 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-09): in progress, step 1.** The owner asked for the study
+> **Status (2026-11-09): in progress, step 2; step 1 is done.** The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -248,6 +248,19 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   known failure is `@test_broken`, keyed on its signature, as the catalog does.
   Rejected: only in `test_all`; the two click sweeps that are only there failed
   without notice.
+- **P8. The value in a leaf is the innermost part** (proposed by the
+  assistant; it follows from D2). An Alt+click on the text `Alice` of a JSON
+  string selects the `String` in its field, `entries[1].value.value`, not the
+  JSON string `entries[1].value`; an Alt+click on a quote selects the quote,
+  and Alt+Up reaches the JSON string. The same holds for each leaf that keeps
+  its value in a field, and for a text field, whose text is `.content`.
+  Rejected: the leaf document is the innermost part; then a value in a field
+  is a part only where no document holds it, which D2 and the rule of
+  2026-11-06 do not say.
+- **Q1. A plain click on a row, a node or a cell** (open, asked
+  2026-11-09). A plain click on a cell of a table, a row of a list or a node
+  of a tree chooses the row or the node today. D1 says that a plain click puts
+  the caret at the character. The owner decides which holds for these.
 - **P7. The catalog takes the atoms of a package** (proposed by the
   assistant). `catalog`, `test_catalog` and the coverage guard take a list of
   atoms and the modules whose printers they cover, with the atoms of
@@ -261,13 +274,77 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
 ## 6. Steps
 
-- [ ] 1. **The test.** Build `test_part_click(example)`: the points (the centre
+- [x] 1. **The test.** (Done 2026-11-09.) Build `test_part_click(example)`: the points (the centre
   of each drawn element, and each character of a text up to a limit), the
   expected part (P1), and at each point a plain click, an Alt+click and a move.
   It also checks the form of the path (D2): no introduced step above the
   innermost document that printed the part.
   It answers a list of failures, one line each with the point, the expected
   part and the answer. Check it on one JSON, one widget and one layout example.
+
+  Found in the work (2026-11-09):
+  - **How the test presses.** It builds the editor with `build_editor` and
+    the default wrappers on a `HeadlessBackend`, as the app does, so the
+    window, the gesture tracker and the pane are on the way. It sends
+    `WindowInput(id, MouseDown)` and `WindowInput(id, MouseUp)`, one event in
+    each frame, and reads the answer of the frame in `editor.operation`. The
+    gesture tracker answers the release with a timer, and gives the click only
+    when the timer is due by the wall clock, because a second press could still
+    make a double click. So the events have times in the past, 10 seconds
+    apart: each timer is due at once, and no two presses make a double click.
+  - **What an answer is.** A click answers a `CompoundOperation` of the
+    selection and of writes of view state (`ReplaceViewStateOperation`). The
+    test counts an answer as the action of a control only when a member of it
+    is neither a path, nor view state, nor nothing.
+  - **What draws.** A `GraphicsPointerShape` sets the shape of the pointer over
+    its box and draws nothing, so the test skips it when it finds the element
+    on top at a point.
+  - **The oracle, refined.** The parts that the forward map draws give the
+    depth that the answer must reach. The caret of the plain click gives the
+    rest: it must be drawn at the character under the point, and the Alt+click
+    must select the part that holds it. So the test needs no walk of the IO maps
+    of the stages, which is ad hoc today (`step_iomaps`, `child_iomaps`,
+    `inner_iomap`, `child_iomap`). A forward image that ends in a
+    `RegionReferenceStep`, the box around a range over several segments, takes
+    no part in the depth check, because its box holds points that the range
+    does not hold.
+  - **The catalog threw on main.** `catalog()` threw `UndefVarError:
+    NavigatorChoiceList` since 2026-10-23 (commit `2ec5c26f9`, which replaced
+    the type with `WidgetChoiceList`), so `test_catalog()` could not run. The
+    atom `navigator/choice_list` goes, and `widget/choice_list` makes a
+    `WidgetChoiceList` with the same two choices.
+  - **A first probe over 30 examples** (2026-11-09, about 75 s; step 4 makes
+    the full run):
+    - In the text domains (JSON, XML, YAML, Julia, SQL, Markdown, the
+      formula), each of about 400 plain clicks put the caret on the character
+      under the point. The Alt+click fails in two ways: it cuts a glyph, such
+      as a quote or a `{`, to its node (P3 changes this rule), and it selects
+      the leaf document, such as the JSON string, where the innermost part is
+      the value in its field (P8). The move already names the innermost part,
+      also a glyph.
+    - In the widgets and the layouts, a plain click on a label, the title of
+      a card, a fact or a text of a layout gives no caret. A plain click on a
+      cell of a table, a node of a tree or a tab selects the row, the node or
+      the page (Q1).
+    - A rest of the pointer on a row of facts throws `FieldError: type
+      WidgetFact has no field tooltip`: `_find_widget_tooltip(widget::WidgetDocument)`
+      (`source/platform/widget/WidgetDocument.jl:4029`) reads a field that
+      not every widget has.
+    - `chart_bar` and `fsm_diagram` give their document no forward image, so
+      the test presses every element of the window there.
+  - **What step 1 gives.** `walk_part_clicks(document, projection)` and
+    `test_part_click(example)` in `test/platform/editor/PartClickTest.jl`
+    (`ProjecturedPlatformTest`). The test presses the centre of each drawn
+    element; a point for each character of a long text is not in it, because
+    the centre already checks the caret against the character there. The
+    platform suite runs it on the `text` example, which passes (2 of 2); the
+    other examples join it in step 8, when their failures are marked.
+  - **The coverage guard, which could not run since 2026-10-23,** now names 8
+    types with a printer and no atom: `HelpEntry`, `OpenFileList` (known since
+    2026-10-22), `TextView`, `Url`, `UrlView`, `WidgetFactGroup`, `WidgetIcon`
+    and `WidgetLink`. Step 2 adds their atoms, because the click test of the
+    catalog needs them, `WidgetFactGroup` above all: it is the card of facts of
+    an omnet run page.
 - [ ] 2. **The catalog takes the atoms of a package (P7).** `catalog`,
   `test_catalog` and `test_catalog_coverage` in projectured-julia take a list
   of atoms and the modules to cover. The tests of projectured-julia give the

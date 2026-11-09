@@ -579,6 +579,14 @@ make_widget_accordion_document_example() =
         ("Is it styled?",     "Yes. It comes with default styles that match the theme."),
     ]; position = Point2D(40, 40), expanded=1)
 
+# WidgetChoiceList — a list that a person types into, with two choices, the
+# first of them the current one.
+function make_widget_choice_list_document_example()
+    choices = WidgetChoice[WidgetChoice("one"), WidgetChoice("two")]
+    WidgetChoiceList(; current = "one", find = query -> filter(choice -> occursin(query, choice.label), choices),
+                     choose = value -> nothing)
+end
+
 # WidgetFactGroup — a titled group of facts; the last value is a document.
 make_widget_fact_group_document_example() =
     WidgetFactGroup(["configuration" => "Fifo1", "run" => "#0", "exit code" => "0",

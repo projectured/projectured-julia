@@ -401,6 +401,7 @@ function test_platform()
         test_widget_popup_example()
         # generic drivers over visual examples
         test_collapse_roundtrip()
+        test_part_click(text_example)
         test_application_workload()
         test_window_workload()
         test_file_workload()
@@ -483,6 +484,7 @@ export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TR
        explore_tree_selections, test_tree_navigation
 export walk_typein, test_typein
 export is_link_text_underlined
+export walk_part_clicks, test_part_click
 export test_click_roundtrip, test_text_navigation_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _segment_x_at,
        _path_contains_projection_reference
