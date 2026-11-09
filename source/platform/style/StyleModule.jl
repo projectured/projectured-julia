@@ -79,7 +79,7 @@ export Inset, Point2D, inset_default,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
        AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
        apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-export ImageDocument, get_shown_picture, set_cell_computation!
+export ImageDocument, get_shown_picture, set_cell_computation!, read_image_size
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
 export FontRole, TextRole, ThemeText, ThemeFont
@@ -118,6 +118,7 @@ include("FontFace.jl")
 include("TextMeasure.jl")
 include("LineSpacing.jl")
 include("Geometry.jl")
+include("ImageHead.jl")
 include("Image.jl")
 include("StyleStroke.jl")
 include("StyleText.jl")

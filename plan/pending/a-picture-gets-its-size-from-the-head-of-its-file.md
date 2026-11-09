@@ -331,7 +331,7 @@ Each step is one commit with its test. No step changes a file under `source/kern
 test runs with `workspace/bin/bounded-run` in `environment/all` of the worktree. The work runs in a
 worktree on a branch of its own, and nothing lands on main without the approval of the owner.
 
-- [ ] **1. The head of a picture file gives its size (D1, D2, D8, D11).** A new fragment
+- [x] **1. The head of a picture file gives its size (D1, D2, D8, D11).** A new fragment
       `source/platform/style/ImageHead.jl` holds `read_image_size(path)` and the four readers of
       §4.1. `StyleModule.jl` includes it before `Image.jl` (`:121`) and exports `read_image_size`
       (`:82`). Its docstring states the four formats, the answer and the bound. Test: the new
@@ -358,6 +358,24 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       and a GIF with a screen of 20 by 10 and a frame of 5 by 4, both written by the test. The LZW
       data of a GIF of one colour is a clear code before every two pixels, which keeps each code at
       3 bits. For each file, `read_image_size(path) == Int.(decode_image(path)[2:3])`.
+
+      Done on `picture-size`. Facts found: `read_image_size(path)` is in
+      `source/platform/style/ImageHead.jl`, included before `Image.jl` and exported by `StyleModule`.
+      It reads 8 bytes, chooses by signature, and the four readers read 24 (PNG), 26 (BMP), the
+      screen descriptor with the colour table and then 8 bytes of the first image descriptor and
+      2 bytes for each sub-block (GIF), and 4 bytes for each segment and 7 of the SOF (JPEG). It
+      reuses the big-endian readers of `TrueType.jl` and adds the little-endian ones. The walk of a
+      GIF or a JPEG gives up when its position passes 1 048 576. `test_image_head()` has 19
+      assertions; the decode comparison of `test_image_file_read()` adds a PNG, a BMP, a top-down
+      BMP, a JPEG with an EXIF segment of orientation 6 and two more APP1 segments of 65 535 bytes
+      (197 000 bytes and more), and a GIF with a frame of 5 by 4 at (2, 3) on a screen of 20 by 10;
+      each agrees with `decode_image`. `write_image` writes a PNG and a BMP only, so the JPEG is
+      written with `IMG_SaveJPG` through `LibSDL2`. Counts at `e9459e114` and after: `test_image_head`
+      none and 19 pass, `test_image_file_read` 11 and 23 pass, `test_image` 109 and 109 pass. The
+      static guards `test_naming`, `test_exports`, `test_arguments` and `test_style` report no finding
+      in the style slice. `test_platform_layering` fails 2 of 21 on
+      `AssistantList.jl` (`PaneModule.find_pane_tab_layer` is not exported) and on the import forms
+      of other modules; no finding names a file of this step.
 - [ ] **2. A print asks for the size of a picture, and a task reads it from the head of its file (D3
       to D7, D9, D10, D12).** `Image.jl`: the fields `head_size` and `decoded_count`, the constant
       `_IMAGE_SIZE_SOURCE`, the third argument of `_make_image`, the field `is_pixel_answer` and the
