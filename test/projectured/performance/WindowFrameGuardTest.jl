@@ -32,8 +32,10 @@ function _make_window_guard_event(::Type{T}; values...) where {T}
     T((make_field(name) for name in fieldnames(T))...)
 end
 
-# The native window of the editor, and a point of the window in device pixels.
-_get_window_guard_resource(editor) = only(values(editor.backend.windows))
+# The native window of the first window of the screen, and a point of the window in
+# device pixels. A tooltip is a window of its own, so the backend can hold more
+# than one.
+_get_window_guard_resource(editor) = editor.backend.windows[get_iomap_output(editor.iomap).windows[1].id]
 _to_window_guard_device(resource, v) = round(Int32, v * resource.ratio)
 
 function _push_window_guard_motion!(editor, x, y)
@@ -89,14 +91,16 @@ end
 # ── The window ──
 
 # The application window on an SDL backend with the file `path` in a tab of the
-# middle group, which holds the selection, so the keys reach the file.
+# middle group, which holds the selection, so the keys reach the file. The tab holds
+# a view of the file (`FileView`), and the selection reaches the content of the file
+# through the `file` of the view.
 function _make_window_frame_guard_editor(path::AbstractString, root::AbstractString)
     settings = make_settings()
     document = make_application_document([path]; root, settings)
     steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
     at = findlast(==(FieldReferenceStep("tabs")), steps)
     steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"),
-                 FieldReferenceStep("content"))
+                 FieldReferenceStep("file"), FieldReferenceStep("content"))
     set_selection!(document, extend_reference(EmptyReference(), steps...))
     editor = build_editor(document, make_application_projection(); backend = SdlBackend(), settings,
                           window = (; title = "ProjecturEd", width = _WINDOW_GUARD_WIDTH,
@@ -279,7 +283,7 @@ const _WINDOW_GUARD_DOCUMENTS = (
 
 # The inputs of the documents whose frames grow with the document, by the names of
 # the document and of the input; see step 5 of the guards plan.
-const _WINDOW_GUARD_GROWING = Set{Tuple{String,String}}([("a Markdown file", "a click on a line")])
+const _WINDOW_GUARD_GROWING = Set{Tuple{String,String}}()
 
 # A frame of a window takes up to seconds, so a window scene warms up for 3 frames
 # and measures 5.
