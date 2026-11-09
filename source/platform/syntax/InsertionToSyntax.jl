@@ -150,7 +150,8 @@ function map_reference_forward(p::InsertionToSyntaxLeaf, iomap, reference)
         # A caret on the label or the hint, which this projection printed.
         proj(^(p), inner) => inner
         value{s:e} => begin
-            inner = @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+            (a, m) = get_range_ends(reference)
+            inner = @reference ::SyntaxLeaf.value::TextString{a:m}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
         end
     end
@@ -169,7 +170,10 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
         ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ∅ => whole                                 # whole content leaf → whole insertion
-            ::SyntaxLeaf.value{s:e} => @reference ::DocumentInsertion.value::String{s:e}::Position
+            ::SyntaxLeaf.value{s:e} => begin
+                (a, m) = get_range_ends(leaf_path)
+                @reference ::DocumentInsertion.value::String{a:m}::Position
+            end
             # The hint, and a placeholder in its place, is no text of the name: a
             # caret on it is the caret at the end of the name.
             ::SyntaxLeaf.close{k} => ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),

@@ -62,6 +62,8 @@ end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
     leaf = iomap.input
+    range = _find_leaf_value_range(reference)
+    range === nothing || return _make_leaf_range_path(leaf, range...)
     @reference_case reference begin
         ∅                          => @reference()
         ::SyntaxLeaf.open{s:_}     => _leaf_elem_path(leaf, :open, s)
@@ -73,7 +75,8 @@ end
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()
-    _is_flat_text_range(reference) && return nothing
+    range = _find_output_flat_range(iomap.output, reference)
+    range === nothing || return _map_leaf_range_backward(iomap.input, range...)
     # A whole span of a line selects the whole leaf.
     _parse_tree_span_path(reference) !== nothing && return @reference()
     spans = _leaf_spans(iomap.input)
@@ -149,6 +152,8 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     paths = make_output_path_cells(leaf, path -> begin
         leaf_path = strip_reference_types(path)            # canonical → plain skeleton
         leaf_path isa EmptyReference && return @reference()
+        range = _find_leaf_value_range(leaf_path)
+        range === nothing || return _make_leaf_range_path(leaf, range...)
         c = _leaf_cursor(leaf, leaf_path)
         c < 0 ? nothing : _flat_text_path(c)
     end)
@@ -520,11 +525,13 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
             e = s + sum(_span_len(elements[j]) for j in rng; init = 0)
             return ConcreteReference(TextSpanReferenceStep(s, e), EmptyReference())
         end
-        # Cursor → delegate to the child's own mapper, then re-anchor at parent flat.
+        # Cursor or range → delegate to the child's own mapper, then re-anchor at
+        # parent flat.
         child = cims[child_i]
         inner = map_reference_forward(child.projection, child, ctail)
         inner === nothing && return nothing
-        return _shift_child_cursor(inner, _compute_flat_entries(child), elements, iomap.child_elem_ranges[child_i])
+        return _shift_child_selection(inner, _compute_flat_entries(child), elements,
+                                      iomap.child_elem_ranges[child_i])
     end
     rest = reference.tail
     rest isa ConcreteReference || return nothing
@@ -559,7 +566,8 @@ _get_text_type(_) = TextString
 function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()     # whole node
-    _is_flat_text_range(reference) && return nothing
+    range = _find_output_flat_range(iomap.output, reference)
+    range === nothing || return _map_compound_range_backward(iomap, range...)
     elements = iomap.flat_elements
     # Whole span of a line (tree) selection `.elements[i].elements[k]∅`.
     tree_path = _parse_tree_span_path(reference)
@@ -1153,13 +1161,9 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
         # and case 4 is exactly where that child's caret has to be found.
         csel = get_stored_selection(cim.output)
         csel === nothing && continue
-        cf = _text_side_flat(csel)
-        cf === nothing && continue                 # skip ∅ / TextRect / non-cursor
-        loc = _flat_to_span_char(_compute_flat_entries(cim), cf)
-        loc === nothing && continue
-        pf = _text_elem_path_to_flat(iomap.flat_elements, ranges[i].start + loc[1] - 1, loc[2])
-        pf < 0 && continue
-        image = _flat_text_path(pf)
+        _text_side_flat(csel) === nothing && continue   # skip ∅ / TextRect / non-cursor
+        image = _shift_child_selection(csel, _compute_flat_entries(cim), iomap.flat_elements, ranges[i])
+        image === nothing && continue
         # The promoted caret belongs to the child, so it carries the child's state.
         # The node holds no selection of its own in this case, so the caller has
         # none to give it.
@@ -1852,13 +1856,109 @@ end
 _flat_text_path(flat::Int) =
     ConcreteReference(TextRangeReferenceStep(flat, flat), EmptyReference())
 
-# A non-empty flat text range. The syntax chain maps a caret as one flat offset,
-# so a range has no image in it and its backward map declines: a `Shift` key
-# leaves the selection where it was.
-function _is_flat_text_range(path)
+# ── A range of characters ─────────────────────────────────────────────────────
+#
+# A range maps when one part holds all of it: the value of one leaf. Each map finds
+# the part of the first character of the range and the part of the last one, so a
+# range that ends at the border of two parts, such as the end of a string and its
+# closing quote, belongs to the part that holds its characters. A range across two
+# parts has no image and declines, and a `Shift` key leaves the selection where it
+# was.
+
+# The non-empty flat range `(start, stop, direction)` of a path in the output
+# `block`: a flat range, or a range in a span of a line. `nothing` for a caret and
+# for any other path.
+function _find_output_flat_range(block::TextBlock, path)
     p = strip_reference_types(path)
-    p isa ConcreteReference && p.head isa TextRangeReferenceStep &&
-        p.tail isa EmptyReference && p.head.start != p.head.stop
+    if p isa ConcreteReference && (p.head isa TextRangeReferenceStep || p.head isa RangeReferenceStep) &&
+       p.tail isa EmptyReference
+        return p.head.start < p.head.stop ? (p.head.start, p.head.stop, p.head.direction) : nothing
+    end
+    parsed = _parse_span_range(p)
+    parsed === nothing && return nothing
+    span_path, start, stop = parsed
+    start < stop || return nothing
+    base = get_flat_base(block, span_path)
+    base === nothing ? nothing : (base + start, base + stop, get_range_direction(p))
+end
+
+# The non-empty range `(start, stop, direction)` that `.value{s:e}` names in a leaf,
+# or `nothing`.
+function _find_leaf_value_range(path)
+    p = strip_reference_types(path)
+    (p isa ConcreteReference && p.head isa FieldReferenceStep && p.head.name == "value") || return nothing
+    rest = p.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
+    rest.head.start < rest.head.stop ? (rest.head.start, rest.head.stop, rest.head.direction) : nothing
+end
+
+# The flat range of the characters `start:stop` of the value of `leaf`.
+function _make_leaf_range_path(leaf::SyntaxLeaf, start::Int, stop::Int, direction::Symbol)
+    i = _leaf_span_index(leaf, :value)
+    i == 0 && return nothing
+    spans = _leaf_spans(leaf)
+    s = _text_elem_path_to_flat(spans, i, start)
+    e = _text_elem_path_to_flat(spans, i, stop)
+    (s < 0 || e < 0) ? nothing : make_flat_range_reference(s, e; direction)
+end
+
+# The span and the character of the first and of the last character of the flat
+# range `start:stop` over `spans`, or `nothing`.
+function _find_range_characters(spans, start::Int, stop::Int)
+    head = _flat_to_span_char(spans, start)
+    tail = _flat_to_span_char(spans, stop - 1)
+    (head === nothing || tail === nothing) ? nothing : (head, tail)
+end
+
+# A flat range of the leaf's output, as a range of its value; `nothing` when a
+# character of it is in a delimiter.
+function _map_leaf_range_backward(leaf::SyntaxLeaf, start::Int, stop::Int, direction::Symbol)
+    characters = _find_range_characters(_leaf_spans(leaf), start, stop)
+    characters === nothing && return nothing
+    head, tail = characters
+    (head[1] == tail[1] && _leaf_field_at(leaf, head[1]) === :value) || return nothing
+    ConcreteReference(get_reference_node_type(leaf), FieldReferenceStep("value"),
+        ConcreteReference(_get_text_type(leaf.value), RangeReferenceStep(head[2], tail[2] + 1, direction),
+                          EmptyReference(Position)))
+end
+
+# A flat range of the compound's output, as a range in the one child that holds
+# all of its characters, mapped back by that child; `nothing` when its characters
+# are in two children, in the chrome of the compound, or in an indentation that
+# this level widened.
+function _map_compound_range_backward(iomap::SyntaxCompoundToTextIoMap, start::Int, stop::Int,
+                                      direction::Symbol)
+    elements = iomap.flat_elements
+    characters = _find_range_characters(elements, start, stop)
+    characters === nothing && return nothing
+    head, tail = characters
+    (elements[head[1]] isa _LineIndentation || elements[tail[1]] isa _LineIndentation) && return nothing
+    for (i, r) in enumerate(iomap.child_elem_ranges)
+        (head[1] in r && tail[1] in r) || continue
+        cim = iomap.child_iomaps[i]
+        child_elements = _compute_flat_entries(cim)
+        s = _text_elem_path_to_flat(child_elements, head[1] - r.start + 1, head[2])
+        e = _text_elem_path_to_flat(child_elements, tail[1] - r.start + 1, tail[2]) + 1
+        (s < 0 || e <= s) && return nothing
+        inner = map_reference_backward(cim.projection, cim, make_flat_range_reference(s, e; direction))
+        inner === nothing && return nothing
+        return _prepend_child(iomap.input, i, inner)
+    end
+    nothing
+end
+
+# A caret or a range of a child's output, moved into this node's flat space (see
+# `_shift_child_cursor`). A range moves by its first and its last character.
+function _shift_child_selection(inner, child_elements, elements, range::UnitRange{Int})
+    p = strip_reference_types(inner)
+    (p isa ConcreteReference && p.head isa TextRangeReferenceStep && p.tail isa EmptyReference &&
+     p.head.start < p.head.stop) || return _shift_child_cursor(inner, child_elements, elements, range)
+    characters = _find_range_characters(child_elements, p.head.start, p.head.stop)
+    characters === nothing && return nothing
+    head, tail = characters
+    s = _text_elem_path_to_flat(elements, range.start + head[1] - 1, head[2])
+    e = _text_elem_path_to_flat(elements, range.start + tail[1] - 1, tail[2]) + 1
+    (s < 0 || e <= s) ? nothing : make_flat_range_reference(s, e; direction = p.head.direction)
 end
 
 # The flat offset of a flat caret path, `TextRangeReferenceStep{f}` or a bare block

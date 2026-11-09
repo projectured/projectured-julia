@@ -23,14 +23,20 @@ function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveBool.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        ::PrimitiveBool.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveBool.value::Bool{s:e}::Position
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveBool.value::Bool{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
@@ -77,14 +83,20 @@ function map_reference_forward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveNumber.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        ::PrimitiveNumber.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveNumber.value::Number{s:e}::Position
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveNumber.value::Number{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
@@ -132,14 +144,20 @@ function map_reference_forward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMa
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveString.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        ::PrimitiveString.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveString.value::String{s:e}::Position
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveString.value::String{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end

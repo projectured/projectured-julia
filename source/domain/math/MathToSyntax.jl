@@ -42,14 +42,20 @@ function map_reference_forward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, 
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::MathVariable.name{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        ::MathVariable.name{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::MathVariable.name::String{s:e}::Position
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::MathVariable.name::String{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
