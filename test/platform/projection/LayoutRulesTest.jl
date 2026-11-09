@@ -166,6 +166,77 @@ function _rules_check_type(name::Symbol, make, kinds)
     end
 end
 
+# The box of the ink that `node` draws, as `(x0, y0, x1, y1)` from the origin of its
+# canvas, or `nothing` for no ink. A canvas gives no box of its own here: only its
+# leaves count, so ink past the extent that a canvas reports shows. A viewport clips
+# its content, so its box is its ink.
+function _rules_ink_box(node, measure)
+    bounds = ContentBounds()
+    _rules_extend_ink!(bounds, node, (0, 0), measure)
+    get_content_box(bounds)
+end
+
+function _rules_extend_ink!(bounds, node, origin, measure)
+    node = unwrap_cell(node)
+    if node isa GraphicsCanvas
+        elements = unwrap_cell(getfield(node, :elements))
+        elements isa ListNode && return
+        inner = (origin[1] + Int(node.x), origin[2] + Int(node.y))
+        for element in elements
+            _rules_extend_ink!(bounds, element, inner, measure)
+        end
+    else
+        extend_element_bounds!(bounds, node, origin; measure)
+    end
+end
+
+# Whether the ink of `document` lies inside the extent that its output reports, on
+# each axis whose kind is not `:authored`, in the range `(minimum, maximum)` on `axis`.
+function _rules_is_ink_inside(document, axis::Symbol, minimum, maximum, kinds)
+    output = print_document(_rules_projection(), nothing, document, _rules_context(axis, minimum, maximum)).output
+    # The widgets measure a text with the fixed measure of the projection, and a plain
+    # string inside a widget with the font files, so a text is inside when its box is
+    # inside under one of the two.
+    any((FixedMeasure(10, 18, 6, 0), FontFileMeasure())) do measure
+        box = _rules_ink_box(output, measure)
+        box === nothing && return true
+        (x0, y0, x1, y1) = box
+        (kinds[1] === :authored || (x0 >= 0 && x1 <= Int(output.w[]))) &&
+            (kinds[2] === :authored || (y0 >= 0 && y1 <= Int(output.h[])))
+    end
+end
+
+# The types whose sample draws past the extent that it reports in some state: the
+# border or the ring of a button, a radio group, a progress ring and an accordion, a
+# bar of no height, the content of a shell, a tabbed pane and a menu that its giver
+# cuts, and a tooltip that caps.
+# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/pending/a-layout-paints-only-what-the-screen-shows.md.
+const _RULES_INK_BROKEN = Set{Symbol}([
+    :WidgetAccordion, :WidgetButton, :WidgetContextMenu, :WidgetMenu, :WidgetProgressRing,
+    :WidgetRadioGroup, :WidgetScrollBar, :WidgetShell, :WidgetTabbedPane, :WidgetTooltip])
+
+# Each state of a sample: no range, and the five ranges of `_rules_measure`, on each axis.
+function _rules_check_ink(name::Symbol, make, kinds)
+    inside = true
+    failing = Tuple{Symbol,Any,Any}[]
+    for axis in (:width, :height)
+        m = _rules_measure(make, axis)
+        for (minimum, maximum) in ((nothing, nothing), (m.more, m.more), (0, m.more), (m.more, nothing),
+                                   (0, m.less), (m.less, m.less))
+            _rules_is_ink_inside(make(), axis, minimum, maximum, kinds) && continue
+            inside = false
+            push!(failing, (axis, minimum, maximum))
+        end
+    end
+    inside || @info "ink past the extent" name failing
+    if name in _RULES_INK_BROKEN
+        # @broken: the sample draws past the extent that it reports; see _RULES_INK_BROKEN.
+        @test_broken inside
+    else
+        @test inside
+    end
+end
+
 # A scroll area of `width × height` whose content grows on its height.
 _rules_growing_area(content; width = 600, height = 300) =
     WidgetScrollPane(content; size = Point2D(width, height), grows = (width = false, height = true))
@@ -227,6 +298,17 @@ end
         entry isa String && continue
         (make, width_kind, height_kind) = entry
         _rules_check_type(name, make, (width_kind, height_kind))
+    end
+end
+
+@testset "what each type draws lies inside the extent that it reports, except for an authored size" begin
+    for name in sort!(collect(keys(_RULES_KINDS)))
+        entry = _RULES_KINDS[name]
+        entry isa String && continue
+        (make, width_kind, height_kind) = entry
+        @testset "$name" begin
+            _rules_check_ink(name, make, (width_kind, height_kind))
+        end
     end
 end
 

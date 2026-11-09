@@ -20,6 +20,7 @@ include("backend/SdlWorkloadTest.jl")
 include("projection/GraphicsToFileTest.jl")
 include("projection/TreeRenderTest.jl")
 include("projection/DashboardRenderTest.jl")
+include("projection/LayoutRenderTest.jl")
 include("projection/PartPictureTest.jl")
 include("projection/ImageFileReadTest.jl")
 
@@ -63,6 +64,7 @@ function test_sdl()
         test_write_image()
         test_tree_render()
         test_dashboard_render()
+        test_layout_render()
         test_part_picture()
         test_image_file_read()
     end
@@ -70,4 +72,4 @@ end
 
 export test_sdl, test_sdl_layering, test_dirty_rect, test_laid_out_canvas, test_partial_paint, test_paint_fault, test_sdl_keysym, test_device_config, test_sdl_font_metrics_agree, test_sdl_text_baseline_ink,
        test_sdl_text_pen_positions,
-       test_input_coalescing, test_sdl_pointer_shape, test_sdl_wait_wake, test_sdl_system_colors, test_native_window, test_sdl_held_frames, test_sdl_workload, test_write_image, test_tree_render, test_dashboard_render, test_part_picture, test_image_file_read
+       test_input_coalescing, test_sdl_pointer_shape, test_sdl_wait_wake, test_sdl_system_colors, test_native_window, test_sdl_held_frames, test_sdl_workload, test_write_image, test_tree_render, test_dashboard_render, test_layout_render, test_part_picture, test_image_file_read

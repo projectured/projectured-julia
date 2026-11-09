@@ -405,7 +405,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       new edges differs from the cut by the old edges. Under a scale the cut rounds out (floor of the
       near edge, ceil of the far edge) where the box rounded to the nearest, so no element that shows
       is lost. `test_scroll_work()` fails twice in the set "a Julia file in a focused tab" at the base of the branch too, a known failure on main.
-- [ ] **2. A row and a column order their children on their axis (D1, D3).**
+- [x] **2. A row and a column order their children on their axis (D1, D3).**
       `LayoutToGraphics.jl`: the print of the row (`:1002-1016`) and of the column (`:1321-1339`) puts
       the children in a canvas with `layout_horizontal` or `layout_vertical` and no overlap, and that
       canvas beside the ring in the output. `_children_forward` (`:674-677`) and
@@ -428,6 +428,24 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       layout change broke the edits of a data frame once while the platform suite passed,
       `test_task_views()`, because the detail of a task is a column of cards in a scroll pane (§2),
       and `test_scroll_work()`, for its counts of records and guards.
+      Done on `layout-paints`. Facts found: `_make_ordered_children_canvas` (new) builds the output of
+      a row and of a column: a canvas with no layout that holds the canvas of the children, with
+      `layout_horizontal` or `layout_vertical`, no overlap and the size of the layout, and the ring.
+      `_children_forward` and `_children_backward` take a keyword `ordered` that the row and the
+      column set; they put `elements[1]` in front of the slot of a child and take it off
+      (`_strip_ordered_children_steps`). A reference that names the canvas of the children or the ring
+      alone maps back to nothing. The grid, the flow, the stack, the constraint layout and the
+      anchored layout keep their form until their own steps. The far edge of the clip is exclusive: an element that starts at or past it is past, so
+      `_render_canvas!`, its two loops and `_is_past_early_stop` test `>=`, and every walk of the
+      backend goes through `_is_past_early_stop`. A card that starts on the far edge shows no pixel
+      and reads no picture. The hit test and `find_pointer_shape` keep `>`, because they compare a
+      point, and an element that starts at the point holds it. The D10 check is `_rules_check_ink` in `LayoutRulesTest.jl`: it walks the
+      leaves of an output (a canvas declares no box there) and checks the ink against `output.w` and
+      `output.h` in the six states of `_rules_measure`, except on an authored axis. A text counts as
+      inside when its box is inside under the fixed measure of the projection or under the font
+      files, because a plain string in a widget is measured by the font files. The risk of D10 lists
+      the types that fail, `@test_broken` under `_RULES_INK_BROKEN`. Counts: before, `test_layout_rules`
+      548 passed; after, 588 passed and 10 broken.
 - [ ] **3. A grid orders its rows, and each row its cells (D2, D3).** `LayoutToGraphics.jl`: the
       print of the grid (`:1575-1872`) puts its cells in row canvases at the top of each row, the rows
       in a canvas with `layout_vertical`, and that canvas beside the ring. A row with a child that
@@ -503,7 +521,12 @@ step runs an aggregate suite.
 - **A child that draws past its extent is cut at the edge of the view (D10).** An authored size
   smaller than its content, and a glyph past the box of its text, draw past the extent. The row and
   the column do not clip a `Fixed` child (`_wrap_child`), although §3b of the layout rules asks it.
-  The check of step 2 in `test_layout_rules()` lists the widget types that draw past their extent.
+  The check of step 2 in `test_layout_rules()` lists the widget types that draw past their extent:
+  `WidgetAccordion` (ink 1 pixel left of its box), `WidgetButton` (2 pixels below its height, in
+  every state), `WidgetProgressRing` (2 pixels around its box), `WidgetRadioGroup` (2 pixels left),
+  `WidgetScrollBar` (a bar of no height draws 1 pixel), and, in a range smaller than their content,
+  `WidgetShell`, `WidgetTabbedPane`, `WidgetMenu`, `WidgetContextMenu` and `WidgetTooltip`, whose
+  giver cuts or caps them. A later plan fixes each one.
 - **A reference into a layout gets more steps (D3, D2).** A test that states the output path of a
   child must add them: `test_graphics_layout()`, `test_layout_closeout()` and `test_layout_list()`
   show it. A widget that finds the node of a child by depth can miss a child that is now deeper:

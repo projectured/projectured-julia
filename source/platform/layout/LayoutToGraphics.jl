@@ -153,6 +153,21 @@ function _make_placed_children_cell(build::Cell)
     Cell(@computation _place_child_outputs(build[].entries, placed))
 end
 
+# The output of a row or a column: a canvas with no layout that holds two
+# elements, the canvas of the children and the ring. The canvas of the children
+# declares `axis`, the order of its children, and no overlap, so the backend
+# searches it for the children that meet the clip; the ring lies beside it, over
+# a child, and is drawn whatever the clip shows of the children.
+function _make_ordered_children_canvas(build::Cell, ring, axis::LayoutDirection)
+    placed = _make_placed_children_cell(build)
+    width = Cell(@computation Int32(build[].w[]))
+    height = Cell(@computation Int32(build[].h[]))
+    children = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                              CellVector(@computation placed[]), axis, false, Cell(nothing))
+    GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                   CellVector(Cell[Cell(children), Cell(ring)]), layout_none, true, Cell(nothing))
+end
+
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
                        clip_x, clip_y)
@@ -669,12 +684,23 @@ end
 
 """
 A reference of the form `children[i]/...`, as the output reference of the node
-that draws the child, followed by what the child's own mapper answers.
+that draws the child, followed by what the child's own mapper answers. With
+`ordered`, the children stand in the canvas of the children of a row or a column
+(`_make_ordered_children_canvas`), the first element of the output, and the node
+of each child is one step deeper.
 """
-_children_forward(iomap::_LayoutChildrenIoMap, reference,
-                  drawn = output -> output isa GraphicsDocument) =
-    descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
-                              "children", reference; drawn)
+function _children_forward(iomap::_LayoutChildrenIoMap, reference,
+                           drawn = output -> output isa GraphicsDocument;
+                           ordered::Bool = false)
+    ordered || return descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
+                                                "children", reference; drawn)
+    canvas = unwrap_cell(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))[1])
+    answer = descend_reference_forward(canvas, getfield(iomap, :child_iomaps)[]::Vector,
+                                       "children", reference; drawn)
+    answer isa ConcreteReference || return answer
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(0, 1), answer))
+end
 
 # Which child drew the `slot`-th element of the container's own canvas.
 #
@@ -751,15 +777,28 @@ end
 
 """
 A path into a layout's canvas, as a path into its `children`. A point of the
-canvas maps to the child drawn at it (`_point_backward`).
+canvas maps to the child drawn at it (`_point_backward`). With `ordered`, the path
+goes through the canvas of the children first (`_strip_ordered_children_steps`).
 """
 function _children_backward(iomap::_LayoutChildrenIoMap, reference,
                             drawn = output -> output isa GraphicsDocument;
-                            topmost_first::Bool = false)
+                            topmost_first::Bool = false, ordered::Bool = false)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     point = find_reference_point(reference)
     point === nothing || return _point_backward(iomap.input, entries, point; topmost_first)
+    ordered && (reference = _strip_ordered_children_steps(reference))
     _backward_descend(iomap.input, entries, reference, drawn)
+end
+
+# The reference below the canvas of the children of a row or a column, or
+# `nothing` for a reference that does not go through that canvas.
+function _strip_ordered_children_steps(reference)
+    reference isa ConcreteReference || return nothing
+    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
+    below = reference.tail
+    below isa ConcreteReference || return nothing
+    (below.head isa RangeReferenceStep && below.head.start == 0) || return nothing
+    below.tail
 end
 
 """
@@ -1006,21 +1045,16 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
+    outer = _make_ordered_children_canvas(build, ring, layout_horizontal)
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
 
 function map_reference_forward(::HorizontalLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true)
 end
 
 map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true)
 
 function read_intent(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1329,21 +1363,16 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = Cell(@computation _vl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
+    outer = _make_ordered_children_canvas(build, ring, layout_vertical)
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
 
 function map_reference_forward(::VerticalLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true)
 end
 
 map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true)
 
 function read_intent(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)

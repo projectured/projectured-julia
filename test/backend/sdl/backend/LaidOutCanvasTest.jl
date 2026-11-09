@@ -34,25 +34,35 @@ function render(window)
 end
 
 @testset "the renderer reads the rows in the window" begin
-    # Scrolled up by 5000 pixels, a window of 600 pixels shows rows 501 to 561.
+    # Scrolled up by 5000 pixels, a window of 600 pixels shows rows 501 to 560.
     read = Int[]
     render(GraphicsCanvas(Any[make_rows(read; y = -5000)]; w = 800, h = 600))
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
 end
 
 @testset "the dirty walk reads the same rows" begin
     read = Int[]
     @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[make_rows(read; y = -5000)];
                                                              w = 800, h = 600)) !== nothing
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
+end
+
+@testset "a row that starts exactly on the far edge is not read" begin
+    # A window of 600 pixels ends where row 61 starts, so rows 1 to 60 show.
+    read = Int[]
+    render(GraphicsCanvas(Any[make_rows(read)]; w = 800, h = 600))
+    @test sort(read) == collect(1:60)
+    read = Int[]
+    @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[make_rows(read)]; w = 800, h = 600)) !== nothing
+    @test sort(read) == collect(1:60)
 end
 
 @testset "a viewport clips at its own edges" begin
-    # 100 pixels from y = 100 show rows 501 to 511.
+    # 100 pixels from y = 100 show rows 501 to 510.
     read = Int[]
     viewport = GraphicsViewport(0, 100, 100, 100, make_rows(read; y = -5000))
     render(GraphicsCanvas(Any[viewport]; w = 800, h = 600))
-    @test sort(read) == collect(501:511)
+    @test sort(read) == collect(501:510)
 end
 
 @testset "a viewport cut by the window reads the rows of the part that shows" begin
@@ -61,12 +71,12 @@ end
     read = Int[]
     window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 100, 200, make_rows(read))]; w = 800, h = 600)
     render(window)
-    @test sort(read) == collect(11:21)
+    @test sort(read) == collect(11:20)
     # A walk on a fresh print reads the same rows.
     read = Int[]
     window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 100, 200, make_rows(read))]; w = 800, h = 600)
     @test SDL._compute_dirty_rect(make_res(), window) !== nothing
-    @test sort(read) == collect(11:21)
+    @test sort(read) == collect(11:20)
 end
 
 @testset "a viewport that the window shows none of reads no row and keeps its box" begin
@@ -81,21 +91,21 @@ end
 end
 
 @testset "a viewport that goes from shown to cut forgets only the rows it recorded" begin
-    # The viewport spans y = -100 to 100, so its records hold rows 11 to 21 and not
+    # The viewport spans y = -100 to 100, so its records hold rows 11 to 20 and not
     # the rows 1 to 10 of the hidden half. Then it moves out of the window.
     read = Int[]
     top = Cell(-100)
     window = GraphicsCanvas(Any[GraphicsViewport(0, () -> top[], 100, 200, make_rows(read))]; w = 800, h = 600)
     res = make_res()
     SDL._compute_dirty_rect(res, window)
-    @test sort(read) == collect(11:21)
+    @test sort(read) == collect(11:20)
     top[] = -400
     SDL._compute_dirty_rect(res, window)
-    @test sort(read) == collect(11:21)
+    @test sort(read) == collect(11:20)
     # Back in the window, the content is recorded again and reads the rows that show.
     top[] = -100
     SDL._compute_dirty_rect(res, window)
-    @test sort(read) == collect(11:21)
+    @test sort(read) == collect(11:20)
 end
 
 # The bytes of the surface of `off`.
@@ -150,7 +160,7 @@ end
     differing = find_differing_frames(canvas,
         [() -> (outer_scroll[] = 16), () -> (outer_scroll[] = 85), () -> (inner_scroll[] = 27),
          () -> (outer_scroll[] = 62), () -> (outer_scroll[] = 0)];
-        on_first_frame = () -> @test sort(unique(read)) == [1, 2, 3])
+        on_first_frame = () -> @test sort(unique(read)) == [1, 2])
     @test isempty(differing)
 end
 
@@ -161,11 +171,11 @@ end
     read = Int[]
     window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 400, make_rows(read); transform)]; w = 800, h = 600)
     render(window)
-    @test sort(read) == collect(6:21)
+    @test sort(read) == collect(6:20)
     read = Int[]
     window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 400, make_rows(read); transform)]; w = 800, h = 600)
     SDL._compute_dirty_rect(make_res(), window)
-    @test sort(read) == collect(6:21)
+    @test sort(read) == collect(6:20)
     # A scroll of the content gives the pixels of a full paint.
     scroll = Cell(0)
     canvas = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 200, make_colored_rows(Int[], scroll); transform)];
@@ -186,7 +196,7 @@ end
                               y = -5000, w = 100, h = 10000,
                               layout = layout_vertical, overlapping = false)
     @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[computed]; w = 800, h = 600)) !== nothing
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
 end
 
 

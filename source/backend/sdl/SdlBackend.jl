@@ -2097,10 +2097,10 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                 if early_stop
                     if layout == layout_vertical
                         ey = _find_render_coordinate(_render_elem_y, elem)
-                        ey !== nothing && (ey + oy) > edges.bottom && break
+                        ey !== nothing && (ey + oy) >= edges.bottom && break
                     elseif layout == layout_horizontal
                         ex = _find_render_coordinate(_render_elem_x, elem)
-                        ex !== nothing && (ex + ox) > edges.right && break
+                        ex !== nothing && (ex + ox) >= edges.right && break
                     end
                 end
                 _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
@@ -2118,10 +2118,10 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
             if early_stop
                 if layout == layout_vertical
                     ey = _find_render_coordinate(_render_elem_y, elem)
-                    ey !== nothing && (ey + oy) > edges.bottom && break
+                    ey !== nothing && (ey + oy) >= edges.bottom && break
                 elseif layout == layout_horizontal
                     ex = _find_render_coordinate(_render_elem_x, elem)
-                    ex !== nothing && (ex + ox) > edges.right && break
+                    ex !== nothing && (ex + ox) >= edges.right && break
                 end
             end
             _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
@@ -2437,10 +2437,10 @@ function _is_past_early_stop(elem, ox::Int, oy::Int, edges::_ClipEdges,
     early || return false
     if layout == layout_vertical
         ey = _render_elem_y(elem)
-        return ey !== nothing && (ey + oy) > edges.bottom
+        return ey !== nothing && (ey + oy) >= edges.bottom
     elseif layout == layout_horizontal
         ex = _render_elem_x(elem)
-        return ex !== nothing && (ex + ox) > edges.right
+        return ex !== nothing && (ex + ox) >= edges.right
     end
     false
 end
