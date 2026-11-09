@@ -74,9 +74,30 @@ Proposed with this plan:
 Work in a worktree on the branch `folders-first`. Run Julia with `bounded-run`. Commit after each
 step. Do not land on `main` before the owner approves it.
 
-- [ ] 1. **The baseline.** On `14121813b`, run the twelve test functions of §2. Write the pass,
+- [x] 1. **The baseline.** On `14121813b`, run the twelve test functions of §2. Write the pass,
   fail, error and broken counts of each into this plan. A failure in this run is a known failure,
   and steps 2 and 3 compare with it.
+
+  Done 2026-11-09 in the worktree, Julia 1.13.1, `environment/all`, `-t 2`, SDL offscreen:
+
+  | Function | Pass | Fail | Error | Broken |
+  | --- | --- | --- | --- | --- |
+  | `test_filesystem_document` | 34 | 0 | 0 | 0 |
+  | `test_filesystem_to_widget` | 41 | 0 | 0 | 0 |
+  | `test_workspace_to_filesystem` | 13 | 0 | 0 | 0 |
+  | `test_workspace_duplicate` | 18 | 0 | 0 | 0 |
+  | `test_explorer` | 383 | 0 | 0 | 0 |
+  | `test_window_shell` | 152 | 0 | 0 | 0 |
+  | `test_window_wrappers` | 74 | 0 | 0 | 0 |
+  | `test_document_decoration` | 60 | 0 | 0 | 0 |
+  | `test_background_work` | 21 | 0 | 0 | 0 |
+  | `test_tree_render` | 9 | 0 | 0 | 0 |
+  | `test_application` | 402 | 1 | 0 | 2 |
+  | `test_scroll_work` | 14 | 2 | 0 | 0 |
+
+  The three failures are known on `main`: `ApplicationTest.jl:1008`, the usage text of the bar of
+  an agent, and `ScrollWorkTest.jl:127` and `:130`, the copies and the drawn share of a Julia file
+  in a focused tab.
 - [ ] 2. **The order.** In `FileSystemDocument.jl`:
   1. Add `_is_name_before`, `_get_entry_key` and `_is_entry_before` (D3, D6).
   2. `_read_folder_listing` reads with `sort = false` and sorts the listing with
