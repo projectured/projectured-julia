@@ -48,8 +48,9 @@ field(name) = (FieldReferenceStep(name),)
                          gap=12, horizontal_align=:left)
     iomap = print_document(proj, doc)
     for i in 1:3
-        # Output: layout canvas -> wrapper(i) -> button canvas, i.e. elements[i]/elements[1].
-        truth = abs_top_left(iomap.output, (i, 1))
+        # Output: layout canvas -> canvas of the children(1) -> wrapper(i) -> button canvas,
+        # i.e. elements[1]/elements[i]/elements[1].
+        truth = abs_top_left(iomap.output, (1, i, 1))
         @test get_anchor_point(iomap, cref(child(i)...)) == truth
     end
     # An unresolvable reference yields nothing.
@@ -78,10 +79,11 @@ end
     doc = VerticalLayout(Any[inner, mkbtn(100, 30, "tail")]; gap=8, horizontal_align=:left)
     iomap = print_document(proj, doc)
     try
-        # children[1] = composite: layout-wrapper -> composite canvas -> composite-wrapper -> button.
-        truth1 = abs_top_left(iomap.output, (1, 1, 1, 1))
+        # children[1] = composite: canvas of the children -> layout-wrapper -> composite canvas
+        # -> composite-wrapper -> button.
+        truth1 = abs_top_left(iomap.output, (1, 1, 1, 1, 1))
         @test get_anchor_point(iomap, cref(child(1)..., elem(1)...)) == truth1
-        truth2 = abs_top_left(iomap.output, (1, 1, 2, 1))
+        truth2 = abs_top_left(iomap.output, (1, 1, 1, 2, 1))
         @test get_anchor_point(iomap, cref(child(1)..., elem(2)...)) == truth2
     catch e
         # @broken: same cause as "buttons in a WidgetComposite" — the nested

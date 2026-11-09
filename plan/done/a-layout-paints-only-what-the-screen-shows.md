@@ -669,6 +669,13 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       of this branch (the project and the manifest copied to a scratch folder with the
       projectured-julia paths set to the worktree) ended with no error: 92 dependencies
       precompiled in 1066 s (`bounded-run` job `lp-s6-omnet`, 13G, one precompile task).
+      A sweep of `test_platform()`, the SDL suite and `test_dataframes()` at the head `820ce88f2`
+      and at `main` `14121813b` (jobs `lp-sweep-branch` and `lp-sweep-main`) gives the same
+      failures and errors on both, at the same places, except one: the ground truth of
+      `test_anchor_point()` walks a column as `elements[i]`, and the canvas of the children of a
+      column (step 2) is one level more. Its walk reads `elements[1].elements[i]`, in a commit of
+      its own, and the test passes 13 with 2 broken, as on main. `Broken` is 18 on the branch
+      against 8 on main: the 10 of D10 in `test_layout_rules()`.
 
 ## 7. Tests
 
