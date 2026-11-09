@@ -1,11 +1,11 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-09): in progress, step 3; steps 1 and 2 are done.** The owner asked for the study
+> **Status (2026-11-09): in progress, step 4; steps 1 to 3 are done.** The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
-> `projectured-julia-innermost-click`; omnet-julia gets its own worktree at
-> step 3.
+> `projectured-julia-innermost-click`, and in omnet-julia on the branch
+> `innermost-click` in the worktree `omnet-julia-innermost-click`.
 
 ## 1. The purpose
 
@@ -397,7 +397,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     app works: `widget/fact_group/natural` 19 failures (9 of them the fault of
     the `tooltip` field of step 1), `widget/card/natural` 7,
     `json/string/natural` 6.
-- [ ] 3. **The atoms of omnet-julia (D3).** An atom for each document type of
+- [x] 3. **The atoms of omnet-julia (D3).** (Done 2026-11-09.) An atom for each document type of
   omnet-julia that has a printer, in the example package of its package, with
   the 7 atoms of today among them. The coverage guard and `test_catalog` run in
   each omnet test package. A failure that is there before the click test is
@@ -438,6 +438,53 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     checkout of projectured-julia, so until steps 1 and 2 land there, this
     step tests in an environment of the scratchpad whose `[sources]` send
     projectured-julia to its worktree and omnet-julia to its own.
+
+  Found in the work (2026-11-09, omnet-julia branch `innermost-click`, worktree
+  `omnet-julia-innermost-click`, one commit for each package group):
+  - **The lists of atoms.** `omnet_atomic_documents` has 45 atoms (the 7 of
+    before and 38 new), `ide_atomic_documents` 12, `legacy_atomic_documents`
+    45 and `cosim_atomic_documents` 2. The INI pages live in
+    `OmnetLegacySimulatorPresentation`, so their atoms are in the legacy list;
+    the IDE list has the pages of the NED files, the tests and the baselines.
+  - **The cosim list is filled by the extension.** `OmnetCosimExample` must
+    load without a drawing stack, so the list is empty in the package, and its
+    extension on `OmnetCosimPresentation` fills it in `__init__`.
+  - **The guard sees only a printer on a concrete type.** The printers of
+    `OmnetCosimPresentation` are written on the alias `AFederationView`, so the
+    guard finds no type to cover there, and `test_cosim_atoms` runs no guard.
+    The other roots pass with an empty `no_atom`.
+  - **The tests.** `test_ide_atoms`, `test_presentation_atoms`,
+    `test_cosim_atoms` and `test_legacy_atoms` run the guard and
+    `test_catalog_examples(catalog(atoms; natural = true); marks)`, and the
+    aggregate of each test package calls its function. The test packages depend
+    on `ProjecturedPlatformTest` and `ProjecturedExample`.
+  - **The known failures** are marked `@catalog-broken` by the message:
+    - Ctrl+Home finds no caret in a view that a person reads and does not edit,
+      so the navigation walk has no state. This is the most common failure: 22
+      presentation examples, 10 IDE examples, 2 cosim examples and almost every
+      legacy `natural` example. Step 5 (P4) and steps 6 and 7 are about these.
+    - `UndefRefError` in `timeline_strip/natural`,
+      `simulation_workbench/natural` and `ide/test_case/natural`.
+    - `FieldError(NestingIoMap, :content_iomap)` in both cosim `natural`
+      examples.
+    - One example each in the legacy list: `scalar_differences` (a grid of a
+      list with a weighted column), `result_file` (a table of a list needs an
+      offered height), `run_entry` (`FieldError` of `configuration`),
+      `result_folder` and `simulation_project_page` (a click opens a pane, and
+      the walk has no pane tree).
+  - **Two faults that a mark can not cover.** Each example has one
+    `@test_broken false` and runs no tester:
+    - The walk of the testers throws out of the tester in 4 presentation atoms
+      (`parallel_monitor`, `vector_result`, `simulation_execution`,
+      `module_appearance`): a field holds `nothing` or an undefined slot.
+    - The walk of the printer of `legacy/simulation_task_list/natural` does not
+      end. It allocates until the cap stops it, also with a list of one task.
+  - **The check.** The four tests in one process, at omnet-julia `f488ce735`:
+    no Fail and no Error; broken 14 (IDE), 422 (cosim), 1174 (presentation)
+    and 516 (legacy), as in the runs of each package alone. The counts of
+    passes are larger in one process (197980 against 183944 for the IDE),
+    because each package that loads registers its natural rows, and the walks
+    then see more views.
 - [ ] 4. **The first run.** Run the click test on the catalog of both
   repositories, on `examples` and on the omnet pages: the page of each kind of
   run task, the result table, the result file page and the runner form. Record
