@@ -421,17 +421,23 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     the stub projects of the task kinds need the test folder, so the atoms make
     their projects themselves. Some IDE pages read the disk in the background,
     so their atom must be read to its end before a test uses it.
-  - **The natural rows.** The views, the embed, the results and the legacy
-    result documents have a natural row. The task documents of a run page,
-    the IDE pages, the stores, the monitors and the engines have none, so
-    `make_document_projection` can draw them only as a reflected object. Each
-    atom must draw through the path that the app uses for its type; this step
-    finds that path for each type.
+  - **The natural rows.** The views, the embed and the results have a row of
+    `build_omnet_natural_rows`. The legacy documents, the task documents of a
+    run page and the pages of the IDE have a method of
+    `make_graphics_projection(::Type{<:T}; measure, appearance)`, which the
+    entries that `register_natural_graphics!` adds read
+    (`source/legacy/result/presentation/ResultGraphics.jl`,
+    `SimulationToWidget.jl`, `SimulationBatchToWidget.jl`,
+    `LegacySimulationRunnerToWidget.jl`). So `make_document_projection`, and the
+    variant `natural` of the catalog, draws them as the app does. A type with
+    neither, such as a monitor or an engine, draws as a reflected object; its
+    atom says so.
   - **The dependencies.** No omnet test package depends on
     `ProjecturedPlatformTest`; only `OmnetLegacyTest` depends on
     `ProjecturedExample`. The `[sources]` of omnet-julia reach the main
-    checkout of projectured-julia, so steps 1 and 2 land on main of
-    projectured-julia before this step can use them.
+    checkout of projectured-julia, so until steps 1 and 2 land there, this
+    step tests in an environment of the scratchpad whose `[sources]` send
+    projectured-julia to its worktree and omnet-julia to its own.
 - [ ] 4. **The first run.** Run the click test on the catalog of both
   repositories, on `examples` and on the omnet pages: the page of each kind of
   run task, the result table, the result file page and the runner form. Record
