@@ -139,6 +139,19 @@ end
     @test (caret.tail.head.start, caret.tail.head.stop) == (2, 2)
 end
 
+@testset "a backward range keeps its direction both ways" begin
+    s = PrimitiveString("hello")
+    p = PrimitiveStringToTextBlock()
+    iomap = print_document(p, nothing, s, nothing)
+    value = ConcreteReference(FieldReferenceStep("value"),
+                              ConcreteReference(RangeReferenceStep(1, 4, :backward), EmptyReference()))
+    forward = map_reference_forward(p, iomap, value)
+    @test forward.head == TextRangeReferenceStep(1, 4, :backward)
+    backward = map_reference_backward(p, iomap, forward)
+    @test backward.tail.head == RangeReferenceStep(1, 4, :backward)
+    @test get_range_direction(backward) === :backward
+end
+
 @testset "an edit that holds a break is no edit of a value" begin
     # The value of a primitive is one line: Enter, which the text domain reads as a
     # break, goes on to the bindings around the text.

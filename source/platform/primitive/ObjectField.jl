@@ -86,11 +86,12 @@ end
 
 
 """
-    make_object_field_range_reference(field::ObjectField, start, stop) -> Reference
+    make_object_field_range_reference(field::ObjectField, start, stop; direction = :forward) -> Reference
 
 The path, from `field`, of the range `start:stop` in the text of the value that
 `field` names: the step `object`, the path of the field, and the range. A caret is
-a range with `start == stop`.
+a range with `start == stop`. `direction` is the end of the range that moves, as in
+`RangeReferenceStep`.
 
 The path is a path in the document: a selection that holds it walks into the
 object when the object is a document, and the printer of the field maps it to the
@@ -101,10 +102,12 @@ caret in the widget that shows the value.
     field = ObjectField(text, "pattern")
     make_object_field_range_reference(field, 5, 5)    # .object.pattern{5}
 """
-make_object_field_range_reference(field::ObjectField, start::Integer, stop::Integer) =
+make_object_field_range_reference(field::ObjectField, start::Integer, stop::Integer;
+                                  direction::Symbol = :forward) =
     ConcreteReference(FieldReferenceStep("object"),
                       concat_references(strip_reference_types(field.path),
-                                        ConcreteReference(RangeReferenceStep(Int(start), Int(stop)),
+                                        ConcreteReference(RangeReferenceStep(Int(start), Int(stop),
+                                                                             start == stop ? :forward : direction),
                                                           EmptyReference())))
 
 """

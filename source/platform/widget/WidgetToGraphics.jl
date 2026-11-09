@@ -2150,12 +2150,13 @@ function _get_plain_text_caret(selection)
     (steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
     range = steps[2]
     (range isa RangeReferenceStep || range isa TextRangeReferenceStep) || return nothing
-    make_flat_range_reference(range.start, range.stop)
+    make_flat_range_reference(range.start, range.stop; direction = range.direction)
 end
 
-_make_content_range_reference(start::Int, stop::Int) =
+_make_content_range_reference(start::Int, stop::Int, direction::Symbol = :forward) =
     ConcreteReference(FieldReferenceStep("content"),
-                      ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
+                      ConcreteReference(RangeReferenceStep(start, stop, start == stop ? :forward : direction),
+                                        EmptyReference()))
 
 # A reference of a `TextView` of a block, as a reference of the block: the step
 # `content` of the view comes off. A reference that does not start with it names the
@@ -2182,7 +2183,7 @@ function _map_plain_text_reference(view::TextBlock, reference)
         return _make_content_range_reference(n, n)
     end
     range = get_flat_range(view, reference)
-    range === nothing ? nothing : _make_content_range_reference(range...)
+    range === nothing ? nothing : _make_content_range_reference(range..., get_range_direction(reference))
 end
 
 # The view of a plain value, which the text domain prints: the input of the IO map
@@ -2337,7 +2338,7 @@ function _map_value_text_reference(view::TextBlock, child, reference)
     range === nothing && return nothing
     step = get_reference_steps(range)[end]
     inner = map_reference_backward(child.projection, child,
-                                   make_flat_range_reference(step.start, step.stop))
+                                   make_flat_range_reference(step.start, step.stop; direction = step.direction))
     inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
 end
 

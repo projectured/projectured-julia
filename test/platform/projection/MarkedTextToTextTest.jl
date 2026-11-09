@@ -109,6 +109,11 @@ end
     @test get_reference_steps(back) == [FieldReferenceStep("text"), RangeReferenceStep(23, 23)]
     back = strip_reference_types(map_reference_backward(p, iomap, make_flat_range_reference(2, 30)))
     @test get_reference_steps(back) == [FieldReferenceStep("text"), RangeReferenceStep(2, 30)]
+    # A backward range keeps its direction both ways.
+    back = strip_reference_types(map_reference_backward(p, iomap,
+                                                        make_flat_range_reference(2, 30; direction = :backward)))
+    @test get_reference_steps(back) == [FieldReferenceStep("text"), RangeReferenceStep(2, 30, :backward)]
+    @test get_range_direction(map_reference_forward(p, iomap, back)) === :backward
 end
 
 @testset "an edit of lines is an edit of the string at the same offsets" begin

@@ -7,44 +7,53 @@
 # part of a syntax tree through it: a cell of a table, an element of a
 # collection, a value in a tab.
 # Forward: the place `.value{s:e}` of the primitive is the flat range `{s:e}` of the
-# block. The block has one line, which holds the one run of the value, so a flat
-# offset is a character offset of the value; a caret is the empty range.
+# block, in the same direction. The block has one line, which holds the one run of
+# the value, so a flat offset is a character offset of the value; a caret is the
+# empty range.
 function _forward_value(reference)
     @reference_case reference begin
-        value{s:e} => make_flat_range_reference(s, e)
+        value{s:e} => make_flat_range_reference(s, e; direction = get_range_direction(reference))
     end
 end
 
-# Backward: a place in the block is the place `.value{s:e}` of the primitive. The
+# Backward: the whole block is the whole primitive, as the default map gives it, so
+# a drag that a press on the text starts names the primitive. A place in the block
+# is the place `.value{s:e}` of the primitive. The
 # text domain reads the place in either form that a text takes: the flat form that
 # `TextToGraphics` emits, and the structural form that an edit leaves behind
 # (`get_flat_range`). A caret keeps its typed form, which the DSL needs for a
 # terminal `::Position`; a range is built directly as `.value{s:e}`, because a
 # range over a scalar value has no terminal type to evaluate, and the operation
 # reader strips the types anyway.
-_value_range_ref(s::Int, e::Int) =
+_value_range_ref(s::Int, e::Int, direction::Symbol) =
     ConcreteReference(FieldReferenceStep("value"),
-                      ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))
+                      ConcreteReference(RangeReferenceStep(s, e, direction), EmptyReference()))
 
 function _backward_bool(block, reference)
+    strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     range = get_flat_range(block, reference)
     range === nothing && return nothing
     s, e = range
-    s == e ? (@reference ::PrimitiveBool.value::Bool{s}::Position) : _value_range_ref(s, e)
+    s == e ? (@reference ::PrimitiveBool.value::Bool{s}::Position) :
+             _value_range_ref(s, e, get_range_direction(reference))
 end
 
 function _backward_number(block, reference)
+    strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     range = get_flat_range(block, reference)
     range === nothing && return nothing
     s, e = range
-    s == e ? (@reference ::PrimitiveNumber.value::Number{s}::Position) : _value_range_ref(s, e)
+    s == e ? (@reference ::PrimitiveNumber.value::Number{s}::Position) :
+             _value_range_ref(s, e, get_range_direction(reference))
 end
 
 function _backward_string(block, reference)
+    strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     range = get_flat_range(block, reference)
     range === nothing && return nothing
     s, e = range
-    s == e ? (@reference ::PrimitiveString.value::String{s}::Position) : _value_range_ref(s, e)
+    s == e ? (@reference ::PrimitiveString.value::String{s}::Position) :
+             _value_range_ref(s, e, get_range_direction(reference))
 end
 
 # The value of a primitive is one line, so an edit that holds a break is none of
@@ -167,11 +176,13 @@ end
 # Backward: as for a string, with every place of an empty type-in at its start,
 # because the text that it shows then is its placeholder.
 function _backward_insertion(block, reference, ins::PrimitiveInsertion)
+    strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     range = get_flat_range(block, reference)
     range === nothing && return nothing
     count = length(something(ins.value, ""))
     s, e = min(range[1], count), min(range[2], count)
-    s == e ? (@reference ::PrimitiveInsertion.value::String{s}::Position) : _value_range_ref(s, e)
+    s == e ? (@reference ::PrimitiveInsertion.value::String{s}::Position) :
+             _value_range_ref(s, e, get_range_direction(reference))
 end
 
 map_reference_forward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =

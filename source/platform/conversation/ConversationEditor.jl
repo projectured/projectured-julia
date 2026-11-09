@@ -606,10 +606,10 @@ _get_typed_font(p, _) = p.code_font
 # The body's selection for the value range `s..e` of the active part `c`: a flat
 # range of its line, past the runs before the value. While a kind chooser's value
 # is empty, the caret is at the start of its line, before its placeholder.
-function _body_selection(c, s::Int, e::Int)
+function _body_selection(c, s::Int, e::Int, direction::Symbol)
     n = length(_value(c))
     base = _value_offset(c)
-    make_flat_range_reference(base + clamp(s, 0, n), base + clamp(e, 0, n))
+    make_flat_range_reference(base + clamp(s, 0, n), base + clamp(e, 0, n); direction)
 end
 
 # A widget that follows the draft's paths (the selection, the mouse target). Each
@@ -744,7 +744,7 @@ function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
          inner.head.name == "value") || return nothing
         k = inner.tail
         (k isa ConcreteReference && k.head isa RangeReferenceStep) || return nothing
-        _body_selection(content, k.head.start, k.head.stop)
+        _body_selection(content, k.head.start, k.head.stop, get_range_direction(k.head))
     else
         inner
     end
@@ -776,8 +776,9 @@ function map_reference_backward(::ConversationComposerToWidget, iomap, reference
         # anywhere in an empty field expects it.
         n = length(_value(content))
         range === :other && (range = (n, n))
+        direction = range[1] == range[2] ? :forward : get_range_direction(rest.tail)
         ConcreteReference(FieldReferenceStep("value"),
-            ConcreteReference(RangeReferenceStep(range[1], range[2]), EmptyReference()))
+            ConcreteReference(RangeReferenceStep(range[1], range[2], direction), EmptyReference()))
     else
         rest.tail
     end

@@ -49,23 +49,26 @@ MarkedTextToText(; theme = nothing, style = get_text_style(theme, :plain_text),
 # block, because the lines of the block are the lines of the string.
 function _forward_marked_text(reference)
     @reference_case reference begin
-        text{s:e} => make_flat_range_reference(s, e)
+        text{s:e} => make_flat_range_reference(s, e; direction = get_range_direction(reference))
     end
 end
 
 # The place `.text{s:e}` of a `MarkedText`, from a range of its string.
-_make_marked_text_path(s::Int, e::Int) =
+_make_marked_text_path(s::Int, e::Int, direction::Symbol = :forward) =
     ConcreteReference(MarkedText, FieldReferenceStep("text"),
-                      ConcreteReference(String, RangeReferenceStep(s, e), EmptyReference(String)))
+                      ConcreteReference(String, RangeReferenceStep(s, e, direction), EmptyReference(String)))
 
-# Backward: a place of the block, in the flat form or in the structural form that
-# an edit leaves behind (`get_flat_range` reads both), is the place `.text{s:e}`.
-# A caret keeps its typed form, which the DSL needs for a terminal `::Position`.
+# Backward: the whole block is the whole document, as the default map gives it. A
+# place of the block, in the flat form or in the structural form that an edit
+# leaves behind (`get_flat_range` reads both), is the place `.text{s:e}`. A caret
+# keeps its typed form, which the DSL needs for a terminal `::Position`.
 function _backward_marked_text(block, reference)
+    strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     range = get_flat_range(block, reference)
     range === nothing && return nothing
     s, e = range
-    s == e ? (@reference ::MarkedText.text::String{s}::Position) : _make_marked_text_path(s, e)
+    s == e ? (@reference ::MarkedText.text::String{s}::Position) :
+             _make_marked_text_path(s, e, get_range_direction(reference))
 end
 
 map_reference_forward(::MarkedTextToText, iomap::SimpleIoMap, reference) =

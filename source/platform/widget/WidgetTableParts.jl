@@ -1781,7 +1781,7 @@ end
 # `reference` with its element step `which`, 1 or 2 after the field, counted from
 # a head `distance` further on; the same object when it has no such step.
 function _shift_reference_step(reference::ConcreteReference, which::Int, distance::Int)
-    shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance)
+    shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance, step.direction)
     tail = reference.tail
     which == 1 && return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
     rest = tail.tail
