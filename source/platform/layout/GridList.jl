@@ -255,7 +255,7 @@ end
 # as the row. The `y` of the canvas is set by the node that links it.
 _make_grid_list_row_canvas(printed::_GridListRow, total_w::Cell) =
     GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), total_w, printed.height,
-                   CellVector(Cell[Cell(e) for e in printed.cells]), layout_none, true,
+                   CellVector(Cell[Cell(e) for e in printed.cells]), layout_horizontal, false,
                    Cell(nothing))
 
 # The canvas node of row `k`, linked as a node of a linear list is

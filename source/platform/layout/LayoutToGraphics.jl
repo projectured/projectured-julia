@@ -76,6 +76,7 @@ The geometry cells:
 - `row_count::Cell` — the number of rows (`ceil(n / columns)`).
 - `horizontal_gap` / `vertical_gap` — the inter-cell gaps.
 - `w::Cell` / `h::Cell` — the outer canvas extent.
+- `places::Cell` — row, first column and column span of each child (`_gl_place`).
 
 All cells are reactive: an edit that changes a child's intrinsic extent
 invalidates only the downstream geometry cells.
@@ -95,6 +96,7 @@ invalidates only the downstream geometry cells.
     vertical_gap::Cell
     w::Cell
     h::Cell
+    places::Cell
 end
 
 # Routing / forward helpers below read only `iomap.child_iomaps`; both iomap
@@ -164,9 +166,14 @@ function _make_ordered_children_canvas(build::Cell, ring, axis::LayoutDirection)
     height = Cell(@computation Int32(build[].h[]))
     children = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
                               CellVector(@computation placed[]), axis, false, Cell(nothing))
+    _make_children_beside_ring(children, ring, width, height)
+end
+
+# A canvas with no layout that holds the canvas of the children and the ring, in
+# that order.
+_make_children_beside_ring(children::GraphicsCanvas, ring, width::Cell, height::Cell) =
     GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
                    CellVector(Cell[Cell(children), Cell(ring)]), layout_none, true, Cell(nothing))
-end
 
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
@@ -663,7 +670,8 @@ A child that is not drawn has no image. The empty reference is the container
 itself, whose image is its own canvas.
 """
 function descend_reference_forward(canvas, entries::Vector, field::String, reference;
-                                   drawn = output -> output isa GraphicsDocument)
+                                   drawn = output -> output isa GraphicsDocument,
+                                   rows::Union{Nothing,Vector{Int}} = nothing)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
@@ -679,7 +687,24 @@ function descend_reference_forward(canvas, entries::Vector, field::String, refer
     (child === nothing || !drawn(child.output)) && return nothing
     inner = map_reference_forward(child.projection, child, rest.tail)
     inner === nothing && return nothing
-    make_slot_reference(canvas, entries, index, inner; drawn)
+    rows === nothing ? make_slot_reference(canvas, entries, index, inner; drawn) :
+                       _make_row_slot_reference(canvas, entries, rows, index, inner; drawn)
+end
+
+# The output reference of the node that draws the child at `index`, in a canvas of
+# rows (`canvas`): the row of the child, `rows[index]`, then the slot of the child
+# among the drawn children of that row.
+function _make_row_slot_reference(canvas, entries::Vector, rows::Vector{Int}, index::Int,
+                                  inner::Reference; drawn)
+    row = rows[index]
+    members = [i for i in eachindex(entries) if rows[i] == row]
+    elements = unwrap_cell(getfield(unwrap_cell(canvas), :elements))
+    1 <= row <= length(elements) || return nothing
+    in_row = make_slot_reference(unwrap_cell(elements[row]), entries[members],
+                                 findfirst(==(index), members), inner; drawn)
+    in_row === nothing && return nothing
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(row - 1, row), in_row))
 end
 
 """
@@ -687,16 +712,18 @@ A reference of the form `children[i]/...`, as the output reference of the node
 that draws the child, followed by what the child's own mapper answers. With
 `ordered`, the children stand in the canvas of the children of a row or a column
 (`_make_ordered_children_canvas`), the first element of the output, and the node
-of each child is one step deeper.
+of each child is one step deeper. With `rows`, the row of each child, the canvas of
+the children holds a canvas for each row (a grid), and the node of a child lies in
+the canvas of its row.
 """
 function _children_forward(iomap::_LayoutChildrenIoMap, reference,
                            drawn = output -> output isa GraphicsDocument;
-                           ordered::Bool = false)
+                           ordered::Bool = false, rows::Union{Nothing,Vector{Int}} = nothing)
     ordered || return descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
                                                 "children", reference; drawn)
     canvas = unwrap_cell(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))[1])
     answer = descend_reference_forward(canvas, getfield(iomap, :child_iomaps)[]::Vector,
-                                       "children", reference; drawn)
+                                       "children", reference; drawn, rows)
     answer isa ConcreteReference || return answer
     ConcreteReference(FieldReferenceStep("elements"),
                       ConcreteReference(RangeReferenceStep(0, 1), answer))
@@ -778,16 +805,48 @@ end
 """
 A path into a layout's canvas, as a path into its `children`. A point of the
 canvas maps to the child drawn at it (`_point_backward`). With `ordered`, the path
-goes through the canvas of the children first (`_strip_ordered_children_steps`).
+goes through the canvas of the children first (`_strip_ordered_children_steps`),
+and with `rows` through the canvas of a row (`_strip_row_step`).
 """
 function _children_backward(iomap::_LayoutChildrenIoMap, reference,
                             drawn = output -> output isa GraphicsDocument;
-                            topmost_first::Bool = false, ordered::Bool = false)
+                            topmost_first::Bool = false, ordered::Bool = false,
+                            rows::Union{Nothing,Vector{Int}} = nothing)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     point = find_reference_point(reference)
     point === nothing || return _point_backward(iomap.input, entries, point; topmost_first)
     ordered && (reference = _strip_ordered_children_steps(reference))
+    rows === nothing || (reference = _strip_row_step(reference, entries, rows, drawn))
     _backward_descend(iomap.input, entries, reference, drawn)
+end
+
+# The reference below the canvas of a row, as a reference into the flat list of
+# the drawn children: `elements[r].elements[s]…` names the `s`-th drawn child of
+# row `r`, and becomes `elements[g]…` with `g` its place among all the drawn
+# children. `nothing` for a reference that stops at the canvas of a row.
+function _strip_row_step(reference, entries::Vector, rows::Vector{Int}, drawn)
+    reference isa ConcreteReference || return nothing
+    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
+    below = reference.tail
+    below isa ConcreteReference || return nothing
+    below.head isa RangeReferenceStep || return nothing
+    row = below.head.start + 1
+    in_row = below.tail
+    in_row isa ConcreteReference || return nothing
+    (in_row.head isa FieldReferenceStep && in_row.head.name == "elements") || return nothing
+    slot = in_row.tail
+    slot isa ConcreteReference || return nothing
+    slot.head isa RangeReferenceStep || return nothing
+    before = 0
+    for i in eachindex(entries)
+        entries[i] === nothing && continue
+        child = entries[i][3]
+        (child === nothing || !drawn(child.output)) && continue
+        rows[i] < row && (before += 1)
+    end
+    place = before + slot.head.start + 1
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(place - 1, place), slot.tail))
 end
 
 # The reference below the canvas of the children of a row or a column, or
@@ -1610,11 +1669,17 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         return _print_grid_list(p, recursion, doc, ctx)
     n = length(doc.children)
     if n == 0
-        return GridLayoutIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]),
+        no_entries = Tuple{Cell,Cell,Any}[]
+        no_size = Cell(Int32(0))
+        no_rows = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), no_size, no_size,
+                                 CellVector(), layout_vertical, false, Cell(nothing))
+        ring = make_layout_selection_ring(doc, () -> no_entries, p.graphics_style)
+        return GridLayoutIoMap(p, doc, _make_children_beside_ring(no_rows, ring, no_size, no_size),
+                               Cell(no_entries),
                                Cell[], Cell[], Cell[], Cell[],
                                getfield(doc, :columns), Cell(0),
                                getfield(doc, :horizontal_gap), getfield(doc, :vertical_gap),
-                               Cell(Int32(0)), Cell(Int32(0)))
+                               Cell(Int32(0)), Cell(Int32(0)), Cell(NTuple{3,Int}[]))
     end
 
     cols_cell = getfield(doc, :columns)
@@ -1849,14 +1914,16 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # A child in a column or a row whose extent was given is drawn inside that
     # slot; every other child is drawn where the alignment put it and reaches as
     # far as it reaches. The column count is read once here: a grid whose column
-    # count changes is rebuilt by the cell around this function.
+    # count changes is rebuilt by the cell around this function. A child is placed
+    # in the frame of its row, whose canvas stands at the top of the row.
     function place_output(i, c)
         row, col, span = places_now[i]
         clip_x = all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
         clip_y = _gl_offers(peek_row_policy(row))
-        (clip_x || clip_y) || return _wrap_child(c, child_x[i], child_y[i])
-        clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i], y_cell = child_y[i],
-                           slot_x = col_x[col], slot_y = row_y[row],
+        in_row_y = Cell(@computation Int32(Int(child_y[i][]) - Int(row_y[row][])))
+        (clip_x || clip_y) || return _wrap_child(c, child_x[i], in_row_y)
+        clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i], y_cell = in_row_y,
+                           slot_x = col_x[col], slot_y = Cell(Int32(0)),
                            slot_w = span > 1 ? span_w[i] : col_w[col],
                            slot_h = row_h[row], clip_x, clip_y)
     end
@@ -1866,46 +1933,61 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
     ring = make_layout_selection_ring(doc, () -> entries, p.graphics_style)
-    # The outputs are placed in a computation of their own, apart from the print
-    # of the children, so a child that gives a new output is placed again and no
-    # child prints again; an output that stays keeps its place.
-    placed = IdDict{Any,Any}()
-    elements = CellVector(Computation(function ()
-        wrapped = Any[]
-        kept = IdDict{Any,Any}()
-        for i in 1:n
-            c = child_iomaps[i].output
-            c isa GraphicsDocument || continue
-            known = get(placed, c, nothing)
-            wrapper = (known !== nothing && known[1] == i) ? known[2] : place_output(i, c)
-            kept[c] = (i, wrapper)
-            push!(wrapped, wrapper)
-        end
-        empty!(placed)
-        merge!(placed, kept)
-        push!(wrapped, ring)
-        wrapped
-    end))
 
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(outer_w[])),
-                           Cell(@computation Int32(outer_h[])),
-                           elements, layout_none, true, Cell(nothing))
+    width = Cell(@computation Int32(outer_w[]))
+    height = Cell(@computation Int32(outer_h[]))
+    # A canvas for each row, at the top of the row and as tall as it. Its cells
+    # are placed in a computation of its own, apart from the print of the
+    # children, so a child that gives a new output is placed again and no child
+    # prints again; an output that stays keeps its place. A row whose cells keep
+    # to their columns orders them on the horizontal axis; a row with a child that
+    # spans columns which do not hand out their width can reach past its columns,
+    # and has no order.
+    function make_row_canvas(row::Int)
+        members = [i for i in 1:n if places_now[i][1] == row]
+        is_ordered = all(members) do i
+            places_now[i][3] == 1 || all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
+        end
+        placed = IdDict{Any,Any}()
+        cells = CellVector(Computation(function ()
+            wrapped = Any[]
+            kept = IdDict{Any,Any}()
+            for i in members
+                c = child_iomaps[i].output
+                c isa GraphicsDocument || continue
+                known = get(placed, c, nothing)
+                wrapper = (known !== nothing && known[1] == i) ? known[2] : place_output(i, c)
+                kept[c] = (i, wrapper)
+                push!(wrapped, wrapper)
+            end
+            empty!(placed)
+            merge!(placed, kept)
+            wrapped
+        end))
+        GraphicsCanvas(Cell(Int32(0)), Cell(@computation Int32(row_y[row][])),
+                       width, Cell(@computation Int32(row_h[row][])),
+                       cells, is_ordered ? layout_horizontal : layout_none, !is_ordered,
+                       Cell(nothing))
+    end
+    row_canvases = Cell[Cell(make_row_canvas(row)) for row in 1:row_total]
+    rows_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                                 CellVector(row_canvases), layout_vertical, false, Cell(nothing))
+    outer = _make_children_beside_ring(rows_canvas, ring, width, height)
 
     row_count = row_count_cell
 
     GridLayoutIoMap(p, doc, outer, Cell(entries),
                     col_x, row_y, col_w, row_h,
                     cols_cell, row_count, hgap, vgap,
-                    Cell(@computation Int32(outer_w[])), Cell(@computation Int32(outer_h[])))
+                    Cell(@computation Int32(outer_w[])), Cell(@computation Int32(outer_h[])), places)
 end
 
 function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true, rows = first.(iomap.places))
 end
 
 map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true, rows = first.(iomap.places))
 
 # A grid holds its cells in entries of a place and an IoMap, so a route reaches
 # the cell it names through the kernel's default reader.

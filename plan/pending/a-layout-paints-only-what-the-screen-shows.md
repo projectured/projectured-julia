@@ -446,7 +446,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       files, because a plain string in a widget is measured by the font files. The risk of D10 lists
       the types that fail, `@test_broken` under `_RULES_INK_BROKEN`. Counts: before, `test_layout_rules`
       548 passed; after, 588 passed and 10 broken.
-- [ ] **3. A grid orders its rows, and each row its cells (D2, D3).** `LayoutToGraphics.jl`: the
+- [x] **3. A grid orders its rows, and each row its cells (D2, D3).** `LayoutToGraphics.jl`: the
       print of the grid (`:1575-1872`) puts its cells in row canvases at the top of each row, the rows
       in a canvas with `layout_vertical`, and that canvas beside the ring. A row with a child that
       spans a column which does not hand out its width keeps `layout_none`. `map_reference_forward`
@@ -464,6 +464,40 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       `test_graphics_layout()`, `test_layout_rules()`, `test_layout_list()`, `test_dashboard_render()`,
       `test_settings_tab()` and `test_appearance_tab()`, whose grids span columns, and
       `test_dataframes()`.
+      Done on `layout-paints`. Facts found: the output of the grid of a vector is a canvas with no
+      layout that holds the canvas of the rows (`layout_vertical`, no overlap, the size of the grid)
+      and the ring. Row `r` is a canvas at `y = row_y[r]`, as tall as the row and as wide as the grid,
+      and its cells stand in the frame of the row (the `y` of a cell is `child_y` less `row_y`; the
+      slot of a clipped cell has `y = 0`), so the entries `(x, y, child_iomap)` keep the frame of the
+      grid. A row declares `layout_horizontal` and no overlap unless it holds a child with `span > 1`
+      whose spanned columns do not all hand out their extent (`clip_x` false), and then it keeps
+      `layout_none` with overlap. A child of one column in a `Content` column keeps the order: its
+      `x` is the column's `x` plus an offset inside the column. `_make_children_beside_ring` (new)
+      builds the canvas of the children beside the ring and is shared with
+      `_make_ordered_children_canvas`; the placement of the cells does not fit
+      `_place_child_outputs`, because a grid clips a cell by its column and row (`place_output`), so
+      the grid keeps its own computation for each row. `descend_reference_forward` and
+      `_children_forward` take a keyword `rows` (the row of each child) that `make_slot_reference`
+      does not need: `_make_row_slot_reference` puts `elements[row]` and then the slot among the
+      drawn cells of that row. `_children_backward` takes the same keyword, and `_strip_row_step`
+      turns `elements[row].elements[slot]` into `elements[place]` among all the drawn cells, so
+      `_backward_descend` is unchanged. `GridLayoutIoMap` carries the field `places` (a cell) that the
+      print made (`_gl_place`), and the two reference maps read the rows from it, so they place
+      no child again and agree with the output that the print made. A grid with no child has the same shape, with an empty canvas of the
+      rows, so its forward map needs no case. The rows of a grid of a list take
+      `layout_horizontal` and no overlap in `_make_grid_list_row_canvas`. The geometry of the test is
+      computed by `compute_shown_cards`: with the cards of 200 pixels and no gap, the grid of 3
+      columns shows 3 rows, the cards 1 to 9 (the plan text said 2 rows of 3, which the geometry
+      of the pane of 500 does not give: the third row starts at 400), and after a scroll of 300 the
+      cards 4 to 12 (the fifth row starts on the far edge). The grid of 12 columns of `Content` shows
+      the columns 1 to 6 of the rows 1 to 3, and after a scroll of 300 to the side the columns 2 to
+      7. Counts, before and after: `test_layout_render` 16 and 39 passed; `test_graphics_layout` 23
+      and 23; `test_layout_rules` 588 passed and 10 broken, and the same; `test_layout_list` 101 and
+      101; `test_dashboard_render` 7 and 7; `test_settings_tab` 55 and 55; `test_appearance_tab` 159
+      and 159; `test_dataframes` 613 and 613; `test_laid_out_canvas` 32 and 32; `test_partial_paint`
+      78 and 78; `test_scroll_work` 14 passed and 2 failed, before and after, the failure of the
+      base of the branch.
+
 - [ ] **4. A flow orders its lines, and each line its children (D2, D3).** `LayoutToGraphics.jl`:
       the print of the flow
       (`:1984-2086`) puts the children of each line in a line canvas from the line plan, the lines in a

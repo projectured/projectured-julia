@@ -1,9 +1,9 @@
-# A row and a column of 60 cards in a scroll pane of a window of 1100 by 500
+# A row, a column and a grid of 60 cards in a scroll pane of a window of 1100 by 500
 # pixels. Each card holds a picture whose pixels are a cell that records its read,
 # as the pixel cell of a picture file is a cell that only a paint reads. The render
 # and the dirty walk read the pictures of the cards that meet the clip, and no other.
 function test_layout_render()
-@testset "a row and a column paint only the cards that the clip shows" begin
+@testset "a row, a column and a grid paint only the cards that the clip shows" begin
 
 SDL = ProjecturedSDL.SdlModule
 projection_module = ProjecturedKernel.ProjectionModule
@@ -150,6 +150,119 @@ for kind in (:column, :row)
             SDL.close_offscreen_renderer(off_ring)
         end
     end
+end
+
+# A grid of 60 cards in a scroll pane. `columns` is the count of columns and `policy` their
+# policy. The cards touch: no gap. The cards of a row stand in the columns from the left, and the
+# card in row `r` and column `c` is card `(r - 1) * columns + c`.
+function make_grid_pane(columns::Int, policy, grows, read::Vector{Int})
+    scroll = Cell(Point2D(0, 0))
+    layout = GridLayout(make_cards(read), columns; column_policy = policy,
+                        horizontal_gap = 0, vertical_gap = 0)
+    (pane = WidgetScrollPane(layout; grows, scroll_position = scroll), layout = layout, scroll = scroll)
+end
+
+# The cards whose box meets the window in a grid of `columns` columns of `column_width` pixels,
+# the window at (`scroll_x`, `scroll_y`) (the offset of its near corner) and 1100 by 500 pixels. A box that starts
+# on the far edge is past it.
+function compute_shown_cards(columns::Int, column_width::Int, scroll_x::Int, scroll_y::Int)
+    shown = Int[]
+    for k in 1:60
+        row, column = div(k - 1, columns), mod(k - 1, columns)
+        left, top = column * column_width, row * card_size
+        left < scroll_x + 1100 && left + card_size > scroll_x &&
+            top < scroll_y + 500 && top + card_size > scroll_y && push!(shown, k)
+    end
+    shown
+end
+
+# Three columns in a pane that grows down: with `Relative(1)` each column is a third of the
+# window, with `Content` each is a card wide. In both the rows stand at 0, 200, 400, ... so
+# three rows show.
+tall = (width = false, height = true)
+wide = (width = true, height = false)
+for (name, policy, column_width) in (("Relative(1)", Relative(1), 1100 ÷ 3), ("Content", Content, card_size))
+    cards = compute_shown_cards(3, column_width, 0, 0)
+    cards_after = compute_shown_cards(3, column_width, 0, 300)
+    @testset "a grid of 3 $name columns: the render reads the cards that the clip shows" begin
+        @test cards == collect(1:9)
+        read = Int[]
+        parts = make_grid_pane(3, policy, tall, read)
+        iomap = print_pane(parts.pane)
+        @test isempty(read)
+        render!(iomap.output)
+        @test sort(read) == cards
+    end
+
+    @testset "a grid of 3 $name columns: a walk on a fresh print reads the same cards" begin
+        read = Int[]
+        iomap = print_pane(make_grid_pane(3, policy, tall, read).pane)
+        @test SDL._compute_dirty_region(make_res(), iomap.output) !== nothing
+        @test sort(read) == cards
+    end
+
+    @testset "a grid of 3 $name columns: a scroll reads the cards that come on the screen and no other" begin
+        read = Int[]
+        parts = make_grid_pane(3, policy, tall, read)
+        iomap = print_pane(parts.pane)
+        render!(iomap.output)
+        empty!(read)
+        parts.scroll[] = Point2D(0, 300)
+        render!(iomap.output)
+        @test cards_after == collect(4:12)
+        @test sort(read) == setdiff(cards_after, cards)
+    end
+
+    @testset "a grid of 3 $name columns: the pixels of a partial paint equal a full paint" begin
+        read = Int[]
+        parts = make_grid_pane(3, policy, tall, read)
+        iomap = print_pane(parts.pane)
+        differing = find_differing_frames(iomap.output,
+            [() -> (parts.scroll[] = Point2D(0, 300)), () -> (parts.scroll[] = Point2D(0, 0))])
+        @test isempty(differing)
+    end
+end
+
+# 12 columns of 200 pixels are 2400 wide, wider than the pane. The window shows the columns 1 to
+# 6 (the sixth starts at 1000) of the rows 1 to 3 (the third starts at 400); scrolled by 300 to
+# the side it shows the columns 2 to 7 (the seventh ends at 1400, the eighth starts there).
+@testset "a grid wider than its pane: the render reads the cards of the columns on the screen" begin
+    cards = compute_shown_cards(12, card_size, 0, 0)
+    @test cards == [12 * r + c for r in 0:2 for c in 1:6]
+    read = Int[]
+    iomap = print_pane(make_grid_pane(12, Content, wide, read).pane)
+    render!(iomap.output)
+    @test sort(read) == cards
+end
+
+@testset "a grid wider than its pane: a walk on a fresh print reads the same cards" begin
+    read = Int[]
+    iomap = print_pane(make_grid_pane(12, Content, wide, read).pane)
+    @test SDL._compute_dirty_region(make_res(), iomap.output) !== nothing
+    @test sort(read) == compute_shown_cards(12, card_size, 0, 0)
+end
+
+@testset "a grid wider than its pane: a scroll to the side reads the cards of the columns that come on the screen" begin
+    cards = compute_shown_cards(12, card_size, 0, 0)
+    cards_after = compute_shown_cards(12, card_size, 300, 0)
+    @test cards_after == [12 * r + c for r in 0:2 for c in 2:7]
+    read = Int[]
+    parts = make_grid_pane(12, Content, wide, read)
+    iomap = print_pane(parts.pane)
+    render!(iomap.output)
+    empty!(read)
+    parts.scroll[] = Point2D(300, 0)
+    render!(iomap.output)
+    @test sort(read) == setdiff(cards_after, cards)
+end
+
+@testset "a grid wider than its pane: the pixels of a partial paint equal a full paint" begin
+    read = Int[]
+    parts = make_grid_pane(12, Content, wide, read)
+    iomap = print_pane(parts.pane)
+    differing = find_differing_frames(iomap.output,
+        [() -> (parts.scroll[] = Point2D(300, 0)), () -> (parts.scroll[] = Point2D(0, 0))])
+    @test isempty(differing)
 end
 
 end
