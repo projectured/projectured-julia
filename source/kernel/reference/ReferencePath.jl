@@ -128,6 +128,21 @@ function get_reference_tail end
 
 get_reference_tail(p::ConcreteReference) = p.tail
 
+# The direction and the ends of a reference are those of its last step.
+function get_range_direction(reference::ConcreteReference)
+    while get_reference_tail(reference) isa ConcreteReference
+        reference = get_reference_tail(reference)
+    end
+    get_range_direction(get_reference_head(reference))
+end
+
+function get_range_ends(reference::ConcreteReference)
+    while get_reference_tail(reference) isa ConcreteReference
+        reference = get_reference_tail(reference)
+    end
+    get_range_ends(get_reference_head(reference))
+end
+
 Base.length(::EmptyReference) = 0
 Base.length(p::ConcreteReference) = 1 + length(get_reference_tail(p))
 

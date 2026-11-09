@@ -106,6 +106,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ARangeReferenceStep, AFieldReferenceStep, ATypeReferenceStep,
        MRangeReferenceStep, MFieldReferenceStep, MTypeReferenceStep,
        MElementReferenceStep, MPositionReferenceStep,
+       make_range_reference_step, get_range_direction, get_range_ends,
        EmptyReference, ConcreteReference, extend_reference, concat_references, get_reference_steps,
        evaluate_reference, try_evaluate_reference, copy_reference,
        is_valid_reference, is_element_reference_step,

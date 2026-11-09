@@ -13,7 +13,7 @@
 # ── RangeReferenceStep ────────────────────────────────────────────────────────
 
 """
-    RangeReferenceStep(start, stop)
+    RangeReferenceStep(start, stop[, direction])
 
 Unified sequence step.  Encodes:
 - **Cursor position** (start == stop): a position between elements (0-based).
@@ -21,11 +21,17 @@ Unified sequence step.  Encodes:
 - **Range**           (stop > start + 1): a multi-element selection.
 
 All positions are 0-based boundaries.  For a collection with n elements,
-valid boundaries are 0 to n.
+valid boundaries are 0 to n, and always `start <= stop`.
+
+`direction` says which end of a selected range moves when a key or a drag extends
+it: `:forward` (the default) moves `stop`, and `:backward` moves `start`. The other
+end is the anchor. A cursor position is always `:forward`. A backward range prints
+with its anchor first, `{5:3}`, and `@reference xs{5:3}` builds it.
 """
 @document [C, M] struct RangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
+    direction::Symbol = :forward
 end
 
 # Every method below dispatches on the `A…` stem, so the C and the M layout of
@@ -116,7 +122,9 @@ Base.hash(p::Position, h::UInt) = hash(p.index, hash(:Position, h))
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
 function Base.show(io::IO, s::ARangeReferenceStep)
-    if is_element_reference_step(s)
+    if s.direction === :backward
+        print(io, "{", s.stop, ":", s.start, "}")
+    elseif is_element_reference_step(s)
         print(io, "[", s.start + 1, "]")
     elseif is_position_reference_step(s)
         print(io, "{", s.start, "}")
@@ -125,9 +133,80 @@ function Base.show(io::IO, s::ARangeReferenceStep)
     end
 end
 
-Base.:(==)(a::ARangeReferenceStep, b::ARangeReferenceStep) = a.start == b.start && a.stop == b.stop
+Base.:(==)(a::ARangeReferenceStep, b::ARangeReferenceStep) =
+    a.start == b.start && a.stop == b.stop && a.direction === b.direction
 Base.hash(s::ARangeReferenceStep, h::UInt) =
-    hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h)))
+    hash(s.direction, hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h))))
+
+"""
+    make_range_reference_step(anchor, moving) -> RangeReferenceStep
+
+The range step from the end that stays, `anchor`, to the end that moves, `moving`,
+in either order: `:forward` when `moving` is not before `anchor`, `:backward`
+otherwise. The step keeps `start <= stop`.
+
+Use it where a gesture moves one end of a selected range, and to build `{a:m}`.
+
+# Example
+
+    step_1 = make_range_reference_step(5, 3)    # {5:3}: start 3, stop 5, backward
+
+See also `RangeReferenceStep` and `get_range_direction`.
+
+For the assistant.
+"""
+function make_range_reference_step end
+
+make_range_reference_step(anchor::Int, moving::Int) =
+    moving < anchor ? RangeReferenceStep(moving, anchor, :backward) :
+                      RangeReferenceStep(anchor, moving)
+
+"""
+    get_range_direction(reference) -> Symbol
+
+The direction of the range that `reference` ends in: `:backward` when its start is
+the end that moves, `:forward` otherwise, also for a reference that ends in no
+range.
+
+Use it where a map builds the range of its output from the numbers of the range of
+its input, so the output keeps the direction.
+
+# Example
+
+    direction_1 = get_range_direction(reference_1)
+
+See also `RangeReferenceStep` and `make_range_reference_step`.
+
+For the assistant.
+"""
+function get_range_direction end
+
+get_range_direction(step::ARangeReferenceStep) = step.direction
+get_range_direction(_) = :forward
+
+"""
+    get_range_ends(reference) -> (anchor, moving)
+
+The two ends of the range that `reference` ends in, the anchor first: `(start,
+stop)` for a forward range and `(stop, start)` for a backward one. A caret gives
+its place twice.
+
+Use it where a map matched a range with the pattern `{s:e}`, which binds the
+ordered ends, and builds the range of its output with `{a:m}`, which takes the
+anchor first, so the output keeps the direction.
+
+# Example
+
+    (anchor_1, moving_1) = get_range_ends(reference_1)
+
+See also `get_range_direction` and `make_range_reference_step`.
+
+For the assistant.
+"""
+function get_range_ends end
+
+get_range_ends(step::ReferenceStep) =
+    get_range_direction(step) === :backward ? (step.stop, step.start) : (step.start, step.stop)
 
 get_reference_step_kind(::ARangeReferenceStep) = :structural
 

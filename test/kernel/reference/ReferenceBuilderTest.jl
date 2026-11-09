@@ -64,6 +64,28 @@ let s = 4, e = 9
           ConcreteReference(RangeReferenceStep(4, 9), EmptyReference())
 end
 
+# ── a backward range ────────────────────────────────────────────────────
+#
+# The first end is the anchor, so `{5:3}` is the range from 3 to 5 whose start
+# moves, and it prints as it is written.
+let reference = strip_reference_types(@reference ::A{5:3}::B)
+    step = get_reference_head(reference)
+    @test (step.start, step.stop, step.direction) == (3, 5, :backward)
+    @test repr(step) == "{5:3}"
+    @test step != RangeReferenceStep(3, 5)
+    @test hash(step) != hash(RangeReferenceStep(3, 5))
+    @test get_range_direction(reference) === :backward
+    @test copy_reference(reference) == reference
+end
+let anchor = 5, moving = 4
+    @test repr(get_reference_head(strip_reference_types(@reference ::A{anchor:moving}::B))) == "{5:4}"
+    @test repr(get_reference_head(strip_reference_types(@reference ::A{moving:anchor}::B))) == "[5]"
+end
+@test make_range_reference_step(3, 3) == PositionReferenceStep(3)
+@test make_range_reference_step(2, 6) == RangeReferenceStep(2, 6)
+@test get_range_direction(@reference ::A.xs::B{2:6}::C) === :forward
+@test get_range_direction(@reference ::A.xs::B) === :forward
+
 # ── [i, j] range syntax ─────────────────────────────────────────────────
 #
 # The bracket says the numbering: `[…]` counts elements from 1 and `{…}` counts
@@ -230,6 +252,14 @@ let sample = strip_reference_types(@reference ::A.items::B{3}::C)
         items{s:e} => (:range, s, e)
     end
     @test matched2 == (:range, 3, 3)
+end
+
+# a range pattern binds the ordered ends of a backward range
+let sample = strip_reference_types(@reference ::A.items::B{5:2}::C)
+    matched = @reference_case sample begin
+        items{s:e} => (s, e)
+    end
+    @test matched == (2, 5)
 end
 
 # ── @reference_case type binding (::t) ───────────────────────────────────

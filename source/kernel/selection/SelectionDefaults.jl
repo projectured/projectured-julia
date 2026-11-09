@@ -350,12 +350,14 @@ end
 
 # Mutate a terminal cursor step `old` in place to match `new`, returning `true`
 # on success. Only `RangeReferenceStep` (a character cursor/range) is updated this
-# way — its start/stop are `Cell`s shared across every path level, so one write
-# moves the caret everywhere it is observed. Any other step type returns
-# `false`, leaving the caller to rewrite the selection cell wholesale.
+# way — its start, stop and direction are `Cell`s shared across every path level,
+# so one write moves the caret everywhere it is observed. Any other step type
+# returns `false`, leaving the caller to rewrite the selection cell wholesale.
 function _mutate_terminal_step!(old::RangeReferenceStep, new::RangeReferenceStep)
     getfield(old, :start)[] === new.start || (getfield(old, :start)[] = new.start)
     getfield(old, :stop)[]  === new.stop  || (getfield(old, :stop)[]  = new.stop)
+    getfield(old, :direction)[] === new.direction ||
+        (getfield(old, :direction)[] = new.direction)
     true
 end
 _mutate_terminal_step!(::Any, ::Any) = false

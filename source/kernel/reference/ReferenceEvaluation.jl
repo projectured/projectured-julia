@@ -313,9 +313,10 @@ copy_reference(reference) = reference
 
 # A range step is the one step that is written in place, so it is the one that is
 # rebuilt, in its own layout. Every other step is answered as it is.
-_copy_reference_step(step::RangeReferenceStep) = RangeReferenceStep(step.start, step.stop)
+_copy_reference_step(step::RangeReferenceStep) =
+    RangeReferenceStep(step.start, step.stop, step.direction)
 _copy_reference_step(step::MRangeReferenceStep) =
-    MRangeReferenceStep(step.start, step.stop)
+    MRangeReferenceStep(step.start, step.stop, step.direction)
 _copy_reference_step(step) = step
 
 """
