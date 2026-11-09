@@ -98,7 +98,7 @@ step. Do not land on `main` before the owner approves it.
   The three failures are known on `main`: `ApplicationTest.jl:1008`, the usage text of the bar of
   an agent, and `ScrollWorkTest.jl:127` and `:130`, the copies and the drawn share of a Julia file
   in a focused tab.
-- [ ] 2. **The order.** In `FileSystemDocument.jl`:
+- [x] 2. **The order.** In `FileSystemDocument.jl`:
   1. Add `_is_name_before`, `_get_entry_key` and `_is_entry_before` (D3, D6).
   2. `_read_folder_listing` reads with `sort = false` and sorts the listing with
      `_is_entry_before`.
@@ -120,6 +120,23 @@ step. Do not land on `main` before the owner approves it.
      indices that follow.
 
   Run `test_filesystem_document` and compare with step 1.
+
+  Done 2026-11-09. Facts and decisions of the work:
+  - Two more private functions: `_compare_entry_names(a, b)` answers -1, 0 or 1 with no tie
+    broken, and `_compute_digit_run(name, start)` finds the end of a run of digits and the start of
+    its value. `_is_same_entry(key, listed)` replaces `_is_same_entry_kind`.
+  - A name on Linux can be invalid UTF-8, and `lowercase` throws for such a character, so the read
+    of the whole folder would fail. A character that is not valid compares as it is. The test of
+    the order has a name with the byte `0xff`.
+  - The merge computes the key of each stored entry once, before the walk.
+  - A check of the comparison alone, outside the source, passed 1351 assertions. These included
+    that the order is total and transitive over 19 names with case, zeros, digits, `_`, `.`, `é` and
+    an invalid byte.
+  - Cost, measured alone with random names: 5000 entries sort in 11 ms. 100,000 entries sort in
+    121 ms, and the byte order sorts them in 20 ms. The sort runs on the task of the read, not in a
+    frame.
+  - `test_filesystem_document`: 55 pass, 0 fail, 0 error, 0 broken (step 1: 34). The naming guard
+    `test/suite/naming.jl` passes.
 - [ ] 3. **The other tests.** Run the other eleven test functions of §2. Change each assertion that
   names the old order to the new order, and change nothing else. Compare each count with step 1.
   Record in this plan each assertion that changed.

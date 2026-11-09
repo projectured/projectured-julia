@@ -35,6 +35,43 @@ end
 
 function test_filesystem_document()
 @testset "FileSystemDocument holds what its last read found" begin
+    @testset "a name sorts with no regard to case, a run of digits by its value, and its character codes at a tie" begin
+        is_name_before = ProjecturedPlatform.FileSystemModule._is_name_before
+        invalid = String([0x61, 0xff, 0x62])
+        for (a, b) in [("file9", "file10"), ("a.txt", "Makefile"), ("_build", "docs"), (".config", "0"),
+                       ("0", "_"), ("file", "file1"), ("README.md", "readme.md"), ("file01", "file1"),
+                       ("x2y", "x10y"), ("v1.2", "v1.10"), ("Zeta", "éclair"), ("000", "1"),
+                       ("f" * "9"^30, "f1" * "0"^30), ("a", invalid), (invalid, "b")]
+            @test is_name_before(a, b) && !is_name_before(b, a)
+        end
+        @test !is_name_before("same", "same")
+    end
+
+    @testset "a folder lists its folders first, then its files, and a new read keeps that order" begin
+        mktempdir() do dir
+            foreach(name -> mkpath(joinpath(dir, name)), (".config", "Zeta", "_build", "docs"))
+            foreach(name -> write(joinpath(dir, name), ""),
+                    (".gitignore", "Makefile", "README.md", "a.txt", "file10.txt", "file9.txt", "x"))
+            root = read_filesystem_folder!(make_filesystem_pathname(dir))
+            files = ["a.txt", "file9.txt", "file10.txt", "Makefile", "README.md"]
+            @test _get_entry_names(root) == [".config", "_build", "docs", "Zeta", ".gitignore", files..., "x"]
+            # A new file goes to its place, and each entry that stays keeps its document.
+            kept = collect(root.elements)
+            write(joinpath(dir, "file2.txt"), "")
+            read_filesystem_folder!(root)
+            @test _get_entry_names(root) ==
+                  [".config", "_build", "docs", "Zeta", ".gitignore", "a.txt", "file2.txt", files[2:end]..., "x"]
+            @test all(entry -> any(stored -> stored === entry, root.elements), kept)
+            # A file that becomes a folder moves to the folders.
+            rm(joinpath(dir, "x"))
+            mkpath(joinpath(dir, "x"))
+            read_filesystem_folder!(root)
+            @test _get_entry_names(root) ==
+                  [".config", "_build", "docs", "x", "Zeta", ".gitignore", "a.txt", "file2.txt", files[2:end]...]
+            @test root.elements[4] isa FileSystemDirectory && root.elements[1] === kept[1]
+        end
+    end
+
     mktempdir() do dir
         write(joinpath(dir, "a.jl"), "")
         mkpath(joinpath(dir, "sub", "deep"))
@@ -69,8 +106,8 @@ function test_filesystem_document()
                 evaluate_operation(editor, AcquireDocumentOperation(root))
                 ask() = demand_tree_children(root)
                 @test _wait_for_folder(() -> root.state === :read, editor; ask)
-                @test _get_entry_names(root) == ["a.jl", "empty", "sub"]
-                (file, empty, sub) = collect(root.elements)
+                @test _get_entry_names(root) == ["empty", "sub", "a.jl"]
+                (empty, sub, file) = collect(root.elements)
                 @test file isa FileSystemFile && empty isa FileSystemDirectory && sub isa FileSystemDirectory
                 @test sub.state === :unread && has_folder_entries(sub) === true
                 @test has_folder_entries(empty) === false
@@ -81,8 +118,8 @@ function test_filesystem_document()
                 # A new file is one entry more, and each entry that stays keeps its document.
                 write(joinpath(dir, "c.jl"), "")
                 @test _wait_for_folder(() -> length(root.elements) == 4, editor; ask)
-                @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
-                @test root.elements[1] === file && root.elements[3] === empty && root.elements[4] === sub
+                @test _get_entry_names(root) == ["empty", "sub", "a.jl", "c.jl"]
+                @test root.elements[1] === empty && root.elements[2] === sub && root.elements[3] === file
 
                 # A sub-folder that gets its first entry says so.
                 write(joinpath(dir, "empty", "d.jl"), "")
@@ -91,7 +128,7 @@ function test_filesystem_document()
                 # The release stops the watches and keeps the entries.
                 evaluate_operation(editor, ReleaseDocumentOperation(root))
                 @test !is_folder_watched(dir; store) && !is_folder_watched(sub.pathname; store)
-                @test _get_entry_names(root) == ["a.jl", "c.jl", "empty", "sub"]
+                @test _get_entry_names(root) == ["empty", "sub", "a.jl", "c.jl"]
                 rm(joinpath(dir, "c.jl"))
                 rm(joinpath(dir, "empty", "d.jl"))
             finally
@@ -101,8 +138,8 @@ function test_filesystem_document()
 
         @testset "a caller with no editor reads at once, down to a depth" begin
             root = read_filesystem_folder!(make_filesystem_pathname(dir); depth = 2)
-            @test root.state === :read && _get_entry_names(root) == ["a.jl", "empty", "sub"]
-            sub = root.elements[3]
+            @test root.state === :read && _get_entry_names(root) == ["empty", "sub", "a.jl"]
+            sub = root.elements[2]
             @test sub.state === :read && _get_entry_names(sub) == ["deep"]
             @test sub.elements[1].state === :unread
         end

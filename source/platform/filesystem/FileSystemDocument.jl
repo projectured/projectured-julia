@@ -111,10 +111,11 @@ _read_opened_file(editor, path::AbstractString) = _make_opened_file(editor, Open
 """
     FileSystemDirectory(pathname, elements; state = :read, failure = nothing, has_entries = nothing)
 
-A folder on the disk, as the last read found it. `elements` holds its entries in
-the order of their names, each a `FileSystemFile` or a `FileSystemDirectory`;
-the entries are stored, so a print reads only what the folder holds, and never
-the disk.
+A folder on the disk, as the last read found it. `elements` holds its entries,
+each a `FileSystemFile` or a `FileSystemDirectory`. A read stores the folders
+first, then the files, each group by name with no regard to case and with a run
+of digits by its value, so `file9` comes before `file10`. The entries are stored,
+so a print reads only what the folder holds, and never the disk.
 
 `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`.
 `has_entries` says whether the folder holds an entry, as the read of its parent
@@ -439,16 +440,71 @@ end
 
 # ── The read of a folder ──────────────────────────────────────────────────────
 
-# The entries of the folder at `path`, in the order of their names: the name of
-# each, whether it is a folder, and for a folder whether it holds an entry. One
-# call gives each name with its kind, so no entry costs a `stat`.
+# The entries of the folder at `path`, in the order of `_is_entry_before`: the
+# name of each, whether it is a folder, and for a folder whether it holds an entry.
+# One call gives each name with its kind, so no entry costs a `stat`.
 function _read_folder_listing(path::String)
     entries = isdefined(Base.Filesystem, :_readdirx) ?
-        [(entry.name, isdir(entry)) for entry in Base.Filesystem._readdirx(path)] :
-        [(name, isdir(joinpath(path, name))) for name in readdir(path)]
-    [(name = name, is_folder = is_folder,
-      has_entries = is_folder ? _read_folder_emptiness(joinpath(path, name)) : false)
-     for (name, is_folder) in entries]
+        [(name = entry.name, is_folder = isdir(entry)) for entry in Base.Filesystem._readdirx(path; sort = false)] :
+        [(name = name, is_folder = isdir(joinpath(path, name))) for name in readdir(path; sort = false)]
+    sort!(entries; lt = _is_entry_before)
+    [(name = entry.name, is_folder = entry.is_folder,
+      has_entries = entry.is_folder ? _read_folder_emptiness(joinpath(path, entry.name)) : false)
+     for entry in entries]
+end
+
+# Whether the entry `a` comes before the entry `b` in a folder: the folders first,
+# then the files, each group in the order of `_is_name_before`. Each of `a` and `b`
+# has the fields `is_folder` and `name`, as a listed entry and `_get_entry_key` give.
+_is_entry_before(a, b) = a.is_folder == b.is_folder ? _is_name_before(a.name, b.name) : a.is_folder
+
+# Whether the name `a` comes before the name `b`: with no regard to case, and with
+# a run of digits by its value, so `file9` comes before `file10`. Two names that
+# are equal so take the order of their character codes, so the order is total:
+# `README.md` comes before `readme.md`. The order depends on no locale.
+function _is_name_before(a::AbstractString, b::AbstractString)
+    order = _compare_entry_names(a, b)
+    order == 0 ? isless(a, b) : order < 0
+end
+
+# -1, 0 or 1 as the name `a` comes before, with or after the name `b`, with no tie
+# broken. The names compare in runs: two runs of ASCII digits by their values, and
+# any other two characters by their lower case. A character that is not valid
+# UTF-8 compares as it is. A name that ends first comes first.
+function _compare_entry_names(a::AbstractString, b::AbstractString)
+    i, j = firstindex(a), firstindex(b)
+    while i <= lastindex(a) && j <= lastindex(b)
+        x, y = a[i], b[j]
+        if isdigit(x) && isdigit(y)
+            run_a, run_b = _compute_digit_run(a, i), _compute_digit_run(b, j)
+            length_a, length_b = run_a.stop - run_a.value, run_b.stop - run_b.value
+            length_a == length_b || return length_a < length_b ? -1 : 1
+            order = cmp(SubString(a, run_a.value, run_a.stop - 1), SubString(b, run_b.value, run_b.stop - 1))
+            order == 0 || return order
+            i, j = run_a.stop, run_b.stop
+        else
+            order = cmp(isvalid(x) ? lowercase(x) : x, isvalid(y) ? lowercase(y) : y)
+            order == 0 || return order
+            i, j = nextind(a, i), nextind(b, j)
+        end
+    end
+    (i <= lastindex(a)) - (j <= lastindex(b))
+end
+
+# The run of ASCII digits of `name` that starts at `start`: `value`, the index of
+# its first digit after the leading zeros, or of its last digit when each digit is
+# a zero, and `stop`, the index after the run. A digit is one byte, so the value
+# has `stop - value` digits. No run is parsed, so a long run can not overflow.
+function _compute_digit_run(name::AbstractString, start::Int)
+    stop = start
+    while stop <= lastindex(name) && isdigit(name[stop])
+        stop += 1
+    end
+    value = start
+    while value < stop - 1 && name[value] == '0'
+        value += 1
+    end
+    (value = value, stop = stop)
 end
 
 # Whether the folder at `path` holds an entry; `nothing` when it can not be read.
@@ -470,8 +526,10 @@ end
 
 _get_entry_name(entry::FileSystemDocument) = basename(_get_folder_key(entry.pathname))
 
-_is_same_entry_kind(entry::FileSystemDirectory, listed) = listed.is_folder
-_is_same_entry_kind(entry::FileSystemDocument, listed) = !listed.is_folder
+# The kind and the name of a stored entry, which `_is_entry_before` compares.
+_get_entry_key(entry::FileSystemDocument) = (is_folder = entry isa FileSystemDirectory, name = _get_entry_name(entry))
+
+_is_same_entry(key, listed) = key.is_folder == listed.is_folder && key.name == listed.name
 
 function _make_listed_entry(folder::FileSystemDirectory, listed)
     path = joinpath(folder.pathname, listed.name)
@@ -483,7 +541,7 @@ end
     ApplyFolderListingOperation(folder, read_count, listing)
 
 Write what a read of `folder` found, as the answer of its listing stores it:
-`listing`, the entries in the order of their names, or the exception of the read.
+`listing`, the entries in the order of a folder, or the exception of the read.
 A kept entry keeps its document, each run of new and gone entries is one splice
 of `elements`, and a sub-folder that stays takes its new emptiness. The answer of
 a read that a newer read follows is dropped: `read_count` names the read. A
@@ -518,9 +576,11 @@ function evaluate_operation(editor, operation::ApplyFolderEmptinessOperation)
     nothing
 end
 
-# Write a listing into `folder`: walk the stored entries and the listing by name,
-# keep each entry that stays, and replace each run of gone and new entries with one
-# splice, so a new file is one insert and the entries after it keep their prints.
+# Write a listing into `folder`: walk the stored entries and the listing in the
+# order of `_is_entry_before`, keep each entry that stays with its kind and its
+# name, and replace each run of gone and new entries with one splice, so a new file
+# is one insert and the entries after it keep their prints. An entry whose name
+# changes its kind is a gone entry and a new entry in the other group.
 function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
     if listing isa Exception
         folder.state = :failed
@@ -547,14 +607,15 @@ function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
         nothing
     end
     old = collect(elements)
+    old_keys = map(_get_entry_key, old)
     i = 1
     for listed in listing
-        while i <= length(old) && _get_entry_name(old[i]) < listed.name
+        while i <= length(old) && _is_entry_before(old_keys[i], listed)
             start == 0 && (start = position)
             push!(removed, old[i])
             i += 1
         end
-        if i <= length(old) && _get_entry_name(old[i]) == listed.name && _is_same_entry_kind(old[i], listed)
+        if i <= length(old) && _is_same_entry(old_keys[i], listed)
             flush!()
             kept = old[i]
             kept isa FileSystemDirectory && kept.has_entries != listed.has_entries &&
@@ -564,10 +625,6 @@ function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
             continue
         end
         start == 0 && (start = position)
-        if i <= length(old) && _get_entry_name(old[i]) == listed.name
-            push!(removed, old[i])
-            i += 1
-        end
         push!(inserted, _make_listed_entry(folder, listed))
     end
     if i <= length(old)
