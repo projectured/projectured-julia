@@ -3,6 +3,12 @@
 
 const _LC_Cell = CellModule.Cell
 
+# The output of a grid of a vector holds the canvas of the rows and the ring. A row is a
+# canvas at the top of the row that holds the cells of the row in the frame of the row.
+get_grid_row(output, row) = output.elements[1].elements[row]
+get_grid_cell(output, row, slot) = get_grid_row(output, row).elements[slot]
+get_place(node) = (Int(unwrap_cell(node.x)), Int(unwrap_cell(node.y)))
+
 function test_layout_closeout()
 @testset "Layout closeout (grid/form/stack)" begin
 
@@ -76,24 +82,28 @@ end
     # §3b: what was handed out is clipped to.
     offered = print_document(proj, nothing,
                              GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content]), ctx)
-    first_element = offered.output.elements[1]
+    first_element = get_grid_cell(offered.output, 1, 1)
     @test first_element isa GraphicsViewport
     @test Int(first_element.w) == 40
+    @test get_place(first_element) == (0, 0)
+    @test get_place(get_grid_row(offered.output, 1)) == (0, 0)
     # The offer withheld: the cell draws the one line it measures, wider than
     # the column, and the viewport still cuts it at forty. The grid is shorter,
     # because nothing broke into lines.
-    withheld = print_document(proj, nothing,
-                              GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content],
-                                         column_offers=Bool[false]), ctx)
-    element = withheld.output.elements[1]
+    withheld_grid = GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content],
+                               column_offers=Bool[false])
+    withheld = print_document(proj, nothing, withheld_grid, ctx)
+    element = get_grid_cell(withheld.output, 1, 1)
     @test element isa GraphicsViewport
     @test Int(element.w) == 40
+    @test get_place(element) == (0, 0)
     child = element.content.elements[1]   # the viewport holds the cell's own canvas
     @test Int(child.w[]) > 40
     @test Int(withheld.output.h[]) < Int(offered.output.h[])
     # A column that is its content is drawn where it lands, in no viewport.
-    second = withheld.output.elements[2]
+    second = get_grid_cell(withheld.output, 1, 2)
     @test !(second isa GraphicsViewport)
+    @test get_place(second) == (40 + Int(unwrap_cell(withheld_grid.horizontal_gap)), 0)
 end
 
 @testset "a cell wider than its column starts at its left edge, whatever its alignment" begin
@@ -104,8 +114,9 @@ end
         grid = GridLayout(Any[WidgetLabel(long), WidgetLabel("b")], 2;
                           column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
                           column_align=Symbol[align, :left])
-        element = print_document(proj, nothing, grid, ctx).output.elements[1]
+        element = get_grid_cell(print_document(proj, nothing, grid, ctx).output, 1, 1)
         @test element isa GraphicsViewport
+        @test Int(element.w) == 40
         # The column clips the end of the cell, so its start shows: the content
         # of the slot is at its left edge.
         @test Int(element.content.x[]) == 0
@@ -114,7 +125,8 @@ end
     grid = GridLayout(Any[WidgetLabel("ab"), WidgetLabel("b")], 2;
                       column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
                       column_align=Symbol[:right, :left])
-    first_element = print_document(proj, nothing, grid, ctx).output.elements[1]
+    first_element = get_grid_cell(print_document(proj, nothing, grid, ctx).output, 1, 1)
+    @test first_element isa GraphicsViewport
     @test Int(first_element.content.x[]) == 40 - Int(first_element.content.elements[1].w[])
 end
 
@@ -181,8 +193,11 @@ end
     offered = print_document(proj, nothing, GridLayout(one(), 1; row_policies=Any[Fixed(200)]), ctx)
     withheld = print_document(proj, nothing,
                               GridLayout(one(), 1; row_policies=Any[Fixed(200)], row_offers=Bool[false]), ctx)
-    cell(io) = only(e for e in io.output.elements if e isa GraphicsViewport).content.elements[1]
+    viewport(io) = only(e for e in get_grid_row(io.output, 1).elements if e isa GraphicsViewport)
+    cell(io) = viewport(io).content.elements[1]
     @test Int(withheld.row_h[1][]) == 200
+    @test Int(viewport(withheld).h) == 200
+    @test get_place(viewport(withheld)) == (0, 0)
     @test Int(cell(offered).h[]) == 200
     @test Int(cell(withheld).h[]) < 200
 end

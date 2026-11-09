@@ -497,7 +497,7 @@ its content the right edges only after step 1. Main fixed the fault of the flow 
       and 159; `test_dataframes` 613 and 613; `test_laid_out_canvas` 32 and 32; `test_partial_paint`
       78 and 78; `test_scroll_work` 14 passed and 2 failed, before and after, the failure of the
       base of the branch.
-
+      `test_layout_closeout` covers the grid too: its checks read the cells in their rows, with the place and the clip of each, and it passes 72.
 - [x] **4. A flow orders its lines, and each line its children (D2, D3).** `LayoutToGraphics.jl`:
       the print of the flow
       (`:1984-2086`) puts the children of each line in a line canvas from the line plan, the lines in a
