@@ -282,11 +282,26 @@ end # @testset "get_flat_caret and get_flat_range read the flat and the structur
     @test pair(read_bound_gesture(at(caret), KeyDown(:home, ctrl_shift; time = 0.0))) == (0, 5)
     @test pair(read_bound_gesture(at(caret), KeyDown(:end, ctrl_shift; time = 0.0))) == (5, 11)
 
-    # A range stays ordered: the left keys move its start, the right keys its stop.
-    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift; time = 0.0))) == (2, 5)
+    direction(op) = op.path.head.direction
+    @test direction(read_bound_gesture(at(caret), KeyDown(:left, shift; time = 0.0))) === :backward
+    @test direction(read_bound_gesture(at(caret), KeyDown(:right, shift; time = 0.0))) === :forward
+
+    # A key moves the moving end and keeps the anchor: a forward range grows and
+    # shrinks at its stop, and a backward range at its start.
     @test pair(read_bound_gesture(at(range), KeyDown(:right, shift; time = 0.0))) == (3, 6)
-    # The ends stop at the ends of the text.
-    @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11)),
+    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift; time = 0.0))) == (3, 4)
+    backward = TextModule.make_flat_range_reference(3, 5; direction = :backward)
+    @test pair(read_bound_gesture(at(backward), KeyDown(:left, shift; time = 0.0))) == (2, 5)
+    @test pair(read_bound_gesture(at(backward), KeyDown(:right, shift; time = 0.0))) == (4, 5)
+    @test direction(read_bound_gesture(at(backward), KeyDown(:right, shift; time = 0.0))) === :backward
+    # A range of one character that shrinks is a caret again.
+    shrunk = read_bound_gesture(at(TextModule.make_flat_range_reference(3, 4)), KeyDown(:left, shift; time = 0.0))
+    @test shrunk.path == TextModule.make_flat_caret_reference(3)
+    # When the moving end passes the anchor, the direction turns.
+    turned = read_bound_gesture(at(range), KeyDown(:home, ctrl_shift; time = 0.0))
+    @test (pair(turned), direction(turned)) == ((0, 3), :backward)
+    # The moving end stops at the ends of the text.
+    @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11; direction = :backward)),
                                   KeyDown(:left, shift; time = 0.0))) == (0, 11)
     # A plain arrow collapses the range to its near end, as before.
     @test read_bound_gesture(at(range), KeyDown(:left, ModifierKeys(); time = 0.0)).path.head.start == 3

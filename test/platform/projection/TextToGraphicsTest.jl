@@ -564,6 +564,37 @@ press_spans(k, key) = (op = read_intent(p, print_document(p, spans_block(k)), Ke
 
 end # @testset "TextToGraphics empty line"
 
+@testset "TextToGraphics draws the caret of a range at its moving end, and the keys move it" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+block(text, selection) = set_selection!(make_text_block(text, style), selection)
+forward(s, e) = TextModule.make_flat_range_reference(s, e)
+backward(s, e) = TextModule.make_flat_range_reference(s, e; direction = :backward)
+# The caret is the rect of the width of a caret; the highlight is wider.
+carets(canvas) = [(r.x, r.y) for r in _rects(canvas) if r.w == 2]
+@test carets(print_document(p, block("abcd", forward(1, 3))).output) == [(30, 0)]
+@test carets(print_document(p, block("abcd", backward(1, 3))).output) == [(10, 0)]
+
+# "ab", a break, then "cd": "c" is at 3 and the end is 5.
+ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+press(selection, key, modifiers) =
+    (op = read_intent(p, print_document(p, block("ab\ncd", selection)), KeyDown(key, modifiers; time = 0.0));
+     op === nothing ? nothing : ends(op))
+shift = ModifierKeys(; shift = true)
+# Shift moves the moving end and keeps the anchor.
+@test press(backward(4, 5), :up, shift) == (1, 5, :backward)
+@test press(forward(3, 4), :up, shift) == (1, 3, :backward)
+@test press(backward(3, 4), :end, shift) == (4, 5, :forward)
+@test press(forward(0, 1), :down, shift) == (0, 4, :forward)
+# A plain key moves from the moving end, and the range becomes a caret.
+@test press(backward(0, 2), :down, ModifierKeys()) == (3, 3, :forward)
+@test press(forward(0, 2), :down, ModifierKeys()) == (5, 5, :forward)
+@test press(backward(3, 5), :home, ModifierKeys()) == (3, 3, :forward)
+
+end # @testset "TextToGraphics caret of a range"
+
 # A text reference maps forward to the characters of the text node that draws it,
 # so the box of a part of a text is exact: here each character is 10 pixels wide.
 @testset "TextToGraphics maps a text reference to the characters that draw it" begin

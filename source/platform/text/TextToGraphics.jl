@@ -170,7 +170,8 @@ function map_reference_forward(p::TextToGraphics, iomap, reference)
         node === nothing && return nothing
         return concat_references(node,
             ConcreteReference(FieldReferenceStep("text"),
-                ConcreteReference(RangeReferenceStep(a - segment.char_start, b - segment.char_start),
+                ConcreteReference(RangeReferenceStep(a - segment.char_start, b - segment.char_start,
+                                                     a == b ? :forward : get_range_direction(reference)),
                                   EmptyReference())))
     end
     nothing
@@ -307,13 +308,59 @@ _is_live_selection(value) = true
 _is_live_selection(value::SelectionDocument) = value.live
 
 # Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
-# step above us): the caret at the point of the click. A click always becomes a
-# plain character cursor; whole-element promotion (Alt+click) is decided in
-# SyntaxToText, where the tree is in hand.
+# step above us). A single click is the caret at its point, as the press before it
+# put it; with Shift, the moving end of the selection goes to the point, as the
+# press moved it. A double click selects the word at the point, and a triple click
+# the line. Whole-element promotion (Alt+click) is decided in SyntaxToText, where
+# the tree is in hand.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
     evt.button === :left || return nothing
-    path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
+    evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift && !evt.modifiers.alt)
     path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# A left press with no Alt and no Ctrl: the caret at the point, or with Shift the
+# moving end of the selection there, and the text takes the pointer for a drag, so
+# each move of the drag goes to the text wherever the pointer is. The drag names
+# the text as a whole, which each projection above maps back to its input.
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseDown)
+    evt.button === :left || return nothing
+    (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift)
+    path === nothing && return nothing
+    CompoundOperation(Any[ReplaceSelectionOperation(path), StartDragOperation(EmptyReference(), nothing)])
+end
+
+# A move and the end of a drag that a press on the text started: the moving end of
+# the selection goes to the character nearest to the point, on the nearest line,
+# and the anchor stays where the press put it.
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Union{DragMove,DragEnd})
+    path = _find_pointer_selection(p, iomap, evt.x, evt.y, true)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# The selection that a pointer at `(x, y)` makes: the caret there, or with `extend`
+# the range from the anchor of the selection to the caret there.
+function _find_pointer_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int,
+                                 extend::Bool)
+    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+    caret === nothing && return nothing
+    extend || return caret
+    point = get_flat_caret(iomap.input, caret)
+    ends = _find_text_selection_ends(iomap.input, iomap.input.selection)
+    (point === nothing || ends === nothing) ? caret : _make_flat_selection_reference(ends.anchor, point)
+end
+
+# The word (`count == 2`) or the line (`count >= 3`) at the point, as a selection.
+function _make_unit_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int, count::Int)
+    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+    caret === nothing && return nothing
+    point = get_flat_caret(iomap.input, caret)
+    point === nothing && return ReplaceSelectionOperation(caret)
+    range = count == 2 ? _find_flat_word_range(iomap.input, point) : _find_flat_line_range(iomap.input, point)
+    range === nothing && return ReplaceSelectionOperation(caret)
+    ReplaceSelectionOperation(make_flat_range_reference(range...))
 end
 
 # The caret at `(x, y)`: the segment that owns the point, and the character
@@ -359,18 +406,13 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     styled.elements isa ListNode && return nothing
     _has_caret_span(styled) || return nothing
 
-    # Shift moves one end of the selection: Home and Up the start, End and Down
-    # the stop, as the geometry-free Shift keys of the text domain do.
+    # Shift moves the moving end of the selection and keeps its anchor, as the
+    # geometry-free Shift keys of the text domain do. Without Shift, the key moves
+    # from the moving end and the selection becomes a caret there.
     extend = evt.modifiers.shift && !evt.modifiers.ctrl
-    pair = extend ? _text_flat_selection(styled) : nothing
-    current = if extend
-        pair === nothing && return nothing
-        moving = _text_flat_span(styled, (evt.key === :home || evt.key === :up) ? pair[1] : pair[2])
-        moving === nothing && return nothing
-        moving
-    else
-        get_flat_cursor_coordinate(styled)
-    end
+    ends = extend ? _find_text_selection_ends(styled, styled.selection) : nothing
+    extend && ends === nothing && return nothing
+    current = get_flat_cursor_coordinate(styled)
     current === nothing && return nothing
 
     target = @gesture_case evt begin
@@ -421,10 +463,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     extend || return _flat_hit_op(styled, target...)
     base = get_flat_base(styled, target[1])
     base === nothing && return nothing
-    f = base + target[2]
-    s, e = (evt.key === :home || evt.key === :up) ? (min(f, pair[2]), pair[2]) :
-                                                    (pair[1], max(f, pair[1]))
-    return ReplaceSelectionOperation(make_flat_range_reference(s, e))
+    return ReplaceSelectionOperation(_make_flat_selection_reference(ends.anchor, base + target[2]))
     # A KeyDown this layer neither edits nor resolves with geometry (e.g. Return,
     # Escape, Insert while a text caret exists) is declined, NOT passed on as a raw
     # gesture: a reader must yield an Operation or `nothing`, never an event. Putting

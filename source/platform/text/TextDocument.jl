@@ -984,14 +984,16 @@ make_flat_caret_reference(pos::Int) =
     ConcreteReference(TextRangeReferenceStep(pos, pos), EmptyReference())
 
 """
-    make_flat_range_reference(start, stop) -> Reference
+    make_flat_range_reference(start, stop; direction = :forward) -> Reference
 
 The selection reference for the flat character range `start..stop` of a
-`TextBlock`, with `start <= stop`. `start == stop` is the caret of
-[`make_flat_caret_reference`](@ref).
+`TextBlock`, with `start <= stop`. `direction` is the end that moves, `:forward`
+for `stop` and `:backward` for `start`. `start == stop` is the caret of
+[`make_flat_caret_reference`](@ref), which is always forward.
 """
-make_flat_range_reference(start::Int, stop::Int) =
-    ConcreteReference(TextRangeReferenceStep(start, stop), EmptyReference())
+make_flat_range_reference(start::Int, stop::Int; direction::Symbol = :forward) =
+    ConcreteReference(TextRangeReferenceStep(start, stop, start == stop ? :forward : direction),
+                      EmptyReference())
 
 """
     get_flat_caret(block, ref) -> Int | nothing
@@ -1036,9 +1038,9 @@ A projection that gives a text of one line maps a place backward through this an
 get_flat_range(block::TextBlock, ref) = _text_flat_selection(block, ref)
 
 # The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
-# geometry, or `nothing` when there is no caret, the selection is a range, or the
-# caret falls in a break / indentation gap with no owning span. The span is a text
-# run, or an inline image with char 0 before it and char 1 after it
+# geometry, or `nothing` when there is no caret or the caret falls in a break /
+# indentation gap with no owning span. The caret of a range is its moving end. The
+# span is a text run, or an inline image with char 0 before it and char 1 after it
 # (`_find_flat_place`). `get_flat_base` supplies the span's flat base.
 get_flat_cursor_coordinate(text::TextBlock) = get_flat_cursor_coordinate(text, text.selection)
 # The span and the character a flat offset lands on, in the shape of
@@ -1049,11 +1051,54 @@ function _text_flat_span(text::TextBlock, flat::Int)
 end
 
 function get_flat_cursor_coordinate(text::TextBlock, selection)
-    sel = _text_flat_selection(text, selection)
-    sel === nothing && return nothing
-    sel[1] == sel[2] || return nothing            # a range has no single char cursor
-    _text_flat_span(text, sel[1])
+    ends = _find_text_selection_ends(text, selection)
+    ends === nothing ? nothing : _text_flat_span(text, ends.moving)
 end
+
+# The two ends of the flat text selection: the `anchor` that stays and the end that
+# moves, which the direction of the selection names. A caret is both. `nothing`
+# where `_text_flat_selection` has no flat selection.
+function _find_text_selection_ends(text::TextBlock, selection)
+    pair = _text_flat_selection(text, selection)
+    pair === nothing && return nothing
+    get_range_direction(strip_reference_types(selection)) === :backward ?
+        (anchor = pair[2], moving = pair[1]) : (anchor = pair[1], moving = pair[2])
+end
+
+# The flat selection from the end that stays to the end that moves, in either order.
+_make_flat_selection_reference(anchor::Int, moving::Int) =
+    moving < anchor ? make_flat_range_reference(moving, anchor; direction = :backward) :
+                      make_flat_range_reference(anchor, moving)
+
+# The flat range of the word at the caret `flat` of `text`, as a double click
+# selects it: the run of characters of one class (word characters, separators, or
+# one inline image) that holds the character after the caret, or the one before it
+# at the end of a line or of the text. `nothing` for an empty text.
+function _find_flat_word_range(text::TextBlock, flat::Int)
+    chars = _flat_chars(text)
+    n = length(chars)
+    n == 0 && return nothing
+    k = (flat < n && chars[flat + 1] != '\n') || flat == 0 ? flat + 1 : flat
+    class = _get_char_class(chars[k])
+    class === :image && return (k - 1, k)
+    s, e = k, k
+    while s > 1 && _get_char_class(chars[s - 1]) === class; s -= 1; end
+    while e < n && _get_char_class(chars[e + 1]) === class; e += 1; end
+    (s - 1, e)
+end
+
+# The flat range of the line that holds the caret `flat` of `text`, without its
+# break, as a triple click selects it. `nothing` when no line holds the caret.
+function _find_flat_line_range(text::TextBlock, flat::Int)
+    offsets = get_flat_offsets(text)
+    line = findlast(start -> start <= flat, offsets)
+    line === nothing && return nothing
+    (offsets[line], offsets[line] + get_flat_length(text.elements[line]))
+end
+
+# The class of a character for a double click: a word character, an inline image,
+# a line break, or a separator.
+_get_char_class(c) = _is_word_char(c) ? :word : _is_image_char(c) ? :image : c == '\n' ? :break : :separator
 
 # Standard editor word class: letters, digits, and underscore are "word" chars;
 # an inline image is a word of its own; everything else (including breaks and
@@ -1206,31 +1251,30 @@ function _text_char_motion(text::TextBlock, direction::Symbol)
     ReplaceSelectionOperation(make_flat_caret_reference(newf))
 end
 
-# Shift and a motion key: move one end of the selection and keep the other. A
-# range stays ordered, so a key moves the end that lies in its direction: the
-# left, word-left and start keys move the start, and the others move the stop.
-# From a caret, the key's direction makes the range. Declines when a whole
-# element is selected, as the plain motion does.
-function _text_extend(text::TextBlock, direction::Symbol)
+# Shift and a motion key: move the moving end of the selection and keep its
+# anchor. When the moving end passes the anchor, the direction of the range turns.
+# From a caret, the key's direction makes the range. Declines when a whole element
+# is selected, as the plain motion does.
+function _text_extend(text::TextBlock, motion::Symbol)
     is_structural_selection(text.selection) && return nothing
-    sel = _text_flat_selection(text)
-    sel === nothing && return nothing
-    s, e = sel
+    ends = _find_text_selection_ends(text, text.selection)
+    ends === nothing && return nothing
+    anchor, moving = ends
     total = _text_flat_total(text)
-    if direction === :left
-        s = max(0, s - 1)
-    elseif direction === :right
-        e = min(total, e + 1)
-    elseif direction === :word_left
-        s = _word_left_flat(_flat_chars(text), s)
-    elseif direction === :word_right
-        e = _word_right_flat(_flat_chars(text), e, total)
-    elseif direction === :start
-        s = 0
+    moving = if motion === :left
+        max(0, moving - 1)
+    elseif motion === :right
+        min(total, moving + 1)
+    elseif motion === :word_left
+        _word_left_flat(_flat_chars(text), moving)
+    elseif motion === :word_right
+        _word_right_flat(_flat_chars(text), moving, total)
+    elseif motion === :start
+        0
     else  # :end
-        e = total
+        total
     end
-    ReplaceSelectionOperation(make_flat_range_reference(s, e))
+    ReplaceSelectionOperation(_make_flat_selection_reference(anchor, moving))
 end
 
 # The span at `path`'s content when it is a TextString; nothing otherwise.
@@ -1596,7 +1640,7 @@ function _map_selection_over_runs(runs, block::TextBlock, selection)
     pair[1] == pair[2] && return make_flat_caret_reference(start)
     stop = _map_flat_over_runs(runs, pair[2], false)
     (stop === nothing || stop < start) && return nothing
-    make_flat_range_reference(start, stop)
+    make_flat_range_reference(start, stop; direction = get_range_direction(selection))
 end
 
 # ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────

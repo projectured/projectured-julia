@@ -70,6 +70,11 @@ function test_text_folding()
               make_flat_caret_reference(output_start)
         @test map_reference_backward(folding.projection, folding, make_flat_caret_reference(output_start)) ==
               make_flat_caret_reference(input_start)
+        # A backward range in the fifth line keeps its direction both ways.
+        range = make_flat_range_reference(input_start, input_start + 2; direction = :backward)
+        shown = map_reference_forward(folding.projection, folding, range)
+        @test shown == make_flat_range_reference(output_start, output_start + 2; direction = :backward)
+        @test map_reference_backward(folding.projection, folding, shown) == range
     end
 
     @testset "a click on the triangle or on the placeholder folds and opens" begin
