@@ -170,7 +170,7 @@ which is what Open is for. What happens to the chosen path belongs to whoever
 opened the chooser.
 
 `name` is the whole of what a person types, and a file row of the tree writes its
-own name there. The directory and the name together always say one path, and
+path from the directory there. The directory and the name together always say one path, and
 [`get_chosen_path`](@ref) is that path.
 
 `open` holds the open folders of the chooser, by their documents, as an explorer

@@ -74,6 +74,13 @@ end
     helpers._nav_press!(editor, backend, MouseClick(:left, field_x + 1, field_y + 2, 1, ModifierKeys(); time = 0.0))
     helpers._nav_press!(editor, backend, KeyPress('x'; time = 0.0))
     @test occursin("x", chooser.name) && length(chooser.name) == 5
+    # A double press on a file in the open folder writes its path from the
+    # directory, so the chosen path is the path of that file.
+    click = helpers._nav_click(backend, "b.jl")
+    @test click !== nothing
+    helpers._nav_press!(editor, backend, click, MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0))
+    @test chooser.name == joinpath("sub", "b.jl")
+    @test get_chosen_path(chooser) == joinpath(directory, "sub", "b.jl")
     evaluate_operation(editor, ReleaseDocumentOperation(chooser))
 end
 

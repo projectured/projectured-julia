@@ -96,7 +96,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path)`. The opera
 
 `FileSystemChooser` is the document of the open and save dialogs of the shell slice. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.
 
-`FileSystemChooserToWidget` draws the chooser as a one-column grid: the tree over the field of the name. The tree is the tree of an explorer, built from `open` of the chooser, with the rows, the chevrons and the "reading" row of the Files tab. A chevron opens or closes a folder and changes what the chooser holds, and the chooser holds its open folders as an explorer does. The file action of the tree is `WriteChosenNameOperation`: Enter or a double press on a file row writes the name of the file into `name`. The field is a text widget whose content is `name`, so a key in the field edits `name`. The paths map `children[1].roots[1].children[a]…` to `directory.elements[a]…` and `children[2].content<rest>` to `name<rest>`. The renderer takes the view through `make_graphics_projection` for `FileSystemChooser`, chained with `GridLayoutToGraphicsCanvas`.
+`FileSystemChooserToWidget` draws the chooser as a one-column grid: the tree over the field of the name. The tree is the tree of an explorer, built from `open` of the chooser, with the rows, the chevrons and the "reading" row of the Files tab. A chevron opens or closes a folder and changes what the chooser holds, and the chooser holds its open folders as an explorer does. The file action of the tree is `WriteChosenNameOperation`: Enter or a double press on a file row writes the path of the file from the directory of the chooser into `name`, so a file in an open folder names the folder too. The field is a text widget whose content is `name`, so a key in the field edits `name`. The paths map `children[1].roots[1].children[a]…` to `directory.elements[a]…` and `children[2].content<rest>` to `name<rest>`. The renderer takes the view through `make_graphics_projection` for `FileSystemChooser`, chained with `GridLayoutToGraphicsCanvas`.
 
 ### Duplicate the Explorer
 
@@ -128,7 +128,7 @@ A `.pred` file builds `Workspace`, `WorkspaceFolder` and `WorkspaceExplorer` by 
 - **A print reads only cells.** A folder reads in an operation, on a task, and never in a computation. The state of a folder is in its document: the entries, the read state and whether it holds an entry.
 - **An explorer owns what a person controls, and shares what it reads.** The open folders are in the explorer, and the listing is in the folder document that the workspace holds. So two explorers of one workspace show different open folders over one read.
 - **A holder sets what is read.** A folder reads and watches itself while a holder holds it, and a closed folder reads nothing. The release keeps the entries.
-- **The file action is a parameter of the view.** A row of a file names the file, and the document around the tree sets the meaning: the Files tab opens the file, and the chooser writes the name.
+- **The file action is a parameter of the view.** A row of a file names the file, and the document around the tree sets the meaning: the Files tab opens the file, and the chooser writes the path.
 
 ## Usage
 

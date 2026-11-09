@@ -4,8 +4,9 @@
 # The tree is the tree of an explorer: the folders as the chooser holds them open,
 # with the rows, the chevrons and the reading row of the Files tab. The name is a
 # `WidgetText` whose text is the name of the chooser, and an edit of the field is
-# an edit of the name. **A row of a file types its own name into the field**, so a
-# person may press a file or type a name, and the chooser says one path either way.
+# an edit of the name. **A row of a file types its path from the directory into
+# the field**, so a person may press a file or type a name, and the chooser says
+# one path either way.
 
 """
     FileSystemChooserToWidget(; position = Point2D(0, 0), gap)
@@ -13,7 +14,9 @@
 Draw a [`FileSystemChooser`](@ref): the tree of its directory, open where the
 chooser holds its folders open, and the field of its name under it. A chevron
 opens or closes a folder and changes what the chooser holds, so a folder that
-opens reads; a double press, or Return, on a file writes its name into the field.
+opens reads; a double press, or Return, on a file writes its path from the
+directory of the chooser into the field, so a file in an open folder names the
+folder too.
 
     children[1].roots[1].children[a]…   directory.elements[a]…
     children[2].content<rest>           name<rest>
@@ -30,9 +33,10 @@ const _CHOOSER_FIELD_WIDTH = 240
 function print_document(p::FileSystemChooserToWidget, recursion,
                         chooser::FileSystemChooser, ctx)
     # A row names a file, and naming a file is what typing the name does, so the
-    # row writes the name rather than opening anything. The chooser chooses; it
-    # does not act.
-    write_name = path -> WriteChosenNameOperation(chooser, basename(path))
+    # row writes the path of the file from the directory of the chooser rather
+    # than opening anything. A file in an open folder writes the folder too. The
+    # chooser chooses; it does not act.
+    write_name = path -> WriteChosenNameOperation(chooser, relpath(path, chooser.directory.pathname))
     roots = CellVector(@computation Any[_fs_node(chooser.directory, write_name)])
     expanded = Cell(@computation _compute_open_folder_paths(Any[chooser.directory], chooser.open))
     tree_paths = make_output_path_cells(chooser, path -> _map_chooser_tree_path(path))
