@@ -25,7 +25,15 @@ The open of a file (`OpenFileOperation`, `open_file!` and the acquire of a `File
 
 ### A folder holds what its last read found
 
-`elements` holds the entries in the order of their names, each a `FileSystemFile` or a `FileSystemDirectory`. `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`. A folder that can not be read, because of a permission or because it is gone, is `:failed`. `reading` is a `Bool`: it says that a read runs. `has_entries` says whether the folder holds an entry, as the read of its parent found it: `true`, `false`, or `nothing` while that is not known. `has_folder_entries(folder)` answers from the entries of a folder that is read, and from `has_entries` otherwise. `read_count` counts the changes that need a new read.
+`elements` holds the entries in the order of a folder, each a `FileSystemFile` or a `FileSystemDirectory`. `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`. A folder that can not be read, because of a permission or because it is gone, is `:failed`. `reading` is a `Bool`: it says that a read runs. `has_entries` says whether the folder holds an entry, as the read of its parent found it: `true`, `false`, or `nothing` while that is not known. `has_folder_entries(folder)` answers from the entries of a folder that is read, and from `has_entries` otherwise. `read_count` counts the changes that need a new read.
+
+### The order of a folder
+
+A read stores the folders first, then the files. In each group, the names compare in runs. Two runs of ASCII digits compare by their values, so `file9` comes before `file10`. Any other two characters compare by their lower case, so `a.txt` comes before `Makefile`. A character that is not valid UTF-8 compares as it is. When two names are equal by these rules, the order of their character codes decides: `README.md` comes before `readme.md`, and `file01` before `file1`. So the order is total, and a folder has one order only.
+
+The order depends on no locale, so a folder shows the same order on every computer, and a test or a screenshot does not change with the machine. A name that starts with `.` comes first in its group. A letter outside ASCII sorts by its code after the lower case, so `éclair` comes after `zeta`. No setting changes the order. Most file browsers list the folders first and sort numbers by value, and this order follows them.
+
+`_is_entry_before` in `FileSystemDocument.jl` is the order. The read sorts its listing with it, and the merge of a new listing walks with it. A `FileSystemDirectory` made with its entries keeps the order that its maker gives.
 
 ### A folder reads when a part shows its entries
 
@@ -33,7 +41,7 @@ An unread folder reads nothing until a part that shows its entries calls `demand
 
 `listing` is a background cell of the path and of `read_count` ([editor.md](../../kernel/editor.md#the-background-cell)). `listing_source` reads, in one task after a frame, every folder of one tree that the frame asked for. The read lists the names with their kinds in one call, and checks each sub-folder for an entry with one `readdir`, so the sub-folder shows a chevron only when it holds an entry. A known cost: that check reads the whole listing of the sub-folder.
 
-The answer is an `ApplyFolderListingOperation`, which the editor evaluates after it writes the answer of the listing, through the `apply` keyword of the background cell. The operation compares the new listing with `elements` by name. A kept entry keeps its document, so an open folder stays open. Each run of new or gone entries is one splice of `elements`, so a new file is one insert and the paths after it move. The answer of an older read is dropped: `read_count` names the read. The operation is a write of view state, so undo records no read.
+The answer is an `ApplyFolderListingOperation`, which the editor evaluates after it writes the answer of the listing, through the `apply` keyword of the background cell. The operation compares the new listing with `elements` in the order of a folder. An entry stays when its kind and its name stay. A kept entry keeps its document, so an open folder stays open. A file that becomes a folder of the same name is a gone entry and a new entry in the other group. Each run of new or gone entries is one splice of `elements`, so a new file is one insert and the paths after it move. The answer of an older read is dropped: `read_count` names the read. The operation is a write of view state, so undo records no read.
 
 An acquire of the folder reads nothing. It watches the folder and its sub-folders, with the folder as the receiver, up to the limit of watches of the store. The watch is a watch of a folder in the file change slice ([filechange.md](../filechange/filechange.md)). A change that the watch reports on the folder itself adds one to `read_count`, so the next demand reads again. A change of a sub-folder starts `start_document_read!` ([domain.md](../domain/domain.md)), and its answer is an `ApplyFolderEmptinessOperation`. An editor with no file change feed watches nothing.
 

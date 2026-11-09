@@ -1,6 +1,7 @@
 # A folder lists its folders first
 
-> **Kind:** change of behavior · **Status:** a plan, 2026-11-09, at `main` `14121813b`. Not started.
+> **Kind:** change of behavior · **Status:** done, 2026-11-09, on the branch `folders-first` from
+> `main` `14121813b`. Not on `main` yet.
 > · **Stands on:** [filesystem.md](../../documentation/package/platform/filesystem/filesystem.md)
 
 ## 1. The goal
@@ -137,13 +138,26 @@ step. Do not land on `main` before the owner approves it.
     frame.
   - `test_filesystem_document`: 55 pass, 0 fail, 0 error, 0 broken (step 1: 34). The naming guard
     `test/suite/naming.jl` passes.
-- [ ] 3. **The other tests.** Run the other eleven test functions of §2. Change each assertion that
+- [x] 3. **The other tests.** Run the other eleven test functions of §2. Change each assertion that
   names the old order to the new order, and change nothing else. Compare each count with step 1.
   Record in this plan each assertion that changed.
-- [ ] 4. **The document and the live check.** `filesystem.md` states the order of §1 and D2 at
+
+  Done 2026-11-09. No assertion changed: the fixtures of these tests list their folders before
+  their files in both orders, for example `["full", "none", "top.jl"]`. Each count is equal to
+  step 1, with the same three known failures (`ApplicationTest.jl:1008`, `ScrollWorkTest.jl:127`
+  and `:130`).
+- [x] 4. **The document and the live check.** `filesystem.md` states the order of §1 and D2 at
   lines 28 and 36. Open the Files page in the application over the test folder of step 2, take one
   screenshot, and check that the rows show the order of step 2. Record the result in this plan,
   and move the plan to `plan/done/`.
+
+  Done 2026-11-09. `filesystem.md` has a section "The order of a folder" with the rule and its
+  reason, and the merge says that an entry stays when its kind and its name stay. The live check
+  drew a `WorkspaceExplorer` over the folder of step 2 and `file2.txt`, with `NaturalToGraphics`
+  and `write_image`, offscreen. It is the projection that the Files tab shows, but not the whole
+  window of the application, and no pointer pressed anything. The rows show `.config _build docs
+  Zeta .gitignore a.txt file2.txt file9.txt file10.txt Makefile README.md x`, which is the order
+  of step 2.
 
 ## 5. Not in this plan
 
