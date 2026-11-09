@@ -479,12 +479,12 @@ end
 end
 
 # The image span: an inline `TextGraphics` with an `Image` when `url` names a file
-# on disk (sized to its natural extent, capped at `max_w`, and 720 by 460 until its
-# pixels are read); otherwise the url / a placeholder as text.
+# on disk (sized to its natural extent, capped at `max_w`, and 720 by 460 until the
+# size of its file is read, not until its pixels are); otherwise the url / a placeholder as text.
 function _md_image_value(url, placeholder::StyleText; max_w::Int = 640)
     if url isa AbstractString && !isempty(url) && isfile(String(url))
         img  = Image(String(url))
-        _nat(i, fb) = (size = img.natural_size; size === nothing ? fb : Int(size[i]))
+        _nat(i, fb) = (size = get_image_natural_size(img); size === nothing ? fb : Int(size[i]))
         dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))

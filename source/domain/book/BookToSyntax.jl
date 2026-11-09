@@ -577,7 +577,7 @@ function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
     end
     if content isa AbstractString && !isempty(content) && isfile(String(content))
         img  = Image(String(content))
-        _nat(i, fb) = (size = img.natural_size; size === nothing ? fb : Int(size[i]))
+        _nat(i, fb) = (size = get_image_natural_size(img); size === nothing ? fb : Int(size[i]))
         dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))

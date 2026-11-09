@@ -426,7 +426,7 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       `test_image_file_read` 23 and 23, `test_dashboard_render` 7 and 7, `test_layout_render` 99 and
       99, `test_external_agent_turn` 141 pass, 49 fail, 32 error before and after, with the same
       failing lines. style.md ("A picture of a file") and natural.md (row 6) say the new design.
-- [ ] **3. An image span of Markdown, Book and RST asks for the size (D5).** The helpers of
+- [x] **3. An image span of Markdown, Book and RST asks for the size (D5).** The helpers of
       `MarkdownToSyntax.jl:487`, `BookToSyntax.jl:580` and `RstToSyntax.jl:1239` call
       `get_image_natural_size`, and the comment of the Markdown span (`MarkdownToSyntax.jl:481-483`)
       says that 720 by 460 holds until the size is read, not until the pixels are. Test: one new
@@ -440,6 +440,27 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       those cells and makes no new picture: each set runs two more frames with no change and
       asserts that the size work ran once, with one value, and that the span keeps the same
       `Image`.
+
+      Done on `picture-size`. Facts found: the three helpers read `get_image_natural_size(image)`, in
+      `source/domain/markdown/MarkdownToSyntax.jl`, `source/domain/book/BookToSyntax.jl` and
+      `source/domain/rst/RstToSyntax.jl` (the plan's paths lack the `source/domain/<domain>/` folder
+      and the `projection/` folder; the files are `RstToSyntax.jl` and the others directly in the
+      domain folder). The comment of the Markdown span says 720 by 460 holds until the size of the
+      file is read, not until its pixels are. The three sets share one checker,
+      `test_image_span_size_work(make_span, path)` in `test/platform/document/ImageTest.jl`, which
+      the domain sets call as `ProjecturedPlatformTest.test_image_span_size_work`. `make_span`
+      prints the span through the projection of the domain (`MarkdownImageToStyledNode`,
+      `BookToSyntax` with a `BookPicture`, `RstToSyntax(; style = :rendered)` with an `RstImage`),
+      and the checker holds that print in a cell of an editor, so a print that the size answer made
+      run again would count. The span of `asset/image/file.png` measures (640, 409) in the first
+      frame and (16, 16) in the three frames after the head answers, keeps the same `TextGraphics`
+      and `Image`, and the print ran once. The work store of the editor holds one record of "the sizes
+      of pictures" with one value (`_format_work_input` of `(path, 0)`, cut at 80 characters, so the
+      test compares with that function) and no record of "the pixels of a picture"; `decoded_count`
+      stays -1. The size work ran once in each of Markdown, Book and RST. `RstToSyntaxTest.jl` is
+      included by `ProjecturedRSTTest` and `RstSuite.jl` calls and exports `test_rst_to_syntax`.
+      Counts before and after: `test_markdown_image_leaf` 109 and 124, `test_book_to_syntax` 18 and
+      33, `test_rst` 115 and 130 (`test_rst_to_syntax` is 15), `test_image` 144 and 144, all pass.
 - [ ] **4. A column of 60 pictures has its true height before a paint (§1, the example of D12).** A
       new testset of `test_image_file_read()`, in a window of 1100 by 500 pixels as in
       `test_layout_render()`. `write_image` writes one PNG of 200 by 120 and one of 200 by 200, and

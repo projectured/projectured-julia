@@ -160,6 +160,53 @@ function _read_image_test_file!(file)
     file
 end
 
+"""
+    test_image_span_size_work(make_span, path)
+
+What the image span of a domain does with the head of the file `path`, in the frames of
+an editor. `make_span()` prints the span, a `TextGraphics` whose `Image` is made in the
+print. The span measures 640 by 409 until the head answers, and the size of the file
+after, while the pixels have no read. Two more frames with no change run the print
+and the size work no more, and the span keeps its `Image`.
+"""
+function test_image_span_size_work(make_span::Function, path::AbstractString)
+    @testset "an image span asks for the size and not the pixels" begin
+        editor = _make_image_test_editor()
+        print_count = Ref(0)
+        printed = Cell(@computation (print_count[] += 1; make_span()))
+        frame() = run_with_evaluation_editor(editor) do
+            span = printed[]
+            (span, (Int(span.width), Int(span.height)))
+        end
+        size_records() = filter(record -> record.description == "the sizes of pictures",
+                                EditorModule.get_background_work_store(editor).records)
+        pixel_records() = filter(record -> record.description == "the pixels of a picture",
+                                 EditorModule.get_background_work_store(editor).records)
+
+        span, measure = frame()
+        image = span.content
+        @test measure == (640, 409)
+        @test image.natural_size === nothing
+        start_background_cell_work!(editor)
+        @test _wait_until_image_test_final(editor, getfield(image, :head_size))
+        @test image.natural_size == (16, 16)
+        @test [(record.value_count, record.inputs) for record in size_records()] ==
+              [(1, [EditorModule._format_work_input((String(path), 0))])]
+
+        for _ in 1:3
+            frame_span, measure = frame()
+            @test frame_span === span && frame_span.content === image
+            @test measure == (16, 16)
+            start_background_cell_work!(editor)
+            drain_operations!(editor)
+        end
+        @test print_count[] == 1
+        @test length(size_records()) == 1
+        @test isempty(pixel_records())
+        @test image.decoded_count == -1
+    end
+end
+
 function test_image()
 @testset "Image" begin
 

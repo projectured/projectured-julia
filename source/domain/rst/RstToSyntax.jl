@@ -1236,7 +1236,7 @@ end
 function _rst_picture(path, placeholder::StyleText; max_w::Int = 640)
     if path isa AbstractString && !isempty(path) && isfile(String(path))
         image = Image(String(path))
-        natural(i, fallback) = (size = image.natural_size; size === nothing ? fallback : Int(size[i]))
+        natural(i, fallback) = (size = get_image_natural_size(image); size === nothing ? fallback : Int(size[i]))
         width  = Cell(@computation Int32(min(natural(1, 720), max_w)))
         height = Cell(@computation begin
             w = min(natural(1, 720), max_w)

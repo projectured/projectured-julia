@@ -85,5 +85,12 @@ para(text) = BookParagraph(TextBlock(TextLine(TextString(text))))
         @test occursin("Empty", render(BookBook("Empty")))
     end
 
+    @testset "the picture span asks for the size of its file" begin
+        file = normpath(joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image", "file.png"))
+        ProjecturedPlatformTest.test_image_span_size_work(file) do
+            print_document(b2s, BookPicture(file, "logo")).output.children[2].value
+        end
+    end
+
 end # @testset "BookToSyntax"
 end # test_book_to_syntax
