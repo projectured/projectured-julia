@@ -188,7 +188,7 @@ slider, is correct: the container then selects the control as a whole.
 
 ## 5. Decisions
 
-D1 and D2 of §2 and D3 below are the owner's. P1 to P6 were proposed by the
+D1 and D2 of §2 and D3 and D4 below are the owner's. P1 to P6 were proposed by the
 assistant, and the owner agreed with them on 2026-11-09 ("yes, I agree with the
 propsals"). P7 was proposed by the assistant and approved with the plan on
 2026-11-09.
@@ -257,10 +257,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   Rejected: the leaf document is the innermost part; then a value in a field
   is a part only where no document holds it, which D2 and the rule of
   2026-11-06 do not say.
-- **Q1. A plain click on a row, a node or a cell** (open, asked
-  2026-11-09). A plain click on a cell of a table, a row of a list or a node
-  of a tree chooses the row or the node today. D1 says that a plain click puts
-  the caret at the character. The owner decides which holds for these.
+- **D4 (owner, 2026-11-09). A plain click on a row, a node or a cell.** The
+  owner chose A of Q1: "It's A, a single click on the padding could go to the
+  row though". A plain click on the text of a cell of a table, a row of a list
+  or a node of a tree puts the caret at the character, and the row or the node
+  that holds the caret lights. A plain click on the padding of a cell or a row,
+  where no text is under the point, chooses the row or the node, as a plain
+  click on any part of it does today. The click test checks the caret where
+  the element under the point is a text, and so it checks the first rule.
+  Rejected (B of Q1): a plain click chooses the row, and a double click puts
+  the caret in the cell; then a click does not put the caret where the mouse
+  is, which D1 says.
 - **P7. The catalog takes the atoms of a package** (proposed by the
   assistant). `catalog`, `test_catalog` and the coverage guard take a list of
   atoms and the modules whose printers they cover, with the atoms of
@@ -325,7 +332,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     - In the widgets and the layouts, a plain click on a label, the title of
       a card, a fact or a text of a layout gives no caret. A plain click on a
       cell of a table, a node of a tree or a tab selects the row, the node or
-      the page (Q1).
+      the page (D4 changes this for a cell, a row and a node).
     - A rest of the pointer on a row of facts throws `FieldError: type
       WidgetFact has no field tooltip`: `_find_widget_tooltip(widget::WidgetDocument)`
       (`source/platform/widget/WidgetDocument.jl:4029`) reads a field that
@@ -495,6 +502,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
+  The table, the list and the tree follow D4: a plain click on the text of a
+  cell puts the caret there, and a plain click on the padding chooses the row.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
