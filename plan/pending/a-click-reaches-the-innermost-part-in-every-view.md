@@ -1,6 +1,6 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-09): in progress, step 2; step 1 is done.** The owner asked for the study
+> **Status (2026-11-09): in progress, step 3; steps 1 and 2 are done.** The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -345,15 +345,93 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     and `WidgetLink`. Step 2 adds their atoms, because the click test of the
     catalog needs them, `WidgetFactGroup` above all: it is the card of facts of
     an omnet run page.
-- [ ] 2. **The catalog takes the atoms of a package (P7).** `catalog`,
+- [x] 2. **The catalog takes the atoms of a package (P7).** (Done 2026-11-09.) `catalog`,
   `test_catalog` and `test_catalog_coverage` in projectured-julia take a list
   of atoms and the modules to cover. The tests of projectured-julia give the
   same counts as before.
+
+  Design, found before the work (2026-11-09):
+  - **Where the parts live.** `catalog()` is in `ProjecturedExample`
+    (`example/projectured/Catalog.jl`), which `OmnetLegacyTest` already loads.
+    The runner `test_catalog` and the coverage guard are in the umbrella
+    `ProjecturedTest`, which no omnet test package loads. So the runner and the
+    guard move into `ProjecturedPlatformTest`, as functions of a list of
+    examples and a list of atoms, and the umbrella keeps its lists of known
+    failures and calls them.
+  - **A variant of the app.** The search of the catalog reaches the screen
+    only through text, or through one projection that draws a document whole.
+    A view, such as the page of an omnet run, prints widgets, so its atom gets
+    no variant on the screen; and a single projection that the search finds
+    has no recursion, which is the cause of many `@catalog-broken` marks.
+    `catalog(atoms; natural = true)` adds `domain/name/natural` for each atom:
+    the projection that an editor makes for a document when it gets none
+    (`make_document_projection`), the one that the app uses. The click test
+    runs on it. The default stays `natural = false`, so the counts of
+    `test_catalog()` do not change in this step.
+  - **The coverage guard** takes the roots of the modules whose printers it
+    covers, such as `"Projectured"` or `"Omnet"`, and its list of types that
+    no test can make.
+  - **8 atoms** for the types that the guard named in step 1.
+
+  Done (2026-11-09):
+  - `catalog(atoms = atomic_documents(); natural = false, …)` in
+    `example/projectured/Catalog.jl`; `test_catalog_examples(examples;
+    testers, marks)`, `CATALOG_TESTERS`, `find_catalog_coverage_gap(atoms;
+    roots)` and `test_atom_coverage(atoms; roots, no_atom)` in
+    `test/platform/editor/CatalogRunner.jl`. The generic guard is not named
+    `test_catalog_coverage`, because the umbrella loads the platform test
+    package and keeps its own function of that name, which now calls it.
+    `test_part_click` takes `broken`, a predicate of a line of failure, as the
+    other testers take theirs.
+  - The 8 atoms: `widget/link`, `widget/icon`, `widget/fact_group`,
+    `help/entry`, `link/url`, `link/url_view`, `fileformat/open_file_list`,
+    `text/view`. `widget/link` finds a real fault: a click opens the target as
+    a page, and in the stand-in editor of the REPL walk, which holds no pane
+    tree, `open_pane!` throws that no pane tree has the focus. It is marked
+    `@catalog-broken` with that cause (`_CATALOG_EDIT_NO_PANE`).
+  - Checks: `test_catalog_coverage()` 3 pass, 1 broken (the two types of a
+    data frame, as before); `test_catalog(; domain = :widget)` 105672 pass,
+    26 broken; the full `test_catalog()` 803739 pass, 2311 broken, no
+    failure, no error, in 10 min 39 s. This is the first full count since
+    2026-10-23, so it is the baseline. The click test on the variant of the
+    app works: `widget/fact_group/natural` 19 failures (9 of them the fault of
+    the `tooltip` field of step 1), `widget/card/natural` 7,
+    `json/string/natural` 6.
 - [ ] 3. **The atoms of omnet-julia (D3).** An atom for each document type of
   omnet-julia that has a printer, in the example package of its package, with
   the 7 atoms of today among them. The coverage guard and `test_catalog` run in
   each omnet test package. A failure that is there before the click test is
   `@test_broken` with its cause.
+
+  Found before the work (2026-11-09, a search of omnet-julia):
+  - **The atoms of today** are the 7 of `OmnetPresentationExample`; no other
+    `AtomicDocument` exists in omnet-julia.
+  - **The packages with printers** are `OmnetPresentation` (the views of a
+    simulation, the embed, the workbench, the monitors, the results),
+    `OmnetCosimPresentation` (the federation), `OmnetLegacyResultPresentation`
+    (the result frame, file, folder, plot, the task documents of a run page),
+    `OmnetLegacySimulatorPresentation` (the runner, the card of a simulation,
+    the test runner, the stores, the project page) and `OmnetIde` (the pages of
+    the INI files, the NED files, the tests and the stores).
+  - **Small instances** come without a process for most types: a view from
+    `make_embed_document` (`source/presentation/page/EmbedDocument.jl`), a
+    task document from `make_task_kind_document(task, nothing)` with a task
+    that has not run, a result from `results/Fifo1-#0.sca`, a federation from
+    `FederationEmbed(; rounds = 6)` before its Run. The test helpers that make
+    the stub projects of the task kinds need the test folder, so the atoms make
+    their projects themselves. Some IDE pages read the disk in the background,
+    so their atom must be read to its end before a test uses it.
+  - **The natural rows.** The views, the embed, the results and the legacy
+    result documents have a natural row. The task documents of a run page,
+    the IDE pages, the stores, the monitors and the engines have none, so
+    `make_document_projection` can draw them only as a reflected object. Each
+    atom must draw through the path that the app uses for its type; this step
+    finds that path for each type.
+  - **The dependencies.** No omnet test package depends on
+    `ProjecturedPlatformTest`; only `OmnetLegacyTest` depends on
+    `ProjecturedExample`. The `[sources]` of omnet-julia reach the main
+    checkout of projectured-julia, so steps 1 and 2 land on main of
+    projectured-julia before this step can use them.
 - [ ] 4. **The first run.** Run the click test on the catalog of both
   repositories, on `examples` and on the omnet pages: the page of each kind of
   run task, the result table, the result file page and the runner form. Record

@@ -798,3 +798,15 @@ make_widget_tabbed_pane_atom_document_example() =
 # above (which stacks pressed and unpressed).
 make_widget_toggle_atom_document_example() =
     WidgetToggle("Bold"; position = Point2D(40, 40), pressed=true)
+
+# WidgetLink — a link whose target is a text file that is not on disk.
+make_widget_link_document_example() =
+    WidgetLink("Notes", TextFile("notes.txt", "A note."); position = Point2D(40, 40))
+
+# WidgetIcon — a file icon with a dot at its bottom right.
+make_widget_icon_document_example() =
+    WidgetIcon(:file; bottom_right = WidgetIconMark(:dot))
+
+# WidgetFactGroup — a titled group of three plain facts.
+make_widget_fact_group_atom_document_example() =
+    WidgetFactGroup(["configuration" => "General", "run" => "#0", "exit code" => "0"]; title = "Run")

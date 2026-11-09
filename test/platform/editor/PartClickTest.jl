@@ -352,18 +352,22 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
 end
 
 """
-    test_part_click(example; limit = 200)
+    test_part_click(example; limit = 200, broken = nothing)
 
 Run [`walk_part_clicks`](@ref) on `example`, print each failure, and assert that
 the walk pressed a point and that no answer is outside the innermost part.
+`broken` is a predicate of a line of failure, or `nothing`: the failures that it
+names are known, and they count as one broken assertion.
 """
-function test_part_click(example; limit = 200)
+function test_part_click(example; limit = 200, broken = nothing)
     @testset "a click reaches the innermost part: $(example.name)" begin
         counts = Dict{Symbol,Int}()
         failures = walk_part_clicks(example.make_document(), example.make_projection();
                                     label = example.name, limit, counts)
-        foreach(line -> println("  ", line), failures)
+        known = broken === nothing ? String[] : filter(broken, failures)
+        foreach(line -> println("  ", line), setdiff(failures, known))
         @test get(counts, :points, 0) > 0
-        @test isempty(failures)
+        @test isempty(setdiff(failures, known))
+        isempty(known) || @test_broken isempty(known)
     end
 end

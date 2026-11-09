@@ -102,3 +102,7 @@ make_text_spacing_atom_document_example() = TextSpacing(4; font=_atom_font())
 
 # An inline image of 24 by 24 pixels with no pixels, as the span itself.
 make_text_graphics_atom_document_example() = TextGraphics(ImageMemory(nothing), 24, 24)
+
+# A view of a block of two words that wraps its lines.
+make_text_view_document_example() =
+    make_text_view(TextBlock(TextLine(TextString("alpha beta", StyleFont("Ubuntu Mono", 20), color_default))); wrap = true)

@@ -8,19 +8,9 @@
 # so the scattered skip-lists dissolve. See plan/pending/discovered-example-catalog.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
-# The terminal domain each tester needs (nothing = domain-agnostic: works on the
-# abstract projection output). Position-navigation seeds and moves the caret by *visual*
-# geometry (`Ctrl+Home` → first caret, arrows → spatial steps), which only the graphics
-# layer computes — the `:home` seed reader lives in `TextToGraphics`. So it needs a
-# `:graphics` terminal: a projection that stops at `:text` has no caret geometry and its
-# seed read returns `nothing`. (The manual `text`/`json` examples navigate for the same
-# reason — their projections run all the way through `TextToGraphics`.)
-_required_terminal(::typeof(test_printer))         = nothing
-_required_terminal(::typeof(test_reader))          = nothing
-_required_terminal(::typeof(test_repl))            = nothing
-_required_terminal(::typeof(test_position_navigation)) = :graphics
-
-_applies(tester, ex::Example) = (r = _required_terminal(tester); r === nothing || r == ex.terminal)
+# The testers, the terminals that each applies to and the routing of an example to a
+# tester are in `test_catalog_examples` of `ProjecturedPlatformTest`; this file holds the
+# known failures of the catalog of this repository and its entry point.
 
 # ── Known-broken registry ──────────────────────────────────────────────────
 # Every document type is a catalog atom — including ones whose projection still has a
@@ -59,7 +49,13 @@ const _CATALOG_EDIT_BROKEN = (
     #   method for a lone `TextString`/`TextLine`.
     "text/bare_string/", "text/bare_line/", "text/bare_spacing/", "text/bare_graphics/",
 )
+# @catalog-broken widget/link: a click opens the target of the link as a page, and the
+#   stand-in editor of the REPL walk holds no pane tree to open it in, so `open_pane!`
+#   throws that no pane tree has the focus.
+const _CATALOG_EDIT_NO_PANE = ("widget/link/",)
 _catalog_edit_broken(name) =
+    any(p -> occursin(p, name), _CATALOG_EDIT_NO_PANE) ?
+        ((ev, msg) -> occursin("no pane tree has the focus", msg)) :
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
         ((ev, msg) -> occursin("FieldError", msg) || occursin("MethodError", msg) ||
                       occursin("TypeError", msg) || occursin("under-typed", msg) ||
@@ -114,45 +110,26 @@ _catalog_throws_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) 
 # a per-state caret step whose selection can't re-apply (same broken entries).
 _catalog_nav_state_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? ((_p, _msg) -> true) : nothing
 
-# Route one Example to a tester, threading its known-broken signatures. printer has no
-# known breaks; reader/repl take an event predicate; position-navigation takes seed/throws.
-_run_catalog_tester(::typeof(test_position_navigation), ex::Example) =
-    test_position_navigation(ex.name, ex.make_document(), ex.make_projection();
-                             seed_broken=_catalog_seed_broken(ex.name),
-                             throws_broken=_catalog_throws_broken(ex.name),
-                             broken=_catalog_nav_state_broken(ex.name))
-_run_catalog_tester(::typeof(test_printer), ex::Example) =
-    test_printer(ex.name, ex.make_document(), ex.make_projection();
-                 broken=_catalog_print_broken(ex.name))
-_run_catalog_tester(::typeof(test_reader), ex::Example) =
-    test_reader(ex.name, ex.make_document(), ex.make_projection(); broken=_catalog_edit_broken(ex.name))
-_run_catalog_tester(::typeof(test_repl), ex::Example) =
-    test_repl(ex.name, ex.make_document(), ex.make_projection(); broken=_catalog_edit_broken(ex.name))
-_run_catalog_tester(tester, ex::Example) = tester(ex)
-
-const _CATALOG_TESTERS = (test_printer, test_reader, test_repl, test_position_navigation)
+# The known failures of the catalog by the kind of tester, as `test_catalog_examples`
+# takes them.
+const _CATALOG_MARKS = (print = _catalog_print_broken, edit = _catalog_edit_broken,
+                        seed = _catalog_seed_broken, throws = _catalog_throws_broken,
+                        state = _catalog_nav_state_broken)
 
 """
     test_catalog(; domain=nothing, document=nothing, terminal=nothing, only_runnable=false,
-                   testers=(test_printer, test_reader, test_repl, test_position_navigation))
+                   testers=CATALOG_TESTERS)
 
-Run each applicable tester over the discovered example catalog, filtered by
-`domain` / `document` / `terminal` / `only_runnable`. Applicability is decided per
-`Example` by its `terminal` field — a `:syntax` pair runs printer/reader/repl but not
+Run each applicable tester over the discovered example catalog of this repository,
+filtered by `domain` / `document` / `terminal` / `only_runnable`, with the known failures
+of this file. `test_catalog_examples` decides for each `Example` by its `terminal` field
+which testers apply — a `:syntax` pair runs printer/reader/repl but not
 position-navigation (which needs a `:graphics` terminal) — so no skip-lists are needed.
 """
 function test_catalog(; domain = nothing, document = nothing, terminal = nothing,
-                        only_runnable = false, testers = _CATALOG_TESTERS)
-    @testset "Catalog" begin
-        for ex in catalog(; domain = domain, document = document,
-                            terminal = terminal, only_runnable = only_runnable)
-            @testset "$(ex.name)" begin
-                for tester in testers
-                    _applies(tester, ex) && _run_catalog_tester(tester, ex)
-                end
-            end
-        end
-    end
+                        only_runnable = false, testers = CATALOG_TESTERS)
+    test_catalog_examples(catalog(; domain, document, terminal, only_runnable); testers,
+                          marks = _CATALOG_MARKS)
 end
 
 """

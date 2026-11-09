@@ -287,6 +287,25 @@ printer with no atom and fails for the change that adds it. Only a type that no 
 make goes on its list `_NO_ATOM`, with the reason. A projection that a test defines for
 its own fixture is no stage of the catalog.
 
+**The atoms of another package.** `catalog(atoms; natural = false, …)` takes any list of
+atoms, such as those of another repository, and gives their projections by the same
+search. With `natural = true`, each atom also gets the variant `domain/name/natural`: the
+projection that an editor makes for the document when it gets none
+(`make_document_projection`), the one that the app uses. A view that prints widgets reaches
+the screen only through it. The testers run on any list of examples with
+`test_catalog_examples(examples; testers, marks)` of `ProjecturedPlatformTest`, where
+`marks` names the known failures of each kind of tester by the name of an example, and
+the guard runs on any list of atoms with `test_atom_coverage(atoms; roots, no_atom)`,
+where `roots` names the modules whose printers the atoms cover, such as `("Omnet",)`.
+`test_catalog()` and `test_catalog_coverage()` call them with the atoms and the known
+failures of this repository.
+
+```julia
+julia> examples = catalog(atoms; natural = true)
+julia> test_catalog_examples(examples; testers = (CATALOG_TESTERS..., test_part_click))
+julia> test_atom_coverage(atoms; roots = ("Omnet",), no_atom = Set{String}())
+```
+
 ## A test that checks the root of a built editor
 
 `build_editor` applies the wrappers that are on by default, and the platform has

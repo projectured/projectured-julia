@@ -320,6 +320,9 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "tooltip",               make_widget_tooltip_document_example),
     AtomicDocument(:widget, "transform_pane",        make_widget_transform_pane_document_example),
     AtomicDocument(:widget, "tree",                  make_widget_tree_document_example),
+    AtomicDocument(:widget, "link",                  make_widget_link_document_example),
+    AtomicDocument(:widget, "icon",                  make_widget_icon_document_example),
+    AtomicDocument(:widget, "fact_group",            make_widget_fact_group_atom_document_example),
     AtomicDocument(:widget, "tooltip_source",        make_tooltip_source_document_example),
     AtomicDocument(:widget, "clipboard_collection",  make_clipboard_collection_document_example),
     AtomicDocument(:widget, "clipboard_slice",       make_clipboard_slice_document_example),
@@ -410,6 +413,11 @@ const platform_atomic_documents = AtomicDocument[
     # The pages and the views of an editor: the page about the program, the inspector of a
     # selection and the arrangement of a collection.
     AtomicDocument(:help, "about_page",           make_about_page_document_example),
+    AtomicDocument(:help, "entry",                make_help_entry_document_example),
+    AtomicDocument(:link, "url",                  make_link_url_document_example),
+    AtomicDocument(:link, "url_view",             make_link_url_view_document_example),
+    AtomicDocument(:fileformat, "open_file_list", make_open_file_list_document_example),
+    AtomicDocument(:text, "view",                 make_text_view_document_example),
     AtomicDocument(:inspector, "selection",       make_selection_inspector_document_example),
     AtomicDocument(:arrangement, "document",      make_arrangement_document_example),
     AtomicDocument(:arrangement, "chips",         make_arrangement_chips_document_example),

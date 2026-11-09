@@ -326,6 +326,7 @@ include("../../../test/platform/editor/NavigationPresets.jl")
 include("../../../test/platform/editor/TypeinTest.jl")
 include("../../../test/platform/editor/ClickRoundtripTest.jl")
 include("../../../test/platform/editor/PartClickTest.jl")
+include("../../../test/platform/editor/CatalogRunner.jl")
 # Collapse/expand round-trip over the syntax example (reuses ClickRoundtripTest's
 # _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
 include("../../../test/platform/editor/CollapseRoundtripTest.jl")
