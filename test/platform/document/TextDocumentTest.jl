@@ -355,6 +355,39 @@ end # @testset "Ctrl+Backspace and Ctrl+Delete remove a word"
     @test operation.path == TextModule.make_flat_range_reference(0, 7)
 end # @testset "Ctrl+A selects the whole text"
 
+@testset "Tab and Shift+Tab change the indentation of the lines" begin
+    shift = ModifierKeys(; shift = true)
+    # Press the key at `selection` and answer the flat string and the selection after it.
+    function press(content, selection, modifiers = ModifierKeys())
+        block = set_selection!(make_text_block(content), selection)
+        operation = read_bound_gesture(block, KeyPress('\t', modifiers; time = 0.0))
+        operation === nothing && return nothing
+        # The edit is an edit of the lines, which a producer of one line declines.
+        @test changes_lines(operation)
+        evaluate_operation((document = block,), operation)
+        selected = get_flat_selection(block)
+        (get_flat_string(block), selected[1], selected[2])
+    end
+    at(k) = TextModule.make_flat_caret_reference(k)
+    over(s, e) = TextModule.make_flat_range_reference(s, e)
+    # With a caret, Tab inserts spaces up to the next stop of 4 columns.
+    @test press("foobar", at(3)) == ("foo bar", 4, 4)
+    @test press("x", at(0)) == ("    x", 4, 4)
+    # The spaces to the next stop replace a range in one line.
+    @test press("foo", over(1, 3)) == ("f   ", 4, 4)
+    # Over more lines, each line takes 4 spaces at its start, and the range stays on
+    # the lines; a range that ends at the start of a line leaves that line as it is.
+    @test press("a\nb", over(0, 3)) == ("    a\n    b", 4, 11)
+    @test press("a\nb", over(0, 2)) == ("    a\nb", 4, 6)
+    # Shift+Tab removes up to 4 spaces at the start of the line of the caret, or of
+    # each line of the range.
+    @test press("    x", at(4), shift) == ("x", 0, 0)
+    @test press("      x", at(7), shift) == ("  x", 3, 3)
+    @test press("    a\n  b", over(5, 9), shift) == ("a\nb", 1, 3)
+    # With no space to remove, the key goes on.
+    @test press("x", at(1), shift) === nothing
+end # @testset "Tab and Shift+Tab change the indentation of the lines"
+
 @testset "a text step hashes as it compares" begin
     for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,
                       TextColumnReferenceStep)

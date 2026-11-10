@@ -224,9 +224,10 @@ the root, and every document on that path holds its part of the path. A key goes
 where that path points: the assistant's split pane routes it to the draft, the
 active part's card and body follow the draft's selection, and the body is a text
 layer that answers the text keys — typing, `Backspace`, `Delete`, the arrows and
-their `Shift` twins. The composer turns the text layer's edits into edits of the
-draft's value. Its own table holds only `Return`, `Shift+Return`, `Alt+Return`,
-`Tab`, `Insert` and `Escape`, and every composer operation moves the complete
+their `Shift` twins, and `Tab` and `Shift+Tab`, which indent the lines. The
+composer turns the text layer's edits into edits of the draft's value. Its own
+table holds only `Return`, `Shift+Return`, `Alt+Return`, `Insert` and `Escape`,
+and every composer operation moves the complete
 selection to the caret of the active part (`sync_draft_selection!`). A key with
 no selection in the draft does not reach it.
 

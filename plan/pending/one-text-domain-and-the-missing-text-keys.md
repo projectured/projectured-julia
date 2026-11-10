@@ -308,6 +308,15 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
 3. ⬜ **The query of a choice list (D5).** Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.
+   **Open question for the owner (2026-11-10), so the step waits:** where does
+   the caret of the query live? The list is the content of a popup window that
+   never takes the focus: the context menu window gives it the keys of the window
+   under it (`_read_menu_key`), so the one selection from the root never goes
+   into the list. A caret field in the list would be a second selection, which
+   the owner ruled out for a document (2026-09-17). The assistant recommends a
+   query with its caret always at its end: the text table types, removes a
+   character and removes a word there, and a key that moves the caret or makes a
+   range, Ctrl+A among them, does nothing in the query.
 4. ✅ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Done 2026-11-10. Two rows in the text table,
    "Delete a word backward" and "Delete a word forward". Test: the rows of §3 in
    `test_text()`, and the two image rows in `test_inline_image_caret()`. Facts of
@@ -362,11 +371,49 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      `test_graph_layout_zoom()` 38. `test_platform_layering()` gives 19 pass and 2
      fail at `CheckLayering.jl:880` and `:889`, a known failure of main whose list
      names no module that this step changes.
-8. ⬜ **Tab and Shift+Tab (D13, D15, D16, D17).** Remove the binding of Tab in
+8. ✅ **Tab and Shift+Tab (D13, D15, D16, D17).** Done 2026-11-11. Remove the binding of Tab in
    the composer. Test: `test_text()`, Tab in a plain text and in the chat draft,
    Insert in the chat draft, which still starts a new part, and Tab in a JSON
    key, a workflow node title, an insertion field and a Julia hole, where it
-   keeps its meaning.
+   keeps its meaning. Facts and decisions of the step:
+   - The mark is the field `changes_indentation` of `ReplaceTextRangeOperation`,
+     with a keyword of its constructor. `changes_lines(operation)`, exported from
+     the text module, is the check of an edit of the lines: a break, the mark, or
+     a compound with such a member. It takes the place of `_holds_break`.
+   - The draft of the composer is a text that the composer builds itself
+     (`_editable_body`), not a `PrimitiveStringToTextBlock`. Its reader declines
+     only an edit that holds a break, so Return stays its own, and the edit of Tab
+     reaches the draft. So D17 holds as the owner decided, and the Tab binding of
+     the composer no longer fires.
+   - The kernel default retargets a flat edit with `retarget_operation`, which
+     kept the flat edit also where the backward map puts it in a plain string, as
+     in the draft; its evaluation then did nothing. `retarget_operation` now gives
+     an edit of a range of the string there, the rule that `_retarget_op` of a text
+     widget had, and `_retarget_op` calls it.
+   - A one-line `WidgetText` declines Tab and Shift+Tab, as it declines Return;
+     the title of a workflow node is such a field. A `WidgetTextarea` holds many
+     lines, so Tab indents it.
+   - Decision, not in D13: a range in one line is replaced by the spaces up to
+     the next stop, as in VS Code. A range over more lines that ends at the start
+     of the text of a line leaves that line as it is.
+   - Five tests changed. `ConversationPanelTest.jl` and `ApplicationTest.jl` add a
+     part with Insert, and the panel test also presses Tab and Shift+Tab in the
+     draft. `ConversationEditorTest.jl` reads Tab as a text key, which the
+     composer alone does not answer. `WidgetTextEditTest.jl` checks that Tab
+     indents a textarea, and `TextLineNumberingTest.jl` takes Escape as its key
+     with no rule and checks that Tab stays flat through the numbering.
+   - `test_document_insertion()` failed from step 1, which did not run it: it gave
+     a raw key to a leaf with no text stage. It now gives the leaf the text edit,
+     as `InsertionChoicesTest.jl` does since step 1.
+   - Counts: `test_text()` 170 (17 new), `test_assistant_composer_panel()` 99 (9
+     new), `test_widget_text_editing()` 69, `test_text_line_numbering()` 35,
+     `test_document_insertion()` 144, `test_data_frame_cells()` 173 (its runner
+     is `ProjecturedDataFramesTest` in `environment/all`). The baseline counts for
+     `test_insertion_choices()`, `test_julia_typein()`, `test_console_backend()`,
+     `test_conversation_editor()` and the other functions of step 1. No failure
+     in `test_json_construct()` (27, 2 broken), `test_yaml_construct()` (15, 2
+     broken), `test_workflow_to_widget()` 72, `test_settings_tab()` 55,
+     `test_window_wrappers()` 74 and `test_widget_button_behavior()` 134.
 9. ⬜ **Delete version on Alt+Delete (D14).** Change
    [VersioningToAny.jl:195](../../source/platform/versioning/VersioningToAny.jl#L195)
    and [VersioningToAnyTest.jl:173](../../test/platform/projection/VersioningToAnyTest.jl#L173).

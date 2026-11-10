@@ -60,10 +60,10 @@ function _backward_string(block, reference)
              _value_range_ref(s, e, get_range_direction(reference))
 end
 
-# The value of a primitive is one line, so an edit that holds a break is none of
-# its edits: the key that made it goes on to the bindings around the text, such as
-# Enter, which makes the value of a type-in.
-_holds_break(op::ReplaceRangeOperation) = occursin('\n', op.replacement)
+# The value of a primitive is one line, so each reader of an edit below declines an
+# edit of the lines, a break or a change of the indentation (`changes_lines`): the
+# key that made it goes on to the bindings around the text, such as Enter, which
+# makes the value of a type-in, and Tab, which moves to the next field.
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ end
 # `value{s:e}`; with `allows_type_in`, a text that the number can not show makes
 # a type-in instead.
 function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
-    _holds_break(op) && return nothing
+    changes_lines(op) && return nothing
     mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
     p.allows_type_in && mapped isa ReplaceRangeOperation ? make_number_edit_operation(iomap.input, mapped) : mapped
 end
@@ -213,7 +213,7 @@ function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::Replac
 end
 
 function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
-    _holds_break(op) && return nothing
+    changes_lines(op) && return nothing
     mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
     mapped isa ReplaceRangeOperation || return mapped
     range = find_value_range(mapped.reference)
@@ -295,7 +295,7 @@ function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::Repl
 end
 
 read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
-    _holds_break(op) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    changes_lines(op) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
 
 # The keys of a type-in that mean something to a type-in: Return makes the value
 # that the text parses as, and Escape drops the text. The keys that edit the text

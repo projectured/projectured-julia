@@ -1985,7 +1985,7 @@ function test_application()
                 focus_draft!(w)
                 type!(w, "hi")
                 @test holds_one_path(w)
-                @test w.press!(KeyPress('\t'; time = 0.0)) isa ComposerInsertPartOperation
+                @test w.press!(KeyDown(:insert, ModifierKeys(); time = 0.0)) isa ComposerInsertPartOperation
                 @test holds_one_path(w)
                 @test w.press!(KeyDown(:escape, ModifierKeys(); time = 0.0)) isa ComposerRevertOperation
                 @test holds_one_path(w)

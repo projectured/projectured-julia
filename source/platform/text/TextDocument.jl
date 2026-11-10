@@ -863,14 +863,18 @@ _span_at(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path
 #
 # Gestures match modifiers exactly: `KeyDown(:left;)`, with the `;` and no flag, is
 # a plain Left, and Ctrl+Left and Alt+Left are other gestures. A gesture with no
-# binding here propagates: Alt+arrow (a tree gesture), and Tab, whose `'\t'` the
-# rule of typed text does not take. The rule of typed text takes printable text
-# only, so Ctrl+Return, which types `'\n'` with Ctrl, also propagates. A plain arrow
+# binding here propagates: Alt+arrow (a tree gesture), and Ctrl+Tab. The rule of
+# typed text takes printable text only, so Ctrl+Return, which types `'\n'` with
+# Ctrl, also propagates. Tab and Shift+Tab change the indentation of the lines, an
+# edit of the lines that a producer of one line declines, as it declines a break,
+# so there they keep the meaning of the bindings around the text. A plain arrow
 # while a whole element is selected is declined inside the motion of the caret,
 # which reads `text.selection`.
 @gestures TextBlock begin
     when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => _text_insert(doc, t)
     KeyPress('\n';)        => "Break the line"       => _text_break(doc)
+    KeyPress('\t';)        => "Indent"               => _text_indent(doc)
+    KeyPress('\t'; shift)  => "Outdent"              => _text_outdent(doc)
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)
@@ -1284,6 +1288,82 @@ end
 function _text_select_all(text::TextBlock)
     text.elements isa ListNode && return nothing
     ReplaceSelectionOperation(make_flat_range_reference(0, _text_flat_total(text)))
+end
+
+# The width of a stop of Tab, in columns.
+const _TAB_STOP_WIDTH = 4
+
+# The lines of the range `start:stop` of `text`, as `(index, place)` with the flat
+# offset where the text of the line starts, past its indentation: from the line of
+# `start` to the line of `stop`, without the last line when the range ends at the
+# start of its text. `nothing` when an element of the range is no `TextLine`.
+function _find_selected_lines(text::TextBlock, start::Int, stop::Int)
+    offsets = get_flat_offsets(text)
+    first_line = findlast(<=(start), offsets)
+    last_line = findlast(<=(stop), offsets)
+    (first_line === nothing || last_line === nothing) && return nothing
+    lines = Tuple{Int,Int}[]
+    for k in first_line:last_line
+        line = text.elements[k]
+        line isa TextLine || return nothing
+        push!(lines, (k, offsets[k] + line.indentation))
+    end
+    length(lines) > 1 && stop == lines[end][2] && pop!(lines)
+    lines
+end
+
+# Tab. With a caret, or a range in one line, spaces from the start of the range up
+# to the next stop replace the range. With a range over more than one line, each
+# line of the range takes the spaces of one stop at the start of its text, and the
+# range stays on the lines. Each edit is marked as a change of the indentation.
+function _text_indent(text::TextBlock)
+    text.elements isa ListNode && return nothing
+    ends = _find_text_selection_ends(text, text.selection)
+    ends === nothing && return nothing
+    start, stop = minmax(ends.anchor, ends.moving)
+    line_range = _find_flat_line_range(text, start)
+    line_range === nothing && return nothing
+    if stop <= line_range[2]
+        spaces = " "^(_TAB_STOP_WIDTH - (start - line_range[1]) % _TAB_STOP_WIDTH)
+        return ReplaceTextRangeOperation(make_flat_range_reference(start, stop), spaces; changes_indentation = true)
+    end
+    lines = _find_selected_lines(text, start, stop)
+    lines === nothing && return nothing
+    spaces = " "^_TAB_STOP_WIDTH
+    move(p) = p + _TAB_STOP_WIDTH * count(line -> line[2] <= p, lines)
+    edits = Any[ReplaceTextRangeOperation(make_flat_range_reference(place, place), spaces; changes_indentation = true)
+                for (_, place) in Iterators.reverse(lines)]
+    CompoundOperation(Any[edits...,
+        ReplaceSelectionOperation(_make_flat_selection_reference(move(ends.anchor), move(ends.moving)))])
+end
+
+# Shift+Tab: the spaces of up to one stop go from the start of the text of the line
+# of the caret, or of each line of the range, and the selection keeps its place in
+# the text. Each edit is marked as a change of the indentation. With no space to
+# remove, the key goes on.
+function _text_outdent(text::TextBlock)
+    text.elements isa ListNode && return nothing
+    ends = _find_text_selection_ends(text, text.selection)
+    ends === nothing && return nothing
+    lines = _find_selected_lines(text, minmax(ends.anchor, ends.moving)...)
+    lines === nothing && return nothing
+    removals = Tuple{Int,Int}[]
+    for (k, place) in lines
+        line = text.elements[k]
+        characters = _push_flat_chars!(Char[], line)
+        spaces = 0
+        while spaces < _TAB_STOP_WIDTH && line.indentation + spaces < length(characters) &&
+              characters[line.indentation + spaces + 1] == ' '
+            spaces += 1
+        end
+        spaces > 0 && push!(removals, (place, place + spaces))
+    end
+    isempty(removals) && return nothing
+    move(p) = p - sum((min(p, stop) - start for (start, stop) in removals if start < p); init = 0)
+    edits = Any[ReplaceTextRangeOperation(make_flat_range_reference(start, stop), ""; changes_indentation = true)
+                for (start, stop) in Iterators.reverse(removals)]
+    CompoundOperation(Any[edits...,
+        ReplaceSelectionOperation(_make_flat_selection_reference(move(ends.anchor), move(ends.moving)))])
 end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on
@@ -1774,17 +1854,41 @@ end
 # document.
 
 """
-    ReplaceTextRangeOperation(reference, replacement)
+    ReplaceTextRangeOperation(reference, replacement; changes_indentation = false)
 
 Replace a flat character range of a `TextBlock` with `replacement`. `reference` is
 rooted at the editor's document and terminates in a `TextRangeReferenceStep(s, e)`
 (0-based flat offsets over the block's concatenated stream). After evaluation the
 selection becomes a zero-width caret at `s + length(replacement)`.
+
+`changes_indentation` marks an edit of the indentation of the lines, as Tab and
+Shift+Tab make. It is an edit of the lines, as a break is: it stays flat, and a
+producer of one line declines it (`changes_lines`).
 """
 struct ReplaceTextRangeOperation <: ReplaceRangeOperation
     reference::Reference
     replacement::String
+    changes_indentation::Bool
 end
+
+ReplaceTextRangeOperation(reference::Reference, replacement::AbstractString; changes_indentation::Bool = false) =
+    ReplaceTextRangeOperation(reference, String(replacement), changes_indentation)
+
+"""
+    changes_lines(operation) -> Bool
+
+Whether an edit of a text changes its lines: its replacement holds a break, or
+it changes the indentation of the lines, as Tab and Shift+Tab do. A compound
+changes the lines when one of its members does.
+
+Use it in a projection that gives a text of one line, to decline such an edit,
+so the key that made it goes on to the bindings around the text.
+"""
+changes_lines(operation::ReplaceRangeOperation) = occursin('\n', operation.replacement)
+changes_lines(operation::ReplaceTextRangeOperation) =
+    operation.changes_indentation || occursin('\n', operation.replacement)
+changes_lines(operation::CompoundOperation) = any(changes_lines, operation.operations)
+changes_lines(operation) = false
 
 # Split a text-range reference into (prefix-to-block, start, stop). The terminal
 # step must be a `TextRangeReferenceStep`; returns `nothing` otherwise. Type
@@ -1878,10 +1982,16 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
 end
 
 # The pair registers the flat edit: the kernel reroots its reference and maps it
-# back through a projection.
+# back through a projection. Under a document the edit stays flat; in the text of
+# a plain value, as the draft of a composer is, it is an edit of a range of that
+# string.
 operation_reference(op::ReplaceTextRangeOperation) = op.reference
-retarget_operation(op::ReplaceTextRangeOperation, reference::Reference) =
-    ReplaceTextRangeOperation(reference, op.replacement)
+function retarget_operation(op::ReplaceTextRangeOperation, reference::Reference)
+    steps = get_reference_steps(strip_reference_types(reference))
+    (isempty(steps) || last(steps) isa TextRangeReferenceStep) ||
+        return ReplaceStringRangeOperation(reference, op.replacement)
+    ReplaceTextRangeOperation(reference, op.replacement, op.changes_indentation)
+end
 
 # Lower a flat `ReplaceTextRangeOperation` to the structural single-span
 # `ReplaceStringRangeOperation` (`.elements[i].content[s:e]`) over `block`, so the
@@ -1992,9 +2102,10 @@ function _read_lowered_gesture(block::TextBlock, evt, line_index = nothing)
 end
 
 # A flat edit lowered to the run it falls in, or kept flat when it is an edit of
-# the lines of `block`.
+# the lines of `block`: a break, or a change of the indentation of the lines.
 function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation,
                                  line_index = get_flat_offsets(block))
+    op.changes_indentation && return op
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
      _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement, line_index)) && return op

@@ -165,8 +165,11 @@ end
     @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
-    # Tab is not text, so it goes on to move the focus.
-    @test read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0)) === nothing
+    # A textarea holds many lines, so Tab indents its line: spaces up to the next
+    # stop of 4 columns, an edit of the lines that stays flat.
+    tab = read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0))
+    @test tab isa ReplaceTextRangeOperation && tab.changes_indentation && tab.replacement == " "
+    @test tab.reference.head == FieldReferenceStep("content")
 
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test [get_flat_string(line) for line in doc.content.elements] == ["one", " two"]

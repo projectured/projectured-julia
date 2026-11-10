@@ -811,8 +811,9 @@ _shown_length(::Any, body::TextBlock) = length(get_flat_string(body))
 # **active** (last) part's mode, so the very set that fires (`read_composer_gesture`, shared
 # with the assistant card) is the set the gesture-help window shows
 # (`get_projection_gesture_bindings`) — fire == show. The text keys are the text
-# layer's; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
-# mode-specific, and Return and Tab are the `KeyPress` of `'\n'` and `'\t'`.
+# layer's, Tab and Shift+Tab among them, which indent the lines of the draft; the
+# Return / Shift+Return / Alt+Return / Insert / Esc meaning is mode-specific, and
+# Return is the `KeyPress` of `'\n'`.
 # ModifierKeys: `[:shift]`/`[:alt]` are exact, a bare key (`mods=nothing`) matches any
 # modifiers, and the exact-modifier rows precede the bare one so Shift/Alt+Return win
 # over plain Return (first match).
@@ -830,9 +831,6 @@ function _composer_bindings(draft::ConversationDraft)
             GestureBinding(KeyPressPattern('\n'),
                            (d, e) -> ComposerSubmitOperation(d); description = "Submit",
                            domain = "composer"),
-            GestureBinding(KeyPressPattern('\t'),
-                           (d, e) -> ComposerInsertPartOperation(d);
-                           description = "Add a structured part", domain = "composer"),
             GestureBinding(KeyDownPattern(:insert),
                            (d, e) -> ComposerInsertPartOperation(d);
                            description = "Add a structured part", domain = "composer"),

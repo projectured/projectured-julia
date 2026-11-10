@@ -105,11 +105,12 @@ function test_conversation_editor()
             turn = _ce_draft()
             iom = print_document(proj, turn)
 
-            # text typein. The text keys are the text layer's, which this
-            # projection alone does not hold; the composer answers its own keys,
-            # and a line break is an edit of the draft's value.
+            # text typein. The text keys are the text layer's, Tab among them,
+            # which this projection alone does not hold; the composer answers its
+            # own keys, and a line break is an edit of the draft's value.
             @test read_intent(proj, iom, KeyPress('a'; time = 0.0)) === nothing
             @test read_intent(proj, iom, KeyDown(:backspace, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, iom, KeyPress('\t'; time = 0.0)) === nothing
             @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa ComposerSubmitOperation
             newline = read_intent(proj, iom, KeyPress('\n', ModifierKeys(shift=true); time = 0.0))
             @test newline isa ReplaceStringRangeOperation
@@ -118,7 +119,6 @@ function test_conversation_editor()
                   Any[FieldReferenceStep("parts"), RangeReferenceStep(0, 1), FieldReferenceStep("content"),
                       FieldReferenceStep("value"), RangeReferenceStep(0, 0)]
             @test read_intent(proj, iom, KeyDown(:insert, ModifierKeys(); time = 0.0)) isa ComposerInsertPartOperation
-            @test read_intent(proj, iom, KeyPress('\t'; time = 0.0)) isa ComposerInsertPartOperation
 
             # kind chooser
             _ce_apply!(ComposerInsertPartOperation(turn))

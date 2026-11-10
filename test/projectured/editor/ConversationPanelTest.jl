@@ -157,8 +157,18 @@ function test_assistant_composer_panel()
             press(KeyPress('q'; time = 0.0))
             at("q", (1, 1))
 
-            # A structured part: the kind chooser takes the selection.
+            # Tab and Shift+Tab indent the line of the draft, and the caret keeps
+            # its place in the text.
+            press(KeyDown(:home, none; time = 0.0))
+            at("q", (0, 0))
             press(KeyPress('\t'; time = 0.0))
+            at("    q", (4, 4))
+            press(KeyPress('\t', ModifierKeys(shift = true); time = 0.0))
+            at("q", (0, 0))
+
+            # A structured part: Insert opens the kind chooser, which takes the
+            # selection.
+            press(KeyDown(:insert, none; time = 0.0))
             @test active() isa DocumentInsertion
             at("", (0, 0))
             foreach(c -> press(KeyPress(c; time = 0.0)), "jul")

@@ -268,8 +268,11 @@ end
 # the fields, whose offsets are those of the output, names the field that holds it:
 # the value first at a seam, as the redirect above does. A field that holds an
 # image takes no string edit, and a field of one run takes no break (rule 1 of the
-# text domain), so Enter there falls to the key bindings around the text.
+# text domain), so Enter there falls to the key bindings around the text. The lines
+# of a syntax view belong to the syntax, so a change of their indentation is no
+# edit, and Tab falls to the key bindings of the syntax.
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
+    op.changes_indentation && return nothing
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
         return nothing
@@ -1443,8 +1446,10 @@ end
 # `ReplaceTextRangeOperation` against this node's own output block, then re-dispatch
 # through the `ReplaceStringRangeOperation` handler above (which finds the child
 # span the range lands in). In the SDL pipeline `TextToGraphics` lowers it first, so
-# this method is reached only by the console path.
+# this method is reached only by the console path. A change of the indentation of
+# the lines is no edit, because the lines of a syntax view belong to the syntax.
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
+    op.changes_indentation && return nothing
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
         return nothing

@@ -1817,12 +1817,9 @@ function _retarget_op(p, iomap, op)
         return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
     elseif op isa ReplaceTextRangeOperation
         # A flat edit of the lines of a text: under a document it stays flat; in the
-        # text of a plain value it is a range of that string.
+        # text of a plain value it is a range of that string (`retarget_operation`).
         new_ref = map_reference_backward(p, iomap, op.reference)
-        new_ref === nothing && return nothing
-        last(get_reference_steps(strip_reference_types(new_ref))) isa TextRangeReferenceStep &&
-            return ReplaceTextRangeOperation(new_ref, op.replacement)
-        return ReplaceStringRangeOperation(new_ref, op.replacement)
+        return new_ref === nothing ? nothing : retarget_operation(op, new_ref)
     elseif op isa ReplaceReferencedValueOperation
         # `editor.document`-rooted (document === nothing) ⇒ reroot the reference;
         # a self-contained one (carried root) passes through unchanged.
@@ -2389,12 +2386,14 @@ read_intent(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`. A field is
-# one line: Return breaks no line in it, and goes on to the bindings around the
-# field, such as the find of a bar.
+# one line: Return breaks no line in it, and Tab and Shift+Tab indent no line in
+# it, so these keys go on to the bindings around the field, such as the find of a
+# bar and the indent of the node of an outline.
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     _is_plain_typed(evt, '\n') && return nothing
+    evt isa KeyPress && evt.char == '\t' && return nothing
     operation = _validate_text_edit(iomap.input,
         _read_text_content_intent(p, iomap, evt, _get_content_offset(_get_box_geometry(iomap))...))
     child = iomap.value_iomap
@@ -6071,8 +6070,8 @@ end
 # A key while the selection is in the name of a tab: the answer of the text view
 # that draws the name, as an answer of the pane at
 # `selector_element_pairs[i].selector.text{s:e}`. The text domain edits the name
-# and moves its caret as in every text. A name is one line, so an edit that holds
-# a break is no answer, and the key goes on.
+# and moves its caret as in every text. A name is one line, so an edit of the
+# lines (`changes_lines`) is no answer, and the key goes on.
 function _read_tab_name_key(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, key)
     found = _find_tab_name_range(get_stored_selection(iomap.input))
     found === nothing && return nothing
@@ -6096,7 +6095,7 @@ function _map_tab_name_operation(view::TextBlock, index::Int, operation::Replace
 end
 
 function _map_tab_name_operation(view::TextBlock, index::Int, operation::ReplaceRangeOperation)
-    occursin('\n', operation.replacement) && return nothing
+    changes_lines(operation) && return nothing
     place = _map_tab_name_reference(view, index, operation.reference)
     place === nothing ? nothing : ReplaceStringRangeOperation(place, operation.replacement)
 end

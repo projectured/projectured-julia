@@ -12,6 +12,12 @@ _written_doc(op) = op.operations[1].value
 _ins_vpath(n) = ConcreteReference(FieldReferenceStep("value"),
                     ConcreteReference(RangeReferenceStep(n, n), EmptyReference()))
 
+# The edit that the text domain makes of `text` typed at the caret of the insertion
+# `ins`, as the leaf `projection` gets it from its output: a leaf reads no key of
+# the text.
+_ins_typed_edit(projection, iomap, ins, text) =
+    ReplaceStringRangeOperation(map_reference_forward(projection, iomap, ins.selection), text)
+
 # A document type defined by nobody but this test file: the reflection must
 # pick it up with zero registration (a zero-arg constructor is enough).
 struct InsertionReflectionProbe <: Document
@@ -279,9 +285,9 @@ function test_document_insertion()
             proj = DocumentInsertionToSyntaxLeaf()
             iom = print_document(proj, proj, ins, nothing)
 
-            # A printable key edits the value, and opens the list of the kinds that
-            # the text after it names under the field.
-            op = read_intent(proj, iom, KeyPress('a'; time = 0.0))
+            # A typed text edits the value, and opens the list of the kinds that the
+            # text after it names under the field.
+            op = read_intent(proj, iom, _ins_typed_edit(proj, iom, ins, "a"))
             @test op isa CompoundOperation && op.operations[1] isa ReplaceStringRangeOperation
             @test op.operations[2].operation isa OpenContextMenuOperation
             @test op.operations[2].operation.layers[1][2].query == "julia"
@@ -336,7 +342,7 @@ function test_document_insertion()
             jins.selection = _ins_vpath(0)
             jiom = print_document(jproj, jproj, jins, nothing)
             for ch in "str"
-                evaluate_operation((document = jins,), read_intent(jproj, jiom, KeyPress(ch; time = 0.0)))
+                evaluate_operation((document = jins,), read_intent(jproj, jiom, _ins_typed_edit(jproj, jiom, jins, string(ch))))
             end
             @test jins.value == "str"
             # Unambiguous prefix-free hint + green, and Enter commits JsonString.
