@@ -580,6 +580,74 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 - [ ] 5. **A drawn part is a part.** P2, P3 and P4 in the kernel and the
   platform; the pane, the syntax tree, the card title and the shell band follow
   the one rule of `convert_to_whole_selection`. P5 in the clipboard.
+
+  Found before the work (2026-11-10, a read of the code):
+  - **Two rules cut a part today.** `convert_to_whole_selection`
+    (`WholeSelection.jl:73`) cuts a path at its first introduced step
+    (`_cut_introduced_place`), and it turns a caret inside a value, such as
+    `.title.value{3}`, into the child whole, `.title`. The pane
+    (`_select_page_content`, `PaneToWidget.jl:551`) has its own copy: "a caret,
+    or a place the content's projection introduced, names the innermost document
+    on its path". These two give the causes `widget`, `glyph`, `value` and
+    `stop` of step 4.
+  - **More copies cut before the container.** The syntax tree answers an
+    Alt+click on a leaf and on its own delimiters with the node
+    (`SyntaxToText.jl:183`, `_resolve_click` at `:1230` and `:1268`). The card
+    title (`WidgetToGraphics.jl:9026`), the shell band (`:4279`), the table
+    headers and cells (`WidgetToGraphics.jl:12744`, `WidgetTableParts.jl:1607`),
+    the conversation (`ConversationToWidget.jl:964`), the workspace
+    (`WorkspaceToFileSystem.jl:122`), the toolbar (`WidgetToGraphics.jl:3525`)
+    and the mark of a fault (`FaultCatching.jl:388`) have a rule of their own;
+    omnet-julia has one in the runner form
+    (`LegacySimulationRunnerToWidget.jl:780`).
+  - **The step of a drawn part.** `ProjectionReferenceStep` evaluates to its
+    output path, a `Reference`. A path with it and a typed terminal does not
+    evaluate in the input, so the whole-selection test, the clipboard
+    (`_selected`, `Clipboard.jl:211`) and a route (`Chaining.jl:191`) treat it
+    as a path that does not resolve. `OutputReferenceStep`
+    (`OutputSelection.jl:19`) holds the drawn node and evaluates to it; the mark
+    of a fault and the runner form of omnet-julia use it. About 30 places
+    evaluate a path that can hold an introduced step and read the result by its
+    type: the owner of a selection (`Operations.jl:745`), the edits
+    (`DocumentEdits.jl:27`, `Inversion.jl:101`), the walks of the focus and the
+    pane, and others. A paste or a cut whose target is a drawn part would write
+    into the output of a view.
+  - **The plain click.** The card draws its title by `_push_text_block!`, which
+    no text leaf reads, and its reader answers a plain click with
+    `DoNothingOperation`. Only a text leaf maps a point to a caret
+    (`TextToGraphics.jl:313`).
+
+  The sub-steps, in this order. The rules of P3 and P8 read the path alone and
+  do not need P2, and they fix the largest causes, so they come first. One
+  commit for each.
+  - [ ] 5.1 **One rule for the whole part.** `find_whole_part(document, path)`
+    in `WholeSelection.jl` answers the innermost whole part that `path`
+    reaches: the path when it names a part as a whole; else the path without
+    the place at its end, a caret or a range of text, until a whole part is
+    left, so `.title.value{3}` gives `.title.value` (P8). Inside the output path
+    of an introduced step, the cut reads the steps: a field and one element
+    reach a drawn part, and any other last step is a place in it, so
+    `‹.open{0}›` gives `‹.open›` (P3). An output path that becomes empty gives
+    the node that printed it. `convert_to_whole_selection` and the pane use it;
+    `_cut_introduced_place` and the introduced cut of
+    `_find_innermost_document_path` go.
+  - [ ] 5.2 **The copies follow the rule.** Each reader of the list above
+    answers what its child answered, and the container decides by
+    `find_whole_part`, or the reader calls it. A control still acts on a plain
+    click.
+  - [ ] 5.3 **A plain click on a drawn text (D1, P4).** A plain click on a text
+    that no text leaf reads puts the caret at the character: the view that drew
+    the text names it by its output path and the index of the character, and
+    its backward map names the field that it shows, or an introduced caret. A
+    plain click on a part with no text selects it whole; a control acts.
+  - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
+    output that its projection drew, and evaluates to the drawn part.
+    `OutputReferenceStep` goes, and its users make the introduced step. Each
+    place of the list above is checked; a paste and a cut refuse a target in a
+    drawn part.
+  - [ ] 5.5 **Ctrl+C copies a selected value (P5).**
+  - [ ] 5.6 **The check.** The click test on the catalogs, against the counts
+    of step 4, and the suites that the change touches, against main.
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
