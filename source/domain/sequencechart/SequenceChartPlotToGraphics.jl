@@ -70,6 +70,9 @@ SequenceChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=900,
     output::Any
     timeline::Cell     # the coordinate of every event, one cumulative pass
     geometry::Cell     # the laid-out frame: window, lanes, ticks, shapes
+    toolbar::Cell      # the print of the buttons while they show, or nothing
+    right_scroll_bar::Cell   # the print of the bar along the right edge of the body while it is there, or nothing
+    bottom_scroll_bar::Cell  # the print of the bar along the bottom edge of the body while it is there, or nothing
 end
 
 # ── The timeline pass ────────────────────────────────────────────────────
@@ -242,7 +245,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
        gutter = t.gutter, gutter_border = t.gutter_border,
        hairline = t.hairline, zero_time = t.zero_time,
        arrow = t.arrow, event = t.event, series_colors = t.series_colors,
-       selected = t.selected, hover = t.hover,
+       selected = t.selected, hover = t.hover, band_fill = t.band_fill,
        padding = t.padding, gutter_padding = t.gutter_padding,
        label_gap = t.label_gap, band_height = t.band_height,
        radius = t.radius, line_width = t.line_width,
@@ -802,9 +805,9 @@ function _cursor_elements!(out, g, plot)
 end
 
 # The two readouts in the gutter: the time under the pointer, and the extent of
-# the window. Both are chrome, so they go in the outer canvas where the body's
-# clipping cannot reach them.
-function _readout_elements!(out, g, plot)
+# the window, which ends at `right`. Both are chrome, so they go in the outer canvas
+# where the body's clipping cannot reach them.
+function _readout_elements!(out, g, plot, right)
     gutter = g.chart.gutter
     gutter.visible || return out
     text_color = _or(g.style.tick_color, g.text_color)
@@ -834,7 +837,7 @@ function _readout_elements!(out, g, plot)
                                         _cursor_neighbourhood(g)),
                       " … Δ", get_honest_tick_label(span, _cursor_neighbourhood(g)))
         line = compute_line_box(g.measure, text, g.axis_font)
-        push!(out, GraphicsText(text, round(Int, g.w - line.width - g.padding),
+        push!(out, GraphicsText(text, round(Int, right - line.width),
                                 g.padding + line.text_y; font = g.axis_font, color = text_color))
     end
     out
@@ -887,6 +890,37 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, timeline[], w, h, t)
     end)
+    _bind_scroll_bars!(plot, geometry)
+
+    # The buttons print while the pointer is over the chart, and a bar while its
+    # thumb is less than the whole track, through the recursion, which
+    # `make_sequence_chart_projection` gives a printer of each. Each wish is a cell
+    # of its own, so a move between the parts of the chart does not print them
+    # again.
+    wants_toolbar = Cell(@computation _is_sequence_chart_toolbar_wanted(plot, geometry[]))
+    toolbar = Cell(@computation wants_toolbar[] ?
+        print_child(recursion, plot.toolbar,
+                    with_free_axis(with_free_axis(make_child_context(ctx, FieldReferenceStep("toolbar")),
+                                                  :x), :y)) : nothing)
+    # A bar is as long as its edge of the body, and as thick as its printer makes
+    # it. The bar along the bottom stops before the bar along the right edge.
+    right_field = Cell(@computation _get_right_scroll_bar_field(geometry[]))
+    right_bar = Cell(@computation getproperty(plot, Symbol(right_field[])))
+    wants_right = Cell(@computation _is_sequence_chart_scroll_bar_wanted(right_bar[], geometry[]))
+    right_length = Cell(@computation (g = geometry[]; g === nothing ? 0 : round(Int, g.body_h)))
+    right = Cell(@computation wants_right[] ?
+        print_child(recursion, right_bar[],
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep(right_field[]));
+                                    width = nothing, height = right_length)) : nothing)
+    bottom_field = Cell(@computation _get_bottom_scroll_bar_field(geometry[]))
+    bottom_bar = Cell(@computation getproperty(plot, Symbol(bottom_field[])))
+    wants_bottom = Cell(@computation _is_sequence_chart_scroll_bar_wanted(bottom_bar[], geometry[]))
+    bottom_length = Cell(@computation (g = geometry[]; bar = right[];
+        g === nothing ? 0 : round(Int, g.body_w) - (bar === nothing ? 0 : Int(bar.output.w))))
+    bottom = Cell(@computation wants_bottom[] ?
+        print_child(recursion, bottom_bar[],
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep(bottom_field[]));
+                                    width = bottom_length, height = nothing)) : nothing)
 
     elements = CellVector(@computation begin
         g = geometry[]
@@ -900,7 +934,12 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         # moving the pointer over a dense chart rebuilds this list and nothing
         # else. They draw last, over everything they call out.
         _overlay_elements!(body, g, plot)
-        _readout_elements!(out, g, plot)
+        # The buttons keep their corner, so a second click finds them; the range
+        # readout ends left of them while they show.
+        parts = _find_shown_sequence_chart_parts(g, plot, toolbar[], right[], bottom[])
+        buttons = findfirst(part -> part.field == "toolbar", parts)
+        readout_right = buttons === nothing ? g.w - g.padding : parts[buttons].x - g.label_gap
+        _readout_elements!(out, g, plot, readout_right)
 
         # Cross scrolling is a translation of the body, not a relayout: which
         # lanes are in view changes nothing about the flow axis, the decimation
@@ -911,6 +950,18 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                                  w = round(Int, g.body_w), h = round(Int, g.body_h))
         push!(out, GraphicsViewport(round(Int, g.body_x), round(Int, g.body_y),
                                     round(Int, g.body_w), round(Int, g.body_h), content))
+        # The band of a zoom drag, over the body.
+        rect = plot.drag_rect
+        if rect !== nothing
+            # Fill only, no border: a bordered rect is drawn as the border colour
+            # with the fill inset on top of it, so a translucent fill would show
+            # the border colour through the whole band rather than around it.
+            push!(out, GraphicsRect(rect[1], rect[2], max(rect[3], 1), max(rect[4], 1); color = g.band_fill))
+        end
+        # The bars, and the buttons over everything.
+        for part in reverse(parts)
+            push!(out, GraphicsViewport(part.x, part.y, part.w, part.h, part.iomap.output))
+        end
         out
     end)
 
@@ -922,7 +973,7 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                             Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry)
+    SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry, toolbar, right, bottom)
 end
 
 # A chart-shaped placeholder for an empty or not-yet-typed root, so it still
@@ -952,9 +1003,9 @@ get_lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), no
 map_reference_forward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
 
 # A point maps back to the part drawn at it, with the hit tests of the reader of
-# a click, in its order: in the body an event, an arrow, a band or a lane, and
-# else the plot at that point, which the cursor readout reads; beside the body,
-# the lane of the label strip.
+# a click, in its order: a button or a bar, in the body an event, an arrow, a band
+# or a lane, and else the plot at that point, which the cursor readout reads;
+# beside the body, the lane of the label strip.
 function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     point === nothing && return nothing
@@ -962,6 +1013,10 @@ function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, refe
     g === nothing && return nothing
     plot, x, y = iomap.input, point.x, point.y
     chart = plot.chart
+    # The buttons and the bars are on top of every part: a point on them is the
+    # part of them there.
+    shown = find_drawn_child_at(_find_shown_sequence_chart_parts(iomap), x, y)
+    shown === nothing || return map_drawn_child_point(plot, shown, x, y)
     if _in_body(g, x, y)
         part = _find_sequence_chart_part(g, plot, x, y)
         part === nothing || return part
@@ -1142,22 +1197,59 @@ _make_selection_operation(plot, inner) = begin
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
 
+# The gestures of the plot, in the order of what is drawn on top: the buttons and
+# the bars first, in their frame, then the gestures of the view and the selection.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap::SequenceChartPlotToGraphicsCanvasIoMap, event)
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot = iomap.input
+    # The buttons and the bars are on top: a press, a release, a click, a dwell and
+    # a right click on them go to them, in their frame.
+    parts = _find_shown_sequence_chart_parts(iomap)
+    if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell}
+        part = find_drawn_child_at(parts, event.x, event.y)
+        part === nothing || return _read_sequence_chart_part_event(g, plot, part, event)
+    end
+
+    if event isa MouseScroll
+        return _read_scroll(g, plot, event)
+    elseif event isa MouseDown && event.button in (:left, :middle)
+        return _drag_start(g, plot, event)
+    elseif event isa Union{KeyDown, KeyPress}
+        return _key_intent(g, plot, event)
+    elseif event isa Union{DragMove, DragEnd, DragCancel}
+        # The drag comes by the path of the plot, also off the body: the drag of the
+        # thumb of a bar, which the plot keeps, or a band or a pan.
+        bar = _read_sequence_chart_scroll_bar_drag(g, plot, event)
+        bar === nothing || return bar
+        event isa DragMove && return _drag_move(g, plot, event)
+        event isa DragEnd && return _drag_end(g, plot, event)
+        return _cancel_drag(plot)
+    elseif event isa MouseMove
+        return _read_move(g, plot, parts, event)
+    elseif is_outward_gesture(event)
+        # A dwell and a right click go to the part at their point, and then out to
+        # the plot, whose menu holds the view actions.
+        return read_child_part_gesture(iomap, event)
+    elseif event isa MouseClick
+        return _read_click(g, plot, event)
+    end
+    nothing
+end
+
 # A left click picks the most specific thing under the pointer. The order is the
 # one the reference tool settled on and for the same reason: an occurrence is a
 # point and an arrow is a line, so where both are within reach the point was almost
 # certainly what was aimed at. Another button moves no selection.
-function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
-                     gesture::MouseClick)
+function _read_click(g, plot::SequenceChartPlot, gesture::MouseClick)
     gesture.button === :left || return nothing
-    g = iomap.geometry
-    g === nothing && return nothing
-    plot = iomap.input
     chart = plot.chart
     x, y = gesture.x, gesture.y
 
     # Double-click returns to the whole trace: the reliable way out of a zoom,
-    # and the one people reach for without being told.
-    if gesture.count >= 2 && _in_body(g, x, y)
+    # and the one people reach for without being told. On the time axis it fits
+    # the time.
+    if gesture.count >= 2 && (_in_body(g, x, y) || _is_over_time_axis(g, x, y))
         plot.view === nothing && return nothing
         return _write_view_state(plot, "view", nothing)
     end
@@ -1180,33 +1272,290 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     nothing
 end
 
-# A move reads the time under the pointer. The readout is overlay state: it is
-# written to the plot, and only the element pass reads it, as it reads the mouse
-# target of the plot, so a pointer move never re-runs the layout. A move off the
-# body clears the readout, such as the move to `(-1, -1)` that a container gives
-# to the plot that the pointer leaves, so a stale readout never outlives the
-# pointer. A readout equal to the one that the plot holds writes nothing.
-function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
-                     gesture::MouseMove)
-    g = iomap.geometry
-    g === nothing && return nothing
-    plot = iomap.input
-    chart = plot.chart
-    x, y = gesture.x, gesture.y
+# ── The buttons and the bars in the frame of the chart ───────────────────
 
+# The field of the plot that holds the bar along the right edge of the body, and
+# the one along its bottom edge: the time runs across a horizontal chart, so its
+# bar is the one along the bottom.
+_get_right_scroll_bar_field(g) = (g !== nothing && g.vertical) ? "time_scroll_bar" : "lane_scroll_bar"
+_get_bottom_scroll_bar_field(g) = (g !== nothing && g.vertical) ? "lane_scroll_bar" : "time_scroll_bar"
+
+# Whether the buttons of `plot` show: while the pointer is over the chart and no
+# drag runs.
+_is_sequence_chart_toolbar_wanted(plot::SequenceChartPlot, g) =
+    g !== nothing && plot.toolbar !== nothing && plot.drag_anchor === nothing &&
+    get_mouse_target(plot) !== nothing
+
+# Whether the bar `bar` of a plot is there: while its thumb is less than the whole
+# track.
+_is_sequence_chart_scroll_bar_wanted(bar, g) =
+    g !== nothing && bar !== nothing && bar.thumb_size < 1
+
+_count_sequence_chart_buttons(plot::SequenceChartPlot) =
+    plot.toolbar === nothing ? 0 : length(plot.toolbar.elements)
+
+# Where the buttons of the print `toolbar` show, of `count` buttons: the top-right
+# corner of the chart, as `(; x, y, w, h, iomap)`, or `nothing` when they do not
+# show, or when the body is narrower than four buttons or lower than two.
+function _find_shown_sequence_chart_toolbar(g, toolbar, count::Integer)
+    (g === nothing || toolbar === nothing || count == 0) && return nothing
+    canvas = toolbar.output
+    canvas isa GraphicsCanvas || return nothing
+    w, h = Int(canvas.w), Int(canvas.h)
+    (w > 0 && h > 0) || return nothing
+    (g.body_w >= 4 * w / count && g.body_h >= 2 * h) || return nothing
+    inset = max(1, round(Int, g.padding) ÷ 2)
+    (; x = g.w - w - inset, y = inset, w, h, iomap = toolbar)
+end
+
+# The parts that only the plot holds and that show now, the buttons first, as the
+# children that the chart draws (`find_drawn_child_at`), with the field that holds
+# each: the buttons in the top-right corner of the chart, the bar along the right
+# edge of the body, and the bar along its bottom edge.
+function _find_shown_sequence_chart_parts(g, plot::SequenceChartPlot, toolbar, right, bottom)
+    parts = NamedTuple[]
+    g === nothing && return parts
+    part(field, x, y, w, h, iomap) = (; field, x, y, w, h, iomap, steps = (FieldReferenceStep(field),))
+    shown = _find_shown_sequence_chart_toolbar(g, toolbar, _count_sequence_chart_buttons(plot))
+    shown === nothing || push!(parts, part("toolbar", shown.x, shown.y, shown.w, shown.h, toolbar))
+    body_x, body_y = round(Int, g.body_x), round(Int, g.body_y)
+    body_w, body_h = round(Int, g.body_w), round(Int, g.body_h)
+    if right !== nothing && right.output isa GraphicsCanvas
+        w, h = Int(right.output.w), Int(right.output.h)
+        push!(parts, part(_get_right_scroll_bar_field(g), body_x + body_w - w, body_y, w, h, right))
+    end
+    if bottom !== nothing && bottom.output isa GraphicsCanvas
+        w, h = Int(bottom.output.w), Int(bottom.output.h)
+        push!(parts, part(_get_bottom_scroll_bar_field(g), body_x, body_y + body_h - h, w, h, bottom))
+    end
+    parts
+end
+
+_find_shown_sequence_chart_parts(iomap::SequenceChartPlotToGraphicsCanvasIoMap) =
+    _find_shown_sequence_chart_parts(iomap.geometry, iomap.input, iomap.toolbar,
+                                     iomap.right_scroll_bar, iomap.bottom_scroll_bar)
+
+get_child_iomaps(iomap::SequenceChartPlotToGraphicsCanvasIoMap) =
+    Any[child for child in (iomap.toolbar, iomap.right_scroll_bar, iomap.bottom_scroll_bar)
+        if child !== nothing]
+
+# The value and the thumb of the bars of `plot` are those of its window among the
+# trace and of its lanes among their room, which only the laid-out frame knows, so
+# the renderer sets them from its `geometry`.
+function _bind_scroll_bars!(plot::SequenceChartPlot, geometry::Cell)
+    for (bar, axis) in ((plot.time_scroll_bar, :time), (plot.lane_scroll_bar, :lanes))
+        bar === nothing && continue
+        place = Cell(@computation _get_scroll_bar_place(geometry[], plot, axis))
+        set_cell_computation!(getfield(bar, :value), () -> place[][1])
+        set_cell_computation!(getfield(bar, :thumb_size), () -> place[][2])
+    end
+end
+
+# The window, as a pair of a start and an end among the extent, that the bar of
+# `axis` shows: the window of the time among the trace, or the lanes that the body
+# shows among all of them.
+function _get_scroll_bar_window(g, plot::SequenceChartPlot, axis::Symbol)
+    axis === :time && return ((g.lo, g.hi), _get_trace_extent(g.coordinates))
+    visible = Float64(_get_lane_page(g))
+    ((Float64(plot.cross_offset), plot.cross_offset + visible), (0.0, visible + g.cross_room))
+end
+
+function _get_scroll_bar_place(g, plot::SequenceChartPlot, axis::Symbol)
+    g === nothing && return (0.0, 1.0)
+    window, extent = _get_scroll_bar_window(g, plot, axis)
+    (compute_window_scroll_bar_value(window; extent), compute_window_scroll_bar_thumb(window; extent))
+end
+
+# The write of the view with the window of `axis` at the place `value` of its bar.
+function _move_to_scroll_bar_value(g, plot::SequenceChartPlot, axis::Symbol, value::Real)
+    window, extent = _get_scroll_bar_window(g, plot, axis)
+    moved = compute_window_at_scroll_bar_value(window, value; extent)
+    axis === :time && return _move_window(plot, _get_window_state(g), moved)
+    _set_cross_offset(g, plot, round(Int, moved[1]))
+end
+
+# A move of the pointer: on a button or a bar it goes to that part and clears the
+# readout; elsewhere it tracks the readout. The part that the pointer leaves gets
+# the leave, so a press released off a button ends.
+function _read_move(g, plot::SequenceChartPlot, parts, event::MouseMove)
+    answer = read_drawn_child_move(plot, parts, event)
+    on_part = find_drawn_child_at(parts, event.x, event.y) !== nothing
+    join_move_answers(answer, on_part ? _clear_cursor(plot) : _track_cursor(g, plot, event))
+end
+
+# The answer of a button or a bar to a pointer gesture on it. A press on the thumb
+# of a bar starts a drag that the plot keeps, and a write of the value of a bar
+# moves the view.
+function _read_sequence_chart_part_event(g, plot::SequenceChartPlot, part, event)
+    answer = read_drawn_child_event(plot, part, event)
+    (is_outward_gesture(event) || part.field == "toolbar") && return answer
+    bar = getproperty(plot, Symbol(part.field))
+    event isa MouseDown && (answer = keep_owned_scroll_bar_drag(answer, bar, event))
+    _convert_scroll_bar_answer(g, plot, answer)
+end
+
+# The answer of a bar whose thumb the plot drags to a part of that drag, with the
+# value made the move of the view, or `nothing` when no thumb is dragged.
+function _read_sequence_chart_scroll_bar_drag(g, plot::SequenceChartPlot, event)
+    for bar in (plot.time_scroll_bar, plot.lane_scroll_bar)
+        bar === nothing && continue
+        answer = read_scroll_bar_drag(bar, event)
+        answer === nothing || return _convert_scroll_bar_answer(g, plot, answer)
+    end
+    nothing
+end
+
+# `answer` with each write of the value of a bar of `plot` made the move of the
+# view to that value. A move that changes nothing is left out.
+function _convert_scroll_bar_answer(g, plot::SequenceChartPlot, answer)
+    for (bar, axis) in ((plot.time_scroll_bar, :time), (plot.lane_scroll_bar, :lanes))
+        bar === nothing && continue
+        answer = convert_scroll_bar_value_writes(answer, bar,
+                                                 value -> _move_to_scroll_bar_value(g, plot, axis, value))
+    end
+    answer
+end
+
+# A move writes the time under the pointer, which the gutter and the cursor line
+# read, only when it changes. A move off the body clears the readout, such as the
+# move to `(-1, -1)` that a container gives to the plot that the pointer leaves, so
+# a stale readout never outlives the pointer. What is under the pointer is the
+# mouse target of the plot, which the element pass reads, so a pointer move never
+# re-runs the layout.
+function _track_cursor(g, plot::SequenceChartPlot, event::MouseMove)
     cursor = nothing
-    if _in_body(g, x, y) && chart.gutter.cursor_readout
-        flow, _ = _local_flow_cross(g, plot, x, y)
-        cursor = convert_coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
+    if _in_body(g, event.x, event.y) && plot.chart.gutter.cursor_readout
+        cursor = convert_coordinate_to_time(g.times, g.coordinates,
+                                            to_data(g.scale, _get_flow(g, event.x, event.y)))
     end
     isequal(plot.cursor, cursor) ? nothing : _write_view_state(plot, "cursor", cursor)
 end
+
+function _clear_cursor(plot::SequenceChartPlot)
+    plot.cursor === nothing && return nothing
+    _write_view_state(plot, "cursor", nothing)
+end
+
+# ── View interaction ─────────────────────────────────────────────────────
+#
+# Every gesture here rewrites the window on the plot, and the frame re-derives
+# the ticks, the labels and the decimation from it, so zooming in reveals more
+# detail rather than magnifying pixels. The window zooms and pans inside the
+# first and the last event, with the arithmetic of the plot slice that the chart
+# uses.
+
+const _ZOOM_STEP = 1.15      # per wheel notch
+const _PAN_STEP = 0.1        # fraction of the window per notch along the time
+const _LANE_SCROLL_STEP = 20 # the pixels that a notch moves the lanes
+const _DRAG_MIN = 6          # a rubber band smaller than this is a click, not a zoom
 
 # The window, the lane offset and the pointer are the state of the view, not of
 # the trace: a write of one is marked as view state, so a history does not record
 # a zoom, a scroll of the lanes or a readout.
 _write_view_state(plot::SequenceChartPlot, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
+
+# The first and the last coordinate of the trace, between which the window moves.
+# A trace of one coordinate has the extent of the window that `resolve_window`
+# gives it.
+function _get_trace_extent(coordinates)
+    isempty(coordinates) && return (0.0, 1.0)
+    first_coordinate, last_coordinate = Float64(coordinates[1]), Float64(coordinates[end])
+    (first_coordinate, last_coordinate > first_coordinate ? last_coordinate : first_coordinate + 1.0)
+end
+
+# What a gesture on the window needs: the coordinate of every event, the window
+# that shows now and the extent that it stays in.
+_make_window_state(coordinates, lo::Real, hi::Real) =
+    (; coordinates, window = (Float64(lo), Float64(hi)), extent = _get_trace_extent(coordinates))
+
+# The state of the window of the laid-out frame `g`, or of the plot alone, which
+# lays out the timeline for itself.
+_get_window_state(g) = _make_window_state(g.coordinates, g.lo, g.hi)
+
+function _get_window_state(plot::SequenceChartPlot)
+    plot.chart isa SequenceChart || return nothing
+    coordinates = _timeline(plot.chart).coordinates
+    isempty(coordinates) && return nothing
+    lo, hi = resolve_window(plot, coordinates)
+    _make_window_state(coordinates, lo, hi > lo ? hi : lo + 1.0)
+end
+
+# The write of the window `window`: the view `nothing` for the whole trace, and
+# nothing for the window that shows now.
+function _set_window(plot::SequenceChartPlot, state, window)
+    window == state.extent && return plot.view === nothing ? nothing : _write_view_state(plot, "view", nothing)
+    window == state.window && return nothing
+    _window_operation(plot, state.coordinates, window[1], window[2] - window[1])
+end
+
+# The write of the window `window` as a move along the time: a move back from the
+# end of a plot that follows the end stops the follow, as a scroll pane does.
+function _move_window(plot::SequenceChartPlot, state, window)
+    operation = _set_window(plot, state, window)
+    (operation === nothing || !plot.follow_end || window[1] >= state.window[1]) && return operation
+    CompoundOperation(Any[_write_view_state(plot, "follow_end", false), operation])
+end
+
+# The write of the window scaled by `factor` about the coordinate `focus`, or about
+# its middle, inside the trace. A zoom at a limit writes nothing.
+_zoom_window(plot::SequenceChartPlot, state, factor::Real; focus = nothing) =
+    _set_window(plot, state, compute_zoomed_window(state.window, factor; extent = state.extent, focus))
+
+# The write of the window moved by `fraction` of its span toward the end of the
+# trace, inside the trace. A move that the trace stops writes nothing.
+_pan_window(plot::SequenceChartPlot, state, fraction::Real) =
+    _move_window(plot, state, compute_panned_window(state.window, fraction; extent = state.extent))
+
+# The view actions that the keys, the menu and the buttons share: each answers the
+# write of the view, or `nothing` at a limit.
+_zoom_in_window(plot::SequenceChartPlot, state) = _zoom_window(plot, state, 1 / _ZOOM_STEP)
+_zoom_out_window(plot::SequenceChartPlot, state) = _zoom_window(plot, state, _ZOOM_STEP)
+_show_whole_trace(plot::SequenceChartPlot, state) = _set_window(plot, state, state.extent)
+
+# The action `action` on the window that `plot` shows now.
+function _compute_window_operation(action, plot::SequenceChartPlot)
+    state = _get_window_state(plot)
+    state === nothing ? nothing : action(plot, state)
+end
+
+# The distance of the lanes that the body shows across the time, in pixels.
+_get_lane_page(g) = round(Int, g.vertical ? g.body_w : g.body_h)
+
+# The largest scroll of the lanes: the room past the body, and never less than the
+# scroll that the plot holds.
+_get_cross_limit(g, plot::SequenceChartPlot) = max(Int(plot.cross_offset), ceil(Int, g.cross_room))
+
+# The write of the scroll of the lanes `offset`, inside the room of the lanes. A
+# scroll that changes nothing writes nothing.
+function _set_cross_offset(g, plot::SequenceChartPlot, offset::Integer)
+    offset = clamp(Int(offset), 0, _get_cross_limit(g, plot))
+    offset == plot.cross_offset ? nothing : _write_view_state(plot, "cross_offset", offset)
+end
+
+# A window is stored relative to an event, so committing one means choosing the
+# anchor: the first event at or after the window's start, falling back to the
+# last event. Anchoring to an occurrence is what keeps the view still when the
+# trace grows behind it.
+function _window_operation(plot::SequenceChartPlot, coordinates, lo::Real, span::Real)
+    n = length(coordinates)
+    n == 0 && return nothing
+    span > 0 || return nothing
+    anchor = clamp(searchsortedfirst(coordinates, Float64(lo)), 1, n)
+    view = SequenceChartView(anchor, Float64(lo) - coordinates[anchor], Float64(span))
+    _write_view_state(plot, "view", view)
+end
+
+_compound(a, b) = a === nothing ? b : b === nothing ? a : CompoundOperation(Operation[a, b])
+
+# The distance along the time of the canvas point `(x, y)` from the start of the
+# body: the pixel that the scale of the window takes.
+_get_flow(g, x::Real, y::Real) = g.vertical ? Float64(y) - g.body_y : Float64(x) - g.body_x
+
+# The strips of the time scale, along the body: the gutter above and below it, or
+# left and right of it. A drag there pans the time, and a double click fits it.
+_is_over_time_axis(g, x::Integer, y::Integer) =
+    any(r -> _in_rect(x, y, r...), _gutter_rects(g, g.gutter_h))
 
 # Ctrl and the wheel zoom about the pointer, so whatever is under it stays under
 # it — the only zoom that lets someone drive toward a detail rather than hunt for
@@ -1215,30 +1564,18 @@ _write_view_state(plot::SequenceChartPlot, field::AbstractString, value) =
 # along the time moves the window inside the first and the last event, and a turn
 # across the time scrolls the lanes, as every turn over the lane labels does. A
 # turn that moves nothing is not the chart's, so the page around it scrolls.
-function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseScroll)
-    g = iomap.geometry
-    g === nothing && return nothing
-    plot = iomap.input
+function _read_scroll(g, plot::SequenceChartPlot, gesture::MouseScroll)
     x, y = gesture.x, gesture.y
     on_labels = _label_strip_lane(g, x, y) !== nothing
     (on_labels || _in_body(g, x, y)) || return nothing
     gesture.modifiers.ctrl || return _scroll_sequence_chart(g, plot, gesture; on_labels)
     on_labels && return nothing
 
-    steps = gesture.dy != 0 ? gesture.dy : gesture.dx
-    steps == 0 && return nothing
-    span = g.hi - g.lo
-    flow, _ = _local_flow_cross(g, plot, x, y)
-    focus = to_data(g.scale, flow)
-    factor = steps > 0 ? (0.85 ^ steps) : (1 / 0.85) ^ (-steps)
-    new_span = span * factor
-    # Keep the coordinate under the pointer where it was.
-    fraction = span == 0 ? 0.5 : (focus - g.lo) / span
-    _window_operation(g, plot, focus - fraction * new_span, new_span)
+    notches = gesture.dy != 0 ? gesture.dy : gesture.dx
+    notches == 0 && return nothing
+    _zoom_window(plot, _get_window_state(g), _ZOOM_STEP^(-notches);
+                 focus = to_data(g.scale, _get_flow(g, x, y)))
 end
-
-const _TIME_SCROLL_STEP = 0.15   # the part of the window that a notch moves along the time
-const _LANE_SCROLL_STEP = 20     # the pixels that a notch moves the lanes
 
 # The scroll of a turn with no Ctrl. Shift makes a turn go across also when the
 # backend gives it as a vertical turn, and a touchpad moves by the fraction of a
@@ -1249,37 +1586,235 @@ function _scroll_sequence_chart(g, plot::SequenceChartPlot, gesture::MouseScroll
     turn = across ? (turn_x != 0 ? turn_x : turn_y) : turn_y
     turn == 0 && return nothing
     if on_labels || across == g.vertical
-        offset = clamp(round(Int, plot.cross_offset - _LANE_SCROLL_STEP * turn), 0,
-                       max(Int(plot.cross_offset), ceil(Int, g.cross_room)))
-        return offset == plot.cross_offset ? nothing : _write_view_state(plot, "cross_offset", offset)
+        return _set_cross_offset(g, plot, round(Int, plot.cross_offset - _LANE_SCROLL_STEP * turn))
     end
-    _scroll_window(g, plot, -(g.hi - g.lo) * _TIME_SCROLL_STEP * turn)
+    _pan_window(plot, _get_window_state(g), -_PAN_STEP * turn)
 end
 
-# The move of the window by `d` along the time, inside the first and the last
-# event. A move back from the end of a plot that follows the end stops the
-# follow, as a scroll pane does.
-function _scroll_window(g, plot::SequenceChartPlot, d::Real)
-    coordinates = g.coordinates
-    isempty(coordinates) && return nothing
-    first_coordinate, last_coordinate = coordinates[1], coordinates[end]
-    d = d > 0 ? min(d, max(0.0, last_coordinate - g.hi)) : max(d, -max(0.0, g.lo - first_coordinate))
-    d == 0 && return nothing
-    operation = _window_operation(g, plot, g.lo + d, g.hi - g.lo)
-    (operation === nothing || !plot.follow_end) && return operation
-    CompoundOperation(Any[_write_view_state(plot, "follow_end", false), operation])
+# Dragging in the body draws a rubber band along the time and commits it as the new
+# window; with Shift or the middle button it pans the time and the lanes instead,
+# and a drag on the time axis pans the time. The lifecycle mirrors the splitter
+# drag: the anchor goes down on press and starts the drag of the plot, the
+# rectangle grows on each `DragMove`, and `DragEnd` either commits or — if the band
+# never grew past a few pixels — leaves the window alone. The anchor keeps the
+# view of the press as the plot holds it, so `DragCancel` puts back a pan.
+function _drag_start(g, plot::SequenceChartPlot, event::MouseDown)
+    mode = _find_drag_mode(g, event)
+    mode === nothing && return nothing
+    # A pan shows the closed hand while the drag is on; a band keeps the arrow of
+    # the press.
+    CompoundOperation(Operation[
+        _write_view_state(plot, "drag_anchor",
+                          (event.x, event.y, mode, (g.lo, g.hi), g.scale, plot.cross_offset,
+                           plot.view, plot.follow_end)),
+        StartDragOperation(EmptyReference(), nothing),
+        make_screen_pointer_shape_operation(mode === :zoom ? :arrow : :closed_hand)])
 end
 
-# A window is stored relative to an event, so committing one means choosing the
-# anchor: the first event at or after the window's start, falling back to the
-# last event. Anchoring to an occurrence is what keeps the view still when the
-# trace grows behind it.
-function _window_operation(g, plot::SequenceChartPlot, lo::Real, span::Real)
-    coordinates = g.coordinates
-    n = length(coordinates)
-    n == 0 && return nothing
-    span > 0 || return nothing
-    anchor = clamp(searchsortedfirst(coordinates, Float64(lo)), 1, n)
-    view = SequenceChartView(anchor, Float64(lo) - coordinates[anchor], Float64(span))
-    _write_view_state(plot, "view", view)
+# What a press starts: in the body a band zoom, or a pan with Shift or the middle
+# button; on the time axis a pan of the time; elsewhere nothing.
+function _find_drag_mode(g, event::MouseDown)
+    pan = event.button === :middle || event.modifiers.shift
+    _in_body(g, event.x, event.y) && return pan ? :pan : :zoom
+    _is_over_time_axis(g, event.x, event.y) && return :pan_time
+    nothing
 end
+
+# The rectangle that a band from the press `ax`, `ay` to `x`, `y` draws: across
+# all the lanes, so the person sees that the release zooms the time alone.
+function _get_band_rect(g, ax::Integer, ay::Integer, x::Integer, y::Integer)
+    body_x, body_y, body_w, body_h = round(Int, g.body_x), round(Int, g.body_y),
+                                     round(Int, g.body_w), round(Int, g.body_h)
+    g.vertical ? (body_x, min(ay, y), body_w, abs(y - ay)) : (min(ax, x), body_y, abs(x - ax), body_h)
+end
+
+function _drag_move(g, plot::SequenceChartPlot, event::DragMove)
+    anchor = plot.drag_anchor
+    anchor === nothing && return nothing
+    ax, ay, mode, window, scale, offset = anchor
+    if mode !== :zoom
+        # Pan against the window and the scroll the drag started from, so a slow
+        # drag does not accumulate rounding, and a move to the point of the last
+        # move gives the same window, which is not written again. The distance
+        # along the time is a part of the pixel span of the scale of the press. The
+        # lanes follow the pointer across the time, and a pan of the time alone
+        # leaves them.
+        along, across = g.vertical ? (ay - event.y, ax - event.x) : (ax - event.x, ay - event.y)
+        state = _get_window_state(g)
+        moved = compute_panned_window(window, along / (scale.p1 - scale.p0); extent = state.extent)
+        return _compound(_move_window(plot, state, moved),
+                         mode === :pan ? _set_cross_offset(g, plot, offset + across) : nothing)
+    end
+    _set_drag_rect(plot, _get_band_rect(g, ax, ay, event.x, event.y))
+end
+
+function _drag_end(g, plot::SequenceChartPlot, event::DragEnd)
+    anchor = plot.drag_anchor
+    anchor === nothing && return nothing
+    ax, ay, mode, _, scale = anchor
+    clear = _clear_drag(plot)
+    mode === :zoom || return clear
+    from, to = _get_flow(g, ax, ay), _get_flow(g, event.x, event.y)
+    abs(to - from) >= _DRAG_MIN || return clear
+    state = _get_window_state(g)
+    window = compute_limited_window(minmax(to_data(scale, from), to_data(scale, to)); extent = state.extent)
+    _compound(_set_window(plot, state, window), clear)
+end
+
+_set_drag_rect(plot::SequenceChartPlot, rect) =
+    isequal(plot.drag_rect, rect) ? nothing : _write_view_state(plot, "drag_rect", rect)
+
+# The write that ends a drag: the anchor and the band go, and the pointer is an
+# arrow again.
+_clear_drag(plot::SequenceChartPlot) = CompoundOperation(Operation[
+    _write_view_state(plot, "drag_anchor", nothing),
+    _write_view_state(plot, "drag_rect", nothing),
+    make_screen_pointer_shape_operation(nothing)])
+
+# The end of a drag with no change: a pan puts back the view of the press.
+function _cancel_drag(plot::SequenceChartPlot)
+    anchor = plot.drag_anchor
+    (anchor === nothing && plot.drag_rect === nothing) && return nothing
+    clear = _clear_drag(plot)
+    (anchor !== nothing && anchor[3] !== :zoom) || return clear
+    _, _, _, _, _, offset, view, follow_end = anchor
+    back = Operation[]
+    isequal(plot.view, view) || push!(back, _write_view_state(plot, "view", view))
+    plot.follow_end == follow_end || push!(back, _write_view_state(plot, "follow_end", follow_end))
+    plot.cross_offset == offset || push!(back, _write_view_state(plot, "cross_offset", offset))
+    isempty(back) ? clear : CompoundOperation(Operation[back..., clear])
+end
+
+# Keyboard view control. This lives in the reader rather than in a `@gestures`
+# block because the window belongs to the plot, and a document gesture only ever
+# sees the chart.
+#
+# - Ctrl+=, Ctrl+- and Ctrl+0 zoom in, zoom out and show the whole trace, before
+#   the zoom of the interface reads them, as a transform pane does. At a limit the
+#   key is not the chart's, so Ctrl+0 on a chart that shows the whole trace resets
+#   the zoom of the interface.
+# - Page Up and Page Down scroll a page up and down, and with Alt a page across,
+#   as in a spreadsheet. A page of the time is the window, and a page of the lanes
+#   is the body.
+# - The arrows and Shift with the left and right arrows belong to the navigation
+#   along the events, so this reader declines them.
+function _key_intent(g, plot::SequenceChartPlot, event::KeyDown)
+    m = event.modifiers
+    m.meta && return nothing
+    key = event.key
+    state = _get_window_state(g)
+    if m.ctrl
+        (m.shift || m.alt) && return nothing
+        key === :equals && return _zoom_in_window(plot, state)
+        key === :minus && return _zoom_out_window(plot, state)
+        key === :zero && return _show_whole_trace(plot, state)
+        return nothing
+    end
+    (key in (:page_up, :page_down) && !m.shift) || return nothing
+    page = key === :page_down ? 1 : -1
+    # A page along the time when the time runs the way the key points: down in a
+    # vertical chart, and across with Alt in a horizontal one.
+    m.alt != g.vertical && return _pan_window(plot, state, Float64(page))
+    _set_cross_offset(g, plot, plot.cross_offset + page * _get_lane_page(g))
+end
+
+# Zoom and reset arrive as characters rather than named keys. A character typed
+# with Ctrl or Alt is the key of the `KeyDown` reader, or of the editor.
+function _key_intent(g, plot::SequenceChartPlot, event::KeyPress)
+    m = event.modifiers
+    (m.ctrl || m.alt || m.meta) && return nothing
+    state = _get_window_state(g)
+    event.char == '0' && return _show_whole_trace(plot, state)
+    event.char in ('+', '=') && return _zoom_in_window(plot, state)
+    event.char == '-' && return _zoom_out_window(plot, state)
+    nothing
+end
+
+# ── The menu and the buttons ─────────────────────────────────────────────
+
+"""
+    compute_context_menu(plot::SequenceChartPlot) -> WidgetMenu | Nothing
+
+The menu that a right click on a sequence chart opens: "Zoom in", "Zoom out" and
+"Show the whole trace", each with its key. An item whose action changes nothing is
+disabled. A plot that holds no chart has no menu.
+"""
+function compute_context_menu(plot::SequenceChartPlot)
+    plot.chart isa SequenceChart || return nothing
+    item(label, action, keys) =
+        let operation = _compute_window_operation(action, plot)
+            WidgetMenuItem(label; keys, enabled = operation !== nothing,
+                           operation = something(operation, DoNothingOperation()))
+        end
+    WidgetMenu(Any[item("Zoom in", _zoom_in_window, Any["Ctrl+="]),
+                   item("Zoom out", _zoom_out_window, Any["Ctrl+-"]),
+                   item("Show the whole trace", _show_whole_trace, Any["Ctrl+0"])])
+end
+
+get_document_gesture_bindings_own(::Type{SequenceChartPlot}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu; description = "Show the menu of the sequence chart")]
+
+"""
+    make_sequence_chart_buttons(plot) -> WidgetToolbar
+
+The buttons that show over `plot` while the pointer is over the chart: "Zoom in",
+"Zoom out" and "Show the whole trace". A press does what the key of the button
+does, and the tooltip names the key. A button whose action changes nothing is
+disabled, so "Show the whole trace" is disabled while the chart shows it.
+"""
+function make_sequence_chart_buttons(plot::SequenceChartPlot)
+    function button(label, icon, key, action)
+        item = WidgetToolbarItem(label; icon, focusable = false, tooltip = "$label ($key)",
+            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left),
+                                                     (_, _) -> _compute_window_operation(action, plot);
+                                                     description = label, domain = "sequence chart")])
+        set_cell_computation!(getfield(item, :enabled), () -> _compute_window_operation(action, plot) !== nothing)
+        item
+    end
+    WidgetToolbar(Any[button("Zoom in", :zoom_in, "Ctrl+=", _zoom_in_window),
+                      button("Zoom out", :zoom_out, "Ctrl+-", _zoom_out_window),
+                      button("Show the whole trace", :maximize, "Ctrl+0", _show_whole_trace)])
+end
+
+"""
+    make_sequence_chart_scroll_bar(plot, axis) -> WidgetScrollBar
+
+The bar of `plot` along `axis`, `:time` or `:lanes`, which the renderer draws along
+an edge of the body: the time along the edge that the time runs along, and the
+lanes along the other. Its thumb is the part of the trace that the window shows,
+or the part of the lanes that the body shows, and its value the place of the
+window among the trace, or of the scroll among the room of the lanes; the renderer
+sets both from its laid-out frame. A write of its value moves the view, and the
+plot keeps the drag of its thumb.
+"""
+function make_sequence_chart_scroll_bar(plot::SequenceChartPlot, axis::Symbol)
+    bar = WidgetScrollBar(:horizontal; thumb_size = 1.0)
+    set_cell_computation!(getfield(bar, :orientation), () -> begin
+        orientation = plot.chart isa SequenceChart ? plot.chart.orientation : :horizontal
+        (axis === :time) == (orientation === :horizontal) ? :horizontal : :vertical
+    end)
+    bar
+end
+
+"""
+    make_sequence_chart_projection(; measure, widget_theme = WidgetTheme(),
+                                   width = 900, height = 520, theme = nothing) -> Projection
+
+A sequence chart view: a `SequenceChart` through `SequenceChartToSequenceChartPlot`
+and `SequenceChartPlotToGraphicsCanvas` to a `GraphicsCanvas`, with the buttons
+that show while the pointer is over the chart and the bars of a zoomed or
+scrolled chart. `theme`, `width` and `height` are those of the renderer of the
+chart; `widget_theme` is that of the buttons and the bars.
+
+The renderer prints the buttons and the bars through its recursion, and this
+projection gives it a recursion that prints them, so a chart shows them in any
+host. A chain of the two stages built by hand must give a recursion that prints a
+`WidgetToolbar`, a `WidgetToolbarItem` and a `WidgetScrollBar`.
+"""
+make_sequence_chart_projection(; measure::TextMeasure, widget_theme = WidgetTheme(), kwargs...) =
+    NestingProjection(ChainingProjection(SequenceChartToSequenceChartPlot(),
+                                         SequenceChartPlotToGraphicsCanvas(; measure, kwargs...));
+                      recursion = TypeDispatchingProjection(
+                          WidgetToolbar => WidgetToolbarToGraphicsCanvas(widget_theme; measure),
+                          WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(widget_theme; measure),
+                          WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(widget_theme)))

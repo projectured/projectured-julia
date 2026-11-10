@@ -68,6 +68,16 @@ A sequence chart together with how it is currently being looked at.
   them than fit. A pure translation, so it moves the picture without disturbing
   the layout.
 - `cursor` — the pointer, driving the gutter's time readout.
+- `drag_anchor` / `drag_rect` — pixel state while a band zoom or a pan is in
+  progress, cleared when it commits or cancels. The anchor holds the point of the
+  press, the mode, the window, the time scale, the scroll of the lanes, the `view`
+  and `follow_end` that the plot held at the press, which a cancelled pan puts
+  back. The rectangle is the band, in the coordinates of the canvas.
+- `toolbar` — the buttons that show while the pointer is over the chart, a
+  `WidgetToolbar`, or `nothing` for a plot with no buttons.
+- `time_scroll_bar`, `lane_scroll_bar` — the bars along the edges of the body,
+  which show where the window is in the trace and where the lanes are scrolled
+  to, or `nothing` for a plot with no bars.
 """
 @document struct SequenceChartPlot <: SequenceChartDocument
     chart::Any
@@ -75,6 +85,11 @@ A sequence chart together with how it is currently being looked at.
     follow_end::Bool = false
     cross_offset::Int = 0
     cursor::Any = nothing
+    drag_anchor::Any = nothing
+    drag_rect::Any = nothing
+    toolbar::Any = nothing
+    time_scroll_bar::Any = nothing
+    lane_scroll_bar::Any = nothing
 end
 
 """

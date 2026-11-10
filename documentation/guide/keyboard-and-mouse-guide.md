@@ -168,6 +168,8 @@ A chart shows a window of its data. The keys and the mouse move that window; the
 
 While the pointer is over a chart, three buttons show in its top-right corner: zoom in, zoom out, and show all the data. A zoomed chart has a scroll bar along the bottom or the right edge of its plot, which shows where the window is in the data; a click on its track scrolls a page, and a drag of its thumb moves the window. The window stops at the edges of the data, so a zoom out stops at all the data. A chart that shows all its data leaves the wheel to the page around it, and Ctrl + 0 to the zoom of the window. The arrows still move the selection between the parts of the chart.
 
+A sequence chart moves the same way along its time. A drag in it zooms the time alone, across all the lanes. In a horizontal sequence chart, Page Up and Page Down scroll the lanes, and Alt + Page Up and Alt + Page Down scroll the time; in a vertical one the two swap. Its buttons and its menu show the whole trace in place of all the data. Shift + left and Shift + right still move to the previous or the next event on the lane.
+
 ## The two lists
 
 - **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open. Help > Gestures opens it too.

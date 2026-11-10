@@ -32,7 +32,7 @@
 SequenceChart ──SequenceChartToSequenceChartPlot──▶ SequenceChartPlot ──SequenceChartPlotToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, and the `cursor`. These are the state of the view, and the reader marks each write of them as view state, so a history records no zoom, lane scroll or readout. The event or the arrow that the mouse target of the plot names lights. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
+The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `time_scroll_bar` and `lane_scroll_bar`. These are the state of the view, and the reader marks each write of them as view state, so a history records no zoom, lane scroll, drag or readout. The stage builds the buttons and the bars once with the plot, gives each its part of the mouse target (`follow_output_mouse_target!`), and names a part of them by an introduced reference, as `ChartToChartPlot` does. The event or the arrow that the mouse target of the plot names lights. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
 
 The renderer splits its work into three cells by what makes each one stale: the cumulative timeline pass, the frame layout, and the element list. The hover, the selection and the cursor are read only by the last cell. So a pointer move over a long trace builds an overlay again, not the frame.
 
@@ -80,12 +80,36 @@ A click selects the most specific thing under the pointer: an event before an ar
 | `Ctrl+→` | follow the arrow on to the consequence |
 | `Ctrl+Shift+↑` `Ctrl+Shift+↓` | move the selected lane in the display order |
 | `Alt+Delete` | remove the selected lane |
-| `Ctrl`+wheel | zoom about the pointer |
+| `Ctrl`+wheel | zoom about the pointer, 1.15 for each notch |
 | wheel; `Shift`+wheel | scroll up and down; scroll across |
 | wheel over the lane labels | scroll the lanes |
-| double click | show the whole trace again |
+| drag in the body | draw a band along the time, across all the lanes, and zoom the time to it |
+| `Shift`+drag; middle-button drag | pan the time and scroll the lanes; the pointer is a closed hand |
+| drag on the time scale | pan the time |
+| `Escape` during a drag | stop the drag; a pan puts back the view of the press |
+| double click in the body or on the time scale | show the whole trace again |
+| `Ctrl+=` `Ctrl+-` | zoom in; zoom out |
+| `Ctrl+0` | show the whole trace |
+| `+` `-` `0` | the same, as typed characters |
+| `Page Up` `Page Down` | scroll up or down a page: the lanes of a horizontal chart, the time of a vertical one |
+| `Alt+Page Up` `Alt+Page Down` | scroll across a page: the time of a horizontal chart, the lanes of a vertical one |
+| right click | the menu of the view: zoom in, zoom out, show the whole trace |
+| the buttons in the top-right corner, while the pointer is over the chart | zoom in, zoom out, show the whole trace |
+| a scroll bar: a click on the track; a drag of the thumb | scroll a page; move the window or the lanes |
 
-The wheel follows the rule of the editor: `Ctrl` and the wheel zoom, and the wheel scrolls as in a scroll pane. A turn along the time moves the window by 0.15 of its span for each notch, inside the first and the last event. A turn across the time scrolls the lanes by 20 pixels for each notch, inside the last lane and its margin. A turn that moves nothing is not the chart's, so the page around a chart that shows its whole trace scrolls. A move back from the end of a plot that follows the end stops the follow.
+The window zooms and pans in the coordinates of the trace with the window arithmetic of the plot slice that the chart uses ([plot.md](../../platform/plot/plot.md)), inside the first and the last event: the same 1.15 for each notch of a zoom, and the same 0.1 of the window for each notch of a scroll along the time. A zoom out stops at the whole trace, and a window that shows the whole trace is `view = nothing`. A zoom in stops at the smallest span, where two tick labels would get the same text. A gesture at a limit answers `nothing`, so `Ctrl+0` on a chart that shows its whole trace goes on to the zoom of the interface, and a turn of the wheel that moves nothing is not the chart's, so the page around it scrolls. A turn across the time, and `Page Up` and `Page Down`, scroll the lanes by 20 pixels for each notch or by the body, inside the last lane and its margin. A move back from the end of a plot that follows the end stops the follow.
+
+A press in the body starts the band, and a click that follows a release with no move still selects, so a click selects as it did before the band. A band shorter than 6 pixels is a click and leaves the window. The pointer is an arrow during a band and a closed hand during a pan.
+
+### The menu, the buttons and the bars
+
+`compute_context_menu(::SequenceChartPlot)` is the menu of a right click, bound with `make_context_menu_binding`; an item whose action changes nothing is disabled, and each item names its key.
+
+`make_sequence_chart_buttons(plot)` makes the buttons, a `WidgetToolbar` of three `WidgetToolbarItem`s with the icons `:zoom_in`, `:zoom_out` and `:maximize`. A press does what the key does, the tooltip names the key, and a button whose action changes nothing is disabled. They show in the top-right corner while the plot has a mouse target and no drag runs, and not on a body narrower than four buttons or lower than two.
+
+`make_sequence_chart_scroll_bar(plot, axis)` makes a `WidgetScrollBar` for the `:time` and one for the `:lanes`. The bar of the time lies along the edge of the body that the time runs along, and the bar of the lanes along the other edge, both over the data. The thumb of the time bar is the window among the trace, in the space of the coordinates, and the thumb of the lane bar is the lanes that the body shows among all of them; the renderer sets the value and the thumb from its laid-out frame. A bar is there only while its thumb is less than the whole track. A click on the track scrolls a page, a write of the value moves the view or the lanes, and the plot keeps the drag of the thumb.
+
+The renderer prints the buttons and the bars through its recursion and gives them the pointer events in their frame with the functions of the drawn children of the graphics slice (`find_drawn_child_at`, `read_drawn_child_event`, `read_drawn_child_move`, `map_drawn_child_point`). `make_sequence_chart_projection(; measure, widget_theme, width, height, theme)` builds the two stages in a `NestingProjection` whose recursion prints a `WidgetToolbar`, a `WidgetToolbarItem` and a `WidgetScrollBar`; a chain of the two stages built by hand must give such a recursion.
 
 ### Cost
 
@@ -102,7 +126,7 @@ The amount of output depends on the size of the chart, not on the length of the 
 `SequenceChartTheme` holds what `SequenceChartPlotToGraphicsCanvas` draws when the
 document says nothing: the colors of the backgrounds, the axis, the text, the
 gutter and its border, the hairlines, the shading of time zero, an arrow, an
-event, a selection and the hover, the title, axis and label fonts, and the
+event, a selection, the hover and the band of a zoom, the title, axis and label fonts, and the
 padding, the padding of the gutter, the gap of a label, the spacing of the ticks
 and of the lanes, the offset of a lane and the height of a band. A value that
 `SequenceChartStyle`, a kind or an axis sets keeps its priority; the labels of the

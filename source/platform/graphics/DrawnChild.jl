@@ -55,7 +55,7 @@ function read_drawn_child_move(document, children, event::MouseMove)
     child = find_drawn_child_at(children, event.x, event.y)
     target = get_mouse_target(document)
     old = target === nothing ? nothing :
-          findfirst(c -> _is_path_in_drawn_child(strip_reference_types(target), c.steps), children)
+          findfirst(c -> find_drawn_child_path(target, c.steps) !== nothing, children)
     left = nothing
     if old !== nothing && children[old] !== child
         previous = children[old]
@@ -69,11 +69,20 @@ function read_drawn_child_move(document, children, event::MouseMove)
     join_move_answers(left, answer)
 end
 
-# Whether `path` goes into the child that `steps` lead to.
-function _is_path_in_drawn_child(path, steps::Tuple)
-    path isa ConcreteReference || return false
-    path_steps = get_reference_steps(path)
-    length(path_steps) >= length(steps) && all(i -> path_steps[i] == steps[i], eachindex(steps))
+"""
+    find_drawn_child_path(path, steps) -> Reference or nothing
+
+The part of `path`, a path in the input of a view, below `steps`, the steps of a
+child, with the node types that `path` has; `nothing` when `path` does not go into
+that child. A view gives a child its part of the mouse target of the view with it,
+and finds the child that the mouse target names.
+"""
+function find_drawn_child_path(path, steps::Tuple)
+    for step in steps
+        (path isa ConcreteReference && get_reference_head(path) == step) || return nothing
+        path = get_reference_tail(path)
+    end
+    path
 end
 
 """

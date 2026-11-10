@@ -22,8 +22,51 @@ _sequencechart_projection(; width::Integer=900, height::Integer=520) =
         SequenceChartPlotToGraphicsCanvas(measure=FontFileMeasure(),
                                           width=width, height=height))
 
+# A recursion that prints the buttons and the bars of a sequence chart, as
+# `make_sequence_chart_projection` gives its renderer: a test prints the two stages
+# with it, so a hover can show them.
+_sc_widgets() = TypeDispatchingProjection(
+    WidgetToolbar => WidgetToolbarToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(WidgetTheme()))
+
 _sequencechart_iomap(chart; kw...) = (p = _sequencechart_projection(; kw...);
-                                      print_document(p, p, chart, PrinterContext()))
+                                      print_document(p, _sc_widgets(), chart, PrinterContext()))
+
+# The IO map of the canvas of a sequence chart, found in an IO map tree.
+function _find_sequence_chart_canvas_iomap(root)
+    force(value) = value isa AbstractCell ? force(value[]) : value
+    seen = Set{UInt}()
+    stack = Any[root]
+    while !isempty(stack)
+        value = force(pop!(stack))
+        value isa SequenceChartPlotToGraphicsCanvasIoMap && return value
+        if value isa IoMap
+            objectid(value) in seen && continue
+            push!(seen, objectid(value))
+            for name in fieldnames(typeof(value))
+                name in (:projection, :input, :output) || push!(stack, getfield(value, name))
+            end
+        elseif value isa Union{AbstractVector,Tuple}
+            append!(stack, value)
+        end
+    end
+    nothing
+end
+
+# An answer as the editor takes it: a compound is taken part by part, and a mouse
+# target goes to the chart.
+function _sc_apply_answer!(chart, op)
+    op isa CompoundOperation ? foreach(o -> _sc_apply_answer!(chart, o), op.operations) :
+    op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
+    evaluate_operation(nothing, op)
+end
+
+# The pointer shape that an answer sets.
+function _sc_pointer_shape(op)
+    unwrap(o) = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
+    only(unwrap(o).shape for o in op.operations if unwrap(o) isa ChangeScreenPointerShapeOperation)
+end
 
 _sequencechart_canvas(chart; kw...) = _sequencechart_iomap(chart; kw...).output
 
@@ -56,10 +99,11 @@ _sc_texts(els) = String[e.text for e in els if e isa GraphicsText]
 
 # A three-lane request flow: a burst of same-time events, a long gap after it,
 # and a message that returns to the lane it left.
-function _sc_chart(; orientation::Symbol=:horizontal, mode::Symbol=:nonlinear)
+function _sc_chart(; orientation::Symbol=:horizontal, mode::Symbol=:nonlinear, extra_lanes::Integer=0)
     axes = Any[SequenceChartAxis("client"),
                SequenceChartAxis("server"),
-               SequenceChartAxis("cache")]
+               SequenceChartAxis("cache"),
+               (SequenceChartAxis("lane$i") for i in 1:extra_lanes)...]
     events = SequenceChartEvents([0.0, 1.0, 1.0, 1.0, 5.0, 9.0],
                                  [1, 2, 3, 3, 2, 1];
                                  labels=["send", "recv", "look", "miss", "reply", "done"])
@@ -494,6 +538,391 @@ function test_sequencechart_projection()
             @test plot.cross_offset == ceil(Int, room)
             @test _sc_wheel(iomap, 0, -1) === nothing
             @test _sc_wheel(iomap, 0, 1) !== nothing
+        end
+
+        @testset "the limits of the window" begin
+            iomap = _sequencechart_iomap(_sc_chart())
+            plot = _plot_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            g = _geometry_of(iomap)
+            send(event) = (op = read_intent(stage2.projection, stage2, event);
+                           op === nothing || _sc_apply_answer!(plot.chart, op); op)
+            x = round(Int, g.body_x + g.body_w / 2)
+            y = round(Int, g.body_y + g.body_h / 2)
+            out(notches) = MouseScroll(0, -notches, x, y, _sc_ctrl; time = 0.0)
+            in_(notches) = MouseScroll(0, notches, x, y, _sc_ctrl; time = 0.0)
+            # A window that shows the whole trace can not zoom out: the notch and the
+            # key are not the chart's.
+            @test send(out(1)) === nothing
+            @test send(KeyPress('-'; time = 0.0)) === nothing
+            # A notch zooms by 1.15 about the pointer, and a zoom out stops at the
+            # whole trace, which is no window at all.
+            send(in_(2))
+            @test plot.view isa SequenceChartView
+            zoomed = _geometry_of(iomap)
+            @test zoomed.hi - zoomed.lo ≈ (g.hi - g.lo) / 1.15^2
+            for _ in 1:10
+                send(out(1)) === nothing && break
+            end
+            @test plot.view === nothing
+            @test send(out(1)) === nothing
+            # A zoom in stops at the smallest span, and the next notch is not the chart's.
+            notches = 0
+            while notches < 1000
+                send(in_(10)) === nothing && break
+                notches += 1
+            end
+            @test notches < 1000
+            limit = _geometry_of(iomap)
+            @test limit.hi - limit.lo > 0
+            @test send(in_(1)) === nothing
+            # A scroll along the time stops at the first and the last event.
+            send(MouseScroll(0, -5, x, y, _sc_shift; time = 0.0))
+            @test _geometry_of(iomap).hi <= g.coordinates[end]
+        end
+
+        @testset "a press and a release with no move still select" begin
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            plot = _plot_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            g = _geometry_of(iomap)
+            send(event) = (op = read_intent(stage2.projection, stage2, event);
+                           op === nothing || _sc_apply_answer!(chart, op); op)
+            row = first(g.visible_events)
+            x = round(Int, to_pixel(g.scale, g.coordinates[row]) + g.body_x)
+            y = round(Int, g.lane_of[get_event_axis(chart.events, row)] + g.body_y)
+            send(MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor !== nothing
+            send(DragEnd(x, y; time = 0.0))
+            @test plot.drag_anchor === nothing && plot.drag_rect === nothing
+            @test plot.view === nothing
+            @test read_intent(stage2.projection, stage2,
+                              MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
+        end
+
+        @testset "the mouse moves the view" begin
+            iomap = _sequencechart_iomap(_sc_chart(); height = 80)
+            plot = _plot_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            g = _geometry_of(iomap)
+            send(event) = (op = read_intent(stage2.projection, stage2, event);
+                           op === nothing || _sc_apply_answer!(plot.chart, op); op)
+            mid_x = round(Int, g.body_x + g.body_w / 2)
+            mid_y = round(Int, g.body_y + g.body_h / 2)
+            body_y, body_h = round(Int, g.body_y), round(Int, g.body_h)
+            zoomed = SequenceChartView(2, 0.0, (g.coordinates[end] - g.coordinates[1]) / 4)
+            @test g.cross_room > 0
+
+            # The middle button pans the time and the lanes, and a pan shows the
+            # closed hand. The time follows the pointer along it, the lanes across.
+            plot.view = zoomed
+            before = _geometry_of(iomap)
+            op = send(MouseDown(:middle, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test _sc_pointer_shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, mid_y - 10; time = 0.0))
+            moved = _geometry_of(iomap)
+            @test moved.lo > before.lo
+            @test moved.hi - moved.lo ≈ before.hi - before.lo
+            @test moved.lo - before.lo ≈ 40 / (before.scale.p1 - before.scale.p0) * (before.hi - before.lo)
+            @test plot.cross_offset == 10
+            send(DragEnd(mid_x - 40, mid_y - 10; time = 0.0))
+            @test plot.drag_anchor === nothing
+            # Shift and the left button pan too, and Escape puts back the view of the press.
+            plot.view = zoomed
+            plot.cross_offset = 0
+            op = send(MouseDown(:left, mid_x, mid_y, _sc_shift; time = 0.0))
+            @test _sc_pointer_shape(op) === :closed_hand
+            send(DragMove(mid_x + 30, mid_y - 10; time = 0.0))
+            @test plot.view != zoomed && plot.cross_offset == 10
+            send(DragCancel(; time = 0.0))
+            @test plot.view == zoomed && plot.cross_offset == 0
+            @test plot.drag_anchor === nothing
+
+            # A plain drag is a band along the time, drawn across all the lanes, and
+            # the release zooms the time to it. The lanes stay.
+            plot.view = nothing
+            op = send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test _sc_pointer_shape(op) === :arrow
+            send(DragMove(mid_x + 100, mid_y + 30; time = 0.0))
+            @test plot.drag_rect == (mid_x, body_y, 100, body_h)
+            send(DragEnd(mid_x + 100, mid_y + 30; time = 0.0))
+            band = _geometry_of(iomap)
+            @test band.lo ≈ to_data(g.scale, mid_x - g.body_x)
+            @test band.hi ≈ to_data(g.scale, mid_x + 100 - g.body_x)
+            @test plot.drag_rect === nothing && plot.cross_offset == 0
+            # A band that did not grow is a click and leaves the window.
+            plot.view = nothing
+            send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            send(DragMove(mid_x + 3, mid_y; time = 0.0))
+            send(DragEnd(mid_x + 3, mid_y; time = 0.0))
+            @test plot.view === nothing
+
+            # A drag on the time scale pans the time alone.
+            @test g.gutter_h > 0
+            axis_y = round(Int, g.body_y - g.gutter_h / 2)
+            plot.view = zoomed
+            before = _geometry_of(iomap)
+            op = send(MouseDown(:left, mid_x, axis_y, ModifierKeys(); time = 0.0))
+            @test _sc_pointer_shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, axis_y - 5; time = 0.0))
+            @test _geometry_of(iomap).lo > before.lo
+            @test plot.cross_offset == 0
+            send(DragEnd(mid_x - 40, axis_y - 5; time = 0.0))
+            # A double click on the time scale shows the whole trace; at the whole
+            # trace it is nothing.
+            plot.view = zoomed
+            send(MouseClick(:left, mid_x, axis_y, 2, ModifierKeys(); time = 0.0))
+            @test plot.view === nothing
+            @test send(MouseClick(:left, mid_x, axis_y, 2, ModifierKeys(); time = 0.0)) === nothing
+        end
+
+        @testset "the keys move the view" begin
+            iomap = _sequencechart_iomap(_sc_chart(); height = 80)
+            plot = _plot_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            g = _geometry_of(iomap)
+            send(event) = (op = read_intent(stage2.projection, stage2, event);
+                           op === nothing || _sc_apply_answer!(plot.chart, op); op)
+            page = (g.coordinates[end] - g.coordinates[1]) / 4
+            zoomed = SequenceChartView(1, 0.0, page)
+            whole = g.hi - g.lo
+
+            # At the whole trace Ctrl+- and Ctrl+0 are not the chart's: they go on to
+            # the zoom of the interface.
+            @test send(KeyDown(:minus, _sc_ctrl; time = 0.0)) === nothing
+            @test send(KeyDown(:zero, _sc_ctrl; time = 0.0)) === nothing
+            # Ctrl+= zooms about the middle, Ctrl+- zooms out, Ctrl+0 shows the whole trace.
+            @test send(KeyDown(:equals, _sc_ctrl; time = 0.0)) !== nothing
+            v = _geometry_of(iomap)
+            @test v.hi - v.lo ≈ whole / 1.15
+            @test (v.lo + v.hi) / 2 ≈ (g.lo + g.hi) / 2
+            send(KeyDown(:minus, _sc_ctrl; time = 0.0))
+            @test plot.view === nothing
+            plot.view = zoomed
+            send(KeyDown(:zero, _sc_ctrl; time = 0.0))
+            @test plot.view === nothing
+            # A typed character with Ctrl is not a second zoom; `+`, `-` and `0` are keys.
+            @test send(KeyPress('=', _sc_ctrl; time = 0.0)) === nothing
+            @test send(KeyPress('+', _sc_shift; time = 0.0)) !== nothing
+            send(KeyPress('-'; time = 0.0))
+            @test plot.view === nothing
+            send(KeyPress('='; time = 0.0))
+            send(KeyPress('0'; time = 0.0))
+            @test plot.view === nothing
+
+            # Page Down scrolls the lanes a page, as far as their room goes; Page Up
+            # brings them back.
+            room = ceil(Int, g.cross_room)
+            @test room > 0
+            send(KeyDown(:page_down, ModifierKeys(); time = 0.0))
+            @test plot.cross_offset == min(round(Int, g.body_h), room)
+            send(KeyDown(:page_up, ModifierKeys(); time = 0.0))
+            @test plot.cross_offset == 0
+            @test send(KeyDown(:page_up, ModifierKeys(); time = 0.0)) === nothing
+            # Alt and the page keys scroll the time a page, the window, inside the trace.
+            plot.view = zoomed
+            send(KeyDown(:page_down, ModifierKeys(; alt = true); time = 0.0))
+            moved = _geometry_of(iomap)
+            @test moved.lo ≈ g.coordinates[1] + page && moved.hi - moved.lo ≈ page
+            send(KeyDown(:page_up, ModifierKeys(; alt = true); time = 0.0))
+            @test _geometry_of(iomap).lo ≈ g.coordinates[1]
+            @test send(KeyDown(:page_up, ModifierKeys(; alt = true); time = 0.0)) === nothing
+            # The arrows and Shift with them stay the navigation along the events.
+            for key in (:left, :right, :up, :down)
+                @test send(KeyDown(key, ModifierKeys(); time = 0.0)) === nothing
+                @test send(KeyDown(key, _sc_shift; time = 0.0)) === nothing
+            end
+            # In a vertical chart the time runs down: the page keys scroll it, and Alt the lanes.
+            vertical = _sequencechart_iomap(_sc_chart(; orientation = :vertical))
+            vplot = _plot_of(vertical)
+            vstage = _stage2_iomap(vertical)
+            vplot.view = zoomed
+            op = read_intent(vstage.projection, vstage, KeyDown(:page_down, ModifierKeys(); time = 0.0))
+            _sc_apply_answer!(vplot.chart, op)
+            @test _geometry_of(vertical).lo ≈ _geometry_of(vertical).coordinates[1] + page
+        end
+
+        @testset "the menu and the buttons" begin
+            chart = _sc_chart()
+            view = make_sequence_chart_projection(; measure = FontFileMeasure())
+            iomap = print_document(view, view, chart, PrinterContext())
+            canvas_iomap = _find_sequence_chart_canvas_iomap(iomap)
+            plot = canvas_iomap.input
+            send(event) = (op = read_intent(view, iomap, event); op === nothing || _sc_apply_answer!(chart, op); op)
+            viewports() = [e for e in canvas_iomap.output.elements if e isa GraphicsViewport]
+
+            # The menu holds the view actions, and an action that changes nothing is
+            # disabled: a chart that shows its whole trace can not zoom out.
+            menu = compute_context_menu(plot)
+            labels = [String(string(item.action.label)) for item in menu.elements]
+            @test labels == ["Zoom in", "Zoom out", "Show the whole trace"]
+            @test [item.keys for item in menu.elements] == [["Ctrl+="], ["Ctrl+-"], ["Ctrl+0"]]
+            @test [item.enabled for item in menu.elements] == [true, false, false]
+            evaluate_operation(nothing, menu.elements[1].operation)
+            @test plot.view isa SequenceChartView
+            menu = compute_context_menu(plot)
+            @test menu.elements[3].enabled
+            evaluate_operation(nothing, menu.elements[3].operation)
+            @test plot.view === nothing
+            # A right click on the body opens that menu.
+            g = canvas_iomap.geometry
+            op = read_intent(view, iomap, MouseClick(:right, round(Int, g.body_x) + 20, round(Int, g.body_y) + 20,
+                                                     1, ModifierKeys(); time = 0.0))
+            @test op !== nothing
+            @test compute_context_menu(SequenceChartPlot(nothing)) === nothing
+
+            # The buttons: their icons, and the disabled state of an action at a limit.
+            buttons = plot.toolbar.elements
+            @test [item.action.icon for item in buttons] == [:zoom_in, :zoom_out, :maximize]
+            @test [item.enabled for item in buttons] == [true, false, false]
+            @test all(item -> item.tooltip isa AbstractString && occursin("(Ctrl+", item.tooltip), buttons)
+            # They show only while the pointer is over the chart.
+            @test length(viewports()) == 1
+            replace_mouse_target!(chart, EmptyReference())
+            @test length(viewports()) == 2
+            shown = first(SCT._find_shown_sequence_chart_parts(canvas_iomap))
+            @test shown.field == "toolbar"
+            @test shown.x + shown.w < canvas_iomap.output.w && shown.y < g.body_y
+            # A click on the first button zooms in; the third then shows the whole trace.
+            centre(k) = (shown.x + (2k - 1) * shown.w ÷ 6, shown.y + shown.h ÷ 2)
+            bx, by = centre(1)
+            # The button under the pointer lights, and a press holds it down.
+            send(MouseMove(bx, by, MouseButtons(), ModifierKeys(); time = 0.0))
+            @test get_mouse_target(buttons[1]) !== nothing
+            @test get_mouse_target(buttons[2]) === nothing
+            @test length(viewports()) == 2
+            send(MouseDown(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor === nothing
+            @test buttons[1].pressed
+            send(MouseUp(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test !buttons[1].pressed
+            send(MouseClick(:left, bx, by, 1, ModifierKeys(); time = 0.0))
+            @test plot.view isa SequenceChartView
+            @test buttons[3].enabled
+            cx, cy = centre(3)
+            send(MouseClick(:left, cx, cy, 1, ModifierKeys(); time = 0.0))
+            @test plot.view === nothing
+            # A drag hides them, and so does the leave of the pointer.
+            plot.drag_anchor = (0, 0, :zoom, (g.lo, g.hi), g.scale, 0, nothing, false)
+            @test length(viewports()) == 1
+            plot.drag_anchor = nothing
+            replace_mouse_target!(chart, nothing)
+            @test length(viewports()) == 1
+            # A chart too small for the buttons shows none.
+            small = _sc_chart()
+            small_view = make_sequence_chart_projection(; measure = FontFileMeasure(), width = 160, height = 100)
+            small_iomap = _find_sequence_chart_canvas_iomap(print_document(small_view, small_view, small, PrinterContext()))
+            replace_mouse_target!(small, EmptyReference())
+            @test !any(part -> part.field == "toolbar", SCT._find_shown_sequence_chart_parts(small_iomap))
+        end
+
+        @testset "the bars of a scrolled chart" begin
+            for orientation in (:horizontal, :vertical)
+                # Twelve lanes do not fit across a narrow vertical chart.
+                chart = _sc_chart(; orientation, extra_lanes = orientation === :vertical ? 9 : 0)
+                view = make_sequence_chart_projection(; measure = FontFileMeasure(), height = orientation === :horizontal ? 90 : 520,
+                                                      width = orientation === :horizontal ? 900 : 160)
+                iomap = print_document(view, view, chart, PrinterContext())
+                canvas_iomap = _find_sequence_chart_canvas_iomap(iomap)
+                plot = canvas_iomap.input
+                send(event) = (op = read_intent(view, iomap, event); op === nothing || _sc_apply_answer!(chart, op); op)
+                bars() = Dict(part.field => part for part in SCT._find_shown_sequence_chart_parts(canvas_iomap))
+                time_bar, lane_bar = plot.time_scroll_bar, plot.lane_scroll_bar
+                g = canvas_iomap.geometry
+                extent = (g.coordinates[1], g.coordinates[end])
+                body_x, body_y = round(Int, g.body_x), round(Int, g.body_y)
+                body_w, body_h = round(Int, g.body_w), round(Int, g.body_h)
+                across_time = orientation === :horizontal
+
+                # The time runs along one edge of the body and the lanes along the
+                # other.
+                @test time_bar.orientation === orientation
+                @test lane_bar.orientation === (across_time ? :vertical : :horizontal)
+                # At the whole trace the bar of the time is not there; the lanes do not
+                # fit, so their bar is.
+                @test time_bar.thumb_size == 1.0
+                @test lane_bar.thumb_size < 1.0
+                @test lane_bar.thumb_size ≈ (across_time ? body_h : body_w) / ((across_time ? body_h : body_w) + g.cross_room)
+                @test lane_bar.value == 0.0
+                shown = bars()
+                @test collect(keys(shown)) == ["lane_scroll_bar"]
+                # A zoom: the bar of the time holds the place of the window, and the bar
+                # of the lanes is the one along the other edge, which the time bar stops before.
+                span = extent[2] - extent[1]
+                window = span / 4
+                plot.view = SequenceChartView(1, 0.0, window)
+                @test time_bar.thumb_size ≈ 0.25
+                @test time_bar.value == 0.0
+                shown = bars()
+                @test Set(keys(shown)) == Set(["time_scroll_bar", "lane_scroll_bar"])
+                time_part, lane_part = shown["time_scroll_bar"], shown["lane_scroll_bar"]
+                if across_time
+                    @test lane_part.x + lane_part.w == body_x + body_w && lane_part.y == body_y && lane_part.h == body_h
+                    @test time_part.x == body_x && time_part.y + time_part.h == body_y + body_h
+                    @test time_part.x + time_part.w == lane_part.x
+                else
+                    @test time_part.x + time_part.w == body_x + body_w && time_part.y == body_y && time_part.h == body_h
+                    @test lane_part.x == body_x && lane_part.y + lane_part.h == body_y + body_h
+                    @test lane_part.x + lane_part.w == time_part.x
+                end
+                plot.view = SequenceChartView(2, 0.0, window)
+                lo = canvas_iomap.geometry.lo
+                @test time_bar.value ≈ (lo - extent[1]) / (span - window)
+
+                # A click on the track of the time bar moves the window a page; a press
+                # there starts no band.
+                plot.view = SequenceChartView(1, 0.0, window)
+                part = bars()["time_scroll_bar"]
+                far = across_time ? (part.x + part.w - 2, part.y + part.h ÷ 2) : (part.x + part.w ÷ 2, part.y + part.h - 2)
+                send(MouseDown(:left, far..., ModifierKeys(); time = 0.0))
+                @test plot.drag_anchor === nothing
+                send(MouseUp(:left, far..., ModifierKeys(); time = 0.0))
+                send(MouseClick(:left, far..., 1, ModifierKeys(); time = 0.0))
+                moved = canvas_iomap.geometry
+                @test moved.lo > g.coordinates[1] && moved.hi - moved.lo ≈ window
+
+                # A drag of the thumb moves the window with the pointer, and the plot
+                # keeps the drag.
+                plot.view = SequenceChartView(1, 0.0, window)
+                part = bars()["time_scroll_bar"]
+                at = time_bar.value * (1 - time_bar.thumb_size) + time_bar.thumb_size / 2
+                along = across_time ? (part.x + round(Int, part.w * at), part.y + part.h ÷ 2) :
+                                      (part.x + part.w ÷ 2, part.y + round(Int, part.h * at))
+                send(MouseDown(:left, along..., ModifierKeys(); time = 0.0))
+                @test time_bar.thumb_drag !== nothing
+                @test plot.drag_anchor === nothing
+                shift = across_time ? (40, 0) : (0, 40)
+                send(DragMove((along .+ shift)...; time = 0.0))
+                dragged = canvas_iomap.geometry
+                @test dragged.lo > g.coordinates[1] && dragged.hi - dragged.lo ≈ window
+                send(DragEnd((along .+ shift)...; time = 0.0))
+                @test time_bar.thumb_drag === nothing
+
+                # A click on the track of the lane bar scrolls the lanes a page, and a
+                # drag of its thumb scrolls them with the pointer.
+                plot.view = nothing
+                part = bars()["lane_scroll_bar"]
+                far = across_time ? (part.x + part.w ÷ 2, part.y + part.h - 2) : (part.x + part.w - 2, part.y + part.h ÷ 2)
+                send(MouseDown(:left, far..., ModifierKeys(); time = 0.0))
+                send(MouseUp(:left, far..., ModifierKeys(); time = 0.0))
+                send(MouseClick(:left, far..., 1, ModifierKeys(); time = 0.0))
+                @test plot.cross_offset > 0
+                plot.cross_offset = 0
+                at = lane_bar.thumb_size / 2
+                along = across_time ? (part.x + part.w ÷ 2, part.y + round(Int, part.h * at)) :
+                                      (part.x + round(Int, part.w * at), part.y + part.h ÷ 2)
+                send(MouseDown(:left, along..., ModifierKeys(); time = 0.0))
+                @test lane_bar.thumb_drag !== nothing
+                shift = across_time ? (0, 10) : (10, 0)
+                send(DragMove((along .+ shift)...; time = 0.0))
+                @test plot.cross_offset > 0
+                send(DragEnd((along .+ shift)...; time = 0.0))
+                @test lane_bar.thumb_drag === nothing
+                # The lanes scrolled to the end: the thumb is at the end of its track.
+                plot.cross_offset = ceil(Int, g.cross_room)
+                @test lane_bar.value ≈ 1.0
+            end
         end
 
         @testset "hover writes overlay state only" begin

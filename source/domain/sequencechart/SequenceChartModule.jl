@@ -41,7 +41,10 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent,
+    get_child_iomaps
+import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..DomainModule: compute_context_menu
 import ..EditorModule: make_change
 
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
@@ -72,7 +75,8 @@ export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
 export SequenceChartTheme, ScaledSequenceChartTheme
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
        resolve_window, get_lane_cross_position,
-       find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference
+       find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference,
+       make_sequence_chart_buttons, make_sequence_chart_scroll_bar, make_sequence_chart_projection
 export SequenceChartDocument, SequenceChartPlot, arc_height
 
 

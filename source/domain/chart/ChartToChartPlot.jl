@@ -51,7 +51,8 @@ function print_document(p::ChartToChartPlot, recursion,
                                 (horizontal_cell, "horizontal_scroll_bar", make_chart_scroll_bar(plot, :x)),
                                 (vertical_cell, "vertical_scroll_bar", make_chart_scroll_bar(plot, :y)))
         cell[] = part
-        follow_output_mouse_target!(part, () -> _get_plot_part(get_mouse_target(plot), field))
+        follow_output_mouse_target!(part, () -> find_drawn_child_path(get_mouse_target(plot),
+                                                                      (FieldReferenceStep(field),)))
     end
     iomap = ChartToChartPlotIoMap(p, chart, plot)
     iomap_cell[] = iomap
@@ -62,21 +63,9 @@ end
 # the bars.
 const _PLOT_PART_FIELDS = ("toolbar", "horizontal_scroll_bar", "vertical_scroll_bar")
 
-# The part of `path`, a path in a plot, below the step `field`, or `nothing` for a
-# path that does not go into that field.
-function _get_plot_part(path, field::AbstractString)
-    path isa ConcreteReference || return nothing
-    head = get_reference_head(path)
-    (head isa FieldReferenceStep && head.name == field) ? get_reference_tail(path) : nothing
-end
-
-# The field of `_PLOT_PART_FIELDS` that `path` goes into, or `nothing`.
-function _find_plot_part_field(path)
-    for field in _PLOT_PART_FIELDS
-        _get_plot_part(path, field) === nothing || return field
-    end
-    nothing
-end
+# Whether `path`, a path in a plot, goes into the buttons or a bar.
+_is_plot_part_path(path) =
+    any(field -> find_drawn_child_path(path, (FieldReferenceStep(field),)) !== nothing, _PLOT_PART_FIELDS)
 
 # anything... ↔ chart.anything...
 #
@@ -106,8 +95,7 @@ function map_reference_backward(p::ChartToChartPlot, iomap, reference)
     reference === nothing && return nothing
     # A button and a bar have no place in the chart: the chart names them by an
     # introduced reference, which the forward map gives back.
-    _find_plot_part_field(strip_reference_types(reference)) === nothing ||
-        return make_introduced_reference(p, iomap, reference)
+    _is_plot_part_path(reference) && return make_introduced_reference(p, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::Chart
         ::ChartPlot.chart.rest... => (@reference ^(rest))

@@ -53,6 +53,8 @@ plain values of the default theme.
     selected::ThemeColor = ColorRole(:selection_ring)
     "The ring and the highlight of what the pointer is over."
     hover::ThemeColor = ColorRole(:selection_ring; alpha = 0.5)
+    "The rubber band of a zoom drag."
+    band_fill::ThemeColor = ColorRole(:selection_band)
     "The opacity of a state band's generated color, when it names none of its own."
     band_overlay_alpha::Float64 = 0.45
     "The font of the chart's title."

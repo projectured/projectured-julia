@@ -327,12 +327,35 @@ and makes one commit.
    `read_scroll_bar_drag`). `make_chart_projection` prints `WidgetScrollBar` too.
    Results: `test_plot_geometry()` 144/144, `test_chart()` 535/535,
    `test_pivot_chart_views()` 24/24, `test_pivot_cell_views()` 30/30.
-6. [ ] **The sequence chart (D2 to D10, D12 to D14).** First the shared code of
+6. [x] **The sequence chart (D2 to D10, D12 to D14).** First the shared code of
    D14, which the chart then calls. Then the window arithmetic, the
    band along the time, the drag pan of the time and the lanes, a drag and a
    double click on the time axis, the keys, the menu, the buttons and the bars. The move back from the end
    of a plot that follows the end still stops the follow. Run
    `test_sequencechart()`.
+
+   *As built (2026-11-10):* the shared code of D14 is commit `0068d71c6`, with
+   `find_drawn_child_path` added later for the walk of a path into a drawn
+   child, which both plot stages use. The sequence chart has the two bars
+   `time_scroll_bar` and `lane_scroll_bar`, and `make_sequence_chart_buttons`,
+   `make_sequence_chart_scroll_bar` and `make_sequence_chart_projection`. A
+   window that shows the whole trace is `view = nothing`; a scroll notch along
+   the time moves 0.1 of the window, as in the chart, and the lanes keep 20 px.
+   Facts and choices of the work:
+   - The room of the lanes is a fact of the layout, so the renderer binds the
+     `value` and the `thumb_size` of the two bars to its geometry when it prints.
+     The plot stage makes one plot for each print, so each bar has one renderer.
+   - In a vertical sequence chart the time runs down, so Page Up and Page Down
+     scroll the time there, and Alt with them the lanes: the page keys follow the
+     screen, as in a horizontal one.
+   - The menu and the state of the buttons compute the timeline again on each
+     call, a pass over the events.
+   - The theme gets `band_fill`, the color of the band of a zoom.
+   - In the top-right corner the range readout and the buttons met. The buttons
+     keep the corner, so a second click finds them, and the readout ends left of
+     them while they show.
+   Results: `test_sequencechart()` 467/467, `test_chart()` 552/552, naming guard
+   clean.
 7. [ ] **The editor, the documents and a live check.** Editor-level tests in
    the headless application window, with the chart in a tab: each gesture of
    both charts as window input, at the pixels of the plot, as the probe did,
