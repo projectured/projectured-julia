@@ -1,9 +1,10 @@
 # Cut and paste edit through the content
 
-**Status (2026-11-10): in progress, on the branch `clipboard-edits`. Steps 1, 2, 4, 5, 6 and 7 are done; step 3 waits for the owner (D2 below).** The owner approved the plan for
-implementation (2026-11-10), so the decisions D1 to D6 that the assistant
-proposed are approved with the plan. The owner answered Q1 and Q2 (2026-11-10).
-No question is open.
+**Status (2026-11-10): done, on the branch `clipboard-edits`, not landed.** The
+owner approved the plan for implementation (2026-11-10), so the decisions D1 to
+D6 that the assistant proposed are approved with the plan. The owner answered Q1
+and Q2, and chose A for D2 after the implementation (2026-11-10). No question is
+open.
 
 **Goal:** Ctrl+C, Ctrl+X, Ctrl+V and Ctrl+Shift+V act in the same way on a range
 of text and on a whole object, in every domain. A cut is a copy and a delete in
@@ -16,7 +17,7 @@ plan changes one kernel file, `operation/Operations.jl`, which
 
 **Branch:** `clipboard-edits`, in the worktree `../projectured-julia-clipboard-edits`.
 
-**Related plan:** [one-text-domain-and-the-missing-text-keys.md](one-text-domain-and-the-missing-text-keys.md)
+**Related plan:** [one-text-domain-and-the-missing-text-keys.md](../pending/one-text-domain-and-the-missing-text-keys.md)
 (pending). Its D1 says that only the text table types or removes a character.
 This plan does not wait for it. After that plan, the delete of D1 and the typing
 of D2 below come from the text table in every text. Another agent now changes
@@ -149,7 +150,14 @@ object. The document is `{"name": "Alice", "city": "Paris", "list": [11, 22, 33]
   nothing. After the cut, the selection is where the delete leaves it. Proposed
   by the assistant, approved with the plan (2026-11-10). Rejected: the clipboard keeps its own deletes. Then each
   domain needs clipboard rules, and a cut can store a copy with no delete.
-- **D2. A paste of text is the typing of that text.** At a caret or a range,
+- **D2. A paste of text is the edit that the clipboard makes, sent down by
+  route.** The owner chose this (option A, 2026-11-10: "Option A, I agree")
+  after the implementation showed that the typed key of the first form needs a
+  new mechanism (see "What the implementation found"). The edit is
+  `_make_text_target_edit`, with the rules of `_make_pasted_text`, and it goes
+  down to its place as D3 says, so the history records it. Rejected: option B, a
+  new way to read a typed text from the evaluation of a paste. The first form of
+  D2 follows. A paste of text is the typing of that text. At a caret or a range,
   Ctrl+V gives the content a `KeyPress` whose `text` is the whole pasted text
   ([KeyboardEvent.jl:60-82](../../source/kernel/event/KeyboardEvent.jl#L60-L82)).
   The answer of the content is the paste. The clipboard drops the line breaks at
@@ -235,7 +243,7 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
    `_text_clipboard_cut` and the `cut` keyword of `_text_target_copy` go. The
    text mode keeps only its copy. The test sets of `test_clipboard()` that read
    the old shape of a cut change to the new shape.
-3. [ ] **A paste of text is the typing of that text (D2).** Not built: see "D2 is not built as written" below. The paste of text goes down by route instead, in `5fda3d25b`. Ctrl+V and
+3. [x] **A paste of text is the edit of the clipboard, sent down by route (D2, option A).** Done in `5fda3d25b`; the owner chose option A (2026-11-10). Ctrl+V and
    Ctrl+Shift+V at a caret or a range give the content a `KeyPress` with the
    whole text. Check that each typing rule that a paste reaches reads the `text`
    of the `KeyPress`: the primitive string, the number, JSON, YAML, Markdown,
@@ -318,7 +326,7 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
   operation down by route (`read_rooted_operation`), but no existing way reads a
   typed key there. So the paste of text stays the edit that the clipboard makes
   (`_make_text_target_edit`), sent down by route, and the history records it.
-  The owner decides between this and a new mechanism.
+  The owner chose this, option A (2026-11-10).
 - **Ctrl+Z after the delete of an element failed before this plan.** The way back
   of a splice puts back the slots of the list, which are cells, and the write
   checked each item against the declared element type, which a cell is not
@@ -336,7 +344,7 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
 
 **Not in this plan:** the caret in Julia and SQL code stops at a
 `ProjectionReferenceStep` of the syntax leaf, so typing, Delete and the
-clipboard all fail there ([syntax-tree-selection.md](syntax-tree-selection.md)
+clipboard all fail there ([syntax-tree-selection.md](../pending/syntax-tree-selection.md)
 holds that point); a range across lines or across runs; in XML, a click on the
 first letter of a text with spaces before it puts the caret into the spaces;
 what the save of a file prints for a hole; in the text mode of the clipboard, which no window uses, a range made by a click and Shift+Left in an editor loop copies nothing. The cause is not found; one candidate is that `get_selection_substring` refuses a range whose start is after its stop.
