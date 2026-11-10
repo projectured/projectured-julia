@@ -48,6 +48,11 @@ The name of the group type `T` in a settings file: the name of the type without
 """
 function get_settings_name end
 
+# A tab that shows a group, and its node in a tree, name it by its group type in
+# words: `AssistantIndexSettings` is "Assistant index".
+get_document_title(group::SettingsGroup) =
+    uppercasefirst(replace(get_settings_name(get_settings_group_type(group)), "_" => " "))
+
 """
     get_settings_group_type(group) -> Type
 
@@ -144,7 +149,7 @@ function _parse_setting_line(line, docstring)
     type in _SETTING_TYPES ||
         _throw_settings_error("the type of `$field` is one of $(_SETTING_TYPES), " *
                               "got `$type`")
-    field in (:selection, :mouse_target) &&
+    field in (:selection, :mouse_target, :is_used) &&
         _throw_settings_error("a setting can not be named `$field`, " *
                               "a document keeps its own `$field` under that name")
     docstring === nothing &&
@@ -179,6 +184,11 @@ macro makes the group a document whose fields are cells, so
 `RenderSettings(partial_render = true)` works, and adds
 [`get_setting_descriptions`](@ref), [`get_settings_name`](@ref) and
 [`get_settings_group_type`](@ref) for it.
+
+The group also gets the field `is_used::Bool = true`, which is no setting: no
+description names it, and no settings file holds it. The start step of an editor
+writes `false` there when no target of the editor applies the group
+([`is_settings_group_used`](@ref)), so a view of the group shows it as not used.
 """
 macro settings(definition)
     (definition isa Expr && definition.head === :struct) ||
@@ -209,6 +219,7 @@ macro settings(definition)
     docstring === nothing ||
         _throw_settings_error("a docstring follows the last setting: $(repr(docstring))")
     isempty(descriptions) && _throw_settings_error("`$name` declares no setting")
+    push!(body, :(is_used::Bool = true))
     definition.args[3] = Expr(:block, body...)
     document = Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")),
                     __source__, definition)

@@ -122,7 +122,7 @@ end
     @test get_settings_group!(other, SettingsTestProbeSettings).count == 4
     # The other loaded group types get their defaults.
     @test SettingsTestOtherSettings in compute_loaded_settings_types()
-    @test haskey(other.groups, SettingsTestOtherSettings)
+    @test find_settings_group(other, SettingsTestOtherSettings) isa SettingsTestOtherSettings
     @test group.count == 2
     replaced = set_settings_group!(settings, SettingsTestProbeSettings(flag = true))
     @test get_settings_group!(settings, SettingsTestProbeSettings) === replaced

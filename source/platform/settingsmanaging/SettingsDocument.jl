@@ -155,7 +155,7 @@ with no group of `T` gives `DoNothingOperation`.
 """
 function make_toggle_setting_operation(settings::Settings, T::Type{<:SettingsGroup},
                                        name::Symbol)
-    group = get(settings.groups, T, nothing)
+    group = find_settings_group(settings, T)
     group === nothing && return DoNothingOperation()
     ApplySettingOperation(group, name, !getproperty(group, name))
 end
@@ -175,3 +175,13 @@ end
 get_document_decoration(::Union{SettingsDocument, Settings}) =
     DocumentDecoration(; icon = :settings, tooltip = () -> TooltipNote(; title = "Settings",
                                                                         text = "Change how this editor works."))
+
+# A group has the icon of the settings, and the summary of its type as its note.
+get_document_decoration(group::SettingsGroup) =
+    DocumentDecoration(; icon = :settings,
+                       tooltip = () -> TooltipNote(; title = get_document_title(group),
+                                                    text = strip_code_marks(compute_docstring_summary(
+                                                        get_settings_group_type(group)))))
+
+# In a tree, the settings have a node for each group, in the order of the tab.
+get_tree_children_steps(::Settings) = ((FieldReferenceStep("groups"),),)

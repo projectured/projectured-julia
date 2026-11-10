@@ -691,6 +691,24 @@ function test_explorer()
         @test length(content.entries[10 + kinds].entries) == 3
     end
 
+    @testset "the settings have a node for each group, in the order of the tab" begin
+        settings = make_settings()
+        children = collect_tree_children(settings; limit = 50)
+        labels = [format_tree_node_label(last(child)) for child in children]
+        @test labels == [get_document_title(group) for group in get_settings_groups(settings)]
+        @test ["Assistant index", "Fault", "History", "Pointer", "Render", "Start"] ⊆ labels
+        @test issorted([get_settings_name(get_settings_group_type(last(child))) for child in children])
+        k = findfirst(==("Pointer"), labels)
+        @test last(children[k]) === find_settings_group(settings, PointerSettings)
+        @test _nav_is(first(children[k]), _explorer_path(FieldReferenceStep("groups"), ElementReferenceStep(k)))
+        # The chevron of the node opens it, and the tree draws the groups.
+        explorer = Explorer(ExplorerSection("Explorer", Any[settings]))
+        editor, backend = _nav_editor(explorer)
+        @test !_explorer_has_tree_text(backend, "Pointer")
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Settings"))
+        @test _explorer_has_tree_text(backend, "Pointer") && _explorer_has_tree_text(backend, "Assistant index")
+    end
+
     @testset "the first content holds the session document of each kind that a loaded package marks" begin
         @test !is_session_explorer_entry_type(Int)
         editor, _ = _nav_editor(PrimitiveString("start"))

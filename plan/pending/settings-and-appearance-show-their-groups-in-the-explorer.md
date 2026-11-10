@@ -126,6 +126,11 @@ Explorer
 **D1 (owner, 2026-11-10).** A node of a group opens the group alone in its own
 tab. Rejected: open the parent tab and scroll to the card.
 
+Fact for D1 (2026-11-10): a press, Enter or a double click on a node of the
+explorer shows its document as the page of the explorer, whose navigator puts the
+page in a pane that scrolls. Ctrl+press opens it in a new tab. A group, a part
+and a theme open the same way, so their views need no pane of their own.
+
 **D2 (owner, 2026-11-10).** `Settings` and `Appearance` are top-level nodes of
 the explorer. The section "Settings" goes away.
 
@@ -197,10 +202,16 @@ Each step updates the design document of each package that it changes, under
 [documentation/package/platform/](../../documentation/package/platform/), and
 makes one commit.
 
-1. [ ] **Top-level nodes (D2).** `make_editor_explorer_content` puts `Settings`
+1. [x] **Top-level nodes (D2).** Done. The test editor of the first content now
+   has a `Settings` and an `Appearance`, and the test checks that the two nodes
+   are the ones of the editor. `make_editor_explorer_content` puts `Settings`
    and `Appearance` at the top level, after the section "Editor". Change the
    names in `ExplorerTest.jl:676`. Test: `test_explorer()`.
-2. [ ] **Groups of the settings (D4, D5, D6, D12).** Change `Settings.jl`,
+2. [x] **Groups of the settings (D4, D5, D6, D12).** Done. Facts: the layering
+   table of the platform (`PLATFORM_SLICE_EDGES` in `PlatformSuite.jl`) gets two
+   edges, `settings` → `collection` for the `CellVector`, and `settingsmanaging`
+   → `tree` for `get_tree_children_steps`. `find_settings_group(settings, T)` is
+   new; it replaces each `get(settings.groups, T, nothing)`. Change `Settings.jl`,
    `SettingsGroup.jl`, `SettingsWrapper.jl` and the reads of `unused_types`.
    Add `get_tree_children_steps(::Settings)`, the title and the icon of a group.
    Add a test: the node "Settings" has six children with the titles of the

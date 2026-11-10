@@ -108,11 +108,11 @@ end
 # A card of one group: its name, the summary of its type and a note when the
 # editor does not use it, and for each setting a row and its description under it,
 # across the three columns. The note and the state of the controls follow the
-# unused types of the settings, which the start step of the editor finds after the
+# `is_used` of the group, which the start step of the editor writes after the
 # first print.
 function _make_group_card(settings::Settings, group, controls, styles, gaps)
     T = get_settings_group_type(group)
-    is_used = () -> !(T in settings.unused_types)
+    is_used = () -> group.is_used
     cells = Any[]
     row_gaps = Any[]     # the gap above each row of the grid
     for description in get_setting_descriptions(T)
@@ -133,7 +133,7 @@ function _make_group_card(settings::Settings, group, controls, styles, gaps)
     end
     grid = GridLayout(cells, 3; horizontal_gap = gaps.column, vertical_gap = gaps.row,
                       vertical_align = :center, row_gaps)
-    card = WidgetCard(; title = _make_group_title(T),
+    card = WidgetCard(; title = get_document_title(group),
                       content = WidgetComposite(Any[grid]))
     summary = strip_code_marks(compute_docstring_summary(T))
     note = is_settings_group_read_at_start(T) ?
@@ -146,8 +146,6 @@ function _make_group_card(settings::Settings, group, controls, styles, gaps)
     end)
     card
 end
-
-_make_group_title(T::Type) = uppercasefirst(replace(get_settings_name(T), "_" => " "))
 
 # The control of one setting, and the function from the value that it writes to
 # the value of the setting. Its value is a computed cell over the setting, so it

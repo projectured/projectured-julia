@@ -180,9 +180,9 @@ end
     settings = make_settings()
     editor, backend = _stab_editor(settings, settings)
     # The headless backend draws no windows, so nothing applies the render group.
-    @test RenderSettings in settings.unused_types
-    @test !(FaultSettings in settings.unused_types)
-    @test !(PointerSettings in settings.unused_types)
+    @test !find_settings_group(settings, RenderSettings).is_used
+    @test find_settings_group(settings, FaultSettings).is_used
+    @test find_settings_group(settings, PointerSettings).is_used
     @test is_settings_group_applied(RenderSettings) && is_settings_group_applied(FaultSettings)
     @test !is_settings_group_applied(PointerSettings)
     # The card can wrap the note, so a piece of it is enough. The note is its text,

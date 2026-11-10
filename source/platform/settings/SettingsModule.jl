@@ -25,6 +25,7 @@ module SettingsModule
 using ..DocumentModule
 using ..OperationModule
 using ..ReferenceModule
+using ..CollectionModule: CellVector
 
 import TOML
 
@@ -36,7 +37,8 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
 export SettingsGroup, SettingDescription, get_setting_descriptions, get_settings_name,
        get_settings_group_type, find_setting_description, convert_setting_value, @settings
 export Settings, compute_loaded_settings_types, make_settings, get_settings_group!,
-       set_settings_group!, get_settings_groups, is_settings_group, get_setting_cell
+       find_settings_group, set_settings_group!, get_settings_groups, is_settings_group,
+       get_setting_cell
 export apply_settings!, is_settings_target, is_settings_group_applied,
        is_settings_group_read_at_start, is_settings_group_used, read_settings!,
        read_settings_from_editor!, apply_settings_to_editor!, ApplySettingOperation,

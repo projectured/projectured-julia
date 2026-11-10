@@ -46,6 +46,7 @@ using ..SettingsModule
 using ..StyleModule
 using ..ToolModule
 using ..TooltipModule
+using ..TreeModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document
@@ -56,6 +57,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
 
 import ..DomainModule: get_document_decoration
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..TreeModule: get_tree_children_steps
 export SettingsDocument, make_settings_document, find_editor_settings, describe_settings,
        change_setting!,
        make_toggle_setting_operation
