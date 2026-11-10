@@ -522,11 +522,10 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     cur_sc = found.coordinate
 
     target = @gesture_case evt begin
-        when(KeyDown(k), k === :home || k === :end) => begin
-            line_segs = filter(sc -> sc.y == cur_sc.y, segments)
-            sc = k === :home ? line_segs[1] : line_segs[end]
-            new_char = k === :home ? sc.char_start : sc.char_end
-            (sc.span_path, new_char)
+        when(KeyDown(k), k === :home) => _find_home_target(styled, segments, cur_sc, current, places)
+        when(KeyDown(k), k === :end) => begin
+            sc = filter(sc -> sc.y == cur_sc.y, segments)[end]
+            (sc.span_path, sc.char_end)
         end
         when(KeyDown(k), k === :up || k === :down) => begin
             cursor_x = _seg_cursor_x(cur_sc, found.char, p.measure)
@@ -561,6 +560,27 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
     # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
     return nothing
+end
+
+# Where Home moves the moving end `current`, a `(span, char)`, as a
+# `(span_path, char)`. On the first row of a line, it is the first character of the
+# line that is not a space; when the moving end is already there, and on a later row
+# of a wrapped line, it is the start of the row. `row` is the segment of the moving
+# end, and `segments` are the segments of its line.
+function _find_home_target(styled::TextBlock, segments, row, current, places)
+    first_segment = filter(sc -> sc.y == row.y, segments)[1]
+    row_start = (first_segment.span_path, first_segment.char_start)
+    row.y == minimum(sc -> sc.y, segments) || return row_start
+    i = current.span[1]
+    base = get_flat_base(styled, current.span, places)
+    base === nothing && return row_start
+    # The spaces are characters of one code unit, so the index of the first other
+    # character in the string counts the spaces before it.
+    text = get_flat_string(styled.elements[i])
+    first_text = _get_flat_line_start(places, i) + something(findfirst(!=(' '), text), length(text) + 1) - 1
+    base + current.char == first_text && return row_start
+    found = _text_flat_span(styled, first_text, places)
+    found === nothing ? row_start : (found.span, found.char)
 end
 
 # The coordinate of `coord_map`, the segments of the line of the caret, that holds

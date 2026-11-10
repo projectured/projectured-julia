@@ -638,6 +638,40 @@ shift = ModifierKeys(; shift = true)
 
 end # @testset "TextToGraphics caret of a range"
 
+@testset "TextToGraphics Home goes to the first character that is not a space" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+block(text, selection) = set_selection!(make_text_block(text, style), selection)
+caret(k) = TextModule.make_flat_caret_reference(k)
+backward(s, e) = TextModule.make_flat_range_reference(s, e; direction = :backward)
+ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+press(text, selection, modifiers = ModifierKeys()) =
+    ends(read_intent(p, print_document(p, block(text, selection)), KeyDown(:home, modifiers; time = 0.0)))
+shift = ModifierKeys(; shift = true)
+# The first press skips the spaces at the start of the line, and a press there goes
+# to the start of the row.
+@test press("    foo", caret(7)) == (4, 4, :forward)
+@test press("    foo", caret(4)) == (0, 0, :forward)
+@test press("    foo", caret(2)) == (4, 4, :forward)
+@test press("foo", caret(2)) == (0, 0, :forward)
+@test press("x\n  ab", caret(6)) == (4, 4, :forward)
+# A line of spaces only: the first place after its spaces is its end.
+@test press("   ", caret(1)) == (3, 3, :forward)
+# Shift moves the moving end in the same way.
+@test press("    foo", caret(6), shift) == (4, 6, :backward)
+@test press("    foo", backward(4, 6), shift) == (0, 6, :backward)
+# On a later row of a wrapped line, Home goes to the start of the row.
+wrapped = ChainingProjection(WordWrapping(measure = m, max_width = 80), TextToGraphics(measure = m))
+press_wrapped(k) = (text = block("  aaaa bbbb", caret(k));
+                    get_flat_range(text, read_intent(wrapped, print_document(wrapped, text),
+                                                     KeyDown(:home, ModifierKeys(); time = 0.0)).path))
+@test press_wrapped(4) == (2, 2)
+@test press_wrapped(9) == (7, 7)
+
+end # @testset "TextToGraphics Home goes to the first character that is not a space"
+
 # A text reference maps forward to the characters of the text node that draws it,
 # so the box of a part of a text is exact: here each character is 10 pixels wide.
 @testset "TextToGraphics maps a text reference to the characters that draw it" begin

@@ -337,7 +337,13 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      message of the assistant: its wait for the answer ends after 3 seconds, and
      the machine was 7 times slower than at the baseline. Two runs again gave 41
      pass, as the baseline.
-6. ⬜ **Home (D11).** Test: `test_text_to_graphics()`.
+6. ✅ **Home (D11).** Done 2026-11-10. Test: `test_text_to_graphics()`. Facts of
+   the step: `_find_home_target` counts the spaces at the start of the line in
+   `get_flat_string` of the line, which holds its indentation, so it skips the
+   indentation and the spaces that are characters in one count. A line of
+   spaces only has its end as the first place after its spaces.
+   `test_text_to_graphics()` gives 184 (10 new, two of them on a wrapped line
+   through `WordWrapping`).
 7. ⬜ **Page Up and Page Down (D12).** Move `KeepPointOperation` to the layout
    slice. Test: `test_text_to_graphics()` for the caret, and a text in a scroll
    pane through an editor for the scroll.
