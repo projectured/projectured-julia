@@ -64,9 +64,10 @@ end
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     section_padding::Inset = get_conversation_style(nothing, :section_indent)
     # What a finished turn of the model shows: `:message`, its work folded into
-    # one line before its message, or `:everything`. A builder gives the cell of
-    # `finished_turn` of the `ConversationSettings`, so every turn follows it.
-    finished_turn::Symbol = :message
+    # one line before its message, or `:everything`. The field is a reactive
+    # cell, and a builder gives the cell of `finished_turn` of the
+    # `ConversationSettings`, so the work line of every turn follows a change.
+    finished_turn::Cell = :message
 end
 
 @projection UntrackedCell struct ConversationPartToWidget

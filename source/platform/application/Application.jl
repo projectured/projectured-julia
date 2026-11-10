@@ -341,7 +341,7 @@ function make_application_window(paths::AbstractVector;
                                  settings::Settings = make_settings())
     # The caller's `build_editor` adds the appearance and the settings wrappers.
     document = make_application_document(paths; root, assistant, settings)
-    parts = make_editor_parts(document, make_application_projection(; measure, appearance);
+    parts = make_editor_parts(document, make_application_projection(; measure, appearance, settings);
                               appearance = false, settings = false,
                               make_application_wrappers(; root, assistant, status_bar, measure,
                                                           appearance, document)...)
