@@ -61,6 +61,65 @@ function test_plot_geometry()
             @test lo == 0.0 && hi ≈ 10.8
         end
 
+        @testset "windows" begin
+            P = PlotModule
+            extent = (0.0, 100.0)
+            # A zoom keeps the value under the pointer at its place in the window.
+            w = P.compute_zoomed_window((0.0, 100.0), 0.5; extent, focus = 25.0)
+            @test w == (12.5, 62.5)
+            @test P.compute_zoomed_window((40.0, 60.0), 0.5; extent) == (45.0, 55.0)
+            # A zoom out stops at the extent, and at the extent it changes nothing.
+            @test P.compute_zoomed_window((40.0, 60.0), 100.0; extent) == extent
+            @test P.compute_zoomed_window(extent, 2.0; extent) == extent
+            # A zoom in and the same zoom out come back to the extent exactly.
+            w = P.compute_zoomed_window(extent, 1 / 1.15; extent, focus = 37.0)
+            @test P.compute_zoomed_window(w, 1.15; extent, focus = 37.0) == extent
+            # A zoom out near an edge moves the window inside the extent.
+            @test P.compute_zoomed_window((0.0, 20.0), 2.0; extent, focus = 0.0) == (0.0, 40.0)
+            @test P.compute_zoomed_window((80.0, 100.0), 2.0; extent, focus = 95.0) == (60.0, 100.0)
+            # A zoom in stops at the smallest span, and at the limit it changes nothing.
+            w = (40.0, 60.0)
+            for _ in 1:400
+                w2 = P.compute_zoomed_window(w, 0.5; extent, focus = 50.0)
+                w2 == w && break
+                w = w2
+            end
+            @test w[2] - w[1] ≈ 1e4 * eps(50.0) rtol = 1e-3
+            @test P.compute_zoomed_window(w, 0.5; extent, focus = 50.0) == w
+            @test w[1] <= 50.0 <= w[2]
+
+            # A pan moves by a fraction of the span and stops at the edge.
+            @test P.compute_panned_window((10.0, 30.0), 0.5; extent) == (20.0, 40.0)
+            @test P.compute_panned_window((10.0, 30.0), -1.0; extent) == (0.0, 20.0)
+            @test P.compute_panned_window((70.0, 90.0), 3.0; extent) == (80.0, 100.0)
+            @test P.compute_panned_window((0.0, 20.0), -0.5; extent) == (0.0, 20.0)
+            @test P.compute_panned_window(extent, 0.5; extent) == extent
+            # A window past an edge can move back toward the extent.
+            @test P.compute_panned_window((-10.0, 10.0), 0.25; extent) == (-5.0, 15.0)
+
+            # On a log axis the zoom and the pan work on the decades.
+            log_extent = (1.0, 1000.0)
+            w = P.compute_panned_window((1.0, 100.0), 0.5; extent = log_extent, log = true)
+            @test w[1] ≈ 10.0 && w[2] ≈ 1000.0
+            w = P.compute_panned_window((10.0, 100.0), -2.0; extent = log_extent, log = true)
+            @test w[1] == 1.0 && w[2] ≈ 10.0
+            w = P.compute_zoomed_window((1.0, 1000.0), 1 / 3; extent = log_extent, focus = 10.0, log = true)
+            @test w[1] ≈ 10.0^(2 / 3) && w[2] ≈ 10.0^(5 / 3)
+            # No bound of a window on a log axis reaches zero.
+            w = (1.0, 10.0)
+            for _ in 1:20
+                w = P.compute_panned_window(w, -1.0; extent = log_extent, log = true)
+            end
+            @test w == (1.0, 10.0)
+
+            # A limited window keeps its limits, and a window inside them stays.
+            @test P.compute_limited_window((20.0, 30.0); extent) == (20.0, 30.0)
+            @test P.compute_limited_window((-50.0, 150.0); extent) == extent
+            @test P.compute_limited_window((90.0, 110.0); extent) == (80.0, 100.0)
+            w = P.compute_limited_window((50.0, 50.0); extent)
+            @test w[2] - w[1] ≈ 1e4 * eps(50.0) rtol = 1e-3
+        end
+
         @testset "ticks" begin
             @test PlotModule.compute_nice_number(0.9, true) ≈ 1.0
             @test PlotModule.compute_nice_number(23.0, true) ≈ 20.0
@@ -93,6 +152,12 @@ function test_plot_geometry()
             @test PlotModule.format_tick(20.0, 20.0) == "20"
             @test occursin("e", PlotModule.format_tick(1.0e-7))
             @test occursin("e", PlotModule.format_tick(5.0e8))
+            # The step decides the digits, so two ticks a step apart differ at
+            # each zoom, in both forms.
+            @test PlotModule.format_tick(1.25e6, 2.0e5) == "1.25e6"
+            @test PlotModule.format_tick(50.00000001, 1e-8) != PlotModule.format_tick(50.00000002, 1e-8)
+            @test PlotModule.format_tick(1_000_000.2, 0.1) != PlotModule.format_tick(1_000_000.4, 0.1)
+            @test PlotModule.format_tick(0.5000002, 1e-7) == "0.5000002"
         end
 
         @testset "visible range" begin

@@ -25,8 +25,13 @@ end
 AxisScale(lo::Real, hi::Real, p0::Real, p1::Real; log::Bool=false) =
     AxisScale(Float64(lo), Float64(hi), Float64(p0), Float64(p1), log)
 
-_fwd(s::AxisScale, v::Real) = s.log ? log10(max(Float64(v), _LOG_FLOOR)) : Float64(v)
-_inv(s::AxisScale, t::Real) = s.log ? exp10(Float64(t)) : Float64(t)
+# A value in the space of an axis, where its pixels are evenly spaced: `log10` on
+# a log axis, the value itself on a linear one.
+_convert_to_axis_space(v::Real, log::Bool) = log ? log10(max(Float64(v), _LOG_FLOOR)) : Float64(v)
+_convert_from_axis_space(t::Real, log::Bool) = log ? exp10(Float64(t)) : Float64(t)
+
+_fwd(s::AxisScale, v::Real) = _convert_to_axis_space(v, s.log)
+_inv(s::AxisScale, t::Real) = _convert_from_axis_space(t, s.log)
 
 """
     to_pixel(scale, value) -> Float64
@@ -127,6 +132,105 @@ function pad_range(lo::Real, hi::Real; fraction::Real=0.05,
     (lo2, hi2)
 end
 
+# ── Windows ──────────────────────────────────────────────────────────────
+#
+# A window is the part of an axis that a plot shows, `(lo, hi)` in data
+# coordinates with `lo < hi`. The extent is the window that holds all the data,
+# and a window stays inside it. A zoom and a pan work in the space of the axis,
+# so on a log axis a pan moves each pixel by the same distance, and a zoom keeps
+# the value under the pointer where it is.
+
+# The least data span of a window at `lo`..`hi`: 10,000 float steps of its larger
+# bound, so the labels of two ticks always differ.
+_get_smallest_window_span(lo::Real, hi::Real) =
+    1e4 * eps(max(abs(Float64(lo)), abs(Float64(hi)), floatmin(Float64)))
+
+"""
+    compute_limited_window(window; extent, log=false) -> (lo, hi)
+
+`window` sized and moved into its limits: no wider than `extent`, no narrower
+than the smallest span, and with no part outside `extent`. A window as wide as
+`extent`, to within rounding, or wider, becomes `extent`. A window inside its
+limits comes back unchanged.
+"""
+function compute_limited_window(window; extent, log::Bool=false)
+    lo, hi = Float64(window[1]), Float64(window[2])
+    extent_lo, extent_hi = Float64(extent[1]), Float64(extent[2])
+    e0, e1 = _convert_to_axis_space(extent_lo, log), _convert_to_axis_space(extent_hi, log)
+    t0, t1 = _convert_to_axis_space(lo, log), _convert_to_axis_space(hi, log)
+    # A window within rounding of the extent is the extent, so a zoom in and the
+    # same zoom out come back to it.
+    t1 - t0 >= (e1 - e0) * (1 - 1e-9) && return (extent_lo, extent_hi)
+    smallest = _get_smallest_window_span(lo, hi)
+    if hi - lo < smallest
+        middle = (lo + hi) / 2
+        lo, hi = middle - smallest / 2, middle + smallest / 2
+        t0, t1 = _convert_to_axis_space(lo, log), _convert_to_axis_space(hi, log)
+    end
+    t0 < e0 && return (extent_lo, _convert_from_axis_space(e0 + (t1 - t0), log))
+    t1 > e1 && return (_convert_from_axis_space(e1 - (t1 - t0), log), extent_hi)
+    (lo, hi)
+end
+
+"""
+    compute_zoomed_window(window, factor; extent, focus=nothing, log=false) -> (lo, hi)
+
+`window` scaled by `factor` about the data value `focus`, which keeps its place
+in the window. A `factor` above 1 zooms out, and one below 1 zooms in. With no
+`focus`, the window zooms about its middle in the space of the axis.
+
+A zoom out stops at `extent`, and a zoom in stops at the smallest span, which
+holds 10,000 float steps of the larger bound. A window at a limit comes back
+unchanged, so a caller can tell a zoom that changes nothing.
+"""
+function compute_zoomed_window(window, factor::Real; extent, focus=nothing, log::Bool=false)
+    window_lo, window_hi = Float64(window[1]), Float64(window[2])
+    t0, t1 = _convert_to_axis_space(window_lo, log), _convert_to_axis_space(window_hi, log)
+    f = focus === nothing ? (t0 + t1) / 2 : _convert_to_axis_space(focus, log)
+    k = Float64(factor)
+    lo = _convert_from_axis_space(f - (f - t0) * k, log)
+    hi = _convert_from_axis_space(f + (t1 - f) * k, log)
+    if hi - lo < _get_smallest_window_span(lo, hi)
+        # A window within a thousandth of the smallest span is at the limit: the
+        # rounding of the last zoom must not move it again.
+        window_hi - window_lo <= 1.001 * _get_smallest_window_span(window_lo, window_hi) &&
+            return (window_lo, window_hi)
+        d = _convert_from_axis_space(f, log)
+        s = _get_smallest_window_span(lo, hi) / (hi - lo)
+        lo, hi = d - (d - lo) * s, d + (hi - d) * s
+    end
+    compute_limited_window((lo, hi); extent, log)
+end
+
+"""
+    compute_panned_window(window, fraction; extent, log=false) -> (lo, hi)
+
+`window` moved by `fraction` of its span toward its high end, or toward its low
+end for a negative `fraction`, in the space of the axis. The move stops at the
+edge of `extent`, and a window past an edge can still move back toward `extent`.
+A window that can not move comes back unchanged.
+"""
+function compute_panned_window(window, fraction::Real; extent, log::Bool=false)
+    lo, hi = Float64(window[1]), Float64(window[2])
+    extent_lo, extent_hi = Float64(extent[1]), Float64(extent[2])
+    t0, t1 = _convert_to_axis_space(lo, log), _convert_to_axis_space(hi, log)
+    e0, e1 = _convert_to_axis_space(extent_lo, log), _convert_to_axis_space(extent_hi, log)
+    span = t1 - t0
+    d = span * Float64(fraction)
+    if d > 0
+        room = e1 - t1
+        room <= 0 && return (lo, hi)
+        d >= room && return (_convert_from_axis_space(e1 - span, log), extent_hi)
+    elseif d < 0
+        room = t0 - e0
+        room <= 0 && return (lo, hi)
+        -d >= room && return (extent_lo, _convert_from_axis_space(e0 + span, log))
+    else
+        return (lo, hi)
+    end
+    (_convert_from_axis_space(t0 + d, log), _convert_from_axis_space(t1 + d, log))
+end
+
 # ── Ticks ────────────────────────────────────────────────────────────────
 
 """
@@ -199,19 +303,21 @@ end
 """
     format_tick(value, step) -> String
 
-A tick label: plain decimal with just enough fraction digits to distinguish
-neighbouring ticks `step` apart, or scientific notation once the magnitudes get
-too small or too large for that to be readable.
+A tick label: plain decimal with the fraction digits that tell neighbouring ticks
+`step` apart, or scientific notation once the magnitudes get too small or too
+large for a plain decimal, with the mantissa digits that tell them apart. So the
+labels of two ticks differ at each zoom.
 """
 function format_tick(value::Real, step::Real=0.0)
     v = Float64(value)
     isfinite(v) || return string(v)
     v == 0 && return "0"
     a = abs(v)
-    (a < 1e-3 || a >= 1e6) && return _sci(v)
+    has_step = step > 0 && isfinite(step)
+    (a < 1e-3 || a >= 1e6) && return _sci(v, has_step ? Float64(abs(step)) : 0.0)
     digits = 0
-    if step > 0 && isfinite(step)
-        digits = clamp(-floor(Int, log10(abs(step))) , 0, 6)
+    if has_step
+        digits = clamp(-floor(Int, log10(abs(step))), 0, 17)
     else
         digits = a < 1 ? 3 : a < 10 ? 2 : a < 100 ? 1 : 0
     end
@@ -219,10 +325,13 @@ function format_tick(value::Real, step::Real=0.0)
     endswith(s, ".0") ? s[1:end-2] : s
 end
 
-function _sci(v::Float64)
+# Scientific notation with at least two digits of the mantissa, and with the
+# digits that tell two values `step` apart.
+function _sci(v::Float64, step::Float64)
     e = floor(Int, log10(abs(v)))
     m = v / exp10(e)
-    ms = string(round(m; digits=2))
+    digits = step > 0 ? clamp(e - floor(Int, log10(step)), 2, 16) : 2
+    ms = string(round(m; digits=digits))
     endswith(ms, ".0") && (ms = ms[1:end-2])
     string(ms, "e", e)
 end

@@ -33,6 +33,7 @@ export default_color_cycle, default_symbol_cycle,
        get_series_color, get_series_symbol, build_marker_polygon
 export AxisScale, to_pixel, to_data, get_axis_span,
        get_column_bounds, merge_bounds, pad_range,
+       compute_limited_window, compute_zoomed_window, compute_panned_window,
        compute_nice_number, compute_nice_ticks, log_ticks, format_tick,
        get_visible_range, decimate_minmax, step_points, build_pins_segments,
        fold_scatter, fold_bins, strip_runs, fold_strips, label_step, find_nearest_sample,
