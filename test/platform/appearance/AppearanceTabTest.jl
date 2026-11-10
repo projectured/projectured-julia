@@ -159,7 +159,7 @@ end
 @testset "a glyph button says what it changes, and its current value" begin
     appearance = Appearance()
     iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
-    tab = _at_tables(iomap)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     buttons = _find_widgets_below(tab.child_iomap.input, WidgetButton)
     note(label) = _read_widget_note(first(button for button in buttons if button.action.label == label))
     smaller = note("−")
@@ -187,7 +187,7 @@ end
     end
     plus = press("Text", "+")
     @test plus isa AdjustScaleOperation && plus.scale === :font_scale && plus.delta == 1
-    @test plus.appearance === appearance
+    @test plus.document === appearance.scale
     minus = press("Zoom", "−")
     @test minus isa AdjustZoomOperation && minus.delta == -1
     reset = press("Spacing", "Reset")
