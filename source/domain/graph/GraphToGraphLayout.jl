@@ -219,11 +219,15 @@ function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     end
 end
 
+# The path of the graph gets the type of each node from the graph itself. A part
+# that got its gesture by a route, as a part of a drag does, answers through the
+# drawing with the steps of the route and no node types, and a path that goes on
+# from here must name every one.
 function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphGraph
-        ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
-        ::GraphLayout.edge_layouts[i].edge.rest... => (@reference ::GraphGraph.edges::CellVector[i].^(rest))
+        ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference iomap.input vertices[i].^(rest))
+        ::GraphLayout.edge_layouts[i].edge.rest... => (@reference iomap.input edges[i].^(rest))
         __ => nothing
     end
 end
