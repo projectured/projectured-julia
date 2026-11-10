@@ -1,6 +1,6 @@
 # Cut and paste edit through the content
 
-**Status (2026-11-10): in progress.** The owner approved the plan for
+**Status (2026-11-10): in progress, on the branch `clipboard-edits`. Steps 1, 2, 4, 5, 6 and 7 are done; step 3 waits for the owner (D2 below).** The owner approved the plan for
 implementation (2026-11-10), so the decisions D1 to D6 that the assistant
 proposed are approved with the plan. The owner answered Q1 and Q2 (2026-11-10).
 No question is open.
@@ -10,9 +10,9 @@ of text and on a whole object, in every domain. A cut is a copy and a delete in
 one step. A paste of text is the typing of that text. Ctrl+Z takes back each
 cut and each paste as one step.
 
-**Repository:** projectured-julia. No file that the plan changes is sealed:
-[SEALING.md](../../SEALING.md) seals only files under `source/kernel/`, and the
-plan changes none of them.
+**Repository:** projectured-julia. No file that the plan changes is sealed. The
+plan changes one kernel file, `operation/Operations.jl`, which
+[SEALING.md](../../SEALING.md) marks `⬜` (not sealed).
 
 **Branch:** `clipboard-edits`, in the worktree `../projectured-julia-clipboard-edits`.
 
@@ -224,33 +224,33 @@ Each step runs `test_clipboard()`, `test_text_clipboard()` and
 step that changes a delete or a typing rule also runs the suites of the domains
 that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
 
-1. [ ] **One delete of a whole object (D4).** Delete and Backspace in
+1. [x] **One delete of a whole object (D4).** Done in `5fda3d25b`, in the clipboard projection (see below). Delete and Backspace in
    `SelectionWalkingProjection`, with the slot rules of the paste: a list
    element, a field with the nothing document of its domain, a slot that refuses.
    The edit goes down by route. Tests in the editor loop: a JSON element, a JSON
    value, a Markdown run, a YAML value, a record that refuses, and Ctrl+Z after
    each.
-2. [ ] **A cut is a copy and a delete (D1).** Ctrl+X reads the answer of the
+2. [x] **A cut is a copy and a delete (D1).** Done in `5fda3d25b`. Ctrl+X reads the answer of the
    content to Delete and adds the copy to it. `_clipboard_cut`,
    `_text_clipboard_cut` and the `cut` keyword of `_text_target_copy` go. The
    text mode keeps only its copy. The test sets of `test_clipboard()` that read
    the old shape of a cut change to the new shape.
-3. [ ] **A paste of text is the typing of that text (D2).** Ctrl+V and
+3. [ ] **A paste of text is the typing of that text (D2).** Not built: see "D2 is not built as written" below. The paste of text goes down by route instead, in `5fda3d25b`. Ctrl+V and
    Ctrl+Shift+V at a caret or a range give the content a `KeyPress` with the
    whole text. Check that each typing rule that a paste reaches reads the `text`
    of the `KeyPress`: the primitive string, the number, JSON, YAML, Markdown,
    XML and the text table. The late paste of `ApplyOsClipboardPasteOperation`
    gives the same edit.
-4. [ ] **A paste of an object goes down by route (D3), and a text on a whole
-   object is typed over its value (Q2, A).** Paste, paste-copy and
+4. [x] **A paste of an object goes down by route (D3), and a text on a whole
+   object is typed over its value (Q2, A).** Done in `5fda3d25b`, with the edit of the clipboard, not a typed key (D2). Paste, paste-copy and
    `make_pasted_document_operation` send their edit down by route. A slot
    refuses a document of another domain. A stored text on a whole object goes to
    the content as the typed text of D2, over the range that `find_value_range`
    gives for the object. An object with no value range refuses it.
-5. [ ] **The system clipboard holds the newest copy (D5).** `to_text` in the
+5. [x] **The system clipboard holds the newest copy (D5).** Done in `481eb3e12`, with no remembered text (see below). `to_text` in the
    clipboard of the application, the last written text in `ClipboardSlice`, and
    the rule of the paste at a caret.
-6. [ ] **Tests in the editor loop.** A new file
+6. [x] **Tests in the editor loop.** Done in `a783edd45`; the draft case runs on the draft of `main`, before the change of the draft to the text domain. A new file
    `test/projectured/editor/ClipboardEditTest.jl` with `test_clipboard_edits()`,
    in [ProjecturedSuite.jl](../../test/projectured/ProjecturedSuite.jl). It
    drives the application window, as the probe did, for each row of §3 in JSON,
@@ -262,11 +262,57 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
    then Ctrl+X, Ctrl+V and Ctrl+Z. The branch takes the change of the draft to
    the text domain from `main` before this test is written, so the test reads
    the draft as it will be.
-7. [ ] **Documentation.** [clipboard.md](../../documentation/package/platform/clipboard/clipboard.md):
+7. [x] **Documentation.** Done: the guide of the clipboard names the new test; the testing guide lists no single feature test, so it has no row for it. [clipboard.md](../../documentation/package/platform/clipboard/clipboard.md):
    the gesture table, the cut as a copy and a delete, the paste of text as
    typing, the record in the history, the system clipboard. The descriptions of
    the gestures. The new test in
    [testing-guide.md](../../documentation/guide/testing-guide.md).
+
+### What the implementation found
+
+- **D4 lives in the clipboard projection, not in `SelectionWalkingProjection`.**
+  The delete needs the slot rules of the paste (`_find_writable_slot`), which
+  live in the clipboard slice. The focus slice may use only the collection
+  slice (`PLATFORM_SLICE_EDGES`), and the domain slice may use no other slice,
+  so the rules can not move below both. `ClipboardSliceToAnyProjection` reads
+  Delete and Backspace after its content, as the walk reads the Alt keys after
+  its content. A host that leaves out `:cut` gets no delete of a whole object.
+- **D1: a cut of a whole object stores the object itself**, as before, not a
+  copy. The object leaves the document, so nothing shares it, and a cut and a
+  paste move it, a tool too. A cut of a range stores its characters.
+- **D3: an edit goes to the deepest document of its place that the readers
+  reach.** The default reader follows a route only where its IO map holds
+  children. A reader with none answers no operation for a route below it
+  ([ProjectionDefaults.jl:244-257](../../source/kernel/projection/ProjectionDefaults.jl#L244-L257)).
+  So `_read_down_to_place` tries the place, then each document above it, with
+  the rest of the path in the edit.
+- **The bindings of the clipboard hold its IO map, and the IO map holds the
+  recursion**, as the IO map of `Copying.jl` does. So a cut reads the content's
+  delete with the existing `read_intent`. No new event, payload or reader method.
+- **D5 needs no remembered text.** Each copy, cut and note of an object in the
+  application writes the system clipboard: the value of a primitive, the natural
+  text, or an empty text for an object with none. So the system clipboard is
+  never older than the stored copy, and the rule of a paste at a caret stays: the
+  text of the system clipboard, else the text of the stored copy.
+- **Q2:** a stored text on a whole document of another kind, or an empty stored
+  copy with no `from_text`, is typed over the `value` field of that document, or
+  over its only field that holds text or a number. A stored text on a document
+  of the same kind replaces it, as before.
+- **D2 is not built as written.** The text of a paste comes from the system
+  clipboard, which a reader can not read. So the paste of text always ends in
+  the evaluation of `ApplyOsClipboardPasteOperation`. An evaluation can send an
+  operation down by route (`read_rooted_operation`), but no existing way reads a
+  typed key there. So the paste of text stays the edit that the clipboard makes
+  (`_make_text_target_edit`), sent down by route, and the history records it.
+  The owner decides between this and a new mechanism.
+- **Ctrl+Z after the delete of an element failed before this plan.** The way back
+  of a splice puts back the slots of the list, which are cells, and the write
+  checked each item against the declared element type, which a cell is not
+  (`DeclaredTypeMismatchException`). `_convert_slot_value` in
+  [Operations.jl](../../source/kernel/operation/Operations.jl) now puts a slot
+  back as it is, because it was in the list before.
+- **At the reader level, the text table of a document answers Delete**, so the
+  unit tests of `test_clipboard()` cut a range with `IdentityProjection` too.
 
 ## 6. Limits after the plan
 
@@ -279,4 +325,4 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
 clipboard all fail there ([syntax-tree-selection.md](syntax-tree-selection.md)
 holds that point); a range across lines or across runs; in XML, a click on the
 first letter of a text with spaces before it puts the caret into the spaces;
-what the save of a file prints for a hole.
+what the save of a file prints for a hole; in the text mode of the clipboard, which no window uses, a range made by a click and Shift+Left in an editor loop copies nothing. The cause is not found; one candidate is that `get_selection_substring` refuses a range whose start is after its stop.
