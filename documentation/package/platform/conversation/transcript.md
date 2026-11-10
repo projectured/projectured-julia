@@ -78,39 +78,113 @@ other answer is text.
 
 ## Folds
 
-Every card with a chrome folds: a turn, a code part, a thinking part, an
-evaluation, and each section of an evaluation. A card that folds is a
-`collapsible` `WidgetCard`: a chevron before its title points down while it is
-open and right while it is folded, the chevron is the fold target, and a folded
-card draws its header and nothing else.
+Every card with a chrome folds: a turn, the work line of a finished turn, a
+code part, a thinking part, an evaluation, and each section of an evaluation. A
+card that folds is a `collapsible` `WidgetCard`: a chevron before its title
+points down while it is open and right while it is folded, the chevron is the
+fold target, and a folded card draws its header and nothing else.
 
 The fold state lives on the domain node, never on the widget: `turn.collapsed`,
-`part.collapsed`, and `form_collapsed` / `result_collapsed` on an
+`turn.work_fold`, `part.fold`, and `form_collapsed` / `result_collapsed` on an
 `EvaluatorForm`. The card's own `collapsed` cell is a computed cell that reads
-the node's flag. A turn's part cards are rebuilt whenever its part list changes,
+the node's state. A turn's part cards are rebuilt whenever its part list changes,
 which happens on every streamed part, so state on a widget would reset while
 the model answers.
 
-A click on a chevron makes `ToggleCollapseOperation(card)` in the widget
-renderer. The transcript reader walks its IO maps and says what that fold means:
-a card that is the output of an IO map folds the node that IO map printed, and a
-section card means the `ToggleEvaluatorSectionOperation` its part listed in
-`folds`.
+### A finished turn shows its message
+
+A finished turn of the model shows its message, and the work before it folds
+into one line, the work line:
+
+```
+▾ assistant
+    ▸ Work: 9 tool calls · 3 thinking · 2 texts · 2 min 10 s
+    I agree with the goal. My proposal …
+```
+
+The message is the parts after the last part of work. A part of work is a
+thinking part, a tool call, and a permission request or a question that has its
+answer. Every part before the last part of work goes into the work line, a text
+too, because a text between two tools tells the progress of the work. Three
+parts speak to the person and stay out of the work line: a note, a sign-in
+request, and a request that waits for its answer. They show after the work line,
+in their order.
+
+Every model of the pane learns this rule from `ASSISTANT_ANSWER_INSTRUCTIONS`, so
+it ends an answer with a text that stands alone.
+
+The label of the work line counts the parts of each kind, and a part of another
+kind counts as "other part". It gives the time of the turn when the turn has
+both times and ran for 1 s or more. Open, the work line shows each part of the
+work in its order.
+
+These turns show no work line, and every part shows as it comes:
+
+- a turn that runs, which is a turn with a start time and no finish time
+  (`_is_turn_running`). A turn of a file that kept no times reads as finished;
+- a turn of the person, because it is what the person said;
+- a turn with no part of work;
+- a turn with no message: only a note, a sign-in or a request that waits comes
+  after its last part of work, or nothing does. Such a turn usually stopped
+  before its end, by a stop, an error or the round limit, so its work is all that
+  a person can read;
+- every turn, when `finished_turn` of `ConversationSettings` is `:everything`.
+
+`ConversationSettings(; finished_turn = :message)` is one setting for the whole
+editor. `make_conversation_row(; settings)` gives its cell to
+`ConversationToWidget(; finished_turn)`, so a change reaches every turn at once.
+A transcript with no settings, as in a test or an example, uses `:message`.
+
+### A fold is a default or a choice
+
+`part.fold` and `turn.work_fold` hold one of three values. `:default` follows the
+rule of the transcript, and `:open` and `:folded` are the choice of a person. A
+producer makes each part with `:default`. A choice stays when the turn finishes,
+when the setting changes and when the file loads again. A `.pred` file writes the
+field only for a choice. A file that names the keyword `collapsed` of a part
+loads, and the part follows the rule.
+
+The rule for a node that has no choice:
 
 | Node | Starts |
 | --- | --- |
 | a turn | open |
-| a code part | open |
-| a thinking part | folded |
+| the work line | folded |
+| a part in the work line | folded |
+| a part outside the work line: code, thinking, an evaluation, a request, a picture | open |
 | an evaluation, its code and its result | open |
 | the result of a failed evaluation | folded |
 | the result of a call of an external agent that fails | folded when the update that says so comes; a later update keeps the fold |
 | a resource read (`read_resource`, `list_resources`) | folded as a whole; its sections open |
 
+The turn gives each part its rule through the property `:conversation_fold` of
+the printer context, a function of no argument that says whether the rule closes
+the part. A part that prints alone has none, and starts open. So nothing walks
+the parts when a turn finishes: the card of a part reads its fold, the state of
+its turn and the setting, and it follows a change of each.
+
 A prose part has no chrome, so it has no header and does not fold. A folded
 part shows only its header. A click on its chevron unfolds the part. A click on
 its title does not fold, and it names the conversation, the same as a click
 between two parts.
+
+### A click on a chevron
+
+A click on a chevron makes `ToggleCollapseOperation(card)` in the widget
+renderer. The transcript reader walks its IO maps and says what that fold means:
+
+| The card | The operation |
+| --- | --- |
+| a turn | `ToggleCollapseOperation(turn)` |
+| the work line | `ReplaceConversationFoldOperation(turn, :work_fold, fold)` |
+| a part | `ReplaceConversationFoldOperation(part, :fold, fold)` |
+| a section of an evaluation | the `ToggleEvaluatorSectionOperation` that its part listed in `folds` |
+
+`fold` is the opposite of what the card shows, `:open` or `:folded`. The inverse
+of `ReplaceConversationFoldOperation` writes the old value back, so an undo gives
+the default back. The operation answers `is_self_contained_operation`, so the
+readers above the transcript pass it on, because the transcript declines a
+generic write.
 
 ## Selecting an object
 
@@ -136,6 +210,8 @@ inside it said, because nothing in it is edited. Where the keys do not reach the
 transcript, the generic walk answers with the same objects, because an evaluation says
 `is_selection_walk_stop(::EvaluatorForm) = false` and the walk passes through
 it.
+The walk follows the parts of a turn and not the work line, so it can stop on a
+part in a folded work line, where no ring draws.
 
 The selected object is ringed. The transcript's containers follow the
 selection: the conversation's layout rings a message, a message's body rings a

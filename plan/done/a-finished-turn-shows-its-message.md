@@ -1,8 +1,8 @@
 # A finished turn shows its message
 
-> **Status (2026-11-10): IN PROGRESS** on the branch `finished-turn` in the
-> worktree `projectured-julia-finished-turn`. The owner approved the plan on
-> 2026-11-10.
+> **Status (2026-11-10): DONE** on the branch `finished-turn` in the worktree
+> `projectured-julia-finished-turn`. It is not on main and not pushed. The owner
+> approved the plan on 2026-11-10, and added decisions 4 and 5 the same day.
 
 ## What the user asked for
 
@@ -227,7 +227,7 @@ Do the work in a worktree on a branch. Make one commit for each step.
 6. ✅ **Check by eye.** Render a seeded conversation with a running turn, a finished
    turn and a turn of an old file, with each value of the setting. Tune the label
    and the spacing of the work line.
-7. ☐ **Documentation.** Update
+7. ✅ **Documentation.** Update
    [transcript.md](../../documentation/package/platform/conversation/transcript.md),
    [conversation.md](../../documentation/package/platform/conversation/conversation.md)
    and [assistant.md](../../documentation/package/platform/assistant/assistant.md).
