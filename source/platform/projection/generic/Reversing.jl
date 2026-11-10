@@ -25,7 +25,11 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
     # Output is the reversed child outputs, derived reactively into a persistent
     # CellVector: the IoMap keeps its identity while the output tracks input edits.
     output = CellVector(@computation reverse([im.output for im in child_iomaps[]]))
-    ChildrenIoMap(p, input, output, child_iomaps)
+    iomap = ChildrenIoMap(p, input, output, child_iomaps)
+    # The output holds the forward image of the paths of the input, with the indices
+    # reversed by the forward map.
+    set_output_path_computations!(output, input, path -> map_reference_forward(p, iomap, path))
+    iomap
 end
 
 function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, reference)
