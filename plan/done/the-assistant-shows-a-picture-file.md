@@ -6,7 +6,7 @@
 > `b9150323a` on 2026-11-09.
 > · **Sibling plans:** G4 [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md),
 > G5 [the-assistant-fills-a-live-table.md](../pending/the-assistant-fills-a-live-table.md), and the plan of the
-> save [a-file-saved-alone-names-the-files-that-it-holds.md](../pending/a-file-saved-alone-names-the-files-that-it-holds.md)
+> save [a-file-saved-alone-names-the-files-that-it-holds.md](a-file-saved-alone-names-the-files-that-it-holds.md)
 > · **Needs:** G4 steps 1 to 3 and steps 1 to 5 of the plan of the save, all on main. No step needs
 > the plan of G4 open question 10 (§3.8) · **Stands on:** [style.md](../../documentation/package/platform/style/style.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),

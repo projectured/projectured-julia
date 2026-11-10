@@ -4,10 +4,11 @@
 > same day at `main` `6b93bfcf3` to follow the decisions of the owner (D0, D1, D2, D6, D7, D8) and
 > the decisions of G3 and G4. The owner approved the implementation on 2026-11-05. Steps 1 to 4 are
 > built in the worktree `projectured-julia-held-files`, branch `held-files`, with omnet-julia in
-> `omnet-julia-held-files`, branch `held-files`. ·
-> **Needed by:** G3 [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md),
-> G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md),
-> G5 [the-assistant-fills-a-live-table.md](the-assistant-fills-a-live-table.md) · **Needs:** G4
+> `omnet-julia-held-files`, branch `held-files`. Done on 2026-11-10: steps 1 to 6 are built, steps 1
+> to 5 on main since 2026-11-08 and step 6 on the branch `explorer-save`. ·
+> **Needed by:** G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md),
+> G4 [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md),
+> G5 [the-assistant-fills-a-live-table.md](../pending/the-assistant-fills-a-live-table.md) · **Needs:** G4
 > step 2 for steps 5 and 6 · **Order:** the owner moved step 5 forward on 2026-11-06 ("Yes"): it
 > runs after G4 steps 1 to 3 land and before G4 step 4, which needs `open_file_document!`. Step 6
 > keeps its place after the layout plan · **G4 D10:** on 2026-11-06 the owner decided in G4 that
