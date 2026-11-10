@@ -389,3 +389,13 @@ notch, in both windows: the rows above the view. The head of its list stays at
 row 1, the render and the walk of a list take each node from the head forward,
 and a row above the top edge is not inside it, so a move enters it.
 
+### Step 5: the guide, 2026-11-11
+
+[sdl.md](../../documentation/package/backend/sdl/sdl.md) describes the frame of
+reference of the records, the whole axes, the places of the guards, the move that
+does not enter a whole canvas, the cover rule cut to the clip in force, the edges
+across the move, the boxes of zoomed viewports that cut each other, the texts on
+whole texels, the count `kept_entries`, the random scenes and the window twice as
+high, and names the decision with a link to this plan. The timing waits for the
+word of the owner.
+
