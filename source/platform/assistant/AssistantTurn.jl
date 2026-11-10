@@ -935,6 +935,10 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # a turn that can not read its conversation in time fails with a message, and
     # nothing that it streamed is lost.
     try
+        # The text of the window, then what every model of the pane learns about
+        # its answer.
+        system = isempty(system) ? ASSISTANT_ANSWER_INSTRUCTIONS :
+                 system * "\n\n" * ASSISTANT_ANSWER_INSTRUCTIONS
         agent = Agent(llm, set; system, thinking = true, max_rounds = a.max_rounds)
         stop_reason = try
             run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],

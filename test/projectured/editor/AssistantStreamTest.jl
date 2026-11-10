@@ -180,6 +180,9 @@ function test_assistant_stream()
             editor = _stream_make_editor(a, _StreamHeldFrameBackend())
             _stream_run_turn!(editor, a, "Two rounds.")
             @test length(llm.requests) == 2
+            # The model reads the text of the window, then what the pane does with
+            # its answer.
+            @test llm.requests[1].system == a.system * "\n\n" * ASSISTANT_ANSWER_INSTRUCTIONS
             second = llm.requests[2].messages
             @test any(message -> message.role === :assistant &&
                                  any(content -> content isa LlmText &&

@@ -89,7 +89,8 @@ import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
-export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
+export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, ASSISTANT_ANSWER_INSTRUCTIONS,
+       DEFAULT_AGENT_COMMAND,
        DEFAULT_AGENT_SESSION_META, DEFAULT_AGENT_MODE, ASSISTANT_WORK_STATES, DEFAULT_ASSISTANT_ROUNDS
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,

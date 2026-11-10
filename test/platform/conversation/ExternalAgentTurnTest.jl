@@ -26,6 +26,7 @@ function test_external_agent_turn()
             # The agent learns that it runs inside the editor, and reads the text of
             # its window, as the built-in loop does.
             @test only(connection.sessions).instructions == DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * a.system
+            @test occursin(ASSISTANT_ANSWER_INSTRUCTIONS, only(connection.sessions).instructions)
             @test only(connection.prompts) == Any[LlmText("What is 1 + 1?")]
             turns = collect(a.conversation.turns)
             @test [turn.role for turn in turns] == [:user, :assistant]

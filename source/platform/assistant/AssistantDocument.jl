@@ -24,6 +24,22 @@ const DEFAULT_ASSISTANT_SYSTEM =
     "Start a program as a task with `run_tasks!`, so that the person sees it and can stop it."
 
 """
+    ASSISTANT_ANSWER_INSTRUCTIONS
+
+What every model of the assistant pane learns about its answer: when the answer
+ends, the transcript folds the work into one line and shows only the parts after
+the last part of work, so the last text must stand alone. The built-in loop adds
+it after the `system` text, and an external agent gets it at the end of
+[`DEFAULT_AGENT_INSTRUCTIONS`](@ref), because the text of a window replaces the
+`system` text.
+"""
+const ASSISTANT_ANSWER_INSTRUCTIONS =
+    "When your answer ends, the assistant pane folds your thinking, your tool calls and every " *
+    "text before your last tool call into one line, and shows only the text after your last " *
+    "tool call. So end each answer with a text that stands alone: put in it what the person " *
+    "needs from your earlier texts, such as a result, a finding, a decision or a question."
+
+"""
     DEFAULT_AGENT_INSTRUCTIONS
 
 What an external agent of the assistant gets before the text of its window: the
@@ -33,7 +49,7 @@ gets these and then the `system` of the assistant in its system prompt, so an
 agent and the built-in loop read the same text of the window. The text of the
 window forbids reading files and running programs directly in the code that runs in
 the window, and names `run_tasks!` for a program; these instructions add that the agent uses its own file and shell tools only when the
-person asks for work on files.
+person asks for work on files. They end with [`ASSISTANT_ANSWER_INSTRUCTIONS`](@ref).
 """
 const DEFAULT_AGENT_INSTRUCTIONS =
     "You run inside ProjecturEd, the projectional editor built in Julia that the person uses now, " *
@@ -43,7 +59,8 @@ const DEFAULT_AGENT_INSTRUCTIONS =
     "a tab, a pane, a table, a form, a widget, or a value in an open document — do it in the running " *
     "editor with the tools of this server. Do not write source files, change the code of ProjecturEd, " *
     "or start a git worktree for such a request. Use your own file and shell tools only when the " *
-    "person asks for work on files or on the code of a project."
+    "person asks for work on files or on the code of a project.\n\n" *
+    ASSISTANT_ANSWER_INSTRUCTIONS
 
 """
     Assistant(; conversation, input, backend, model, system, api_key, context, status, llm)
