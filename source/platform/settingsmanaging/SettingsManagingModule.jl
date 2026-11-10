@@ -17,6 +17,8 @@ turns it into a write and an apply.
   the reader and the mappings of the wrapper.
 - [`SettingsWrapper.jl`](SettingsWrapper.jl) — the `settings` wrapper of
   `build_editor`, and its start step.
+- [`SettingsGroupToWidget.jl`](SettingsGroupToWidget.jl) — the view of one group: the
+  page of a group, and the body of its card in the settings tab.
 - [`SettingsToWidget.jl`](SettingsToWidget.jl) — the view of the settings tab, and
   its row in the natural renderer.
 """
@@ -63,22 +65,26 @@ export SettingsDocument, make_settings_document, find_editor_settings, describe_
        make_toggle_setting_operation
 export SettingsManagingProjection, SettingsManagingIoMap, wrap_setting_writes
 export start_settings!
-export SettingsToWidget, SettingsToWidgetIoMap
+export SettingsToWidget, SettingsToWidgetIoMap, SettingsGroupToWidget, SettingsGroupToWidgetIoMap
 
 include("SettingsDocument.jl")
 include("SettingsManagingProjection.jl")
 include("SettingsWrapper.jl")
+include("SettingsGroupToWidget.jl")
 include("SettingsToWidget.jl")
 
-# The row that lets a tab draw the settings of an editor. The factory form, so
-# every renderer builds its own projection instances.
+# The rows that let a tab draw the settings of an editor, and a page or a card draw
+# one group. The factory form, so every renderer builds its own projection
+# instances.
 function __init__()
     register_natural_graphics!(:settings, (; measure, appearance) -> begin
-        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
+        theme = get_scaled_theme!(appearance, WidgetTheme)
+        widgets = WidgetToGraphics(; measure, theme,
                                    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
-        Pair{Type,Any}[Settings => ChainingProjection(
-            SettingsToWidget(; theme = get_scaled_theme!(appearance, WidgetTheme)), pane)]
+        Pair{Type,Any}[Settings => ChainingProjection(SettingsToWidget(; theme), pane),
+                       SettingsGroup => ChainingProjection(SettingsGroupToWidget(; theme),
+                                                           VerticalLayoutToGraphicsCanvas())]
     end)
 end
 

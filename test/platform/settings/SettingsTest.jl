@@ -105,8 +105,9 @@ end
 
 @testset "a control of a setting says its default and the values it takes" begin
     settings = make_settings(SettingsTestProbeSettings())
-    iomap = print_document(SettingsToWidget(), nothing, settings, nothing)
-    note(name) = _read_widget_note(only(control for (control, _, field, _) in iomap.controls if field === name))
+    group = find_settings_group(settings, SettingsTestProbeSettings)
+    iomap = print_document(SettingsGroupToWidget(), nothing, group, nothing)
+    note(name) = _read_widget_note(only(control for (control, field, _) in iomap.controls if field === name))
     @test note(:count).title == "Count"
     @test note(:count).facts == ["Default" => "2", "Range" => "1 to 4"]
     @test note(:mode).facts == ["Default" => "fast", "Choices" => "fast, slow"]

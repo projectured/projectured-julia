@@ -130,6 +130,24 @@ end
     @test !any(t -> occursin('`', t[1]), texts)
 end
 
+@testset "a group alone draws its summary and its rows, and a press on its switch applies it" begin
+    settings = make_settings()
+    fault = get_settings_group!(settings, FaultSettings)
+    editor, backend = _stab_editor(fault, settings)
+    texts = _stab_texts(backend)
+    labels = Set(first(text) for text in texts)
+    @test "Log faults" in labels && "Catch faults" in labels && "Reset" in labels
+    @test !("Double click time" in labels) && !("Reset all" in labels)
+    # The summary of the group stands above its first row.
+    summary = compute_docstring_summary(FaultSettings)
+    first_line = only(t for t in texts if length(t[1]) > 10 && startswith(summary, t[1]))
+    @test first_line[3] < only(t for t in texts if t[1] == "Catch faults")[3]
+    click = _stab_find_click(editor, backend, "Log faults", :is_console_enabled)
+    @test click !== nothing
+    _stab_press!(editor, backend, click)
+    @test !fault.is_console_enabled && !editor.fault_policy.is_console_enabled
+end
+
 @testset "a press on a switch changes its setting, and the editor applies it" begin
     settings = make_settings()
     editor, backend = _stab_editor(settings, settings)

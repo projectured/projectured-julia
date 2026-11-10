@@ -709,6 +709,22 @@ function test_explorer()
         @test _explorer_has_tree_text(backend, "Pointer") && _explorer_has_tree_text(backend, "Assistant index")
     end
 
+    @testset "a press on the node of a settings group shows the group alone as the page" begin
+        settings = make_settings()
+        explorer = Explorer(ExplorerSection("Explorer", Any[settings]))
+        editor, backend = _nav_editor(explorer; settings)
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Settings"))
+        _nav_press!(editor, backend, _explorer_click(backend, "Fault"))
+        fault = find_settings_group(settings, FaultSettings)
+        @test get_navigator_page(explorer.navigator) === fault
+        @test _nav_has_text(backend, "Log faults") && !_nav_has_text(backend, "Double click time")
+        # A press on the switch of the page applies the setting.
+        click = _stab_find_click(editor, backend, "Log faults", :is_console_enabled)
+        @test click !== nothing
+        _nav_press!(editor, backend, click)
+        @test !fault.is_console_enabled && !editor.fault_policy.is_console_enabled
+    end
+
     @testset "the first content holds the session document of each kind that a loaded package marks" begin
         @test !is_session_explorer_entry_type(Int)
         editor, _ = _nav_editor(PrimitiveString("start"))
