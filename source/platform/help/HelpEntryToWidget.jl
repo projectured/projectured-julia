@@ -41,13 +41,19 @@ end
 
 function print_document(p::HelpEntryToWidget, recursion, entry::HelpEntry, context)
     body = VerticalLayout(Any[]; gap = p.gap, child_width = Fill)
-    set_cell_computation!(getfield(body.children, :elements),
-                          () -> Cell[Cell(part) for part in _make_help_entry_parts(p, entry)])
+    set_cell_computation!(getfield(body.children, :elements), () -> begin
+        parts = _make_help_entry_parts(p, entry)
+        # A part is built after the print, so it takes its part of the paths here.
+        for (k, part) in enumerate(parts)
+            follow_widget_part!(part, body, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
+        end
+        Cell[Cell(part) for part in parts]
+    end)
     root = VerticalLayout(Any[LayoutConstraint(WidgetScrollPane(body; grows = (width = false, height = true));
                                                width = Fill, height = Fill)];
                           child_width = Fill)
     iomap = ChildrenIoMap(p, entry, root, Cell(Any[]))
-    set_output_path_computations!(root, entry, path -> map_reference_forward(p, iomap, path); dormant = false)
+    follow_widget_output!(root, entry, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 
