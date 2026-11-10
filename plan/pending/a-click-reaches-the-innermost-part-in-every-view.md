@@ -268,8 +268,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   Rejected (B of Q1): a plain click chooses the row, and a double click puts
   the caret in the cell; then a click does not put the caret where the mouse
   is, which D1 says.
-- **Q2. How a widget knows which part a drawn text shows** (open, asked
-  2026-11-10; sub-step 5.3 waits for it). A plain click on the title of a card
+- **D5 (owner, 2026-11-10). A widget records the part of each drawn line.**
+  The owner chose A of Q2 ("Option A"), after the question "Which widget and
+  what line?" was answered with the card title: `WidgetCardToGraphicsCanvas`
+  draws `w.title` by `_push_text_block!` (`WidgetToGraphics.jl:8716`), which
+  pushes one `GraphicsText` for each line and keeps no record of the part.
+- **Q2. How a widget knows which part a drawn text shows** (answered by D5,
+  asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
   ways, recommended first by the assistant:
   - A. The printer records a line of text with the part it shows: for each
@@ -766,7 +771,26 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     only its bound gestures; the card maps each path of its output into its
     content (`:9088`). So a view needs three maps for a caret in its text: a
     point to the caret, the caret to the drawn place, and the place back. This
-    needs new data in the IO map of a widget, so it waits for the owner (Q2).
+    needs new data in the IO map of a widget, so it waited for the owner (Q2,
+    answered by D5).
+
+    The design by D5:
+    - `DrawnText(text, part, start)`: one drawn line, the `GraphicsText`
+      object, the path of the part that it shows from the widget (`.title`, or
+      an introduced path of a computed value), and the character of the part
+      where the line starts. The record holds the object, not its index, because
+      a printer inserts elements before the title after it drew it (the band of
+      a selected title).
+    - `_push_text_block!` and `_push_text!` take `part` and `drawn`, and push a
+      record for each line that they draw.
+    - One helper for each map, in the widget slice: a point to the caret
+      (`part{start + c}`, by the caret offsets of the font), a caret to its
+      place `.elements[i].text{c:c}`, whose box `find_reference_box` already
+      gives, and that place back to the caret.
+    - The widget draws a caret mark, a thin rectangle at the box of the caret,
+      while its selection is a caret in a part that it recorded.
+    - The card title is the first model, then the fact and the label; the other
+      calls follow in step 6, one cause at a time.
   - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
     output that its projection drew, and evaluates to the drawn part.
     `OutputReferenceStep` goes, and its users make the introduced step. Each
