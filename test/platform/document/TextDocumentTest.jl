@@ -310,6 +310,43 @@ end # @testset "get_flat_caret and get_flat_range read the flat and the structur
                              KeyDown(:left, shift; time = 0.0)) === nothing
 end # @testset "Shift and a motion key select a range"
 
+@testset "Ctrl+Backspace and Ctrl+Delete remove a word" begin
+    ctrl = ModifierKeys(; ctrl = true)
+    lines(texts...; indentation = 0) =
+        TextBlock(TextLine(TextString(texts[1])),
+                  (TextLine(TextString(text); indentation) for text in texts[2:end])...)
+    # Press the key at `selection` and answer the flat string and the caret after it.
+    function press(block, selection, key)
+        set_selection!(block, selection)
+        operation = read_bound_gesture(block, KeyDown(key, ctrl; time = 0.0))
+        operation === nothing && return nothing
+        evaluate_operation((document = block,), operation)
+        (get_flat_string(block), get_flat_selection(block)[1])
+    end
+    at(k) = TextModule.make_flat_caret_reference(k)
+    over(s, e) = TextModule.make_flat_range_reference(s, e)
+    one_line(text) = TextBlock(TextLine(TextString(text)))
+
+    # The key removes what Ctrl+Shift+Left or Ctrl+Shift+Right selects.
+    @test press(one_line("foo bar baz"), at(8), :backspace) == ("foo baz", 4)
+    @test press(one_line("foo bar baz"), at(7), :backspace) == ("foo  baz", 4)
+    @test press(one_line("foo bar baz"), at(4), :delete) == ("foo baz", 4)
+    @test press(one_line("foo bar baz"), at(7), :delete) == ("foo barbaz", 7)
+    # A range is removed as it is.
+    @test press(one_line("foo bar baz"), over(4, 7), :backspace) == ("foo  baz", 4)
+    @test press(one_line("foo bar baz"), over(4, 7), :delete) == ("foo  baz", 4)
+    # At the start of the text of a line and at the end of a line, the lines join.
+    @test press(lines("first", "second"; indentation = 2), at(8), :backspace) == ("firstsecond", 5)
+    @test press(lines("first", "second"), at(5), :delete) == ("firstsecond", 5)
+    # A removal stays in the line of the caret: spaces at the start of a line are
+    # a word of their own, and the word of the line above stays.
+    @test press(lines("first", "  x"), at(8), :backspace) == ("first\nx", 6)
+    @test press(lines("first", "second"), at(0), :backspace) === nothing
+    @test press(lines("first x", "second"), at(6), :delete) == ("first \nsecond", 6)
+    # At the ends of the text, there is nothing to remove.
+    @test press(one_line("foo"), at(3), :delete) === nothing
+end # @testset "Ctrl+Backspace and Ctrl+Delete remove a word"
+
 @testset "a text step hashes as it compares" begin
     for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,
                       TextColumnReferenceStep)

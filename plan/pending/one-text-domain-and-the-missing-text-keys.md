@@ -308,9 +308,20 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
 3. ⬜ **The query of a choice list (D5).** Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.
-4. ⬜ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Two rows in the text table,
+4. ✅ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Done 2026-11-10. Two rows in the text table,
    "Delete a word backward" and "Delete a word forward". Test: the rows of §3 in
-   `test_text()`, and the two image rows in `test_inline_image_caret()`.
+   `test_text()`, and the two image rows in `test_inline_image_caret()`. Facts of
+   the step:
+   - `_text_word_delete` removes a range as it is, then tries the join of
+     `_find_line_join_range`, then the word of `_find_word_range`. Where there is
+     no word to remove, as at the start of a line before its indentation, it
+     removes what Backspace or Delete removes.
+   - `test_text()` gives 151 (139 and 12 new). `test_inline_image_caret()` gives
+     294 (258 and 6 new checks through each of its 6 chains, so each decorator
+     carries the removal). `test_text_to_graphics()` 174 and
+     `test_widget_text_editing()` 68, as the baseline.
+   - Only the versioning table binds Ctrl+Delete too (step 9). No table binds
+     Ctrl+Backspace.
 5. ⬜ **Ctrl+A (D10).** A row in the text table and a row in the syntax table.
    Test: `test_text()`, and Ctrl+A in `json_example`.
 6. ⬜ **Home (D11).** Test: `test_text_to_graphics()`.

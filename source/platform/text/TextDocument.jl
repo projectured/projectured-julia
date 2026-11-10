@@ -874,6 +874,8 @@ _span_at(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)
+    KeyDown(:backspace; ctrl) => "Delete a word backward" => _text_word_delete(doc, :backspace)
+    KeyDown(:delete; ctrl)    => "Delete a word forward"  => _text_word_delete(doc, :delete)
     KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc, :start)
     KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc, :end)
     KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc, :left)
@@ -1225,6 +1227,49 @@ function _find_line_join_range(text::TextBlock, c::Int, key::Symbol)
         end
     end
     nothing
+end
+
+# Ctrl+Backspace / Ctrl+Delete: the flat range to remove. A non-empty selection is
+# removed as it is. At the start of the text of a line or at its end, the two lines
+# join, as Backspace and Delete join them. Else the key removes the word of
+# `_find_word_range`, and where there is no word to remove, the character that
+# Backspace or Delete removes.
+function _text_word_delete(text::TextBlock, key::Symbol)
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    s, e = sel
+    rng = s != e ? (s, e) :
+          something(_find_line_join_range(text, s, key), _find_word_range(text, s, key),
+                    _find_char_range(text, s, key), Some(nothing))
+    rng === nothing && return nothing
+    ReplaceTextRangeOperation(make_flat_range_reference(rng[1], rng[2]), "")
+end
+
+# The range from the caret `c` to where Ctrl+Left (`:backspace`) or Ctrl+Right
+# (`:delete`) moves it, inside the line of the caret: it stops at the start of the
+# text of the line and at the end of the line. It also stops at the edge of an
+# image that is nearest to the caret, and an image alone is one word, because an
+# edit of text and an image does nothing. `nothing` when the range is empty.
+function _find_word_range(text::TextBlock, c::Int, key::Symbol)
+    offsets = get_flat_offsets(text)
+    k = findlast(start -> start <= c, offsets)
+    k === nothing && return nothing
+    line = text.elements[k]
+    chars = _flat_chars(text)
+    if key === :backspace
+        text_start = offsets[k] + (line isa TextLine ? line.indentation : 0)
+        c > text_start || return nothing
+        start = max(_word_left_flat(chars, c), text_start)
+        image = findlast(_is_image_char, view(chars, (start + 1):c))
+        image === nothing || (start = start + image == c ? c - 1 : start + image)
+        (start, c)
+    else
+        stop = min(_word_right_flat(chars, c, length(chars)), offsets[k] + get_flat_length(line))
+        c < stop || return nothing
+        image = findfirst(_is_image_char, view(chars, (c + 1):stop))
+        image === nothing || (stop = image == 1 ? c + 1 : c + image - 1)
+        (c, stop)
+    end
 end
 
 # Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.

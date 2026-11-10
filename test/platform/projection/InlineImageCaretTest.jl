@@ -204,6 +204,7 @@ end
 @testset "an edit beside an image" begin
     measure = FixedMeasure(10, 12, 4, 0)
     key(k) = KeyDown(k, ModifierKeys(); time = 0.0)
+    ctrl_key(k) = KeyDown(k, ModifierKeys(; ctrl = true); time = 0.0)
     type(c) = KeyPress(c; time = 0.0)
     caret_of(block) = get_flat_selection(block)
     # Read `event` at `selection` through `projection` and apply the operation
@@ -281,6 +282,20 @@ end
         e = editor(_ii_make_block(_image(), _run("ab")))
         edit!(e, projection, at(1), key(:backspace))
         @test get_flat_string(block_of(e)) == "ab"
+        @test caret_of(block_of(e)) == (0, 0, true)
+
+        # Ctrl+Backspace and Ctrl+Delete stop at the edge of an image, and an image
+        # alone is one word, so a word removal never holds text and an image.
+        e = editor(_ii_make_block(_run("abc "), _image(), _run(" ")))
+        edit!(e, projection, at(6), ctrl_key(:backspace))
+        @test get_flat_string(block_of(e)) == "abc ￼"
+        @test caret_of(block_of(e)) == (5, 5, true)
+        edit!(e, projection, at(5), ctrl_key(:backspace))
+        @test get_flat_string(block_of(e)) == "abc "
+        @test caret_of(block_of(e)) == (4, 4, true)
+        e = editor(_ii_make_block(_image(), _run("  x")))
+        edit!(e, projection, at(0), ctrl_key(:delete))
+        @test get_flat_string(block_of(e)) == "  x"
         @test caret_of(block_of(e)) == (0, 0, true)
 
         # A range of text and an image does nothing; a range of only images is
