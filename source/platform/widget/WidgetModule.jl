@@ -95,7 +95,8 @@ export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,
        make_object_field_widget_dispatch, make_object_field_widget
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
-export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag
+export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag,
+       keep_owned_scroll_bar_drag, convert_scroll_bar_value_writes
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_operation,
        make_find_bar_placement_operation

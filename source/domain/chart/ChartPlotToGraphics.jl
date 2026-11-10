@@ -1665,24 +1665,23 @@ _count_chart_buttons(plot::ChartPlot) = plot.toolbar === nothing ? 0 : length(pl
 _is_chart_scroll_bar_wanted(bar, g) =
     g !== nothing && !g.pie && bar !== nothing && bar.thumb_size < 1
 
-# The parts that only the plot holds and that show now, the buttons first, as
-# `(; field, x, y, w, h, iomap)`: the buttons in the top-right corner of the chart,
-# the vertical bar along the right edge of the plot area, and the horizontal bar
-# along its bottom edge.
+# The parts that only the plot holds and that show now, the buttons first, as the
+# children that the chart draws (`find_drawn_child_at`), with the field that holds
+# each: the buttons in the top-right corner of the chart, the vertical bar along the
+# right edge of the plot area, and the horizontal bar along its bottom edge.
 function _find_shown_chart_parts(g, plot::ChartPlot, toolbar, horizontal, vertical)
     parts = NamedTuple[]
     g === nothing && return parts
+    part(field, x, y, w, h, iomap) = (; field, x, y, w, h, iomap, steps = (FieldReferenceStep(field),))
     shown = _find_shown_chart_toolbar(g, toolbar, _count_chart_buttons(plot))
-    shown === nothing || push!(parts, merge((; field = "toolbar"), shown))
+    shown === nothing || push!(parts, part("toolbar", shown.x, shown.y, shown.w, shown.h, toolbar))
     if vertical !== nothing && vertical.output isa GraphicsCanvas
         w, h = Int(vertical.output.w), Int(vertical.output.h)
-        push!(parts, (; field = "vertical_scroll_bar", x = g.plot_x + g.plot_w - w, y = g.plot_y,
-                       w, h, iomap = vertical))
+        push!(parts, part("vertical_scroll_bar", g.plot_x + g.plot_w - w, g.plot_y, w, h, vertical))
     end
     if horizontal !== nothing && horizontal.output isa GraphicsCanvas
         w, h = Int(horizontal.output.w), Int(horizontal.output.h)
-        push!(parts, (; field = "horizontal_scroll_bar", x = g.plot_x, y = g.plot_y + g.plot_h - h,
-                       w, h, iomap = horizontal))
+        push!(parts, part("horizontal_scroll_bar", g.plot_x, g.plot_y + g.plot_h - h, w, h, horizontal))
     end
     parts
 end
@@ -1690,14 +1689,6 @@ end
 _find_shown_chart_parts(iomap::ChartPlotToGraphicsCanvasIoMap) =
     _find_shown_chart_parts(iomap.geometry, iomap.input, iomap.toolbar,
                             iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
-
-# The first of `parts` that holds the point `x`, `y`, or `nothing`.
-function _find_chart_part_at(parts, x::Integer, y::Integer)
-    for part in parts
-        _in_rect(x, y, part.x, part.y, part.w, part.h) && return part
-    end
-    nothing
-end
 
 get_child_iomaps(iomap::ChartPlotToGraphicsCanvasIoMap) =
     Any[child for child in (iomap.toolbar, iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
@@ -1761,16 +1752,8 @@ function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
         !_in_rect(x, y, Int(canvas.x), Int(canvas.y), Int(canvas.w), Int(canvas.h)) && return nothing
     # The buttons and the bars are on top of every part: a point on them is the
     # part of them there.
-    shown = _find_chart_part_at(_find_shown_chart_parts(iomap), x, y)
-    if shown !== nothing
-        child = shown.iomap
-        inner = map_reference_backward(get_iomap_projection(child), child,
-                                       ConcreteReference(PointReferenceStep(x - shown.x, y - shown.y),
-                                                         EmptyReference()))
-        head = annotate_reference_types(plot, ConcreteReference(FieldReferenceStep(shown.field),
-                                                                EmptyReference()))
-        return inner isa Reference ? concat_references(head, inner) : head
-    end
+    shown = find_drawn_child_at(_find_shown_chart_parts(iomap), x, y)
+    shown === nothing || return map_drawn_child_point(plot, shown, x, y)
     index = _legend_hit(g, x, y)
     index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
                                         get_chart_part_reference(:legend, plot)
@@ -1864,7 +1847,7 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     # a right click on them go to them, in their frame.
     parts = _find_shown_chart_parts(iomap)
     if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell}
-        part = _find_chart_part_at(parts, event.x, event.y)
+        part = find_drawn_child_at(parts, event.x, event.y)
         part === nothing || return _read_chart_part_event(plot, part, event)
     end
 
@@ -1927,49 +1910,21 @@ end
 # readout; elsewhere it tracks the readout. The part that the pointer leaves gets
 # the leave, so a press released off a button ends.
 function _read_chart_move(g, plot::ChartPlot, parts, event::MouseMove)
-    part = _find_chart_part_at(parts, event.x, event.y)
-    old_field = _find_plot_part_field(strip_reference_types(get_mouse_target(plot)))
-    left = nothing
-    if old_field !== nothing && (part === nothing || part.field != old_field)
-        index = findfirst(shown -> shown.field == old_field, parts)
-        if index !== nothing
-            old = parts[index]
-            left = reroot_operation(read_child_leave(old.iomap, event, old.x, old.y),
-                                    (FieldReferenceStep(old.field),))
-        end
-    end
-    part === nothing && return join_move_answers(left, _track_cursor(g, plot, event.x, event.y))
-    move = MouseMove(event.x - part.x, event.y - part.y, event.buttons, event.modifiers; time = event.time)
-    answer = reroot_operation(shift_operation_position(read_child_move(part.iomap, move), part.x, part.y),
-                              (FieldReferenceStep(part.field),))
-    join_move_answers(left, answer, _clear_cursor(plot))
+    answer = read_drawn_child_move(plot, parts, event)
+    on_part = find_drawn_child_at(parts, event.x, event.y) !== nothing
+    join_move_answers(answer, on_part ? _clear_cursor(plot) : _track_cursor(g, plot, event.x, event.y))
 end
 
-# The answer of a button or a bar to a pointer gesture on it. A dwell and a right
-# click that no part answers go out to the plot. A press on the thumb of a bar
-# starts a drag that the chart keeps, and a write of the value of a bar moves the
-# view.
+# The answer of a button or a bar to a pointer gesture on it. A press on the thumb
+# of a bar starts a drag that the chart keeps, and a write of the value of a bar
+# moves the view.
 function _read_chart_part_event(plot::ChartPlot, part, event)
-    moved = shift_event_position(event, -part.x, -part.y)
-    child = part.iomap
-    steps = (FieldReferenceStep(part.field),)
-    answer = is_outward_gesture(event) ? read_child_event(child, moved) :
-             read_intent(get_iomap_projection(child), child, moved)
-    answer isa Operation || (answer = nothing)
-    answer = reroot_operation(shift_operation_position(answer, part.x, part.y), steps)
-    is_outward_gesture(event) && return read_container_gesture(answer, event, plot; steps)
-    part.field == "toolbar" && return answer
+    answer = read_drawn_child_event(plot, part, event)
+    (is_outward_gesture(event) || part.field == "toolbar") && return answer
     bar = getproperty(plot, Symbol(part.field))
-    event isa MouseDown && (answer = _keep_chart_scroll_bar_drag(make_owned_scroll_bar_drag(answer, bar, event)))
+    event isa MouseDown && (answer = keep_owned_scroll_bar_drag(answer, bar, event))
     _convert_chart_scroll_bar_answer(plot, answer)
 end
-
-# `answer` with the start of a drag made the start of a drag of the plot, so each
-# part of the drag of a thumb comes to the chart, which keeps it.
-_keep_chart_scroll_bar_drag(answer) = answer
-_keep_chart_scroll_bar_drag(answer::CompoundOperation) =
-    CompoundOperation(Any[o isa StartDragOperation ? StartDragOperation(EmptyReference(), o.dragged) : o
-                          for o in answer.operations])
 
 # The answer of a bar whose thumb the chart drags to a part of that drag, with the
 # value made the move of the view, or `nothing` when no thumb is dragged.
@@ -1985,19 +1940,11 @@ end
 # `answer` with each write of the value of a bar of `plot` made the move of the
 # view to that value. A move that changes nothing is left out.
 function _convert_chart_scroll_bar_answer(plot::ChartPlot, answer)
-    if answer isa CompoundOperation
-        kept = Any[]
-        for operation in answer.operations
-            converted = _convert_chart_scroll_bar_answer(plot, operation)
-            converted === nothing || push!(kept, converted)
-        end
-        return isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
+    for (bar, axis) in ((plot.horizontal_scroll_bar, :x), (plot.vertical_scroll_bar, :y))
+        bar === nothing && continue
+        answer = convert_scroll_bar_value_writes(answer, bar,
+                                                 value -> _move_chart_view_to_bar_value(plot, axis, value))
     end
-    write = answer isa ReplaceViewStateOperation ? get_wrapped_operation(answer) : answer
-    (write isa ReplaceReferencedValueOperation && write.reference isa ConcreteReference &&
-     write.reference.head == FieldReferenceStep("value")) || return answer
-    write.document === plot.horizontal_scroll_bar && return _move_chart_view_to_bar_value(plot, :x, write.value)
-    write.document === plot.vertical_scroll_bar && return _move_chart_view_to_bar_value(plot, :y, write.value)
     answer
 end
 

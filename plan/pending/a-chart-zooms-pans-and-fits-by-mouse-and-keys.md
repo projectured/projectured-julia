@@ -220,6 +220,24 @@ Each decision except D12 is proposed by the assistant and approved with the plan
     then draws a button in two ways. Rejected: a new container that draws a band
     of controls over any content. The two charts are its only users now.
 
+- **D14. The two charts share the code of their drawn parts.** Decided by the
+  owner, 2026-11-10 ("Shared code", "this structure is acceptable for both
+  slices"). The buttons and the bars are widgets that exist: `WidgetToolbar`,
+  `WidgetToolbarItem` and `WidgetScrollBar`. The code that both charts share goes
+  into two slices that exist, and no slice is new:
+  - the graphics slice gets the routing to a child that a view draws at a place
+    of its canvas, with no widget type in it: `find_drawn_child_at`,
+    `read_drawn_child_event`, `read_drawn_child_move` and
+    `map_drawn_child_point`, in `DrawnChild.jl` next to `ChildMove.jl`. The owner:
+    "Graphics slice should be about graphics documents not widgets. No widget
+    specific code should go there."
+  - the widget slice gets the code that names a `WidgetScrollBar`:
+    `keep_owned_scroll_bar_drag` and `convert_scroll_bar_value_writes`, next to
+    `make_owned_scroll_bar_drag`.
+
+  Each chart keeps where its parts go, their print, its buttons and its two bars
+  filled from its own window. Rejected: a copy of the code in the sequence chart.
+
 ## 5. The steps
 
 Each step adds the reader tests of what it changes, runs the narrowest suites,
@@ -309,7 +327,8 @@ and makes one commit.
    `read_scroll_bar_drag`). `make_chart_projection` prints `WidgetScrollBar` too.
    Results: `test_plot_geometry()` 144/144, `test_chart()` 535/535,
    `test_pivot_chart_views()` 24/24, `test_pivot_cell_views()` 30/30.
-6. [ ] **The sequence chart (D2 to D10, D12, D13).** The window arithmetic, the
+6. [ ] **The sequence chart (D2 to D10, D12 to D14).** First the shared code of
+   D14, which the chart then calls. Then the window arithmetic, the
    band along the time, the drag pan of the time and the lanes, a drag and a
    double click on the time axis, the keys, the menu, the buttons and the bars. The move back from the end
    of a plot that follows the end still stops the follow. Run

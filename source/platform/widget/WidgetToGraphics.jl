@@ -8237,6 +8237,47 @@ function make_owned_scroll_bar_drag(answer, w::WidgetScrollBar, press)
     CompoundOperation(operations)
 end
 
+"""
+    keep_owned_scroll_bar_drag(answer, bar, press) -> answer
+
+`answer` to `press`, a press on `bar`, for an owner that draws the bar over its own
+canvas and keeps the drag of its thumb: the drag is owned
+([`make_owned_scroll_bar_drag`](@ref)), and its start is at the owner, so each part
+of the drag comes to the owner, which reads it with [`read_scroll_bar_drag`](@ref).
+`press` is in the frame of the owner.
+"""
+function keep_owned_scroll_bar_drag(answer, w::WidgetScrollBar, press)
+    answer = make_owned_scroll_bar_drag(answer, w, press)
+    answer isa CompoundOperation || return answer
+    CompoundOperation(Any[o isa StartDragOperation ? StartDragOperation(EmptyReference(), o.dragged) : o
+                          for o in answer.operations])
+end
+
+"""
+    convert_scroll_bar_value_writes(answer, bar, convert) -> answer or nothing
+
+`answer` with each write of the value of `bar` replaced by `convert(value)`, the
+scroll of the owner that the value asks for, and left out where `convert` gives
+`nothing`. `nothing` when nothing is left. An owner that gives a bar to the parts
+it draws turns the page of a click on the track, and each move of a drag of the
+thumb, into its own scroll with it.
+"""
+function convert_scroll_bar_value_writes(answer, w::WidgetScrollBar, convert)
+    if answer isa CompoundOperation
+        kept = Any[]
+        for operation in answer.operations
+            converted = convert_scroll_bar_value_writes(operation, w, convert)
+            converted === nothing || push!(kept, converted)
+        end
+        return isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
+    end
+    write = answer isa ReplaceViewStateOperation ? get_wrapped_operation(answer) : answer
+    (write isa ReplaceReferencedValueOperation && write.document === w &&
+     write.reference isa ConcreteReference && write.reference.head == FieldReferenceStep("value")) ||
+        return answer
+    convert(write.value)
+end
+
 # Whether the drag of the thumb of `w` is on and its owner keeps it.
 _is_owned_scroll_bar_drag(w::WidgetScrollBar) =
     (drag = w.thumb_drag; drag isa NamedTuple && get(drag, :owned, false) === true)
