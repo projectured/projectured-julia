@@ -297,52 +297,6 @@ end
 read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
     _holds_break(op) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
 
-# Extract a `.value[range]` selection on a PrimitiveString as a RangeReferenceStep.
-function _string_value_range(s::PrimitiveString)
-    sel = getfield(s, :selection)[]
-    sel = sel
-    sel isa ConcreteReference || return nothing
-    head = sel.head
-    (head isa FieldReferenceStep && head.name == "value") || return nothing
-    inner = sel.tail
-    inner isa ConcreteReference || return nothing
-    inner.head isa RangeReferenceStep || return nothing
-    inner.head
-end
-
-_string_value_path(range::RangeReferenceStep) =
-    ConcreteReference(PrimitiveString, FieldReferenceStep("value"),
-        ConcreteReference(String, range, EmptyReference(String)))
-
-# String editing is a *document-level* concern (it produces a
-# `ReplaceStringRangeOperation` in the `PrimitiveString`'s own `value[range]`
-# vocabulary), so it is reified once as `@gestures PrimitiveString` rather than
-# duplicated in every primitive projection's reader. Both `PrimitiveStringToTextBlock`
-# and `PrimitiveStringToSyntaxLeaf` reach it through the generic `read_gesture`
-# fallback (a leaf projection with no bespoke event reader delegates raw input
-# gestures to `read_gesture(iomap.input, …)`). The `when` precondition gates the
-# whole table on there being a `value[range]` cursor — a non-editing selection
-# (or none) declines. A string is drawn on one line, so it takes printable text
-# only: Return and Tab, which type `'\n'` and `'\t'`, propagate.
-@gestures PrimitiveString begin
-    when(_string_value_range(doc) !== nothing)
-    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" =>
-        ReplaceStringRangeOperation(_string_value_path(_string_value_range(doc)), t)
-    KeyDown(:backspace;) => "Delete backward"  => _string_delete(doc, :backspace)
-    KeyDown(:delete;)    => "Delete forward"   => _string_delete(doc, :delete)
-end
-
-# Compute the deletion range for Backspace/Delete and return the replace op, or
-# nothing at the string boundary. A non-empty selection deletes the selected span;
-# a collapsed cursor deletes the adjacent character.
-function _string_delete(s::PrimitiveString, dir::Symbol)
-    range = _string_value_range(s)
-    range === nothing && return nothing
-    new_range = find_deletion_range(range, length(something(s.value, "")), dir)
-    new_range === nothing && return nothing
-    ReplaceStringRangeOperation(_string_value_path(new_range), "")
-end
-
 # The keys of a type-in that mean something to a type-in: Return makes the value
 # that the text parses as, and Escape drops the text. The keys that edit the text
 # are the text domain's; the reader of `ReplaceRangeOperation` above turns their

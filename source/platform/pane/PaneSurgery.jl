@@ -331,21 +331,6 @@ function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index
         @reference ::PrimitiveString.value::String{at}::Position))
 end
 
-"""
-    make_pane_retarget_title_operation(tree, group, index; operation) -> Operation | Nothing
-
-Re-root a title edit — an operation the title document built against its own
-vocabulary — onto the tree. This is what lets the tab name be edited by the very
-gestures that edit any other string, with no editing code of its own.
-"""
-function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer;
-                                            operation)
-    operation isa ReplaceStringRangeOperation || return nothing
-    path = get_pane_tab_name_path(tree, group, index)
-    path === nothing && return nothing
-    ReplaceStringRangeOperation(concat_references(path, operation.reference),
-                                operation.replacement)
-end
 
 function _focus_walk(node, path)
     if node isa PaneSplit

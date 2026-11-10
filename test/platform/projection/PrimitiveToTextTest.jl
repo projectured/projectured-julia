@@ -166,71 +166,30 @@ end
     end
 end
 
-# ── KeyPress / KeyDown producers ─────────────────────────────────────────────
+# ── A key in a string ────────────────────────────────────────────────────────
 
-@testset "string KeyPress produces ReplaceStringRangeOperation" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    op = read_intent(p, iomap, KeyPress('x'; time = 0.0))
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == "x"
-    @test op.reference.head isa FieldReferenceStep && op.reference.head.name == "value"
-    @test op.reference.tail.head isa RangeReferenceStep
-    @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 0
+# A key in a string goes to the text domain, as in every text: `TextToGraphics`
+# reads it, and `PrimitiveStringToTextBlock` maps its edit back to `value{s:e}`.
+function _press_string_text(value, caret, key)
+    chain = ChainingProjection(PrimitiveStringToTextBlock(), TextToGraphics(measure = FontFileMeasure()))
+    s = PrimitiveString(value)
+    set_selection!(s, _value_range(caret, caret))
+    op = read_intent(chain, print_document(chain, s), key)
+    op === nothing || evaluate_operation((document = s,), op)
+    (op, s)
 end
 
-@testset "string KeyDown backspace produces op" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    op = read_intent(p, iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == ""
-    @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
+@testset "a key in a string edits it through the text domain" begin
+    op, s = _press_string_text("ab", 0, KeyPress('x'; time = 0.0))
+    @test op isa ReplaceStringRangeOperation && op.replacement == "x"
+    @test s.value == "xab"
+    @test _press_string_text("ab", 2, KeyDown(:backspace, ModifierKeys(); time = 0.0))[2].value == "a"
+    @test _press_string_text("ab", 0, KeyDown(:delete, ModifierKeys(); time = 0.0))[2].value == "b"
 end
 
-@testset "string KeyDown delete produces op" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    op = read_intent(p, iomap, KeyDown(:delete, ModifierKeys(); time = 0.0))
-    @test op isa ReplaceStringRangeOperation
-    @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
-end
-
-@testset "string KeyPress inserts (KeyPress ignores modifiers)" begin
-    # Reified as document-level `@gestures PrimitiveString` reached via the generic
-    # `read_gesture` fallback: KeyPress patterns ignore modifiers (a real Ctrl-combo
-    # is a KeyDown, never a KeyPress), so a printable inserts regardless of a stray
-    # ctrl flag — the old defensive `ctrl` reject is intentionally gone (matches Text/JSON).
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", ModifierKeys(ctrl = true); time = 0.0)
-    op = read_intent(p, iomap, evt)
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == "x"
-end
-
-@testset "string backspace at start returns nothing" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    @test read_intent(p, iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0)) === nothing
-end
-
-@testset "string delete at end returns nothing" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToTextBlock()
-    iomap = SimpleIoMap(p, s, nothing)
-    @test read_intent(p, iomap, KeyDown(:delete, ModifierKeys(); time = 0.0)) === nothing
+@testset "a key at the edge of a string makes no edit" begin
+    @test _press_string_text("ab", 0, KeyDown(:backspace, ModifierKeys(); time = 0.0))[2].value == "ab"
+    @test _press_string_text("ab", 2, KeyDown(:delete, ModifierKeys(); time = 0.0))[2].value == "ab"
 end
 
 # ── Composite constructor ────────────────────────────────────────────────────

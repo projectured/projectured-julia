@@ -44,7 +44,6 @@ A new tab takes the focus when its opener asks for it with `focus = true`, as a 
 | `make_pane_resize_operation` | one write of the weights |
 | `make_pane_focus_operation` | `ReplaceSelectionOperation` |
 | `make_pane_show_operation` | `ReplaceViewStateOperation` of a `ReplaceReferencedValueOperation` that writes a dormant `SelectionDocument` into the `selection` of the group; in the focused group, the focus move |
-| `make_pane_retarget_title_operation` | an edit of the name in the title, re-rooted |
 
 Two rules hold for all of them:
 
@@ -146,7 +145,7 @@ A paste never replaces a pane node, and a pane node is never pasted: `accepts_pa
 
 ### Renaming is not a mode
 
-The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The table gives each typed key, Backspace and Delete to `read_gesture` of the name, and the `@gestures` table of `PrimitiveString` makes the edit. `make_pane_retarget_title_operation` roots the answer at the tree, at `get_pane_tab_name_path`. The package has no code that edits text and no rename operation.
+The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The tab bar draws the name through a text view and gives each key in the name to it, so the text domain edits the name as it edits every text: typing, Backspace and Delete, the motion of the caret, and a range with Shift. Its answer comes back as a place in the text of the label, `selector_element_pairs[i].selector.text{s:e}`, which the pane maps to `tabs[i].title.name.value{s:e}`, a caret or a range in both directions. A name with no text shows a stand-in, the title of its document or "untitled"; the pane maps back only a place inside the name, so in an empty name only a typed key edits. The package has no code that edits text and no rename operation.
 
 A rename edits the name only. The icon, its role, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose text, icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A title with an empty name shows the title of the document of its tab, which can follow a state too: a navigator tab shows the title of its page. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
 
@@ -288,7 +287,6 @@ save_user_interface("session.pred")
 
 ## Limits
 
-- The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
 - An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
 - The geometry is proportional. It is not a model of the pixels of the drawing.
 - A terminal sends the same byte for Ctrl+M and Return, so the console backend can not see Ctrl+M.

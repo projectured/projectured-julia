@@ -457,9 +457,23 @@ end
     box::Any
 end
 
+# The IO map of a tabbed pane: the fields of a `WidgetChildrenIoMap`, and
+# `name_view`, the IO map of the text view that draws the name that holds the
+# caret, or `nothing` for a pane that draws no strip. The reader gives a key in a
+# name to that view, so the text domain edits a name as it edits every text.
+@iomap struct WidgetTabbedPaneToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+    name_view::Any
+end
+
 # An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
 const _ChildEntriesIoMap = Union{WidgetChildrenIoMap, WidgetCardToGraphicsCanvasIoMap,
-                                WidgetFactGroupToGraphicsCanvasIoMap}
+                                WidgetFactGroupToGraphicsCanvasIoMap,
+                                WidgetTabbedPaneToGraphicsCanvasIoMap}
 
 # The shape of the box of a widget, from its IO map.
 _get_box_geometry(iomap) = iomap.box
@@ -5470,13 +5484,15 @@ _tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
 #
 # A tab bar draws its names as plain text, except the one that holds the caret.
 # That name is drawn through a text view of one span, as a `WidgetText` draws a
-# plain value, so the text domain draws its caret as it draws every other caret.
-# The view only draws: the keys that edit a name go to the document that owns
-# the name. The caret is `selector_element_pairs[i].selector{k}`, or
-# `selector_element_pairs[i].selector.text{k}` in the text of a `WidgetTabLabel`.
+# plain value, so the text domain draws its caret and its range as it draws every
+# other one. The reader gives a key in the name to the view, so the text domain
+# edits the name as it edits every text (`_read_tab_name_key`). The place is
+# `selector_element_pairs[i].selector{s:e}`, or
+# `selector_element_pairs[i].selector.text{s:e}` in the text of a `WidgetTabLabel`.
 
-# The tab whose name holds the caret, and the caret position, or `nothing`.
-function _find_tab_name_caret(selection)
+# The tab whose name holds the selection, and the range of the selection in it, as
+# `(index, start, stop, direction)`, or `nothing`.
+function _find_tab_name_range(selection)
     selection isa Reference || return nothing
     steps = get_reference_steps(strip_reference_types(selection))
     length(steps) in (4, 5) || return nothing
@@ -5485,38 +5501,40 @@ function _find_tab_name_caret(selection)
      steps[3] isa FieldReferenceStep && steps[3].name == "selector") || return nothing
     length(steps) == 5 &&
         !(steps[4] isa FieldReferenceStep && steps[4].name == "text") && return nothing
-    caret = steps[end]
-    caret isa RangeReferenceStep || return nothing
-    (steps[2].stop, caret.start)
+    range = steps[end]
+    range isa RangeReferenceStep || return nothing
+    (index = steps[2].stop, start = range.start, stop = range.stop, direction = get_range_direction(range))
 end
 
-# The view of the name that holds the caret, in the style of the selected tab,
+# The view of the name that holds the selection, in the style of the selected tab,
 # drawn through `recursion`.
-function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ctx)
+function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, place::Cell, ctx)
     span = TextString(() -> begin
-        found = caret[]
+        found = place[]
         pairs = w.selector_element_pairs
-        (found === nothing || !(1 <= found[1] <= length(pairs))) ? "" :
-            _get_tab_selector_text(pairs[found[1]].selector)
+        (found === nothing || !(1 <= found.index <= length(pairs))) ? "" :
+            _get_tab_selector_text(pairs[found.index].selector)
     end, _get_state_text(p, w, :tab; state = :selected))
     view = TextBlock(TextLine(span))
     set_cell_computation!(getfield(view, :selection), () -> begin
-        found = caret[]
-        found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
+        found = place[]
+        found === nothing ? nothing :
+            make_flat_range_reference(found.start, found.stop; direction = found.direction)
     end)
     text_view = make_text_view(view)
     make_reconciled_child_iomap_cell(() -> text_view, v -> print_child(recursion, v, ctx))
 end
 
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
-    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    w.visible == false &&
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing)
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
     # A tabbed pane is a part of the frame: its strip and its page reach the edges
     # of its slot, so it takes no space around it.
     geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
     if isempty(pairs)
-        return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry)
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, nothing)
     end
 
     box = geometry[]                     # stable — independent of the tab count
@@ -5527,8 +5545,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     geom = Cell(@computation _tab_strip_geometry(p, w, geometry[]))
 
     sel_cell = getfield(w, :selection)
-    name_caret = Cell(@computation _find_tab_name_caret(get_stored_selection(w)))
-    name_view = _print_tab_name_view(p, recursion, w, name_caret, _with_no_space(ctx))
+    name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
+    name_view = _print_tab_name_view(p, recursion, w, name_place, _with_no_space(ctx))
 
     _active_idx(sel, ntabs) = begin
         i = _tab_index_from_selection(sel, ntabs)
@@ -5568,8 +5586,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                             _get_tab_icon_color(p, pairs[i].selector, fg),
                                             state === :selected ? p.tab_selected_color : p.tab_strip_color)
             name_x, name_y = tx + pad.left + iw + gap, coy + pad.top + (sel_h - pad.top - pad.bottom - g.line) ÷ 2
-            found = name_caret[]
-            if found !== nothing && found[1] == i
+            found = name_place[]
+            if found !== nothing && found.index == i
                 push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
             else
                 _push_text!(header, p.measure, tab_text.font, label, name_x, name_y, fg)
@@ -5781,7 +5799,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
-    WidgetChildrenIoMap(p, w, canvas, child_iomaps, geometry)
+    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view)
 end
 
 # The extent of the page of a tabbed pane: the slot offered on each axis, else
@@ -5893,7 +5911,7 @@ end
 # pane draws: the contents of the other pages are printed, at the same place, but
 # not drawn.
 function _map_open_page_point(iomap, point)
-    iomap isa WidgetChildrenIoMap || return nothing
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     pages = w.selector_element_pairs
@@ -5908,7 +5926,7 @@ end
 # The `selector` of the tab whose header is at `point`, the part that the header
 # draws, or `nothing` when no header is there.
 function _find_tab_header_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
-    iomap isa WidgetChildrenIoMap || return nothing
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     strip_x = _tab_strip_coordinate(p, w, iomap, point.x, point.y)
@@ -5922,7 +5940,7 @@ end
 # Selector-viewport width as drawn (the clip box). Read back from the output so the
 # reader clamps scroll / hit-tests against exactly what the printer produced; falls
 # back to `strip_w` (no clip) when the pane is empty/invisible.
-function _tab_view_w(iomap::WidgetChildrenIoMap, strip_w::Int)
+function _tab_view_w(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, strip_w::Int)
     canvas = iomap.output
     canvas isa GraphicsCanvas || return strip_w
     els = canvas.elements
@@ -5955,7 +5973,7 @@ function _find_tab_at_strip_point(g, xx::Int)
     (0, :tab)
 end
 
-function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
+function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseMove && return _read_tabbed_pane_move(p, iomap, child_iomaps, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -6037,11 +6055,65 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetChildrenI
     if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
+    # A key while the selection is in the name of a tab goes to the text view of
+    # the name first.
+    if evt isa Union{KeyDown, KeyPress}
+        named = _read_tab_name_key(iomap, evt)
+        named === nothing || return named
+    end
     # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
     # points at, or to nothing when the selection is not in this pane — selection
     # is authoritative, with no active-tab fallback for keyboard events (the
     # printer still falls back to tab 1 to *render* a tab). See widget.md.
     _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt), iomap.input)
+end
+
+# A key while the selection is in the name of a tab: the answer of the text view
+# that draws the name, as an answer of the pane at
+# `selector_element_pairs[i].selector.text{s:e}`. The text domain edits the name
+# and moves its caret as in every text. A name is one line, so an edit that holds
+# a break is no answer, and the key goes on.
+function _read_tab_name_key(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, key)
+    found = _find_tab_name_range(get_stored_selection(iomap.input))
+    found === nothing && return nothing
+    view = iomap.name_view
+    view === nothing && return nothing
+    _map_tab_name_operation(view.input.content, found.index, read_intent(view.projection, view, key))
+end
+
+# The answer of the text view `view` of the name of tab `index`, as an answer of
+# the pane, or `nothing` when a part of it has no place in the name.
+_map_tab_name_operation(view::TextBlock, index::Int, ::Nothing) = nothing
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::CompoundOperation)
+    members = Any[_map_tab_name_operation(view, index, member) for member in operation.operations]
+    any(isnothing, members) ? nothing : CompoundOperation(members)
+end
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::ReplacePathOperation)
+    path = _map_tab_name_reference(view, index, get_operation_path(operation))
+    path === nothing ? nothing : make_path_operation(operation, path)
+end
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::ReplaceRangeOperation)
+    occursin('\n', operation.replacement) && return nothing
+    place = _map_tab_name_reference(view, index, operation.reference)
+    place === nothing ? nothing : ReplaceStringRangeOperation(place, operation.replacement)
+end
+
+_map_tab_name_operation(view::TextBlock, index::Int, operation) = nothing
+
+# A place of the text view of the name of tab `index`, in either form that a text
+# takes, as the place in the text of its label, in the direction of the range.
+function _map_tab_name_reference(view::TextBlock, index::Int, reference)
+    reference === nothing && return nothing
+    reference = _strip_text_view_step(reference)
+    range = get_flat_range(view, reference)
+    range === nothing && return nothing
+    direction = range[1] == range[2] ? :forward : get_range_direction(strip_reference_types(reference))
+    Reference(FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(index),
+              FieldReferenceStep("selector"), FieldReferenceStep("text"),
+              RangeReferenceStep(range[1], range[2], direction))
 end
 
 # A dwell or a right click on a tab header is read by the header and the
@@ -6050,7 +6122,7 @@ end
 # (`read_child_part_gesture`). A dwell or a right click on the open page goes to
 # the page, as a click does. Neither opens, closes or selects a tab.
 function _read_tabbed_pane_outward(p::WidgetTabbedPaneToGraphicsCanvas,
-                                   iomap::WidgetChildrenIoMap, gesture)
+                                   iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, gesture)
     _find_tab_header_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
         return read_child_part_gesture(iomap, gesture)
     w = iomap.input
@@ -6080,7 +6152,7 @@ end
 # pane's own mouse target is in that page and the point is not. Then the part at
 # the point answers: a tab header is its `selector`, and the open page reads the
 # move itself.
-function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap,
+function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
                                 child_iomaps::Vector, evt::MouseMove)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
@@ -6140,7 +6212,7 @@ _is_tab_header_under_pointer(w::WidgetTabbedPane, i::Int, n::Int) =
 # fallback to a default/visible tab — selection is authoritative for keyboard
 # events. Coordless events need no coordinate translation, so `evt` is forwarded
 # as-is. Returns (op, idx) with the 1-based tab number for `_tab_prefix`.
-function _route_selected_tab(iomap::WidgetChildrenIoMap, child_iomaps::Vector, evt)
+function _route_selected_tab(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child_iomaps::Vector, evt)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     idx = _tab_index_from_selection(get_stored_selection(w), length(child_iomaps))
@@ -6155,7 +6227,7 @@ end
 
 # Returns (op, active_idx) — the index is the 1-based tab number so it can
 # be turned into `selector_element_pairs[idx]` via _tab_prefix below.
-function _route_active_tab(iomap::WidgetChildrenIoMap, child_iomaps::Vector, evt)
+function _route_active_tab(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child_iomaps::Vector, evt)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     active_idx = _active_tab_index(w, length(child_iomaps))

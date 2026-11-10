@@ -290,10 +290,21 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    `test_conversation_editor()`, `test_assistant_composer_panel()`,
    `test_typeins()`, `test_json()`, `test_sql()`, `test_evaluator_toplevel()` and
    `test_repls()` against the baseline of the branch point.
-2. ⬜ **The tab name (D2).** Remove `@gestures PrimitiveString`, `_string_delete`
+2. ✅ **The tab name (D2).** Done 2026-11-10. Remove `@gestures PrimitiveString`, `_string_delete`
    and `find_deletion_range`, which then have no caller. Test:
    `test_pane_rename()`, which presses F2, types, removes and leaves through a
-   real editor.
+   real editor. Facts of the step:
+   - `test_pane_rename()` gives 44 pass: the 38 of the baseline, and 6 new
+     checks that move the caret, select a range and type into an empty name.
+     `test_widget_tab_label()` gives 24 and `test_pane_to_widget()` 44, as the
+     baseline.
+   - The strict `@reference` needs a type at the end of each prefix, so the
+     prefixes of the name map end in `::String`.
+   - `test_primitive()` gives 51 and `test_primitive_to_text()` 50, fewer than
+     the baseline: the twelve checks that gave a raw key to a leaf with no text
+     stage are now six checks through a chain to graphics, and one check that a
+     string reads no key of its own.
+   - The other functions of the list of step 1 give the counts of the baseline.
 3. ⬜ **The query of a choice list (D5).** Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.

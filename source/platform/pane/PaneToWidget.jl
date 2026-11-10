@@ -417,11 +417,12 @@ function _make_tab_label(tab::PaneTab)
                    badges = () -> title.badges, tooltip = () -> title.tooltip)
 end
 
-# The part of a group's selection that its tabbed pane needs. A live caret in the
-# name of a tab passes whole, because the tab bar draws it; everything else is the
-# routing prefix. A group that lost the focus shows no caret in a name.
+# The part of a group's selection that its tabbed pane needs. A live caret or range
+# in the name of a tab passes whole, because the tab bar draws it and reads the
+# keys in it; everything else is the routing prefix. A group that lost the focus
+# shows no caret in a name.
 _get_group_routing(group::PaneGroup, selection) =
-    (is_live_selection(group) && _is_title_caret(selection)) ? selection : _index_prefix(selection)
+    (is_live_selection(group) && _is_place_in_tab_name(selection)) ? selection : _index_prefix(selection)
 
 # The part of a group's mouse target that its tabbed pane needs. A path into the
 # title of a tab passes whole, because the strip draws the title as the header of
@@ -433,14 +434,14 @@ _is_tab_title_path(path) = (@reference_case path begin
     ::PaneGroup.tabs[i].rest... => _is_title_path(rest)
 end) === true
 
-_is_title_caret(selection) = (@reference_case selection begin
-    ::PaneGroup.tabs[i].rest... => _find_title_caret_position(rest) !== nothing
+_is_place_in_tab_name(selection) = (@reference_case selection begin
+    ::PaneGroup.tabs[i].rest... => _find_title_range(rest) !== nothing
 end) === true
 
-# The caret position in the name of a tab, or `nothing` when the path below the
-# tab is not a caret in its name.
-_find_title_caret_position(rest) = @reference_case rest begin
-    ::PaneTab.title.name.value{k} => k
+# The place in the name of a tab, a caret or a range, as its range step, or
+# `nothing` when the path below the tab is no place in its name.
+_find_title_range(rest) = @reference_case rest begin
+    ::PaneTab.title.name.value{s:e} => _get_last_range_step(rest)
 end
 
 # Whether `rest`, a path below a tab, goes into its title.
@@ -448,9 +449,9 @@ _is_title_path(rest) = (@reference_case rest begin
     ::PaneTab.title.inner... => true
 end) === true
 
-# The caret position in the name that a tab page of the widget holds.
-_find_selector_caret_position(rest) = @reference_case rest begin
-    ::WidgetTabPage.selector.text{k} => k
+# The place in the name that a tab page of the widget holds, as its range step.
+_find_selector_range(rest) = @reference_case rest begin
+    ::WidgetTabPage.selector.text{s:e} => _get_last_range_step(rest)
 end
 
 # Whether `rest`, a path below a tab page of the widget, goes into its selector,
@@ -459,16 +460,24 @@ _is_selector_path(rest) = (@reference_case rest begin
     ::WidgetTabPage.selector.inner... => true
 end) === true
 
+_get_last_range_step(reference) = last(get_reference_steps(strip_reference_types(reference)))
+
+# A range in the name of a tab, or in the text of its label, in the direction of
+# the range.
+_make_name_range_step(range) = RangeReferenceStep(range.start, range.stop, get_range_direction(range))
+
 function map_reference_forward(::PaneGroupToWidgetTabbedPane,
                                iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
     @reference_case reference begin
         ::PaneGroup.tabs[i].rest... => begin
             entries = iomap.content_iomaps
             (1 <= i <= length(entries)) || return nothing
-            # A caret in the name is a caret in the name the tab page holds.
-            k = _find_title_caret_position(rest)
-            k === nothing ||
-                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String{k}::Position
+            # A place in the name is the place in the name the tab page holds.
+            range = _find_title_range(rest)
+            range === nothing ||
+                return concat_references(
+                    @reference(::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String),
+                    ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
             # The header is the view of the title, so any other part of the title is
             # the header, as the pointer on the header is the title.
             _is_title_path(rest) &&
@@ -515,9 +524,17 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             # tab and nothing in it.
             tab = @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
             rest isa EmptyReference && return tab
-            k = _find_selector_caret_position(rest)
-            k === nothing ||
-                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String{k}::Position
+            # A place in the text of the label is the place in the name, while it
+            # is inside the name: a name with no text shows a stand-in, which no
+            # edit reaches.
+            range = _find_selector_range(rest)
+            if range !== nothing
+                name = something(iomap.input.tabs[i].title.name.value, "")
+                range.stop <= length(name) || return nothing
+                return concat_references(
+                    @reference(::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String),
+                    ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
+            end
             # The header of a tab is the view of its title, so any other part of
             # the header names the title whole, as the pointer on it does.
             _is_selector_path(rest) &&

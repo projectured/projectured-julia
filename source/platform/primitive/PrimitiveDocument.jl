@@ -529,19 +529,6 @@ function find_value_range(reference)
 end
 
 """
-    find_deletion_range(range, count, direction) -> Union{RangeReferenceStep, Nothing}
-
-The range that Backspace (`:backspace`) or Delete (`:delete`) removes from a text
-of `count` characters with the selection `range`: the selected range, or the
-character before or after a caret; `nothing` at the edge of the text.
-"""
-function find_deletion_range(range::RangeReferenceStep, count::Integer, direction::Symbol)
-    range.start != range.stop && return range
-    direction === :backspace && return range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
-    range.stop < count ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
-end
-
-"""
     make_type_in_edit_operation(insertion, range, replacement) -> Operation
 
 The edit of the text of `insertion` that puts `replacement` in `range`: a

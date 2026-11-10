@@ -3,13 +3,12 @@
 # The Julia domain's own insertion hole: the keyword scaffolds, the completion
 # that drives their pale-green hint, and `JuliaInsertionToSyntaxLeaf`.
 #
-# `JuliaInsertion` is a text-buffer hole. Its editing, its commit and its
-# navigation are reified as a document-level `@gestures JuliaInsertion` table, the
-# way `@gestures PrimitiveString` reifies string char-editing. The projection is
-# therefore **printer-only**: it renders the buffer plus a pale-green completion
-# continuation, maps the `value{k}` char cursor, and carries no key-capturing
-# reader, so raw input falls through to the gesture table — the single source of
-# truth.
+# `JuliaInsertion` is a text-buffer hole. The text domain edits the buffer, as it
+# edits every text, and its edit comes back through the backward map as an edit of
+# `value`. The commit and the navigation are a document-level
+# `@gestures JuliaInsertion` table. The projection is therefore **printer-only**: it
+# renders the buffer plus a pale-green completion continuation, maps the `value{k}`
+# char cursor, and carries no key-capturing reader.
 #
 # Keyword-introduced constructs (`function`, `if`, …) do not parse as complete
 # source on their own. Type one and commit it, and it expands into a **scaffold of

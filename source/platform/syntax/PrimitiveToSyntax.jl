@@ -182,11 +182,9 @@ function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::Rep
     path === nothing ? nothing : make_path_operation(op, path)
 end
 
-# String character-editing (insert / Backspace / Delete) is reified once as
-# `@gestures PrimitiveString` in `PrimitiveToText.jl` (a document-level concern in
-# the PrimitiveString's own `value[range]` vocabulary); this leaf reaches it
-# through the generic `read_gesture` fallback, so no bespoke event reader lives
-# here — only the structural `ReplaceSelectionOperation` mapping above.
+# The keys that edit the string are the text domain's: its edit comes back through
+# the generic reader by the backward map, as an edit of `value{s:e}`. So no event
+# reader lives here, only the structural `ReplaceSelectionOperation` mapping above.
 
 # ── PrimitiveInsertionToSyntaxLeaf ───────────────────────────────────────────
 

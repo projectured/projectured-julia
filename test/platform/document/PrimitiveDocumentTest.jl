@@ -193,82 +193,39 @@ end
     @test doc.value == "5"
 end
 
-# ── read_intent producer ────────────────────────────────────────────
+# ── A key in a string ───────────────────────────────────────────────
 
-@testset "PrimitiveStringToSyntaxLeaf produces operation for printable key" begin
+# A key in a string goes to the text domain, as in every text: the text stage of
+# the chain reads it, and the leaf maps its edit back to `value{s:e}`. The string
+# reads no key of its own.
+function _press_string_leaf(value, caret, key)
+    chain = ChainingProjection(PrimitiveStringToSyntaxLeaf(), RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = FontFileMeasure()))
+    s = PrimitiveString(value)
+    set_selection!(s, _value_range_ref(caret, caret))
+    op = read_intent(chain, print_document(chain, s), key)
+    op === nothing || evaluate_operation((document=s,), op)
+    (op, s)
+end
+
+@testset "a key in a string leaf edits the string through the text domain" begin
+    op, s = _press_string_leaf("ab", 0, KeyPress('x'; time = 0.0))
+    @test s.value == "xab"
+    @test _cursor_at(s).start == 1
+    @test _press_string_leaf("ab", 2, KeyDown(:backspace, ModifierKeys(); time = 0.0))[2].value == "a"
+    @test _press_string_leaf("ab", 0, KeyDown(:delete, ModifierKeys(); time = 0.0))[2].value == "b"
+end
+
+@testset "a key at the edge of a string leaf makes no edit" begin
+    @test _press_string_leaf("ab", 0, KeyDown(:backspace, ModifierKeys(); time = 0.0))[2].value == "ab"
+    @test _press_string_leaf("ab", 2, KeyDown(:delete, ModifierKeys(); time = 0.0))[2].value == "ab"
+end
+
+@testset "a string reads no key of its own" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range_ref(0, 0))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x'; time = 0.0)
-    op = read_intent(p, iomap, evt)
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == "x"
-    pref = op.reference
-    @test pref isa ConcreteReference
-    @test pref.head isa FieldReferenceStep && pref.head.name == "value"
-    @test pref.tail isa ConcreteReference
-    @test pref.tail.head isa RangeReferenceStep
-    @test pref.tail.head.start == 0 && pref.tail.head.stop == 0
-end
-
-@testset "PrimitiveStringToSyntaxLeaf produces backspace op" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range_ref(2, 2))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, ModifierKeys(); time = 0.0)
-    op = read_intent(p, iomap, evt)
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == ""
-    @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
-end
-
-@testset "PrimitiveStringToSyntaxLeaf produces delete op" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range_ref(0, 0))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, ModifierKeys(); time = 0.0)
-    op = read_intent(p, iomap, evt)
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == ""
-    @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
-end
-
-@testset "PrimitiveStringToSyntaxLeaf inserts a printable (KeyPress ignores modifiers)" begin
-    # String editing is now reified as document-level `@gestures PrimitiveString`,
-    # reached through the generic `read_gesture` fallback. Per the reification
-    # convention (shared with Text/JSON), KeyPress patterns ignore modifiers — a real
-    # Ctrl-combo arrives as a KeyDown, never a KeyPress — so a printable KeyPress
-    # inserts regardless of a stray ctrl flag; the old per-projection defensive
-    # `ctrl` reject is intentionally gone.
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range_ref(0, 0))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", ModifierKeys(ctrl = true); time = 0.0)
-    op = read_intent(p, iomap, evt)
-    @test op isa ReplaceStringRangeOperation
-    @test op.replacement == "x"
-end
-
-@testset "PrimitiveStringToSyntaxLeaf backspace at start returns nothing" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range_ref(0, 0))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, ModifierKeys(); time = 0.0)
-    @test read_intent(p, iomap, evt) === nothing
-end
-
-@testset "PrimitiveStringToSyntaxLeaf delete at end returns nothing" begin
-    s = PrimitiveString("ab")
-    set_selection!(s, _value_range_ref(2, 2))
-    p = PrimitiveStringToSyntaxLeaf()
-    iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, ModifierKeys(); time = 0.0)
-    @test read_intent(p, iomap, evt) === nothing
+    @test read_gesture(s, KeyPress('x'; time = 0.0)) === nothing
+    @test read_gesture(s, KeyDown(:backspace, ModifierKeys(); time = 0.0)) === nothing
 end
 
 end # @testset
