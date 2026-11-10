@@ -157,7 +157,7 @@ approves.
    guards of the caret move and of the click in the Julia file pass. Run
    `test_text_folding()`, the 34 text parts of `test_platform()`,
    `test_position_navigations()` and the window guards. Commit.
-8. [ ] **The measurement and the guides.** The window guards on the branch and on its
+8. [x] **The measurement and the guides.** The window guards on the branch and on its
    base, A/B/A; the broken markers of the gestures come off where a guard passes.
    Write the table in [As built](#as-built). Record the compile workload again
    (`ProjecturedREPL.record_precompile_statements("examples")`), because the new
@@ -474,6 +474,10 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
   the gap after each, and their widths; a row keeps the widths with the gaps, the
   baselines, and how low each child reaches. The place of a child, the width and
   the height of the layout read them.
+- **After the rebase on main, the canvas is the canvas of main** (see
+  [The rebase on main](#the-rebase-on-main)). The three bullets below, the canvas,
+  the stack with no size and the walk of `AnchorPointTest.jl`, tell the form of the
+  step before the rebase.
 - **The canvas.** `_make_stack_canvas`: an outer canvas, `layout_none` with overlap,
   holds the stack of the children, `layout_vertical` or `layout_horizontal` with no
   overlap, and the ring. The forward map puts the step to the stack before the node
@@ -561,3 +565,110 @@ The bytes at `text-gestures` `9a70e5c75`, with `FixedMeasure(10, 15, 5, 0)`:
   | A click on a line | 331 ms | 41 ms | 2.1 ms |
   | A move of the pointer | 12 ms | 9.9 ms | 1.1 ms |
 
+
+### The rebase on main
+
+- **The base.** The branch went onto main `2d8d7e117` on 2026-11-09, with the steps of
+  the frame guards below it. The branch `text-gestures-before-rebase` keeps the old
+  tip, `e274120f0`. At the landing, the branch went with no conflict onto main
+  `d5e20db7d`, which reads the size of a picture from the head of its file.
+- **What main brought.** A range has a direction, and the end that moves carries the
+  caret. The mouse selects: a press puts the caret, and a drag moves the end of the
+  range. Each print has its own line spacing, and an IO map has a slot space. A
+  column and a row have a stack canvas of their own (`_make_ordered_children_canvas`,
+  `ordered = true`), with the size of the layout. A file tab holds the view of a file
+  (`FileView`). A tooltip has a window of its own.
+- **The caret is the end that moves.** The caret of the overlay, the keys with Shift
+  and `get_flat_cursor_coordinate` read the moving end of
+  `_find_text_selection_ends`, with the index of the lines. The overlay lays out the
+  line of the caret with the spacing of the print. The press, the drag and the click
+  of main find their caret with `_find_caret_at_point`, which reads only the lines
+  next to the point.
+- **Step 6 keeps only the sums.** The canvas of main replaces `_make_stack_canvas`,
+  so the commit of step 6 holds `PlaceBlocks` and the sums of the column and the
+  row. The canvas of main has the size of the layout, and main changed the widgets
+  that read that size, so `test_explorer()` passes with it: 383 pass. The walk of
+  `AnchorPointTest.jl` is the walk of main, because it matches the canvas of main.
+- **The window guards.** The selection path of the content of a file goes through the
+  view of the file (`.file`). The events go to the first window of the screen,
+  because a tooltip window can be beside it. The click in the Markdown file is flat
+  on main, so its marker came off.
+- **Tests after the rebase.** The window guards: 39 pass, 3 broken, the three opens.
+  `test_sdl()`: 1276 pass, and 1 fail and 1 error in `SdlWorkloadTest.jl`, which
+  main has too ("The event system has been shut down"). `test_markdown()` 274,
+  `test_json()` 245 and `test_mcp()` 544 pass. `test_formula()`: 311 pass, 1 broken.
+  `test_julia()`: 774 pass, 1 fail; `test_dataframes()`: 601 pass, 3 errors. The
+  base, main with the guard tests only, gives the same fail and the same errors:
+  `test_tooltip_window()` 57 pass and 1 fail (`TooltipWindowTest.jl:179`, the padding
+  of the frame), and `test_data_frame_cells()` 161 pass and 3 errors (a press into a
+  cell gives `SelectionMismatchException`).
+- **The platform suite.** `test_platform()` in one call reached its cap of 12 GB, so
+  its 248 parts ran one by one in one process
+  (`/var/tmp/claude-julia/lazy-arrangement/platform-parts.jl`). The branch: 225953
+  pass, 4 fail, 1 error, 23 broken. The base: 225517 pass, and the same 4 fail and
+  error: `CheckLayering.jl:880`, `:889` and `:922`, `FileDialogTest.jl:138` (Save As
+  writes no file) and `FeedFrameGuardTest.jl:250`. That error is in the frame guard
+  of the watched files, which named `_PreparedFile`; main removed it, because its
+  watch only reports that a file changed. The guard now gives the file a new stamp,
+  and its receiver takes the change with the two arguments of main:
+  `test_feed_frame_guards()` 15 pass, 5 broken. `test_kernel()` alone: 5144 pass, 2
+  broken. It has 1 fail (`BuildEditorTest.jl:257`, two stop steps) only when
+  `test_feed_frame_guards()` runs before it in the same process.
+
+### Step 8: the measurement and the guides
+
+- **The window guards, A/B/A.** `test_window_frame_guards()` ran on the branch, on its
+  base and on the branch again, one after another, in one job of `bounded-run`
+  (`/var/tmp/text-gestures/window_aba2.sh`). The base is the worktree
+  `projectured-julia-text-gestures-base`: main `2d8d7e117` with the steps of the frame
+  guards and the fix of their path, and no change of the source. The minimum frame and
+  its bytes at the largest size, 1_000 lines of Julia and of JSON and 3_000 paragraphs
+  of Markdown:
+
+  | Gesture | File | Base | Branch, A1 / A2 | Bytes, base | Bytes, branch |
+  |---|---|---|---|---|---|
+  | A typed character | Julia | 102 ms | 0.17 / 0.35 ms | 48.7 MB | 82 kB |
+  | A caret move by a line | Julia | 399 ms | 2.5 / 2.6 ms | 200 MB | 850 kB |
+  | A click on a line | Julia | 352 ms | 2.8 / 3.0 ms | 175 MB | 1.3 MB |
+  | A move of the pointer | Julia | 11.3 ms | 0.98 / 1.25 ms | 2.2 MB | 587 kB |
+  | The open | Julia | 711 ms | 616 / 619 ms | 571 MB | 485 MB |
+  | A typed character | JSON | 2307 ms | 2.7 / 2.5 ms | 595 MB | 1.1 MB |
+  | A caret move by a line | JSON | 1891 ms | 1.7 / 2.2 ms | 473 MB | 756 kB |
+  | A click on a line | JSON | 1394 ms | 3.2 / 3.2 ms | 414 MB | 1.3 MB |
+  | A move of the pointer | JSON | 13.6 ms | 1.2 / 1.2 ms | 4.8 MB | 867 kB |
+  | The open | JSON | 888 ms | 732 / 726 ms | 676 MB | 525 MB |
+  | A typed character | Markdown | 56 ms | 2.1 / 2.1 ms | 1.5 MB | 981 kB |
+  | A click on a line | Markdown | 7.7 ms | 6.4 / 4.1 ms | 1.4 MB | 1.4 MB |
+  | A move of the pointer | Markdown | 1.6 ms | 0.90 / 0.86 ms | 552 kB | 556 kB |
+  | The open | Markdown | 534 ms | 557 / 534 ms | 360 MB | 385 MB |
+
+  An idle frame, a step of the wheel and a caret move in the Markdown file cost less
+  than 0.3 ms on both sides. On the branch: 39 pass, 3 broken, the three opens. On the
+  base: 17 pass, 12 broken, and 2 errors, which are unexpected passes: main makes the
+  click and the move of the pointer in the Markdown file flat by itself. The open of a
+  Markdown file takes 7 % more bytes on the branch and the same time; the cause is
+  not measured. The opens of Julia and JSON take less on the branch. The
+  open is the subject of a plan of its own (see Not in this plan).
+- **The lists of the compile ahead.** The step named
+  `ProjecturedREPL.record_precompile_statements("examples")`, but main records with
+  `record_repository_calls!()` and then `record_application_calls!("ProjecturedBuild",
+  "projectured")` (`documentation/design/compile-ahead.md`). Both ran on the branch
+  (`/var/tmp/text-gestures/record_lists.jl`): 34 minutes, a peak of 7.5 GB. The
+  workload of `ProjecturedGraph` fails on main and on the branch: "under-typed
+  @reference (missing node types)" at `GraphToGraphLayout.jl:225`. The workload of the
+  application runs it, so it fails too, and a recording keeps only the calls before a
+  failure: the lists of the application came out cut, for example
+  `ProjecturedJulia/precompile/projectured.txt` from 858 to 278 lines. So the branch
+  keeps the new `workload.txt` of each of the 18 packages whose own workload passed,
+  and keeps every `projectured.txt` and the lists of `ProjecturedBuild` and
+  `ProjecturedGraph` as main has them. The list of the platform now holds the calls of
+  `PlaceBlocks` and `_TextPlaces`. The example workload fails for 4 of 142 examples on
+  main and on the branch: `json_sorted`, `filesystem`, `files` and `chart` ("a Cell
+  read itself while it computed").
+  A precompile of `environment/all` with these lists precompiled 118 packages with no
+  warning of calls that no longer resolve.
+- **The lists of omnet-julia.** They name a changed function in at most 8 of 1300 lines,
+  under the share of 10 % that warns, so they stay. No source of omnet-julia or
+  inet-julia calls a changed function.
+- **The guides.** `text.md`, `layout.md` and `cell.md` say how a gesture reads its
+  place (commit `84b17b35a`).
