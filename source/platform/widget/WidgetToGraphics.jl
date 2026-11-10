@@ -371,9 +371,11 @@ end
 # ring-coloured border shows.
 #
 # `whole`, when given, holds the values of the graphics theme, whose ring color
-# the ring takes while the widget is selected as a whole. A text box with the focus holds a caret, so a whole selection of one is
-# a selection of the box as an object, and it shows as one. The ring keeps the
-# width of `ring`; only its color follows the kind of the selection.
+# the ring takes while the widget is selected as a whole, or a value in one of
+# its own fields is, such as the text of a text box. A text box with the focus
+# holds a caret, so a whole selection of one is a selection of the box as an
+# object, and it shows as one. The ring keeps the width of `ring`; only its color
+# follows the kind of the selection.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, box::BoxGeometry, width::Int, height::Int,
                            ring::StyleStroke, radius::Int; whole = nothing)
     x, y, cw, ch = _get_part_rect(box, :margin, width, height)
@@ -385,8 +387,19 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, box::BoxGeometry, w
                           () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     whole === nothing ||
         set_cell_computation!(getfield(rect, :border_color), () ->
-            get_stored_selection(w) isa EmptyReference ? whole.selection_ring : ring.color)
+            _is_whole_widget_selection(w, get_stored_selection(w)) ? whole.selection_ring : ring.color)
     push!(elems, rect)
+end
+
+# Whether `selection`, the stored selection of `w`, names `w` as a whole, one of
+# its own fields as a whole, such as `.content` of a text box, or the value of the
+# document in such a field, such as `.content.value` of a `PrimitiveString`
+# (`is_whole_selected_field`). A caret in the text is no such selection.
+function _is_whole_widget_selection(w, selection)
+    selection isa EmptyReference && return true
+    selection isa ConcreteReference || return false
+    step = first(get_reference_steps(strip_reference_types(selection)))
+    step isa FieldReferenceStep && is_whole_selected_field(selection, step.name; document = w)
 end
 
 # ── The IO map of a widget ──────────────────────────────────────────────────

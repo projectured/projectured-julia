@@ -360,6 +360,9 @@ function test_widget_selection()
         @test length(rings) == 1
         (rx, ry, rw, rh) = only(rings)
         @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
+        # Its text as a whole, which an Alt+click on it selects, rings the same.
+        t.field.selection = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+        @test length(_selection_rings(iomap.output)) == 1
         # A caret in it is the focus, and its ring keeps the theme's colour.
         t.field.selection = ConcreteReference(RangeReferenceStep(0, 0), EmptyReference())
         @test isempty(_selection_rings(iomap.output))

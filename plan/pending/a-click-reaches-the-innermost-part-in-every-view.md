@@ -709,6 +709,20 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       selection (`make_output_path_cells`, `OutputPaths.jl`), but the widgets
       below the root get no part of it, so no container rings the button. Only
       5 views call `follow_output_selection!`. This is the work of 5.4 (Q3).
+    - **The omnet test of select and paste** (`test_select_and_paste`,
+      omnet-julia `test/ide/IdeSelectAndPasteTest.jl`). Against the projectured
+      code before 5.1, in the same environment, the only new failures are at
+      the text box "release" of the runner: an Alt+click gives its text, by P8,
+      and its ring had the colour of the focus. The ring of a widget takes the
+      colour of the selection also for one of its own fields as a whole
+      (`_is_whole_widget_selection`, `WidgetToGraphics.jl`), and the test
+      expects the text and its copy as a `PrimitiveString`. The check of the
+      bracket of a call expects the step of the view at the call (P3). The test
+      set stops before it, also on the old code: `_select_clipboard` reads
+      `.slice` of the content of the window, which the settings wrapper makes a
+      `SettingsDocument`. That fault is on main (the settings wrapper is on by
+      default, and a test passes `settings = false`), and so are the other 9
+      failures of this test.
     - **The result on 15 examples of the large causes**, against the second
       run of step 4. `alt:not-caret-part` is the Alt+click that is not the part
       of the caret, `alt:not-drawn` the Alt+click that draws no mark:
