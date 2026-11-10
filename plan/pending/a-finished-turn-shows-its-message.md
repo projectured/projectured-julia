@@ -23,6 +23,13 @@ The goal is less noise on the screen, with the details one click away.
    because the next tool comes fast.
 3. **One setting for the whole editor**, in a new settings group, applies to
    every conversation. It is not a field of each assistant.
+4. **A turn with no message folds nothing** (2026-11-10, after the measurement
+   below). When no text comes after the last part of work, the turn shows every
+   part, as while it runs. Such a turn usually stopped before its end, by a stop,
+   an error or the round limit, so its work is all that a person can read.
+5. **The agent knows that only its last text shows** (2026-11-10). Every model of
+   the pane learns that after its answer only its last text shows, so its last
+   text must stand alone.
 
 ## What the code does now
 
@@ -138,6 +145,7 @@ The rule for a part that has `:default`:
 | runs | any | none | open | open |
 | finished | `:message` | folded | folded | open |
 | finished | `:everything` | none | open | open |
+| finished, no message | any | none | open | — |
 
 Two exceptions keep the fold that they have now: a resource read starts folded,
 and the result of an error starts folded.
@@ -155,7 +163,8 @@ These details are proposals. They are approved with the plan.
    as the "Go on" note of a turn that used its rounds, shows after the work line
    in its order. A request that waits for its answer shows the same way.
 2. **A turn with no work shows no work line.** A plain answer of a model looks as
-   it does now. A turn with no message shows only its work line.
+   it does now. A turn with no message shows no work line either (decision 4 of
+   the owner).
 3. **The work line comes before the message**, because the work came first. It
    says how many parts of each kind the work holds, and how long the turn ran
    when both times are known and the turn ran for 1 s or more: `Work: 9 tool
@@ -203,15 +212,22 @@ Do the work in a worktree on a branch. Make one commit for each step.
    operation for the work line. Add tests that print one turn while it runs and
    after it finishes, and check where the message and the work line draw.
    Test: `test_conversation_transcript()`, `test_conversation()`.
-3. ☐ **One setting for the whole editor.** Add `ConversationSettings`. Give its cell
+3. ✅ **One setting for the whole editor.** Add `ConversationSettings`. Give its cell
    to the transcript through `make_conversation_row` and
    `make_application_content_projections`. Remove `collapse_thinking`.
    Test: `test_conversation()`, `test_assistant_duplicate()`, and a test that a
    change of the setting opens the work of a finished turn.
-4. ☐ **Check by eye.** Render a seeded conversation with a running turn, a finished
+4. ☐ **A turn with no message folds nothing.** Make `_find_work_indices` give no
+   work line when only parts that stay out of the work come after the last part
+   of work. Test: `test_conversation_transcript()`.
+5. ☐ **The agent knows that only its last text shows.** Give the built-in loop and
+   an external agent one sentence that says so, outside the `system` text of a
+   window, because a window can replace that text. Test:
+   `test_external_agent_turn()`, `test_assistant_mvp()`.
+6. ☐ **Check by eye.** Render a seeded conversation with a running turn, a finished
    turn and a turn of an old file, with each value of the setting. Tune the label
    and the spacing of the work line.
-5. ☐ **Documentation.** Update
+7. ☐ **Documentation.** Update
    [transcript.md](../../documentation/package/platform/conversation/transcript.md),
    [conversation.md](../../documentation/package/platform/conversation/conversation.md)
    and [assistant.md](../../documentation/package/platform/assistant/assistant.md).
@@ -285,3 +301,45 @@ Do the work in a worktree on a branch. Make one commit for each step.
   `test_assistant_mvp` 193 pass, 4 broken; `test_text_ink_inside_viewports`
   10/10; `test_assistant_stream` 20/20; `test_assistant_composer_panel` 90/90;
   `test_text_range_selection` 41/41; `test_conversation` alone 928/928.
+
+### Step 3
+
+- **The setting is `ConversationSettings`** in
+  [ConversationSettings.jl](../../source/platform/conversation/ConversationSettings.jl),
+  one field `finished_turn`, with the label "Finished turn: what a finished answer
+  shows, its message with the work folded into one line, or everything."
+- **The transcript projection holds the cell of the setting** in its field
+  `finished_turn`. `make_conversation_row(; settings)` gives it
+  `get_setting_cell(get_settings_group!(settings, ConversationSettings),
+  :finished_turn)`, and `_find_work_indices` reads it, so a change reaches every
+  turn at once. With no settings the field is `:message`.
+- **The application passes its settings on.** `make_application_projection` and
+  `make_application_content_projections` take `settings`, and the main window
+  gives its own.
+- **`collapse_thinking` is removed.** `make_pred_document(::Type{<:Assistant}, …)`
+  drops the keyword, so a file that names it loads.
+- **Results:** `test_assistant_overview` 69/69, `test_settings` 107/107,
+  `test_settings_tab` 55/55, `test_settings_wrapper` 39/39,
+  `test_conversation_theme` 58/58, `test_conversation` alone 930/930. The umbrella
+  tests (`test_conversation_transcript`, `test_assistant_mvp`,
+  `test_assistant_duplicate`, `test_application`) waited for memory, and I stopped
+  their job to add steps 4 and 5. They run with step 4.
+
+### The measurement behind decisions 4 and 5
+
+The owner asked how often an important text of an answer goes into the work
+line. I applied the rule to the 153 saved Claude Code sessions with the owner,
+6,173 answers with a tool call or thinking:
+
+- 34 % of all text goes into the work line.
+- 8.6 % of the answers hide a text that looks important: 400 characters or more,
+  a list, a table, a heading, or a question.
+- 3.3 % hide such a text, and the last text repeats less than a quarter of its
+  words.
+- 0.9 % hide a question to the person.
+- 2.4 % have text but no text after their last tool call.
+
+In these sessions the agent was told that every text stays on the screen, and not
+to repeat itself at the end. So the numbers show what happens when the agent of
+the pane writes in the same way. Decision 5 removes that cause, and decision 4
+removes the case of 2.4 %.

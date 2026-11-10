@@ -63,6 +63,10 @@ end
     other_role_icon::StyleText = get_conversation_style(nothing, :other_role_icon)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     section_padding::Inset = get_conversation_style(nothing, :section_indent)
+    # What a finished turn of the model shows: `:message`, its work folded into
+    # one line before its message, or `:everything`. A builder gives the cell of
+    # `finished_turn` of the `ConversationSettings`, so every turn follows it.
+    finished_turn::Symbol = :message
 end
 
 @projection UntrackedCell struct ConversationPartToWidget
@@ -242,7 +246,7 @@ get_child_iomaps(iomap::ConversationTurnToWidgetIoMap) = Any[iomap.child_iomaps.
 function print_document(projection::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec = recursion
-    work = Cell(@computation _find_work_indices(t))
+    work = Cell(@computation _find_work_indices(projection, t))
     # Each part learns from the turn whether the rule closes it: a part in the
     # work line of a finished turn starts folded.
     ioms = Cell(@computation(Any[
@@ -298,10 +302,11 @@ function _list_turn_children(ioms, work, work_card)
 end
 
 # The indices of the parts of `t` that its work line holds, or `nothing` when the
-# turn shows no work line: a turn of the person, a turn that runs, and a turn with
-# no work. The work is every part up to the last part of work, except a part that
-# stays out of it.
-function _find_work_indices(t::ConversationTurn)
+# turn shows no work line: a turn of the person, a turn that runs, a turn with no
+# work, and every turn when the setting shows everything. The work is every part
+# up to the last part of work, except a part that stays out of it.
+function _find_work_indices(projection::ConversationTurnToWidgetComposite, t::ConversationTurn)
+    projection.finished_turn === :everything && return nothing
     t.role === :user && return nothing
     _is_turn_running(t) && return nothing
     parts = t.parts
@@ -1264,14 +1269,18 @@ end
 # ── Factory ──────────────────────────────────────────────────────────────────
 
 """
-    ConversationToWidget(; theme = nothing, widget_theme = nothing)
+    ConversationToWidget(; theme = nothing, widget_theme = nothing, finished_turn = :message)
 
 Type-dispatching projection over the conversation document types. Wrap in
 `RecursiveProjection` at the call site. It gives each projection its styles from
 `theme`, a `ConversationTheme` scaled or not, and its gaps from `widget_theme`, a
 `WidgetTheme` scaled or not, or the default values for `nothing`.
+
+`finished_turn` says what a finished turn of the model shows: `:message`, its work
+folded into one line before its message, or `:everything`. It is a value or the
+cell of a setting (`ConversationSettings`), which the transcript follows.
 """
-function ConversationToWidget(; theme = nothing, widget_theme = nothing)
+function ConversationToWidget(; theme = nothing, widget_theme = nothing, finished_turn = :message)
     get_style(name) = get_conversation_style(theme, name)
     get_gap(name) = get_widget_style(widget_theme, name)
     TypeDispatchingProjection(
@@ -1284,7 +1293,8 @@ function ConversationToWidget(; theme = nothing, widget_theme = nothing)
             user_role_icon = get_style(:user_role_icon),
             assistant_role_icon = get_style(:assistant_role_icon),
             other_role_icon = get_style(:other_role_icon),
-            kind_text = get_style(:kind_text), section_padding = get_style(:section_indent)),
+            kind_text = get_style(:kind_text), section_padding = get_style(:section_indent),
+            finished_turn),
         ConversationPart         => ConversationPartToWidget(;
             message_text = get_style(:message_text),
             kind_text = get_style(:kind_text), section_text = get_style(:section_text),

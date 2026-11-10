@@ -293,6 +293,45 @@ function test_conversation_transcript()
         @test body(3).children[2].children[1].content == "The turn reached its 40 rounds."
     end
 
+    @testset "the setting says what a finished turn shows, and a change reaches it" begin
+        thinking = make_conversation_thinking_part("I read the file first.")
+        call = ConversationPart(EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2")))
+        turn = ConversationTurn(:assistant, [thinking, call, ConversationPart("It is 2.")];
+                                start_time = 100.0, finish_time = 130.0)
+        doc = ConversationConversation([turn])
+        setting = Cell(:message)
+        proj = RecursiveProjection(ConversationToWidget(; finished_turn = setting))
+        io = print_document(proj, proj, doc, PrinterContext())
+        body() = io.output.children[1].content
+        @test length(body().children) == 2
+        # Everything: every part shows, as while the turn runs.
+        setting[] = :everything
+        @test length(body().children) == 3
+        @test body().children[1].collapsed === false
+        # A part that a person folded stays folded.
+        evaluate_operation((document = doc,), ReplaceConversationFoldOperation(call, :fold, :folded))
+        @test body().children[2].collapsed === true
+        setting[] = :message
+        @test length(body().children) == 2
+        @test body().children[1].collapsed === true
+    end
+
+    @testset "the row of a conversation follows the setting of the editor" begin
+        settings = make_settings()
+        group = get_settings_group!(settings, ConversationSettings)
+        @test group.finished_turn === :message
+        row = make_conversation_row(; measure = _transcript_measure, settings)
+        turn = ConversationTurn(:assistant, [make_conversation_thinking_part("I read the file first."),
+                                             ConversationPart("It is 2.")];
+                                start_time = 100.0, finish_time = 130.0)
+        projection = row.second
+        io = print_document(projection, projection, ConversationConversation([turn]), PrinterContext())
+        @test "Work: 1 thinking · 30 s" in _transcript_texts(io.output)
+        group.finished_turn = :everything
+        @test !("Work: 1 thinking · 30 s" in _transcript_texts(io.output))
+        @test "thinking" in _transcript_texts(io.output)
+    end
+
     @testset "the header of a form names the tool or the resource" begin
         read = EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
                              tool_name = "read_resource",

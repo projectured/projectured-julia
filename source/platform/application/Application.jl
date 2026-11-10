@@ -161,7 +161,8 @@ end
 
 """
     make_application_content_projections(; measure = FontFileMeasure(),
-                                         appearance::Appearance = Appearance())
+                                         appearance::Appearance = Appearance(),
+                                         settings = nothing)
         -> Vector{Pair{Type,Any}}
 
 How the application draws what a tab holds, in front of the defaults of
@@ -169,15 +170,17 @@ How the application draws what a tab holds, in front of the defaults of
 plain text. A document of a domain draws through the natural renderer, which
 every loaded domain registers itself with, so the application names no domain.
 A history around a file draws through the row that the undo slice registers.
+A conversation follows the `ConversationSettings` of `settings`.
 """
 function make_application_content_projections(; measure = FontFileMeasure(),
-                                               appearance::Appearance = Appearance())
+                                               appearance::Appearance = Appearance(),
+                                               settings::Union{Nothing,Settings} = nothing)
     text_theme = get_scaled_theme!(appearance, TextTheme)
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure, theme = text_theme))
     conversation_rows = Pair{Type,Any}[
         make_conversation_draft_row(measure = measure, appearance = appearance),
-        make_conversation_row(measure = measure, appearance = appearance),
+        make_conversation_row(measure = measure, appearance = appearance, settings = settings),
     ]
     Pair{Type,Any}[
         TextDocument      => text_to_graphics,
@@ -242,17 +245,19 @@ end
 
 """
     make_application_projection(; measure = FontFileMeasure(),
-                                appearance::Appearance = Appearance())
+                                appearance::Appearance = Appearance(), settings = nothing)
 
 How the content of the application window is drawn: the pane tree or the
-workbench, and the domains inside it.
+workbench, and the domains inside it. A conversation follows the
+`ConversationSettings` of `settings`.
 
 It is the **content** alone. The wrappers of `build_editor` that
 [`make_application_wrappers`](@ref) names go over it.
 """
 function make_application_projection(; measure = FontFileMeasure(),
-                                     appearance::Appearance = Appearance())
-    content = make_application_content_projections(; measure, appearance)
+                                     appearance::Appearance = Appearance(),
+                                     settings::Union{Nothing,Settings} = nothing)
+    content = make_application_content_projections(; measure, appearance, settings)
     _make_application_pane_projection(content, measure, appearance)
 end
 
@@ -651,7 +656,7 @@ function _make_application_editor(paths::Vector{String}, settings; backend,
     policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
     document = make_application_document(paths; root, assistant = chat, settings)
     editor = build_editor(document,
-                          make_application_projection(; measure, appearance);
+                          make_application_projection(; measure, appearance, settings);
                           backend, appearance, settings, fault_policy = policy,
                           # The natural projection draws what a tooltip holds. The
                           # other windows that a wrapper opens draw with the rows a
@@ -659,7 +664,7 @@ function _make_application_editor(paths::Vector{String}, settings; backend,
                           window = (; title = "ProjecturEd", width, height,
                                     opened_window_projections = vcat(
                                         Pair{Type,Any}[make_natural_tooltip_row(; measure, appearance)],
-                                        make_application_content_projections(; measure, appearance))),
+                                        make_application_content_projections(; measure, appearance, settings))),
                           make_application_wrappers(; root, assistant = chat, measure, appearance,
                                                       document)...)
     start_application!(editor; mcp = start.mcp, assistant = start.assistant, model = start.model)

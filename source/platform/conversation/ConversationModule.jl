@@ -40,6 +40,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..SerializationModule
+using ..SettingsModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
@@ -65,7 +66,8 @@ export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation,
        ToggleEvaluatorOptionOperation, StopEvaluatorFormOperation,
        RecallEvaluatorFormOperation
-export ConversationDocument, make_conversation_thinking_part, ReplaceConversationFoldOperation
+export ConversationDocument, make_conversation_thinking_part, ReplaceConversationFoldOperation,
+       ConversationSettings
 export ConversationPermissionRequest, is_permission_request_open, answer_permission_request!
 export ConversationSignInRequest
 export ConversationNote, is_note_turn
@@ -94,6 +96,7 @@ export ConversationConversation, EvaluatorForm, EvaluatorToplevel, ConversationT
 
 include("Evaluator.jl")
 include("ConversationDocument.jl")
+include("ConversationSettings.jl")
 include("ConversationTheme.jl")
 include("ConversationToWidget.jl")
 include("EvaluatorToWidget.jl")

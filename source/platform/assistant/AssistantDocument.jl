@@ -155,7 +155,6 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     api_key::String
     context::Int
     status::Symbol
-    collapse_thinking::Bool
     llm::Union{Nothing,Llm}
     turn_control::Any
     agent_command::String
@@ -240,7 +239,6 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               api_key::AbstractString = "",
                               context::Integer = 0,
                               status::Symbol = :idle,
-                              collapse_thinking::Bool = true,
                               llm::Union{Nothing,Llm} = nothing,
                               turn_control = nothing,
                               agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
@@ -268,7 +266,6 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
-                           Cell(collapse_thinking),
                            Cell(llm), Cell(turn_control),
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
                            Cell(String(agent_mode)), Cell(agent_session), Cell(String(agent_session_id)),
@@ -317,7 +314,6 @@ function pred_arguments(a::Assistant)
         :model             => a.model,
         :system            => a.system,
         :context           => a.context,
-        :collapse_thinking => a.collapse_thinking,
     ]
     # The workflow that the conversation records its work in is data that the
     # person chose, so the file keeps the link.
@@ -341,6 +337,12 @@ function pred_arguments(a::Assistant)
     end
     (), keywords
 end
+
+# A file can name `collapse_thinking`, which an assistant does not keep: what a
+# finished answer shows is the setting `finished_turn` of `ConversationSettings`.
+make_pred_document(::Type{<:Assistant}, positional, keywords) =
+    invoke(make_pred_document, Tuple{Type,Any,Any}, Assistant, positional,
+           filter(pair -> first(pair) !== :collapse_thinking, collect(Pair{Symbol,Any}, keywords)))
 
 # The name the tab calls itself: the title that an external agent gave its
 # session, else the first line of its first prompt, else the name of the

@@ -82,6 +82,13 @@ function test_assistant_overview()
                                          Pair{Symbol,Any}[:content => PrimitiveString("Hello"), :collapsed => true])
                 @test old.fold === :default
                 @test_throws ArgumentError ConversationPart("Hello"; fold = :closed)
+                # A file of an assistant can name `collapse_thinking`, which the
+                # assistant does not keep.
+                assistant = make_pred_document(Assistant, (),
+                                               Pair{Symbol,Any}[:backend => :ollama, :model => "m",
+                                                                :collapse_thinking => true])
+                @test assistant isa Assistant && assistant.model == "m"
+                @test !occursin("collapse_thinking", print_pred_text(Assistant()))
             end
         end
 
