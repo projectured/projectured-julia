@@ -82,7 +82,7 @@ function test_text_ink_inside_viewports()
                               tool_name = "read_resource",
                               input = Dict{String,Any}("uri" => "resource://guide/x"),
                               result = parse_markdown(written), output = written,
-                              tool_use_id = "tu_1"))])])
+                              tool_use_id = "tu_1"); fold = :open)]; work_fold = :open)])
         projection = make_conversation_widget_projection_example(measure = measure)
         context = with_exact_size(PrinterContext(); width = Cell(Int32(900)))
         output = print_document(projection, projection, conversation, context).output

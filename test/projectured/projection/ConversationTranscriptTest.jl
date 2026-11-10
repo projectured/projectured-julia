@@ -134,6 +134,17 @@ _section_path(i::Int, j::Int, name) =
                         ConcreteReference(FieldReferenceStep(name), EmptyReference()))))))
 _is_same_path(a, b) = string(strip_reference_types(a)) == string(strip_reference_types(b))
 
+# The path in the drawing of a transcript to `children[i]`, then one
+# `content.children[k]` for each index after the first.
+function _drawn_path(i::Int, ks::Int...)
+    steps = Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)]
+    for k in ks
+        append!(steps, Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                           RangeReferenceStep(k - 1, k)])
+    end
+    foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
+end
+
 # A conversation of one user message that holds a plain text.
 _plain_text_conversation() =
     ConversationConversation([ConversationTurn(:user, [
@@ -167,7 +178,8 @@ function test_conversation_transcript()
             if op isa ToggleCollapseOperation
                 @test op.target isa ConversationTurn
             elseif op isa ReplaceConversationFoldOperation
-                @test op.node isa ConversationPart && op.field === :fold
+                @test (op.node isa ConversationPart && op.field === :fold) ||
+                      (op.node isa ConversationTurn && op.field === :work_fold)
             else
                 @test op isa ToggleEvaluatorSectionOperation
             end
@@ -221,6 +233,66 @@ function test_conversation_transcript()
         @test card(2).collapsed === true
     end
 
+    @testset "a finished turn folds its work into one line before its message" begin
+        thinking = make_conversation_thinking_part("I read the file first.")
+        call = ConversationPart(EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2")))
+        turn = ConversationTurn(:assistant, [ConversationPart("I look."), thinking, call,
+                                             ConversationPart("The answer is 2.")];
+                                start_time = 100.0)
+        doc = ConversationConversation([turn])
+        proj = RecursiveProjection(ConversationToWidget())
+        io = print_document(proj, proj, doc, PrinterContext())
+        body() = io.output.children[1].content
+        # While the turn runs, every part shows, and the thinking is open.
+        @test length(body().children) == 4
+        @test body().children[2].collapsed === false
+        @test body().children[3].collapsed === false
+        # When it finishes, the work folds into one line before the message.
+        turn.finish_time = 230.0
+        @test length(body().children) == 2
+        work = body().children[1]
+        @test work isa WidgetCard && work.collapsed === true
+        @test work.title.content == "Work: 1 tool call · 1 thinking · 1 text · 2 min 10 s"
+        @test get_flat_string(body().children[2]) == "The answer is 2."
+        # The places of the parts follow, both ways: the message after the work
+        # line, and a part of the work inside it.
+        place(j) = map_reference_forward(io.projection, io, _part_path(1, j))
+        @test _is_same_path(place(4), _drawn_path(1, 2))
+        @test _is_same_path(place(2), _drawn_path(1, 1, 2))
+        for j in 1:4
+            @test _is_same_path(map_reference_backward(io.projection, io, place(j)), _part_path(1, j))
+        end
+        # The work opens to its parts, and each of them stays folded.
+        evaluate_operation((document = doc,), ReplaceConversationFoldOperation(turn, :work_fold, :open))
+        @test work.collapsed === false
+        @test length(work.content.children) == 3
+        @test work.content.children[2].collapsed === true
+        @test work.content.children[3].collapsed === true
+        @test get_flat_string(work.content.children[1]) == "I look."
+        # A part that a person opened stays open.
+        evaluate_operation((document = doc,), ReplaceConversationFoldOperation(thinking, :fold, :open))
+        @test work.content.children[2].collapsed === false
+    end
+
+    @testset "a turn of the person, a turn with no work and a note show no work line" begin
+        proj = RecursiveProjection(ConversationToWidget())
+        call() = ConversationPart(EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2")))
+        person = ConversationTurn(:user, [call(), ConversationPart("Is it 2?")])
+        plain = ConversationTurn(:assistant, [ConversationPart("It is 2.")])
+        noted = ConversationTurn(:assistant, [call(), ConversationPart(ConversationNote("The turn reached its 40 rounds.")),
+                                              call(), ConversationPart("Done.")])
+        doc = ConversationConversation([person, plain, noted])
+        io = print_document(proj, proj, doc, PrinterContext())
+        body(i) = io.output.children[i].content
+        @test length(body(1).children) == 2
+        @test !(body(1).children[1] isa WidgetCard && startswith(body(1).children[1].title.content, "Work"))
+        @test length(body(2).children) == 1
+        # The note speaks to the person, so it stays out of the work line.
+        @test length(body(3).children) == 3
+        @test body(3).children[1].title.content == "Work: 2 tool calls"
+        @test body(3).children[2].children[1].content == "The turn reached its 40 rounds."
+    end
+
     @testset "the header of a form names the tool or the resource" begin
         read = EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
                              tool_name = "read_resource",
@@ -247,8 +319,10 @@ function test_conversation_transcript()
     @testset "a click names the part it landed in, or the place in a text part" begin
         (doc, proj, io) = _transcript_render()
         # A folded part shows its header and nothing else, and the header is
-        # the fold. The thinking part is opened first, as a person opens it; a
-        # click on it then names it like a click on any other part.
+        # the fold. The work of the finished turn and its thinking part are
+        # opened first, as a person opens them; a click on the thinking then names
+        # it like a click on any other part.
+        doc.turns[2].work_fold = :open
         doc.turns[2].parts[1].fold = :open
         found = _scan_selections(proj, io)
         # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
@@ -354,6 +428,7 @@ function test_conversation_transcript()
 
     @testset "an Alt+click names the innermost object" begin
         (doc, proj, io) = _transcript_render()
+        doc.turns[2].work_fold = :open
         doc.turns[2].parts[1].fold = :open
         found = _scan_whole_selections(proj, io)
         paths = [v[1] for v in values(found)]

@@ -6,8 +6,10 @@
 #     ConversationConversation → VerticalLayout of turn bands
 #     ConversationTurn         → WidgetCard, quiet: title = [avatar(role) + role
 #                                label], content = VerticalLayout of part widgets.
-#                                The user's band is tinted and the model's is
-#                                plain — neither draws a border.
+#                                A finished turn of the model puts its work in one
+#                                card before its message. The user's band is
+#                                tinted and the model's is plain — neither draws a
+#                                border.
 #     ConversationPart         → the part's `content` document (recursed), bare.
 #                                Code, a thinking block, an evaluation and a
 #                                permission request each keep a quiet tinted panel
@@ -27,7 +29,9 @@
 #
 # The fold of a part is a default or a choice. `:default` follows the rule of the
 # transcript, which the turn gives each part through the context; a click writes
-# `:open` or `:folded`, the opposite of what shows, and that choice stays.
+# `:open` or `:folded`, the opposite of what shows, and that choice stays. A
+# finished turn of the model folds its work into one line before its message, and
+# that line folds the same way, with `turn.work_fold`.
 #
 # The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
 # part updates the layout without re-running `print_document` (streaming).
@@ -57,6 +61,8 @@ end
     user_role_icon::StyleText = get_conversation_style(nothing, :user_role_icon)
     assistant_role_icon::StyleText = get_conversation_style(nothing, :assistant_role_icon)
     other_role_icon::StyleText = get_conversation_style(nothing, :other_role_icon)
+    kind_text::StyleText = get_conversation_style(nothing, :kind_text)
+    section_padding::Inset = get_conversation_style(nothing, :section_indent)
 end
 
 @projection UntrackedCell struct ConversationPartToWidget
@@ -210,16 +216,50 @@ function print_document(projection::ConversationConversationToWidgetComposite,
 end
 
 # ── print_document: turn → card with avatar header + part stack ─────────────
+#
+# A finished turn of the model folds its work into one line before its message.
+# The message is the parts after the last part of work; every part before it is
+# work, except a part that speaks to the person (`_stays_out_of_work`). The work
+# line is a card whose body holds the work in its order; the parts outside it
+# follow it in their order. A turn that runs, a turn of the person and a turn
+# with no work show every part as it comes.
+
+# The IO map of a turn. `child_iomaps` are the IO maps of its parts, in the order
+# of the parts. `work` is the indices of the parts in the work line, or `nothing`
+# when the turn shows none, and `work_card` is the card of the work line, or
+# `nothing`. Each of the three is a computed cell, so the map follows the turn.
+@iomap struct ConversationTurnToWidgetIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    work::Any
+    work_card::Any
+end
+
+get_child_iomaps(iomap::ConversationTurnToWidgetIoMap) = Any[iomap.child_iomaps...]
 
 function print_document(projection::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec = recursion
+    work = Cell(@computation _find_work_indices(t))
+    # Each part learns from the turn whether the rule closes it: a part in the
+    # work line of a finished turn starts folded.
     ioms = Cell(@computation(Any[
-        print_document(rec, rec, t.parts[i], ctx)
+        print_document(rec, rec, t.parts[i], _with_part_fold(ctx, () -> _is_in_work(work[], i)))
         for i in eachindex(t.parts)
     ]))
+    # The IO map holds the card, which follows the selection of the turn. The
+    # cell computes at its first read, after the IO map is made.
+    work_card = Cell(@computation begin
+        indices = work[]
+        indices === nothing ? nothing :
+            _follow_work_selection!(_make_work_card(projection, t, indices,
+                                                    Any[ioms[][i].output for i in indices]),
+                                    t, projection, iomap)
+    end)
     # And so does every part inside a turn.
-    body = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
+    body = VerticalLayout(CellVector(@computation _list_turn_children(ioms[], work[], work_card[])),
                           Cell(:left), Cell(projection.section_gap),
                           Cell(Fill), Cell(Content), Cell(nothing))
     # A turn is a band and not a box. The user's band is tinted and the model's
@@ -236,10 +276,101 @@ function print_document(projection::ConversationTurnToWidgetComposite,
                       variant = t.role === :user && !editor ? :tinted : :plain,
                       collapsible = true)
     _follow_fold!(card, () -> t.collapsed)
-    iomap = ChildrenIoMap(projection, t, card, ioms)
+    iomap = ConversationTurnToWidgetIoMap(projection, t, card, ioms, work, work_card)
     _follow_selection!(card, t, projection, iomap, Any[])
     _follow_selection!(body, t, projection, iomap, Any[FieldReferenceStep("content")])
     iomap
+end
+
+# The context of a part, with the rule of its fold: a function of no argument that
+# says whether the rule closes the part.
+_with_part_fold(ctx, rule::Function) =
+    ctx isa PrinterContext ? with_property(ctx, :conversation_fold, rule) : ctx
+
+_is_in_work(work, i::Int) = work !== nothing && i in work
+
+# The children of the body of a turn: the output of each part, or the work line
+# and the outputs of the parts outside it.
+function _list_turn_children(ioms, work, work_card)
+    outputs = Any[iomap.output for iomap in ioms]
+    work === nothing && return outputs
+    vcat(Any[work_card], Any[outputs[i] for i in eachindex(outputs) if !(i in work)])
+end
+
+# The indices of the parts of `t` that its work line holds, or `nothing` when the
+# turn shows no work line: a turn of the person, a turn that runs, and a turn with
+# no work. The work is every part up to the last part of work, except a part that
+# stays out of it.
+function _find_work_indices(t::ConversationTurn)
+    t.role === :user && return nothing
+    _is_turn_running(t) && return nothing
+    parts = t.parts
+    last = findlast(i -> _is_work_content(parts[i].content), eachindex(parts))
+    last === nothing && return nothing
+    Int[i for i in 1:last if !_stays_out_of_work(parts[i].content)]
+end
+
+# A part that ends the work: a thinking part, a tool call, and a question that
+# has its answer.
+_is_work_content(content) =
+    content isa Union{ConversationThinking, EvaluatorForm} ||
+    (content isa ConversationPermissionRequest && !is_permission_request_open(content)) ||
+    (content isa ConversationQuestionRequest && !is_question_request_open(content))
+
+# A part that speaks to the person stays out of the work line: a note, a sign-in,
+# and a question that waits for its answer.
+_stays_out_of_work(content) =
+    content isa Union{ConversationNote, ConversationSignInRequest} ||
+    (content isa ConversationPermissionRequest && is_permission_request_open(content)) ||
+    (content isa ConversationQuestionRequest && is_question_request_open(content))
+
+# The card of the work line follows the paths of the turn, as the part cards in
+# it do, so a selection in a part of the work draws its ring.
+function _follow_work_selection!(card::WidgetCard, t, projection, iomap)
+    lead = Any[FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(0, 1)]
+    _follow_selection!(card, t, projection, iomap, lead)
+    _follow_selection!(card.content, t, projection, iomap, vcat(lead, Any[FieldReferenceStep("content")]))
+    card
+end
+
+# The work line: a card with the count of each kind of part that it holds and how
+# long the turn ran, over the outputs of those parts. It folds with `work_fold` of
+# the turn, and a work line starts folded.
+function _make_work_card(p, t::ConversationTurn, indices::Vector{Int}, outputs::Vector)
+    label = _describe_work(t, Any[t.parts[i].content for i in indices])
+    card = WidgetCard(; title = WidgetLabel(label; text_style = p.kind_text),
+                      content = VerticalLayout(outputs; gap = p.section_gap, child_width = Fill),
+                      variant = :plain, collapsible = true, padding = p.section_padding)
+    _follow_fold!(card, () -> _is_fold_closed(t.work_fold, true))
+end
+
+# "Work: 9 tool calls · 3 thinking · 2 texts · 2 min 10 s": the count of each kind,
+# in a fixed order, and the time of the turn when both of its times are known and
+# it ran for a second or more.
+function _describe_work(t::ConversationTurn, contents::Vector)
+    count_of(test) = count(test, contents)
+    words = String[]
+    for (number, one, many) in ((count_of(c -> c isa EvaluatorForm), "tool call", "tool calls"),
+                                (count_of(c -> c isa ConversationThinking), "thinking", "thinking"),
+                                (count_of(_is_text_content), "text", "texts"),
+                                (count_of(c -> !(c isa Union{EvaluatorForm, ConversationThinking}) &&
+                                               !_is_text_content(c)), "other part", "other parts"))
+        number == 0 || push!(words, string(number, " ", number == 1 ? one : many))
+    end
+    seconds = t.finish_time - t.start_time
+    t.start_time != 0.0 && t.finish_time != 0.0 && seconds >= 1 &&
+        push!(words, _describe_duration(seconds))
+    "Work: " * join(words, " · ")
+end
+
+# A time in seconds, in whole units: "45 s", "2 min 10 s", "1 h 3 min".
+function _describe_duration(seconds::Real)
+    total = max(0, round(Int, seconds))
+    total < 60 && return string(total, " s")
+    minutes, rest = divrem(total, 60)
+    minutes < 60 && return rest == 0 ? string(minutes, " min") : string(minutes, " min ", rest, " s")
+    hours, minutes = divrem(minutes, 60)
+    minutes == 0 ? string(hours, " h") : string(hours, " h ", minutes, " min")
 end
 
 # ── print_document: part → the content, and a chrome only where it is earned ─
@@ -782,13 +913,76 @@ map_reference_backward(::ConversationConversationToWidgetComposite, iomap, refer
 map_reference_forward(::ConversationConversationToWidgetComposite, iomap, reference) =
     _forward_level(iomap, reference, "turns", Any[], "children")
 
-# `parts[j].<rest>` ↔ `content.children[j].<rest>`. The card's body sits behind
-# its `content` slot, which is the one step this level prints above the layout.
-map_reference_backward(::ConversationTurnToWidgetComposite, iomap, reference) =
-    _backward_level(iomap, reference, "children", "parts", 1)
-map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference) =
-    _forward_level(iomap, reference, "parts",
-                   Any[FieldReferenceStep("content")], "children")
+# `parts[j].<rest>` ↔ the place of part `j` in the card of the turn, and `<rest>`
+# in it. The card's body sits behind its `content` slot. A part draws at
+# `content.children[j]`. In a turn with a work line, the `m`-th part of the work
+# draws at `content.children[1].content.children[m]`, and the `k`-th part outside
+# it at `content.children[k + 1]`, after the work line.
+function map_reference_backward(::ConversationTurnToWidgetComposite, iomap, reference)
+    steps = _steps(reference)
+    steps === nothing && return EmptyReference()
+    found = _find_drawn_part(iomap, steps)
+    found === nothing && return EmptyReference()
+    (j, rest) = found
+    child = _children(iomap)[j]
+    inner = map_reference_backward(child.projection, child, _from_steps(rest))
+    inner === nothing && (inner = EmptyReference())
+    ConcreteReference(FieldReferenceStep("parts"),
+        ConcreteReference(RangeReferenceStep(j - 1, j), inner))
+end
+
+function map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference)
+    steps = _steps(reference)
+    steps === nothing && return nothing
+    found = _indexed(steps, "parts")
+    found === nothing && return nothing
+    (j, rest) = found
+    children = _children(iomap)
+    (1 <= j <= length(children)) || return nothing
+    child = children[j]
+    inner = isempty(rest) ? EmptyReference() :
+            map_reference_forward(child.projection, child, _from_steps(rest))
+    inner === nothing && return nothing
+    _from_steps(_find_part_place(iomap.work, j), inner)
+end
+
+# The steps from the card of a turn to the output of part `j`, for the indices
+# `work` of the parts in its work line, or `nothing` when it has none.
+function _find_part_place(work, j::Int)
+    body = Any[FieldReferenceStep("content"), FieldReferenceStep("children")]
+    work === nothing && return vcat(body, Any[RangeReferenceStep(j - 1, j)])
+    m = findfirst(==(j), work)
+    m === nothing || return vcat(body, Any[RangeReferenceStep(0, 1)], body, Any[RangeReferenceStep(m - 1, m)])
+    k = 1 + count(i -> !(i in work), 1:j)
+    vcat(body, Any[RangeReferenceStep(k - 1, k)])
+end
+
+# The part that the path `steps` in the card of a turn leads into, and the steps
+# in its output, or `nothing` for a path that names no part, such as the header
+# of the turn or of its work line.
+function _find_drawn_part(iomap, steps)
+    (length(steps) >= 1 && _is_field_step(steps[1], "content")) || return nothing
+    found = _indexed(steps[2:end], "children")
+    found === nothing && return nothing
+    (k, rest) = found
+    work = iomap.work
+    n = length(_children(iomap))
+    if work === nothing
+        j = k
+    elseif k == 1
+        (length(rest) >= 1 && _is_field_step(rest[1], "content")) || return nothing
+        inner = _indexed(rest[2:end], "children")
+        inner === nothing && return nothing
+        (m, rest) = inner
+        (1 <= m <= length(work)) || return nothing
+        j = work[m]
+    else
+        outside = Int[i for i in 1:n if !(i in work)]
+        (2 <= k <= length(outside) + 1) || return nothing
+        j = outside[k - 1]
+    end
+    (1 <= j <= n) ? (j, rest) : nothing
+end
 
 # A part is the floor, except for its text and the two sections of an
 # evaluation. A place inside the text of a text part is `content.<place>`, and in
@@ -936,6 +1130,8 @@ function _find_fold_operation(iomap, card)
         end
         iomap.output === card && return _make_fold_choice(iomap.input, :fold, card)
     end
+    iomap isa ConversationTurnToWidgetIoMap && iomap.work_card === card &&
+        return _make_fold_choice(iomap.input, :work_fold, card)
     iomap.output === card && return ToggleCollapseOperation(iomap.input)
     for child in something(get_child_iomaps(iomap), ())
         operation = _find_fold_operation(child, card)
@@ -1087,7 +1283,8 @@ function ConversationToWidget(; theme = nothing, widget_theme = nothing)
             other_role_text = get_style(:other_role_text),
             user_role_icon = get_style(:user_role_icon),
             assistant_role_icon = get_style(:assistant_role_icon),
-            other_role_icon = get_style(:other_role_icon)),
+            other_role_icon = get_style(:other_role_icon),
+            kind_text = get_style(:kind_text), section_padding = get_style(:section_indent)),
         ConversationPart         => ConversationPartToWidget(;
             message_text = get_style(:message_text),
             kind_text = get_style(:kind_text), section_text = get_style(:section_text),

@@ -420,11 +420,14 @@ end
 
 """
     ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false,
-                     start_time = 0.0, finish_time = 0.0, backend = :none, model = "")
+                     work_fold = :default, start_time = 0.0, finish_time = 0.0,
+                     backend = :none, model = "")
 
 One chat message: a `role` (`:user` / `:assistant`), an ordered list of parts,
-a streaming `stop_reason`, a `collapsed` flag, and the times at which the turn
-started and finished, in seconds of `time()`. A time of `0.0` is not known: a
+a streaming `stop_reason`, a `collapsed` flag, the fold of its work, and the times
+at which the turn started and finished, in seconds of `time()`. `work_fold` folds the line that a finished turn of the model makes of its work:
+`:default` follows the rule of the transcript, which folds it, and `:open` or
+`:folded` is the choice of a person, which stays. A time of `0.0` is not known: a
 turn of a file that kept no times, a turn of a test, or a turn that runs and
 has not finished.
 
@@ -438,6 +441,7 @@ model. A file keeps them for an answer.
     parts::CellVector
     stop_reason::Symbol
     collapsed::Bool
+    work_fold::Symbol
     start_time::Float64
     finish_time::Float64
     backend::Symbol
@@ -448,22 +452,24 @@ ConversationTurn(role::Symbol;
                  parts::Vector = ConversationPart[],
                  stop_reason::Symbol = :complete,
                  collapsed::Bool = false,
+                 work_fold::Symbol = :default,
                  start_time::Real = 0.0,
                  finish_time::Real = 0.0,
                  backend::Symbol = :none,
                  model::AbstractString = "") =
     ConversationTurn(Cell(role),
                      CellVector(Cell[Cell(p) for p in parts]),
-                     Cell(stop_reason), Cell(collapsed),
+                     Cell(stop_reason), Cell(collapsed), Cell(_check_fold(work_fold)),
                      Cell(Float64(start_time)), Cell(Float64(finish_time)),
                      Cell(backend), Cell(String(model)), Cell(nothing))
 
 # A file names the writer of an answer, and leaves out the empty writer of a turn
-# of the person.
+# of the person. It keeps the fold of the work only when a person chose it.
 function pred_arguments(turn::ConversationTurn)
     positional, keywords = invoke(pred_arguments, Tuple{Any}, turn)
     filter!(pair -> !(first(pair) === :backend && last(pair) === :none) &&
-                    !(first(pair) === :model && isempty(last(pair))), keywords)
+                    !(first(pair) === :model && isempty(last(pair))) &&
+                    !(first(pair) === :work_fold && last(pair) === :default), keywords)
     positional, keywords
 end
 
@@ -473,6 +479,7 @@ function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
     ConversationTurn(values[:role]; parts = collect(values[:parts]),
                      stop_reason = get(values, :stop_reason, :complete),
                      collapsed = get(values, :collapsed, false),
+                     work_fold = get(values, :work_fold, :default),
                      start_time = get(values, :start_time, 0.0),
                      finish_time = get(values, :finish_time, 0.0),
                      backend = get(values, :backend, :none),

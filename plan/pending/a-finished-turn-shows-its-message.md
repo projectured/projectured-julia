@@ -158,8 +158,9 @@ These details are proposals. They are approved with the plan.
    it does now. A turn with no message shows only its work line.
 3. **The work line comes before the message**, because the work came first. It
    says how many parts of each kind the work holds, and how long the turn ran
-   when both times are known: `Work: 9 tool calls · 3 thinking · 2 texts · 2 min
-   10 s`.
+   when both times are known and the turn ran for 1 s or more: `Work: 9 tool
+   calls · 3 thinking · 2 texts · 2 min 10 s`. A part of another kind, such as a
+   code block or an answered question, counts as "other part".
 4. **A click writes a choice.** A click on a chevron of a part or of the work line
    writes the opposite of what shows, `:open` or `:folded`. A new operation of the
    conversation slice does it, `ReplaceConversationFoldOperation(node, field,
@@ -196,7 +197,7 @@ Do the work in a worktree on a branch. Make one commit for each step.
    decision 5).
    Test: `test_conversation_transcript()`, `test_conversation_serialization()`,
    `test_conversation_tree()`, `test_assistant_overview()`.
-2. ☐ **A finished turn folds its work into one line.** Add `work_fold` to
+2. ✅ **A finished turn folds its work into one line.** Add `work_fold` to
    `ConversationTurn`. Make the turn printer split the parts into the work and the
    message, and draw the work line with its label. Make the fold reader give the
    operation for the work line. Add tests that print one turn while it runs and
@@ -252,3 +253,35 @@ Do the work in a worktree on a branch. Make one commit for each step.
   form; `test_conversation_tree` 43/43; `test_external_agent_turn` 321/321;
   `test_conversation_transcript` passes with a new test of the rule;
   `test_assistant_mvp` 193 pass, 4 broken, the markers of main.
+
+### Step 2
+
+- **The turn has an IO map of its own**, `ConversationTurnToWidgetIoMap`, with
+  the IO maps of the parts, the indices of the work (`work`) and the card of the
+  work line (`work_card`), each a computed cell. It adds a method of
+  `get_child_iomaps`, so the generic walks still find the parts. The fold reader
+  finds the work line there and writes `work_fold`.
+- **The reference maps of the turn follow the work line.** `_find_part_place` and
+  `_find_drawn_part` place part `j` in the work line or after it. A path to the
+  header of the work line names the turn.
+- **The work card follows the selection of the turn**, so a selection in a part of
+  the work draws its ring. The cell of the card computes at its first read, after
+  the IO map exists, so the card can follow it.
+- **A turn reads as running only with a start time and no finish time**
+  (`_is_turn_running`). A turn of a file or a test that has no times reads as
+  finished, so the example conversation shows its thinking in a folded work line.
+  Tests that read inside the work of such a turn open it with `work_fold = :open`,
+  as a person does: `ConversationTranscriptTest.jl`, `AssistantMvpTest.jl` and
+  `TextInkTest.jl`.
+- **A time under 1 s is left out of the label.** A test turn gave `Work: 1 tool
+  call · 0 s`, and `0 s` says nothing.
+- **Open point: the Alt+arrow walk walks the domain**, so it can stop on a part
+  inside a folded work line, where no ring draws. The walk test passes, because
+  it checks paths. This plan does not change the walk; the owner decides.
+- **`test_conversation` is measured alone.** In a process that loaded the
+  umbrella `ProjecturedTest` first, it gives 78 fail and 53 errors, as main does
+  (a known failure of main with the umbrella, from `ProjecturedMCP`).
+- **Results:** `test_conversation_transcript` passes with two new tests;
+  `test_assistant_mvp` 193 pass, 4 broken; `test_text_ink_inside_viewports`
+  10/10; `test_assistant_stream` 20/20; `test_assistant_composer_panel` 90/90;
+  `test_text_range_selection` 41/41; `test_conversation` alone 928/928.

@@ -783,7 +783,8 @@ end
 # The transcript draws a Markdown result as a page, so a table on it is a widget
 # table. The part passes its width on to the page, and the columns of the table
 # share it: each entry is drawn inside its column, and nothing leaves the width.
-# A resource read starts folded, so the part is open, as a person opens it.
+# A resource read starts folded, and it is the work of a finished turn, so the
+# work and the part are open, as a person opens them.
 
 # The left edge of every text a canvas drew, and the text. A text that a viewport
 # cuts away entirely is not drawn, so it is not found.
@@ -814,7 +815,7 @@ function _mvp_test_markdown_result_table()
                               tool_name = "read_resource",
                               input = Dict{String,Any}("uri" => "resource://guide/x"),
                               result = parse_markdown(written), output = written,
-                              tool_use_id = "tu_1"); fold = :open)])])
+                              tool_use_id = "tu_1"); fold = :open)]; work_fold = :open)])
         width = 900
         context = with_exact_size(PrinterContext(); width = Cell(Int32(width)))
         texts = _mvp_text_lefts(_render_conversation_widget(conversation, context))
@@ -857,9 +858,11 @@ function _mvp_test_resource_collapse()
         @test reply.parts[1].fold === :default
         # The form keeps the call's input, and the transcript's header names the
         # resource it read — drawn even while the part is folded, because the
-        # header is what a folded part shows.
+        # header is what a folded part shows. The turn has finished, so the part
+        # is in its work line, which a person opens first.
         @test ef.input == Dict{String,Any}("uri" => "resource://guides")
         @test get_evaluation_title(ef) == "resource · resource://guides"
+        reply.work_fold = :open
         texts = _mvp_texts(_render_conversation_widget(a.conversation, PrinterContext()))
         @test any(t -> occursin("resource://guides", t), texts)
     end
@@ -920,6 +923,7 @@ function _all_expanded_conversation()
     doc = make_conversation_document_example()
     for t in doc.turns
         t.collapsed = false
+        t.work_fold = :open
         for p in t.parts
             p.fold = :open
         end
@@ -1009,6 +1013,9 @@ function _mvp_test_collapse_click()
     @testset "collapse on header click" begin
         fake_measure = FixedMeasure(10, 15, 5, 0)
         doc  = make_conversation_document_example()
+        # The assistant turn has finished, so its thinking is in its work line,
+        # which a person opens first.
+        doc.turns[2].work_fold = :open
         proj = make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())
 
@@ -1023,16 +1030,16 @@ function _mvp_test_collapse_click()
         op_think = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
         op_prose = _find_toggle(proj, io, t -> t === doc.turns[2].parts[2])
 
-        # Thinking part header → the choice of the opposite of what shows. The
-        # part starts open, so the click folds it, and an undo gives back the
-        # default.
+        # Thinking part header → the choice of the opposite of what shows. A
+        # part of the work of a finished turn starts folded, so the click opens
+        # it, and an undo gives back the default.
         @test op_think isa ReplaceConversationFoldOperation
-        @test op_think.field === :fold && op_think.fold === :folded
+        @test op_think.field === :fold && op_think.fold === :open
         @test doc.turns[2].parts[1].content isa ConversationThinking
         @test doc.turns[2].parts[1].fold === :default
         undo = make_inverse_operation(doc, op_think)
         evaluate_operation((document = doc,), op_think)
-        @test doc.turns[2].parts[1].fold === :folded
+        @test doc.turns[2].parts[1].fold === :open
         evaluate_operation((document = doc,), undo)
         @test doc.turns[2].parts[1].fold === :default
 
