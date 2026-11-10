@@ -95,6 +95,17 @@ Every move of the pointer, with a button held or not, names the part under the p
 
 The container finds the child that the pointer leaves from its own mouse target (`get_mouse_target` of the kernel), and joins the two answers with `join_move_answers`, the answer of the child that the pointer leaves first.
 
+### A view draws a child at a place
+
+A view that draws the print of a part of its input over its own canvas, at a place of its choice, keeps that child as `(; x, y, w, h, iomap, steps)`: the rectangle in the frame of the view, the IO map of the child, and the steps from the input of the view to the input of the child. `DrawnChild.jl` holds the routing, with no type of a part in it:
+
+- `find_drawn_child_at(children, x, y)` is the first child whose rectangle holds the point.
+- `read_drawn_child_event(document, child, event)` gives a pointer gesture to the child in its own frame, and its answer comes back in the frame of the view, with the steps of the child in front of each path. A dwell and a right click that the child does not answer go out over `document`, the input of the view.
+- `read_drawn_child_move(document, children, event)` gives a move to the child under the point, and the leave to the child that the mouse target of `document` names when the pointer is off it now.
+- `map_drawn_child_point(document, child, x, y)` is the path of the part of the child under a point, for the backward map of the view.
+
+The chart and the sequence chart draw their buttons and their scroll bars this way.
+
 ### A route moves the point
 
 A change with a route ([projection-system.md](../../kernel/projection-system.md#the-intent-the-reader-threads)) that reaches a container whose children sit in frames of their own gets the point of a pointer gesture moved into the frame of the child the route names, the same move the container gives a gesture it hands to that child at a point. `read_child_by_route(projection, recursion, change, iomap, child)` is the hook: the kernel's default reads `child` with `change` unchanged, and a container that draws its children in frames of their own adds a method for its own projection.

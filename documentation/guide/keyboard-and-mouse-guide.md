@@ -144,6 +144,30 @@ The appearance tab opens with Ctrl + comma, with the palette button of the toolb
 
 A change shows at once. Ctrl + Z in the window takes back a change of a theme; a step of the zoom or of a scale has its reset button instead. Save keeps the appearance for the next start, and Load reads the saved one back.
 
+## Move through a chart
+
+A chart shows a window of its data. The keys and the mouse move that window; they change no data.
+
+| Key or mouse | What it does |
+| --- | --- |
+| Ctrl + wheel over the plot | zoom in or out about the pointer |
+| Ctrl + wheel over an axis | zoom that axis alone |
+| wheel, Shift + wheel | scroll up and down, scroll across |
+| drag in the plot | zoom to the box that you draw; a flat box zooms across alone, a narrow box up and down alone |
+| Shift + drag, drag with the middle button | move the window with the pointer |
+| drag an axis | move that axis alone |
+| double click in the plot | show all the data |
+| double click an axis | fit that axis: the y axis fits the data that shows across |
+| Ctrl + plus, Ctrl + minus, Ctrl + 0 | zoom in, zoom out, show all the data |
+| plus, minus, 0 | the same |
+| Page Up, Page Down | scroll a page up or down |
+| Alt + Page Up, Alt + Page Down | scroll a page to the left or to the right |
+| Shift + arrows | move the window a little |
+| Escape during a drag | stop it, and put back the window |
+| right click | a menu of these actions, with their keys |
+
+While the pointer is over a chart, three buttons show in its top-right corner: zoom in, zoom out, and show all the data. A zoomed chart has a scroll bar along the bottom or the right edge of its plot, which shows where the window is in the data; a click on its track scrolls a page, and a drag of its thumb moves the window. The window stops at the edges of the data, so a zoom out stops at all the data. A chart that shows all its data leaves the wheel to the page around it, and Ctrl + 0 to the zoom of the window. The arrows still move the selection between the parts of the chart.
+
 ## The two lists
 
 - **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open. Help > Gestures opens it too.

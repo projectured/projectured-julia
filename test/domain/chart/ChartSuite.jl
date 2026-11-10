@@ -28,6 +28,7 @@ function test_chart()
         test_chart_theme()
         test_chart_pie()
         test_chart_verbs()
+        test_chart_view_gestures()
     end
 end
 

@@ -16,6 +16,9 @@ Every function of `PlotModule` is pure. It takes numbers, vectors and colours an
 The parts that are not obvious from their names:
 
 - **`AxisScale(lo, hi, p0, p1; log = false)`** maps between a data coordinate and a pixel, affine or log-affine. `to_pixel` and `to_data` are the two directions. A chart builds a new scale from its data window on each zoom, so ticks and decimation follow the window.
+- **A window** is the part `(lo, hi)` of an axis that a plot shows, and the **extent** is the window that holds all the data. `compute_zoomed_window(window, factor; extent, focus, log)` scales a window about the value `focus`, which keeps its place; `compute_panned_window(window, fraction; extent, log)` moves it by a part of its span; `compute_limited_window(window; extent, log)` sizes and moves it into its limits. Each works in the space of the axis, `log10` on a log axis, so a pan moves each pixel by the same distance. A zoom out stops at the extent, a pan stops at its edge, and a zoom in stops where the window spans 10,000 float steps of its larger bound. A window within rounding of the extent is the extent, and a window at a limit comes back unchanged, so a caller can tell a gesture that moves nothing.
+- **`compute_window_scroll_bar_thumb`**, **`compute_window_scroll_bar_value`** and **`compute_window_at_scroll_bar_value`** give the thumb and the value of a scroll bar along an axis from a window and its extent, and the window of a value, in the space of the axis.
+- **`format_tick(value, step)`** writes the digits that tell two ticks `step` apart, as a plain decimal, or in scientific notation for a value under 1e-3 or from 1e6, so two tick labels differ at each zoom.
 - **`get_visible_range`** finds, with a binary search, the indices of an ascending column that fall into the window. So a pan over a long series reads only what shows.
 - **`decimate_minmax`** keeps at most four samples for each pixel column: the first, the lowest, the highest and the last. The polyline through them is the same, pixel for pixel, as the polyline through all samples. So the output has at most four points for each pixel of width, and the picture is exact.
 - **`fold_scatter`**, **`fold_bins`**, **`strip_runs`** and **`fold_strips`** fold what is narrower than a pixel: a dense cloud into a density grid, thin bars into an envelope, and a state trace into runs and then into spans. [chart.md](../../domain/chart/chart.md#scale) says what each one draws.
@@ -27,7 +30,7 @@ The parts that are not obvious from their names:
 The plot slice depends only on the style slice, for `StyleColor` and the Solarized colours. `ProjecturedChart` and `ProjecturedSequenceChart` depend on it:
 
 - The chart uses all of it: the scales, the ticks, every decimation and fold, the legend layout and the cycles.
-- The sequence chart uses `AxisScale`, `to_pixel`, `to_data`, `compute_nice_ticks`, `format_tick`, `default_color_cycle` and `get_series_color`. It has its own decimation for events and arrows in `SequenceChartGeometry.jl`.
+- The sequence chart uses `AxisScale`, `to_pixel`, `to_data`, `compute_nice_ticks`, `format_tick`, `default_color_cycle`, `get_series_color`, and the functions of a window and of its scroll bar. It has its own decimation for events and arrows in `SequenceChartGeometry.jl`.
 
 It registers nothing.
 
