@@ -1,6 +1,6 @@
 # What the pane tree does with what the widgets report: a tab click focuses, a
-# close button closes, a duplicate button duplicates, the new-tab button opens,
-# and a splitter drag becomes a weight change.
+# close button closes, the new-tab button opens, and a splitter drag becomes a
+# weight change.
 #
 # Every case drives the whole chain — a real pixel goes in at the graphics end and
 # a pane-domain operation comes out — because that is the only way to see the two
@@ -116,35 +116,15 @@ end
     @test group.tabs[1] === kept          # the first tab's button closed the first tab
 end
 
-@testset "the + above a close button duplicates its own tab" begin
+@testset "the strip of a group offers no duplicate" begin
+    # A duplicate is a command of the menu of a tab, so no press in the strip
+    # copies a tab, also of a content that has a duplicate.
     group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
     tree = PaneTree(group)
-    editor = _PaneReaderMockEditor(tree)
     proj = _chain()
     iomap = print_document(proj, tree)
-    # The pane asks each content whether it has a duplicate.
-    pane = getfield(iomap, :step_iomaps)[][1][].output.elements[1]
-    @test pane.duplicable
-    @test pane.selector_element_pairs[1].duplicable
-
-    duplicates = [op for (_, op) in _sweep(proj, iomap) if _is_duplicate(op)]
-    @test !isempty(duplicates)
-    original = group.tabs[1]
-    _apply!(editor, duplicates[1])
-    @test length(group.tabs) == 3
-    @test get_pane_tab_title_string(group.tabs[2]) == "a (2)"
-    @test group.tabs[2].content !== original.content
-    @test get_pane_focus(tree) == (group, 2)
-end
-
-@testset "a + whose content refuses its duplicate gives no edit" begin
-    field = WidgetText("12"; validator = make_numeric_validator())
-    tree = PaneTree(PaneGroup(PaneTab[PaneTab("field", field)]))
-    proj = _chain()
-    iomap = print_document(proj, tree)
-    found = @test_logs (:warn, "The pane has no duplicate") match_mode = :any _sweep(proj, iomap)
-    @test !any(op -> _is_duplicate(op), last.(found))
-    @test length(tree.root.tabs) == 1
+    @test has_document_duplicate(group.tabs[1].content)
+    @test !any(op -> _is_duplicate(op), last.(_sweep(proj, iomap)))
 end
 
 @testset "the new-tab button opens a tab and focuses it" begin
@@ -245,7 +225,7 @@ end
     between = _PaneReaderGenericStage()
     iomap = SimpleIoMap(between, pane, pane)
     for report in (CloseTabOperation(pane, 1), OpenTabOperation(pane),
-                   DragTabOperation(pane, 1), DuplicateTabOperation(pane, 1))
+                   DragTabOperation(pane, 1))
         @test read_intent(between, iomap, report) === report
     end
 end

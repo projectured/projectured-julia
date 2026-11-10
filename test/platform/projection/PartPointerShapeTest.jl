@@ -181,7 +181,7 @@ function test_part_pointer_shape()
             shapes = [find_pointer_shape(iomap.output, x, y) for (x, y) in points]
             clicks = [_read_pointer_part(widgets, iomap, click(x, y)) for (x, y) in points]
             downs = [_read_pointer_part(widgets, iomap, down(x, y)) for (x, y) in points]
-            buttons = [operation isa Union{CloseTabOperation, OpenTabOperation, DuplicateTabOperation}
+            buttons = [operation isa Union{CloseTabOperation, OpenTabOperation}
                        for operation in clicks]
             tabs = _is_pointer_part_tab_click.(clicks) .& .!buttons
             @test count(buttons) > 0 && count(tabs) > 0

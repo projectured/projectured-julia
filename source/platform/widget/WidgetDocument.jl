@@ -1417,9 +1417,8 @@ WidgetTabLabel(text; icon = nothing, icon_role = nothing, badges = Any[], toolti
 _get_tab_selector_text(selector::WidgetTabLabel) = string(selector.text)
 _get_tab_selector_text(selector) = string(selector)
 
-# A single tab page: the tab `selector`, its content `element`, an optional
-# `icon`, and whether the tab offers a duplicate button (`duplicable`, drawn only
-# when the pane is `duplicable` too). The selector is a string, or a
+# A single tab page: the tab `selector`, its content `element`, and an optional
+# `icon`. The selector is a string, or a
 # `WidgetTabLabel` whose own icon wins over `icon`. A page is a Document, so the
 # selection chain descends Document→Document through a tabbed pane: the in-place
 # selection sync (`replace_selection!`) reaches the leaf and leaves the routing
@@ -1429,20 +1428,16 @@ _get_tab_selector_text(selector) = string(selector)
     selector::Any
     element::Any
     icon::Any = nothing
-    duplicable::Bool = false
     tooltip::Any = nothing
 end
 
-# `WidgetTabPage(selector, element)`, `(selector, element, icon)` and
-# `(selector, element, icon, duplicable)` are Rule Y constructors: `icon`,
-# `duplicable` and `selection` are the trailing defaulted run.
+# `WidgetTabPage(selector, element)` and `(selector, element, icon)` are Rule Y
+# constructors: `icon` and `selection` are the trailing defaulted run.
 
-# Wrap a caller's tab entry — a `(selector, element)`, `(selector, element, icon)`
-# or `(selector, element, icon, duplicable)` tuple, or an already-built
-# `WidgetTabPage` — into a `WidgetTabPage`.
+# Wrap a caller's tab entry — a `(selector, element)` or `(selector, element, icon)`
+# tuple, or an already-built `WidgetTabPage` — into a `WidgetTabPage`.
 _as_tab_page(p::WidgetTabPage) = p
-_as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing,
-                                       length(p) >= 4 ? p[4] : false)
+_as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing)
 
 """
     WidgetTabbedPane(selector_element_pairs; closable, new_tab, <base kwargs>)
@@ -1462,14 +1457,15 @@ this is for tabs inside a widget.
     note = WidgetLabel("The delay grows with the load.")
     open_pane!(WidgetTabbedPane(Any[("Table", table), ("Note", note)]); title = "Results")
 
-Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` draws a close
-button on every tab, `new_tab` draws a new-tab button after the last one, and
-`draggable` makes a button down on a tab a grab. `duplicable` splits the close
-button of each page whose own `duplicable` is set: a `+` above the `x`. All four
-are off by default, and none of them decides what the gesture *means*: the strip
-answers with [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
-[`DragTabOperation`](@ref) / [`DuplicateTabOperation`](@ref), and the projection
-that owns the tabs decides.
+Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` gives every tab a
+close button, and a middle click on a tab closes it too. The open tab always
+shows its close button. Another tab shows it only while the pointer is on that
+tab, and keeps its space while it is hidden, so no tab changes its width.
+`new_tab` draws a new-tab button after the last tab, and `draggable` makes
+a button down on a tab a grab. All three are off by default, and none of them
+decides what the gesture *means*: the strip answers with
+[`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
+[`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 
 See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
 children shown at once.
@@ -1487,7 +1483,6 @@ For the assistant.
     closable::Bool = false
     new_tab::Bool = false
     draggable::Bool = false
-    duplicable::Bool = false
     tooltip::Any
 end
 
@@ -1501,13 +1496,12 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           tab_scroll::Integer=0,
                           closable::Bool=false,
                           new_tab::Bool=false,
-                          draggable::Bool=false,
-                          duplicable::Bool=false, tooltip=nothing)
+                          draggable::Bool=false, tooltip=nothing)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style),
                      Cell(Int(tab_scroll)),
-                     Cell(closable), Cell(new_tab), Cell(draggable), Cell(duplicable),
+                     Cell(closable), Cell(new_tab), Cell(draggable),
                      Cell(tooltip), Cell(nothing))
 end
 
@@ -3538,7 +3532,7 @@ get_instance_gesture_bindings(w::WidgetTree) = w.gestures
     CloseTabOperation(widget, tab_index)
 
 Signals that the close button of tab `tab_index` (1-based) of `widget` was
-clicked. It only *reports* — the strip knows a button was pressed and nothing
+clicked, or that the tab got a middle click. It only *reports* — the strip knows a button was pressed and nothing
 about what closing means, so the projection that owns the tabs answers it with an
 edit of its own document. A click on a tab itself is a `ReplaceSelectionOperation`
 of `selector_element_pairs[tab_index]`.
@@ -3567,18 +3561,6 @@ grabbed, and the projection that owns the tabs runs the drag from there, because
 only it knows where a tab may be dropped.
 """
 struct DragTabOperation <: Operation
-    widget::WidgetTabbedPane
-    tab_index::Int
-end
-
-"""
-    DuplicateTabOperation(widget, tab_index)
-
-Signals that the duplicate button of tab `tab_index` (1-based) of `widget` was
-clicked: the `+` above the close button. Reports only; see
-[`CloseTabOperation`](@ref).
-"""
-struct DuplicateTabOperation <: Operation
     widget::WidgetTabbedPane
     tab_index::Int
 end
@@ -3856,7 +3838,7 @@ end
 # page is dead while it looks and draws exactly right.
 OperationModule.is_self_contained_operation(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
-    DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation,
+    DragTabOperation, StartSplitterDragOperation,
     ResizeSplitPaneOperation, EndSplitterDragOperation,
     SetSplitterUnderPointerOperation}) = true
 
@@ -3891,7 +3873,7 @@ has_dormant_selection(::FindBarView) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 
-# The four strip reports are inert when nothing claimed them. A press on a close
+# The three strip reports are inert when nothing claimed them. A press on a close
 # button with no projection above to say what closing means must do nothing — the
 # report reached the editor because no one answered it, which is not an error.
 """
@@ -3902,7 +3884,6 @@ Apply a widget operation.
 evaluate_operation(editor, op::CloseTabOperation) = nothing
 evaluate_operation(editor, op::OpenTabOperation) = nothing
 evaluate_operation(editor, op::DragTabOperation) = nothing
-evaluate_operation(editor, op::DuplicateTabOperation) = nothing
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
     split = op.split

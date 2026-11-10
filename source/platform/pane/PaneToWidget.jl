@@ -134,12 +134,16 @@ function _index_prefix(selection)
     ConcreteReference(selection.type, selection.head, EmptyReference())
 end
 
-# Wire a widget's selection cell to the forward image of `source`'s selection.
+# Wire a widget's selection cell to the forward image of `source`'s selection,
+# and its mouse target cell to the image of the mouse target of `source`.
 # `get_routing` answers the part of the selection that the widget needs, which is
-# the routing prefix unless the caller says more.
-function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix)
+# the routing prefix unless the caller says more, and `get_target_routing` the
+# part of the mouse target.
+function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix;
+                             get_target_routing = get_routing)
     source_selection = getfield(source, :selection)
     map_forward(path) = map_reference_forward(projection, iomap, get_routing(path))
+    map_target_forward(path) = map_reference_forward(projection, iomap, get_target_routing(path))
     set_cell_computation!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
@@ -149,7 +153,7 @@ function _forward_selection!(widget, source, projection, iomap, get_routing = _i
     end)
     hasfield(typeof(widget), :mouse_target) &&
         set_cell_computation!(getfield(widget, :mouse_target),
-                              () -> map_mouse_target_forward(source, map_forward))
+                              () -> map_mouse_target_forward(source, map_target_forward))
 end
 
 # ── PaneTree ───────────────────────────────────────────────────────────────
@@ -385,21 +389,19 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
             (iomap = child, pane = child.output)
         end)
 
-    # Every group offers the whole vocabulary: close a tab, open one, grab one, and
-    # duplicate one whose content has a duplicate. That question is answered from
-    # the type of the content, so the strip reads no cell of the content to ask it.
-    pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
-                            duplicable = true)
+    # Every group offers the whole vocabulary of the strip: close a tab, open one,
+    # and grab one.
+    pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true)
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[WidgetTabPage(_make_tab_label(tabs[i]), entries[i].pane, nothing,
-                          has_document_duplicate(entries[i].iomap.input))
+        Any[WidgetTabPage(_make_tab_label(tabs[i]), entries[i].pane)
             for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
-    _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection))
+    _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection);
+                        get_target_routing = _get_group_target_routing)
     iomap
 end
 
@@ -421,6 +423,16 @@ end
 _get_group_routing(group::PaneGroup, selection) =
     (is_live_selection(group) && _is_title_caret(selection)) ? selection : _index_prefix(selection)
 
+# The part of a group's mouse target that its tabbed pane needs. A path into the
+# title of a tab passes whole, because the strip draws the title as the header of
+# the tab, and shows the close button of the header under the pointer; everything
+# else is the routing prefix.
+_get_group_target_routing(path) = _is_tab_title_path(path) ? path : _index_prefix(path)
+
+_is_tab_title_path(path) = (@reference_case path begin
+    ::PaneGroup.tabs[i].rest... => _is_title_path(rest)
+end) === true
+
 _is_title_caret(selection) = (@reference_case selection begin
     ::PaneGroup.tabs[i].rest... => _find_title_caret_position(rest) !== nothing
 end) === true
@@ -431,10 +443,21 @@ _find_title_caret_position(rest) = @reference_case rest begin
     ::PaneTab.title.name.value{k} => k
 end
 
+# Whether `rest`, a path below a tab, goes into its title.
+_is_title_path(rest) = (@reference_case rest begin
+    ::PaneTab.title.inner... => true
+end) === true
+
 # The caret position in the name that a tab page of the widget holds.
 _find_selector_caret_position(rest) = @reference_case rest begin
     ::WidgetTabPage.selector.text{k} => k
 end
+
+# Whether `rest`, a path below a tab page of the widget, goes into its selector,
+# the header of the tab.
+_is_selector_path(rest) = (@reference_case rest begin
+    ::WidgetTabPage.selector.inner... => true
+end) === true
 
 function map_reference_forward(::PaneGroupToWidgetTabbedPane,
                                iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
@@ -446,8 +469,12 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             k = _find_title_caret_position(rest)
             k === nothing ||
                 return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String{k}::Position
+            # The header is the view of the title, so any other part of the title is
+            # the header, as the pointer on the header is the title.
+            _is_title_path(rest) &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel
             # The node at `[i]` is the tab page, and the content is its `element`. A
-            # selection that names the tab whole, or its title whole, names the page.
+            # selection that names the tab whole names the page.
             inside = _get_tab_content_path(rest)
             inside === nothing &&
                 return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage
@@ -491,6 +518,10 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             k = _find_selector_caret_position(rest)
             k === nothing ||
                 return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String{k}::Position
+            # The header of a tab is the view of its title, so any other part of
+            # the header names the title whole, as the pointer on it does.
+            _is_selector_path(rest) &&
+                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle
             # `concat_references`, not the `^` splice of `@reference`: the splice
             # hoists the spliced path's leading type onto the node before it, so a
             # content path that starts at its own checkpoint would overwrite
@@ -608,13 +639,6 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     make_pane_open_tab_operation(iomap.input, group, p.new_tab())
-end
-
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::DuplicateTabOperation)
-    group = _pane_node_for(iomap, operation.widget)
-    group isa PaneGroup || return nothing
-    make_pane_duplicate_tab_operation(iomap.input, group, operation.tab_index)
 end
 
 read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation) =

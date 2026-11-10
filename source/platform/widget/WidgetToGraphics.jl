@@ -5333,10 +5333,9 @@ end
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
 # a NamedTuple of the content offset, the tab padding, the strip height, the natural
 # strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, button_w,
-# buttons, text_w, badges)`, where `x`/`rw` are the tab's left edge and full width in
-# strip coordinates, `button_w` is the width of its button column (0 when it has
-# none), `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or
-# `:both`, the `+` above the `x`, `text_w` is the width of the label's text, and
+# text_w, badges)`, where `x`/`rw` are the tab's left edge and full width in
+# strip coordinates, `button_w` is the width of its close button (0 when the pane
+# is not `closable`), `text_w` is the width of the label's text, and
 # `badges` holds a `(badge, box, width, height)` for each badge after the text — and the
 # new-tab button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
 #
@@ -5352,8 +5351,7 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     # starts in.
     _, em_h = _text_size(p.measure, p.font, "M")
     closable = w.closable === true
-    duplicable = w.duplicable === true
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons, text_w, badges)
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, text_w, badges)
     # An icon and a button are a square of one line times `icon_size`, and the
     # row is as tall as the largest of them and the line.
     new_side = w.new_tab === true ? scale_length(em_h, p.icon_size) : 0
@@ -5379,11 +5377,10 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
             badges_w += p.label_gap + bw
             tab_h = max(tab_h, bh)
         end
-        buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
-        button_w = buttons === :none ? 0 : scale_length(th, p.icon_size)
+        button_w = closable ? scale_length(th, p.icon_size) : 0
         button_gap = button_w > 0 ? p.label_gap : 0
         rw  = tw + badges_w + iw + gap + button_w + button_gap + pad_left + pad_right
-        push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons, tw, badges))
+        push!(tabs, (label, icon, iw, gap, x, rw, button_w, tw, badges))
         x += rw
         tab_h = max(tab_h, th, iw, button_w)
     end
@@ -5419,48 +5416,27 @@ function _get_tab_badges(selector::WidgetTabLabel)
 end
 _get_tab_badges(selector) = WidgetBadge[]
 
-# What the button column of a tab holds.
-_get_tab_buttons(closable::Bool, duplicable::Bool) =
-    closable && duplicable ? :both :
-    closable               ? :close :
-    duplicable             ? :duplicate : :none
-
-# The button column's box inside a tab tuple: its left edge and its width, or
+# The close button's box inside a tab tuple: its left edge and its width, or
 # `nothing` when the tab has none.
 function _get_tab_button_box(tab, pad)
     button_w = tab[7]
     button_w > 0 ? (tab[5] + tab[6] - pad.right - button_w, button_w) : nothing
 end
 
-# The part of the strip a point on tab `tab` lands on: `:close`, `:duplicate`, or
-# `:tab` for the rest. A column that holds both buttons is split across the strip's
-# height: the `+` above, the `x` below.
-function _get_tab_part(g, tab, xx::Int, yy::Int)
+# The part of the strip a point on tab `tab` lands on: `:close` on its close
+# button, and `:tab` for the rest.
+function _get_tab_part(g, tab, xx::Int)
     box = _get_tab_button_box(tab, g.pad)
-    (box !== nothing && xx >= box[1] && xx < box[1] + box[2]) || return :tab
-    buttons = tab[8]
-    buttons === :both || return buttons
-    yy < g.coy + g.height ÷ 2 ? :duplicate : :close
+    (box !== nothing && xx >= box[1] && xx < box[1] + box[2]) ? :close : :tab
 end
 
-# Draw the button column of a tab. A single button fills the column at the
-# height of the label; two share it, each centred in its half of the strip.
-function _push_tab_buttons!(result, g, tab, color)
+# Draw the close button of a tab, at the height of the label.
+function _push_tab_close_button!(result, g, tab, color)
     box = _get_tab_button_box(tab, g.pad)
     box === nothing && return
     x, w = box
-    buttons = tab[8]
-    if buttons === :both
-        half = g.height ÷ 2
-        side = min(w, half)
-        icon_x = x + (w - side) ÷ 2
-        _push_icon!(result, :plus, icon_x, g.coy + (half - side) ÷ 2, side, color)
-        _push_icon!(result, :close, icon_x, g.coy + half + (g.height - half - side) ÷ 2,
-                    side, color)
-    else
-        _push_icon!(result, buttons === :duplicate ? :plus : :close, x,
-                    g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - w) ÷ 2, w, color)
-    end
+    _push_icon!(result, :close, x, g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - w) ÷ 2,
+                w, color)
 end
 
 # Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
@@ -5551,7 +5527,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         # with no size of its own: the header of the tab, the image of its
         # `selector`. No other element of the strip is a canvas.
         for i in eachindex(tabs)
-            label, icon, iw, gap, tx, rw, _, _, tw, badges = tabs[i]
+            label, icon, iw, gap, tx, rw, _, tw, badges = tabs[i]
             state = i == active ? :selected : nothing
             tab_color = _get_state_color(p, w, :tab; state)
             header = Any[]
@@ -5585,8 +5561,21 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                            _build_badge_elements(p.badge, badge, badge_box, bw, bh)))
                 badge_x += bw
             end
-            # The button column sits at the tab's right edge, tinted like its label.
-            _push_tab_buttons!(header, g, tabs[i], fg)
+            # The close button sits at the tab's right edge, tinted like its label.
+            # The open tab always shows it. Another tab shows it only while the
+            # pointer is on its header: a cell of its own canvas reads the mouse
+            # target, so a move redraws that canvas and not the strip. The button
+            # keeps its place while it is hidden, so no tab changes its width.
+            close = Any[]
+            _push_tab_close_button!(close, g, tabs[i], fg)
+            if i == active
+                append!(header, close)
+            elseif !isempty(close)
+                n = length(tabs)
+                push!(header, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
+                                             CellVector(@computation _is_tab_header_under_pointer(w, i, n) ? close : Any[]),
+                                             layout_none, true, Cell(nothing)))
+            end
             button_box = _get_tab_button_box(tabs[i], g.pad)
             button_box === nothing ||
                 push!(header, GraphicsPointerShape(button_box[1], coy, button_box[2], sel_h,
@@ -5903,7 +5892,7 @@ function _find_tab_header_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
     w isa WidgetTabbedPane || return nothing
     strip_x = _tab_strip_coordinate(p, w, iomap, point.x, point.y)
     strip_x === nothing && return nothing
-    index, _ = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), strip_x, point.y)
+    index, _ = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), strip_x)
     index == 0 && return nothing
     annotate_reference_types(w, extend_reference(EmptyReference(), FieldReferenceStep("selector_element_pairs"),
                                                  ElementReferenceStep(index), FieldReferenceStep("selector")))
@@ -5934,13 +5923,13 @@ function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTab
     x + _tab_scroll_offset(w, g.strip_w, view_w)
 end
 
-# The 1-based tab a strip-space x lands on, or 0, and the part of it at `yy`:
-# `:tab`, `:close` or `:duplicate` (see `_get_tab_part`).
-function _find_tab_at_strip_point(g, xx::Int, yy::Int)
+# The 1-based tab at the strip-space x `xx`, or 0, and the part of the tab there:
+# `:tab` or `:close` (see `_get_tab_part`).
+function _find_tab_at_strip_point(g, xx::Int)
     for (i, t) in enumerate(g.tabs)
         tx, rw = t[5], t[6]
         (xx >= tx && xx < tx + rw) || continue
-        return (i, _get_tab_part(g, t, xx, yy))
+        return (i, _get_tab_part(g, t, xx))
     end
     (0, :tab)
 end
@@ -5960,13 +5949,18 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetChildrenI
         xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
         if xx !== nothing
             g = _tab_strip_geometry(p, w, _get_box_geometry(iomap))
+            # A middle click on a tab of a `closable` pane closes the tab, as its
+            # close button does. Anywhere else in the strip it does nothing.
+            if evt.button === :middle
+                index, _ = _find_tab_at_strip_point(g, xx)
+                return (index > 0 && w.closable === true) ? CloseTabOperation(w, index) : nothing
+            end
             # The new-tab button first: it follows the last tab, so no tab box can
             # claim it.
             g.new_w > 0 && xx >= g.new_x && xx < g.new_x + g.new_w &&
                 return OpenTabOperation(w)
-            index, part = _find_tab_at_strip_point(g, xx, evt.y)
+            index, part = _find_tab_at_strip_point(g, xx)
             index > 0 && part === :close && return CloseTabOperation(w, index)
-            index > 0 && part === :duplicate && return DuplicateTabOperation(w, index)
             # A tab click is a selection change, nothing more. Emitted as this pane's
             # own local path, so the ordinary re-targeting carries it to the document
             # root: the walk then starts high enough to see a sibling group and mark
@@ -6007,14 +6001,14 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetChildrenI
     # A left button down on a tab of a `draggable` pane is a grab. The strip
     # resolves which tab; the projection that owns the tabs runs the drag from
     # there, because only it knows where a tab may be dropped. A down on the close
-    # or the duplicate button is not a grab, and a down anywhere else routes to
+    # button is not a grab, and a down anywhere else routes to
     # the visible tab.
     if evt isa MouseDown && evt.button === :left
         w = iomap.input
         if w isa WidgetTabbedPane && w.draggable === true
             xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
             if xx !== nothing
-                index, part = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), xx, evt.y)
+                index, part = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), xx)
                 index > 0 && part === :tab && return DragTabOperation(w, index)
             end
         end
@@ -6098,17 +6092,27 @@ function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::Widg
     join_move_answers(_prefix_tab_operation(old_answer, w, active), new_answer)
 end
 
-# The tab whose page holds the part that the pane's mouse target names, or 0. A
-# path to a header, `selector_element_pairs[i].selector`, is not in the page.
-function _find_mouse_target_page(w::WidgetTabbedPane, n::Int)
+# The tab of the part that the pane's mouse target names, or 0, and whether that
+# part is the header of the tab, `selector_element_pairs[i].selector`.
+function _find_mouse_target_tab(w::WidgetTabbedPane, n::Int)
     target = get_mouse_target(w)
     index = _tab_index_from_selection(target, n)
-    index == 0 && return 0
+    index == 0 && return (0, false)
     rest = target.head isa FieldReferenceStep ? target.tail.tail : target.tail
-    is_header = rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
-                rest.head.name == "selector"
+    (index, rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
+            rest.head.name == "selector")
+end
+
+# The tab whose page holds the part that the pane's mouse target names, or 0. A
+# header is not in the page.
+function _find_mouse_target_page(w::WidgetTabbedPane, n::Int)
+    index, is_header = _find_mouse_target_tab(w, n)
     is_header ? 0 : index
 end
+
+# Whether the pointer is on the header of tab `i` of the `n` tabs of the pane.
+_is_tab_header_under_pointer(w::WidgetTabbedPane, i::Int, n::Int) =
+    _find_mouse_target_tab(w, n) == (i, true)
 
 # Coordless routing: forward to the tab the selection points at, or nothing when
 # the selection is not in this pane. Unlike `_route_active_tab` there is NO

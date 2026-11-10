@@ -1,6 +1,5 @@
-# The four things a tab strip reports beside a tab click: a close button, a
-# duplicate button, a new-tab button, and the grab that may become a drag. Each is
-# opt-in on the pane.
+# The three things a tab strip reports beside a tab click: a close button, a
+# new-tab button, and the grab that may become a drag. Each is opt-in on the pane.
 #
 # The tests never hardcode a pixel: they sweep the strip and assert on *which*
 # operations appear and in what order along the x axis. So they check the seam
@@ -120,13 +119,6 @@ end
     @test evaluate_operation(nothing, CloseTabOperation(pane, 1)) === nothing
     @test evaluate_operation(nothing, OpenTabOperation(pane)) === nothing
     @test evaluate_operation(nothing, DragTabOperation(pane, 1)) === nothing
-    @test evaluate_operation(nothing, DuplicateTabOperation(pane, 1)) === nothing
-end
-
-# A pane whose first page offers a duplicate and whose second does not.
-function _duplicable_pane(; kwargs...)
-    WidgetTabbedPane(Any[("one", WidgetLabel("1"), nothing, true),
-                         ("two", WidgetLabel("2"), nothing, false)]; kwargs...)
 end
 
 # Every press or down in the strip band that answers a strip report, with where.
@@ -134,47 +126,26 @@ function _sweep_points(proj, iomap, event_of)
     found = Tuple{Int,Int,Any}[]
     for y in 0:1:40, x in 0:1:400
         op = read_intent(proj, iomap, event_of(x, y))
-        op isa Union{CloseTabOperation, DuplicateTabOperation, DragTabOperation} || continue
+        op isa Union{ReplaceSelectionOperation, CloseTabOperation, DragTabOperation} || continue
         push!(found, (x, y, op))
     end
     found
 end
 
-@testset "a duplicable page splits its close column: the + above the x" begin
-    pane = _duplicable_pane(closable = true, duplicable = true)
-    proj = _proj()
-    iomap = print_document(proj, pane)
-    found = _sweep_points(proj, iomap, _press)
-    duplicates = [(x, y) for (x, y, op) in found if op isa DuplicateTabOperation]
-    closes1 = [(x, y) for (x, y, op) in found if op isa CloseTabOperation && op.tab_index == 1]
-    @test !isempty(duplicates)
-    @test !isempty(closes1)
-    # Every duplicate report names the first tab and the pane it came from.
-    @test all(op -> op.tab_index == 1 && op.widget === pane,
-              [op for (_, _, op) in found if op isa DuplicateTabOperation])
-    # One column: the same x range, the + wholly above the x.
-    @test extrema(first.(duplicates)) == extrema(first.(closes1))
-    @test maximum(last.(duplicates)) < minimum(last.(closes1))
-    # The second page keeps its whole close button.
-    @test any(op -> op isa CloseTabOperation && op.tab_index == 2, last.(found))
-end
-
-@testset "a pane that is not duplicable offers no +, whatever its pages say" begin
-    pane = _duplicable_pane(closable = true)
-    proj = _proj()
-    iomap = print_document(proj, pane)
-    @test !any(op -> op isa DuplicateTabOperation, last.(_sweep_points(proj, iomap, _press)))
-end
-
-@testset "a down on the + is not a grab" begin
-    pane = _duplicable_pane(closable = true, duplicable = true, draggable = true)
+@testset "a press anywhere in the close column of a tab closes it" begin
+    pane = _pane(closable = true, draggable = true)
     proj = _proj()
     iomap = print_document(proj, pane)
     presses = _sweep_points(proj, iomap, _press)
+    column = Set(x for (x, _, op) in presses if op isa CloseTabOperation && op.tab_index == 1)
+    @test !isempty(column)
+    # Every press at an x of the column answers the close, at every height of the
+    # strip: the column holds one button.
+    @test all(op isa CloseTabOperation && op.tab_index == 1
+              for (x, _, op) in presses if x in column)
+    # A down on the close button is not a grab.
     downs = _sweep_points(proj, iomap, _down)
-    plus = Set((x, y) for (x, y, op) in presses if op isa DuplicateTabOperation)
-    @test !isempty(plus)
-    @test !any((x, y) in plus for (x, y, op) in downs if op isa DragTabOperation)
+    @test !any(x in column && op isa DragTabOperation for (x, _, op) in downs)
     @test any(op -> op isa DragTabOperation && op.tab_index == 1, last.(downs))
 end
 
@@ -213,6 +184,96 @@ end
              if read_intent(proj, iomap, _press(px, py)) isa CloseTabOperation]
     @test !isempty(close)
     @test x + width <= minimum(close)
+end
+
+# The text of the built-in icon `name`: each is a glyph of the icon font.
+_icon_text(name) = string(Char(Dict(WidgetModule.LUCIDE_ICON_GLYPHS)[name]))
+
+@testset "a tab draws no duplicate button" begin
+    pane = _pane(closable = true)
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    texts = _strip_texts(iomap.output)
+    @test any(t -> t[3] == _icon_text(:close), texts)
+    @test !any(t -> t[3] == _icon_text(:plus), texts)
+end
+
+# The x of each close button that a printed strip draws.
+_drawn_closes(iomap) = [t[1] for t in _strip_texts(iomap.output) if t[3] == _icon_text(:close)]
+
+# The canvas that holds the text `text`, the innermost one, or `nothing`.
+function _canvas_of(node, text)
+    if node isa GraphicsCanvas
+        for element in node.elements
+            element isa GraphicsText && string(element.text) == text && return node
+            found = _canvas_of(element, text)
+            found === nothing || return found
+        end
+    elseif node isa GraphicsViewport
+        return _canvas_of(node.content, text)
+    end
+    nothing
+end
+
+# What a press at a point of the strip answers, in a form two sweeps can compare.
+_part_of(op) = op isa CloseTabOperation ? (:close, op.tab_index) :
+               op isa DragTabOperation ? (:grab, op.tab_index) : (:tab, string(op.path))
+
+@testset "the open tab shows its close button, another tab only under the pointer" begin
+    pane = _pane(closable = true)
+    proj = _proj()
+    driver = MttDriver(proj, pane)
+    iomap = driver.iomap
+    presses = _sweep_points(proj, iomap, _press)
+    column2 = [x for (x, _, op) in presses if op isa CloseTabOperation && op.tab_index == 2]
+    x2, y2 = first((x, y) for (x, y, op) in presses if _select_tab(op, 2))
+    # At rest the open tab, the first, shows its button, and the second does not.
+    @test length(_drawn_closes(iomap)) == 1
+    @test !any(x -> minimum(column2) <= x <= maximum(column2), _drawn_closes(iomap))
+    header = _canvas_of(iomap.output, "two")
+    @test header !== nothing
+    # The pointer on the name of the second tab shows its button, in its column.
+    _mtt_move!(driver, x2, y2, 1.0)
+    closes = _drawn_closes(iomap)
+    # The move redraws the canvas of the button, and the strip keeps the canvas of
+    # the header.
+    @test _canvas_of(iomap.output, "two") === header
+    @test length(closes) == 2
+    @test any(x -> minimum(column2) <= x <= maximum(column2), closes)
+    # No part of the strip moves while the button shows.
+    @test [(x, y, _part_of(op)) for (x, y, op) in _sweep_points(proj, iomap, _press)] ==
+          [(x, y, _part_of(op)) for (x, y, op) in presses]
+    # The pointer off the window hides it again.
+    _mtt_leave!(driver, 2.0)
+    @test length(_drawn_closes(iomap)) == 1
+end
+
+_middle(x, y) = MouseClick(:middle, x, y, ModifierKeys(); time = 0.0)
+
+@testset "a middle click on a tab closes it, and does nothing elsewhere in the strip" begin
+    pane = _pane(closable = true, new_tab = true)
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    rows = Set(y for (_, y, op) in _sweep_points(proj, iomap, _press) if op isa CloseTabOperation)
+    @test !isempty(rows)
+    on_tab = Tuple{Int,Any}[]
+    elsewhere = Any[]
+    for y in rows, x in 0:1:400
+        press = read_intent(proj, iomap, _press(x, y))
+        middle = read_intent(proj, iomap, _middle(x, y))
+        index = press isa CloseTabOperation ? press.tab_index :
+                _select_tab(press, 1) ? 1 : _select_tab(press, 2) ? 2 : 0
+        index > 0 ? push!(on_tab, (index, middle)) : push!(elsewhere, middle)
+    end
+    @test any(t -> t[1] == 1, on_tab) && any(t -> t[1] == 2, on_tab)
+    @test all(middle isa CloseTabOperation && middle.tab_index == index && middle.widget === pane
+              for (index, middle) in on_tab)
+    # The new-tab button and the empty end of the strip give nothing.
+    @test !isempty(elsewhere) && all(isnothing, elsewhere)
+    # A strip that does not close tabs gives nothing to a middle click.
+    plain = _pane()
+    plain_iomap = print_document(proj, plain)
+    @test all(isnothing(read_intent(proj, plain_iomap, _middle(x, y))) for y in rows, x in 0:2:400)
 end
 
 end # testset
