@@ -1,6 +1,6 @@
 # A tab has a menu and shows its x under the pointer
 
-**Status (2026-11-10): in progress.** The owner gave the goal and answered Q1
+**Status (2026-11-10): done, on the branch `tab-menu`, not on main.** The owner gave the goal and answered Q1
 (2026-11-10). The assistant proposed the decisions D4 to D7, and the owner
 approved them with the plan on 2026-11-10. No question is open.
 
@@ -189,7 +189,8 @@ The menu of a tab, top to bottom:
    focused opens the menu, Duplicate is greyed for a content with no duplicate,
    and each item acts on that tab and not on the focused tab. A right-click in
    the content still opens the menu of the filter and sort.
-4. [ ] **Guides, list, and a look at the window.** Change widget.md, pane.md,
+4. [x] **Guides, list, and a look at the window.** Done 2026-11-10 (see §6).
+   Change widget.md, pane.md,
    filesystem.md and conversation.md to the strip of §3. Record the precompile
    list of `ProjecturedPlatform` again. Take a screenshot of the real window
    with two groups, the pointer on a tab that is not open, and the open menu of
@@ -211,6 +212,21 @@ The menu of a tab, top to bottom:
   of a row of the explorer do. So Duplicate makes its copy of the content at the
   right click, and the copy is lost when no one chooses the item. A copy that is
   made only at the choice needs a new kind of operation.
+
+- The look at the window (step 4) ran the real application window with the SDL
+  backend and no window on the screen: one file, Ctrl+T for a third tab, the
+  pointer on "Explorer", a right click, Close of the menu, and a middle click on
+  "notes.txt". At rest one close button showed, with the pointer on "Explorer"
+  two, and each command acted on the tab under the pointer. It also found a
+  fault: the window of the application holds its one group in a split, so the
+  test for "one group" read the root and offered Maximize group. The menu now
+  counts the groups, and `test_pane_reader` has the case.
+- The precompile list of `ProjecturedPlatform` is recorded again: 10261 lines
+  (10349 before), and no line names a removed type. The workload passed.
+- `test_platform()` ran in two processes of one half each, because one process
+  went past a cap of 12G. It gave 226018 passes, 23 broken and the 4 failures
+  that main has: the 3 layering guards and "Save As gives the file its name and
+  then writes it" of `FileDialogTest`. `test_pane_reader` gives 113 of 113.
 
 ## Not in this plan
 

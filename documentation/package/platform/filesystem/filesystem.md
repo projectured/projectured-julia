@@ -108,7 +108,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path)`. The opera
 
 ### Duplicate the Explorer
 
-`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate of a `WorkspaceExplorer` shares the workspace and copies `open`, so it opens the same folders and shares what they read; see [document.md](../../kernel/document.md#the-duplicate). The selected row is not in the explorer, so a duplicate opens with no row selected. The duplicate of a bare `Workspace` is a copy of its folders.
+`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the menu of the tab of the Explorer offers Duplicate. The duplicate of a `WorkspaceExplorer` shares the workspace and copies `open`, so it opens the same folders and shares what they read; see [document.md](../../kernel/document.md#the-duplicate). The selected row is not in the explorer, so a duplicate opens with no row selected. The duplicate of a bare `Workspace` is a copy of its folders.
 
 ### The theme
 

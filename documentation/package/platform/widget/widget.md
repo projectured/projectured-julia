@@ -219,7 +219,7 @@ The other operations are in `WidgetDocument.jl`:
 | Operation | Made by |
 | --- | --- |
 | `InvokeActionOperation(action)` | a click on a button, a menu item or a toolbar item, and a matching shortcut |
-| `CloseTabOperation`, `OpenTabOperation`, `DragTabOperation`, `DuplicateTabOperation` | a button of the tab strip, or a button down on a tab |
+| `CloseTabOperation`, `OpenTabOperation`, `DragTabOperation` | a button of the tab strip, a middle click on a tab, or a button down on a tab |
 | `StartSplitterDragOperation`, `ResizeSplitPaneOperation`, `EndSplitterDragOperation` | a drag of a divider of a split pane |
 
 Two more operations are fragments of the widget slice, `OpenPageOperation.jl` and `OpenFileOperation.jl`. They are here because the slices that make them, such as the roster, the tree, the work plan and the assistant, load below the slices that evaluate them.
@@ -237,7 +237,7 @@ A button whose label is a command that opens a page, such as "Open stdout" and "
 
 These name their subject and not a place. `is_self_contained_operation` is `true` for them, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
 
-The four tab-strip operations only report a press. A tabbed pane draws the buttons when its flags `closable`, `new_tab`, `draggable` and `duplicable` are set. The meaning of a close belongs to the projection that owns the tabs: [pane.md](../pane/pane.md) answers all four. A report that no projection answers does nothing in `evaluate_operation`. `_tab_strip_geometry` lays out the strip for the printer and the reader both, so a change of the strip goes into that function.
+The three tab-strip operations only report a press. A tabbed pane draws the buttons when its flags `closable`, `new_tab` and `draggable` are set. With `closable`, a tab has one close button at its right edge, and a middle click on the tab reports the same close. The open tab always shows its close button. Another tab shows it only while the pointer is on the header of that tab, and the button keeps its space while it is hidden, so no tab changes its width. The button is in a canvas of its own whose list of elements is a cell that reads the mouse target of the pane, so a move of the pointer redraws that canvas and not the strip. The meaning of a close belongs to the projection that owns the tabs: [pane.md](../pane/pane.md) answers all three. A report that no projection answers does nothing in `evaluate_operation`. `_tab_strip_geometry` lays out the strip for the printer and the reader both, so a change of the strip goes into that function.
 
 `evaluate_operation` of `InvokeActionOperation` calls the `callback` of the action: with the editor when it takes one argument, else with none. A disabled action does nothing.
 
@@ -332,7 +332,7 @@ A widget puts a `GraphicsPointerShape` where a press on it does something, so th
 | `WidgetText`, `WidgetTextarea` | the box, while it takes edits | `ibeam` |
 | `WidgetButton` | the box, while it acts | `pointing_hand` |
 | `WidgetLink` | the box | `pointing_hand` |
-| A tab of `WidgetTabbedPane`, and its close, duplicate and new-tab buttons | the header of the tab, or the button | `pointing_hand`, or `open_hand` on a tab of a pane that drags its tabs (`draggable`) |
+| A tab of `WidgetTabbedPane`, and its close and new-tab buttons | the header of the tab, or the button | `pointing_hand`, or `open_hand` on a tab of a pane that drags its tabs (`draggable`) |
 
 **A region and the reader of the same part read one band function.** `_get_splitter_band(next_position, thickness)` is the band of a divider that the region and `_splitter_band_hit` both read, and `_get_column_edge_band(edge, bw)` is the band of a column edge that the region and `_find_table_column_edge_at` both read, so the band that shows the shape and the band that answers the press can not drift apart.
 
