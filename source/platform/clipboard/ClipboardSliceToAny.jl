@@ -403,13 +403,29 @@ end
 
 # Whether a paste on the whole selected document is a text typed over its value:
 # the stored copy is a text of another kind than that document, or there is no
-# stored copy and no converter of the text of the system clipboard.
+# stored copy and no converter of the text of the system clipboard. An empty
+# place, such as the hole that a cut leaves, takes the stored document instead.
 function _is_whole_value_paste(p, input)
     selected = try_evaluate_reference(input, input.selection, missing)
     selected isa Document || return false
+    # The general type of the document, which the domain names as its placeholder.
+    is_domain_placeholder(Base.typename(typeof(selected)).wrapper) && return false
     slice = input.slice
     slice === nothing && return p.from_text === nothing
     _slice_text(slice) !== nothing && typeof(slice) !== typeof(selected)
+end
+
+# The document that a paste puts on the whole selected document: the stored
+# document, except a stored text in a hole of a domain, which becomes the
+# insertion of that domain with the text in it, so the hole holds a document of
+# its own domain.
+function _make_pasted_value(input, slice)
+    text = _slice_text(slice)
+    text === nothing && return slice
+    selected = try_evaluate_reference(input, input.selection, missing)
+    selected isa Document || return slice
+    insertion = get_domain_insertion(typeof(selected))
+    insertion === nothing ? slice : insertion(text)
 end
 
 # What a reader answers for the result of a paste. A placed edit, an `operation`
@@ -569,9 +585,10 @@ function _clipboard_paste(p, input; os = UNREAD_OS_TEXT)
         sel === nothing && return nothing
         return _make_replace_edit(input, sel, doc)
     end
-    sel = _find_paste_target(input, slice)
+    value = _make_pasted_value(input, slice)
+    sel = _find_paste_target(input, value)
     sel === nothing && return nothing
-    _make_replace_edit(input, sel, slice)
+    _make_replace_edit(input, sel, value)
 end
 
 # A stored document that is no plain text can go into a document in its own way
@@ -619,9 +636,11 @@ function _clipboard_paste_copy(p, input; os = UNREAD_OS_TEXT)
         sel === nothing && return nothing
         return _make_replace_edit(input, sel, doc)
     end
-    sel = _find_paste_target(input, slice)
+    value = _make_pasted_value(input, slice)
+    sel = _find_paste_target(input, value)
     sel === nothing && return nothing
-    fresh = _make_clipboard_copy(slice)
+    # A converted text is fresh already.
+    fresh = value === slice ? _make_clipboard_copy(slice) : value
     fresh === nothing && return nothing
     clear_selection!(fresh)                    # pasted content starts with no cursor
     _make_replace_edit(input, sel, fresh)

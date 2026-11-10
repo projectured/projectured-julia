@@ -189,6 +189,18 @@ function test_clipboard_edits()
             end
         end
 
+        @testset "a text pasted into a hole becomes the insertion of its domain" begin
+            w = _ce_file_window(dir, "a.json")
+            _ce_select!(w, "Paris")
+            _ce_key!(w, :c, _CE_CTRL)
+            _ce_select_whole!(w, ==("Alice"))
+            _ce_key!(w, :delete)
+            _ce_key!(w, :v, _CE_CTRL)
+            value = entry(w, 1).value
+            @test nameof(typeof(value)) == :JsonInsertion
+            @test value.value == "Pa"
+        end
+
         @testset "a cut of a run of Markdown takes it out of its paragraph" begin
             w = _ce_file_window(dir, "a.md")
             _ce_select_whole!(w, ==("Some text here."))

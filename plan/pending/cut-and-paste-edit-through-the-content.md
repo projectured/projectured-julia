@@ -297,7 +297,21 @@ that its tests press keys in: `test_json()`, `test_yaml()`, `test_markdown()`.
 - **Q2:** a stored text on a whole document of another kind, or an empty stored
   copy with no `from_text`, is typed over the `value` field of that document, or
   over its only field that holds text or a number. A stored text on a document
-  of the same kind replaces it, as before.
+  of the same kind replaces it, as before. An empty place
+  (`is_domain_placeholder`), such as a new tab or the hole that a cut leaves,
+  takes the stored document, as before; `test_application` showed it, because a
+  paste into a new tab from Ctrl+T must fill it. In a hole of a domain, a stored
+  text becomes the insertion of that domain with the text in it
+  (`get_domain_insertion`), so the hole holds a document of its own domain.
+  `is_domain_placeholder` names the general type, such as `JsonNothing`, so the
+  clipboard asks it with `Base.typename(typeof(document)).wrapper`, not with the
+  concrete type `JsonNothing{Cell, Cell}`.
+- **Test results on the branch (2026-11-10):** `test_clipboard` 233, `test_text_clipboard`
+  12, `test_window_wrappers` 74, `test_clipboard_edits` 34, `test_explorer` 383 and
+  `test_pane_reader` 89 pass. `test_application` gives 405 pass, 1 fail and 2 broken, as
+  `main` does (the known failure at `ApplicationTest.jl:1012`). `test_kernel` alone gives
+  5144 pass and 2 broken; in a process with other test packages it fails one check at
+  `BuildEditorTest.jl:257`, a known effect of the process and not of the branch.
 - **D2 is not built as written.** The text of a paste comes from the system
   clipboard, which a reader can not read. So the paste of text always ends in
   the evaluation of `ApplyOsClipboardPasteOperation`. An evaluation can send an
