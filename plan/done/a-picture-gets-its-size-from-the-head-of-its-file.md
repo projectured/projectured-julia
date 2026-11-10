@@ -1,13 +1,12 @@
 # A picture gets its size from the head of its file
 
-> **Kind:** plan · **For:** developer · **Status:** a plan, written 2026-11-09 at `main` `7dd836aaf`
-> on the branch `picture-size`. The owner approved it for implementation on 2026-11-09, with its
-> proposed decisions. The work runs on the branch `picture-size`.
+> **Kind:** plan · **For:** developer · **Status:** done on the branch `picture-size`; the plan was written 2026-11-09 at `main` `7dd836aaf`.
+> The owner approved it for implementation on 2026-11-09, with its proposed decisions.
 > · **Needs:** the plan of the layout on main, which it is since `2a3f4b7a8`
-> · **Sibling plans:** the parent [a-layout-paints-only-what-the-screen-shows.md](../done/a-layout-paints-only-what-the-screen-shows.md)
+> · **Sibling plans:** the parent [a-layout-paints-only-what-the-screen-shows.md](a-layout-paints-only-what-the-screen-shows.md)
 > (its D12, §4.7, §4.10 and the risk "A picture that comes on the screen moves what is after it"),
-> G3 [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md) (`Image`,
-> `ImageFile`, its D10), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
+> G3 [the-assistant-shows-a-picture-file.md](the-assistant-shows-a-picture-file.md) (`Image`,
+> `ImageFile`, its D10), G4 [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md)
 > (its steps 5 and 5a change the three image spans that step 3 of this plan changes)
 > · **Stands on:** [style.md](../../documentation/package/platform/style/style.md),
 > [natural.md](../../documentation/package/platform/natural/natural.md),
@@ -461,7 +460,7 @@ worktree on a branch of its own, and nothing lands on main without the approval 
       included by `ProjecturedRSTTest` and `RstSuite.jl` calls and exports `test_rst_to_syntax`.
       Counts before and after: `test_markdown_image_leaf` 109 and 124, `test_book_to_syntax` 18 and
       33, `test_rst` 115 and 130 (`test_rst_to_syntax` is 15), `test_image` 144 and 144, all pass.
-- [ ] **4. A column of 60 pictures has its true height before a paint (§1, the example of D12).** A
+- [x] **4. A column of 60 pictures has its true height before a paint (§1, the example of D12).** A
       new testset of `test_image_file_read()`, in a window of 1100 by 500 pixels as in
       `test_layout_render()`. `write_image` writes one PNG of 200 by 120 and one of 200 by 200, and
       the test copies them to 60 paths: picture `k` is 200 by 120 for an odd `k` and 200 by 200 for
@@ -484,6 +483,28 @@ worktree on a branch of its own, and nothing lands on main without the approval 
 
       Then `Pkg.precompile()` in omnet-julia against the branch (D13). Mark each step done, record
       what the work found, and move this plan to `plan/done/`.
+
+      Done on `picture-size`. Facts found: the testset is the third of `test_image_file_read()`.
+      A frame must read the box of each picture inside the frame (the test walks the output with
+      `collect` of the elements), because the lazy elements of a label ask for the size only when
+      they are forced; a walk outside the frame records no demand. The first frame gives one work
+      "the sizes of pictures" with 60 values (the record keeps the first three inputs, so the test
+      compares those three) and no decode. The label of a picture has no inset, so the tops are
+      the sums of the heights above, exactly the plan's numbers: 0, 120, 320, 440 and 640 for
+      pictures 1 to 5. The window of 500 pixels shows pictures 1 to 4, and a paint decodes
+      exactly those. The column after the answer has the boxes of a column whose pixels were
+      decoded first, and the pictures sum to 9600 pixels. Picture 30 at 200 by 300 with one more
+      `read_count` gives a second record with one value, `(path, 1)`, a column of 9700 pixels, and
+      no decode. After a scroll to the end (the scroll position 9200) the output boxes are the
+      boxes before it moved up by 9200, pictures 58 to 60 are shown, and a paint decodes exactly
+      those. The output is in screen coordinates, so the scroll moves the tops. The recording
+      decode sources share one lock: a lock for each source loses appends of tasks that run
+      together. Counts before and after: `test_image_file_read` 23 and 45, `test_image` 144 and 144,
+      `test_layout_render` 99 and 99, `test_image_to_widget` 31 and 31, all pass (run
+      `ps-s4-final2`). `Pkg.precompile()` of a copy of the omnet-julia environment with the
+      projectured-julia packages at the branch ended with exit code 0 and no error, 87 packages
+      precompiled in 17 minutes 52 seconds (run `ps-s4-precompile`, 13G, one precompile task); no
+      file of omnet-julia changed (D13).
 
 ## 7. Tests
 
