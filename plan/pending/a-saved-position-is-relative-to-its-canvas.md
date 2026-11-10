@@ -161,14 +161,15 @@ on `main` before the owner approves.
    window of 2000 pixels enters at most 10% more graphics than in a window of
    1000 pixels; mark each assertion that `main` fails with `@test_broken` and its
    reason. Add the check of random scenes to `test_partial_paint()` (D2). Commit.
-2. [ ] **The three faults of `main` that step 1 found.** The owner said to fix
+2. [x] **The three faults of `main` that step 1 found.** The owner said to fix
    them first (2026-11-11), because step 3 changes the records that these paths
    read, and a test that fails already hides a new fault. See
    [As built](#as-built). Commit each fix with a test that fails before it:
    - a. [x] two zoomed viewports that overlap; done, see [As built](#as-built);
    - b. [x] a partial paint at 2.5 device pixels for each pixel; done, see
      [As built](#as-built);
-   - c. the Julia file, which no longer copies.
+   - c. [x] the Julia file, which no longer copies; done, see
+     [As built](#as-built).
    The fix of a comes before the commit of step 1, whose random scenes it makes
    stable. Promote each assertion of step 1 that a fix makes pass.
 3. [ ] **Records relative to their canvas.** Points 1, 2 and 5 of the way of the
@@ -277,4 +278,33 @@ at (2, 1.25) in 3 of 3 processes, 40 of 40 seeds, so their assertion is now one
 `@test` over the four settings. `test_sdl()`: 1285 pass, 1 fail and 1 error in
 `SdlWorkloadTest`, as on `main` since 2026-10-29. `test_video()`: 78 pass, 1 fail
 at `ApplicationVideoTest.jl:317`, as on `main` (`2d8d7e117`).
+
+### Step 2c: the Julia file copies again, 2026-11-11
+
+Both boxes of the Julia file found their move, by 48 pixels each notch, and both
+were copyable, but the region held 70 to 72 rectangles. Past 32 the paint takes
+the one rectangle that covers them all, and a box that a rectangle covers is not
+copied. Most of the rectangles were bands of 2 pixels at the right edge of the
+gutter box, one for each line. The lines of the text now start at the left edge
+of their box, x 73, where the gutter box ends; a change of `main` between
+`bc379a52c` and `19e56d912` put them there, not bisected. The rule for the
+graphics outside a moved content widened the record of each line by the pad, so
+it reached 2 pixels into the gutter box, although the box of the text clips the
+line there. The rule now cuts every graphic to the clip in force before it
+tests it, as it cut a rectangle since `ebefff784`. Then the Julia file copies its
+two boxes with 6 to 8 rectangles and draws 49 to 71 leaves in a notch.
+
+The search found a second rule that gives too much: a graphic that crosses an
+edge of a moved box gave its bounds for any edge. A scroll up or down moves the
+left and the right edge along the graphic, which they cut by the same amount in
+both frames, so only an edge across the move counts now
+(`_is_crossing_moved_edge`); a pane whose rows reach past its right edge gave a
+rectangle over each row, 13 in all, and now gives 2.
+
+New tests: "a line of a pane beside a moved box gives it nothing" (15 rectangles
+on `main`, 4 now) and "a scroll gives no rectangle for a row that only its side
+edge cuts". `test_sdl()`: 1297 pass, the 2 of `SdlWorkloadTest` as on `main`.
+`test_scroll_work()`: 19 pass, 3 broken (the window of 2000 pixels, step 4); the
+2 assertions of the Julia file that `main` fails pass. `test_video()`: 78 pass,
+1 fail as on `main`.
 

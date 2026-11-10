@@ -3297,17 +3297,24 @@ end
 
 _get_edges_box(edges::_ClipEdges) = (edges.left, edges.top, edges.right, edges.bottom)
 
-# True when `bounds` meet `box` and reach past it.
-_is_crossing_box(bounds::NTuple{4,Int}, box::NTuple{4,Int}) =
-    _has_overlap(bounds, box) && !_is_rect_covered(bounds, box)
+# True when `bounds` meet the box of `edges` and reach past one of its edges that
+# moved against the content since `old_edges`: an edge along the move cuts each
+# graphic by the same amount in both frames.
+function _is_crossing_moved_edge(bounds::NTuple{4,Int}, edges::_ClipEdges, old_edges::_ClipEdges)
+    box = _get_edges_box(edges)
+    _has_overlap(bounds, box) || return false
+    (edges.top != old_edges.top && (bounds[2] < box[2] || bounds[4] > box[4])) ||
+        (edges.left != old_edges.left && (bounds[1] < box[1] || bounds[3] > box[3]))
+end
 
-# Add `bounds` to `rects` when they cross the box of `edges` or of `old_edges`. A
-# box that did not move against the content cuts each graphic by the same amount
-# in both frames, so then nothing is added.
+# Add `bounds` to `rects` when they cross an edge of the box of `edges` or of
+# `old_edges` that moved against the content. A box that did not move against the
+# content cuts each graphic by the same amount in both frames, so then nothing is
+# added.
 function _add_crossing_bounds!(rects::Vector{NTuple{4,Int}}, bounds, edges::_ClipEdges,
                                old_edges::_ClipEdges)
     (bounds === nothing || edges == old_edges) && return nothing
-    (_is_crossing_box(bounds, _get_edges_box(edges)) || _is_crossing_box(bounds, _get_edges_box(old_edges))) &&
+    (_is_crossing_moved_edge(bounds, edges, old_edges) || _is_crossing_moved_edge(bounds, old_edges, edges)) &&
         push!(rects, bounds)
     nothing
 end
@@ -3331,16 +3338,16 @@ end
 # A viewport in the content of a move that the render draws in both frames. Its
 # box moved with the content, so its content shows the same elements, between its
 # own box in both frames. A viewport with a scale puts its content on the grid of
-# its own units, which a move does not keep, and the edge of the box that cuts a
-# viewport cuts it by another amount: each of them adds its box to `rects`.
+# its own units, which a move does not keep, and an edge of the box across the
+# move that cuts a viewport cuts it by another amount: each of them adds its box
+# to `rects`.
 function _record_moved_viewport!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt, ox::Int, oy::Int,
                                  edges::_ClipEdges, old_edges::_ClipEdges, offset::NTuple{2,Int},
                                  rects::Vector{NTuple{4,Int}})
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     if !_is_plain_viewport_transform(transform) ||
        _cut_viewport_box(box, edges) != _cut_viewport_box(box, old_edges) ||
-       (edges != old_edges && (_is_crossing_box(box, _get_edges_box(edges)) ||
-                               _is_crossing_box(box, _get_edges_box(old_edges))))
+       _is_crossing_moved_edge(box, edges, old_edges) || _is_crossing_moved_edge(box, old_edges, edges)
         # Recorded again at its new place, so the guards of its content are made
         # again too.
         b = _record_painted_viewport!(res, vp, key, ox, oy, edges)
@@ -3810,10 +3817,11 @@ end
 
 # Add to `rects` what a copy of the box of `move` makes wrong in the graphics that
 # are not in its content. The copy moves their pixels too, so each one whose
-# record, widened by the pad, meets the box gives that place and the place that
-# the copy moved it to, cut to the box. The walk goes down from the window by the
-# records, as a partial paint does, and keeps the clip in force, the window cut by
-# the box of each viewport above. A rectangle gives only its border and the edges
+# record, widened by the pad and cut to the clip in force, meets the box gives that
+# place and the place that the copy moved it to, cut to the box. The walk goes down
+# from the window by the records, as a partial paint does, and keeps the clip in
+# force, the window cut by the box of each viewport above: a graphic draws nothing
+# outside it, also where the pad reaches past it. A rectangle gives only its border and the edges
 # of its fill, as the clip shows them (`_add_rect_cover_rects!`), and a viewport in
 # `nested`, whose content moved by the same offset, gives its own strips in
 # `_settle_content_moves!`.
@@ -3854,7 +3862,7 @@ function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowRes
     record = get(res.dirty_bounds, key, nothing)
     record === nothing && return nothing
     pad = _DIRTY_RECT_PAD
-    padded = (record[1] - pad, record[2] - pad, record[3] + pad, record[4] + pad)
+    padded = _intersect_boxes((record[1] - pad, record[2] - pad, record[3] + pad, record[4] + pad), clip)
     _has_overlap(padded, move.box) || return nothing
     if elem isa GraphicsCanvas
         return _collect_cover_canvas!(rects, res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges,

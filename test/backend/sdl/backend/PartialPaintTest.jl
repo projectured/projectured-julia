@@ -547,6 +547,57 @@ end
     @test !any(r -> SDL._is_rect_covered((20, 20, 320, 220), r), rects)
 end
 
+@testset "a line of a pane beside a moved box gives it nothing" begin
+    # A gutter and a text in two panes side by side that scroll by one cell, as a
+    # file shows them. The lines of the text start at the left edge of its box, so
+    # their records, widened by the pad, reach into the box of the gutter; the box
+    # of the text clips them, so they draw nothing there.
+    make_lines(x) = GraphicsCanvas(CellVector(Cell[Cell(GraphicsText(string("line ", k), x, (k - 1) * 16; font, color = black))
+                                                   for k in 1:200]);
+                                   w = 250, h = 200 * 16, layout = layout_vertical, overlapping = false)
+    make_scene(scroll) = GraphicsCanvas(Any[make_pane((20, 20, 50, 200), [make_lines(4)], Cell(0), scroll),
+                                            make_pane((70, 20, 250, 200), [make_lines(0)], Cell(0), scroll)];
+                                        w = width, h = height)
+    scroll = Cell(0)
+    canvas = make_scene(scroll)
+    resources = make_resources()
+    SDL._compute_dirty_change(resources, canvas)
+    scroll[] = 16
+    rects, moves = SDL._compute_dirty_change(resources, canvas)
+    @test moves == [((20, 20, 70, 220), (0, -16)), ((70, 20, 320, 220), (0, -16))]
+    @test length(rects) <= 4
+    for (supersample, density) in scroll_settings
+        scroll = Cell(0)
+        @test isempty(find_differing_frames(make_scene(scroll), make_writes(scroll, [16, 85, 62, 300]);
+                                            supersample, density))
+    end
+end
+
+@testset "a scroll gives no rectangle for a row that only its side edge cuts" begin
+    # Each row of text reaches past the right edge of the box. A scroll up or down
+    # moves the edge along the row, and the edge cuts the row by the same amount in
+    # both frames, so only the strip that comes into view is painted.
+    make_long_rows() = GraphicsCanvas(CellVector(Cell[Cell(GraphicsText(string("row ", k, " ", "x"^80), 4, (k - 1) * 16;
+                                                                        font, color = black))
+                                                      for k in 1:200]);
+                                      w = 400, h = 200 * 16, layout = layout_vertical, overlapping = false)
+    scroll = Cell(0)
+    canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [make_long_rows()], Cell(0), scroll)];
+                            w = width, h = height)
+    resources = make_resources()
+    SDL._compute_dirty_change(resources, canvas)
+    scroll[] = 16
+    rects, moves = SDL._compute_dirty_change(resources, canvas)
+    @test moves == [((20, 20, 320, 220), (0, -16))]
+    @test all(r -> r[4] >= 220 - 16 - 2 * SDL._DIRTY_RECT_PAD, rects)
+    for (supersample, density) in scroll_settings
+        scroll = Cell(0)
+        canvas = GraphicsCanvas(Any[make_pane((20, 20, 300, 200), [make_long_rows()], Cell(0), scroll)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(scroll, [16, 85, 62, 300]); supersample, density))
+    end
+end
+
 @testset "two viewports that scroll together are one copy" begin
     # The shape of the table of a data frame: the copy of the outer box moves the
     # inner one, which gives its strip and the band that its box covers after the
