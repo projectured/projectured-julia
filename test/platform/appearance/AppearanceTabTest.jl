@@ -54,6 +54,45 @@ function _at_find_iomap(iomap, ::Type{T}; depth = 12) where {T}
     nothing
 end
 
+# Each IO map of type `T` in the IO map tree under `iomap`, by its fields and the
+# vectors and tuples that hold them, each once.
+function _at_collect_iomaps(iomap, ::Type{T}, found = Any[], seen = Base.IdSet{Any}(); depth = 40) where {T}
+    (depth == 0 || iomap in seen) && return found
+    push!(seen, iomap)
+    iomap isa T && push!(found, iomap)
+    for name in fieldnames(typeof(iomap))
+        value = getfield(iomap, name)
+        value isa Cell && (value = value[])
+        candidates = value isa AbstractVector ? value : (value,)
+        for candidate in candidates
+            candidate isa Cell && (candidate = candidate[])
+            (candidate isa Document || candidate isa Projection || candidate === nothing ||
+             candidate isa Number || candidate isa AbstractString || candidate isa AbstractDict ||
+             candidate isa Function || candidate isa Module || candidate isa Type || candidate isa Symbol) && continue
+            _at_collect_iomaps(candidate, T, found, seen; depth = depth - 1)
+        end
+    end
+    found
+end
+
+# The tables of the controls of the tab and of the views of its parts, in one: the
+# command of each button, the write of each spin box and choice, the edit of each
+# colour text and the fold of each card, as the view that holds the control reads
+# it.
+function _at_tables(iomap)
+    tables = (commands = IdDict{Any,Any}(), writes = IdDict{Any,Any}(), edits = IdDict{Any,Any}(),
+              folds = IdDict{Any,Any}())
+    for found in _at_collect_iomaps(iomap, Union{AppearanceToWidgetIoMap, AppearancePartToWidgetIoMap})
+        for name in keys(tables)
+            merge!(tables[name], getfield(found, name))
+        end
+    end
+    tables
+end
+
+# The card of the theme type named `name` in the folds of `tables`.
+_at_fold_card(tables, name) = only(card for (card, (_, fold_name)) in tables.folds if fold_name == name)
+
 # The width of each card in the IO map tree under `value`, in the order of the
 # tree, by the fields of each IO map and the vectors and tuples that hold its
 # children. A card inside a card is not counted.
@@ -104,7 +143,7 @@ end
 @testset "the Reset all of the card Scale resets the scales, and that of the card Colors the colour settings" begin
     appearance = Appearance(scale = AppearanceScale(font_scale = 1.25), colors = AppearanceColors(color_mode = :dark))
     iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     resets = [op for (action, op) in tab.commands if action.label == "Reset all"]
     @test length(resets) == 2
     is_step = op -> op isa AdjustScaleOperation || op isa AdjustZoomOperation
@@ -120,7 +159,7 @@ end
 @testset "a glyph button says what it changes, and its current value" begin
     appearance = Appearance()
     iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     buttons = _find_widgets_below(tab.child_iomap.input, WidgetButton)
     note(label) = _read_widget_note(first(button for button in buttons if button.action.label == label))
     smaller = note("−")
@@ -165,7 +204,7 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     # The draw of the tab makes the controls of the two open cards.
     _at_collect_texts(iomap.output)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     @test tab !== nothing
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     unwrap(operation) = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
@@ -239,8 +278,8 @@ end
     @test all(!isnothing, order) && issorted(order)
     # Every section is closed: a card draws its title and no field.
     @test !("primary" in texts) && !("item gap" in texts)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    card = only(c for (c, name) in tab.folds if name == "WidgetTheme")
+    tab = _at_tables(iomap)
+    card = _at_fold_card(tab, "WidgetTheme")
     @test card.collapsed
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     fold = translate(ToggleCollapseOperation(card))
@@ -286,7 +325,7 @@ end
     # A text role that names a role of the font theme shows the name of the role and
     # has no size, because a role never changes its size.
     @test "document_code" in texts
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     before = syntax.bool_text
     writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
                            op.reference.head == FieldReferenceStep("bool_text")
@@ -321,7 +360,7 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     @test "Lucide" in texts
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     before = tooltip.warning_mark
     writes_mark(op) = op isa ReplaceReferencedValueOperation && op.document === tooltip &&
                       op.reference.head == FieldReferenceStep("warning_mark")
@@ -340,7 +379,7 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     _at_collect_texts(iomap.output)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === fonts &&
                              op.reference.head == FieldReferenceStep(name)
     # The size: a press on + of the spin box of `quiet` writes the step at 13.
@@ -374,7 +413,7 @@ end
     texts = first.(_at_collect_texts(iomap.output))
     @test count(==("quiet"), texts) == 2
     @test !("% of font" in texts)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === theme &&
                              op.reference.head == FieldReferenceStep(name)
     font_of(op) = op.value isa TextRole ? op.value.font : op.value
@@ -576,7 +615,7 @@ end
     appearance.colors.system_colors = SystemColors(; mode = :dark)
     @test "system (dark)" in first.(_at_collect_texts(print_document(projection, nothing, appearance, offer).output))
     appearance.colors.system_colors = SystemColors()
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance.colors &&
                                 op.reference.head == FieldReferenceStep(String(field))
     next_mode = only(op for (action, op) in tab.commands if action.label == "›" && writes_setting(op, :color_mode))
@@ -593,8 +632,8 @@ end
     @test theme === appearance.color_themes[:dark]
     appearance.editor_themes.open_names = ["ColorTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    @test "ColorTheme" in collect(values(tab.folds))
+    tab = _at_tables(iomap)
+    @test "ColorTheme" in [last(fold) for fold in values(tab.folds)]
     texts = first.(_at_collect_texts(iomap.output))
     @test "keyword" in texts && "violet" in texts
     writes_role(op, role) = op isa ReplaceReferencedValueOperation && op.document === theme &&
@@ -612,7 +651,7 @@ end
     @test !any(action.label == "Reset" && writes_role(op, :keyword) for (action, op) in tab.commands)
     evaluate_operation(nothing, fix)
     iomap = print_document(projection, nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     reset = only(op for (action, op) in tab.commands if action.label == "Reset" && writes_role(op, :keyword))
     @test reset.value == make_color_theme(:dark).keyword
     @test format_style_color(fix.value) in first.(_at_collect_texts(iomap.output))
@@ -643,7 +682,8 @@ end
     printed = editor.iomap
     @test !("primary" in first.(drawn()))
     # The write that a press on the chevron of the card answers.
-    evaluate_operation(nothing, ProjecturedPlatform.AppearanceModule._make_fold_operation(appearance, "WidgetTheme"))
+    evaluate_operation(nothing, ProjecturedPlatform.AppearanceModule._make_fold_operation(appearance.editor_themes,
+                                                                                         "WidgetTheme"))
     run_frame!(editor)
     @test editor.iomap === printed
     _, _, row_y = only(t for t in drawn() if t[1] == "primary")
@@ -663,23 +703,24 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     # The draw of the tab makes the controls of each card that shows them.
     _at_collect_texts(iomap.output)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     @test isempty(tab.writes)
     @test isempty(tab.edits)
-    card = only(card for (card, name) in tab.folds if name == "WidgetTheme")
+    card = _at_fold_card(tab, "WidgetTheme")
     toggle() = evaluate_operation(nothing,
         ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, ToggleCollapseOperation(card)))
     toggle()
     @test !card.collapsed
     @test "item gap" in first.(_at_collect_texts(iomap.output))
-    @test !isempty(tab.writes)
-    controls = Set(keys(tab.writes))
+    # The open card holds the theme, and the view of the theme holds the controls.
+    @test !isempty(_at_tables(iomap).writes)
+    controls = Set(keys(_at_tables(iomap).writes))
     toggle()
     @test card.collapsed
     @test !("item gap" in first.(_at_collect_texts(iomap.output)))
     toggle()
     @test "item gap" in first.(_at_collect_texts(iomap.output))
-    @test Set(keys(tab.writes)) == controls
+    @test Set(keys(_at_tables(iomap).writes)) == controls
 end
 
 end
