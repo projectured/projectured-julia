@@ -67,7 +67,10 @@ function run_frame!(editor::Editor)
     # A frame runs with its editor as the editor of the evaluation, as the loop
     # does, so a frame that a test or an embedder drives by hand finds its editor
     # too, such as the insertion of a log tab, which shows the log of this editor.
-    run_with_evaluation_editor(() -> _run_frame_stages!(editor), editor)
+    # It binds no starter, as the loop does: what it reads is a gesture of the person.
+    run_with_evaluation_editor(editor) do
+        run_with_evaluation_starter(() -> _run_frame_stages!(editor), nothing)
+    end
 end
 
 function _run_frame_stages!(editor::Editor)
@@ -222,9 +225,13 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
               fault_policy::FaultPolicy=editor.fault_policy)
     # The loop runs with its editor as the editor of the evaluation, so an
     # operation that it applies, and a task that it starts, finds the editor, such
-    # as the insertion of a log tab, which shows the log of this editor.
+    # as the insertion of a log tab, which shows the log of this editor. It binds no
+    # starter: a loop that a tool call starts reads the gestures of the person, and
+    # a call posted to it keeps the starter of its own evaluation.
     run_with_evaluation_editor(editor) do
-        _run_editor_loop!(editor; mcp, fault_policy)
+        run_with_evaluation_starter(nothing) do
+            _run_editor_loop!(editor; mcp, fault_policy)
+        end
     end
 end
 

@@ -152,6 +152,10 @@ task waits for the call. `description` names the call on the busy bar while it
 runs in a code unit, and `stop` is a function with no argument that a stop of that
 unit runs, such as the cancel of the turn that made the call.
 [`run_on_editor_task!`](@ref) makes it.
+
+The call keeps the starter of the evaluation that made it
+([`find_evaluation_starter`](@ref)), and `function_` runs with that starter, so
+the work that a tool call posts to the loop is the work of that call there too.
 """
 struct RunFunctionOperation <: Operation
     function_::Function
@@ -162,12 +166,14 @@ struct RunFunctionOperation <: Operation
     # withdrew it. One compare-and-swap decides between the start and the
     # withdrawal, so a call never both runs and times out.
     state::Threads.Atomic{Int}
+    starter::Any
 end
 
 RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing};
                      description::AbstractString = "a call from another task",
                      stop::Union{Function, Nothing} = nothing) =
-    RunFunctionOperation(function_, answer, String(description), stop, Threads.Atomic{Int}(0))
+    RunFunctionOperation(function_, answer, String(description), stop, Threads.Atomic{Int}(0),
+                         find_evaluation_starter())
 
 # An exception goes to the task that waits for it, and a posted call that no task
 # waits for throws into the barrier of the drain, which records it. An exception
@@ -176,9 +182,10 @@ function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOper
     # A call that its caller withdrew after its timeout does not run.
     Threads.atomic_cas!(operation.state, 0, 1) == 0 || return nothing
     answer = operation.answer
-    answer === nothing && return (operation.function_(); nothing)
+    call() = run_with_evaluation_starter(operation.function_, operation.starter)
+    answer === nothing && return (call(); nothing)
     try
-        put!(answer, (true, operation.function_()))
+        put!(answer, (true, call()))
     catch exception
         put!(answer, (false, exception))
         is_fault_exception(exception) || rethrow()

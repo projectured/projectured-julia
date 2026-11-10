@@ -18,7 +18,7 @@ import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEdi
 import ProjecturedKernel.AgentModule: run_on_editor_task!, EditorCallTimeoutException,
                                       is_editor_loop_running
 import ProjecturedKernel.EditorModule: get_session_document!
-import ProjecturedKernel.ToolModule: find_evaluation_editor
+import ProjecturedKernel.ToolModule: find_evaluation_editor, find_evaluation_starter, run_with_evaluation_starter
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 using ProjecturedKernelExample
@@ -77,6 +77,13 @@ BackendModule.wait_for_input(::InboxQuitBackend, devices, timeout_seconds) = not
 _inbox_editor() =
     Editor(InboxProbe(), InboxProbeProjection();
            backend = HeadlessBackend(), devices = Device[])
+
+# An operation that records the starter of the evaluation that applies it.
+struct _InboxStarterProbe <: Operation
+    seen::Vector{Any}
+end
+
+evaluate_operation(::Editor, probe::_InboxStarterProbe) = (push!(probe.seen, find_evaluation_starter()); nothing)
 
 function test_editor_inbox()
 @testset "the editor's operation inbox" begin
@@ -176,6 +183,22 @@ function test_editor_inbox()
         post_operation!(editor, QuitEditorOperation())
         run_editor!(editor)
         @test seen[] === editor
+    end
+
+    @testset "a call keeps the starter of the code that posted it, and the loop binds none" begin
+        editor = _inbox_editor()
+        seen = Any[]
+        run_with_evaluation_starter(:a_tool_call) do
+            post_operation!(editor, RunFunctionOperation(() -> push!(seen, find_evaluation_starter()), nothing))
+            # An operation that is no call has no starter of its own: the loop binds none.
+            post_operation!(editor, _InboxStarterProbe(seen))
+        end
+        post_operation!(editor, QuitEditorOperation())
+        # A loop that code with a starter runs reads the gestures of the person.
+        run_with_evaluation_starter(() -> run_editor!(editor), :the_caller_of_the_loop)
+        @test seen == Any[:a_tool_call, nothing]
+        @test run_with_evaluation_starter(find_evaluation_starter, :code) === :code
+        @test find_evaluation_starter() === nothing
     end
 
     @testset "a call from another task runs in the drain, and the caller waits" begin

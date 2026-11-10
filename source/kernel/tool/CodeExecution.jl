@@ -400,6 +400,36 @@ loop of an editor runs in it.
 """
 run_with_evaluation_editor(function_, editor) = with(function_, _EVALUATION_EDITOR => editor)
 
+# Who asked for the code of the current evaluation, a plain value whose type a
+# layer above defines, or `nothing` when no tool call and no client asked for it.
+const _EVALUATION_STARTER = ScopedValue{Any}(nothing)
+
+"""
+    find_evaluation_starter() -> starter or nothing
+
+Who asked for the code of the current evaluation: the value that a tool call of a
+model or a call of a client binds with [`run_with_evaluation_starter`](@ref), or
+`nothing` when none binds one, as for an operation that the loop of an editor
+reads from a gesture of the person. The kernel does not read the value: a layer
+above defines its type, and the work that the code starts records it.
+
+A task that the code starts gets the same starter, and so does a call that the
+code posts to the loop of an editor with `run_on_editor_task!`, which runs on
+another task. The loop of an editor binds `nothing` for its frames, so a gesture
+never takes the starter of the code that started the loop.
+"""
+find_evaluation_starter() = _EVALUATION_STARTER[]
+
+"""
+    run_with_evaluation_starter(function_, starter) -> value
+
+Run `function_()` with `starter` as the starter of the evaluation, which
+[`find_evaluation_starter`](@ref) answers to it, to each task that it starts, and
+to each call that it posts to the loop of an editor.
+"""
+run_with_evaluation_starter(function_, starter) =
+    with(function_, _EVALUATION_STARTER => starter)
+
 """
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 

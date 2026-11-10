@@ -234,6 +234,19 @@ at the same time each see their own.
   `editor = …`.
 - A caller that has an editor passes it, and the verb acts on that one.
 
+**The evaluation names who asked for it.** A second `ScopedValue`, the starter
+of the evaluation, says who asked for the code: `find_evaluation_starter()` reads
+it, and `run_with_evaluation_starter(function_, starter)` binds it. The kernel
+does not read the value; a layer above defines its type, and the work that the
+code starts records it, as the task list of the platform records who started
+each row. `run_turn!` binds the starter that its keyword `call_starter` gives for
+each tool call, a function of the `LlmToolUse`, around the call, also when the
+call goes to the task of the editor; with no `call_starter` the call keeps the
+starter of the turn. A task that the code starts keeps the starter, and so does a
+call that it posts to the loop of an editor ([editor.md](editor.md)). The loop
+binds none for its own frames, so an operation that it reads from a gesture has
+no starter, and the platform reads that as the person.
+
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
 guide section rank the hits by cosine. An entry's vector is computed from its

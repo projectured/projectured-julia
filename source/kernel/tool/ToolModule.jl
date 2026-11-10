@@ -19,8 +19,9 @@ be asked to read. Twelve fragments share this namespace:
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
   the `EvaluationResult` of each call, their persistent scratch namespace, which
-  prints to the output of each evaluation, and `get_evaluation_editor`, the editor
-  of the evaluation that a verb takes when its caller names none.
+  prints to the output of each evaluation, `get_evaluation_editor`, the editor
+  of the evaluation that a verb takes when its caller names none, and
+  `find_evaluation_starter`, who asked for the code of the evaluation.
 - [`SearchQuery.jl`](SearchQuery.jl) — what a search query says: keywords with
   their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
@@ -67,10 +68,10 @@ A few values of the layer are process-global, each for a reason:
 - `_MEANING_FOLDER` and `_MEANING_WAIT_SECONDS` say where the vector files go and
   how long a search waits for a build. A test sets them.
 
-`_EVALUATION_EDITOR`, `_EVALUATION_OUTPUT`, `_CURRENT_CODE_UNIT` and
-`_CURRENT_STOP_SCOPE` are `ScopedValue`s, not one of these: each value belongs to
-one evaluation and to the tasks that it starts, so two evaluations that run at the
-same time each see their own.
+`_EVALUATION_EDITOR`, `_EVALUATION_STARTER`, `_EVALUATION_OUTPUT`,
+`_CURRENT_CODE_UNIT` and `_CURRENT_STOP_SCOPE` are `ScopedValue`s, not one of
+these: each value belongs to one evaluation and to the tasks that it starts, so
+two evaluations that run at the same time each see their own.
 """
 module ToolModule
 
@@ -97,7 +98,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        keep_tool_call_value!, take_tool_call_value!,
        get_last_evaluation_exception, get_evaluation_exception_count,
        MissingEvaluationEditorException, get_evaluation_editor, find_evaluation_editor,
-       run_with_evaluation_editor,
+       run_with_evaluation_editor, find_evaluation_starter, run_with_evaluation_starter,
        describe_value_for_person,
        list_guides, read_guide, read_guide_section,
        list_modules, list_types, list_functions,

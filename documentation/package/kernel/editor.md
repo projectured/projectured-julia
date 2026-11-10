@@ -220,7 +220,12 @@ run_on_editor_task!(() -> push!(turn.parts, part), editor; wait = false)
 ```
 
 1. The call posts a `RunFunctionOperation`, which holds the function, a
-   channel for the answer, and a `description` that names the call.
+   channel for the answer, a `description` that names the call, and the starter
+   of the evaluation that posts it (`find_evaluation_starter`, [agent.md](agent.md)).
+   The function runs with that starter in the drain, so the work that a tool call
+   starts through the door is the work of that call. The loop binds no starter of
+   its own: `run_editor!` and `run_frame!` bind `nothing`, so a loop that a tool
+   call starts reads the gestures of the person.
 2. The drain of the next frame holds a posted function, so it runs as a code
    unit (`run_code_unit!`, `HeldFrames.jl`): the drain applies the operations and
    the functions in order on the task of the unit, and puts the value or
