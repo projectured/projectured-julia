@@ -71,6 +71,18 @@ function test_assistant_overview()
                 @test (old.start_time, old.finish_time) == (0.0, 0.0)
                 @test (old.role, length(collect(old.parts))) == (:user, 1)
             end
+
+            @testset "a file keeps the fold that a person chose" begin
+                # The default writes nothing, and a choice comes back as it was.
+                @test !occursin("fold", print_pred_text(ConversationPart("Hello")))
+                chosen = parse_pred_text(print_pred_text(ConversationPart("Hello"; fold = :folded)))
+                @test chosen.fold === :folded
+                # A file that names `collapsed` gives a part that follows the rule.
+                old = make_pred_document(ConversationPart, (),
+                                         Pair{Symbol,Any}[:content => PrimitiveString("Hello"), :collapsed => true])
+                @test old.fold === :default
+                @test_throws ArgumentError ConversationPart("Hello"; fold = :closed)
+            end
         end
 
         @testset "the values of a row" begin

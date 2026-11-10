@@ -689,8 +689,7 @@ function test_external_agent_turn()
             request = ConversationPermissionRequest("Run it?",
                 [AgentPermissionOption("allow", "Allow", :allow_once),
                  AgentPermissionOption("reject", "Reject", :reject_once)]; reply = _ -> nothing)
-            card = ConversationModule._permission_card(ConversationPartToWidget(), request,
-                                                       ConversationPart(request))
+            card = ConversationModule._permission_card(ConversationPartToWidget(), request)
             buttons = _collect_buttons(card)
             @test length(buttons) == 2
             @test all(button -> button.enabled, buttons)

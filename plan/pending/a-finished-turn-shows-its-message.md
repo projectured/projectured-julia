@@ -1,6 +1,8 @@
 # A finished turn shows its message
 
-> **Status (2026-11-10): PLANNED.** No step is done. The plan waits for approval.
+> **Status (2026-11-10): IN PROGRESS** on the branch `finished-turn` in the
+> worktree `projectured-julia-finished-turn`. The owner approved the plan on
+> 2026-11-10.
 
 ## What the user asked for
 
@@ -102,14 +104,21 @@ A part of work is one of these:
 
 - a thinking part;
 - a tool call (an `EvaluatorForm`);
-- a plan of the agent;
-- a permission request, a question or a sign-in request that has its answer, or
-  that the end of the turn cancelled;
-- a note that has no action;
+- a permission request or a question that has its answer, or that the end of the
+  turn cancelled;
 - a text that comes before the last part of work.
 
 A text, a prose document, a code block and a picture after the last part of work
 are the message.
+
+These parts are never work: a note, because every note is the editor that speaks
+to the person (a wake, the rounds of a turn, a new session); a sign-in request;
+and a permission request or a question that waits for its answer. A turn of the
+person has no work at all, because it is what the person said.
+
+A plan of the agent is a prose document, as a text is, so the transcript can not
+tell the two apart. A plan counts as a text: before the last part of work it is
+work, and after it, it is the message.
 
 ### The fold of a part is a default or a choice
 
@@ -142,10 +151,9 @@ change of each.
 
 These details are proposals. They are approved with the plan.
 
-1. **A part that needs the person stays outside the work line.** A note with an
-   action, such as the "Go on" note of a turn that used its rounds, shows after
-   the message. A request that waits for its answer belongs to a running turn,
-   which has no work line.
+1. **A part that needs the person stays outside the work line.** A note, such
+   as the "Go on" note of a turn that used its rounds, shows after the work line
+   in its order. A request that waits for its answer shows the same way.
 2. **A turn with no work shows no work line.** A plain answer of a model looks as
    it does now. A turn with no message shows only its work line.
 3. **The work line comes before the message**, because the work came first. It
@@ -180,7 +188,7 @@ These details are proposals. They are approved with the plan.
 
 Do the work in a worktree on a branch. Make one commit for each step.
 
-1. ☐ **The fold of a part is a default or a choice.** Change `ConversationPart` to
+1. ✅ **The fold of a part is a default or a choice.** Change `ConversationPart` to
    `fold`. Put the rule of the table in the part printer, with the state of the
    turn from `_is_turn_running`. Add `ReplaceConversationFoldOperation` and its
    inverse, and make the fold reader give it for a part. Change the producers in
@@ -206,3 +214,41 @@ Do the work in a worktree on a branch. Make one commit for each step.
    [transcript.md](../../documentation/package/platform/conversation/transcript.md),
    [conversation.md](../../documentation/package/platform/conversation/conversation.md)
    and [assistant.md](../../documentation/package/platform/assistant/assistant.md).
+
+## Notes from the implementation
+
+### Step 1
+
+- **The generic write can not carry a fold.** `ReplaceReferencedValueOperation`
+  writes one field and has an undo, but the readers of the transcript decline it
+  by its type, because a transcript is read-only. So the fold has its own
+  operation, `ReplaceConversationFoldOperation`, as proposed decision 4 says. It
+  answers `is_self_contained_operation`, so the readers above the transcript
+  pass it on. `ToggleEvaluatorSectionOperation` answers no such method; this plan
+  does not change it.
+- **The kernel view state is not used.** `get_view_state_fields` marks a field
+  that a file leaves out and a history does not record. A fold that a person
+  chose stays after a reload (the rule of the owner), so `fold` is a plain field.
+- **The rule reaches a part through the context.** The turn gives each part the
+  property `:conversation_fold` with `with_property`, a function of no argument
+  that says whether the rule closes it. A part that prints alone has none, and
+  starts open.
+- **The resource read is the rule of the transcript.** The producers
+  (`AssistantTurn.jl`, `ExternalAgentTurn.jl`) make every part with `:default`.
+  `_collapse_tool_default` is gone, and `_is_resource_read` in the transcript
+  folds a resource read by default.
+- **The card makers lose the part.** `_part_card` makes the card, and the part
+  printer sets its fold in one place.
+- **Three recorded precompile lines named the gone keyword** `collapsed` of
+  `make_conversation_thinking_part`, in the lists of `ProjecturedPlatform` and
+  `ProjecturedBuild`. They are removed; a list allows 10 % of lines that do not
+  resolve, but a line for a call that can not exist has no use.
+- **The Alt+arrow walk of the transcript walks the domain.** It can stop on a part
+  inside a folded work line. Step 2 checks what it does there.
+- **A test that makes a resource read part by hand sees it folded.** The table
+  test of `AssistantMvpTest.jl` reads the page inside a resource read, so it
+  opens the part with `fold = :open`, as a person opens it.
+- **Results:** `test_assistant_overview` passes with a new test of the file
+  form; `test_conversation_tree` 43/43; `test_external_agent_turn` 321/321;
+  `test_conversation_transcript` passes with a new test of the rule;
+  `test_assistant_mvp` 193 pass, 4 broken, the markers of main.

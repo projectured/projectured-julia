@@ -45,12 +45,15 @@ function _scan_folds(proj, io)
         catch
             nothing
         end
-        (op isa ToggleCollapseOperation || op isa ToggleEvaluatorSectionOperation) || continue
+        op isa Union{ToggleCollapseOperation,ToggleEvaluatorSectionOperation,
+                     ReplaceConversationFoldOperation} || continue
         any(q -> q === op || (typeof(q) == typeof(op) && _same_fold(q, op)), found) || push!(found, op)
     end
     found
 end
 _same_fold(a::ToggleCollapseOperation, b::ToggleCollapseOperation) = a.target === b.target
+_same_fold(a::ReplaceConversationFoldOperation, b::ReplaceConversationFoldOperation) =
+    a.node === b.node && a.field === b.field
 _same_fold(a::ToggleEvaluatorSectionOperation, b::ToggleEvaluatorSectionOperation) =
     a.form === b.form && a.section === b.section
 
@@ -158,10 +161,13 @@ function test_conversation_transcript()
         doc, proj, io = _transcript_render()
         folds = _scan_folds(proj, io)
         # Every fold the scan finds is the transcript's own: a domain node or a
-        # section of a form, never a widget.
+        # section of a form, never a widget. A turn flips its fold, and a part
+        # writes the choice of a person.
         for op in folds
             if op isa ToggleCollapseOperation
-                @test op.target isa ConversationTurn || op.target isa ConversationPart
+                @test op.target isa ConversationTurn
+            elseif op isa ReplaceConversationFoldOperation
+                @test op.node isa ConversationPart && op.field === :fold
             else
                 @test op isa ToggleEvaluatorSectionOperation
             end
@@ -190,6 +196,31 @@ function test_conversation_transcript()
         @test get_evaluation_section_labels(failed) == ("code", "error")
     end
 
+    @testset "a part follows the default of its fold until a person chooses" begin
+        read = EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
+                             tool_name = "read_resource", result = make_evaluator_result_text("# Orientation"),
+                             input = Dict{String,Any}("uri" => "resource://guide/orientation"))
+        call = EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2"))
+        turn = ConversationTurn(:assistant, [ConversationPart(read), ConversationPart(call)];
+                                start_time = time())
+        doc = ConversationConversation([turn])
+        proj = RecursiveProjection(ConversationToWidget())
+        io = print_document(proj, proj, doc, PrinterContext())
+        card(j) = io.output.children[1].content.children[j]
+        # The producer chose no fold. A resource read starts folded, and any
+        # other tool call starts open.
+        @test all(part -> part.fold === :default, turn.parts)
+        @test card(1).collapsed === true
+        @test card(2).collapsed === false
+        # A choice wins over the default, both ways.
+        evaluate_operation((document = doc,), ReplaceConversationFoldOperation(turn.parts[1], :fold, :open))
+        @test turn.parts[1].fold === :open
+        @test card(1).collapsed === false
+        evaluate_operation((document = doc,), ReplaceConversationFoldOperation(turn.parts[2], :fold, :folded))
+        @test turn.parts[2].fold === :folded
+        @test card(2).collapsed === true
+    end
+
     @testset "the header of a form names the tool or the resource" begin
         read = EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
                              tool_name = "read_resource",
@@ -216,9 +247,9 @@ function test_conversation_transcript()
     @testset "a click names the part it landed in, or the place in a text part" begin
         (doc, proj, io) = _transcript_render()
         # A folded part shows its header and nothing else, and the header is
-        # the fold. The thinking part starts folded, so it is unfolded first;
-        # a click on it then names it like a click on any other part.
-        doc.turns[2].parts[1].collapsed = false
+        # the fold. The thinking part is opened first, as a person opens it; a
+        # click on it then names it like a click on any other part.
+        doc.turns[2].parts[1].fold = :open
         found = _scan_selections(proj, io)
         # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
         # The code and the evaluation are named exactly; the three text parts and
@@ -323,7 +354,7 @@ function test_conversation_transcript()
 
     @testset "an Alt+click names the innermost object" begin
         (doc, proj, io) = _transcript_render()
-        doc.turns[2].parts[1].collapsed = false
+        doc.turns[2].parts[1].fold = :open
         found = _scan_whole_selections(proj, io)
         paths = [v[1] for v in values(found)]
         ef = doc.turns[3].parts[1].content

@@ -826,12 +826,6 @@ end
 # Streaming agent loop
 # ═══════════════════════════════════════════════════════════════════════
 
-# Resource reads (`list_resources` / `read_resource`) collapse by default —
-# they are lookup chatter, secondary to the answer, like thinking. Evaluations
-# (`execute_julia_code`) and other tool calls stay expanded. Keyed off
-# `get_evaluation_kind_label` so the resource/eval/tool classification stays single-sourced.
-_collapse_tool_default(tool_name::AbstractString) = get_evaluation_kind_label(tool_name) == "resource"
-
 # Build the backend this assistant names. Every real backend lives in an opt-in
 # package that the core stack does not depend on, so no type can be named here —
 # `make_llm(:ollama; …)` is how one is asked for, and the method that answers it
@@ -1170,8 +1164,7 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
                       is_error    = ev.is_error,
                       tool_use_id = call.id,
                       tool_name   = call.name,
-                      input       = call.input);
-        collapsed = _collapse_tool_default(call.name))))
+                      input       = call.input))))
     nothing
 end
 
@@ -1202,9 +1195,7 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
         state[:current_block] = nothing
 
     elseif ev isa LlmThinkingStart
-        # Collapsed by default — reasoning is verbose and secondary — unless the
-        # assistant opts to keep thinking expanded (`collapse_thinking = false`).
-        part = make_conversation_thinking_part(""; collapsed = a.collapse_thinking)
+        part = make_conversation_thinking_part("")
         push!(turn.parts, Cell(part))
         state[:current_thinking] = part
 

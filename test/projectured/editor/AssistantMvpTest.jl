@@ -783,6 +783,7 @@ end
 # The transcript draws a Markdown result as a page, so a table on it is a widget
 # table. The part passes its width on to the page, and the columns of the table
 # share it: each entry is drawn inside its column, and nothing leaves the width.
+# A resource read starts folded, so the part is open, as a person opens it.
 
 # The left edge of every text a canvas drew, and the text. A text that a viewport
 # cuts away entirely is not drawn, so it is not found.
@@ -813,7 +814,7 @@ function _mvp_test_markdown_result_table()
                               tool_name = "read_resource",
                               input = Dict{String,Any}("uri" => "resource://guide/x"),
                               result = parse_markdown(written), output = written,
-                              tool_use_id = "tu_1"))])])
+                              tool_use_id = "tu_1"); fold = :open)])])
         width = 900
         context = with_exact_size(PrinterContext(); width = Cell(Int32(width)))
         texts = _mvp_text_lefts(_render_conversation_widget(conversation, context))
@@ -832,12 +833,12 @@ end
 
 # ── Resource-read parts collapse by default ────────────────────────────
 #
-# A `read_resource` tool call is lookup chatter, secondary to the answer (like
-# thinking), so the agent loop must create its part collapsed by default —
-# unlike an `execute_julia_code` result, which stays expanded.
+# A `read_resource` tool call is lookup chatter, secondary to the answer, so the
+# transcript folds it. The agent loop makes its part with no choice of a fold, as
+# it makes every part.
 
 function _mvp_test_resource_collapse()
-    @testset "resource-read tool part collapsed by default" begin
+    @testset "a resource-read tool part has no choice of a fold" begin
         tools = register_default_tools!(ToolSet())
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "read_resource",
@@ -853,7 +854,7 @@ function _mvp_test_resource_collapse()
         ef = reply.parts[1].content
         @test ef isa EvaluatorForm
         @test ef.tool_name == "read_resource"
-        @test reply.parts[1].collapsed == true       # collapsed by default
+        @test reply.parts[1].fold === :default
         # The form keeps the call's input, and the transcript's header names the
         # resource it read — drawn even while the part is folded, because the
         # header is what a folded part shows.
@@ -920,7 +921,7 @@ function _all_expanded_conversation()
     for t in doc.turns
         t.collapsed = false
         for p in t.parts
-            p.collapsed = false
+            p.fold = :open
         end
     end
     doc
@@ -952,8 +953,8 @@ end
 #
 # A FakeLlm scripted with `thinking="…"` emits a synthetic thinking block
 # (block_start → thinking_delta×N → signature_delta → block_stop) before the
-# text block. The agent loop must materialize one collapsed ConversationThinking
-# part (right text + signature "sig_fake") ahead of the text part.
+# text block. The agent loop must materialize one ConversationThinking part
+# (right text + signature "sig_fake") ahead of the text part.
 
 function _mvp_test_thinking_stream()
     @testset "thinking block captured from stream" begin
@@ -971,7 +972,7 @@ function _mvp_test_thinking_stream()
         @test _text_to_string(think.content.text) == "Let me reason…"
         @test think.content.signature == "sig_fake"
         @test think.content.redacted == false
-        @test think.collapsed == true        # collapsed by default
+        @test think.fold === :default
 
         @test reply.parts[2].content isa MarkdownDocument   # prose parsed to Markdown
         @test _text_to_string(reply.parts[2].content) == "Hello"
@@ -983,11 +984,13 @@ end
 # Projects the conversation through the widget chain and drives a MouseClick
 # on a turn / part header card. The WidgetCard reader emits a
 # ToggleCollapseOperation targeting the card; ConversationToWidget translates
-# it back to the domain turn/part; evaluating it flips `collapsed`.
+# it back to the domain: the turn flips `collapsed`, and a part writes the choice
+# of the person into `fold`, the opposite of what its card shows.
 # Uses a font-free measure so the headless run never loads a TTF.
 
-# Scan the left edge for the first header click that yields a ToggleCollapse
-# whose target satisfies `pred`.
+# Scan the left edge for the first header click whose fold names a node that
+# satisfies `pred`: the target of a ToggleCollapseOperation, or the node of a
+# ReplaceConversationFoldOperation.
 function _find_toggle(proj, io, pred)
     for y in 2:3:820, x in 16:4:200
         op = try
@@ -995,9 +998,9 @@ function _find_toggle(proj, io, pred)
         catch
             nothing
         end
-        if op isa ToggleCollapseOperation && op.target !== nothing && pred(op.target)
-            return op
-        end
+        node = op isa ToggleCollapseOperation ? op.target :
+               op isa ReplaceConversationFoldOperation ? op.node : nothing
+        node !== nothing && pred(node) && return op
     end
     nothing
 end
@@ -1009,24 +1012,29 @@ function _mvp_test_collapse_click()
         proj = make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())
 
-        # Resolve both header clicks from the *same* fresh projection (a toggle
-        # mutates `collapsed`, which re-projects and shifts later positions).
+        # Resolve every header click from the *same* fresh projection (a fold
+        # re-projects and shifts later positions).
         op_turn = _find_toggle(proj, io, t -> t === doc.turns[1])
-        # parts[1] of the assistant turn is the collapsed-by-default thinking
-        # part; parts[3] is the Julia part. Both keep a panel, so both have a
-        # header to click. parts[2] and parts[4] are prose, which draws no
-        # chrome and therefore does not fold.
+        # parts[1] of the assistant turn is the thinking part; parts[3] is the
+        # Julia part. Both keep a panel, so both have a header to click.
+        # parts[2] and parts[4] are prose, which draws no chrome and therefore
+        # does not fold.
         op_part  = _find_toggle(proj, io, t -> t === doc.turns[2].parts[3])
         op_think = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
         op_prose = _find_toggle(proj, io, t -> t === doc.turns[2].parts[2])
 
-        # Thinking part header → toggles the thinking part's domain node. It is
-        # collapsed by default, so the click expands it.
-        @test op_think isa ToggleCollapseOperation
+        # Thinking part header → the choice of the opposite of what shows. The
+        # part starts open, so the click folds it, and an undo gives back the
+        # default.
+        @test op_think isa ReplaceConversationFoldOperation
+        @test op_think.field === :fold && op_think.fold === :folded
         @test doc.turns[2].parts[1].content isa ConversationThinking
-        @test doc.turns[2].parts[1].collapsed == true
+        @test doc.turns[2].parts[1].fold === :default
+        undo = make_inverse_operation(doc, op_think)
         evaluate_operation((document = doc,), op_think)
-        @test doc.turns[2].parts[1].collapsed == false
+        @test doc.turns[2].parts[1].fold === :folded
+        evaluate_operation((document = doc,), undo)
+        @test doc.turns[2].parts[1].fold === :default
 
         # Turn header → toggles the turn's domain node.
         @test op_turn isa ToggleCollapseOperation
@@ -1034,14 +1042,14 @@ function _mvp_test_collapse_click()
         evaluate_operation((document = doc,), op_turn)
         @test doc.turns[1].collapsed == true
 
-        # Part header → toggles the part's domain node.
-        @test op_part isa ToggleCollapseOperation
-        @test doc.turns[2].parts[3].collapsed == false
+        # Part header → the choice of a fold of the part's domain node.
+        @test op_part isa ReplaceConversationFoldOperation
+        @test doc.turns[2].parts[3].fold === :default
         evaluate_operation((document = doc,), op_part)
-        @test doc.turns[2].parts[3].collapsed == true
+        @test doc.turns[2].parts[3].fold === :folded
 
         # A prose part draws no panel, so there is no header anywhere on it to
-        # click and no click yields a toggle for it. Prose is what a person
+        # click and no click yields a fold for it. Prose is what a person
         # reads, and a fold over it hides the message.
         @test op_prose === nothing
     end
@@ -1163,8 +1171,8 @@ function _mvp_test_tool_use_roundtrip()
         @test _eval_code(ef) == "1+1"
         @test _doc_source(ef.form) == _doc_source(_eval_form_doc("1+1"))
         @test ef.tool_use_id   == "tu_1"
-        # An `execute_julia_code` result is primary content — expanded by default.
-        @test msgs[2].parts[1].collapsed == false
+        # The agent loop makes the part with no choice of a fold.
+        @test msgs[2].parts[1].fold === :default
         # The real `execute_julia_code` tool ran — `1+1` repr is "2".
         @test occursin("2", _eval_result(ef))
         @test ef.is_error == false

@@ -810,7 +810,7 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
                              is_error = update.status === :failed,
                              tool_use_id = update.id, tool_name = name, input)
         forms[update.id] = form
-        push!(turn.parts, Cell(ConversationPart(form; collapsed = _collapse_tool_default(name))))
+        push!(turn.parts, Cell(ConversationPart(form)))
         return nothing
     end
     # An update can name the tool that an earlier update left unnamed.

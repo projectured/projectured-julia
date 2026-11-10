@@ -11,21 +11,72 @@ abstract type ConversationDocument <: Document end
 # ── ConversationPart ──────────────────────────────────────────────────────────
 
 """
-    ConversationPart(content; collapsed = false)
+    ConversationPart(content; fold = :default)
 
-A collapsible slot around an arbitrary content document. A string makes a part
+A slot around an arbitrary content document, which folds. A string makes a part
 of plain text, a `PrimitiveString`, which the transcript draws in the style of a
 message; a producer of Markdown passes the document of `make_prose_document`.
+
+`fold` is `:default`, which follows the rule of the transcript, or `:open` or
+`:folded`, which is the choice of a person and stays.
 """
 @document struct ConversationPart <: ConversationDocument
     content::Document
-    collapsed::Bool
+    fold::Symbol
 end
 
-ConversationPart(content::Document; collapsed::Bool = false) =
-    ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
-ConversationPart(s::AbstractString; collapsed::Bool = false) =
-    ConversationPart(Cell(PrimitiveString(String(s))), Cell(collapsed), Cell(nothing))
+ConversationPart(content::Document; fold::Symbol = :default) =
+    ConversationPart(Cell(content), Cell(_check_fold(fold)), Cell(nothing))
+ConversationPart(s::AbstractString; fold::Symbol = :default) =
+    ConversationPart(Cell(PrimitiveString(String(s))), Cell(_check_fold(fold)), Cell(nothing))
+
+# The values of the fold of a part and of the work of a turn.
+const _CONVERSATION_FOLDS = (:default, :open, :folded)
+
+_check_fold(fold::Symbol) =
+    fold in _CONVERSATION_FOLDS ? fold :
+        throw(ArgumentError(string("a fold is one of ", _CONVERSATION_FOLDS, ", not :", fold)))
+
+# Whether a fold shows only its header: a choice of `:folded`, or the default
+# when the rule closes it.
+_is_fold_closed(fold::Symbol, is_closed_by_default::Bool) =
+    fold === :folded || (fold === :default && is_closed_by_default)
+
+# A file keeps the fold of a part only when a person chose it. A file can name
+# `collapsed`, which a part does not keep, so the part follows the rule.
+function pred_arguments(part::ConversationPart)
+    positional, keywords = invoke(pred_arguments, Tuple{Any}, part)
+    filter!(pair -> !(first(pair) === :fold && last(pair) === :default), keywords)
+    positional, keywords
+end
+
+function make_pred_document(::Type{<:ConversationPart}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    ConversationPart(values[:content]; fold = get(values, :fold, :default))
+end
+
+"""
+    ReplaceConversationFoldOperation(node, field, fold)
+
+Write `fold`, the choice of a person, into the field `field` of `node`: the
+`fold` of a `ConversationPart`, or the `work_fold` of a `ConversationTurn`. A
+click on the chevron of a part or of the work of a turn in a transcript gives it.
+It names the node that it writes, so it goes up a chain as it is. An undo writes
+the value that the field held before.
+"""
+struct ReplaceConversationFoldOperation <: Operation
+    node::ConversationDocument
+    field::Symbol
+    fold::Symbol
+end
+
+evaluate_operation(editor, op::ReplaceConversationFoldOperation) =
+    (setproperty!(op.node, op.field, _check_fold(op.fold)); nothing)
+
+make_inverse_operation(document, op::ReplaceConversationFoldOperation) =
+    ReplaceConversationFoldOperation(op.node, op.field, getproperty(op.node, op.field))
+
+is_self_contained_operation(::ReplaceConversationFoldOperation) = true
 
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
@@ -56,11 +107,10 @@ ConversationThinking(text::AbstractString;
     ConversationThinking(PrimitiveString(String(text));
                          signature = signature, redacted = redacted, data = data)
 
-# Convenience: a thinking part. Collapsed by default — reasoning is verbose and
-# secondary (see Stage 5 of the conversation-thinking plan).
+# Convenience: a thinking part, whose fold follows the rule of the transcript.
 # @optional: the text stands first, as the content of the part; the rest is its chrome.
-make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
-    ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
+make_conversation_thinking_part(text = ""; kwargs...) =
+    ConversationPart(ConversationThinking(text; kwargs...))
 
 # Accessor mirroring ConversationModule.make_evaluator_result_text / _eval_*.
 _thinking_text(t::ConversationThinking) = t.text

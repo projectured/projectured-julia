@@ -18,12 +18,16 @@
 # A turn is collapsible, and so is a part that kept a panel. Each is a
 # `collapsible` card, which draws a chevron before its header and, while
 # `collapsed`, the header and nothing else. The fold state lives on the domain
-# node — `turn.collapsed`, `part.collapsed`, and the two section flags of an
+# node — `turn.collapsed`, `part.fold`, and the two section flags of an
 # `EvaluatorForm` — and the card's own `collapsed` cell is a computed cell that
 # reads it, because a turn's part cards are rebuilt whenever its part list
 # changes and state held on a widget would reset while the model answers. A part
 # with no panel has no header to click, so it does not fold — prose is what a
 # person reads, and folding it hides the message.
+#
+# The fold of a part is a default or a choice. `:default` follows the rule of the
+# transcript, which the turn gives each part through the context; a click writes
+# `:open` or `:folded`, the opposite of what shows, and that choice stays.
 #
 # The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
 # part updates the layout without re-running `print_document` (streaming).
@@ -275,22 +279,41 @@ function print_document(projection::ConversationPartToWidget,
     content = part.content
     folds = Pair{Any,Any}[]
     text = _print_plain_text(projection, recursion, content, ctx)
-    output = content isa PrimitiveString      ? text.output :
-             content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
-             content isa ConversationThinking ? _thinking_card(projection, content, part, text) :
-             content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
-             content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
-             content isa ConversationQuestionRequest ? _question_card(projection, content, part) :
-             content isa ConversationNote     ? _note_row(projection, content)               :
-             content isa ImageFile            ? _picture_card(projection, content, part)     :
-             _is_code(content)                ? _code_card(projection, content, part)        :
+    card = content isa EvaluatorForm        ? _eval_card(projection, content, folds) :
+           content isa ConversationThinking ? _thinking_card(projection, content, text) :
+           content isa ConversationPermissionRequest ? _permission_card(projection, content) :
+           content isa ConversationSignInRequest ? _sign_in_card(projection, content) :
+           content isa ConversationQuestionRequest ? _question_card(projection, content) :
+           content isa ImageFile            ? _picture_card(projection, content) :
+           _is_code(content)                ? _code_card(projection, content) :
+           nothing
+    output = card !== nothing                  ? card :
+             content isa PrimitiveString       ? text.output :
+             content isa ConversationNote      ? _note_row(projection, content) :
              content
+    if card !== nothing
+        is_closed_by_default = _make_default_fold(part, ctx)
+        _follow_fold!(card, () -> _is_fold_closed(part.fold, is_closed_by_default()))
+    end
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds, text)
     content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
     content isa ConversationSignInRequest && _follow_sign_in_selection!(output, part, projection, iomap)
     content isa ConversationQuestionRequest && _follow_question_selection!(output, part, projection, iomap)
     iomap
 end
+
+# The default of the fold of a part: a function that says whether the rule of the
+# transcript closes it. A resource read starts folded. The turn around the part
+# says the rest through the property `:conversation_fold` of the context, a
+# function of no argument; a part that prints alone has none, and starts open.
+function _make_default_fold(part::ConversationPart, ctx)
+    rule = ctx isa PrinterContext ? get(ctx.properties, :conversation_fold, nothing) : nothing
+    () -> _is_resource_read(part.content) || (rule !== nothing && rule() === true)
+end
+
+# A tool call that reads a resource is lookup chatter, secondary to the answer.
+_is_resource_read(content) =
+    content isa EvaluatorForm && get_evaluation_kind_label(content) == "resource"
 
 # The print of the plain text that a part shows in the style of a message: the
 # text of a plain text part, and the text of a thinking part that has one;
@@ -333,17 +356,15 @@ end
 _tag(p, label::AbstractString) =
     WidgetLabel(String(label); text_style = p.kind_text)
 
-# The panel of a part: a muted card with a tag, that folds with the part.
-_part_card(p, tag::AbstractString, body, part::ConversationPart) =
-    _follow_fold!(WidgetCard(;
-                             title = _tag(p, tag), content = body,
-                             variant = :muted, collapsible = true),
-                  () -> part.collapsed)
+# The panel of a part: a muted card with a tag. It folds with the part, which
+# `print_document` sets.
+_part_card(p, tag::AbstractString, body) =
+    WidgetCard(; title = _tag(p, tag), content = body, variant = :muted, collapsible = true)
 
 # Code is separated from the prose around it, and its language named, because a
 # panel cannot say which language it holds.
-_code_card(p, content, part::ConversationPart) =
-    _part_card(p, _kind_label(content), content, part)
+_code_card(p, content) =
+    _part_card(p, _kind_label(content), content)
 
 # A note is one quiet line, in the style of a tag, and the button of its action
 # when it has one.
@@ -356,8 +377,8 @@ function _note_row(p, note::ConversationNote)
 end
 
 # A picture, under the tag "picture".
-_picture_card(p, image::ImageFile, part::ConversationPart) =
-    _part_card(p, "picture", _make_picture_body(image, p.picture_height), part)
+_picture_card(p, image::ImageFile) =
+    _part_card(p, "picture", _make_picture_body(image, p.picture_height))
 
 # The image of a picture, at most `height` high, in the shape of the picture. The
 # label draws the picture of the part, which reads its pixels on a task when a paint
@@ -370,13 +391,13 @@ end
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.
 # The tag is a word like every other tag.
-_thinking_card(p, t::ConversationThinking, part::ConversationPart, text) =
-    _part_card(p, "thinking", _thinking_body(p, t, text), part)
+_thinking_card(p, t::ConversationThinking, text) =
+    _part_card(p, "thinking", _thinking_body(p, t, text))
 
 # A permission request is the question over one button for each answer. The
 # buttons work while the agent waits, and the line under them says the answer
 # once there is one.
-function _permission_card(p, request::ConversationPermissionRequest, part::ConversationPart)
+function _permission_card(p, request::ConversationPermissionRequest)
     buttons = Any[]
     for option in request.options
         button = WidgetButton(option.name; action = _ -> answer_permission_request!(request, option.id))
@@ -388,7 +409,7 @@ function _permission_card(p, request::ConversationPermissionRequest, part::Conve
                           () -> (answer = request.answer; isempty(answer) ? "" : "Answer: " * answer))
     body = VerticalLayout(Any[WidgetLabel(request.title), HorizontalLayout(buttons; gap = p.button_gap), status];
                           gap = p.section_gap)
-    _part_card(p, "permission", body, part)
+    _part_card(p, "permission", body)
 end
 
 # A sign-in request is the message over one button for each way to sign in and a
@@ -396,7 +417,7 @@ end
 # terminal of the sign-in once one started. The buttons work while the request
 # has its live functions, which a request that a file read back has not; a
 # method waits while a sign-in runs.
-function _sign_in_card(p, request::ConversationSignInRequest, part::ConversationPart)
+function _sign_in_card(p, request::ConversationSignInRequest)
     buttons = Any[]
     for method in request.methods
         button = WidgetButton(method.name; tooltip = isempty(method.description) ? nothing : method.description,
@@ -416,7 +437,7 @@ function _sign_in_card(p, request::ConversationSignInRequest, part::Conversation
         terminal = request.terminal
         Cell[Cell(child) for child in (terminal === nothing ? fixed : vcat(fixed, Any[terminal]))]
     end)
-    _part_card(p, "sign-in", body, part)
+    _part_card(p, "sign-in", body)
 end
 
 # A question is its message, then a block for each field with its title, its
@@ -424,7 +445,7 @@ end
 # that says the answer, or what the form still needs. The form is the live field
 # of the part, where a person picks and types. The controls work while the agent
 # waits.
-function _question_card(p, request::ConversationQuestionRequest, part::ConversationPart)
+function _question_card(p, request::ConversationQuestionRequest)
     is_open() = is_question_request_open(request)
     children = Any[WidgetLabel(request.message)]
     for (index, field) in enumerate(request.fields)
@@ -442,7 +463,7 @@ function _question_card(p, request::ConversationQuestionRequest, part::Conversat
     set_cell_computation!(getfield(status, :content), () -> !isempty(request.answer) ? request.answer :
                           (values = find_question_values(request); values isa AbstractString ? values : ""))
     push!(children, HorizontalLayout(Any[send, decline]; gap = p.button_gap), status)
-    _part_card(p, "question", VerticalLayout(children; gap = p.section_gap, child_width = Fill), part)
+    _part_card(p, "question", VerticalLayout(children; gap = p.section_gap, child_width = Fill))
 end
 
 # The control of one field, which writes the `PrimitiveString` of its value: a
@@ -614,8 +635,8 @@ end
 
 # An evaluation is its header over its two sections. The header names the tool
 # or the resource, and the part folds as a whole; each section folds on its own.
-_eval_card(p, ef::EvaluatorForm, part::ConversationPart, folds) =
-    _part_card(p, get_evaluation_title(ef), _eval_sections(p, ef, folds), part)
+_eval_card(p, ef::EvaluatorForm, folds) =
+    _part_card(p, get_evaluation_title(ef), _eval_sections(p, ef, folds))
 
 # The two sections of a form: its code (or its arguments) over its result. Each
 # is a bare card with a small title, indented under the panel's header and with
@@ -904,25 +925,28 @@ end
 # `card` is the produced widget. Say what that fold means in the conversation
 # domain by walking the iomap tree: a card that is the output of an iomap folds
 # the node that iomap printed, and a card a part listed among its `folds` means
-# the operation the part said. A card this walk does not find is not the
-# transcript's, and its operation travels unchanged.
+# the operation the part said. The card of a part writes the choice of the
+# person, the opposite of what the card shows. A card this walk does not find is
+# not the transcript's, and its operation travels unchanged.
 function _find_fold_operation(iomap, card)
     iomap = get_content_iomap(iomap)
     if iomap isa ConversationPartToWidgetIoMap
         for (folded, operation) in iomap.folds
             folded === card && return operation
         end
+        iomap.output === card && return _make_fold_choice(iomap.input, :fold, card)
     end
     iomap.output === card && return ToggleCollapseOperation(iomap.input)
-    if iomap isa ChildrenIoMap
-        for entry in getfield(iomap, :child_iomaps)[]
-            cim = entry isa Tuple ? entry[end] : entry
-            operation = _find_fold_operation(cim, card)
-            operation !== nothing && return operation
-        end
+    for child in something(get_child_iomaps(iomap), ())
+        operation = _find_fold_operation(child, card)
+        operation !== nothing && return operation
     end
     nothing
 end
+
+# The choice that a click on the chevron of `card` writes into `field` of `node`.
+_make_fold_choice(node, field::Symbol, card::WidgetCard) =
+    ReplaceConversationFoldOperation(node, field, card.collapsed === true ? :open : :folded)
 
 # A turn or a part folds from its chevron wherever it is the root of what is
 # drawn: in a transcript, or alone in a tab.
