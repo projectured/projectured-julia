@@ -1194,14 +1194,30 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     # The pen origin of the text is its `x`, and its baseline is where the layout
     # put it: the ascent of its box (`compute_text_extent`) below its `y`. The
     # pen origin of the texture is `entry.left` device pixels right of its left
-    # edge, and its baseline `entry.ascent` device pixels below its top. The rect
-    # is in logical pixels as real numbers, and the renderer scale maps it to
-    # whole device pixels, so the texture lands 1:1 and stays crisp at any ratio.
+    # edge, and its baseline `entry.ascent` device pixels below its top. When the
+    # renderer scale is a whole number `k` of texture pixels, as with a supersample,
+    # the texture lands on whole texture pixels, `k` device pixels each, and a clip
+    # on that grid (`_make_texel_rect`) cuts whole texels: the software renderer
+    # samples a magnified texture that a clip cuts inside a texel one pixel off, so
+    # two paints that cut it at other edges would draw other pixels. Else the rect
+    # is in logical pixels as real numbers, and the renderer scale maps it to device
+    # pixels.
     baseline = Float64(elem.y + oy + entry.box_ascent)
-    dest = Ref(SDL_FRect(Cfloat(elem.x + ox - entry.left / ratio),
-                         Cfloat(baseline - entry.ascent / ratio),
-                         Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
-    SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
+    scale_x, scale_y = _get_render_scale(renderer)
+    k = _find_texel_scale(scale_x, ratio)
+    if k !== nothing && k == _find_texel_scale(scale_y, ratio)
+        dest = Ref(SDL_Rect(Cint(k * (round(Int, (elem.x + ox) * ratio) - entry.left)),
+                            Cint(k * (round(Int, baseline * ratio) - entry.ascent)),
+                            Cint(k * entry.dw), Cint(k * entry.dh)))
+        SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
+        SDL_RenderCopy(renderer, entry.texture, C_NULL, dest)
+        SDL_RenderSetScale(renderer, Cfloat(scale_x), Cfloat(scale_y))
+    else
+        dest = Ref(SDL_FRect(Cfloat(elem.x + ox - entry.left / ratio),
+                             Cfloat(baseline - entry.ascent / ratio),
+                             Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
+        SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
+    end
 end
 
 # True when `renderer` is the software renderer of SDL: the renderer of each
@@ -1291,6 +1307,24 @@ function _make_device_rect(x0::Int, y0::Int, x1::Int, y1::Int, scale_x::Float64,
     SDL_Rect(left, top, ceil(Int32, x1 * scale_x) - left, ceil(Int32, y1 * scale_y) - top)
 end
 
+# The device pixels for each pixel of a texture of the content scale `ratio` at the
+# render scale `scale`, when that is a whole number; else `nothing`.
+function _find_texel_scale(scale::Float64, ratio::Float64)
+    k = round(Int, scale / ratio)
+    k >= 1 && abs(scale / ratio - k) < 1e-4 ? k : nothing
+end
+
+# `_make_device_rect`, with each edge widened to the grid of the texels of the
+# content scale `ratio` when the render scale holds a whole number of them, so a
+# clip of this rect cuts a text on whole texels (`_render_element!` of a text).
+function _make_texel_rect(x0::Int, y0::Int, x1::Int, y1::Int, scale_x::Float64, scale_y::Float64,
+                          ratio::Float64)
+    kx, ky = _find_texel_scale(scale_x, ratio), _find_texel_scale(scale_y, ratio)
+    (kx === nothing || ky === nothing) && return _make_device_rect(x0, y0, x1, y1, scale_x, scale_y)
+    grid = _make_device_rect(x0, y0, x1, y1, ratio, ratio)
+    SDL_Rect(kx * grid.x, ky * grid.y, kx * grid.w, ky * grid.h)
+end
+
 # Viewports nest, and SDL's clip rectangle does not. `SDL_RenderSetClipRect`
 # REPLACES what is in force, and clearing it with `C_NULL` removes clipping
 # altogether rather than putting the enclosing one back. Left to SDL, a viewport
@@ -1334,7 +1368,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     base_x, base_y = _get_render_scale(renderer)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     prev = _clip_current(renderer)
-    box = _make_device_rect(vx, vy, vx + vw, vy + vh, base_x, base_y)
+    box = _make_texel_rect(vx, vy, vx + vw, vy + vh, base_x, base_y, ratio)
     SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
     SDL_RenderSetScale(renderer, Cfloat(base_x * sx), Cfloat(base_y * sy))
     if plain
@@ -4051,7 +4085,7 @@ function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas
     # viewport reads them (`_render_viewport!`).
     scale_x, scale_y = _get_render_scale(renderer)
     for r in rects
-        clip = Ref(_make_device_rect(r[1], r[2], r[3], r[4], scale_x, scale_y))
+        clip = Ref(_make_texel_rect(r[1], r[2], r[3], r[4], scale_x, scale_y, ratio))
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderSetClipRect(renderer, clip)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])

@@ -166,7 +166,8 @@ on `main` before the owner approves.
    read, and a test that fails already hides a new fault. See
    [As built](#as-built). Commit each fix with a test that fails before it:
    - a. [x] two zoomed viewports that overlap; done, see [As built](#as-built);
-   - b. a partial paint at 2.5 device pixels for each pixel;
+   - b. [x] a partial paint at 2.5 device pixels for each pixel; done, see
+     [As built](#as-built);
    - c. the Julia file, which no longer copies.
    The fix of a comes before the commit of step 1, whose random scenes it makes
    stable. Promote each assertion of step 1 that a fix makes pass.
@@ -247,4 +248,33 @@ the fix it passes at all four settings. The random scene of seed 1 at (1, 1),
 which failed in 2 of 3 processes, passes in 3 of 3 and in 30 runs in one
 process; the 40 seeds at (1, 1), (2, 1) and (2, 2) pass in 3 processes each.
 `test_partial_paint()`: 83 pass, 1 broken (density 1.25, fault b).
+
+### Step 2b: a partial paint at 2.5 device pixels for each pixel, 2026-11-11
+
+A forked agent found the cause. A text rasterizes at the content scale, 1.25,
+and the supersample magnifies its texture 2 times, at a destination in real
+numbers, so at 2.5 its device x is often odd. When a clip cuts such a texture at
+an odd offset from its start, the software renderer of SDL rounds the source
+offset of the cut part to the next texel, and the cut part samples one device
+pixel off. The full paint cuts a text at the edge of a viewport, the partial
+paint at the edge of a rectangle, so the two paints sampled on other grids. At
+the ratios 1, 2 and 4 every position is even. The scroll tests at (2, 1.25)
+passed because all their positions are multiples of 4 pixels.
+
+When the render scale is a whole number `k` of texture pixels, a text now lands
+on whole texture pixels, `k` device pixels each (`_render_element!` of a text,
+`_find_texel_scale`), and the box of a viewport and the clip of a rectangle are
+widened to that grid (`_make_texel_rect`). At a whole ratio nothing moves. At
+density 1.25 a text can move by up to half a pixel of the content grid, and a
+viewport can show up to one more device pixel at its edge, in both paints. An
+image (`SDL_RenderCopy` of an image) can have the same fault; the tests hold no
+image at that ratio, so it is not changed.
+
+The smallest scene that the agent found is the new pixel test "a text that the
+clip of a box cuts inside a texel": on `main` it fails in frames 2 and 3 at
+(2, 1.25), with the fix it passes at all four settings. The random scenes pass
+at (2, 1.25) in 3 of 3 processes, 40 of 40 seeds, so their assertion is now one
+`@test` over the four settings. `test_sdl()`: 1285 pass, 1 fail and 1 error in
+`SdlWorkloadTest`, as on `main` since 2026-10-29. `test_video()`: 78 pass, 1 fail
+at `ApplicationVideoTest.jl:317`, as on `main` (`2d8d7e117`).
 

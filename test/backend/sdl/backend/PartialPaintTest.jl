@@ -297,6 +297,22 @@ end
     end
 end
 
+@testset "a text that the clip of a box cuts inside a texel" begin
+    for (supersample, density) in scroll_settings
+        # At 2.5 device pixels for each pixel, the texture of a text that the
+        # supersample magnifies starts at an odd device pixel, and the edge of the
+        # viewport and the edge of a rectangle of the partial paint cut it at other
+        # odd device pixels. A dot that moves near the text dirties a rectangle
+        # that cuts it.
+        dot_x = Cell(20)
+        text = GraphicsText("xxxxxxxx", -1, 10; font = StyleFont("DejaVu Sans", 30), color = black)
+        canvas = GraphicsCanvas(Any[GraphicsViewport(130, 10, 79, 60, GraphicsCanvas(Any[text])),
+                                    GraphicsRect(() -> dot_x[], 25, 4, 4; color = translucent)];
+                                w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(dot_x, [180, 60]); supersample, density))
+    end
+end
+
 @testset "two viewports with a scale whose boxes overlap" begin
     for (supersample, density) in scroll_settings
         # Each viewport draws lines of text over its whole box, so where the boxes
@@ -768,9 +784,7 @@ end
          for seed in 1:40, (supersample, density) in settings
          for frames in (find_differing_frames(make_random_scene(seed)...; supersample, density),)
          if !isempty(frames)]
-    @test isempty(find_differing_scenes(filter(((_, density),) -> isinteger(density), scroll_settings)))
-    # @broken: at 2.5 device pixels for each pixel a partial paint differs from a full paint in 30 of 40 scenes, with no copy, on main too
-    @test_broken isempty(find_differing_scenes(filter(((_, density),) -> !isinteger(density), scroll_settings)))
+    @test isempty(find_differing_scenes(scroll_settings))
 end
 end
 end
