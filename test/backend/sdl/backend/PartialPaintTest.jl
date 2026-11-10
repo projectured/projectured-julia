@@ -297,6 +297,20 @@ end
     end
 end
 
+@testset "two viewports with a scale whose boxes overlap" begin
+    for (supersample, density) in scroll_settings
+        # Each viewport draws lines of text over its whole box, so where the boxes
+        # overlap, both draw. A dot that moves over the overlap dirties both boxes.
+        lines = () -> GraphicsCanvas(Any[GraphicsText("zoom zoom zoom", 0, 7 * k; font, color = black) for k in 0:5])
+        upper = GraphicsViewport(40, 40, 120, 60, lines(); transform = make_affine_scale(2))
+        lower = GraphicsViewport(101, 71, 120, 60, lines(); transform = make_affine_scale(2))
+        dot_x = Cell(90)
+        dot = GraphicsCircle(() -> dot_x[], 85, 6; color = translucent)
+        canvas = GraphicsCanvas(Any[upper, lower, dot]; w = width, h = height)
+        @test isempty(find_differing_frames(canvas, make_writes(dot_x, [110, 130, 150]); supersample, density))
+    end
+end
+
 @testset "a scroll inside and around a scale" begin
     for (supersample, density) in scroll_settings
         # A pane in a viewport with a scale of 2, and a viewport with a scale of 2

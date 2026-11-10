@@ -2327,7 +2327,9 @@ _has_overlap(a::NTuple{4,Int}, b::NTuple{4,Int}) =
 # a scaled texture that a clip cuts off its grid of pixels with another sampling,
 # so content cut that way would differ from a full paint, and a later paint of the
 # whole box draws over the cut. A box that a box painted so cuts is painted too.
-# The smaller boxes go first, so a box inside another one is painted again by it,
+# Two painted boxes that overlap, where neither holds the other, are painted as
+# the box that holds both, because each one painted alone cuts the other. The
+# smaller boxes go first, so a box inside another one is painted again by it,
 # under the clips of a full paint. A rectangle that such a box covers is dropped.
 # The records keep the box of a viewport inside scaled content in the units of
 # that content: a rectangle that meets such a box only repaints more than it must.
@@ -2346,11 +2348,12 @@ function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowReso
     while grown
         grown = false
         for box in boxes
-            box in painted && continue
+            any(b -> _is_rect_covered(box, b), painted) && continue
             (any(r -> cuts(r, box), region.rects) || any(b -> cuts(b, box), painted)) || continue
             push!(painted, box)
             grown = true
         end
+        grown |= _merge_crossing_boxes!(painted)
     end
     sort!(painted; by = b -> (b[3] - b[1]) * (b[4] - b[2]))
     for box in painted
@@ -2358,6 +2361,27 @@ function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowReso
         push!(region.rects, box)
     end
     nothing
+end
+
+# Replace each two boxes of `boxes` that overlap, where neither holds the other, by
+# the box that holds both, until no two such boxes are left. True when it merged.
+function _merge_crossing_boxes!(boxes::Vector{NTuple{4,Int}})::Bool
+    merged = false
+    i = 1
+    while i <= length(boxes)
+        j = findfirst(b -> b !== boxes[i] && _has_overlap(b, boxes[i]) &&
+                           !_is_rect_covered(b, boxes[i]) && !_is_rect_covered(boxes[i], b), boxes)
+        if j === nothing
+            i += 1
+            continue
+        end
+        a, b = boxes[i], boxes[j]
+        boxes[i] = (min(a[1], b[1]), min(a[2], b[2]), max(a[3], b[3]), max(a[4], b[4]))
+        deleteat!(boxes, j)
+        merged = true
+        i = 1
+    end
+    merged
 end
 
 # True if any of `elem`'s own visual field cells is stale. A view state field is

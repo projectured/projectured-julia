@@ -76,26 +76,33 @@ saved position: row 3 is at (100, 30) + (4, 40) = (104, 70).
 ## The way of the change (my proposal)
 
 1. **Each record is relative to the canvas that holds its graphic.** The bounds
-   of a graphic, the box of a viewport, the offset of a canvas in its container
-   and the place of a guard are saved relative to the content origin of the
-   canvas that holds the graphic. The content of a viewport saves its origin
-   relative to the box of the viewport, which is its scroll. A leaf keeps only
-   the mark that it was painted. Each reader adds the origin that its walk
-   carries: the dirty walk, the paint of the rectangles
-   (`_is_outside_partial_paint` takes the origin), the rule for the graphics
-   outside a moved content (`_collect_cover_rects!`), the forget of the records
-   and the moves. A rectangle of the dirty region stays in window coordinates.
+   of a graphic (`res.dirty_bounds`) and the box of a viewport
+   (`res.painted.viewports`) are saved relative to the content origin of the
+   canvas that holds the graphic. For the content of a viewport, that origin is
+   the corner of the box, in the units of the content. A canvas saves its offset
+   in that origin (`res.painted.origins`), which is its scroll for the content
+   of a viewport; any other graphic keeps only the mark that it was painted. The
+   edges that the content of a viewport was recorded between are saved relative
+   to the content origin. A recording still answers window bounds, so the union
+   of a canvas, the rectangles of a move and the dirty region do not change. Each
+   reader of a saved bound adds the origin that its walk carries: the dirty walk,
+   the paint of the rectangles (`_is_outside_partial_paint` takes the origin),
+   the rule for the graphics outside a moved content (`_collect_cover_rects!`),
+   the forget of the records and the moves. The place of a guard stays in window
+   coordinates: a move enters every canvas whose guard has such a place.
 2. **A canvas moved when its own offset changed.** The walk compares the offset
    of a canvas in its container, not its window origin. The old bounds of a unit
    are its saved bounds plus the origin of its container, which did not move:
    when the container moved, the container is the unit. A content whose scroll
-   changed is a unit or a move, as now.
+   changed is a unit or a move, as now. A list that moved reads the old bounds of
+   its nodes at its old origin, its new origin less the change of its offset.
 3. **A canvas that draws all that it holds inside the edges is whole.** A
    recording marks a canvas whole when it drew every element, when the bounds
    of each lie inside the edges, and when each canvas or viewport among them is
-   whole. A viewport is whole when its box lies inside the edges and it has no
-   scale. Its guard reads all its elements, so the place of its guard is the mark
-   "whole" and not its edges.
+   whole. A viewport is whole when its box lies inside the edges, it has no
+   scale and its content is whole. All that a whole canvas holds is whole, so its
+   guard reads all its elements and needs no place: the place of its guard is the
+   mark "whole", which a move does not change.
 4. **A move does not enter a kept canvas that stays whole.** The record of a
    move tests each element that the content draws before and now, as now. A kept
    element that was recorded whole and whose bounds lie inside the new edges
@@ -119,8 +126,9 @@ and keeps the positions of what the layer holds.
   full paint after too many records stay as they are.
 - **D2. The check of random scenes becomes a test.** A scratch check of random
   scenes found a fault of the rule for a rectangle that 87 pixel tests passed
-  (ebefff784). Step 1 adds it to `test_partial_paint()` with 50 fixed seeds at
-  three settings of supersample and density, about 10 s.
+  (ebefff784). Step 1 adds it to `test_partial_paint()` with 40 fixed seeds at
+  the four settings of supersample and density of the scroll tests. A generator
+  of its own makes the numbers, so a seed gives the same scene on every Julia.
 - **D3. The guard of the work is the height of the window.** A scroll that costs
   what comes into view costs the same in a taller window. `test_scroll_work`
   scrolls each scene in a window of 1000 and of 2000 pixels and compares the
@@ -152,14 +160,23 @@ on `main` before the owner approves.
    window of 2000 pixels enters at most 10% more graphics than in a window of
    1000 pixels; mark each assertion that `main` fails with `@test_broken` and its
    reason. Add the check of random scenes to `test_partial_paint()` (D2). Commit.
-2. [ ] **Records relative to their canvas.** Points 1, 2 and 5 of the way of the
+2. [ ] **The three faults of `main` that step 1 found.** The owner said to fix
+   them first (2026-11-11), because step 3 changes the records that these paths
+   read, and a test that fails already hides a new fault. See
+   [As built](#as-built). Commit each fix with a test that fails before it:
+   - a. [x] two zoomed viewports that overlap; done, see [As built](#as-built);
+   - b. a partial paint at 2.5 device pixels for each pixel;
+   - c. the Julia file, which no longer copies.
+   The fix of a comes before the commit of step 1, whose random scenes it makes
+   stable. Promote each assertion of step 1 that a fix makes pass.
+3. [ ] **Records relative to their canvas.** Points 1, 2 and 5 of the way of the
    change. The counts and the pixels do not change. Run `test_sdl()`,
    `test_scroll_work()` and `test_video()` with the offscreen driver. Commit.
-3. [ ] **A move does not enter a whole canvas.** Points 3 and 4. Promote the
+4. [ ] **A move does not enter a whole canvas.** Points 3 and 4. Promote the
    assertions of step 1 that pass, and write the counts in this plan. Run the
    same tests, and `test_dataframes()`, because a change of a table shows there
    first. Commit.
-4. [ ] **The measurement, the guide and the end.** On the word of the owner,
+5. [ ] **The measurement, the guide and the end.** On the word of the owner,
    time the three scenes in real windows on `main` and on the branch, and
    profile the walk of the data frame again. Describe the frame of reference of
    the records and whole canvases in
@@ -179,4 +196,41 @@ My estimate: the walk of a notch of the data frame falls from 11 ms to about
 
 ## As built
 
-Nothing yet.
+### Step 1: what the new tests found on `main`, 2026-11-11
+
+The count `kept_entries` and the window of 2000 pixels work: each scene gives one
+`@test_broken` for the height of the window, as planned. The new tests also found
+three faults that `main` has without this branch:
+
+1. **Two zoomed viewports that overlap.** In the random scene of seed 1 at the
+   setting (1, 1), two viewports with a scale of 2 have boxes of 80 × 40 pixels
+   that overlap. `_extend_over_scaled_viewports!` paints each box whole, in the
+   order of the values of `res.painted.viewports`, a dictionary keyed by the
+   placement keys, which come from `objectid`. The box painted last cuts the other
+   viewport, whose texture the software renderer then samples on another grid:
+   21 pixels of its text differ in frame 9. The order changes with the addresses
+   of the objects, so the scene fails in some processes and passes in others.
+2. **A ratio of 2.5 device pixels for each pixel.** At supersample 2 and density
+   1.25, 30 of 40 random scenes differ from a full paint, by 72 to 2105 device
+   pixels in the first frame that differs, with no copy. The code of `main` gives
+   the same frames and pixels. The cause is not found.
+3. **The Julia file no longer copies.** `test_scroll_work` fails its assertions
+   of two copies and of the share of leaves drawn for the Julia file, as on
+   `main` since at least `19e56d912` (2026-11-06). It passed when the scroll work
+   landed (`bc379a52c`).
+
+### Step 2a: two zoomed viewports that overlap, 2026-11-11
+
+`_extend_over_scaled_viewports!` now paints two boxes of viewports with a scale
+that overlap, where neither holds the other, as the box that holds both
+(`_merge_crossing_boxes!`), and it adds no box that a painted box holds. The new
+pixel test "two viewports with a scale whose boxes overlap" puts the second
+viewport at an odd pixel, (101, 71), so the clip of each box cuts the other
+inside a pixel of its zoomed content. Before the fix it failed in frames 2 to 4
+at the settings (1, 1), (2, 1) and (2, 1.25), in each of five runs; at even
+pixels it passed, because a cut on the grid of the zoom samples the same. After
+the fix it passes at all four settings. The random scene of seed 1 at (1, 1),
+which failed in 2 of 3 processes, passes in 3 of 3 and in 30 runs in one
+process; the 40 seeds at (1, 1), (2, 1) and (2, 2) pass in 3 processes each.
+`test_partial_paint()`: 83 pass, 1 broken (density 1.25, fault b).
+
