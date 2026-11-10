@@ -21,17 +21,12 @@ function print_document(p::ExplorerSearchToWidget, recursion, search::ExplorerSe
     body = VerticalLayout(Any[]; gap = p.gap, child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         matches = search.result.matches
-        if isempty(matches)
-            label = WidgetLabel(is_cell_provisional(getfield(search, :result)) ? "No match yet." : "No match.")
-            follow_widget_part!(label, body, (FieldReferenceStep("children"), RangeReferenceStep(0, 1)))
-            return Cell[Cell(label)]
-        end
+        isempty(matches) &&
+            return Cell[Cell(WidgetLabel(is_cell_provisional(getfield(search, :result)) ? "No match yet." : "No match."))]
         rows = Any[_make_search_match_row(search, match) for match in matches]
-        table = WidgetTable(Any["match", "place"], rows)
-        # The table is built after the print, so it takes its part of the paths here.
-        follow_widget_part!(table, body, (FieldReferenceStep("children"), RangeReferenceStep(0, 1)))
-        Cell[Cell(table)]
+        Cell[Cell(WidgetTable(Any["match", "place"], rows))]
     end)
+    follow_built_children!(body)
     root = VerticalLayout(Any[WidgetLabel(get_document_title(search)), line,
                               LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)

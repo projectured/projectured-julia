@@ -46,15 +46,10 @@ end
 # edge of the page between two words.
 function _build_command_line(p::SystemProcessToWidget, process::SystemProcess)
     line = FlowLayout(Any[]; horizontal_gap = p.gap)
-    set_cell_computation!(getfield(line.children, :elements), () -> begin
-        children = Cell[Cell(WidgetLabel(String(word)))
-                        for word in [string(process.process_id); split(process.command)]]
-        for (k, child) in enumerate(children)
-            follow_widget_part!(child[], line, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
-        end
-        children
-    end)
-    line
+    set_cell_computation!(getfield(line.children, :elements), () ->
+        Cell[Cell(WidgetLabel(String(word)))
+             for word in [string(process.process_id); split(process.command)]])
+    follow_built_children!(line)
 end
 
 # The start of a process and the time from it to the last sample: `started

@@ -846,6 +846,65 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       delimiter: a space (234), a quote (161), `]` (45) and `}` (3). The caret
       there goes to the part beside the delimiter, which does not hold the
       point; this is the delimiter cause of step 6, not the wiring of D6.
+    - **A probe of the chain** (`probe-chain.jl`, one unmarked Alt+click of each
+      view) put each view into one of four classes: the root of the output holds
+      no selection (D6, 20 views of projectured and 5 of omnet-julia); the root
+      holds it, but a container below holds nothing (D6, the explorer section,
+      the explorer search, the help entry); each document holds its part, but
+      the widget draws no mark for it (the models of 5.3 and step 6: the content
+      of a scroll pane, a layout constraint, the header of a table, the
+      description of a card); a delimiter (step 6).
+    - **The functions of D6 are in the widget slice.**
+      `follow_widget_output!(root, input, map_forward; is_followed)` gives each
+      widget and layout of the output of a view its part of the selection and of
+      the part under the pointer. `follow_built_children!(holder)` does it for
+      each child that a computation of a layout builds after the print, because
+      the walk of the print reaches only the children that are there.
+      `is_widget_or_layout` is the default rule: a widget, a layout, a layout
+      constraint, or a `CellVector`, which is the row of a table. They are not in
+      the focus slice, because a view slice such as statistics has no edge to
+      focus in `PLATFORM_SLICE_EDGES`, and every view that draws widgets uses the
+      widget slice. A syntax view writes the paths of its root with
+      `make_output_path_cells`, because a syntax node maps a path into its
+      children itself.
+    - **A view leaves out a part that holds its own selection**: a document of
+      its input that it puts into its output whole, also when that document is a
+      widget, such as the kind document of a task (`WidgetFactGroup`) and the
+      documents of a tooltip; and a field with its own map, such as the title of
+      an explorer section and the field of the place of a folder.
+    - **The views of projectured** (8066eeae3, 8c8949b40, b4bbac502, 0755cd4a9,
+      8f3c4f516), the Alt+clicks that draw no mark in run 3 and after:
+      system process 14 → 0, task 16 → 1, task execution 9 → 1, task stream
+      15 → 0, task group list 3 → 1, closed task group 6 → 0, tooltip note 7 → 0,
+      tooltip content 3 → 3, MCP log 27 → 10, workflow journal 8 → 0, folder
+      9 → 1, pivot part table 11 → 2, formula 1 → 0, formula environment 1 → 1,
+      explorer section 19 → 18, explorer search 19 → 1, help entry 6 → 1,
+      message log 4 → 0, gesture log 6 → 0, about page 5 → 0, reversing 17 → 5,
+      frame statistics (all failures) 119 → 41, fault log (all failures) 8 → 0.
+      No count of all failures grew, and no example throws.
+    - **`PivotTableToWidget` stays as it is.** It computes the selection of its
+      grid, its bar and its table with its own maps, and the walk would replace
+      them. Its 10 points are the labels of its zones and the cells of a header:
+      the model class.
+    - **A fault found by the work**: the computation of the row count of
+      `GridLayoutToGraphicsCanvas` assigned `p` in its closure, so the printer
+      read a vector as its projection once the count computed early (8c8949b40).
+    - **The views of omnet-julia.** The part page (`_finish_page`,
+      `LegacyIniFileEntryToWidget.jl`) gives its widgets the selection too: on
+      five part page examples, 200 → 7 Alt+clicks that draw no mark. 20 more
+      views that gave their widgets only the part under the pointer call
+      `follow_widget_output!`, and keep the parts that they leave out. Four views
+      set some selection cells by hand: `CatalogShellToWidget`,
+      `SimulationWorkflowToWidget`, `SimulationEmbedToWidget` and
+      `SimulationOptimizationToWidget` (the best row of its table). A walk would
+      overwrite those cells, and the click test shows no failure from them: their
+      catalog examples show the reflected object. They stay as they are.
+    - **Points that stay unmarked**, for 5.3 and step 6: the content of a scroll
+      pane (MCP log, help, task, explorer search, task list), the background of a
+      header cell of a table (folder, pivot part table), the navigator of the
+      explorer, which is another view, a text inside a layer document of a
+      tooltip, the label of an embedded formula, and the quote leaf of a string
+      in the reversing view.
   - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
     done (2026-11-10); the copy of a part that a view drew waits for 5.4.
 

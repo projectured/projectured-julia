@@ -24,14 +24,10 @@ function print_document(p::ExplorerSectionToWidget, recursion, section::Explorer
     body = VerticalLayout(Any[]; gap = p.gap, child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         entries = section.entries
-        cards = isempty(entries) ? Any[WidgetLabel("This section has no entry.")] :
-                Any[_make_entry_card(p, section, k, entries[k]) for k in eachindex(entries)]
-        # A card is built after the print, so it takes its part of the paths here.
-        for (k, card) in enumerate(cards)
-            follow_widget_part!(card, body, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
-        end
-        Cell[Cell(card) for card in cards]
+        isempty(entries) && return Cell[Cell(WidgetLabel("This section has no entry."))]
+        Cell[Cell(_make_entry_card(p, section, k, entries[k])) for k in eachindex(entries)]
     end)
+    follow_built_children!(body)
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(section.title))
     set_output_path_computations!(title, section, path -> _map_title_field_path(path))

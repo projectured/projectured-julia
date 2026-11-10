@@ -134,14 +134,9 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
     # these. A flush changes the labels of the numbers and the rows of the table
     # of the frames, which read their own cells, and so does the choice of the
     # statistic of the parts.
-    set_cell_computation!(getfield(root.children, :elements), () -> begin
-        children = _build_page_children(p, statistics, head, bar)
-        # A child is built after the print, so it takes its part of the paths here.
-        for (k, child) in enumerate(children)
-            follow_widget_part!(child[], root, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
-        end
-        children
-    end)
+    set_cell_computation!(getfield(root.children, :elements),
+                          () -> _build_page_children(p, statistics, head, bar))
+    follow_built_children!(root)
     iomap = FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
     follow_widget_output!(root, statistics, path -> map_reference_forward(p, iomap, path))
     iomap

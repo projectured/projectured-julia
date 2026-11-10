@@ -64,26 +64,11 @@ _make_open_button(p, text, document, reference::Reference) =
 
 _make_steps(steps...) = foldr(ConcreteReference, steps; init = EmptyReference())
 
-# Make each child that the computation of `holder.children` builds hold its part of
-# the paths of `holder`, as the walk of the print makes the children that exist then.
-function _follow_built_children!(holder)
-    elements = getfield(holder.children, :elements)
-    build = get_cell_computation(elements)
-    build === nothing && return holder
-    set_cell_computation!(elements, () -> begin
-        built = build()
-        for (k, child) in enumerate(built)
-            follow_widget_part!(unwrap_cell(child), holder, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
-        end
-        built
-    end)
-    holder
-end
-
 # Is `node` a child now of `layout`? A layout of a page that holds the document of a
 # kind has the document as its child, and the document holds its own selection.
 _is_child_of(layout, node) = run_without_cell_tracking(() ->
     any(k -> layout.children[k] === node, 1:length(layout.children)))
+
 _get_execution_steps(k::Int) = (FieldReferenceStep("executions"), RangeReferenceStep(k - 1, k))
 
 # The card of one stream of an execution: its name and the count of its lines, over
@@ -103,12 +88,12 @@ function _build_stream_preview(p, document, steps, shadow, field::Symbol)
             kept = collect_output_lines(getproperty(shadow, field))
             Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
         end)
-        _follow_built_children!(lines)
+        follow_built_children!(lines)
         title = _make_label(() -> _format_stream_count(name, getproperty(shadow, field).count), p.muted_color)
         Cell[Cell(WidgetCard(; title, content = VerticalLayout(Any[link, lines]; gap = p.section_gap, child_width = Fill),
                              collapsible = true))]
     end)
-    _follow_built_children!(preview)
+    follow_built_children!(preview)
     Any[preview]
 end
 
@@ -128,7 +113,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     kind_part = _build_task_kind_part(p, document)
     push!(parts, kind_part)
     append!(parts, _build_task_links_cards(p, task))
-    push!(parts, _follow_built_children!(_build_process_card(p, place === nothing ? nothing : first(place), () -> document)))
+    push!(parts, follow_built_children!(_build_process_card(p, place === nothing ? nothing : first(place), () -> document)))
     push!(parts, _build_task_page_executions(p, document))
     push!(parts, _build_task_page_streams(p, document))
     root = WidgetScrollPane(VerticalLayout(parts; horizontal_align = :left, gap = p.section_gap, child_width = Fill);
@@ -225,7 +210,7 @@ function _build_task_page_executions(p, document::TaskDocument)
         end
         Cell[Cell(row) for row in rows]
     end)
-    _follow_built_children!(lines)
+    follow_built_children!(lines)
     WidgetCard(; title = "Executions", content = lines, collapsible = true)
 end
 
@@ -242,7 +227,7 @@ function _build_task_page_streams(p, document::TaskDocument)
                      _build_stream_preview(p, document, _get_execution_steps(k), shadow, :error_output))
         Cell[Cell(part) for part in parts]
     end)
-    _follow_built_children!(streams)
+    follow_built_children!(streams)
     streams
 end
 
@@ -267,7 +252,7 @@ function print_document(p::TaskExecutionToWidgetPane, recursion, shadow::ACTaskE
         result === nothing || result.reason === nothing || push!(lines, "reason " * result.reason)
         Cell[Cell(WidgetLabel(line)) for line in lines]
     end)
-    _follow_built_children!(facts)
+    follow_built_children!(facts)
     kind = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
     set_cell_computation!(getfield(kind.children, :elements), () -> begin
         shown = make_task_kind_document(task, shadow.result)

@@ -13,13 +13,12 @@ has_document_duplicate(::WidgetDocument) = true
 """
     is_widget_or_layout(node) -> Bool
 
-Is `node` a widget, a layout or a layout constraint: a document that a view builds
-to show its input, and not a document of a domain that the view puts into one of
-its widgets? A view passes it as `is_followed` to `follow_output_paths!`, so the
-walk gives a part of the selection to each widget and layout that the view built,
-and leaves the document of a domain, which holds its own selection. A vector of
-cells, such as the row of a table, is passed through, so the walk reaches the
-widgets in it.
+Is `node` a widget, a layout, a layout constraint or a vector of cells that holds
+them, such as the row of a table: a part that a view builds to show its input, and
+not a document of a domain that the view puts into one of its widgets? It is the
+rule of [`follow_widget_output!`](@ref), so the walk gives a part of the selection
+to each widget and layout that the view built, and leaves the document of a domain,
+which holds its own selection.
 """
 is_widget_or_layout(node) =
     node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint || node isa CellVector
@@ -34,9 +33,9 @@ selection and the part under the pointer, as `follow_output_selection!` does.
 `nothing`. A dormant selection gives no part. So the container that holds a part
 that the view drew marks it.
 
-A view calls it once in its printer. A part that the view builds later, inside a
-computation, is not in the tree at the print, and the view gives it its part with
-[`follow_widget_part!`](@ref).
+A view calls it once in its printer. A child that a computation of the view builds
+later is not in the tree at the print, and [`follow_built_children!`](@ref) gives
+it its part.
 """
 follow_widget_output!(root, input, map_forward::Function; is_followed = is_widget_or_layout) =
     follow_output_selection!(root, () -> map_selection_forward(input, map_forward);
@@ -44,17 +43,31 @@ follow_widget_output!(root, input, map_forward::Function; is_followed = is_widge
                              is_followed)
 
 """
-    follow_widget_part!(part, holder, steps::Tuple; is_followed = is_widget_or_layout) -> part
+    follow_built_children!(holder; is_followed = is_widget_or_layout) -> holder
 
-Make `part`, a widget or a layout that a view builds inside a computation and puts
-at `steps` below `holder`, hold its part of each kind of path of `holder`, as
-[`follow_widget_output!`](@ref) makes the output of the print do. A view calls it
-where it builds the part, because the walk of the print reaches only the parts that
-are there at the print. The walk reads no cell for the computation that calls it.
+Make each child that the computation of the children of `holder`, a layout, builds
+hold its part of each kind of path of `holder`, as [`follow_widget_output!`](@ref)
+makes the output of the print do. The walk of the print reaches only the children
+that are there at the print, so a view calls it on a layout whose children a
+computation builds, after it sets that computation and before a read of the
+children. The walk reads no cell for the computation.
 """
-follow_widget_part!(part, holder, steps::Tuple; is_followed = is_widget_or_layout) =
-    run_without_cell_tracking(() ->
-        follow_widget_output!(part, holder, path -> _find_path_below_steps(path, steps); is_followed))
+function follow_built_children!(holder; is_followed = is_widget_or_layout)
+    elements = getfield(holder.children, :elements)
+    build = get_cell_computation(elements)
+    build === nothing && return holder
+    set_cell_computation!(elements, () -> begin
+        built = build()
+        for (k, child) in enumerate(built)
+            steps = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k))
+            run_without_cell_tracking(() ->
+                follow_widget_output!(unwrap_cell(child), holder, path -> _find_path_below_steps(path, steps);
+                                      is_followed))
+        end
+        built
+    end)
+    holder
+end
 
 # The part of `path` below `steps`, or `nothing` when `path` does not begin with them.
 function _find_path_below_steps(path, steps::Tuple)

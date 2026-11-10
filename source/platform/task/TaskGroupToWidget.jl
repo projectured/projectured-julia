@@ -1476,15 +1476,12 @@ function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroup
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         shown = _collect_shown_task_groups(list)
-        part = if isempty(shown)
-            _make_label("No group of tasks is open in this session.", p.muted_color)
-        else
-            WidgetTable(collect(Any, _LIST_COLUMNS), Any[_build_list_row(p, list, item, index) for (index, item) in shown])
-        end
-        # The part is built after the print, so it takes its part of the paths here.
-        follow_widget_part!(part, body, (FieldReferenceStep("children"), RangeReferenceStep(0, 1)))
-        Cell[Cell(part)]
+        isempty(shown) && return Cell[Cell(_make_label(
+            "No group of tasks is open in this session.", p.muted_color))]
+        rows = Any[_build_list_row(p, list, item, index) for (index, item) in shown]
+        Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
     end)
+    follow_built_children!(body)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
