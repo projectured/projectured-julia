@@ -735,11 +735,14 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
 end
 
-# An operation of the document in an open cell, in the paths of the view: a key
-# that edits its text, the write of the whole cell that replaces its document,
-# such as a number that becomes a type-in, and the selection that goes with it.
-# The paths go from `cells[k][j]…` of the table to `rows[r][c]…` of the view,
-# which reach the document of the entry. `nothing` for any other operation.
+# An operation of the document of a cell, in the paths of the view: a key that
+# edits its text, the write of the whole cell that replaces its document, such as
+# a number that becomes a type-in, the selection that goes with it, and the start
+# of a drag of its text. The paths go from `cells[k][j]…` of the table to
+# `rows[r][c]…` of the view, which reach the document of the entry. A selection in
+# a cell is the selection that the view reads alone, so a caret in a cell that is
+# not open opens the cell first, also as a part of a compound, as a press on the
+# text of a cell gives it. `nothing` for any other operation.
 function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
     if operation isa ReplaceRangeOperation
         target = _find_cell_view_path(iomap, operation_reference(operation))
@@ -754,8 +757,11 @@ function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
         open = _make_open_cell_operation(iomap.input, target)
         return open === nothing ? write : _make_cell_step(Any[open, write], true)
     elseif operation isa ReplaceSelectionOperation
-        target = _find_cell_view_path(iomap, operation.path)
-        return target === nothing ? nothing : ReplaceSelectionOperation(target)
+        _find_cell_view_path(iomap, operation.path) === nothing && return nothing
+        return read_intent(iomap.projection, iomap, operation)
+    elseif operation isa StartDragOperation
+        target = _find_cell_view_path(iomap, get_operation_path(operation))
+        return target === nothing ? nothing : make_path_operation(operation, target)
     end
     nothing
 end
