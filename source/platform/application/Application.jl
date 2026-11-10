@@ -277,7 +277,9 @@ with its backend, its model and its greeting, and its Files tool lists `root`.
 `status_bar = false` leaves out the status bar, which a video that shows what
 the window paints again uses, because the status bar changes with every move of
 the caret. The clipboard offers all of its gestures: a person who edits a file
-expects `Ctrl+X` to cut. `document` is the pane tree of the window: the gesture
+expects `Ctrl+X` to cut. A copy of an object writes its text to the system
+clipboard, so another program and a paste at a caret get what was copied last.
+`document` is the pane tree of the window: the gesture
 log records into the first gesture log that its tabs show, which a file or a
 take gave before the editor existed.
 """
@@ -288,12 +290,22 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
        shell = (; assistant = _make_assistant_factory(assistant),
                   files = _ -> _make_application_workspace(root),
                   status_bar, measure, appearance),
-       clipboard = true,
+       clipboard = (; to_text = _make_clipboard_text),
        gesture_help = (; measure),
        command_palette = true,
        gesture_log = _make_gesture_log_option(document), message_log = true,
        frame_statistics = true, background_work = true, fault_log = true, assistant_list = true,
        file_change = true)
+
+# The text that a copy of `document` writes to the system clipboard: the value of
+# a primitive, the natural text of a document that has one, and an empty text for
+# a document with none, so the system clipboard never keeps an older copy.
+function _make_clipboard_text(document)
+    document isa PrimitiveDocument && return string(something(document.value, ""))
+    has_text = make_natural_projection(document, :string) !== nothing ||
+               get_edited_field(document) !== nothing
+    has_text ? print_natural_text(document) : ""
+end
 
 # The gesture log of a window records into the first gesture log that a tab of
 # its pane tree shows, or into a new one.
