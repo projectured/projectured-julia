@@ -281,10 +281,6 @@ A new colour theme of each of [`COLOR_VARIANTS`](@ref), by its name: the
 """
 make_color_themes() = Dict{Symbol,Any}(variant => make_color_theme(variant) for variant in COLOR_VARIANTS)
 
-# The colour theme of the present mode and contrast stands first under the heading
-# "Editor".
-get_theme_place(::Type{ColorTheme}) = (:editor, 0)
-
 """
     get_color_theme(appearance) -> ColorTheme
 

@@ -92,13 +92,15 @@ function collect_part_commands(explorer::Explorer, steps)
 end
 
 # The path from `document` to its collection of children that is a lazy list, or
-# that holds more than `_LIST_CHILD_COUNT` children, or `nothing`.
+# that holds more than `_LIST_CHILD_COUNT` children, or `nothing`. A path that
+# reaches one document, which is one child, is no such collection.
 function _find_long_children_steps(document)
     for steps in get_tree_children_steps(document)
         reference = _make_steps(steps...)
         collection = try_evaluate_reference(document, reference, nothing)
-        (collection isa ListNode || (collection !== nothing && length(collection) > _LIST_CHILD_COUNT)) &&
-            return reference
+        collection isa ListNode && return reference
+        (collection isa AbstractVector || is_element_collection(collection)) &&
+            length(collection) > _LIST_CHILD_COUNT && return reference
     end
     nothing
 end

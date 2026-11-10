@@ -57,7 +57,7 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-import ..DomainModule: get_document_decoration
+import ..DomainModule: get_document_decoration, accepts_pasted_document
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..TreeModule: get_tree_children_steps
 export SettingsDocument, make_settings_document, find_editor_settings, describe_settings,

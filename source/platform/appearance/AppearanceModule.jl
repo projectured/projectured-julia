@@ -65,7 +65,7 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-import ..DomainModule: get_document_decoration
+import ..DomainModule: get_document_decoration, accepts_pasted_document
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..StyleModule: get_theme_place
 import ..TreeModule: get_tree_children_steps

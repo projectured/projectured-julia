@@ -183,5 +183,9 @@ get_document_decoration(group::SettingsGroup) =
                                                     text = strip_code_marks(compute_docstring_summary(
                                                         get_settings_group_type(group)))))
 
+# The settings of an editor are a tool: a paste or a cut writes into no group, as
+# into no part of a tool. A text paste into a field of the tab pastes its text.
+accepts_pasted_document(::Settings) = false
+
 # In a tree, the settings have a node for each group, in the order of the tab.
 get_tree_children_steps(::Settings) = ((FieldReferenceStep("groups"),),)

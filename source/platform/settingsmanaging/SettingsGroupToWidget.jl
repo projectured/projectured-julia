@@ -74,7 +74,6 @@ const _DESCRIPTION_GAP = 0
 # ── Printer ───────────────────────────────────────────────────────────────
 
 function print_document(p::SettingsGroupToWidget, recursion, group::SettingsGroup, ctx)
-    T = get_settings_group_type(group)
     controls = Tuple{Any,Any,Symbol,Any}[]
     styles = (name = unwrap_cell(p.name_text), caption = unwrap_cell(p.caption))
     gaps = (column = unwrap_cell(p.column_gap), row = unwrap_cell(p.row_gap))

@@ -775,6 +775,16 @@ function test_explorer()
         _nav_press!(editor, backend, _explorer_click(backend, "Tools"))
         @test get_navigator_page(explorer.navigator) === appearance.tool_themes
         @test _nav_has_text(backend, "Undo")
+        # The menu of a row reads the children of a node that holds single parts.
+        @test ExplorerModule._find_long_children_steps(appearance) === nothing
+        @test ExplorerModule._find_long_children_steps(appearance.editor_themes) === nothing
+    end
+
+    @testset "a paste writes into no part of the settings or of the appearance" begin
+        # The settings and the appearance of an editor are tools, so a paste or a cut
+        # on the node of a group, a part, a heading or a theme writes nothing.
+        @test !accepts_pasted_document(make_settings())
+        @test !accepts_pasted_document(Appearance())
     end
 
     @testset "the first content holds the session document of each kind that a loaded package marks" begin

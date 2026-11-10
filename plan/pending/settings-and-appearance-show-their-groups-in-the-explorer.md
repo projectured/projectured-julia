@@ -287,7 +287,13 @@ makes one commit.
      shows the summary of its part at its top, in the small font and the muted
      colour.
    - The tests of the tab read the tables of the controls from the IO map of the
-     tab and of each view of a part (`_at_tables`). Add
+     tab and of each view of a part (`_at_tables`).
+   - A review found two faults of the new nodes, now fixed. The menu of a row
+     counted the children of a node with `length`, which a single document does
+     not have (`_find_long_children_steps`). A paste or a cut on the node of a
+     group, a part or a theme wrote into the live settings or appearance:
+     `Settings` and `Appearance` now refuse a pasted document, as a tool does, and
+     a refusal covers each document inside them. Add
    `AppearanceScaleToWidget`, `AppearanceColorsToWidget`, `ThemeGroupToWidget`
    and `ThemeToWidget`. `AppearanceToWidget` prints the parts and the headings
    through them. The paths of the caret of a colour text and of the part under
@@ -299,6 +305,12 @@ makes one commit.
    double click.
 
 ## Not in this plan
+
+A page of the explorer has the place of its node as its address, such as
+`tool_themes.themes[3]`. When a new theme type takes a place before it in its
+heading, the page shows the theme at that place, its neighbour. Each node of a
+list in the explorer has this limit, such as a file of the open files.
+
 
 A node for each setting or field of a theme; a node for each colour variant;
 the buttons "Reset all", "Save" and "Load" on the page of one group.

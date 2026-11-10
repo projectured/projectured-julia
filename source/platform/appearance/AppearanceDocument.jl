@@ -82,6 +82,10 @@ get_document_decoration(::Union{AppearanceDocument, Appearance}) =
     DocumentDecoration(; icon = :palette, tooltip = () -> TooltipNote(; title = "Appearance",
                                                                        text = "The zoom and the scales of this window."))
 
+# The appearance of an editor is a tool: a paste or a cut writes into no part,
+# heading or theme of it. A text paste into a field of the tab pastes its text.
+accepts_pasted_document(::Appearance) = false
+
 # A part, a heading and a theme of an appearance have the icon of the appearance.
 get_document_decoration(document::Union{AppearanceScale, AppearanceColors, ThemeGroup, Theme}) =
     DocumentDecoration(; icon = :palette, tooltip = () -> TooltipNote(; title = get_document_title(document)))

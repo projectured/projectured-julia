@@ -30,7 +30,7 @@ A projection reads its scaled theme through untracked style fields, which record
 1. The content reads each input first. A view that binds a key, such as the zoom of a `WidgetTransformPane`, keeps it.
 2. When the content answers nothing, the keys of the `AppearanceDocument` answer.
 3. In the answer, each write of a field of a theme of the appearance becomes a `ReplaceThemeValueOperation`, also inside a compound or a wrapping operation such as the record of a history.
-4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance`, into one of its parts or headings, or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of `open_sections` changes no look, so it prints no view again.
+4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance`, into one of its parts or headings, or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of the `open_names` of a heading changes no look, so it prints no view again.
 
 The editor then prints the whole view again in the same frame, and the inputs after the change wait for the new view. A frame prints at most once.
 
