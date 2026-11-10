@@ -4,11 +4,13 @@
 """
     StartSettings(; assistant = :ollama, model = "", context = 0, mcp = false,
                     agent_command = DEFAULT_AGENT_COMMAND,
-                    agent_session_meta = DEFAULT_AGENT_SESSION_META)
+                    agent_session_meta = DEFAULT_AGENT_SESSION_META,
+                    agent_mode = DEFAULT_AGENT_MODE)
 
 The assistant the application starts with, its model, how much of the
-conversation it can see, whether the MCP server starts too, and the command and
-the session options of the external agent of the backend `:acp`.
+conversation it can see, whether the MCP server starts too, and the command, the
+session options and the mode of the tools of the external agent of the backend
+`:acp`.
 
 What the application starts with: the backend and the model of the assistant, the
 context of the model, and whether the MCP server starts beside the window. The
@@ -28,6 +30,8 @@ start. The command line wins over them for its run.
     agent_command::String = DEFAULT_AGENT_COMMAND
     "Agent session options: the JSON _meta that a new session of the external agent gets."
     agent_session_meta::String = DEFAULT_AGENT_SESSION_META
+    "Agent mode: the mode of the tools that each session of the external agent starts in, such as auto, default or plan; empty leaves it to the agent."
+    agent_mode::String = DEFAULT_AGENT_MODE
 end
 
 is_settings_group_read_at_start(::Type{StartSettings}) = true

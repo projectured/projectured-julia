@@ -254,16 +254,17 @@ end
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
 # that the transcript shows. The options of the session reach `agent_options`.
-# The session gets a queue of its own for its events, which the feed of the
+# The session starts in the mode of `agent_mode` before its first prompt. The
+# session gets a queue of its own for its events, which the feed of the
 # window drains, and a session that is not the one of the work of the assistant
 # starts an empty work.
 #
 # The lock of the start holds no wait for the editor: the kept session is read
 # through the door before it, and the editor forgets a kept session after it.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
-    conversation, kept_id, kept_directory, kept_count, system = run_on_editor_task!(editor) do
+    conversation, kept_id, kept_directory, kept_count, system, mode = run_on_editor_task!(editor) do
         a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count,
-        a.system
+        a.system, a.agent_mode
     end
     is_kept_session_lost = false
     lock(session.start_lock) do
@@ -276,13 +277,18 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             session.is_resumed = false
             session.has_answered = false
             queue = _make_agent_event_queue!(editor, a, session)
+            opened_options = Ref(AgentOption[])
             session_id = Base.invokelatest(open_agent_session!, session.connection;
                 directory = session.directory, mcp_servers = servers,
                 instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system,
                 session_id = is_resumable ? kept_id : "",
-                on_event = event -> _post_agent_options!(editor, a, event),
+                on_event = event -> begin
+                    event isa AgentOptionsUpdate && (opened_options[] = event.options)
+                    _post_agent_options!(editor, a, event)
+                end,
                 events = queue)
             session.session_id = session_id
+            _set_agent_mode!(editor, a, session, opened_options[], mode)
             run_on_editor_task!(editor; wait = false) do
                 _start_agent_work!(a, session, session_id)
             end
@@ -333,6 +339,33 @@ end
 _post_agent_options!(editor, a::Assistant, event) =
     event isa AgentOptionsUpdate &&
         run_on_editor_task!(() -> a.agent_options = event.options, editor; wait = false)
+
+# The session that opened with `options` changes to `mode` when its agent offers
+# that mode and holds another. The agent answers with its options, which reach
+# `agent_options`. An agent that offers no such mode, an empty `mode`, and a set
+# that fails leave the mode that the agent chose.
+function _set_agent_mode!(editor, a::Assistant, session::ExternalAgentSession,
+                          options::Vector{AgentOption}, mode::String)
+    option = _find_agent_mode_option(options, mode)
+    option === nothing && return nothing
+    try
+        Base.invokelatest(set_agent_option!, session.connection, session.session_id, option.id, mode;
+                          on_event = event -> _post_agent_options!(editor, a, event))
+    catch exception
+        @warn "The agent did not start in the mode of the assistant." mode exception
+    end
+    nothing
+end
+
+# The option of the category `:mode` of `options` when it offers `mode` and holds
+# another value, or `nothing`.
+function _find_agent_mode_option(options::Vector{AgentOption}, mode::String)
+    isempty(mode) && return nothing
+    index = findfirst(option -> option.category === :mode, options)
+    index === nothing && return nothing
+    option = options[index]
+    option.current_value != mode && any(value -> value.value == mode, option.values) ? option : nothing
+end
 
 """
     StartExternalAgentOperation(assistant)

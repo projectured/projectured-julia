@@ -69,6 +69,7 @@ end
     make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing,
                                agent_command = DEFAULT_AGENT_COMMAND,
                                agent_session_meta = DEFAULT_AGENT_SESSION_META,
+                               agent_mode = DEFAULT_AGENT_MODE,
                                system = make_application_system(; backend)) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
@@ -79,14 +80,16 @@ and a `context` of `0` means its default token window. A given `llm` is the mode
 that the assistant asks, in place of the one it builds from `backend`, `model` and
 `context`: a scripted model that stands in for the real one, or an `OllamaLlm`
 with a `seed` and a `temperature`. `agent_command` is the command line of the
-external agent of the backend `:acp`, and `agent_session_meta` the JSON `_meta`
-of its sessions. `system` is the text of the window that the model reads, with
+external agent of the backend `:acp`, `agent_session_meta` the JSON `_meta`
+of its sessions, and `agent_mode` the mode of the tools that each of its sessions
+starts in. `system` is the text of the window that the model reads, with
 the index of the names for `backend` ([`make_application_system`](@ref)).
 """
 function make_application_assistant(backend::Symbol; model::AbstractString = "",
                                     context::Integer = 0, llm = nothing,
                                     agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
                                     agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
+                                    agent_mode::AbstractString = DEFAULT_AGENT_MODE,
                                     system::AbstractString = make_application_system(; backend))
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
@@ -96,7 +99,8 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
     Assistant(; conversation = greeting, backend = backend, model = String(model),
                 context = context, system = system,
                 api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm,
-                agent_command = agent_command, agent_session_meta = agent_session_meta)
+                agent_command = agent_command, agent_session_meta = agent_session_meta,
+                agent_mode = agent_mode)
 end
 
 """
@@ -333,6 +337,7 @@ _make_assistant_factory(assistant::Assistant) =
                                     context = assistant.context,
                                     agent_command = assistant.agent_command,
                                     agent_session_meta = assistant.agent_session_meta,
+                                    agent_mode = assistant.agent_mode,
                                     system = assistant.system)
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
@@ -623,6 +628,7 @@ function _make_application_editor(paths::Vector{String}, settings; backend,
                                       context = start.context, llm,
                                       agent_command = start.agent_command,
                                       agent_session_meta = start.agent_session_meta,
+                                      agent_mode = start.agent_mode,
                                       system = make_application_system(; backend = start.assistant,
                                                                          settings = index))
     # The root is the application's own pane tree, so the tabs leave it as it is.

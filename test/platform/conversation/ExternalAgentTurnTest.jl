@@ -525,6 +525,31 @@ function test_external_agent_turn()
             @test isempty(a.agent_options)
         end
 
+        @testset "a session starts in the mode of the assistant when the agent offers it" begin
+            with_auto_mode(options) = AgentOption[option.category === :mode ?
+                AgentOption(option.id, option.name, option.description, option.category, option.current_value,
+                            vcat(option.values, AgentOptionValue("auto", "Auto", ""))) :
+                option for option in options]
+            turn = Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]
+            connection = ScriptedAgentConnection([turn]; options = with_auto_mode(make_scripted_agent_options()))
+            a = _make_agent_assistant(connection)
+            @test a.agent_mode == DEFAULT_AGENT_MODE == "auto"
+            _submit_to_agent!(a, "Hello")
+            @test connection.option_sets == ["mode" => "auto"]
+            @test only(connection.prompts) == Any[LlmText("Hello")]
+            @test timedwait(() -> a.agent_options[3].current_value == "auto", 10.0; pollint = 0.01) === :ok
+            # An agent that offers no mode "auto" keeps its own mode.
+            connection = ScriptedAgentConnection([turn]; options = make_scripted_agent_options())
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            @test isempty(connection.option_sets) && length(connection.prompts) == 1
+            # An empty mode leaves the mode to the agent.
+            connection = ScriptedAgentConnection([turn]; options = with_auto_mode(make_scripted_agent_options()))
+            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection), agent_mode = "")
+            _submit_to_agent!(a, "Hello")
+            @test isempty(connection.option_sets) && length(connection.prompts) == 1
+        end
+
         @testset "an update of the options during a turn draws no part" begin
             options = make_scripted_agent_options()
             planned = AgentOption[option.id == "mode" ?
@@ -853,11 +878,11 @@ function test_external_agent_turn()
             @test occursin("The backend :acp needs the package ProjecturedACP", text)
         end
 
-        @testset "a save keeps no command and no session options" begin
-            a = Assistant(; backend = :acp, agent_command = "my-agent --flag")
+        @testset "a save keeps no command, no session options and no mode" begin
+            a = Assistant(; backend = :acp, agent_command = "my-agent --flag", agent_mode = "bypassPermissions")
             _, keywords = pred_arguments(a)
             @test (:backend => :acp) in keywords
-            @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta), keywords)
+            @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta, :agent_mode), keywords)
             @test Assistant().agent_command == DEFAULT_AGENT_COMMAND
             @test occursin("\"display\": \"summarized\"", Assistant().agent_session_meta)
             # Without a kept session, the file keeps no conversation.

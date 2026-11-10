@@ -341,6 +341,9 @@ function test_application()
             assistant = make_application_assistant(:ollama; model = "small")
             @test assistant isa Assistant
             @test assistant.backend === :ollama && assistant.model == "small"
+            # The mode of the tools of an external agent is auto unless a setting names another.
+            @test make_application_assistant(:acp).agent_mode == "auto"
+            @test make_application_assistant(:acp; agent_mode = "plan").agent_mode == "plan"
             @test_throws ErrorException make_application_assistant(:unknown)
             @test occursin("ANTHROPIC_API_KEY", get_application_greeting_text(:anthropic))
             # The greeting is Markdown, so it draws in the theme of a reply, and
@@ -425,6 +428,7 @@ function test_application()
             start = get_settings_group!(make_application_settings(nothing; agent_command = "my-agent"),
                                         StartSettings)
             @test start.agent_command == "my-agent"
+            @test start.agent_mode == DEFAULT_AGENT_MODE == "auto"
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",

@@ -90,7 +90,7 @@ import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explore
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
-       DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES, DEFAULT_ASSISTANT_ROUNDS
+       DEFAULT_AGENT_SESSION_META, DEFAULT_AGENT_MODE, ASSISTANT_WORK_STATES, DEFAULT_ASSISTANT_ROUNDS
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,

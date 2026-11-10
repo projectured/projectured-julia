@@ -77,7 +77,11 @@ default, starts the built-in agent of `ProjecturedACP` in this process, which
 runs Claude Code, the `claude` program that the person installed.
 `agent_session_meta` is the JSON `_meta` that a new session of the agent gets;
 its default asks the agent `claude-agent-acp` for the summary of its reasoning,
-and an agent that does not read it, as the built-in one, ignores it. The package `ProjecturedACP` must be
+and an agent that does not read it, as the built-in one, ignores it.
+`agent_mode` is the mode of the tools that each session of the agent starts in,
+`"auto"` by default ([`DEFAULT_AGENT_MODE`](@ref)). The assistant sets it when a
+session opens and the agent offers that mode. Empty leaves the mode to the
+agent. The package `ProjecturedACP` must be
 loaded. `agent_session` is the live link to
 the agent, an `ExternalAgentSession`: `nothing` until the first turn starts it,
 or one that a test gives. It is no data, like `llm`. `agent_session_id` is the
@@ -156,6 +160,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     turn_control::Any
     agent_command::String
     agent_session_meta::String
+    agent_mode::String
     agent_session::Any
     agent_session_id::String
     agent_session_directory::String
@@ -203,6 +208,16 @@ const DEFAULT_AGENT_COMMAND = ""
 const DEFAULT_AGENT_SESSION_META =
     raw"""{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}"""
 
+"""
+    DEFAULT_AGENT_MODE
+
+The mode of the tools that a session of an external agent starts in when nobody
+names another: `"auto"`. In this mode, Claude Code and Codex decide themselves
+which tool calls need a question to the person. An agent that offers no mode
+`"auto"` keeps its own mode.
+"""
+const DEFAULT_AGENT_MODE = "auto"
+
 # What the fork of an assistant with an external agent says under the history it
 # copied.
 const FORK_AGENT_NOTE =
@@ -230,6 +245,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               turn_control = nothing,
                               agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
                               agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
+                              agent_mode::AbstractString = DEFAULT_AGENT_MODE,
                               agent_session = nothing,
                               agent_session_id::AbstractString = "",
                               agent_session_directory::AbstractString = "",
@@ -255,7 +271,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(collapse_thinking),
                            Cell(llm), Cell(turn_control),
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
-                           Cell(agent_session), Cell(String(agent_session_id)),
+                           Cell(String(agent_mode)), Cell(agent_session), Cell(String(agent_session_id)),
                            Cell(String(agent_session_directory)), Cell(Int(agent_session_turn_count)),
                            Cell(CellVector{AgentOption}(collect(AgentOption, agent_options))),
                            Cell(String(agent_title)), Cell(agent_usage),
@@ -279,9 +295,11 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 # A key must never be written to a file, so `api_key` is not one of the
 # arguments a `.pred` file writes. A command is not one either: a file that named
 # the program of an external agent, or the options of its sessions, would start
-# it at the next message, and a `.pred` file runs no code. So `agent_command` and
-# `agent_session_meta` come from the settings of the application, never from a
-# file. A live connection is not data either: `llm`
+# it at the next message, and a `.pred` file runs no code. A mode is not one
+# either: a file that named the mode `bypassPermissions` would let the agent run
+# each tool with no question to the person. So `agent_command`,
+# `agent_session_meta` and `agent_mode` come from the settings of the
+# application, never from a file. A live connection is not data either: `llm`
 # is a fake or a running client, `agent_session` is a running agent, `agent_work`
 # is the work of its session, `status` is what a turn is doing right now,
 # and `conversation`/`input`/`draft` are this session's exchange, not the
