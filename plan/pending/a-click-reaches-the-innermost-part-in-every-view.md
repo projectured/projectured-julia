@@ -273,6 +273,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   what line?" was answered with the card title: `WidgetCardToGraphicsCanvas`
   draws `w.title` by `_push_text_block!` (`WidgetToGraphics.jl:8716`), which
   pushes one `GraphicsText` for each line and keeps no record of the part.
+- **D6 (owner, 2026-11-10). Each view writes the selection of its output.**
+  The owner chose A of Q3 ("Yes"), after the question was answered with the
+  reflected object: its forward map gives `.value` of the type-name leaf, but
+  its printer writes nothing into the `selection` field of the leaf, so
+  `SyntaxLeafToText` reads `nothing` and draws no band. Each stage reads only
+  the `selection` field of its input, and the chain does not write it
+  (`Chaining.jl`, the forward map of the chain). So each view writes the forward
+  image of the selection into the documents of the output that it prints, one
+  call in its printer, as `InsertionNothingToSyntaxLeaf` does.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -290,8 +299,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     time and memory in a page of many labels.
   - C. Each view writes its own maps, as the card does for its title on an
     Alt+click. Each new view then has dead clicks until it does.
-- **Q3. How the output of a view follows the selection** (open, written
-  2026-11-10; 5.4 waits for it). A probe of 2026-11-10 showed that the
+- **Q3. How the output of a view follows the selection** (answered by D6,
+  asked 2026-11-10). A probe of 2026-11-10 showed that the
   appearance view, the first example of this question, already wires its
   output (`_follow_tab_paths!` and `set_output_tree_path_computations!`): an
   Alt+click on "Save" selects the button, and the button draws its focus ring,
