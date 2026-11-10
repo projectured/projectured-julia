@@ -390,7 +390,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
         end)
 
     # Every group offers the whole vocabulary of the strip: close a tab, open one,
-    # and grab one.
+    # and grab one. The other commands of a tab are in the menu of its header.
     pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true)
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]

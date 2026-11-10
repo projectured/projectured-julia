@@ -182,7 +182,9 @@ The menu of a tab, top to bottom:
    names its header; the `x` of the open tab always draws; the width of each tab
    stays the same; a middle click on a tab closes it, and a middle click on the
    new-tab button gives nothing.
-3. [ ] **The menu of a tab.** Add the rule of D6 with the items of §3 (D7). Add
+3. [x] **The menu of a tab.** Done 2026-11-10. The tests are in `PaneReaderTest`
+   (see §6), with one more in a real editor, and `PaneConstructTest` duplicates
+   through the menu. Add the rule of D6 with the items of §3 (D7). Add
    tests to `PaneGestureTest`: a right-click on the header of a tab that is not
    focused opens the menu, Duplicate is greyed for a content with no duplicate,
    and each item acts on that tab and not on the focused tab. A right-click in

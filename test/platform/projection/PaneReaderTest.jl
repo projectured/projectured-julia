@@ -548,5 +548,181 @@ end
     @test get_window_tree(screen) === tree
 end
 
+# A point on the header of tab `index` of `group`: the first point where a press
+# answers the focus of that tab.
+function _header_point(proj, iomap, tree, group, index)
+    wanted = get_pane_tab_reference(tree, group, index)
+    for y in 0:2:40, x in 0:2:400
+        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op isa ReplaceSelectionOperation && op.path == wanted && return (x, y)
+    end
+    nothing
+end
+
+# The layers of the context menu that an answer opens, or `nothing`.
+function _menu_layers(op)
+    op isa ReplaceViewStateOperation && return _menu_layers(get_wrapped_operation(op))
+    op isa OpenContextMenuOperation && return op.layers
+    if op isa CompoundOperation
+        for member in op.operations
+            layers = _menu_layers(member)
+            layers === nothing || return layers
+        end
+    end
+    nothing
+end
+
+# The menu named `title` that a right click at `point` opens after a move of the
+# pointer there, or `nothing`.
+function _right_click_menu(proj, driver, point, title)
+    _mtt_move!(driver, point..., 1.0)
+    answer = read_intent(proj, nothing, Intent(MouseClick(:right, point..., ModifierKeys(); time = 0.0)),
+                         driver.iomap)
+    layers = _menu_layers(answer isa Intent ? answer.operation : answer)
+    layers === nothing && return nothing
+    found = [layer[2] for layer in layers if layer[1] == title]
+    isempty(found) ? nothing : only(found)
+end
+
+_menu_labels(menu) = [string(item.action.label) for item in menu.elements if item isa WidgetMenuItem]
+_menu_item(menu, label) = only(item for item in menu.elements
+                               if item isa WidgetMenuItem && item.action.label == label)
+
+# A tree of one group with the tabs `a` and `b`, the focus on `a`, and the pointer
+# driven over it.
+function _menu_fixture()
+    group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = _chain()
+    driver = MttDriver(proj, tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, 1))
+    (; group, tree, editor, proj, driver)
+end
+
+@testset "a right click on a tab that has no focus opens the menu of that tab" begin
+    (; group, tree, editor, proj, driver) = _menu_fixture()
+    @test get_pane_focus(tree) == (group, 1)
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
+    @test menu !== nothing
+    @test _menu_labels(menu) == ["Duplicate", "Rename", "Split right", "Split down", "Maximize group",
+                                 "Add to explorer", "Close"]
+    # A window of one group has nothing to maximize.
+    @test !_menu_item(menu, "Maximize group").enabled
+    @test all(_menu_item(menu, label).enabled
+              for label in ("Duplicate", "Rename", "Split right", "Split down", "Add to explorer", "Close"))
+    # Each item shows the keys that do the same to the focused tab.
+    @test _menu_item(menu, "Close").keys == find_bound_keys(PaneTree, "Close the focused tab")
+    @test _menu_item(menu, "Duplicate").keys == find_bound_keys(PaneTree, "Duplicate the focused tab")
+    @test !isempty(_menu_item(menu, "Close").keys) && !isempty(_menu_item(menu, "Duplicate").keys)
+    @test isempty(_menu_item(menu, "Add to explorer").keys)
+    # The right click does not open the tab.
+    @test get_pane_focus(tree) == (group, 1)
+    # Close closes the tab of the menu, and the focus stays.
+    kept = group.tabs[1]
+    _apply!(editor, _menu_item(menu, "Close").operation)
+    @test length(group.tabs) == 1 && group.tabs[1] === kept
+    @test get_pane_focus(tree) == (group, 1)
+end
+
+@testset "Duplicate in the menu of a tab copies that tab" begin
+    (; group, tree, editor, proj, driver) = _menu_fixture()
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
+    _apply!(editor, _menu_item(menu, "Duplicate").operation)
+    @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["a", "b", "b (2)"]
+    @test group.tabs[3].content !== group.tabs[2].content
+end
+
+@testset "Split right and Maximize group act on the group of the tab" begin
+    (; group, tree, editor, proj, driver) = _menu_fixture()
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
+    _apply!(editor, _menu_item(menu, "Split right").operation)
+    @test tree.root isa PaneSplit && tree.root.orientation === :vertical
+    @test length(get_pane_groups(tree)) == 2 && get_pane_groups(tree)[1] === group
+    # In a window of two groups, the menu of a tab maximizes its group, and then
+    # gives the layout back.
+    left = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, PaneGroup(PaneTab[_tab("c")])]))
+    editor = _PaneReaderMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, left, 1))
+    driver = MttDriver(proj, tree)
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, left, 2), "b")
+    @test _menu_item(menu, "Maximize group").enabled
+    _apply!(editor, _menu_item(menu, "Maximize group").operation)
+    @test find_pane_maximized_group(tree) === left
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, left, 2), "b")
+    @test "Restore layout" in _menu_labels(menu)
+    _apply!(editor, _menu_item(menu, "Restore layout").operation)
+    @test find_pane_maximized_group(tree) === nothing
+end
+
+@testset "Duplicate is greyed for a content whose copy fails" begin
+    field = WidgetText("12"; validator = make_numeric_validator())
+    group = PaneGroup(PaneTab[PaneTab("field", field)])
+    tree = PaneTree(group)
+    proj = _chain()
+    driver = MttDriver(proj, tree)
+    point = _header_point(proj, driver.iomap, tree, group, 1)
+    menu = @test_logs (:warn, "The pane has no duplicate") match_mode = :any _right_click_menu(proj, driver, point, "field")
+    @test !_menu_item(menu, "Duplicate").enabled
+    @test _menu_item(menu, "Close").enabled
+end
+
+@testset "a right click in the page of a tab opens no menu of the tab" begin
+    (; group, tree, editor, proj, driver) = _menu_fixture()
+    (x, _) = _header_point(proj, driver.iomap, tree, group, 1)
+    # The lowest row of the strip: the last row where a press opens the tab.
+    wanted = get_pane_tab_reference(tree, group, 1)
+    bottom = maximum(y for y in 0:1:80
+                     if (op = read_intent(proj, driver.iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0));
+                         op isa ReplaceSelectionOperation && op.path == wanted))
+    # Below the strip, in the page of the open tab, also where its content
+    # claims no part.
+    @test all(_right_click_menu(proj, driver, (x, page_y), "a") === nothing for page_y in (bottom + 2):4:(bottom + 40))
+    # The header still opens it.
+    @test _right_click_menu(proj, driver, (x, bottom), "a") !== nothing
+end
+
+@testset "in an editor: the x under the pointer, Close in the menu, and a middle click" begin
+    backend = HeadlessBackend()
+    editor = build_editor(PrimitiveString("start"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                          backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = true, appearance = false, settings = false)
+    run_frame!(editor)
+    frame!() = (drain_operations!(editor); run_frame!(editor))
+    open_tab!(title) = (show_pane!(open_pane!(WidgetLabel(title); title, editor); editor); frame!())
+    open_tab!("second")
+    tree = evaluate_reference(editor.document, find_pane_tree_reference(; editor))
+    group = only(get_pane_groups(tree))
+    @test length(group.tabs) == 2
+    first_tab, second_tab = group.tabs[1], group.tabs[2]
+    title = get_pane_tab_title_string(first_tab)
+    header() = (entry = first(entry for entry in _nav_texts(backend) if entry[1] == title);
+                (entry[2] + 2, entry[3] + 2))
+    close_glyph = string(Char(Dict(WidgetModule.LUCIDE_ICON_GLYPHS)[:close]))
+    closes() = count(entry -> entry[1] == close_glyph, _nav_texts(backend))
+    # The open tab shows its x; the first tab shows its x only under the pointer.
+    @test closes() == 1
+    (x, y) = header()
+    _nav_press!(editor, backend, MouseMove(x, y; time = 0.0))
+    @test closes() == 2
+    # The menu of the first tab, and its Close, as the menu window lifts it.
+    answer = read_intent(editor.projection, nothing,
+                         Intent(MouseClick(:right, x, y, 1, ModifierKeys(); time = 0.0)), editor.iomap).operation
+    opened = answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
+    @test opened isa OpenContextMenuOperation
+    menu = only(layer[2] for layer in opened.layers if layer[1] == title)
+    _nav_choose!(editor, opened, _menu_item(menu, "Close"))
+    @test collect(group.tabs) == [second_tab]
+    # A middle click on a tab that is not open closes it.
+    open_tab!("third")
+    @test length(group.tabs) == 2
+    title = get_pane_tab_title_string(second_tab)
+    (x, y) = header()
+    _nav_press!(editor, backend, MouseMove(x, y; time = 0.0), MouseClick(:middle, x, y, 1, ModifierKeys(); time = 0.0))
+    frame!()
+    @test length(group.tabs) == 1 && group.tabs[1] !== second_tab
+end
+
 end # testset
 end # function

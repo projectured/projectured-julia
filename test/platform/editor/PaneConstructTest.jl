@@ -225,6 +225,43 @@ end
     @test get_pane_focus(tree)[1] === right_group
 end
 
+@testset "duplicate a tab from the menu of its header" begin
+    group = get_pane_groups(tree)[2]
+    count = length(group.tabs)
+    shown = get_pane_tab_title_string(group.tabs[1])
+    # A point on the header of the first tab: the first press in the strip of the
+    # group that answers the focus of that tab.
+    wanted = get_pane_tab_reference(tree, group, 1)
+    r = get_pane_rectangle(tree, group)
+    x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
+    target = nothing
+    for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
+        op = read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        if op isa ReplaceSelectionOperation && op.path == wanted
+            target = (x, y)
+            break
+        end
+    end
+    @test target !== nothing
+    # The pointer on the header, and a right click: the menu of the tab.
+    _mtt_move!(MttDriver(projection, tree, iomap), target..., 1.0)
+    answer = read_intent(projection, nothing,
+                         Intent(MouseClick(:right, target..., ModifierKeys(); time = 0.0)), iomap)
+    find_opened(op) = op isa OpenContextMenuOperation ? op :
+                      op isa ReplaceViewStateOperation ? find_opened(get_wrapped_operation(op)) :
+                      op isa CompoundOperation ? something(map(find_opened, op.operations)..., nothing) : nothing
+    opened = find_opened(answer isa Intent ? answer.operation : answer)
+    @test opened !== nothing
+    menu = only(layer[2] for layer in opened.layers if layer[1] == shown)
+    duplicate = only(item for item in menu.elements
+                     if item isa WidgetMenuItem && item.action.label == "Duplicate")
+    evaluate_operation(editor, duplicate.operation)
+    @test length(group.tabs) == count + 1
+    @test get_pane_tab_title_string(group.tabs[2]) == shown * " (2)"
+    @test get_pane_focus(tree) == (group, 2)
+    assert_rendered!()
+end
+
 @testset "Ctrl+M fills the window with the focused group, and Ctrl+M gives back the layout" begin
     left_group, right_group = get_pane_groups(tree)
     @test get_pane_focus(tree)[1] === right_group

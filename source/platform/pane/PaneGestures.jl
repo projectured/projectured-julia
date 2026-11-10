@@ -206,6 +206,7 @@ end
     KeyDown(:f2;) => "Put the caret in the tab name" => _rename(doc)
     KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
     nothing => "Add the tab to the explorer" => _make_add_tab_operation(doc)
+    splice(_PANE_TAB_MENU_BINDINGS)
     # The four rules of a rename. Each answers `nothing` unless the caret is in a
     # name, so a key that means something else keeps meaning it — the rule body
     # is the guard, because a `when(…)` guard sees only the event's own fields. A
