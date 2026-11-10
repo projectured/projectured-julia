@@ -226,8 +226,8 @@ end
 # The message is the parts after the last part of work; every part before it is
 # work, except a part that speaks to the person (`_stays_out_of_work`). The work
 # line is a card whose body holds the work in its order; the parts outside it
-# follow it in their order. A turn that runs, a turn of the person and a turn
-# with no work show every part as it comes.
+# follow it in their order. A turn that runs, a turn of the person, a turn with
+# no work and a turn with no message show every part as it comes.
 
 # The IO map of a turn. `child_iomaps` are the IO maps of its parts, in the order
 # of the parts. `work` is the indices of the parts in the work line, or `nothing`
@@ -304,8 +304,11 @@ end
 
 # The indices of the parts of `t` that its work line holds, or `nothing` when the
 # turn shows no work line: a turn of the person, a turn that runs, a turn with no
-# work, and every turn when the setting shows everything. The work is every part
-# up to the last part of work, except a part that stays out of it.
+# work, a turn with no message, and every turn when the setting shows everything.
+# The work is every part up to the last part of work, except a part that stays out
+# of it. The message is the parts after it, except a part that stays out of the
+# work; a turn with no message usually stopped before its end, so its work is all
+# that a person can read.
 function _find_work_indices(projection::ConversationTurnToWidgetComposite, t::ConversationTurn)
     projection.finished_turn === :everything && return nothing
     t.role === :user && return nothing
@@ -313,6 +316,7 @@ function _find_work_indices(projection::ConversationTurnToWidgetComposite, t::Co
     parts = t.parts
     last = findlast(i -> _is_work_content(parts[i].content), eachindex(parts))
     last === nothing && return nothing
+    any(i -> !_stays_out_of_work(parts[i].content), (last + 1):length(parts)) || return nothing
     Int[i for i in 1:last if !_stays_out_of_work(parts[i].content)]
 end
 

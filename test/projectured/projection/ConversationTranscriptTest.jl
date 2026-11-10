@@ -293,6 +293,35 @@ function test_conversation_transcript()
         @test body(3).children[2].children[1].content == "The turn reached its 40 rounds."
     end
 
+    @testset "a finished turn with no message shows every part" begin
+        proj = RecursiveProjection(ConversationToWidget())
+        call() = ConversationPart(EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2")))
+        is_work_line(widget) = widget isa WidgetCard && widget.title isa WidgetLabel &&
+                               startswith(widget.title.content, "Work")
+        # A turn that stopped on a tool call, and a turn that used its rounds and
+        # ends on the note of the editor: neither has a text after its work.
+        stopped = ConversationTurn(:assistant, [ConversationPart("I look."), call(), call()];
+                                   start_time = 100.0, finish_time = 130.0)
+        limited = ConversationTurn(:assistant, [ConversationPart("I look."), call(),
+                                                ConversationPart(ConversationNote("The turn reached its 40 rounds."))];
+                                   start_time = 200.0, finish_time = 230.0)
+        doc = ConversationConversation([stopped, limited])
+        io = print_document(proj, proj, doc, PrinterContext())
+        body(i) = io.output.children[i].content
+        for i in 1:2
+            @test length(body(i).children) == 3
+            @test !any(is_work_line, body(i).children)
+        end
+        # The parts open as while the turn runs.
+        @test body(1).children[2].collapsed === false
+        @test body(1).children[3].collapsed === false
+        # A text after the work gives the turn its message and its work line.
+        push!(stopped.parts, Cell(ConversationPart("It is 2.")))
+        @test length(body(1).children) == 2
+        @test is_work_line(body(1).children[1])
+        @test body(1).children[1].title.content == "Work: 2 tool calls · 1 text · 30 s"
+    end
+
     @testset "the setting says what a finished turn shows, and a change reaches it" begin
         thinking = make_conversation_thinking_part("I read the file first.")
         call = ConversationPart(EvaluatorForm(JuliaIdentifier("1 + 1"); result = make_evaluator_result_text("2")))
