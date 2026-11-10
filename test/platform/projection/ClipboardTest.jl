@@ -60,7 +60,8 @@ _rd_val(rd) = rd.operations[1].value
 # A paste as the editor makes it. A paste that needs the text of the system
 # clipboard answers a `PasteOsClipboardOperation`, because a reader reads nothing
 # outside the document; its evaluation makes the edit with the text it reads,
-# which this makes here with the text of the fake clipboard.
+# which this makes here with the text of the fake clipboard, and sends the edit
+# down to its place, as the evaluation does.
 function _paste(p, iomap, event)
     op = read_intent(p, iomap, event)
     clipboard = ProjecturedPlatform.ClipboardModule
@@ -68,8 +69,9 @@ function _paste(p, iomap, event)
      op.operation isa clipboard.PasteOsClipboardOperation) || return op
     paste = op.operation
     make = paste.copy ? clipboard._clipboard_paste_copy : clipboard._clipboard_paste
-    make(paste.projection, ProjecturedKernel.IoMapModule.get_iomap_input(iomap);
-         os = clipboard.read_os_clipboard())
+    edit = make(paste.projection, ProjecturedKernel.IoMapModule.get_iomap_input(iomap);
+                os = clipboard.read_os_clipboard())
+    clipboard._read_paste(paste.projection, iomap, edit)
 end
 
 ctrl = ModifierKeys(ctrl=true)
@@ -166,16 +168,22 @@ end
     @test op.operations[2] isa ReplaceSelectionOperation
     @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
-    # Cut — compound of (store live) + (blank source).
+    # Cut — what it stores (the live object), then the delete. No reader of the
+    # content answers Delete here, so the whole document goes out of its slot, and
+    # the slot gets the empty document of its domain.
     op = read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
-    @test op.operations[1] isa CompoundOperation
-    @test _rd_ref(op.operations[1]).head.name == "slice"
-    @test _rd_val(op.operations[1]) === content
-    @test op.operations[2] isa CompoundOperation
-    @test _rd_ref(op.operations[2]).head.name == "content"
-    @test _rd_val(op.operations[2]) isa DocumentNothing
+    (stored, delete) = op.operations
+    @test _rd_ref(stored.operations[1]).head.name == "slice"
+    @test _rd_val(stored.operations[1]) === content
+    @test _rd_ref(delete).head.name == "content"
+    @test _rd_val(delete) isa DocumentNothing
+
+    # Delete with a whole selection that nothing inside answers is the same delete.
+    op = read_intent(p, iomap, KeyDown(:delete, ModifierKeys(); time = 0.0))
+    @test _rd_ref(op).head.name == "content"
+    @test _rd_val(op) isa DocumentNothing
 end
 
 @testset "slice reader paste" begin
@@ -296,11 +304,12 @@ end
         evaluate_operation(nothing, op.operations[end])
         @test read_os_clipboard() == "hello"                   # mirrored to OS
 
-        # Cut also mirrors out (and still blanks the source).
+        # Cut also mirrors out what it stores, before the delete.
         buf[] = ""
         op = read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0))
-        @test op.operations[end] isa WriteOsClipboardOperation
-        evaluate_operation(nothing, op.operations[end])
+        stored = op.operations[1]
+        @test stored.operations[end] isa WriteOsClipboardOperation
+        evaluate_operation(nothing, stored.operations[end])
         @test read_os_clipboard() == "hello"
 
         # Paste with an EMPTY internal slice falls back to the OS clipboard,
@@ -315,11 +324,13 @@ end
         @test _rd_val(op.operations[1]).value == "from-os"
         @test op.operations[2] isa ReplaceSelectionOperation
 
-        # Without a from_text converter, empty-slice paste still declines (today's
-        # behavior — no OS read happens at all).
+        # Without a from_text converter, an empty slice pastes the text of the
+        # system clipboard over the value of the whole selected document.
         pn = ClipboardSliceToAnyProjection()                     # converters nothing
         iomap_n = print_document(pn, IdentityProjection(), empty, PrinterContext())
-        @test !(_paste(pn, iomap_n, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
+        op = _paste(pn, iomap_n, KeyDown(:v, ctrl; time = 0.0))
+        @test op isa ReplaceStringRangeOperation
+        @test op.replacement == "from-os"
 
         # A failed/empty OS read (nothing) declines gracefully rather than erroring.
         set_os_clipboard_backend!(read = () -> nothing, write = t -> false)
@@ -367,18 +378,19 @@ end
         evaluate_operation(nothing, op.operations[end])
         @test read_os_clipboard() == "world"
 
-        # Cut: stores the substring + a delete (ReplaceStringRangeOperation "") rooted
-        # under content + OS mirror.
+        # Cut: what a copy stores, then the content's answer to Delete: the text
+        # takes the range out.
         s = mkslice()
         iom = print_document(p, IdentityProjection(), s, PrinterContext())
         op = read_intent(p, iom, KeyDown(:x, ctrl; time = 0.0))
         @test op isa CompoundOperation
-        @test _rd_val(op.operations[1]) isa TextString
-        del = op.operations[2]
-        @test del isa ReplaceStringRangeOperation
-        @test del.replacement == ""
-        @test del.reference.head.name == "content"
-        @test op.operations[end] isa WriteOsClipboardOperation
+        (stored, delete) = op.operations
+        @test _rd_val(stored.operations[1]) isa TextString
+        @test _rd_val(stored.operations[1]).content == "world"
+        @test stored.operations[end] isa WriteOsClipboardOperation
+        @test delete isa ReplaceRangeOperation
+        @test delete.replacement == ""
+        @test delete.reference.head.name == "content"
 
         # Paste from the projectured slice: a content-rooted ReplaceStringRangeOperation
         # splicing the stored text over the selected range.
@@ -482,7 +494,7 @@ end
         @test read_os_clipboard() == "kept"
         @test slice.slice.value == "stored"
 
-        # A cut of a range takes it out.
+        # A cut of a range is a copy and the content's delete: the range goes.
         buf[] = ""
         text = PrimitiveString("hello")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
@@ -515,8 +527,9 @@ end
         apply!(slice, _paste(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
         @test two_lines.value == "aX\n\nb"
 
-        # A document that refuses pasted text protects its strings from a paste
-        # and a cut; a copy only reads, and takes the text.
+        # A document that refuses pasted text protects its strings from a paste,
+        # and a cut deletes only what a reader of the content deletes; a copy only
+        # reads, and takes the text.
         record = _ClipboardRecord(PrimitiveString("kept"))
         buf[] = "no"
         (slice, p, iomap) = text_slice(record, FieldReferenceStep("item"), value_step,
@@ -738,6 +751,39 @@ end
     @test replaced isa CompoundOperation
 end
 
+@testset "a text pasted on a whole document of another kind is typed over its value" begin
+    buf = Ref("")
+    set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
+    try
+        content = FieldReferenceStep("content")
+        apply!(slice, op) = evaluate_operation((document = slice,), op)
+        for (stored, value) in (("7", 7), ("x", 42))
+            number = PrimitiveNumber(42)
+            pair = _ClipboardPair(number, PrimitiveString("b"))
+            slice = ClipboardSlice(pair, PrimitiveString(stored))
+            slice.selection = cpath(content, FieldReferenceStep("left"))
+            p = ClipboardSliceToAnyProjection()
+            iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+            buf[] = stored
+            op = _paste(p, iomap, KeyDown(:v, ctrl; time = 0.0))
+            op isa Operation && apply!(slice, op)
+            @test pair.left === number
+            @test number.value == value
+        end
+        # A document with no value of its own refuses the text.
+        pair = _ClipboardPair(_ClipboardPair(PrimitiveString("l"), PrimitiveString("r")), PrimitiveString("b"))
+        slice = ClipboardSlice(pair, PrimitiveString("text"))
+        slice.selection = cpath(content, FieldReferenceStep("left"))
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        buf[] = "text"
+        @test !(_paste(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa Operation)
+        @test pair.left isa _ClipboardPair
+    finally
+        reset_os_clipboard_backend!()
+    end
+end
+
 @testset "a document can say what may take its place" begin
     content = FieldReferenceStep("content")
     for (stored, taken) in ((_ClipboardKeeper(PrimitiveString("new")), true),
@@ -900,6 +946,8 @@ function _os_paste_editor()
     projection = ClipboardSliceToAnyProjection(text = true)
     editor = Editor(slice, projection; backend = HeadlessBackend(), devices = Device[])
     iomap = print_document(projection, IdentityProjection(), slice, PrinterContext())
+    # An editor has printed before a key comes, and the paste goes down its readers.
+    editor.iomap = iomap
     paste = read_intent(projection, iomap, KeyDown(:v, ctrl; time = 0.0))
     (editor, paste, () -> content.elements[1].elements[1].content)
 end

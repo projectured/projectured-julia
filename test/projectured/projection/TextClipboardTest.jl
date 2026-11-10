@@ -52,6 +52,32 @@ function test_text_clipboard()
             @test s.value == "help! world"
             @test _tr_range(s) == (5, 5)
         end
+
+        # The range "lo" of "hello world", which a click after "hello" and two
+        # Shift+Left select.
+        function select_lo!(editor, backend)
+            (x, y, _) = only(_tr_texts(_tr_window(backend)))
+            _tr_press!(editor, backend,
+                       MouseClick(:left, x + first(compute_text_extent("hello", font)), y + 8, none; time = 0.0))
+            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
+            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
+        end
+
+        @testset "a cut of a range is a copy and the delete of the text reader" begin
+            s = PrimitiveString("hello world")
+            projection = ChainingProjection(PrimitiveStringToTextBlock(),
+                                            WordWrapping(measure = measure),
+                                            TextToGraphics(measure = measure))
+            (editor, backend) = _tr_editor(make_clipboard_document(s),
+                                           make_clipboard_projection(projection))
+            select_lo!(editor, backend)
+            buf[] = ""
+            _tr_press!(editor, backend, KeyDown(:x, ctrl; time = 0.0))
+            @test s.value == "hel world"
+            @test only(_tr_texts(_tr_window(backend)))[3] == "hel world"
+            @test read_os_clipboard() == "lo"
+            @test _tr_range(s) == (3, 3)
+        end
     finally
         reset_os_clipboard_backend!()
     end

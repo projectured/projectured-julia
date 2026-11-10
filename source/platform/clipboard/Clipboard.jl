@@ -255,7 +255,7 @@ function _make_clipboard_copy(document)
     end
 end
 
-# The path a paste (or a cut) writes `value` to, or `nothing` when it must not
+# The path a paste (or a delete) writes `value` to, or `nothing` when it must not
 # write. Three rules hold, each checked against the tree as it stands:
 #
 # 1. The selection names a whole document. A caret or a range names none, so the
@@ -269,12 +269,26 @@ end
 #    and the document in the slot when it does not accept `value` as its
 #    replacement (`accepts_pasted_replacement`).
 function _find_paste_target(input, value)
+    slot = _find_writable_slot(input)
+    slot === nothing && return nothing
+    _is_slot_accepting(slot.parent, last(slot.steps), value, slot.owner) || return nothing
+    accepts_pasted_replacement(slot.document, value) || return nothing
+    slot.path
+end
+
+# The slot of the whole document that the selection names, when rules 1 and 2
+# above hold: the selection `path` and its `steps`, the `document` there, the
+# `parent` that holds it, and the `owner`, the nearest document above the slot
+# that is not a list, whose domain owns an element. `nothing` otherwise.
+function _find_writable_slot(input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReference) && return nothing
-    try_evaluate_reference(input, sel, missing) isa Document || return nothing
+    document = try_evaluate_reference(input, sel, missing)
+    document isa Document || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
+    isempty(steps) && return nothing
     node = input
-    # The document whose domain owns an element: the nearest one above the list.
+    parent = input
     owner = input
     for i in eachindex(steps)
         parent = node
@@ -282,11 +296,78 @@ function _find_paste_target(input, value)
         node = try_evaluate_reference(input, _make_steps_path(steps[1:i]), missing)
         node === missing && return nothing
         (node isa Document && !accepts_pasted_document(node)) && return nothing
-        i == length(steps) || continue
-        _is_slot_accepting(parent, steps[i], value, owner) || return nothing
-        accepts_pasted_replacement(node, value) || return nothing
     end
-    sel
+    (; path = sel, steps, document, parent, owner)
+end
+
+# The edit that takes the whole selected document out of its slot, or `nothing`
+# when the slot must not change: the `place`, the path from the clipboard
+# document to the nearest document above the slot that is not a list, and the
+# `operation`, relative to that place. From a list the element goes, and the
+# selection names the element that takes its place, the one before it, or the
+# document that holds the list. A field takes the empty document of the domain
+# of what it held, by the rules of a paste.
+function _make_whole_delete(input)
+    slot = _find_writable_slot(input)
+    slot === nothing && return nothing
+    step = last(slot.steps)
+    (place, rest) = _split_at_place(input, slot.path)
+    if step isa RangeReferenceStep && is_element_collection(slot.parent)
+        step.stop == step.start + 1 || return nothing
+        steps = get_reference_steps(rest)
+        return (; place, operation = _make_element_delete(steps, step.stop, length(slot.parent)))
+    end
+    empty = make_insertion_document(_find_empty_document_type(slot.document))
+    _is_slot_accepting(slot.parent, step, empty, slot.owner) || return nothing
+    accepts_pasted_replacement(slot.document, empty) || return nothing
+    (; place, operation = make_replace_document_operation(rest, empty))
+end
+
+# `operation`, relative to the document that `place` names, read down its route
+# by `read(place, operation)`, which answers the operation rooted at the start of
+# the route, or `nothing`. A reader whose IO map holds no children follows no
+# route, so the edit goes to the deepest document on `place` that the readers
+# reach, with the rest of `place` in the edit.
+function _read_down_to_place(read, place::Reference, operation)
+    steps = get_reference_steps(place)
+    for count in length(steps):-1:0
+        rest = Tuple(steps[(count + 1):end])
+        rooted = read(_make_steps_path(steps[1:count]),
+                      isempty(rest) ? operation : reroot_operation(operation, rest))
+        rooted isa Operation && return rooted
+    end
+    nothing
+end
+
+# `path`, a path from the clipboard document, split at the nearest document above
+# its last step that is not a list: the place that an edit at `path` goes down
+# to, and the rest of `path`, from that place.
+function _split_at_place(input, path::Reference)
+    steps = get_reference_steps(strip_reference_types(path))
+    for count in (length(steps) - 1):-1:1
+        node = try_evaluate_reference(input, _make_steps_path(steps[1:count]), missing)
+        (node isa Document && !is_element_collection(node)) &&
+            return (_make_steps_path(steps[1:count]), _make_steps_path(steps[(count + 1):end]))
+    end
+    (EmptyReference(), _make_steps_path(steps))
+end
+
+# The type of the empty document of the domain of `document`: the placeholder
+# that an insertion of that domain aborts back to.
+function _find_empty_document_type(document)
+    insertion = get_domain_insertion(typeof(document))
+    get_nothing_document(insertion === nothing ? DocumentInsertion : insertion)
+end
+
+# The removal of element `index` of a list of `count` elements, at the list that
+# `steps` without their last step reach, and the selection after it.
+function _make_element_delete(steps, index::Int, count::Int)
+    list = _make_steps_path(steps[1:(end - 1)])
+    selection = index < count ? _make_steps_path(steps) :
+                index > 1 ? extend_reference(list, RangeReferenceStep(index - 2, index - 1)) :
+                _make_steps_path(steps[1:(end - 2)])
+    CompoundOperation(Any[make_delete_elements_operation(list, index),
+                          ReplaceSelectionOperation(selection)])
 end
 
 _make_steps_path(steps) =
@@ -339,8 +420,10 @@ end
 # The text target the clipboard's selection names, or `nothing`. For an edit
 # (`writes`), every document from the content down to the target must accept
 # pasted text; a copy reads, and asks none.
-function _find_text_target(input; writes::Bool)
-    sel = input.selection
+_find_text_target(input; writes::Bool) = _find_text_target(input, input.selection; writes)
+
+# The text target that `sel`, a path from the clipboard document, names.
+function _find_text_target(input, sel; writes::Bool)
     sel isa ConcreteReference || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
     length(steps) >= 3 || return nothing
@@ -359,6 +442,32 @@ function _find_text_target(input; writes::Bool)
     kind = _find_text_kind(document, name, value)
     kind === nothing && return nothing
     TextTarget(sel, document, name, value, range.start, range.stop, kind)
+end
+
+# The text target over the whole value of the document that the selection names
+# whole, where a paste of a text types it over that value: its `value` field, or
+# else its only field that holds text or a number. `nothing` for a document with
+# neither, such as an object or a list.
+function _find_whole_value_target(input)
+    sel = input.selection
+    sel isa ConcreteReference || return nothing
+    document = try_evaluate_reference(input, sel, missing)
+    document isa Document || return nothing
+    name = _find_value_field(document)
+    name === nothing && return nothing
+    value = getproperty(document, name)
+    count = value === nothing ? 0 : length(value isa AbstractString ? value : string(value))
+    path = concat_references(strip_reference_types(sel),
+                             _make_steps_path((FieldReferenceStep(String(name)), RangeReferenceStep(0, count))))
+    _find_text_target(input, path; writes = true)
+end
+
+function _find_value_field(document)
+    hasfield(typeof(document), :value) &&
+        _find_text_kind(document, :value, getproperty(document, :value)) !== nothing && return :value
+    names = [name for name in fieldnames(typeof(document))
+             if name !== :selection && getproperty(document, name) isa Union{AbstractString,Number}]
+    length(names) == 1 ? only(names) : nothing
 end
 
 # Whether a field takes text or a number, or `nothing` when it takes neither. An
@@ -381,10 +490,11 @@ function _get_text_target_text(target::TextTarget)
     String(chars[(clamp(target.start, 0, n) + 1):clamp(target.stop, 0, n)])
 end
 
-# The edit that puts `text` over a target's range: the one typing makes.
-_make_text_target_edit(target::TextTarget, text::AbstractString) =
-    target.kind === :number ? ReplaceNumberRangeOperation(target.path, String(text)) :
-                              ReplaceStringRangeOperation(target.path, String(text))
+# The edit that puts `text` over a target's range: the one typing makes, at
+# `path`, the path of the range from where the edit stands.
+_make_text_target_edit(target::TextTarget, text::AbstractString; path::Reference = target.path) =
+    target.kind === :number ? ReplaceNumberRangeOperation(path, String(text)) :
+                              ReplaceStringRangeOperation(path, String(text))
 
 # The text a paste puts at `target`, from `text`, or `nothing` when it puts none.
 # A field that holds no line break drops the line breaks `text` ends with, and a

@@ -321,7 +321,10 @@ function _convert_slot_value(root, parent_path, parent, step::ARangeReferenceSte
     declared_type === nothing && return value
     owner = _find_owner_document(root, parent_path)
     name = sprint(show, step)
-    convert_one(item) = convert_written_value(owner, declared_type, item; name)
+    # A slot is an element that the way back of a splice puts back: it was in the
+    # collection before, so it goes back as it is.
+    convert_one(item) = item isa AbstractCell ? item :
+                        convert_written_value(owner, declared_type, item; name)
     # A vector of items is a splice, as in `_write_slot!`, and each item is one element.
     value isa AbstractVector ? map(convert_one, value) : convert_one(value)
 end
