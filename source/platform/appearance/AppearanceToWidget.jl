@@ -8,17 +8,19 @@ Show an `Appearance` as widgets, in a pane that scrolls:
 
 - the buttons "Save" and "Load", which save the appearance in the file of
   `get_appearance_file` and read it back;
-- the card "Scale", which holds the `scale` of the appearance, and the card
-  "Colors", which holds its `colors`. These two cards do not fold. The view of
-  each part draws its body ([`AppearanceScaleToWidget`](@ref),
+- the card "Scale", for the `scale` of the appearance, and the card "Colors",
+  for its `colors`, each with its title and its summary. These two cards do not
+  fold. The tab builds their bodies with the functions that the views of the
+  parts build their pages with ([`AppearanceScaleToWidget`](@ref),
   [`AppearanceColorsToWidget`](@ref)): a row for the zoom and one for each of
   the six scales, each with its name, a − button, its value in percent, a +
   button and a reset button; and a row for each of the five colour settings, the
   mode, the contrast, the palette, the accent and the neutral, each with its
   name, buttons ‹ and › that step through its values, and its value. Under the
   rows of each, a button "Reset all" writes the default of each of them;
-- the themes in three groups, each a heading over the heading itself
-  ([`ThemeGroup`](@ref)), which [`ThemeGroupToWidget`](@ref) draws: "Editor", the
+- the themes in three groups, one for each heading ([`ThemeGroup`](@ref)), each
+  its title over a card for each of its themes, as the page of a heading shows
+  them ([`ThemeGroupToWidget`](@ref)): "Editor", the
   colour theme of the present mode and contrast, with a row for each role, the
   font theme, with a row for each role of the type scale, then the widget, the
   text, the syntax, the reference, the graphics and the tooltip themes, which
@@ -27,8 +29,8 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   the order of their names. Every card is as wide as the pane;
 - a card for each theme, which folds to its title and the summary of its theme
   type, the first paragraph of its docstring, and which the tab shows open when
-  the `open_names` of its heading name it. An open card holds the theme, which
-  [`ThemeToWidget`](@ref) draws: the summary, the
+  the `open_names` of its heading name it. An open card holds the controls of the
+  theme, as the page of the theme shows them ([`ThemeToWidget`](@ref)): the
   presets of the theme, as a choice that writes every field of the preset into
   the theme, and a row for each field, its name and its control; under that row,
   across the card, the docstring of the field, in the small font and the muted
@@ -222,21 +224,25 @@ function _make_view_controls(appearance::Appearance)
     (controls, (; commands, writes, edits, folds))
 end
 
-# The tab holds its buttons, and each part and each heading of the appearance as a
-# document, which its own view draws through the recursion: the scale and the
-# colour settings each in a card with its title, and each heading under its title.
+# The tab builds the bodies of its parts with the functions that the views of the
+# parts build their pages with, so every control is a widget of the tab, and Tab
+# moves through them all: the scale and the colour settings each in a card with
+# its title and its summary, and each heading under its title.
 function print_document(p::AppearanceToWidget, recursion, appearance::Appearance, ctx)
     (controls, tables) = _make_view_controls(appearance)
     theme = controls.theme
     groups = Any[HorizontalLayout(Any[controls.button("Save", SaveAppearanceOperation(appearance)),
                                       controls.button("Load", LoadAppearanceOperation(appearance))];
                                   gap = theme.button_gap),
-                 WidgetCard(; title = get_document_title(appearance.scale), content = appearance.scale),
-                 WidgetCard(; title = get_document_title(appearance.colors), content = appearance.colors)]
+                 WidgetCard(; title = get_document_title(appearance.scale), description = _SCALE_SUMMARY,
+                            content = _make_scale_body(controls, appearance.scale; summary = false)),
+                 WidgetCard(; title = get_document_title(appearance.colors), description = _COLOR_SETTINGS_SUMMARY,
+                            content = _make_colors_body(controls, appearance.colors; summary = false))]
     heading = StyleText(theme.section_font, theme.muted_foreground)
     for group in _get_theme_groups(appearance)
         isempty(_collect_group_themes(group)) && continue
-        push!(groups, VerticalLayout(Any[WidgetLabel(group.title; text_style = heading), group];
+        push!(groups, VerticalLayout(Any[WidgetLabel(group.title; text_style = heading),
+                                         _make_group_body(controls, group)];
                                      gap = theme.title_gap, child_width = Fill))
     end
     # Two groups are further apart than two cards of one group, so a heading
@@ -259,13 +265,14 @@ const _SCALE_SUMMARY = "The zoom of every view, and the size of the text, the ic
 const _COLOR_SETTINGS_SUMMARY = "The mode, the contrast and the palette of the colours, " *
                                 "and the hues of the accent and the neutral."
 
-# The body of a part of the appearance: its summary, its rows, and under them a
-# button "Reset all" that answers `reset`.
-function _make_settings_body(controls, summary::String, rows, reset)
+# The body of a part of the appearance: its summary, on a page, its rows, and under
+# them a button "Reset all" that answers `reset`. In the tab, the card of the part
+# shows the summary.
+function _make_settings_body(controls, summary::Union{Nothing, String}, rows, reset)
     caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
-    VerticalLayout(Any[WidgetLabel(summary; text_style = caption), rows,
-                       controls.button("Reset all", reset)];
-                   gap = controls.theme.section_gap)
+    parts = Any[rows, controls.button("Reset all", reset)]
+    summary === nothing || pushfirst!(parts, WidgetLabel(summary; text_style = caption))
+    VerticalLayout(parts; gap = controls.theme.section_gap)
 end
 
 # The name of a row of a card: a scale, a colour setting, a field of a theme. It
@@ -275,7 +282,7 @@ _make_name_label(controls, name) =
 
 # The body of the scale `scale`: a row for the zoom and one for each scale, each
 # with its name, a − button, its value in percent, a + button and a reset button.
-function _make_scale_body(controls, scale::AppearanceScale)
+function _make_scale_body(controls, scale::AppearanceScale; summary::Bool = true)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         word = lowercase(name)
@@ -296,14 +303,15 @@ function _make_scale_body(controls, scale::AppearanceScale)
                       vertical_gap = controls.theme.form_row_gap, vertical_align = :center)
     reset = CompoundOperation(Any[_make_step_operation(scale, field, 0)
                                   for (field, _) in _APPEARANCE_ROWS])
-    _make_settings_body(controls, _SCALE_SUMMARY, rows, reset)
+    _make_settings_body(controls, summary ? _SCALE_SUMMARY : nothing, rows, reset)
 end
 
 # The body of the colour settings `colors`: a row for each colour setting.
-function _make_colors_body(controls, colors::AppearanceColors)
+function _make_colors_body(controls, colors::AppearanceColors; summary::Bool = true)
     reset = CompoundOperation(Any[_write_color_setting(colors, field, value)
                                   for (field, value) in pairs(_COLOR_SETTING_DEFAULTS)])
-    _make_settings_body(controls, _COLOR_SETTINGS_SUMMARY, _make_color_settings(controls, colors), reset)
+    _make_settings_body(controls, summary ? _COLOR_SETTINGS_SUMMARY : nothing,
+                        _make_color_settings(controls, colors), reset)
 end
 
 # The themes of the heading `group`, in order: the colour theme of the present mode
@@ -311,28 +319,40 @@ end
 _collect_group_themes(group::ThemeGroup) =
     Any[(group.color_theme === nothing ? () : (group.color_theme,))..., group.themes...]
 
-# The card of `theme` under the heading `group`: its title, and the theme as its
-# body, which `ThemeToWidget` draws, while the `open_names` of the heading name the
-# type of the theme. A closed card shows the summary of its type under its title,
-# and holds no body: the card prints the theme when it first opens. The theme holds
-# its part of the paths of the vector that holds it, as a body that the card made
-# in the print does. `controls` makes the controls of the view and holds its
-# widget theme.
+# The card of `theme` under the heading `group`: its title and the summary of its
+# type, and under them the controls of the theme, which show while the
+# `open_names` of the heading name the type of the theme. A closed card has no
+# controls: the card makes them when it first opens, and keeps them while it closes
+# and opens again in this print. `controls` makes the controls of the view and
+# holds its widget theme.
 function _make_theme_card(controls, group::ThemeGroup, theme)
     T = get_theme_type(theme)
     name = string(nameof(T))
-    children = CellVector(@computation(name in group.open_names ? Any[theme] : Any[]))
-    set_output_path_computations!(theme, children, _get_path_below_first_element)
+    body = Cell(nothing)
+    children = CellVector(@computation(name in group.open_names ? Any[body[]] : Any[]))
+    set_cell_computation!(body, () -> _follow_section_body_paths!(children,
+                                          _make_theme_body(controls, theme; summary = false)))
     summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = get_document_title(theme), description = nothing,
+    card = WidgetCard(; title = get_document_title(theme),
+                      description = isempty(summary) ? nothing : summary,
                       content = VerticalLayout(children, Cell(:left), Cell(controls.theme.form_row_gap),
                                                Cell(nothing), Cell(nothing), Cell(nothing)),
                       collapsible = true, collapsed = !(name in group.open_names))
     set_cell_computation!(getfield(card, :collapsed), () -> !(name in group.open_names))
-    set_cell_computation!(getfield(card, :description),
-                          () -> (isempty(summary) || name in group.open_names) ? nothing : summary)
     controls.folds[card] = (group, name)
     card
+end
+
+# The body of a card, which the card makes after the print, holds its part of the
+# paths of the vector that holds it, and so do the documents below it: the print
+# gave the paths only to the documents that were there. The cells that the wiring
+# reads are no inputs of the body.
+function _follow_section_body_paths!(children, body)
+    run_without_cell_tracking(() -> begin
+        set_output_path_computations!(body, children, _get_path_below_first_element)
+        set_output_tree_path_computations!(body)
+    end)
+    body
 end
 
 # The body of the heading `group`: a card for each of its themes.
@@ -340,13 +360,14 @@ _make_group_body(controls, group::ThemeGroup) =
     VerticalLayout(Any[_make_theme_card(controls, group, theme) for theme in _collect_group_themes(group)];
                    gap = controls.theme.section_gap, child_width = Fill)
 
-# The body of `theme`: the summary of its type, and its controls.
-function _make_theme_body(controls, theme)
-    summary = strip_code_marks(compute_docstring_summary(get_theme_type(theme)))
+# The body of `theme`: the summary of its type, on a page, and its controls. In
+# the tab, the card of the theme shows the summary.
+function _make_theme_body(controls, theme; summary::Bool = true)
+    text = summary ? strip_code_marks(compute_docstring_summary(get_theme_type(theme))) : ""
+    content = _make_theme_section_content(controls, theme)
+    isempty(text) && return content
     caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
-    parts = Any[_make_theme_section_content(controls, theme)]
-    isempty(summary) || pushfirst!(parts, WidgetLabel(summary; text_style = caption))
-    VerticalLayout(parts; gap = controls.theme.form_row_gap)
+    VerticalLayout(Any[WidgetLabel(text; text_style = caption), content]; gap = controls.theme.form_row_gap)
 end
 
 # The part of `path` below the first element of a vector, or `nothing`.

@@ -51,16 +51,16 @@ The natural renderer draws an `Appearance` as the appearance tab, with
 the item "Appearance" of the View menu and Ctrl+, open it on the `Appearance` of
 the window (`find_editor_appearance`).
 
-The tab draws its two buttons, and holds each part of the appearance as a
-document: the `scale` and the `colors` each in a card, and each heading under its
-title. The natural renderer draws a part through its own view, a subtype of
-`AppearancePartToWidget`: `AppearanceScaleToWidget`, `AppearanceColorsToWidget`,
-`ThemeGroupToWidget`, which puts a folding card around each theme, and
-`ThemeToWidget`. So the page of a part in the explorer draws the same widgets
-alone. A view holds the appearance of the editor, whose widget theme and colours it
-draws with, makes its controls as the tab does (`_make_view_controls`), and reads
-as the tab reads. The kernel carries the selection of the tab into each part, so
-a press or a caret in a part works the same in the tab and on its page.
+Each part of the appearance has a view of its own for its page in the explorer, a
+subtype of `AppearancePartToWidget`: `AppearanceScaleToWidget`,
+`AppearanceColorsToWidget`, `ThemeGroupToWidget`, a folding card for each theme,
+and `ThemeToWidget`. A view holds the appearance of the editor, whose widget theme
+and colours it draws with, makes its controls as the tab does
+(`_make_view_controls`), and reads as the tab reads. The tab builds the same
+bodies with the same functions (`_make_scale_body`, `_make_colors_body`,
+`_make_group_body`, `_make_theme_body`), and does not put a part into a card for
+its view to draw: Tab moves through the stops of one widget tree, and its walk
+does not enter a document that another view draws.
 
 - At the top: "Save" and "Load", which act on the whole appearance.
 - The card "Scale": a row for the zoom and one for each scale, with the name, −,

@@ -9,7 +9,7 @@ module StyleModule
 using ..BackendModule
 using ..CellModule
 using ..CellStructModule
-using ..CollectionModule: CellVector
+using ..CollectionModule
 using ..DocumentModule
 using ..EditorModule
 using ..OperationModule

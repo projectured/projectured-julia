@@ -8,7 +8,9 @@
 The supertype of the views of the parts of an appearance:
 [`AppearanceScaleToWidget`](@ref), [`AppearanceColorsToWidget`](@ref),
 [`ThemeGroupToWidget`](@ref) and [`ThemeToWidget`](@ref). Each draws the page of its
-part, and the appearance tab draws each part through its view.
+part, alone. The appearance tab builds the same widgets with the same functions,
+so every control of the tab is in its one widget tree, and Tab moves through them
+all; Tab does not enter a document that another view draws.
 
 A view holds `appearance`, the appearance of the editor, whose widget theme and
 colours it draws with. It makes its controls as the tab does, and prints its
@@ -77,9 +79,9 @@ print_document(p::AppearanceColorsToWidget, recursion, colors::AppearanceColors,
 
 A [`ThemeGroup`](@ref), a heading of the themes of an appearance, as widgets: a
 card for each of its themes, in order, as wide as the view. A card folds to its
-title and the summary of its theme type, and shows the theme, which
-[`ThemeToWidget`](@ref) draws, while the `open_names` of the heading name the type
-of the theme. A press on the chevron of a card writes `open_names`, as view state.
+title and the summary of its theme type, and shows the controls of the theme, as
+[`ThemeToWidget`](@ref) draws them, while the `open_names` of the heading name the
+type of the theme. A press on the chevron of a card writes `open_names`, as view state.
 """
 struct ThemeGroupToWidget <: AppearancePartToWidget
     appearance::Any

@@ -84,7 +84,7 @@ function _at_tables(iomap)
               folds = IdDict{Any,Any}())
     for found in _at_collect_iomaps(iomap, Union{AppearanceToWidgetIoMap, AppearancePartToWidgetIoMap})
         for name in keys(tables)
-            merge!(tables[name], getfield(found, name))
+            merge!(tables[name], getproperty(found, name))
         end
     end
     tables

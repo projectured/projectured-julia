@@ -1,5 +1,5 @@
 # Fragment of `SettingsManagingModule` — one settings group as widgets: the page
-# of a group, and the body of its card in the settings tab.
+# of a group, and the rows and the reader that the settings tab shares with it.
 
 """
     SettingsGroupToWidget(; theme = nothing)
@@ -9,7 +9,9 @@ paragraph of its docstring, then one row for each setting: its label, its
 control, and a button that resets it; under that row, across the three columns,
 the description of the setting, the text of its docstring after the label. The
 settings tab puts each group in a card with the title of the group, and the page
-of a group shows the same widgets alone.
+of a group shows the same rows alone, under the summary. The settings tab builds
+the rows of its cards with the same functions, so Tab moves through the controls
+of every card in one widget tree.
 
 The projection holds its styles and no theme. Its keyword constructor fills them
 from `theme`, a `WidgetTheme` scaled or not, or the default theme for `nothing`:
@@ -56,14 +58,14 @@ _make_text_style(theme, compute) = make_theme_cell(StyleText, theme, compute)
 _compute_name_style(values) = StyleText(values.label_font, values.foreground)
 _compute_caption_style(values) = StyleText(values.quiet_font, values.muted_foreground)
 
-# `controls` holds `(control, name, convert)` for each control of a setting, so
-# the reader turns the write of a control into the write of its setting: `convert`
-# makes the value of the setting from the value that the control writes.
+# `controls` holds `(control, group, name, convert)` for each control of a setting,
+# so the reader turns the write of a control into the write of its setting:
+# `convert` makes the value of the setting from the value that the control writes.
 @iomap struct SettingsGroupToWidgetIoMap
     projection::Any
     input::Any
     output::Any
-    controls::Vector{Tuple{Any,Symbol,Any}}
+    controls::Vector{Tuple{Any,Any,Symbol,Any}}
 end
 
 # A setting and its text, which belongs to it, stand with no gap between them.
@@ -73,14 +75,33 @@ const _DESCRIPTION_GAP = 0
 
 function print_document(p::SettingsGroupToWidget, recursion, group::SettingsGroup, ctx)
     T = get_settings_group_type(group)
-    controls = Tuple{Any,Symbol,Any}[]
+    controls = Tuple{Any,Any,Symbol,Any}[]
     styles = (name = unwrap_cell(p.name_text), caption = unwrap_cell(p.caption))
+    gaps = (column = unwrap_cell(p.column_gap), row = unwrap_cell(p.row_gap))
+    summary = WidgetLabel(""; text_style = styles.caption)
+    set_cell_computation!(getfield(summary, :content), () -> something(_format_group_summary(group), ""))
+    output = VerticalLayout(Any[summary, _make_group_grid(group, controls, styles, gaps)];
+                            gap = unwrap_cell(p.gap))
+    # Each kind of path of the group names a part of its widgets: the output holds
+    # its image, and each document below it the part of its parent's path.
+    set_output_path_computations!(output, group, path -> find_introduced_path(p, path))
+    set_output_tree_path_computations!(output)
+    SettingsGroupToWidgetIoMap(p, group, output, controls)
+end
+
+# The rows of `group`: for each setting its label, its control and a button that
+# resets it, and under that row its description, across the three columns. Each
+# control goes into `controls` as `(control, group, name, convert)`. The state of
+# the controls follows the `is_used` of the group, which the start step of the
+# editor writes after the first print.
+function _make_group_grid(group, controls, styles, gaps)
+    T = get_settings_group_type(group)
     is_used = () -> group.is_used
     cells = Any[]
     row_gaps = Any[]     # the gap above each row of the grid
     for description in get_setting_descriptions(T)
         control, convert = _make_setting_control(group, description, is_used)
-        push!(controls, (control, description.name, convert))
+        push!(controls, (control, group, description.name, convert))
         push!(cells, WidgetLabel(description.label; text_style = styles.name))
         push!(cells, control)
         reset = _make_command_button("Reset", "Give \"$(description.label)\" its default.",
@@ -94,24 +115,19 @@ function print_document(p::SettingsGroupToWidget, recursion, group::SettingsGrou
             push!(row_gaps, _DESCRIPTION_GAP)
         end
     end
-    grid = GridLayout(cells, 3; horizontal_gap = unwrap_cell(p.column_gap),
-                      vertical_gap = unwrap_cell(p.row_gap), vertical_align = :center, row_gaps)
-    summary = WidgetLabel(""; text_style = styles.caption)
-    set_cell_computation!(getfield(summary, :content), () -> _format_group_summary(T, is_used()))
-    output = VerticalLayout(Any[summary, grid]; gap = unwrap_cell(p.gap))
-    # Each kind of path of the group names a part of its widgets: the output holds
-    # its image, and each document below it the part of its parent's path.
-    set_output_path_computations!(output, group, path -> find_introduced_path(p, path))
-    set_output_tree_path_computations!(output)
-    SettingsGroupToWidgetIoMap(p, group, output, controls)
+    GridLayout(cells, 3; horizontal_gap = gaps.column, vertical_gap = gaps.row,
+               vertical_align = :center, row_gaps)
 end
 
-# The summary of the group type `T`, and under it the note that the group takes
-# effect at the next start, or that the editor does not use it.
-function _format_group_summary(T::Type, is_used::Bool)
+# The summary of the type of `group`, and under it the note that the group takes
+# effect at the next start, or that the editor does not use it; `nothing` for no
+# text. It reads the `is_used` of the group.
+function _format_group_summary(group)
+    T = get_settings_group_type(group)
     note = is_settings_group_read_at_start(T) ? "These settings take effect at the next start." :
-           is_used ? "" : "This editor does not use these settings."
-    join(filter(!isempty, String[strip_code_marks(compute_docstring_summary(T)), note]), "\n")
+           group.is_used ? "" : "This editor does not use these settings."
+    lines = filter(!isempty, String[strip_code_marks(compute_docstring_summary(T)), note])
+    isempty(lines) ? nothing : join(lines, "\n")
 end
 
 # The control of one setting, and the function from the value that it writes to
@@ -181,6 +197,8 @@ _make_reset_operation(groups::AbstractVector) =
                               get_setting_descriptions(get_settings_group_type(group))])
 
 # ── Reader ────────────────────────────────────────────────────────────────
+# The settings tab reads with the same functions: an IO map that holds `controls`
+# and the root of the widgets in `output`.
 
 _make_setting_write(group, name::Symbol, value) =
     ReplaceReferencedValueOperation(group,
@@ -189,24 +207,27 @@ _make_setting_write(group, name::Symbol, value) =
 # The write of a control becomes the write of its setting. Every other operation
 # takes the default way back of the kernel: a path in the widgets becomes a path
 # that this projection introduces into the group.
-function read_intent(::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap,
-                     operation::ReplaceReferencedValueOperation)
-    for (control, name, convert) in iomap.controls
+read_intent(::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceReferencedValueOperation) =
+    _read_control_write(iomap, operation)
+
+function _read_control_write(iomap, operation::ReplaceReferencedValueOperation)
+    for (control, group, name, convert) in iomap.controls
         operation.document === control || continue
-        return _make_setting_write(iomap.input, name, convert(operation.value))
+        return _make_setting_write(group, name, convert(operation.value))
     end
     operation
 end
 
 # An edit of the text of a setting becomes the write of the whole text, and the
 # caret after the characters that it put in.
-function read_intent(p::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap,
-                     operation::ReplaceStringRangeOperation)
+read_intent(p::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceStringRangeOperation) =
+    _read_text_edit(p, iomap, operation)
+
+function _read_text_edit(p::Projection, iomap, operation::ReplaceStringRangeOperation)
     found = _find_text_edit(iomap, strip_reference_types(operation.reference))
     found === nothing && return invoke(read_intent, Tuple{Projection, Any, Any},
                                        p, iomap, operation)
-    (name, range) = found
-    group = iomap.input
+    (group, name, range) = found
     text = string(getproperty(group, name))
     write = _make_setting_write(group, name,
                                 splice_string(text, range.start, range.stop,
@@ -221,9 +242,9 @@ end
 # The setting whose text `reference`, a path from the output, goes through, and the
 # last range of the path, which holds the characters that the edit replaces; or
 # `nothing` for a path through no text of a setting.
-function _find_text_edit(iomap::SettingsGroupToWidgetIoMap, reference)
-    texts = IdDict{Any,Any}(control => name
-                            for (control, name, _) in iomap.controls
+function _find_text_edit(iomap, reference)
+    texts = IdDict{Any,Any}(control => (group, name)
+                            for (control, group, name, _) in iomap.controls
                             if control isa WidgetText)
     node = iomap.output
     rest = reference
@@ -231,7 +252,7 @@ function _find_text_edit(iomap::SettingsGroupToWidgetIoMap, reference)
         found = get(texts, node, nothing)
         if found !== nothing
             range = _find_last_range_step(rest)
-            return range === nothing ? nothing : (found, range)
+            return range === nothing ? nothing : (found..., range)
         end
         node = unwrap_cell(evaluate_reference_step(rest.head, node))
         rest = rest.tail

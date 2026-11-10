@@ -25,7 +25,7 @@ module SettingsModule
 using ..DocumentModule
 using ..OperationModule
 using ..ReferenceModule
-using ..CollectionModule: CellVector
+using ..CollectionModule
 
 import TOML
 

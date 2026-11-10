@@ -190,6 +190,19 @@ the fold. The page of one group, part or theme shows the content under the tab
 title. Rejected: the tab views also print a part alone, because one view then
 prints two kinds of document.
 
+**D11, changed in step 5 (2026-11-10, by the assistant).** The views of the parts
+draw the pages. A tab does not put a part into a card for its view to draw: it
+builds the same bodies with the same functions (`_make_group_grid` of the
+settings; `_make_scale_body`, `_make_colors_body`, `_make_group_body` and
+`_make_theme_body` of the appearance), and reads its controls with the same
+functions. Reason: Tab moves through the stops of one widget tree. Its walk
+(`get_first_focusable_path`) goes through the documents of the widgets, and does
+not enter a document that another view draws. With the part in the card, Tab in
+the settings tab skipped every control of the groups
+(`SettingsTabTest.jl:265`). Rejected: a Tab walk that enters the view of an
+embedded document, because that changes Tab in every layout and is no part of
+this plan.
+
 **D12 (proposed by the assistant, approved with the plan 2026-11-10).** `get_document_title` gives the label of a
 node and the title of its tab: the title of the card for a group and a theme,
 the title for a heading, and "Scale" and "Colors" for the two parts. A group
@@ -217,10 +230,8 @@ makes one commit.
    Add a test: the node "Settings" has six children with the titles of the
    cards. Tests: `test_settings()`, `test_settings_wrapper()`,
    `test_settings_tab()`, `test_explorer()`.
-3. [x] **The view of one group (D1, D11).** Done. Fact: the settings tab needs no
-   new path mapping. The kernel carries the selection of the tab into the
-   document that a card holds (`set_output_tree_path_computations!`), so a path
-   into a card goes on into the selection of its group. Add `SettingsGroupToWidget` and
+3. [x] **The view of one group (D1, D11).** Done. The tab builds the rows of each
+   card with the functions of the view of a group (see D11, changed in step 5). Add `SettingsGroupToWidget` and
    register it beside `SettingsToWidget`. `SettingsToWidget` prints each card
    through it. Add a test: Enter on the node "Pointer" opens a tab "Pointer",
    and a step of a spin box there writes the setting. Tests:
@@ -271,13 +282,12 @@ makes one commit.
      the colours that it draws with.
    - `AdjustZoomOperation` and `AdjustScaleOperation` hold the `AppearanceScale`
      in place of the `Appearance`, so the view of the scale alone steps it.
-   - A closed theme card holds no body, as before: the card holds the theme in a
-     vector that is empty while the card is closed, so the tab prints a theme
-     only when its card opens. A closed card shows the summary of its type under
-     its title; an open card shows the theme, whose view starts with the summary.
-   - The two cards "Scale" and "Colors" have their summary inside the body, in
-     the small font and the muted colour, in place of the description of the
-     card. Add
+   - The tab looks as before: the cards keep their summaries as descriptions,
+     and a closed theme card makes its controls when it first opens. A page
+     shows the summary of its part at its top, in the small font and the muted
+     colour.
+   - The tests of the tab read the tables of the controls from the IO map of the
+     tab and of each view of a part (`_at_tables`). Add
    `AppearanceScaleToWidget`, `AppearanceColorsToWidget`, `ThemeGroupToWidget`
    and `ThemeToWidget`. `AppearanceToWidget` prints the parts and the headings
    through them. The paths of the caret of a colour text and of the part under
