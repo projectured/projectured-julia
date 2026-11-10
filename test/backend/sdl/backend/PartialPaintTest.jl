@@ -515,10 +515,12 @@ end
     pane_key = SDL._make_placement_key(pane, SDL._make_placement_key(canvas, UInt(0)))
     rows_key = SDL._make_placement_key(rows, SDL._make_placement_key(pane.content, pane_key))
     paint = SDL._PartialPaint(resources.dirty_bounds, (0, 0, 0, 0), 0)
+    # A record of a row is relative to the content origin of the rows, which the
+    # scroll put at (0, -69).
     function meets(rect, k)
         paint.rect = rect
         key = SDL._make_placement_key(slots[k][], rows_key)
-        haskey(resources.dirty_bounds, key) && !SDL._is_outside_partial_paint(paint, key)
+        haskey(resources.dirty_bounds, key) && !SDL._is_outside_partial_paint(paint, key, 0, -69)
     end
     @test filter(k -> any(r -> meets(r, k), rects), 1:2000) == 13:16
     # The paint of each rectangle draws the rows that it meets, and nothing else.

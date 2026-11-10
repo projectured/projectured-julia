@@ -116,11 +116,16 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 # What the dirty walk remembers of each graphic from the frame that painted it,
-# keyed by its placement (`_make_placement_key`): the place of every graphic (the
-# absolute content origin of a canvas, the origin of the container of any other),
-# the box, the content and the transform of a viewport and the edges that its content
-# was recorded between (`nothing` when the edges showed none of it), the keys of the elements
-# that a canvas drew, and the signature of each leaf (`_compute_leaf_signature`).
+# keyed by its placement (`_make_placement_key`). Each place is relative to the
+# content origin of the canvas that holds the graphic, so a move of that canvas
+# changes none of the records inside it: the offset of a canvas in that origin,
+# which is its scroll for the content of a viewport (for any other graphic only
+# the mark that it was painted), the box, the content and the transform of a
+# viewport and the edges that its content was recorded between, relative to the
+# content origin (`nothing` when the edges showed none of it), the keys of the
+# elements that a canvas drew, and the signature of each leaf
+# (`_compute_leaf_signature`). `scaled_boxes` holds the box of each viewport with a
+# scale as the walk had it, which `_extend_over_scaled_viewports!` reads.
 # The walk compares this frame with it by value. `baseline` is the count of
 # records after the last full paint; it bounds how many records of graphics that
 # are gone can collect.
@@ -134,6 +139,7 @@ end
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform,Union{Nothing,NTuple{4,Int}}}}
+    scaled_boxes::Dict{UInt,NTuple{4,Int}}
     members::Dict{UInt,Vector{UInt}}
     signatures::Dict{UInt,UInt}
     baseline::Int
@@ -146,6 +152,7 @@ mutable struct _PaintedGeometry
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
                                       Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
+                                      Dict{UInt,NTuple{4,Int}}(),
                                       Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0,
                                       Dict{UInt,Any}(), Dict{UInt,Any}(), 0, 0, 0, 0)
 
@@ -177,8 +184,9 @@ mutable struct SdlWindowResources
     target_h::Int
     # Dirty-rectangle partial repaint state.
     first_paint::Bool    # force a full repaint on the first frame / after target (re)creation
-    dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered absolute logical bounds, keyed by
-                                            # the placement of each graphic (for old∪new)
+    dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered logical bounds, keyed by the
+                                            # placement of each graphic, relative to the content
+                                            # origin of the canvas that holds it (for old∪new)
     painted::_PaintedGeometry  # the place and the geometry each graphic was painted with
     # Recent frames' logical dirty rects (x0,y0,x1,y1), one set for each frame,
     # most-recent first. The target→window copy each frame refreshes the rects of
@@ -1249,13 +1257,15 @@ mutable struct _PartialPaint
     drawn::Int
 end
 
-# True when the graphic placed at `key` draws no pixel in the rectangle of
-# `paint`: its record, widened by the pad of a dirty rectangle, does not meet the
-# rectangle. The record of a canvas covers what it holds, and the record of a
-# viewport is its box. A graphic with no record is drawn.
-function _is_outside_partial_paint(paint::_PartialPaint, key::UInt)
-    bounds = get(paint.records, key, nothing)
-    bounds === nothing && return false
+# True when the graphic placed at `key` in a canvas with the content origin
+# `(ox, oy)` draws no pixel in the rectangle of `paint`: its record, widened by the
+# pad of a dirty rectangle, does not meet the rectangle. The record of a canvas
+# covers what it holds, and the record of a viewport is its box. A graphic with no
+# record is drawn.
+function _is_outside_partial_paint(paint::_PartialPaint, key::UInt, ox::Int, oy::Int)
+    record = get(paint.records, key, nothing)
+    record === nothing && return false
+    bounds = _move_box(record, (ox, oy))
     (x0, y0, x1, y1) = paint.rect
     pad = _DIRTY_RECT_PAD
     bounds[3] + pad <= x0 || bounds[1] - pad >= x1 || bounds[4] + pad <= y0 || bounds[2] - pad >= y1
@@ -2222,7 +2232,7 @@ _render_elem_y(elem) = hasfield(typeof(elem), :y) ? Int(elem.y) : nothing
 function _render_element_guarded!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
                                   edges::_ClipEdges, ratio::Float64;
                                   paint::Union{Nothing,_PartialPaint} = nothing, key::UInt = UInt(0))
-    paint === nothing || !_is_outside_partial_paint(paint, key) || return nothing
+    paint === nothing || !_is_outside_partial_paint(paint, key, ox, oy) || return nothing
     try
         if paint !== nothing
             # A graphic that draws no pixel has no record, and it would draw in
@@ -2373,8 +2383,7 @@ _has_overlap(a::NTuple{4,Int}, b::NTuple{4,Int}) =
 function _extend_over_scaled_viewports!(region::_DirtyRegion, res::SdlWindowResources)
     isempty(region.rects) && return nothing
     boxes = NTuple{4,Int}[]
-    for (box, _, transform, _) in values(res.painted.viewports)
-        _is_plain_viewport_transform(transform) && continue
+    for box in values(res.painted.scaled_boxes)
         window_box = (clamp(box[1], 0, res.width), clamp(box[2], 0, res.height),
                       clamp(box[3], 0, res.width), clamp(box[4], 0, res.height))
         _is_empty_box(window_box) || push!(boxes, window_box)
@@ -2539,15 +2548,16 @@ _is_early_stop_layout(canvas::GraphicsCanvas) =
 
 # ── What a paint records ──
 #
-# The bounds `elem` is drawn with at the content origin `(ox, oy)`, as an
-# absolute `(x0,y0,x1,y1)` or `nothing`. It records what the next frame compares
-# against, for `elem` and for everything inside it that the render reaches: the
-# place of each graphic in `res.painted.origins` (the content origin a canvas
-# draws its elements at, and the origin of the container of any other graphic),
-# its bounds in `res.dirty_bounds`, and the geometry of each viewport. The
-# records stop at the layout early-stop, as the render does: what lies past it is
-# not drawn, and a graphic that later comes into view has no record and is
-# painted then.
+# The bounds `elem` is drawn with at the content origin `(ox, oy)`, as a window
+# `(x0,y0,x1,y1)` or `nothing`. It records what the next frame compares against,
+# for `elem` and for everything inside it that the render reaches, each relative to
+# the content origin of the canvas that holds the graphic: the offset of each
+# canvas in `res.painted.origins`, and only the mark that it was painted for any
+# other graphic, its bounds in `res.dirty_bounds` (`_record_bounds!`), and the
+# geometry of each viewport. A reader adds the content origin that its walk
+# carries (`_find_window_bounds`). The records stop at the layout early-stop, as
+# the render does: what lies past it is not drawn, and a graphic that later comes
+# into view has no record and is painted then.
 
 # The key of `elem` placed in the container whose key is `parent`. The canvas of
 # the window is placed in 0.
@@ -2560,11 +2570,11 @@ function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::
     elem isa GraphicsCanvas &&
         return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy, edges)
-    res.painted.origins[key] = (ox, oy)
+    res.painted.origins[key] = (0, 0)
     signature = _compute_leaf_signature(elem)
     signature === nothing ? delete!(res.painted.signatures, key) :
                             (res.painted.signatures[key] = signature)
-    _record_bounds!(res, key, _bounds_of_elem(elem, ox, oy, res.ratio))
+    _record_bounds!(res, key, _bounds_of_elem(elem, ox, oy, res.ratio), ox, oy)
 end
 
 # What a leaf draws, as one number: the hash of the values of its cells, or
@@ -2607,7 +2617,8 @@ end
 # A canvas whose content origin is `(ox, oy)`.
 function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
                                  ox::Int, oy::Int, edges::_ClipEdges)
-    res.painted.origins[key] = (ox, oy)
+    res.painted.origins[key] = (Int(canvas.x), Int(canvas.y))
+    bx, by = _get_container_origin(res, key, ox, oy)
     elements = canvas.elements
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
@@ -2615,7 +2626,7 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
     if elements isa ListNode
         # An endless list in a canvas that can not stop its walk records nothing,
         # as the walk leaves it (`_collect_canvas_dirty!`).
-        early || return _record_bounds!(res, key, nothing)
+        early || return _record_bounds!(res, key, nothing, bx, by)
         for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
             b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
@@ -2633,16 +2644,16 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
         end
         res.painted.members[key] = members
     end
-    _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
+    _record_bounds!(res, key, _acc_tuple_or_nothing(acc), bx, by)
 end
 
-# A node of a list whose key is `list`: its place, and the bounds of its value.
+# A node of a list whose key is `list`: its mark, and the bounds of its value.
 function _record_painted_node!(res::SdlWindowResources, node::ListNode, value, list::UInt,
                                ox::Int, oy::Int, edges::_ClipEdges)
     key = _make_placement_key(node, list)
-    res.painted.origins[key] = (ox, oy)
+    res.painted.origins[key] = (0, 0)
     _record_bounds!(res, key, _record_painted_element!(res, value, _make_placement_key(value, key),
-                                                       ox, oy, edges))
+                                                       ox, oy, edges), ox, oy)
 end
 
 # A viewport at the content origin `(ox, oy)` between `edges`. Its bounds are its
@@ -2652,16 +2663,18 @@ end
 function _record_painted_viewport!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt,
                                    ox::Int, oy::Int, edges::_ClipEdges)
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
-    res.painted.origins[key] = (ox, oy)
+    res.painted.origins[key] = (0, 0)
     place = _compute_viewport_content_place(box, content, transform, edges)
     if place === nothing
         _forget_unshown_viewport_content!(res, content, key)
     end
-    res.painted.viewports[key] = (box, objectid(content), transform,
-                                  place === nothing ? nothing : _get_edges_box(place[3]))
+    res.painted.viewports[key] = (_move_box(box, (-ox, -oy)), objectid(content), transform,
+                                  place === nothing ? nothing : _get_local_edges_box(place...))
+    _is_plain_viewport_transform(transform) ? delete!(res.painted.scaled_boxes, key) :
+                                              (res.painted.scaled_boxes[key] = box)
     place === nothing ||
         _record_painted_canvas!(res, content, _make_placement_key(content, key), place...)
-    _record_bounds!(res, key, _is_empty_box(box) ? nothing : box)
+    _record_bounds!(res, key, _is_empty_box(box) ? nothing : box, ox, oy)
 end
 
 # The absolute box of `vp` at the content origin `(ox, oy)`, the canvas it shows,
@@ -2672,10 +2685,31 @@ function _get_viewport_geometry(vp::GraphicsViewport, ox::Int, oy::Int)
      vp.transform::AffineTransform)
 end
 
-function _record_bounds!(res::SdlWindowResources, key::UInt, b::Union{Nothing,NTuple{4,Int}})
-    b === nothing ? delete!(res.dirty_bounds, key) : (res.dirty_bounds[key] = b)
+# Record the window bounds `b` of the graphic placed at `key` in a canvas with the
+# content origin `(bx, by)`, relative to that origin, and answer `b`.
+function _record_bounds!(res::SdlWindowResources, key::UInt, b::Union{Nothing,NTuple{4,Int}}, bx::Int, by::Int)
+    b === nothing ? delete!(res.dirty_bounds, key) : (res.dirty_bounds[key] = _move_box(b, (-bx, -by)))
     b
 end
+
+# The window bounds of the graphic placed at `key` in a canvas with the content
+# origin `(bx, by)`, from its record, or `nothing` when it has none.
+function _find_window_bounds(res::SdlWindowResources, key::UInt, bx::Int, by::Int)
+    b = get(res.dirty_bounds, key, nothing)
+    b === nothing ? nothing : _move_box(b, (bx, by))
+end
+
+# The content origin of the container of the canvas placed at `key`, whose content
+# origin is `(ox, oy)`: that origin less the offset that the record of the canvas
+# holds.
+function _get_container_origin(res::SdlWindowResources, key::UInt, ox::Int, oy::Int)
+    offset = res.painted.origins[key]
+    (ox - offset[1], oy - offset[2])
+end
+
+# The edges `edges` of the content of a viewport, whose content origin is
+# `(cox, coy)`, as a box relative to that origin.
+_get_local_edges_box(cox::Int, coy::Int, edges::_ClipEdges) = _move_box(_get_edges_box(edges), (-cox, -coy))
 
 _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, key)
 
@@ -2749,12 +2783,13 @@ _defer!(walk::_DirtyWalk, f::Function) = (push!(walk.deferred, f); true)
 _defer_refresh!(walk::_DirtyWalk, f::Function) =
     walk.by_value ? _defer!(walk, f) : (push!(walk.lists, () -> _defer!(walk, f)); true)
 
-# Clear the place of a graphic that was painted and that the render no longer
-# reaches, and forget it. False when it was not painted: the render did not reach
-# it before either, so what follows it was not painted.
-function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)::Bool
+# Clear the place of a graphic that was painted in a canvas with the content origin
+# `(bx, by)` and that the render no longer reaches, and forget it. False when it
+# was not painted: the render did not reach it before either, so what follows it
+# was not painted.
+function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt, bx::Int, by::Int)::Bool
     _is_painted(res, key) || return false
-    old = get(res.dirty_bounds, key, nothing)
+    old = _find_window_bounds(res, key, bx, by)
     old === nothing || _add_dirty_rect!(walk.region, old)
     _forget_painted!(res, key)
     true
@@ -2765,6 +2800,7 @@ function _forget_painted!(res::SdlWindowResources, key::UInt)
     delete!(res.dirty_bounds, key)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
+    delete!(res.painted.scaled_boxes, key)
     delete!(res.painted.members, key)
     delete!(res.painted.signatures, key)
     delete!(res.painted.guards, key)
@@ -2772,14 +2808,16 @@ function _forget_painted!(res::SdlWindowResources, key::UInt)
     nothing
 end
 
-# A dirty unit: after the walk, its previous (cached) bounds and its new bounds go
-# into the region. `record` computes the new bounds and records them, with
-# everything inside the unit, as next frame's "previous"; the old bounds are read
-# before it runs. The new bounds are `nothing` when the unit now renders nothing
-# (content removed) — its cached old extent is still cleared.
-function _union_unit!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt, record::Function)::Bool
+# A dirty unit in a canvas with the content origin `(bx, by)`, which did not move:
+# after the walk, its previous (cached) bounds and its new bounds go into the
+# region. `record` computes the new bounds and records them, with everything
+# inside the unit, as next frame's "previous"; the old bounds are read before it
+# runs. The new bounds are `nothing` when the unit now renders nothing (content
+# removed) — its cached old extent is still cleared.
+function _union_unit!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt, bx::Int, by::Int,
+                      record::Function)::Bool
     _defer!(walk, () -> begin
-        old = get(res.dirty_bounds, key, nothing)
+        old = _find_window_bounds(res, key, bx, by)
         new = record()
         old === nothing || _add_dirty_rect!(walk.region, old)
         new === nothing || _add_dirty_rect!(walk.region, new)
@@ -2792,6 +2830,7 @@ function _forget_painted_geometry!(res::SdlWindowResources)
     empty!(res.dirty_bounds)
     empty!(res.painted.origins)
     empty!(res.painted.viewports)
+    empty!(res.painted.scaled_boxes)
     empty!(res.painted.members)
     empty!(res.painted.signatures)
     empty!(res.painted.guards)
@@ -2806,7 +2845,8 @@ const _PAINTED_RECORD_SLACK = 10_000
 
 _count_painted_records(res::SdlWindowResources) =
     length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports) +
-    length(res.painted.members) + length(res.painted.signatures) + length(res.painted.guards)
+    length(res.painted.scaled_boxes) + length(res.painted.members) + length(res.painted.signatures) +
+    length(res.painted.guards)
 
 _is_painted_geometry_full(res::SdlWindowResources) =
     _count_painted_records(res) > 2 * res.painted.baseline + _PAINTED_RECORD_SLACK
@@ -2833,9 +2873,13 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # A canvas's painted content depends only on its elements and on the place it
     # is painted at — not on w/h/layout (those are metadata for parents/scroll that
     # the renderer never reads, so their cells may stay perpetually invalid and
-    # must not be mistaken for "dirty"). `(ox, oy)` already holds this canvas's own
-    # offset, which the caller read, so the place is compared by value.
-    moved = get(res.painted.origins, key, nothing) != (ox, oy)
+    # must not be mistaken for "dirty"). The walk enters a canvas only when its
+    # container did not move, so the canvas moved when its own offset changed. `bx,
+    # by` is the content origin of its container.
+    offset = (Int(canvas.x), Int(canvas.y))
+    painted_offset = get(res.painted.origins, key, nothing)
+    moved = painted_offset != offset
+    bx, by = ox - offset[1], oy - offset[2]
     # A valid guard at the same place: nothing that the canvas draws changed since
     # its guard read it, so the walk tests none of its elements.
     moved || _is_guard_valid(res, key, ox, oy, edges) && return false
@@ -2852,10 +2896,12 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         # it (`check_list_canvas`).
         _is_early_stop_layout(canvas) || return false
         # A list has no bounds of its own to repaint: a list that moved, or that
-        # was never painted, reflows as a changed spine does.
-        res.painted.origins[key] = (ox, oy)
+        # was never painted, reflows as a changed spine does. Its nodes were
+        # recorded at its old origin.
+        res.painted.origins[key] = offset
+        old_origin = painted_offset === nothing ? (ox, oy) : (bx + painted_offset[1], by + painted_offset[2])
         return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, walk;
-                                        reflow = moved || list_changed)
+                                        reflow = moved || list_changed, old_origin)
     end
     if !moved && list_changed && haskey(res.painted.members, key)
         # A new element list, read in the second phase and walked by value.
@@ -2879,7 +2925,7 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
             end
         end
     end
-    _union_unit!(res, walk, key, () -> _record_painted_canvas!(res, canvas, key, ox, oy, edges))
+    _union_unit!(res, walk, key, bx, by, () -> _record_painted_canvas!(res, canvas, key, ox, oy, edges))
 end
 
 # The index of the first element that the render draws, found by the same search
@@ -2942,7 +2988,7 @@ function _collect_elements_dirty!(res::SdlWindowResources, canvas::GraphicsCanva
         _is_drawn_element(elem, ox, oy, edges) || continue
         past = past || _is_past_early_stop(elem, ox, oy, edges, layout, early)
         if past
-            _clear_left_view!(res, walk, elem_key) || break
+            _clear_left_view!(res, walk, elem_key, ox, oy) || break
             changed = true
         else
             drawn += 1
@@ -2956,21 +3002,21 @@ function _collect_elements_dirty!(res::SdlWindowResources, canvas::GraphicsCanva
     end
     if painted !== nothing && (other !== nothing || drawn < length(painted))
         _clear_members_not_drawn!(res, walk, canvas.overlapping_elements, painted,
-                                  other === nothing ? painted[1:drawn] : other)
+                                  other === nothing ? painted[1:drawn] : other, ox, oy)
         changed = true
     end
     (false, changed)
 end
 
-# Clear what a canvas drew before, the keys `painted`, and does not draw now, the
-# keys `drawn`: an element that left the list, or the view. Where elements can
-# overlap, the order draws too: a kept element that has another place in the
-# order is painted again.
+# Clear what a canvas with the content origin `(ox, oy)` drew before, the keys
+# `painted`, and does not draw now, the keys `drawn`: an element that left the
+# list, or the view. Where elements can overlap, the order draws too: a kept
+# element that has another place in the order is painted again.
 function _clear_members_not_drawn!(res::SdlWindowResources, walk::_DirtyWalk, overlapping::Bool,
-                                   painted::Vector{UInt}, drawn::Vector{UInt})
+                                   painted::Vector{UInt}, drawn::Vector{UInt}, ox::Int, oy::Int)
     drawn_set = Set(drawn)
     for old in painted
-        old in drawn_set || _clear_left_view!(res, walk, old)
+        old in drawn_set || _clear_left_view!(res, walk, old, ox, oy)
     end
     overlapping || return nothing
     painted_set = Set(painted)
@@ -2978,7 +3024,7 @@ function _clear_members_not_drawn!(res::SdlWindowResources, walk::_DirtyWalk, ov
     kept_before = [k for k in painted if k in drawn_set]
     for (now, before) in zip(kept_now, kept_before)
         now == before && continue
-        bounds = get(res.dirty_bounds, now, nothing)
+        bounds = _find_window_bounds(res, now, ox, oy)
         bounds === nothing || _add_dirty_rect!(walk.region, bounds)
     end
     nothing
@@ -3004,7 +3050,7 @@ function _collect_new_elements_dirty!(res::SdlWindowResources, canvas::GraphicsC
         push!(drawn, elem_key)
         _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, walk, false)
     end
-    _clear_members_not_drawn!(res, walk, canvas.overlapping_elements, res.painted.members[key], drawn)
+    _clear_members_not_drawn!(res, walk, canvas.overlapping_elements, res.painted.members[key], drawn, ox, oy)
     _defer_refresh!(walk, () -> _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges, layout, early))
 end
 
@@ -3023,11 +3069,11 @@ function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::
         _is_drawn_element(elem, ox, oy, edges) || continue
         elem_key = _make_placement_key(elem, key)
         push!(members, elem_key)
-        b = get(res.dirty_bounds, elem_key, nothing)
+        b = _find_window_bounds(res, elem_key, ox, oy)
         b === nothing || _acc_extend!(drawn, b)
     end
     res.painted.members[key] = members
-    _record_bounds!(res, key, _acc_tuple_or_nothing(drawn))
+    _record_bounds!(res, key, _acc_tuple_or_nothing(drawn), _get_container_origin(res, key, ox, oy)...)
 end
 
 # One element at the content origin `(ox, oy)`. `leaf_dirty` is whether a leaf's
@@ -3041,11 +3087,11 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int,
     elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, edges, walk)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
     record = () -> _record_painted_element!(res, elem, key, ox, oy, edges)
-    _is_painted(res, key) || return _union_unit!(res, walk, key, record)
+    _is_painted(res, key) || return _union_unit!(res, walk, key, ox, oy, record)
     (leaf_dirty || walk.by_value) || return false
     # A leaf that draws what it drew, where it drew it, is not painted.
     _defer!(walk, () -> begin
-        old = get(res.dirty_bounds, key, nothing)
+        old = _find_window_bounds(res, key, ox, oy)
         old_signature = get(res.painted.signatures, key, nothing)
         new = record()
         new == old && old_signature !== nothing &&
@@ -3066,8 +3112,8 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
                                   ox::Int, oy::Int, outer_edges::_ClipEdges, walk::_DirtyWalk)::Bool
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     painted = get(res.painted.viewports, key, nothing)
-    if painted === nothing || painted[1:3] != (box, objectid(content), transform)
-        painted === nothing || _add_dirty_rect!(walk.region, painted[1])
+    if painted === nothing || painted[1:3] != (_move_box(box, (-ox, -oy)), objectid(content), transform)
+        painted === nothing || _add_dirty_rect!(walk.region, _move_box(painted[1], (ox, oy)))
         _add_dirty_rect!(walk.region, box)
         return _defer!(walk, () -> _record_painted_viewport!(res, vp, key, ox, oy, outer_edges))
     end
@@ -3080,7 +3126,7 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
         return false
     end
     cox, coy, cedges = place
-    res.painted.viewports[key] = (painted[1], painted[2], painted[3], _get_edges_box(cedges))
+    res.painted.viewports[key] = (painted[1], painted[2], painted[3], _get_local_edges_box(place...))
     # A content that only moved is a move: the walk tests nothing in it, and it
     # records the content at its new place. The second phase compares by value,
     # where a guard says nothing, so it takes no move.
@@ -3131,8 +3177,12 @@ end
 function _find_content_move(res::SdlWindowResources, key::UInt, content_key::UInt, box::NTuple{4,Int},
                             transform::AffineTransform, cox::Int, coy::Int, cedges::_ClipEdges)
     _is_plain_viewport_transform(transform) || return nothing
-    origin = get(res.painted.origins, content_key, nothing)
-    (origin === nothing || origin == (cox, coy)) && return nothing
+    # The content of a viewport with no scale has its container origin at the
+    # corner of the box, and its record holds its offset there.
+    offset = get(res.painted.origins, content_key, nothing)
+    offset === nothing && return nothing
+    origin = (box[1] + offset[1], box[2] + offset[2])
+    origin == (cox, coy) && return nothing
     guard = get(res.painted.guards, content_key, nothing)
     guard === nothing && return nothing
     get(res.painted.guard_places, content_key, nothing) == (origin[1], origin[2], cedges) || return nothing
@@ -3174,12 +3224,13 @@ end
 # The content did not change, so the last paint drew the elements between
 # `old_edges`: the edges moved by the offset, or the same edges inside a viewport
 # that moved with the content. An element between both edges keeps its records,
-# moved by the offset, and reads no cell for them. One between `edges` only came
-# into view and is recorded; one between `old_edges` only left it and is
-# forgotten; each adds its bounds to `rects`.
+# which are relative to the canvas that holds it, and reads no cell for them. One
+# between `edges` only came into view and is recorded; one between `old_edges`
+# only left it and is forgotten; each adds its bounds to `rects`.
 #
 # An element between both edges that is not a canvas also adds its bounds when
-# they cross an edge of the box at its new place or at its old one. The software
+# they cross an edge of the box across the move at its new place or at its old
+# one. The software
 # renderer of SDL samples a scaled texture that a clip cuts on another grid, so
 # a text that the edge cuts by another amount draws other pixels.
 #
@@ -3191,21 +3242,20 @@ end
 function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
                                ox::Int, oy::Int, edges::_ClipEdges, old_edges::_ClipEdges,
                                offset::NTuple{2,Int}, rects::Vector{NTuple{4,Int}})
-    res.painted.origins[key] = (ox, oy)
+    res.painted.origins[key] = (Int(canvas.x), Int(canvas.y))
     elements = canvas.elements
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
     remade = false
     acc = _DirtyAcc()
     if elements isa ListNode
-        early || return (_record_bounds!(res, key, nothing), false)
+        early || return (_record_bounds!(res, key, nothing, 0, 0), false)
         drawn = _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
         drawn_before = _collect_drawn_nodes(elements, ox, oy, old_edges, layout, early)
         kept = Base.IdSet{ListNode}(drawn_before)
         for node in drawn
             node_key = _make_placement_key(node, key)
             if node in kept
-                _move_records!(res, node_key, offset)
                 value = node.value
                 b, below = _record_moved_element!(res, value, _make_placement_key(value, node_key),
                                                   ox, oy, edges, old_edges, offset, rects)
@@ -3223,7 +3273,7 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
             node in shown && continue
             node_key = _make_placement_key(node, key)
             value = node.value
-            _clear_moved_left_view!(res, rects, node_key, offset) do
+            _clear_moved_left_view!(res, rects, node_key, ox, oy) do
                 _forget_painted!(res, node_key)
                 _forget_recorded_element!(res, value, _make_placement_key(value, node_key), ox, oy, old_edges)
             end
@@ -3257,7 +3307,7 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
             end
             b === nothing || _acc_extend!(acc, b)
         elseif before
-            _clear_moved_left_view!(res, rects, elem_key, offset) do
+            _clear_moved_left_view!(res, rects, elem_key, ox, oy) do
                 _forget_recorded_element!(res, elem, elem_key, ox, oy, old_edges)
             end
         end
@@ -3278,21 +3328,7 @@ function _record_moved_canvas_bounds!(res::SdlWindowResources, key::UInt, ox::In
     elseif haskey(res.painted.guards, key)
         res.painted.guard_places[key] = (ox, oy, edges)
     end
-    _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
-end
-
-# Move the records of the graphic placed at `key` by `offset`: its place, the box
-# of a viewport and its bounds. Answer its bounds at the new place.
-function _move_records!(res::SdlWindowResources, key::UInt, offset::NTuple{2,Int})
-    origin = get(res.painted.origins, key, nothing)
-    origin === nothing || (res.painted.origins[key] = (origin[1] + offset[1], origin[2] + offset[2]))
-    geometry = get(res.painted.viewports, key, nothing)
-    geometry === nothing ||
-        (res.painted.viewports[key] = (_move_box(geometry[1], offset), geometry[2], geometry[3],
-                                       geometry[4] === nothing ? nothing : _move_box(geometry[4], offset)))
-    bounds = get(res.dirty_bounds, key, nothing)
-    bounds === nothing && return nothing
-    res.dirty_bounds[key] = _move_box(bounds, offset)
+    _record_bounds!(res, key, _acc_tuple_or_nothing(acc), _get_container_origin(res, key, ox, oy)...)
 end
 
 _get_edges_box(edges::_ClipEdges) = (edges.left, edges.top, edges.right, edges.bottom)
@@ -3319,10 +3355,11 @@ function _add_crossing_bounds!(rects::Vector{NTuple{4,Int}}, bounds, edges::_Cli
     nothing
 end
 
-# An element of the content of a move that the render draws in both frames, and
-# whether a guard below it must be made again: a canvas can show other elements
-# between the new edges, so it is recorded as a moved canvas, and a viewport as a
-# moved viewport; anything else draws the same, and its records move.
+# An element of the content of a move that the render draws in both frames, in a
+# canvas with the new content origin `(ox, oy)`, and whether a guard below it must
+# be made again: a canvas can show other elements between the new edges, so it is
+# recorded as a moved canvas, and a viewport as a moved viewport; anything else
+# draws the same, and its records stay.
 function _record_moved_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
                                 edges::_ClipEdges, old_edges::_ClipEdges, offset::NTuple{2,Int},
                                 rects::Vector{NTuple{4,Int}})
@@ -3332,7 +3369,7 @@ function _record_moved_element!(res::SdlWindowResources, elem, key::UInt, ox::In
                                      offset, rects)
     elem isa GraphicsViewport &&
         return _record_moved_viewport!(res, elem, key, ox, oy, edges, old_edges, offset, rects)
-    (_move_records!(res, key, offset), false)
+    (_find_window_bounds(res, key, ox, oy), false)
 end
 
 # A viewport in the content of a move that the render draws in both frames. Its
@@ -3354,25 +3391,24 @@ function _record_moved_viewport!(res::SdlWindowResources, vp::GraphicsViewport, 
         b === nothing || push!(rects, b)
         return (b, true)
     end
-    _move_records!(res, key, offset)
     place = _compute_viewport_content_place(box, content, transform, edges)
     place === nothing && return (_is_empty_box(box) ? nothing : box, false)
     cox, coy, cedges = place
     geometry = res.painted.viewports[key]
-    res.painted.viewports[key] = (geometry[1], geometry[2], geometry[3], _get_edges_box(cedges))
+    res.painted.viewports[key] = (geometry[1], geometry[2], geometry[3], _get_local_edges_box(place...))
     _, below = _record_moved_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges, cedges,
                                      offset, rects)
     (_is_empty_box(box) ? nothing : box, below)
 end
 
-# An element of the content of a move, placed at `key`, that the last paint drew
-# and that the render no longer reaches. After the copy its old pixels lie where
-# its record moves by `offset`, so that place goes into `rects`. Then `forget`
-# forgets its records.
+# An element of the content of a move, placed at `key` in a canvas with the new
+# content origin `(ox, oy)`, that the last paint drew and that the render no longer
+# reaches. After the copy its old pixels lie where its record lies from that
+# origin, so that place goes into `rects`. Then `forget` forgets its records.
 function _clear_moved_left_view!(forget::Function, res::SdlWindowResources, rects::Vector{NTuple{4,Int}},
-                                 key::UInt, offset::NTuple{2,Int})
-    old = get(res.dirty_bounds, key, nothing)
-    old === nothing || push!(rects, _move_box(old, offset))
+                                 key::UInt, ox::Int, oy::Int)
+    old = _find_window_bounds(res, key, ox, oy)
+    old === nothing || push!(rects, old)
     forget()
     nothing
 end
@@ -3398,12 +3434,14 @@ end
 function _forget_unshown_viewport_content!(res::SdlWindowResources, content::GraphicsCanvas, key::UInt)
     content_key = _make_placement_key(content, key)
     geometry = get(res.painted.viewports, key, nothing)
-    origin = get(res.painted.origins, content_key, nothing)
+    painted = _is_painted(res, content_key)
     _forget_painted!(res, content_key)
     if geometry !== nothing
         res.painted.viewports[key] = (geometry[1], geometry[2], geometry[3], nothing)
-        geometry[4] === nothing || origin === nothing ||
-            _forget_recorded_canvas!(res, content, content_key, origin[1], origin[2], _ClipEdges(geometry[4]...))
+        # The edges are relative to the content origin, so the walk of the forget
+        # takes that origin as 0.
+        geometry[4] === nothing || !painted ||
+            _forget_recorded_canvas!(res, content, content_key, 0, 0, _ClipEdges(geometry[4]...))
     end
     nothing
 end
@@ -3471,13 +3509,15 @@ end
 # Clear each node from `node` on, along the `link` field, that was painted and
 # that the render no longer reaches. A value that the render does not draw
 # (`_is_drawn_element`) was never painted and is passed. A link that is not valid
-# was not read by the render, so nothing past it was drawn. True when a node was
+# was not read by the render, so nothing past it was drawn. The nodes were
+# recorded at the content origin `old_origin` of the list. True when a node was
 # cleared.
 function _clear_left_view_nodes!(res::SdlWindowResources, walk::_DirtyWalk, node, list::UInt,
-                                 link::Symbol, ox::Int, oy::Int, edges::_ClipEdges)::Bool
+                                 link::Symbol, ox::Int, oy::Int, edges::_ClipEdges,
+                                 old_origin::NTuple{2,Int})::Bool
     cleared = false
     while node !== nothing
-        if _clear_left_view!(res, walk, _make_placement_key(node, list))
+        if _clear_left_view!(res, walk, _make_placement_key(node, list), old_origin...)
             cleared = true
         elseif _is_drawn_element(getfield(node, :value)[], ox, oy, edges)
             break
@@ -3501,7 +3541,7 @@ end
 function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::UInt,
                                   ox::Int, oy::Int, edges::_ClipEdges,
                                   layout::LayoutDirection, early::Bool, walk::_DirtyWalk;
-                                  reflow::Bool = false)::Bool
+                                  reflow::Bool = false, old_origin::NTuple{2,Int} = (ox, oy))::Bool
     # (node, its key, its value, whether the value or a leaf value's cells are stale)
     visited = Tuple{ListNode,UInt,Any,Bool}[]
     spine_dirty = reflow
@@ -3523,7 +3563,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
             push!(visited, (node, _make_placement_key(node, key), elem, stale))
         else
             # An image outside the clip that was painted leaves its place.
-            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key))
+            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key), old_origin...)
         end
         if _is_before_early_start(elem, ox, oy, edges, layout, early)
             above = is_cell_valid(pc) ? pc[] : nothing
@@ -3549,21 +3589,21 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
         if _is_drawn_element(elem, ox, oy, edges)
             push!(visited, (node, _make_placement_key(node, key), elem, vstale || leaf_dirty))
         else
-            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key))
+            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key), old_origin...)
         end
         nc = getfield(node, :next)
         is_cell_valid(nc) || (spine_dirty = true)
         node = nc[]
     end
 
-    changed |= _clear_left_view_nodes!(res, walk, above, key, :prev, ox, oy, edges)
-    changed |= _clear_left_view_nodes!(res, walk, below, key, :next, ox, oy, edges)
+    changed |= _clear_left_view_nodes!(res, walk, above, key, :prev, ox, oy, edges, old_origin)
+    changed |= _clear_left_view_nodes!(res, walk, below, key, :next, ox, oy, edges, old_origin)
 
     if spine_dirty
         changed = _defer!(walk, () -> begin
             wb = _DirtyAcc()
             for (n, nkey, val, _) in visited
-                old = get(res.dirty_bounds, nkey, nothing)
+                old = _find_window_bounds(res, nkey, old_origin...)
                 old === nothing || _acc_extend!(wb, old)
                 b = _record_painted_node!(res, n, val, key, ox, oy, edges)
                 b === nothing || _acc_extend!(wb, b)
@@ -3577,14 +3617,14 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     else
         for (n, nkey, val, stale) in visited
             if stale || !_is_painted(res, nkey)
-                changed = _union_unit!(res, walk, nkey,
+                changed = _union_unit!(res, walk, nkey, ox, oy,
                                        () -> _record_painted_node!(res, n, val, key, ox, oy, edges))
             else
                 value_key = _make_placement_key(val, nkey)
                 # Something changed inside the value: the node's record follows it.
                 _collect_dirty_elem!(res, val, value_key, ox, oy, edges, walk, false) &&
                     (changed = _defer_refresh!(walk, () ->
-                        _record_bounds!(res, nkey, get(res.dirty_bounds, value_key, nothing))))
+                        _record_bounds!(res, nkey, _find_window_bounds(res, value_key, ox, oy), ox, oy)))
             end
         end
     end
@@ -3594,10 +3634,10 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     _defer_refresh!(walk, () -> begin
         drawn = _DirtyAcc()
         for (_, nkey, _, _) in visited
-            b = get(res.dirty_bounds, nkey, nothing)
+            b = _find_window_bounds(res, nkey, ox, oy)
             b === nothing || _acc_extend!(drawn, b)
         end
-        _record_bounds!(res, key, _acc_tuple_or_nothing(drawn))
+        _record_bounds!(res, key, _acc_tuple_or_nothing(drawn), _get_container_origin(res, key, ox, oy)...)
     end)
 end
 
@@ -3859,7 +3899,7 @@ function _collect_cover_element!(rects::Vector{NTuple{4,Int}}, res::SdlWindowRes
                                  ox::Int, oy::Int, edges::_ClipEdges, clip::NTuple{4,Int},
                                  move::_ContentMove, nested::Dict{UInt,_ContentMove})
     (key == move.key || haskey(nested, key)) && return nothing
-    record = get(res.dirty_bounds, key, nothing)
+    record = _find_window_bounds(res, key, ox, oy)
     record === nothing && return nothing
     pad = _DIRTY_RECT_PAD
     padded = _intersect_boxes((record[1] - pad, record[2] - pad, record[3] + pad, record[4] + pad), clip)

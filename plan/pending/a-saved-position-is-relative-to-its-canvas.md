@@ -172,7 +172,8 @@ on `main` before the owner approves.
      [As built](#as-built).
    The fix of a comes before the commit of step 1, whose random scenes it makes
    stable. Promote each assertion of step 1 that a fix makes pass.
-3. [ ] **Records relative to their canvas.** Points 1, 2 and 5 of the way of the
+3. [x] **Records relative to their canvas.** Done; see [As built](#as-built).
+   Points 1, 2 and 5 of the way of the
    change. The counts and the pixels do not change. Run `test_sdl()`,
    `test_scroll_work()` and `test_video()` with the offscreen driver. Commit.
 4. [ ] **A move does not enter a whole canvas.** Points 3 and 4. Promote the
@@ -307,4 +308,33 @@ edge cuts". `test_sdl()`: 1297 pass, the 2 of `SdlWorkloadTest` as on `main`.
 `test_scroll_work()`: 19 pass, 3 broken (the window of 2000 pixels, step 4); the
 2 assertions of the Julia file that `main` fails pass. `test_video()`: 78 pass,
 1 fail as on `main`.
+
+### Step 3: records relative to their canvas, 2026-11-11
+
+`_record_bounds!` takes the content origin of the canvas that holds the graphic
+and saves the window bounds relative to it; `_find_window_bounds` adds the
+origin back. A canvas saves its offset `(canvas.x, canvas.y)` in
+`res.painted.origins`, and `_get_container_origin` takes it off its content
+origin; any other graphic saves `(0, 0)` as its mark. A viewport saves its box
+relative to its container and the edges of its content relative to the content
+origin (`_get_local_edges_box`); the forget of a content that the edges no
+longer show walks it at the origin 0 between those edges. The boxes of the
+viewports with a scale are in `res.painted.scaled_boxes`. The paint skip
+(`_is_outside_partial_paint`) takes the origin of the canvas from the render.
+`_move_records!` is gone: a move writes only the offset of the content, and a
+graphic that leaves the view gives its record from the new origin. A list that
+moved reads its nodes at its old origin. The places of the guards stay in window
+coordinates, as the plan says.
+
+The counts and the pixels did not change: `test_sdl()` 1297 pass with the 2 of
+`SdlWorkloadTest`, `test_scroll_work()` 19 pass and 3 broken, `test_video()` 78
+pass and 1 fail as on `main`. The kept entries in a notch, window of 1000 and of
+2000 pixels: Julia file about 800 and 1740, Files pane 280 and 580, data frame
+1499 and 3299 at the first notch.
+
+The data frame grows by 38 kept entries in each notch, in both windows. The head
+of its list stays at row 1, and the render and the walk of a list take every node
+from the head forward to the far edge of the view, also the rows above it, which
+the clip hides: each notch adds the row that left the view. That cost grows with
+the depth of the scroll and is not in this plan.
 
