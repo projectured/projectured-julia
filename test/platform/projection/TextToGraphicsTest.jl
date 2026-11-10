@@ -672,6 +672,41 @@ press_wrapped(k) = (text = block("  aaaa bbbb", caret(k));
 
 end # @testset "TextToGraphics Home goes to the first character that is not a space"
 
+@testset "TextToGraphics Page Up and Page Down move the caret by the height that shows" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+# Ten lines of two characters: line `k` starts at the flat offset `3k`, and each
+# line is 18 pixels high.
+block(selection) = set_selection!(make_text_block(join(("a$k" for k in 0:9), "\n"), style), selection)
+caret(k) = TextModule.make_flat_caret_reference(k)
+three_lines = with_visible_size(PrinterContext(); height = Cell(54))
+press(selection, key, modifiers = ModifierKeys(); context = three_lines) =
+    read_intent(p, print_document(p, nothing, block(selection), context), KeyDown(key, modifiers; time = 0.0))
+ends(op) = (h = strip_reference_types(op.operation.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+# The caret goes three lines down at its x, and the answer asks a scroll pane to
+# scroll as far, so the caret keeps its row on the screen.
+down = press(caret(4), :page_down)
+@test down isa KeepPointOperation
+@test (ends(down), down.move) == ((13, 13, :forward), (0, 54))
+up = press(caret(13), :page_up)
+@test (ends(up), up.move) == ((4, 4, :forward), (0, -54))
+# The caret stops at the first and at the last line, and where it can not move,
+# the key goes on.
+first_line = press(caret(4), :page_up)
+@test (ends(first_line), first_line.move) == ((1, 1, :forward), (0, -18))
+@test ends(press(caret(25), :page_down)) == (28, 28, :forward)
+@test press(caret(28), :page_down) === nothing
+# Shift moves the moving end and keeps the anchor.
+@test ends(press(caret(4), :page_down, ModifierKeys(; shift = true))) == (4, 13, :forward)
+@test ends(press(caret(13), :page_up, ModifierKeys(; shift = true))) == (4, 13, :backward)
+# With Ctrl the key goes on, as it does where no height shows.
+@test press(caret(4), :page_down, ModifierKeys(; ctrl = true)) === nothing
+@test press(caret(4), :page_down; context = PrinterContext()) === nothing
+
+end # @testset "TextToGraphics Page Up and Page Down move the caret by the height that shows"
+
 # A text reference maps forward to the characters of the text node that draws it,
 # so the box of a part of a text is exact: here each character is 10 pixels wide.
 @testset "TextToGraphics maps a text reference to the characters that draw it" begin

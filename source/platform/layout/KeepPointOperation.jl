@@ -1,5 +1,5 @@
-# Fragment of `WidgetModule` — the request that a scroll pane keeps a point of its
-# content under the pointer while an operation moves that point.
+# Fragment of `LayoutModule` — the request that a scroll pane keeps a point of its
+# content in its place while an operation moves that point.
 
 """
     KeepPointOperation(operation, move)
@@ -12,7 +12,8 @@ out gets `operation` alone. With no scroll pane on the way, applying it applies
 `operation`.
 
 Use it for a zoom of a view that changes the size of its content, such as the
-zoom of the layout of a graph.
+zoom of the layout of a graph, and for a move of the caret by a page, such as
+Page Down in a text, so the caret keeps its row on the screen.
 
 # Example
 

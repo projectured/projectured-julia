@@ -108,7 +108,6 @@ export OpenPageOperation, make_open_page_gestures, make_target_open_operation
 export OpenFileOperation
 export find_sort_state, compute_clicked_sort_keys, make_sort_glyph, make_filter_field, make_field_child_reference,
        make_labeled_field, compute_value_counts, make_value_list_dialog
-export KeepPointOperation
 export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
@@ -132,7 +131,6 @@ include("WidgetDocument.jl")
 include("WidgetValueSlot.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
-include("KeepPointOperation.jl")
 include("DrawnText.jl")
 include("WidgetToGraphics.jl")
 include("WidgetDecoration.jl")

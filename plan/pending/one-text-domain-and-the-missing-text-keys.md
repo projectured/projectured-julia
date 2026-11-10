@@ -344,9 +344,24 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    spaces only has its end as the first place after its spaces.
    `test_text_to_graphics()` gives 184 (10 new, two of them on a wrapped line
    through `WordWrapping`).
-7. ⬜ **Page Up and Page Down (D12).** Move `KeepPointOperation` to the layout
+7. ✅ **Page Up and Page Down (D12).** Done 2026-11-10. Move `KeepPointOperation` to the layout
    slice. Test: `test_text_to_graphics()` for the caret, and a text in a scroll
-   pane through an editor for the scroll.
+   pane through an editor for the scroll. Facts of the step:
+   - `_read_page_key` gives the key to `_find_caret_at_point` at the x of the
+     caret and one page from the middle of its row, so a page key lands as a
+     press there lands. A point past the last row gives the last row, because
+     `find_place_at` and `_hit_segment` snap to it.
+   - The kernel default carries the `KeepPointOperation` through each stage, as
+     it carries any wrapping operation, and `_retarget_op` of a text widget
+     carries it too.
+   - The test of the scroll is in `test_scroll_pane_bar()`: a `WidgetTextarea` of
+     40 lines in a pane of 200 pixels answers Page Down with a move of at most the
+     view, and the pane scrolls by that move. The press through a whole editor is
+     in step 10.
+   - `test_text_to_graphics()` gives 194 (10 new), `test_scroll_pane_bar()` 77,
+     `test_graph_layout_zoom()` 38. `test_platform_layering()` gives 19 pass and 2
+     fail at `CheckLayering.jl:880` and `:889`, a known failure of main whose list
+     names no module that this step changes.
 8. ⬜ **Tab and Shift+Tab (D13, D15, D16, D17).** Remove the binding of Tab in
    the composer. Test: `test_text()`, Tab in a plain text and in the chat draft,
    Insert in the chat draft, which still starts a new part, and Tab in a JSON

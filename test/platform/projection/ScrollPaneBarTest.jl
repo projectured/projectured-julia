@@ -250,6 +250,21 @@ function test_scroll_pane_bar()
         @test WidgetModule._pane_scroll_x(inner, content, view_w) == Int(content.w) - view_w
     end
 
+    @testset "Page Down in a text moves the caret a page, and the pane scrolls as far" begin
+        pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
+        set_selection!(pane, Reference(FieldReferenceStep("content"), FieldReferenceStep("content"),
+                                       RangeReferenceStep(2, 2)))
+        iomap = print_document(projection, pane)
+        key = KeyDown(:page_down, plain; time = 0.0)
+        # The text answers the move of its caret, at most the height of the view.
+        moved = read_intent(iomap.content_iomap.projection, iomap.content_iomap, key)
+        @test moved isa KeepPointOperation
+        @test 0 < moved.move[2] <= 200
+        # The pane scrolls by the distance that the caret went.
+        answer = read_intent(projection, iomap, key)
+        @test _bar_test_xy(_bar_test_written(answer, pane, "scroll_position")) == (0, moved.move[2])
+    end
+
     @testset "a touchpad scrolls the pane by the fraction of a notch" begin
         pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
         iomap = print_document(projection, pane)

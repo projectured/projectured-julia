@@ -60,6 +60,7 @@ emitted text segment with character range, pixel position, font, and text.
     line_cells::Any         # L -> the cells of line group L (`layout`, `y`, `h`), or `nothing`
     space::NTuple{4, Int}   # the space around the text, `(left, top, right, bottom)`
     places::Any             # the places of the lines (`_TextPlaces`), or `nothing`
+    visible_height::Any     # the height that shows (`get_visible_height`), which only the reader reads, or `nothing`
 end
 
 # The baseline of the first line of the text, for a row that aligns its children
@@ -521,6 +522,11 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     found === nothing && return nothing
     cur_sc = found.coordinate
 
+    if evt.key === :page_up || evt.key === :page_down
+        (evt.modifiers.ctrl || evt.modifiers.alt || evt.modifiers.meta) && return nothing
+        return _read_page_key(p, iomap, cur_sc, found.char, ends, evt.key === :page_up ? -1 : 1)
+    end
+
     target = @gesture_case evt begin
         when(KeyDown(k), k === :home) => _find_home_target(styled, segments, cur_sc, current, places)
         when(KeyDown(k), k === :end) => begin
@@ -560,6 +566,32 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
     # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
     return nothing
+end
+
+# Page Up (`step = -1`) and Page Down (`step = 1`): the moving end goes by the
+# height that shows, at its x, as Up and Down keep it, and stops at the first or
+# the last line. `row` is the segment of the moving end, `char` its character,
+# and `ends` the ends of the selection when Shift holds them. The answer asks a
+# scroll pane around the text to scroll by the distance that the caret went, so
+# the caret keeps its row on the screen. With no height that shows, or when the
+# caret does not move, the key goes on.
+function _read_page_key(p::TextToGraphics, iomap::TextToGraphicsIoMap, row, char::Int, ends, step::Int)
+    page = iomap.visible_height
+    (page isa Real && page > 0) || return nothing
+    styled, places = iomap.input, iomap.places
+    x = _seg_cursor_x(row, char, p.measure)
+    caret = _find_caret_at_point(p, iomap, x, max(0, row.y + row.height ÷ 2 + step * round(Int, page)))
+    caret === nothing && return nothing
+    flat = get_flat_caret(styled, caret, places)
+    flat === nothing && return nothing
+    current = _text_flat_span(styled, flat, places)
+    current === nothing && return nothing
+    found = _find_caret_coordinate(styled, _get_line_segments(places, current.span[1]), current, places)
+    found === nothing && return nothing
+    move = found.coordinate.y - row.y
+    move == 0 && return nothing
+    selection = ends === nothing ? make_flat_caret_reference(flat) : _make_flat_selection_reference(ends.anchor, flat)
+    KeepPointOperation(ReplaceSelectionOperation(selection), (0, move))
 end
 
 # Where Home moves the moving end `current`, a `(span, char)`, as a
@@ -888,7 +920,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline + space_top
     end))
     TextToGraphicsIoMap(p, styled, canvas, spacing, char_to_coord, highlight_offset, first_baseline,
-                        lines_cell, get_line_cells, space, text_places)
+                        lines_cell, get_line_cells, space, text_places, get_visible_height(ctx))
 end
 
 # The pointer regions of the spans of `text` that name a shape: one over each
@@ -1397,7 +1429,7 @@ function _print_listnode(p::TextToGraphics, spacing::LineSpacing, styled::TextBl
     output_head = _build_line_node(p, spacing, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, spacing, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
-                        Cell(NamedTuple[]), nothing, (0, 0, 0, 0), nothing)
+                        Cell(NamedTuple[]), nothing, (0, 0, 0, 0), nothing, nothing)
 end
 
 # ── A lazy list of lines ──────────────────────────────────────────────────────
