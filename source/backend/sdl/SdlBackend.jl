@@ -125,7 +125,10 @@ end
 # content origin (`nothing` when the edges showed none of it), the keys of the
 # elements that a canvas drew, and the signature of each leaf
 # (`_compute_leaf_signature`). `scaled_boxes` holds the box of each viewport with a
-# scale as the walk had it, which `_extend_over_scaled_viewports!` reads.
+# scale as the walk had it, which `_extend_over_scaled_viewports!` reads. `whole`
+# holds the axes on which the last recording found each canvas whole
+# (`_compute_whole_axes`): a move along such an axis does not enter the canvas
+# while it stays inside the edges, and its guard has a place relative to it.
 # The walk compares this frame with it by value. `baseline` is the count of
 # records after the last full paint; it bounds how many records of graphics that
 # are gone can collect.
@@ -140,6 +143,7 @@ mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform,Union{Nothing,NTuple{4,Int}}}}
     scaled_boxes::Dict{UInt,NTuple{4,Int}}
+    whole::Dict{UInt,UInt8}
     members::Dict{UInt,Vector{UInt}}
     signatures::Dict{UInt,UInt}
     baseline::Int
@@ -152,7 +156,7 @@ mutable struct _PaintedGeometry
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
                                       Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
-                                      Dict{UInt,NTuple{4,Int}}(),
+                                      Dict{UInt,NTuple{4,Int}}(), Dict{UInt,UInt8}(),
                                       Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0,
                                       Dict{UInt,Any}(), Dict{UInt,Any}(), 0, 0, 0, 0)
 
@@ -2623,9 +2627,12 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
     acc = _DirtyAcc()
+    # A list is whole on no axis: it can be endless.
+    whole = 0x00
     if elements isa ListNode
         # An endless list in a canvas that can not stop its walk records nothing,
         # as the walk leaves it (`_collect_canvas_dirty!`).
+        _record_whole!(res, key, 0x00)
         early || return _record_bounds!(res, key, nothing, bx, by)
         for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
             b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
@@ -2633,17 +2640,24 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
         end
     else
         members = UInt[]
-        for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+        first = _compute_first_drawn_index(canvas, ox, oy, edges)
+        whole = first == 1 ? _ACROSS_BOTH : _ACROSS_BOTH & ~_get_layout_axes(layout)
+        for i in first:length(elements)
             elem = elements[i]
-            _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-            _is_drawn_element(elem, ox, oy, edges) || continue
+            _is_past_early_stop(elem, ox, oy, edges, layout, early) && (whole &= ~_get_layout_axes(layout); break)
+            if !_is_drawn_element(elem, ox, oy, edges)
+                elem isa GraphicsImage && (whole &= _get_meeting_axes(elem, ox, oy, edges))
+                continue
+            end
             elem_key = _make_placement_key(elem, key)
             push!(members, elem_key)
             b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
+            whole &= _compute_whole_axes(res, elem, elem_key, edges, b)
         end
         res.painted.members[key] = members
     end
+    _record_whole!(res, key, whole)
     _record_bounds!(res, key, _acc_tuple_or_nothing(acc), bx, by)
 end
 
@@ -2710,6 +2724,83 @@ end
 # The edges `edges` of the content of a viewport, whose content origin is
 # `(cox, coy)`, as a box relative to that origin.
 _get_local_edges_box(cox::Int, coy::Int, edges::_ClipEdges) = _move_box(_get_edges_box(edges), (-cox, -coy))
+
+# The axes of an edge: across x are the left and the right edge, across y the top
+# and the bottom one. A set of axes is a sum of them.
+const _ACROSS_X = 0x01
+const _ACROSS_Y = 0x02
+const _ACROSS_BOTH = 0x03
+
+# The axes on which `bounds`, window bounds or `nothing`, lie inside the box of
+# `edges`.
+function _get_inside_axes(bounds, edges::_ClipEdges)::UInt8
+    bounds === nothing && return _ACROSS_BOTH
+    (bounds[1] >= edges.left && bounds[3] <= edges.right ? _ACROSS_X : 0x00) |
+        (bounds[2] >= edges.top && bounds[4] <= edges.bottom ? _ACROSS_Y : 0x00)
+end
+
+# The axes of the edges that a canvas with `layout` stops its walk at.
+_get_layout_axes(layout::LayoutDirection)::UInt8 =
+    layout == layout_vertical ? _ACROSS_Y : layout == layout_horizontal ? _ACROSS_X : 0x00
+
+# The axes on which the image `elem` at the content origin `(ox, oy)` meets the
+# box of `edges`.
+function _get_meeting_axes(elem::GraphicsImage, ox::Int, oy::Int, edges::_ClipEdges)::UInt8
+    x0, y0 = Int(elem.x) + ox, Int(elem.y) + oy
+    (x0 < edges.right && x0 + Int(elem.w) > edges.left ? _ACROSS_X : 0x00) |
+        (y0 < edges.bottom && y0 + Int(elem.h) > edges.top ? _ACROSS_Y : 0x00)
+end
+
+# The axes on which `elem`, placed at `key` with the window bounds `bounds`, is
+# whole between `edges`, by its records: it lies inside them on that axis, and it
+# draws all that it holds whatever the edges of that axis are, while it stays
+# inside them. A canvas is whole on the axes that its last recording found, a
+# viewport with no scale on the axes of its content, any other graphic on each
+# axis that it lies inside on. A viewport with a scale is whole on no axis: it puts
+# its content on the grid of its own units, which a move does not keep.
+function _compute_whole_axes(res::SdlWindowResources, elem, key::UInt, edges::_ClipEdges, bounds)::UInt8
+    axes = _get_inside_axes(bounds, edges)
+    elem isa GraphicsCanvas && return axes & get(res.painted.whole, key, 0x00)
+    elem isa GraphicsViewport &&
+        return _is_plain_viewport_transform(elem.transform::AffineTransform) ?
+               axes & get(res.painted.whole, _make_placement_key(elem.content, key), 0x00) : 0x00
+    axes
+end
+
+# Record the axes `axes` on which the canvas placed at `key` is whole.
+_record_whole!(res::SdlWindowResources, key::UInt, axes::UInt8) =
+    axes == 0x00 ? delete!(res.painted.whole, key) : (res.painted.whole[key] = axes)
+
+# The axes that a move by `offset` moves the edges on.
+_get_moved_axes(offset::NTuple{2,Int})::UInt8 =
+    (offset[1] != 0 ? _ACROSS_X : 0x00) | (offset[2] != 0 ? _ACROSS_Y : 0x00)
+
+# True when a move by `offset` need not enter `elem`, placed at `key` in a canvas
+# of its content and kept in view, with the window bounds `bounds`: it is whole on
+# each axis of the move, between `edges` and between `old_edges`, so it draws the
+# same in both frames, and its records and its guard stay.
+_is_kept_whole(res::SdlWindowResources, elem, key::UInt, edges::_ClipEdges, old_edges::_ClipEdges,
+               offset::NTuple{2,Int}, bounds) =
+    (axes = _get_moved_axes(offset);
+     _compute_whole_axes(res, elem, key, edges, bounds) & axes == axes &&
+         _get_inside_axes(bounds, old_edges) & axes == axes)
+
+# A place that a guard of a canvas reads its elements at: for a canvas that is
+# whole on no axis, its content origin `(ox, oy)` and the edges; else `:local` and
+# the edges relative to its content origin, open on each axis that it is whole
+# on, where it reads all that it holds. A move along such an axis keeps the place.
+function _make_guard_place(res::SdlWindowResources, key::UInt, ox::Int, oy::Int, edges::_ClipEdges)
+    axes = get(res.painted.whole, key, 0x00)
+    axes == 0x00 && return (ox, oy, edges)
+    across_x = axes & _ACROSS_X != 0x00
+    across_y = axes & _ACROSS_Y != 0x00
+    (:local, _ClipEdges(across_x ? _OPEN_EDGES.left : edges.left - ox, across_y ? _OPEN_EDGES.top : edges.top - oy,
+                        across_x ? _OPEN_EDGES.right : edges.right - ox,
+                        across_y ? _OPEN_EDGES.bottom : edges.bottom - oy))
+end
+
+# The edges that cut nothing, on an axis that a guard reads all of.
+const _OPEN_EDGES = _ClipEdges(typemin(Int) ÷ 4, typemin(Int) ÷ 4, typemax(Int) ÷ 4, typemax(Int) ÷ 4)
 
 _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, key)
 
@@ -2801,6 +2892,7 @@ function _forget_painted!(res::SdlWindowResources, key::UInt)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
     delete!(res.painted.scaled_boxes, key)
+    delete!(res.painted.whole, key)
     delete!(res.painted.members, key)
     delete!(res.painted.signatures, key)
     delete!(res.painted.guards, key)
@@ -2831,6 +2923,7 @@ function _forget_painted_geometry!(res::SdlWindowResources)
     empty!(res.painted.origins)
     empty!(res.painted.viewports)
     empty!(res.painted.scaled_boxes)
+    empty!(res.painted.whole)
     empty!(res.painted.members)
     empty!(res.painted.signatures)
     empty!(res.painted.guards)
@@ -2845,8 +2938,8 @@ const _PAINTED_RECORD_SLACK = 10_000
 
 _count_painted_records(res::SdlWindowResources) =
     length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports) +
-    length(res.painted.scaled_boxes) + length(res.painted.members) + length(res.painted.signatures) +
-    length(res.painted.guards)
+    length(res.painted.scaled_boxes) + length(res.painted.whole) + length(res.painted.members) +
+    length(res.painted.signatures) + length(res.painted.guards)
 
 _is_painted_geometry_full(res::SdlWindowResources) =
     _count_painted_records(res) > 2 * res.painted.baseline + _PAINTED_RECORD_SLACK
@@ -2880,6 +2973,12 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     painted_offset = get(res.painted.origins, key, nothing)
     moved = painted_offset != offset
     bx, by = ox - offset[1], oy - offset[2]
+    # A canvas that the edges now cut on an axis that it is whole on is whole on it
+    # no more, and its guard is made again with its new place.
+    axes = get(res.painted.whole, key, 0x00)
+    if !moved && axes != 0x00
+        _record_whole!(res, key, axes & _get_inside_axes(_find_window_bounds(res, key, bx, by), edges))
+    end
     # A valid guard at the same place: nothing that the canvas draws changed since
     # its guard read it, so the walk tests none of its elements.
     moved || _is_guard_valid(res, key, ox, oy, edges) && return false
@@ -3061,18 +3160,24 @@ function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::
                                  early::Bool)
     drawn = _DirtyAcc()
     members = UInt[]
+    whole = first == 1 ? _ACROSS_BOTH : _ACROSS_BOTH & ~_get_layout_axes(layout)
     # The length is an `Int` for inference, so `ev[i]` is not a call with an index
     # of an abstract type, which a package loaded later can make invalid.
     for i in first:(length(ev)::Int)
         elem = ev[i]
-        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-        _is_drawn_element(elem, ox, oy, edges) || continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && (whole &= ~_get_layout_axes(layout); break)
+        if !_is_drawn_element(elem, ox, oy, edges)
+            elem isa GraphicsImage && (whole &= _get_meeting_axes(elem, ox, oy, edges))
+            continue
+        end
         elem_key = _make_placement_key(elem, key)
         push!(members, elem_key)
         b = _find_window_bounds(res, elem_key, ox, oy)
         b === nothing || _acc_extend!(drawn, b)
+        whole &= _compute_whole_axes(res, elem, elem_key, edges, b)
     end
     res.painted.members[key] = members
+    _record_whole!(res, key, whole)
     _record_bounds!(res, key, _acc_tuple_or_nothing(drawn), _get_container_origin(res, key, ox, oy)...)
 end
 
@@ -3105,7 +3210,9 @@ end
 # box, and its content is walked between the part of the box that `outer_edges`
 # show. If the viewport moved, was resized, shows another canvas or has another
 # transform, its old and its new box are dirty. Its bounds are its box, so only
-# such a change changes them. The content collects into a region of its own,
+# such a change changes them; a change in its content answers true all the same,
+# so the canvas that holds it records again whether it is whole
+# (`_compute_whole_axes`). The content collects into a region of its own,
 # which is clipped to the box after the walk, when the recordings inside the
 # content have added their rectangles.
 function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt,
@@ -3145,7 +3252,7 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
     # inside the content, also those that the second phase finds, run first, so
     # they add their rectangles before this one clips them.
     inner = _make_viewport_walk(walk)
-    _collect_canvas_dirty!(res, content, content_key, cox, coy, cedges, inner)
+    changed = _collect_canvas_dirty!(res, content, content_key, cox, coy, cedges, inner)
     push!(walk.clips, () -> begin
         foreach(clip -> clip(), inner.clips)
         _clip_inner_moves!(walk, inner, box, transform)
@@ -3164,7 +3271,7 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
             _add_dirty_rect!(walk.region, (max(r[1], vx), max(r[2], vy), min(r[3], vx1), min(r[4], vy1)))
         end
     end)
-    false
+    changed
 end
 
 # The move of the content of the viewport placed at `key`, or `nothing`. The
@@ -3185,7 +3292,8 @@ function _find_content_move(res::SdlWindowResources, key::UInt, content_key::UIn
     origin == (cox, coy) && return nothing
     guard = get(res.painted.guards, content_key, nothing)
     guard === nothing && return nothing
-    get(res.painted.guard_places, content_key, nothing) == (origin[1], origin[2], cedges) || return nothing
+    get(res.painted.guard_places, content_key, nothing) ==
+        _make_guard_place(res, content_key, origin[1], origin[2], cedges) || return nothing
     is_cell_valid(guard) || return nothing
     _ContentMove(box, box, (cox - origin[1], coy - origin[2]), key, guard, NTuple{4,Int}[])
 end
@@ -3234,11 +3342,17 @@ end
 # renderer of SDL samples a scaled texture that a clip cuts on another grid, so
 # a text that the edge cuts by another amount draws other pixels.
 #
+# A kept element that is whole on each axis of the move, between both edges
+# (`_is_kept_whole`), draws the same in both frames, and its records and its guard
+# stay: the walk does not enter it, so a notch costs what comes into view, what
+# leaves it and what the edges of the move cut, and not what stays in view.
+#
 # A guard reads the elements between its edges. A canvas that draws other elements
 # than the last paint drew has its guard made again at the end of the walk, and so
-# has each canvas around it, whose guard reads that one. Any other guard keeps its
-# cell, at the new place: a line of a text shows the same tokens when its view
-# moves up, and only the list of the lines shows other lines.
+# has each canvas around it, whose guard reads that one, and so has a canvas whose
+# whole axes changed. Any other guard keeps its cell, at the new place: a line of a
+# text shows the same tokens when its view moves up, and only the list of the lines
+# shows other lines.
 function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
                                ox::Int, oy::Int, edges::_ClipEdges, old_edges::_ClipEdges,
                                offset::NTuple{2,Int}, rects::Vector{NTuple{4,Int}})
@@ -3257,10 +3371,13 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
             node_key = _make_placement_key(node, key)
             if node in kept
                 value = node.value
-                b, below = _record_moved_element!(res, value, _make_placement_key(value, node_key),
-                                                  ox, oy, edges, old_edges, offset, rects)
-                remade |= below
-                value isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+                value_key = _make_placement_key(value, node_key)
+                b = _find_window_bounds(res, value_key, ox, oy)
+                if !_is_kept_whole(res, value, value_key, edges, old_edges, offset, b)
+                    b, below = _record_moved_element!(res, value, value_key, ox, oy, edges, old_edges, offset, rects)
+                    remade |= below
+                    value isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+                end
             else
                 b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
                 b === nothing || push!(rects, b)
@@ -3278,34 +3395,44 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
                 _forget_recorded_element!(res, value, _make_placement_key(value, node_key), ox, oy, old_edges)
             end
         end
-        return (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade), remade)
+        return (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade, 0x00), remade)
     end
     first_now = _compute_first_drawn_index(canvas, ox, oy, edges)
     first_before = _compute_first_drawn_index(canvas, ox, oy, old_edges)
     members = UInt[]
     members_before = UInt[]
     past_now = past_before = false
+    # The axes on which the render draws every element now, each whole itself.
+    axis = _get_layout_axes(layout)
+    whole = first_now == 1 ? _ACROSS_BOTH : _ACROSS_BOTH & ~axis
     for i in min(first_now, first_before):length(elements)
         elem = elements[i]
         past_now = past_now || _is_past_early_stop(elem, ox, oy, edges, layout, early)
         past_before = past_before || _is_past_early_stop(elem, ox, oy, old_edges, layout, early)
+        past_now && (whole &= ~axis)
         past_now && past_before && break
         now = i >= first_now && !past_now && _is_drawn_element(elem, ox, oy, edges)
         before = i >= first_before && !past_before && _is_drawn_element(elem, ox, oy, old_edges)
+        !now && !past_now && i >= first_now && elem isa GraphicsImage &&
+            (whole &= _get_meeting_axes(elem, ox, oy, edges))
         now || before || continue
         elem_key = _make_placement_key(elem, key)
         before && push!(members_before, elem_key)
         if now
             push!(members, elem_key)
             if before
-                b, below = _record_moved_element!(res, elem, elem_key, ox, oy, edges, old_edges, offset, rects)
-                remade |= below
-                elem isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+                b = _find_window_bounds(res, elem_key, ox, oy)
+                if !_is_kept_whole(res, elem, elem_key, edges, old_edges, offset, b)
+                    b, below = _record_moved_element!(res, elem, elem_key, ox, oy, edges, old_edges, offset, rects)
+                    remade |= below
+                    elem isa GraphicsCanvas || _add_crossing_bounds!(rects, b, edges, old_edges)
+                end
             else
                 b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
                 b === nothing || push!(rects, b)
             end
             b === nothing || _acc_extend!(acc, b)
+            whole &= _compute_whole_axes(res, elem, elem_key, edges, b)
         elseif before
             _clear_moved_left_view!(res, rects, elem_key, ox, oy) do
                 _forget_recorded_element!(res, elem, elem_key, ox, oy, old_edges)
@@ -3313,20 +3440,22 @@ function _record_moved_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, 
         end
     end
     res.painted.members[key] = members
-    remade |= members != members_before
-    (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade), remade)
+    remade |= members != members_before || get(res.painted.whole, key, 0x00) != whole
+    (_record_moved_canvas_bounds!(res, key, ox, oy, edges, acc, remade, whole), remade)
 end
 
-# Record the bounds of a canvas of a moved content, from what it draws, and its
-# guard: forgotten when it is `remade`, so the walk makes it again at its end, and
-# else kept at the new place `(ox, oy, edges)`.
+# Record the bounds of a canvas of a moved content, from what it draws, the axes
+# `whole` on which it is whole, and its guard: forgotten when it is `remade`, so
+# the walk makes it again at its end, and else kept at its new place
+# (`_make_guard_place`).
 function _record_moved_canvas_bounds!(res::SdlWindowResources, key::UInt, ox::Int, oy::Int,
-                                      edges::_ClipEdges, acc::_DirtyAcc, remade::Bool)
+                                      edges::_ClipEdges, acc::_DirtyAcc, remade::Bool, whole::UInt8)
+    _record_whole!(res, key, whole)
     if remade
         delete!(res.painted.guards, key)
         delete!(res.painted.guard_places, key)
     elseif haskey(res.painted.guards, key)
-        res.painted.guard_places[key] = (ox, oy, edges)
+        res.painted.guard_places[key] = _make_guard_place(res, key, ox, oy, edges)
     end
     _record_bounds!(res, key, _acc_tuple_or_nothing(acc), _get_container_origin(res, key, ox, oy)...)
 end
@@ -3657,11 +3786,17 @@ end
 # so it gets a new guard; the old one has no reader left, and a cell keeps its
 # readers only by weak references.
 
-# Whether the guard of the canvas at `key` is valid for the place `(ox, oy, edges)`.
+# Whether the guard of the canvas at `key` is valid for the content origin
+# `(ox, oy)` and `edges`: its place is the place that they give, and the canvas
+# still lies inside the edges on each axis that it is whole on.
 function _is_guard_valid(res::SdlWindowResources, key::UInt, ox::Int, oy::Int, edges::_ClipEdges)
     guard = get(res.painted.guards, key, nothing)
     guard === nothing && return false
-    get(res.painted.guard_places, key, nothing) == (ox, oy, edges) || return false
+    get(res.painted.guard_places, key, nothing) == _make_guard_place(res, key, ox, oy, edges) || return false
+    axes = get(res.painted.whole, key, 0x00)
+    axes == 0x00 ||
+        _get_inside_axes(_find_window_bounds(res, key, _get_container_origin(res, key, ox, oy)...), edges) & axes ==
+            axes || return false
     is_cell_valid(guard)
 end
 
@@ -3671,13 +3806,16 @@ end
 # moves its place (`_record_moved_canvas_bounds!`).
 function _read_guard!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt, ox::Int, oy::Int,
                       edges::_ClipEdges)
-    place = (ox, oy, edges)
+    # A canvas that is whole on an axis has a guard whose place is relative to the
+    # canvas, which reads from the origin 0 (`_make_guard_place`).
+    place = _make_guard_place(res, key, ox, oy, edges)
     guard = get(res.painted.guards, key, nothing)
     if guard === nothing || get(res.painted.guard_places, key, nothing) != place
         res.painted.guard_places[key] = place
         guard = Cell(Computation(function ()
-            (x, y, at) = get(res.painted.guard_places, key, place)
-            _read_guarded_cells(res, canvas, key, x, y, at)
+            at = get(res.painted.guard_places, key, place)
+            at[1] === :local ? _read_guarded_cells(res, canvas, key, 0, 0, at[2]) :
+                               _read_guarded_cells(res, canvas, key, at...)
         end))
         res.painted.guards[key] = guard
         res.painted.new_guards += 1

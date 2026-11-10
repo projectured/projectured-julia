@@ -48,10 +48,11 @@ function _sw_make_data_frame_editor(backend; height::Int = _SW_HEIGHT)
                  window = (; title = "Data", width = _SW_WIDTH, height), tabs = (; title = "Data"))
 end
 
-# True when each notch of `tall`, the frames of a window twice as high, enters at
-# most 10% more kept graphics than the same notch of `frames`.
+# True when the notches of `tall`, the frames of a window twice as high, enter at
+# most 10% more kept graphics in all than the same notches of `frames`. A notch
+# enters the graphics that the edges cut, and those differ from notch to notch.
 _sw_has_entries_of_short_window(frames, tall) =
-    all(((f, t),) -> 10 * t.work[4] <= 11 * f.work[4], zip(frames, tall))
+    10 * sum(t.work[4] for t in tall) <= 11 * sum(f.work[4] for f in frames)
 
 # The canvases of `canvas` that the paint of `res` draws with more than `limit`
 # elements and no layout, or with overlap, as their counts of elements. A walk and
@@ -165,8 +166,7 @@ function test_scroll_work()
         tall = _sw_make_julia_editor(tall_backend, 800; height = 2 * _SW_HEIGHT)
         tall_frames, _ = _sw_scroll(tall, tall_backend, :ProjecturEd, 700, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
-        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_has_entries_of_short_window(frames, tall_frames)
     end
     @testset "the Files pane" begin
         backend = HeadlessBackend()
@@ -182,8 +182,7 @@ function test_scroll_work()
         tall_frames, _ = _sw_scroll(_sw_make_files_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
                                     :Files, 300, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
-        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_has_entries_of_short_window(frames, tall_frames)
     end
     @testset "a data frame" begin
         backend = HeadlessBackend()
@@ -199,8 +198,7 @@ function test_scroll_work()
         tall_frames, _ = _sw_scroll(_sw_make_data_frame_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
                                     :Data, 700, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
-        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_has_entries_of_short_window(frames, tall_frames)
     end
 end
 end
