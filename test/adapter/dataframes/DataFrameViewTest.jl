@@ -120,7 +120,7 @@ function test_data_frame_view()
             # The padding of a cell is the control padding of the theme, so a
             # spacing scale of 2 adds its height to the step of a row.
             padding = get_theme_defaults(WidgetTheme).control_padding
-            appearance.spacing_scale = 2.0
+            appearance.scale.spacing_scale = 2.0
             @test view_projection.row_step == step + Int(padding.top[]) + Int(padding.bottom[])
             size_of(text, canvas) = begin
                 found = Ref(0)
@@ -135,7 +135,7 @@ function test_data_frame_view()
                 found[]
             end
             plain = size_of("id :: Int64", io.output)
-            appearance.font_scale = 2.0
+            appearance.scale.font_scale = 2.0
             large = size_of("id :: Int64", print_document(scaled, nothing, view, context()).output)
             @test plain > 0 && large == 2 * plain
         end

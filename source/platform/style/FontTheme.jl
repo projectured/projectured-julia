@@ -68,6 +68,9 @@ The font theme of `appearance`.
 """
 get_font_theme(appearance::Appearance) = appearance.font_theme::FontTheme
 
+# The font theme stands first under the heading "Editor".
+get_theme_place(::Type{FontTheme}) = (:editor, 0)
+
 """
     resolve_font_role(role, appearance) -> StyleFont
 

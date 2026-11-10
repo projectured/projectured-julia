@@ -84,7 +84,7 @@ drawn(appearance, document) = draw_font_sizes(document, appearance)
     for document in (PrimitiveNumber(42), PrimitiveString("text"), DocumentNothing(),
                      (name = "x", size = 2, inner = (flag = true,)))
         plain = drawn(Appearance(), document)
-        large = drawn(Appearance(font_scale = 1.5), document)
+        large = drawn(Appearance(scale = AppearanceScale(font_scale = 1.5)), document)
         @test !isempty(plain) && length(large) == length(plain)
         @test large == round.(Int, plain .* 1.5)
     end
@@ -96,15 +96,15 @@ end
     document = PrimitiveNumber(42)
     print_size() = only(unique(collect_font_sizes(print_document(projection, nothing, document, offer).output)))
     @test print_size() == 14
-    appearance.font_scale = 2.0
+    appearance.scale.font_scale = 2.0
     @test print_size() == 28
 end
 
 @testset "the caret and the band of a selection follow the line and the radius scales" begin
-    appearance = Appearance(line_scale = 2.0, radius_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(line_scale = 2.0, radius_scale = 1.5))
     text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))
     @test (text.caret_width, text.highlight_radius) == (4, 6)
-    appearance.line_scale = 1.0
+    appearance.scale.line_scale = 1.0
     @test text.caret_width == 2
     plain = TextToGraphics(; measure)
     @test (plain.caret_width, plain.highlight_radius) == (2, 4)
@@ -112,7 +112,7 @@ end
 end
 
 @testset "a text that names no colour draws with the plain text of the theme, and follows the mode" begin
-    appearance = Appearance(color_mode = :dark)
+    appearance = Appearance(colors = AppearanceColors(color_mode = :dark))
     text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))
     function drawn_color(block)
         colors = StyleColor[]
@@ -129,13 +129,13 @@ end
     @test drawn_color(plain) != resolve_theme_color(ColorRole(:text), Appearance())
     # A text that names black stays black.
     @test drawn_color(make_text_block("black", StyleText(UNSTYLED_TEXT_FONT, color_black))) == color_black
-    appearance.color_mode = :light
+    appearance.colors.color_mode = :light
     @test drawn_color(plain) == resolve_theme_color(ColorRole(:text), appearance)
 end
 
 @testset "a syntax leaf with no theme has the default style, and with a theme its scaled one" begin
     @test PrimitiveNumberToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), SyntaxTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), SyntaxTheme)
     leaf = PrimitiveNumberToSyntaxLeaf(; theme)
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(SyntaxTheme(), :number_text).color)

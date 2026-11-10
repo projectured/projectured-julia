@@ -8,9 +8,9 @@ function test_json_theme()
     document = parse_json("""{"name": "x", "list": [1, true, null], "empty": {}}""")
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     @test JsonNumberToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), JsonTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), JsonTheme)
     leaf = JsonNumberToSyntaxLeaf(; style = get_json_style(theme, :number_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(JsonTheme(), :number_text).color)

@@ -37,8 +37,7 @@ function test_graph_theme()
     @test is_color_equal(plain.lines[1].color, resolve_theme_color(ColorRole(:text_muted), Appearance()))
     @test is_color_equal(box.border_color, resolve_theme_color(ColorRole(:border_strong), Appearance()))
 
-    theme = get_scaled_theme!(Appearance(spacing_scale = 2.0, line_scale = 2.0,
-                                         control_scale = 1.5), GraphTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(spacing_scale = 2.0, line_scale = 2.0, control_scale = 1.5)), GraphTheme)
     scaled = draw(theme)
     highlighted, box = scaled.rects[1], scaled.rects[2]
     # Scaled, the margin is the padding, 16.

@@ -30,7 +30,7 @@ A projection reads its scaled theme through untracked style fields, which record
 1. The content reads each input first. A view that binds a key, such as the zoom of a `WidgetTransformPane`, keeps it.
 2. When the content answers nothing, the keys of the `AppearanceDocument` answer.
 3. In the answer, each write of a field of a theme of the appearance becomes a `ReplaceThemeValueOperation`, also inside a compound or a wrapping operation such as the record of a history.
-4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance` or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of `open_sections` changes no look, so it prints no view again.
+4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance`, into one of its parts or headings, or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of `open_sections` changes no look, so it prints no view again.
 
 The editor then prints the whole view again in the same frame, and the inputs after the change wait for the new view. A frame prints at most once.
 
@@ -111,15 +111,17 @@ hold a selection. So the `Appearance` holds the caret as a path that
 print gives each widget the part of that path below it. The tree has the same form
 at each print, so the caret stays in its text after the print that a write starts.
 
-The place of the tab is in the `Appearance` too, in `scroll_position`, and so are
-the cards that are open, in `open_sections`, by the names of their theme types. A view of
+The place of the tab is in the `Appearance` too, in `scroll_position`, and the
+cards that are open are in each heading (`ThemeGroup`), in `open_names`, by the
+names of their theme types. A view of
 another document prints its parts again one by one, and its scroll panes keep
 their place. A change of the appearance prints the whole view again, so the tab
 is a new tree after each change, with a new pane that would start at its top. So
 the tab gives each new pane the cell of the `Appearance` to scroll, and a step of a
 size far down the tab leaves the tab where it is. The `collapsed` cell of each card
-is computed from `open_sections`, and a press on the chevron of a card answers a
-write of `open_sections` as view state, so the card folds with no new print. The
+is computed from the `open_names` of its heading, and a press on the chevron of a
+card answers a write of `open_names` as view state, so the card folds with no new
+print. The
 file keeps neither, and every view of the tab shows the same place and the same
 open cards.
 
@@ -149,4 +151,5 @@ The slice depends on the kernel and on the layout, natural, primitive, projectio
 - **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the arguments of the wrappers on. See [plan/done/zoom-and-theme-controls.md](../../../../plan/done/zoom-and-theme-controls.md), D4, D20, D29 and D32.
 - **A change prints the whole view again.** The view has no edge to the theme, so a print of the whole view is the one way a change reaches it, and it costs one print for a rare event.
 - **A change of a theme is a step of a history** (finding 29 of the plan, from D14 of the settings plan). The window history holds the pane tree, so it holds the tab, as it does for the settings tab. `ReplaceThemeValueOperation` is the counterpart of `ApplySettingOperation`: the wrapper makes it from a plain write, so the inverse prints the view again too.
-- **The state of the tab is in the `Appearance`.** The tab is a new tree after each change, so its place and its open cards can live nowhere else; they are view state, and the file does not keep them.
+- **The state of the tab is in the `Appearance`.** The tab is a new tree after each change, so its place and its open cards can live nowhere else; they are view state, and the file does not keep them. The open cards are in the headings, so the page of a heading folds the same cards as the tab.
+- **The parts of an appearance are nodes of a tree.** In the explorer, an `Appearance` has a node for its scale, its colour settings and each heading (`get_tree_children_steps`), and a heading has a node for each theme; in "Editor", the colour theme of the present mode and contrast first. Each is a document in a field, which the tree slice reads as one child. A part, a heading and a theme have the icon of the appearance and a title: "Scale", "Colors", the title of the heading, and the name of the theme type in words.

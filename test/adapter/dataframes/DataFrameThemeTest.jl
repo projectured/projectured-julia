@@ -17,7 +17,7 @@ function test_data_frame_theme()
     @test is_color_equal(plain.unsorted_glyph, get_theme_value(WidgetTheme(), :unsorted_glyph))
 
     @test !hasfield(DataFrameViewToWidget, :theme)
-    appearance = Appearance(control_scale = 1.5, spacing_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(control_scale = 1.5, spacing_scale = 1.5))
     chain = make_data_frame_view_projection(; measure = FixedMeasure(8, 12, 4, 0), appearance)
     scaled = first(chain.projections)
     @test scaled.header_field_minimum_width == 120

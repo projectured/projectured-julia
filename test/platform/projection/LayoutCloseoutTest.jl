@@ -282,7 +282,7 @@ end
     layouts = LayoutToGraphics().dispatch
     plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure).dispatch))
     large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure,
-        theme = make_scaled_theme(WidgetTheme(), Appearance(font_scale = 2.0))).dispatch))
+        theme = make_scaled_theme(WidgetTheme(), Appearance(scale = AppearanceScale(font_scale = 2.0)))).dispatch))
     choice = _LC_Cell(:plain)
     # Every place reads the choice, and only the second child changes with it.
     function choose(reference)

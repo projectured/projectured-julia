@@ -10,7 +10,9 @@ The paths from `document` to each collection of its children, in order, each a
 tuple of `ReferenceStep`s: `((FieldReferenceStep("children"),),)` for a node with
 one collection in its field `children`. The children of a node are the elements
 of its collections, one collection after the other, so a node can show two kinds
-of children, such as the parts that it holds and the work that it started.
+of children, such as the parts that it holds and the work that it started. A
+path that reaches one document, which no collection holds, such as a part in a
+field, reaches one child: that document.
 
 It runs inside a computation of the tree, so it can read cells. A path that
 reaches nothing gives no children. The default is `()`, a leaf, for a document

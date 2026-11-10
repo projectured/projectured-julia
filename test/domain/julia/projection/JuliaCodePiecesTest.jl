@@ -51,7 +51,7 @@ function test_julia_code_pieces()
     @test marked[":id"] == style.color_solarized_red
     @test marked["3"] == role(:number_literal)
     # In the dark mode, a role takes its dark colour.
-    appearance.color_mode = :dark
+    appearance.colors.color_mode = :dark
     dark = Dict(String(collect(text)[1:3]) => last(first(pieces_of(text, appearance))))
     @test dark[":id"] == style.color_solarized_red
     @test last(pieces_of("3", appearance)[1]) ==

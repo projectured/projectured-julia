@@ -72,7 +72,7 @@ function is_equal_except(appearance, make, kinds...)
 end
 
 @testset "the font scale changes the fonts" begin
-    appearance = Appearance(font_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.5))
     @test default[button].fonts == [13]
     @test draw(appearance, button).fonts == [20]
     # The fixed measure gives a line the same height at each size, so no extent moves.
@@ -80,7 +80,7 @@ end
 end
 
 @testset "the spacing scale changes the paddings and the gaps" begin
-    appearance = Appearance(spacing_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(spacing_scale = 1.5))
     scaled = draw(appearance, button)
     # The padding of a control is `top` above, `bottom` below and `left`, `right`
     # at the sides; at a scale of 1.5 each side grows by half of it, rounded.
@@ -93,14 +93,14 @@ end
 end
 
 @testset "the radius scale changes the corners" begin
-    appearance = Appearance(radius_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(radius_scale = 1.5))
     @test default[button].radii == [6]
     @test draw(appearance, button).radii == [9]
     @test is_equal_except(appearance, button, :radii)
 end
 
 @testset "the line scale changes the borders and the strokes" begin
-    appearance = Appearance(line_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(line_scale = 1.5))
     scaled = draw(appearance, button)
     @test default[button].borders == [1]
     @test scaled.borders == [2]
@@ -110,7 +110,7 @@ end
 end
 
 @testset "the control scale changes the parts of a control that are not text" begin
-    appearance = Appearance(control_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(control_scale = 1.5))
     box(lengths) = filter(r -> r[3] == r[4], lengths.rects)
     @test any(r -> r[3] == 16, box(default[checkbox]))
     @test any(r -> r[3] == 24, box(draw(appearance, checkbox)))
@@ -119,7 +119,7 @@ end
 end
 
 @testset "the icon scale changes the box of an icon" begin
-    appearance = Appearance(icon_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(icon_scale = 1.5))
     scaled = draw(appearance, icon_button)
     # The box of the icon is one line, 16, so 24; the button takes the larger of
     # the icon and the label.
@@ -129,8 +129,7 @@ end
 end
 
 @testset "a press at the drawn place of a control hits it, with every scale at 1.5" begin
-    appearance = Appearance(font_scale = 1.5, icon_scale = 1.5, spacing_scale = 1.5,
-                            control_scale = 1.5, radius_scale = 1.5, line_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.5, icon_scale = 1.5, spacing_scale = 1.5, control_scale = 1.5, radius_scale = 1.5, line_scale = 1.5))
     projection = _make_scaled_widget_projection(appearance)
     function press(document, x, y)
         iomap = print_document(projection, document)

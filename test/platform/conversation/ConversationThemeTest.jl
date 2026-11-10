@@ -20,7 +20,7 @@ function test_conversation_theme()
 @testset "the conversation projections follow the scales of the appearance" begin
 
 defaults = ConversationTheme()
-scales = Appearance(font_scale = 1.5, spacing_scale = 1.5)
+scales = Appearance(scale = AppearanceScale(font_scale = 1.5, spacing_scale = 1.5))
 theme = get_scaled_theme!(scales, ConversationTheme)
 widget_theme = get_scaled_theme!(scales, WidgetTheme)
 

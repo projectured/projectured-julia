@@ -108,7 +108,7 @@ function test_widget_column_header()
         @test style(theme, :header_field_minimum_width) == 80
         @test style(theme, :header_gap) == 4
         @test style(nothing, :value_list_size).x[] == 320
-        scaled = get_scaled_theme!(Appearance(control_scale = 1.5, spacing_scale = 1.5), WidgetTheme)
+        scaled = get_scaled_theme!(Appearance(scale = AppearanceScale(control_scale = 1.5, spacing_scale = 1.5)), WidgetTheme)
         @test style(scaled, :header_field_minimum_width) == 120
         @test style(scaled, :header_gap) == 6
     end

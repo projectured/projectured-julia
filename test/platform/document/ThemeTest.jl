@@ -65,7 +65,7 @@ function test_theme()
           (gap = "The space between two items.", line = "The color of a line,\nin two lines.")
     # A theme with no docstring of its own keeps the docstrings of its fields.
     @test find_theme_field_text(ThUndocumented, :gap) == "The gap."
-    @test make_scaled_theme(ThDocumented(), Appearance(spacing_scale = 2.0)).gap == 8
+    @test make_scaled_theme(ThDocumented(), Appearance(scale = AppearanceScale(spacing_scale = 2.0))).gap == 8
     @test_throws "as its docstring" macroexpand(@__MODULE__,
         :(@theme struct ThWrong; 1 + 2; gap::Spacing = Spacing(4); end))
 end
@@ -97,8 +97,7 @@ end
 end
 
 @testset "each kind takes its own scale" begin
-    appearance = Appearance(font_scale = 1.5, icon_scale = 2.0, spacing_scale = 0.5,
-                            control_scale = 1.25, radius_scale = 3.0, line_scale = 2.0)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.5, icon_scale = 2.0, spacing_scale = 0.5, control_scale = 1.25, radius_scale = 3.0, line_scale = 2.0))
     scaled = make_scaled_theme(ThSample(), appearance)
     @test scaled.body.font.size == 30
     @test scaled.body.color == color_black
@@ -115,7 +114,7 @@ end
 end
 
 @testset "a bare number takes the kind that the field declares" begin
-    appearance = Appearance(spacing_scale = 2.0, radius_scale = 3.0)
+    appearance = Appearance(scale = AppearanceScale(spacing_scale = 2.0, radius_scale = 3.0))
     scaled = make_scaled_theme(ThSample(gap = 5, corner = 2), appearance)
     @test scaled.gap == 10
     @test scaled.corner == 6
@@ -125,7 +124,7 @@ end
 end
 
 @testset "a length above 0 stays at least 1" begin
-    scaled = make_scaled_theme(ThSample(), Appearance(line_scale = 0.1, spacing_scale = 0.1))
+    scaled = make_scaled_theme(ThSample(), Appearance(scale = AppearanceScale(line_scale = 0.1, spacing_scale = 0.1)))
     @test scaled.border == 1
     @test scaled.gap == 1
 end
@@ -137,7 +136,7 @@ end
     @test scaled.gap == 4
     theme.gap = Spacing(6)
     @test scaled.gap == 6
-    appearance.spacing_scale = 2.0
+    appearance.scale.spacing_scale = 2.0
     @test scaled.gap == 12
     @test get_base_theme(scaled) === theme
 end
@@ -148,7 +147,7 @@ end
     gap = UntrackedCell{Int}(@computation scaled.gap)
     reader = Cell(@computation gap[] + 1)
     @test reader[] == 5
-    appearance.spacing_scale = 2.0
+    appearance.scale.spacing_scale = 2.0
     @test is_cell_valid(reader)       # no edge: the reader keeps its value
     @test gap[] == 8                       # a new read sees the new scale
 end
@@ -170,7 +169,7 @@ end
     @test scaled.keyword == StyleText(StyleFont("Ubuntu Mono", 14; weight = 700), color_solarized_blue)
     @test scaled.marker == StyleText(StyleFont("DejaVu Sans Mono", 14), color_black)
     # The font scale applies to the font that the role gives.
-    @test make_scaled_theme(ThRoles(), Appearance(font_scale = 1.5)).title.size == 36
+    @test make_scaled_theme(ThRoles(), Appearance(scale = AppearanceScale(font_scale = 1.5))).title.size == 36
     # A change of the font theme reaches the role.
     appearance = Appearance()
     scaled = make_scaled_theme(ThRoles(), appearance)
@@ -178,7 +177,7 @@ end
     @test scaled.title == StyleFont("DejaVu Sans", 24; weight = 700)
     # A role field can hold a text as it is, which scales as a text does.
     fixed = StyleText(StyleFont("Liberation Serif", 12), color_red)
-    @test make_scaled_theme(ThRoles(keyword = fixed), Appearance(font_scale = 2.0)).keyword ==
+    @test make_scaled_theme(ThRoles(keyword = fixed), Appearance(scale = AppearanceScale(font_scale = 2.0))).keyword ==
           StyleText(StyleFont("Liberation Serif", 24), color_red)
 end
 
@@ -209,7 +208,7 @@ end
     knob = get_theme_value(sample, :knob)
     @test (knob.x[], knob.y[]) == (44, 24)
     @test get_theme_value(sample, :columns) == 3
-    scaled = make_scaled_theme(sample, Appearance(spacing_scale = 2.0))
+    scaled = make_scaled_theme(sample, Appearance(scale = AppearanceScale(spacing_scale = 2.0)))
     @test get_theme_value(scaled, :gap) == 8
     @test get_theme_values(scaled) === scaled
     @test get_theme_values(sample).gap == 4
@@ -227,7 +226,7 @@ end
     @test gap isa UntrackedCell && gap[] == 4
     theme.gap = Spacing(6)
     @test gap[] == 6
-    scaled = make_scaled_theme(ThSample(), Appearance(spacing_scale = 2.0))
+    scaled = make_scaled_theme(ThSample(), Appearance(scale = AppearanceScale(spacing_scale = 2.0)))
     @test get_th_sample_style(scaled, :gap)[] == 8
     padding = get_th_sample_style(ThSample(), :padding)
     @test padding isa UntrackedCell{Inset} && padding[].left[] == 14
@@ -259,7 +258,7 @@ end
     second_appearance = Appearance()
     first_scaled = get_scaled_theme!(first_appearance, ThSample)
     second_scaled = get_scaled_theme!(second_appearance, ThSample)
-    first_appearance.font_scale = 2.0
+    first_appearance.scale.font_scale = 2.0
     @test first_scaled.body.font.size == 40
     @test second_scaled.body.font.size == 20
 end

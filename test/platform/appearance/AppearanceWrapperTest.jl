@@ -71,22 +71,22 @@ end
     appearance = Appearance()
     editor, backend = _aw_editor(WidgetLabel("Name"); projection = _aw_natural(appearance), appearance)
     _aw_press!(editor, backend, _aw_key(:equals))
-    @test appearance.zoom == 1.1
+    @test appearance.scale.zoom == 1.1
     @test _aw_display(editor).zoom == 1.1            # the backends read it there
     _aw_press!(editor, backend, _aw_key(:zero))
-    @test appearance.zoom == 1.0 && _aw_display(editor).zoom == 1.0
+    @test appearance.scale.zoom == 1.0 && _aw_display(editor).zoom == 1.0
     _aw_press!(editor, backend, _aw_key(:minus))
-    @test appearance.zoom == 0.9
+    @test appearance.scale.zoom == 0.9
     for (key, scale, factor) in ((:equals, :font_scale, 1.1), (:period, :icon_scale, 1.1),
                                  (:right_bracket, :spacing_scale, 1.1), (:minus, :font_scale, 1.0),
                                  (:comma, :icon_scale, 1.0), (:left_bracket, :spacing_scale, 1.0))
         _aw_press!(editor, backend, _aw_key(key; alt = true))
-        @test getproperty(appearance, scale) == factor
+        @test getproperty(appearance.scale, scale) == factor
     end
     _aw_press!(editor, backend, _aw_key(:equals; alt = true), )
     _aw_press!(editor, backend, _aw_key(:zero; alt = true))
-    @test appearance.font_scale == 1.0
-    @test appearance.zoom == 0.9                     # a scale leaves the zoom
+    @test appearance.scale.font_scale == 1.0
+    @test appearance.scale.zoom == 0.9                     # a scale leaves the zoom
 end
 
 @testset "a key that the content binds stays with the content" begin
@@ -95,7 +95,7 @@ end
     editor, backend = _aw_editor(WidgetLabel("Name"); projection, appearance)
     printed = editor.iomap
     _aw_press!(editor, backend, _aw_key(:equals))
-    @test appearance.zoom == 1.0
+    @test appearance.scale.zoom == 1.0
     @test editor.iomap === printed                   # an answer of the content prints nothing again
 end
 
@@ -105,11 +105,11 @@ end
     printed = editor.iomap
     @test _aw_font_size(backend, "Name") == 13
     _aw_press!(editor, backend, _aw_key(:equals; alt = true), _aw_key(:equals; alt = true))
-    @test appearance.font_scale == 1.1               # the second key waits for the new view
+    @test appearance.scale.font_scale == 1.1               # the second key waits for the new view
     @test editor.iomap !== printed
     @test _aw_font_size(backend, "Name") == 14
     run_frame!(editor)
-    @test appearance.font_scale == 1.25
+    @test appearance.scale.font_scale == 1.25
     @test _aw_font_size(backend, "Name") == 16
 end
 
@@ -119,7 +119,7 @@ end
     document = AppearanceDocument(appearance, WidgetLabel("Name"))
     theme = get_base_theme(scaled)
     write(object) = ReplaceReferencedValueOperation(object, ConcreteReference(FieldReferenceStep("zoom"), EmptyReference()), 1)
-    @test is_appearance_change(appearance, write(appearance))
+    @test is_appearance_change(appearance, write(appearance.scale))
     @test is_appearance_change(appearance, write(theme))
     @test is_appearance_change(appearance, CompoundOperation(Any[DoNothingOperation(), write(theme)]))
     @test !is_appearance_change(appearance, write(document.content))
@@ -145,7 +145,7 @@ end
                                                appearance = two)
     _aw_press!(first_editor, first_backend, _aw_key(:equals; alt = true))
     run_frame!(second_editor)
-    @test one.font_scale == 1.1 && two.font_scale == 1.0
+    @test one.scale.font_scale == 1.1 && two.scale.font_scale == 1.0
     @test _aw_font_size(first_backend, "Name") == 14
     @test _aw_font_size(second_backend, "Name") == 13
 end
@@ -155,7 +155,7 @@ end
     appearance = editor.document.appearance
     @test _aw_font_size(backend, "Name") == 13
     _aw_press!(editor, backend, _aw_key(:equals; alt = true))
-    @test appearance.font_scale == 1.1
+    @test appearance.scale.font_scale == 1.1
     @test _aw_font_size(backend, "Name") == 14
 end
 
@@ -173,7 +173,7 @@ end
     _aw_press!(running, running_backend, _aw_key(:equals; alt = true))
     _aw_press!(running, running_backend, _aw_key(:right_bracket; alt = true))
     started, started_backend = _aw_editor(WidgetButton("Save");
-                                          appearance = Appearance(font_scale = 1.1, spacing_scale = 1.1))
+                                          appearance = Appearance(scale = AppearanceScale(font_scale = 1.1, spacing_scale = 1.1)))
     @test _collect_text_styles(_aw_last_output(running_backend)) ==
           _collect_text_styles(_aw_last_output(started_backend))
     running_output, started_output = _aw_last_output(running_backend), _aw_last_output(started_backend)
@@ -192,7 +192,7 @@ end
                      Tuple(UInt8(round(Int, x * 255)) for x in (c.red, c.green, c.blue, c.alpha)))
     window() = only(last(rendered_output(backend)).windows)
     @test window().bg == background(appearance)
-    appearance.color_mode = :dark
+    appearance.colors.color_mode = :dark
     run_frame!(editor)
     @test window().bg == background(appearance)
     @test window().bg != background(Appearance())
@@ -202,7 +202,7 @@ end
     run_frame!(editor)
     later() = only(w for w in last(rendered_output(backend)).windows if w.id === :later)
     @test later().bg == background(appearance)
-    appearance.color_mode = :light
+    appearance.colors.color_mode = :light
     run_frame!(editor)
     @test later().bg == background(appearance)
 end
@@ -218,19 +218,19 @@ end
                      Tuple(UInt8(round(Int, x * 255)) for x in (c.red, c.green, c.blue, c.alpha)))
     window() = only(last(rendered_output(backend)).windows)
     # The first frame is dark already.
-    @test appearance.system_colors == SystemColors(; mode = :dark)
-    @test window().bg == background(Appearance(color_mode = :dark))
+    @test appearance.colors.system_colors == SystemColors(; mode = :dark)
+    @test window().bg == background(Appearance(colors = AppearanceColors(color_mode = :dark)))
     # The content of the first frame is dark too, and not only the background of
     # the window, which is a computed cell: the editor prints when it is made.
     content = window().content
     content isa Cell && (content = content[])
     @test last(_collect_text_styles(content)["Name"]) ==
-          resolve_theme_color(ColorRole(:text), Appearance(color_mode = :dark))
+          resolve_theme_color(ColorRole(:text), Appearance(colors = AppearanceColors(color_mode = :dark)))
     # A change of the system recolours the view, and the history does not record it.
     push_event!(backend, WindowInput(:none, SystemColorsChange(SystemColors(); time = 1.0)))
     run_frame!(editor)
-    @test appearance.system_colors == SystemColors()
-    @test window().bg == background(Appearance(color_mode = :light))
+    @test appearance.colors.system_colors == SystemColors()
+    @test window().bg == background(Appearance(colors = AppearanceColors(color_mode = :light)))
     history = only(search_documents(editor.document, node -> node isa UndoBuffer))
     @test isempty(history.undo_entries)
 end

@@ -81,3 +81,23 @@ end
 get_document_decoration(::Union{AppearanceDocument, Appearance}) =
     DocumentDecoration(; icon = :palette, tooltip = () -> TooltipNote(; title = "Appearance",
                                                                        text = "The zoom and the scales of this window."))
+
+# A part, a heading and a theme of an appearance have the icon of the appearance.
+get_document_decoration(document::Union{AppearanceScale, AppearanceColors, ThemeGroup, Theme}) =
+    DocumentDecoration(; icon = :palette, tooltip = () -> TooltipNote(; title = get_document_title(document)))
+
+# The themes that every view of the editor draws with stand under the heading
+# "Editor", after the colour theme and the font theme, in this order.
+for (rank, T) in enumerate((WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme))
+    @eval get_theme_place(::Type{$T}) = (:editor, $rank)
+end
+
+# In a tree, an appearance has a node for its scale, for its colour settings and for
+# each heading of its themes, and a heading has a node for each theme: in "Editor",
+# the colour theme of the present mode and contrast first.
+get_tree_children_steps(::Appearance) =
+    ((FieldReferenceStep("scale"),), (FieldReferenceStep("colors"),),
+     (FieldReferenceStep("editor_themes"),), (FieldReferenceStep("tool_themes"),),
+     (FieldReferenceStep("document_themes"),))
+get_tree_children_steps(::ThemeGroup) =
+    ((FieldReferenceStep("color_theme"),), (FieldReferenceStep("themes"),))

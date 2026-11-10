@@ -20,10 +20,10 @@ function test_formula_theme()
 
     plain = draw(Appearance())
     @test !isempty(plain)
-    @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw(Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test FormulaInsertionToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), FormulaTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), FormulaTheme)
     leaf = FormulaInsertionToSyntaxLeaf(; style = get_formula_style(theme, :insertion_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(FormulaTheme(), :insertion_text).color)

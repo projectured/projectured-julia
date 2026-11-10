@@ -41,15 +41,15 @@ end
 
 function evaluate_operation(editor, operation::AdjustZoomOperation)
     appearance = operation.appearance
-    appearance.zoom = step_factor(appearance.zoom, operation.delta)
+    scale = appearance.scale
+    scale.zoom = step_factor(scale.zoom, operation.delta)
     copy_zoom_to_display!(editor, appearance)
     nothing
 end
 
 function evaluate_operation(editor, operation::AdjustScaleOperation)
-    appearance = operation.appearance
-    setproperty!(appearance, operation.scale,
-                 step_factor(getproperty(appearance, operation.scale), operation.delta))
+    scale = operation.appearance.scale
+    setproperty!(scale, operation.scale, step_factor(getproperty(scale, operation.scale), operation.delta))
     nothing
 end
 
@@ -62,7 +62,7 @@ reads it. A missing editor, or one with no `Display`, gets nothing.
 function copy_zoom_to_display!(editor, appearance::Appearance)
     editor === nothing && return nothing
     for device in editor.devices
-        device isa Display && (device.zoom = appearance.zoom)
+        device isa Display && (device.zoom = appearance.scale.zoom)
     end
     nothing
 end

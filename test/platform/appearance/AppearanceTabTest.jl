@@ -90,7 +90,7 @@ measure = FixedMeasure(8, 12, 4, 0)
 offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
 
 @testset "an Appearance draws as the card Scale, with a row for the zoom and for each scale" begin
-    appearance = Appearance(font_scale = 1.25)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.25))
     output = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer).output
     texts = first.(_at_collect_texts(output))
     for name in ("Save", "Load", "Scale", "Zoom", "Text", "Icons", "Spacing", "Controls", "Corners",
@@ -102,7 +102,7 @@ offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}(
 end
 
 @testset "the Reset all of the card Scale resets the scales, and that of the card Colors the colour settings" begin
-    appearance = Appearance(font_scale = 1.25, color_mode = :dark)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.25), colors = AppearanceColors(color_mode = :dark))
     iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     resets = [op for (action, op) in tab.commands if action.label == "Reset all"]
@@ -112,9 +112,9 @@ end
     @test length(scale.operations) == 7 && all(op -> op.delta == 0, scale.operations)
     colors = only(op for op in resets if !all(is_step, op.operations))
     fields = (:color_mode, :color_contrast, :color_palette, :color_accent, :color_neutral)
-    @test all(op -> op isa ReplaceReferencedValueOperation && op.document === appearance, colors.operations)
+    @test all(op -> op isa ReplaceReferencedValueOperation && op.document === appearance.colors, colors.operations)
     @test [op.reference.head for op in colors.operations] == [FieldReferenceStep(String(f)) for f in fields]
-    @test [op.value for op in colors.operations] == [getproperty(Appearance(), f) for f in fields]
+    @test [op.value for op in colors.operations] == [getproperty(Appearance().colors, f) for f in fields]
 end
 
 @testset "a glyph button says what it changes, and its current value" begin
@@ -160,7 +160,8 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     theme = get_theme(appearance, WidgetTheme)
     get_scaled_theme!(appearance, FaultTheme)
-    appearance.open_sections = ["WidgetTheme", "FaultTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
+    appearance.tool_themes.open_names = ["FaultTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
     # The draw of the tab makes the controls of the two open cards.
     _at_collect_texts(iomap.output)
@@ -247,13 +248,13 @@ end
     # The fold is the state of the tab: the card follows it, and no view prints again.
     @test !is_appearance_change(appearance, fold)
     evaluate_operation(nothing, fold)
-    @test appearance.open_sections == ["WidgetTheme"]
+    @test appearance.editor_themes.open_names == ["WidgetTheme"]
     @test !card.collapsed
     evaluate_operation(nothing, translate(ToggleCollapseOperation(card)))
-    @test isempty(appearance.open_sections) && card.collapsed
+    @test isempty(appearance.editor_themes.open_names) && card.collapsed
     # An open section shows its fields, the docstring of a field on a row under
     # the row of its name, at the start of the row, and the summary of its theme.
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
     texts = _at_collect_texts(iomap.output)
     name = only(t for t in texts if t[1] == "item gap")
@@ -274,7 +275,7 @@ end
     appearance = Appearance()
     get_scaled_theme!(appearance, SyntaxTheme)
     syntax = get_theme(appearance, SyntaxTheme)
-    appearance.open_sections = ["SyntaxTheme"]
+    appearance.editor_themes.open_names = ["SyntaxTheme"]
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
@@ -315,7 +316,7 @@ end
     appearance = Appearance()
     get_scaled_theme!(appearance, TooltipTheme)
     tooltip = get_theme(appearance, TooltipTheme)
-    appearance.open_sections = ["TooltipTheme"]
+    appearance.editor_themes.open_names = ["TooltipTheme"]
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
@@ -335,7 +336,7 @@ end
 @testset "the font card has a control for each step, and the two families step through the font families" begin
     appearance = Appearance()
     fonts = get_font_theme(appearance)
-    appearance.open_sections = ["FontTheme"]
+    appearance.editor_themes.open_names = ["FontTheme"]
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     _at_collect_texts(iomap.output)
@@ -367,7 +368,7 @@ end
     appearance = Appearance()
     get_scaled_theme!(appearance, ThTabFonts)
     theme = get_theme(appearance, ThTabFonts)
-    appearance.open_sections = ["ThTabFonts"]
+    appearance.document_themes.open_names = ["ThTabFonts"]
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
@@ -409,7 +410,7 @@ end
     end
     run_frame!(editor)
     run_frame!(editor)
-    @test appearance.font_scale == 1.1
+    @test appearance.scale.font_scale == 1.1
     texts = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
     # The new print shows the same tab: the appearance, not the first document.
     @test "110%" in first.(texts)
@@ -432,7 +433,7 @@ end
         run_frame!(editor)
     end
     drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = 1.0))
     _, x, y = only(t for t in drawn() if t[1] == "Spacing")
     send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 2.0))
@@ -471,7 +472,7 @@ end
         run_frame!(editor)
         time[] += 1.0
     end
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
     # The widget theme is one section of many, one for each loaded domain, so the
     # place of the tab, which the appearance holds, brings its row into the window.
@@ -510,13 +511,13 @@ end
     # A write into a document that is no theme of the appearance stays as it is.
     other = ReplaceReferencedValueOperation(WidgetTheme(), "item_gap", Spacing(7))
     @test wrap(other) === other
-    @test wrap(ReplaceReferencedValueOperation(appearance, "open_sections", String[])) isa
+    @test wrap(ReplaceReferencedValueOperation(appearance.editor_themes, "open_names", String[])) isa
           ReplaceReferencedValueOperation
     inverse = make_inverse_operation(nothing, step)
     @test inverse isa ReplaceThemeValueOperation
     @test inverse.operation.value == Spacing(get_theme_defaults(WidgetTheme).item_gap)
     @test_throws ArgumentError ReplaceThemeValueOperation(
-        ReplaceReferencedValueOperation(appearance, "zoom", 2.0))
+        ReplaceReferencedValueOperation(appearance.scale, "zoom", 2.0))
 end
 
 @testset "Ctrl+Z in the history of the window takes back a change of a theme, and the view shows it" begin
@@ -542,7 +543,7 @@ end
         time[] += 1.0
     end
     drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
     _, _, row_y = only(t for t in drawn() if t[1] == "primary")
     appearance.scroll_position = Point2D(0, max(0, row_y - 300))
@@ -572,11 +573,11 @@ end
         @test name in texts
     end
     # A setting that follows the system shows the value of the system.
-    appearance.system_colors = SystemColors(; mode = :dark)
+    appearance.colors.system_colors = SystemColors(; mode = :dark)
     @test "system (dark)" in first.(_at_collect_texts(print_document(projection, nothing, appearance, offer).output))
-    appearance.system_colors = SystemColors()
+    appearance.colors.system_colors = SystemColors()
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance &&
+    writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance.colors &&
                                 op.reference.head == FieldReferenceStep(String(field))
     next_mode = only(op for (action, op) in tab.commands if action.label == "›" && writes_setting(op, :color_mode))
     @test next_mode.value === :light
@@ -585,12 +586,12 @@ end
                            if action.label == "‹" && writes_setting(op, :color_accent))
     @test previous_accent.value === :teal
     evaluate_operation(nothing, next_mode)
-    @test appearance.color_mode === :light
+    @test appearance.colors.color_mode === :light
     # The card of the colour theme holds the theme of the present mode and contrast.
-    appearance.color_mode = :dark
+    appearance.colors.color_mode = :dark
     theme = get_color_theme(appearance)
     @test theme === appearance.color_themes[:dark]
-    appearance.open_sections = ["ColorTheme"]
+    appearance.editor_themes.open_names = ["ColorTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     @test "ColorTheme" in collect(values(tab.folds))

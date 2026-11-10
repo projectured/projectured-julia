@@ -10,7 +10,7 @@ mktempdir() do folder
     path = joinpath(folder, "appearance.toml")
 
     @testset "a round trip keeps every value" begin
-        appearance = Appearance(zoom = 1.25, font_scale = 1.5, line_scale = 2.0)
+        appearance = Appearance(scale = AppearanceScale(zoom = 1.25, font_scale = 1.5, line_scale = 2.0))
         get_scaled_theme!(appearance, WidgetTheme)
         theme = get_theme(appearance, WidgetTheme)
         theme.primary = StyleColor(0.2, 0.4, 0.6, 1.0)
@@ -22,7 +22,7 @@ mktempdir() do folder
         loaded = Appearance()
         get_scaled_theme!(loaded, WidgetTheme)
         load_appearance!(loaded, path)
-        @test (loaded.zoom, loaded.font_scale, loaded.line_scale, loaded.icon_scale) == (1.25, 1.5, 2.0, 1.0)
+        @test (loaded.scale.zoom, loaded.scale.font_scale, loaded.scale.line_scale, loaded.scale.icon_scale) == (1.25, 1.5, 2.0, 1.0)
         saved = get_theme(loaded, WidgetTheme)
         @test is_color_equal(saved.primary, StyleColor(0.2, 0.4, 0.6, 1.0))
         @test saved.font.size == 22 && saved.font.family == "DejaVu Sans"
@@ -47,17 +47,17 @@ mktempdir() do folder
         @test scaled.item_gap == get_theme_defaults(WidgetTheme).item_gap
         load_appearance!(live, path)
         @test scaled.item_gap == 7
-        @test live.zoom == 1.25
+        @test live.scale.zoom == 1.25
     end
 
     @testset "a key that the file does not name takes its default, and an unknown key is ignored" begin
         write(path, "font_scale = 2.0\nunknown = 3\n\n[WidgetTheme]\nitem_gap = 9\n" *
                     "not_a_field = 1\nprimary = \"not a color\"\n\n[NoSuchTheme]\nx = 1\n")
-        live = Appearance(zoom = 1.5)
+        live = Appearance(scale = AppearanceScale(zoom = 1.5))
         scaled = get_scaled_theme!(live, WidgetTheme)
         get_theme(live, WidgetTheme).radius = Radius(20)
         load_appearance!(live, path)
-        @test (live.zoom, live.font_scale) == (1.0, 2.0)
+        @test (live.scale.zoom, live.scale.font_scale) == (1.0, 2.0)
         @test scaled.item_gap == 9
         @test get_theme(live, WidgetTheme).radius == Radius(6)
         @test get_theme(live, WidgetTheme).primary == WidgetTheme().primary
@@ -65,7 +65,7 @@ mktempdir() do folder
     end
 
     @testset "a missing file changes nothing" begin
-        @test load_appearance!(Appearance(zoom = 1.5), joinpath(folder, "none.toml")).zoom == 1.5
+        @test load_appearance!(Appearance(scale = AppearanceScale(zoom = 1.5)), joinpath(folder, "none.toml")).scale.zoom == 1.5
     end
 
     @testset "a load prints the view again, and a save does not" begin

@@ -27,7 +27,7 @@ function test_help_themes()
     plain = make_gesture_map_syntax_projection()
     @test !hasfield(typeof(plain), :theme)
     scaled = make_gesture_map_syntax_projection(
-        theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
+        theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), GestureHelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:header, :map_header_text), (:gesture, :map_gesture_text),
                         (:description, :map_description_text), (:muted, :map_muted_text)])
@@ -35,7 +35,7 @@ end
 
 @testset "HelpGroupToWidget and HelpEntryToWidget read HelpTheme" begin
     defaults = make_scaled_theme(HelpTheme())
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), HelpTheme)
     plain = make_help_group_projection()
     @test !hasfield(typeof(plain), :theme)
     _check_theme_roles(plain, make_help_group_projection(; theme), defaults, [(:line, :heading_text)])
@@ -50,7 +50,7 @@ end
     defaults = make_scaled_theme(HelpTheme())
     plain = make_about_page_projection()
     @test !hasfield(typeof(plain), :theme)
-    scaled = make_about_page_projection(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
+    scaled = make_about_page_projection(theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), HelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:name, :title_text), (:summary, :description_text), (:detail, :detail_text)])
 end
@@ -59,7 +59,7 @@ end
     defaults = make_scaled_theme(ReferenceTheme())
     plain = ReferenceToText()
     @test !hasfield(typeof(plain), :font)
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), ReferenceTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), ReferenceTheme)
     scaled = ReferenceToText(style = make_theme_values_field(ReferenceTheme, theme))
     @test plain.style.font.size == defaults.font.size
     @test scaled.style.font.size == round(Int, plain.style.font.size * 1.5)
@@ -76,7 +76,7 @@ end
     plain = ReferenceInspectorToText()
     @test !hasfield(typeof(plain), :font)
     scaled = make_reference_inspector_projection(
-        theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme))
+        theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), InspectorTheme))
     @test plain.header_font.size == defaults.header_font.size
     @test scaled.header_font.size == round(Int, plain.header_font.size * 1.5)
     @test is_color_equal(plain.header_color, defaults.header_color)
@@ -99,7 +99,7 @@ end
     for document in (AboutPage(), update_help_groups!(DocumentTypeList()), ReferenceInspector())
         plain = draw_font_sizes(document, Appearance())
         @test !isempty(plain)
-        @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+        @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     end
 end
 

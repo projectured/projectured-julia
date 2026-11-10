@@ -225,7 +225,7 @@ end
         record_application_video(String[], timeline, filename; width, height, fps = 10, assistant = :none,
                                  root = mktempdir(), initial_hold = 0.5, final_hold = 0.3, supersample = 1,
                                  video_time = true, pointer = false,
-                                 appearance = ProjecturedPlatform.Appearance(zoom = zoom))
+                                 appearance = ProjecturedPlatform.Appearance(scale = AppearanceScale(zoom = zoom)))
         frame = _read_last_frame(filename, width, height)
         rm(filename; force = true)
         (opened = opened[], frame)

@@ -24,7 +24,7 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   `ProjecturedPlatform`; and "Documents", the themes of the other packages, in
   the order of their names. Every card is as wide as the pane;
 - a card for each theme, which folds to its title, and which the tab shows open
-  when the `open_sections` of the appearance name it. The card starts with the
+  when the `open_names` of its heading ([`ThemeGroup`](@ref)) name it. The card starts with the
   summary of its theme type, the first paragraph of its docstring. It holds the
   presets of the theme, as a choice that writes every field of the preset into
   the theme, and a row for each field, its name and its control; under that row,
@@ -54,7 +54,7 @@ a choice of a preset or an edit of a colour answers a write of the theme, so the
   `ReplaceThemeValueOperation`, so a history around the tab, such as the history
   of a window, records it, and Ctrl+Z takes it back and prints the view again.
 - A step of the zoom or of a scale takes nothing back, as from its keys.
-- A press on the chevron of a card answers a write of `open_sections`, and a
+- A press on the chevron of a card answers a write of `open_names`, and a
   scroll of the tab a write of `scroll_position`. Both are view state: the
   history does not record them, and no view prints again; the card and the pane
   follow their cells.
@@ -218,11 +218,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                                   gap = theme.button_gap),
                  _make_scale_card(controls), _make_color_settings_card(controls)]
     heading = StyleText(theme.section_font, theme.muted_foreground)
-    for (title, themes) in _get_theme_groups(appearance)
+    for group in _get_theme_groups(appearance)
+        themes = _collect_group_themes(group)
         isempty(themes) && continue
-        cards = VerticalLayout(Any[_make_theme_section(controls, section_theme) for section_theme in themes];
+        cards = VerticalLayout(Any[_make_theme_section(controls, group, section_theme) for section_theme in themes];
                                gap = theme.section_gap, child_width = Fill)
-        push!(groups, VerticalLayout(Any[WidgetLabel(title; text_style = heading), cards];
+        push!(groups, VerticalLayout(Any[WidgetLabel(group.title; text_style = heading), cards];
                                      gap = theme.title_gap, child_width = Fill))
     end
     # Two groups are further apart than two cards of one group, so a heading
@@ -265,12 +266,12 @@ function _make_scale_card(controls)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         word = lowercase(name)
-        current = () -> "Now" => _get_percent_text(getproperty(appearance, field))
+        current = () -> "Now" => _get_percent_text(getproperty(appearance.scale, field))
         push!(cells, _make_name_label(controls, name),
               controls.button("−", _make_step_operation(appearance, field, -1);
                               tooltip = _make_setting_note("Smaller", "Make the $word smaller by one step.",
                                                            () -> [current()])),
-              WidgetLabel(_get_percent_text(getproperty(appearance, field))),
+              WidgetLabel(_get_percent_text(getproperty(appearance.scale, field))),
               controls.button("+", _make_step_operation(appearance, field, 1);
                               tooltip = _make_setting_note("Larger", "Make the $word larger by one step.",
                                                            () -> [current()])),
@@ -292,54 +293,32 @@ function _make_color_settings_card(controls)
     _make_settings_card(controls, "Colors", _COLOR_SETTINGS_SUMMARY, _make_color_settings(controls), reset)
 end
 
-# The themes that every view of the editor draws with, in the order of the group
-# "Editor" of the tab, after the colour theme and the font theme.
-const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
+# The themes of the heading `group`, in order: the colour theme of the present mode
+# and contrast first in "Editor", then the themes that the heading holds.
+_collect_group_themes(group::ThemeGroup) =
+    Any[(group.color_theme === nothing ? () : (group.color_theme,))..., group.themes...]
 
-# The groups of the tab: each a title and the themes of `appearance` that it shows.
-# The colour theme of the present mode and contrast stands first in "Editor", and
-# the font theme second. A
-# theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
-# and a theme of another package is the theme of a document.
-function _get_theme_groups(appearance::Appearance)
-    themes = sort!([entry.theme for entry in values(appearance.themes)];
-                   by = theme -> string(nameof(get_theme_type(theme))))
-    editor = Any[get_color_theme(appearance); get_font_theme(appearance);
-                 Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]]
-    others = filter(theme -> !(get_theme_type(theme) in _EDITOR_THEME_TYPES), themes)
-    is_tool = theme -> Base.moduleroot(parentmodule(get_theme_type(theme))) ===
-                       Base.moduleroot(@__MODULE__)
-    (("Editor", editor), ("Tools", filter(is_tool, others)), ("Documents", filter(!is_tool, others)))
-end
-
-# The title of the card of the theme type `T`: the words of its name without
-# `Theme`, so `GestureHelpTheme` is "Gesture help".
-function _get_section_title(T::Type)
-    words = [m.match for m in eachmatch(r"[A-Z][a-z0-9]*|[a-z0-9]+", replace(string(nameof(T)), r"Theme$" => ""))]
-    uppercasefirst(lowercase(join(words, " ")))
-end
-
-# The card of `theme`: its title and the summary of its type, and under them the
-# controls of the theme, which show while the `open_sections` of the appearance
-# name the type of the theme. A closed card has no controls: the card makes them
-# when it first opens, and keeps them while it closes and opens again in this
-# print. `controls` makes the controls of the tab and holds its widget theme.
-function _make_theme_section(controls, theme)
+# The card of `theme` under the heading `group`: its title and the summary of its
+# type, and under them the controls of the theme, which show while the
+# `open_names` of the heading name the type of the theme. A closed card has no
+# controls: the card makes them when it first opens, and keeps them while it closes
+# and opens again in this print. `controls` makes the controls of the tab and holds
+# its widget theme.
+function _make_theme_section(controls, group::ThemeGroup, theme)
     T = get_theme_type(theme)
     name = string(nameof(T))
-    appearance = controls.appearance
     body = Cell(nothing)
-    children = CellVector(@computation(name in appearance.open_sections ? Any[body[]] : Any[]))
+    children = CellVector(@computation(name in group.open_names ? Any[body[]] : Any[]))
     set_cell_computation!(body, () -> _follow_section_body_paths!(children,
                                           _make_theme_section_content(controls, theme)))
     summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = _get_section_title(T),
+    card = WidgetCard(; title = get_document_title(theme),
                       description = isempty(summary) ? nothing : summary,
                       content = VerticalLayout(children, Cell(:left), Cell(controls.theme.form_row_gap),
                                                Cell(nothing), Cell(nothing), Cell(nothing)),
-                      collapsible = true, collapsed = !(name in appearance.open_sections))
-    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
-    controls.folds[card] = name
+                      collapsible = true, collapsed = !(name in group.open_names))
+    set_cell_computation!(getfield(card, :collapsed), () -> !(name in group.open_names))
+    controls.folds[card] = (group, name)
     card
 end
 
@@ -394,12 +373,13 @@ function _make_theme_section_content(controls, theme)
     VerticalLayout(parts; gap = controls.theme.form_row_gap)
 end
 
-# The write that opens the section of the theme type named `name` in the tab, or
-# closes it when it is open. It is view state, so the history does not record it.
-function _make_fold_operation(appearance::Appearance, name::String)
-    open = appearance.open_sections
+# The write that opens the card of the theme type named `name` under the heading
+# `group`, or closes it when it is open. It is view state, so the history does not
+# record it.
+function _make_fold_operation(group::ThemeGroup, name::String)
+    open = group.open_names
     toggled = name in open ? filter(!=(name), open) : vcat(open, name)
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(appearance, "open_sections", toggled))
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(group, "open_names", toggled))
 end
 
 # The control of the field `field` of `theme`, which holds `value`.
@@ -725,7 +705,7 @@ const _COLOR_SETTING_DEFAULTS = (color_mode = :system, color_contrast = :system,
 # A write of the colour setting `field` of `appearance`. It changes the look, so
 # the `appearance` wrapper prints the view again, and a history records it.
 _write_color_setting(appearance::Appearance, field::Symbol, value) =
-    ReplaceReferencedValueOperation(appearance, String(field), value)
+    ReplaceReferencedValueOperation(appearance.colors, String(field), value)
 
 # The values that the colour setting `field` of `appearance` steps through.
 function _get_color_setting_values(appearance::Appearance, field::Symbol)
@@ -733,21 +713,21 @@ function _get_color_setting_values(appearance::Appearance, field::Symbol)
     field === :color_contrast && return collect(COLOR_CONTRASTS)
     field === :color_palette && return get_palette_names()
     field === :color_accent && return [:system; [hue for hue in PALETTE_HUES if hue !== :neutral]]
-    palette = something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
+    palette = something(find_palette(appearance.colors.color_palette), find_palette(DEFAULT_PALETTE_NAME))
     copy(get_palette_neutrals(palette))
 end
 
 # The value `delta` values away from the colour setting `field` of `appearance`.
 function _step_color_setting(appearance::Appearance, field::Symbol, delta::Integer)
     values = _get_color_setting_values(appearance, field)
-    i = something(findfirst(==(getproperty(appearance, field)), values), 1)
+    i = something(findfirst(==(getproperty(appearance.colors, field)), values), 1)
     values[mod1(i + delta, length(values))]
 end
 
 # The text of the colour setting `field` of `appearance`: its value, and for
 # `:system` the value of the system in use after it, as "system (dark)".
 function _format_color_setting(appearance::Appearance, field::Symbol)
-    value = getproperty(appearance, field)
+    value = getproperty(appearance.colors, field)
     value === :system || return string(value)
     used = field === :color_mode ? get_color_mode(appearance) :
            field === :color_contrast ? get_color_contrast(appearance) : get_color_accent(appearance)
@@ -872,8 +852,8 @@ function _translate_tab_operation(iomap, operation::ReplaceStringRangeOperation)
     CompoundOperation(Any[write, ReplaceSelectionOperation(_introduce_tab_path(iomap, path))])
 end
 function _translate_tab_operation(iomap, operation::ToggleCollapseOperation)
-    name = get(iomap.folds, operation.target, nothing)
-    name === nothing ? operation : _make_fold_operation(iomap.input, name)
+    fold = get(iomap.folds, operation.target, nothing)
+    fold === nothing ? operation : _make_fold_operation(fold...)
 end
 _translate_tab_operation(iomap, operation::ReplacePathOperation) =
     make_path_operation(operation, _introduce_tab_path(iomap, get_operation_path(operation)))

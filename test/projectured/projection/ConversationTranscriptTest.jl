@@ -431,7 +431,7 @@ function test_conversation_transcript()
     @testset "a plain text part draws in the message style of its theme" begin
         conversation = _plain_text_conversation()
         for scale in (1.0, 2.0)
-            theme = get_scaled_theme!(Appearance(; font_scale = scale), ConversationTheme)
+            theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = scale)), ConversationTheme)
             proj = RecursiveProjection(ConversationToWidget(; theme))
             io = print_document(proj, proj, conversation, PrinterContext())
             # The card of the turn, the layout of its parts, and the first part.

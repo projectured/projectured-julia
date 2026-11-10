@@ -64,6 +64,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
 
 import ..DomainModule: get_document_decoration
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..StyleModule: get_theme_place
+import ..TreeModule: get_tree_children_steps
 export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
        ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation

@@ -71,14 +71,14 @@ end
 end
 
 @testset "the font scale rounds the size once" begin
-    appearance = Appearance(font_scale = 1.1)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.1))
     # 12 × 1.1 = 13.2 → 13.
     @test scale_theme_value(FontRole(:quiet), nothing, appearance).size == 13
     @test scale_theme_value(FontRole(:document_code), nothing, appearance).size == 15
-    appearance.font_scale = 1.0
+    appearance.scale.font_scale = 1.0
     @test scale_theme_value(FontRole(:quiet), nothing, appearance).size == 12
     get_font_theme(appearance).quiet = FontStep(:sans, 15)
-    appearance.font_scale = 0.5
+    appearance.scale.font_scale = 0.5
     @test scale_theme_value(FontRole(:quiet), nothing, appearance).size == 8
 end
 
@@ -100,7 +100,7 @@ end
     for keywords in ((font_role = :quiet,), (weight = 700,), (italic = true,))
         @test_throws ArgumentError TextRole(:warning_text; font = StyleFont("Lucide", 13), keywords...)
     end
-    appearance = Appearance(font_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.5))
     scaled = scale_theme_value(mark, nothing, appearance)
     @test scaled.font == StyleFont("Lucide", 20)
     @test scaled.color == resolve_theme_color(ColorRole(:warning_text), appearance)
@@ -121,7 +121,7 @@ end
     @test scaled.note.font.size == 20
     get_font_theme(appearance).sans_family = "DejaVu Sans"
     @test scaled.quiet.family == "DejaVu Sans"
-    appearance.font_scale = 2.0
+    appearance.scale.font_scale = 2.0
     @test scaled.quiet.size == 40
     # A theme read at no scale takes the default font theme.
     @test get_theme_value(ThFonted(), :quiet) == StyleFont("Ubuntu", 12)

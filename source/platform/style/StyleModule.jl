@@ -9,6 +9,7 @@ module StyleModule
 using ..BackendModule
 using ..CellModule
 using ..CellStructModule
+using ..CollectionModule: CellVector
 using ..DocumentModule
 using ..EditorModule
 using ..OperationModule
@@ -21,7 +22,8 @@ import TOML
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: copy_document, get_view_state_fields, replace_wrapped_document!
+import ..DocumentModule: copy_document, get_document_title, get_view_state_fields,
+                          replace_wrapped_document!
 import ..OperationModule: evaluate_operation
 import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document,
                               get_file_domain,
@@ -91,7 +93,8 @@ export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize,
        get_base_theme, get_theme_appearance, make_theme_cell, get_theme_defaults,
        make_style_field, make_theme_values_field,
        get_appearance_file, save_appearance!, load_appearance!
-export COLOR_MODES, COLOR_CONTRASTS, Appearance, scale_theme_value, get_scaled_theme!,
+export COLOR_MODES, COLOR_CONTRASTS, Appearance, AppearanceScale, AppearanceColors, ThemeGroup,
+       get_theme_place, scale_theme_value, get_scaled_theme!,
        set_theme!, get_theme, get_theme_value, get_theme_values
 export ColorTheme, COLOR_VARIANTS, get_color_variant, make_color_theme, make_color_themes,
        get_color_theme, resolve_theme_color, get_color_mode, get_color_contrast,

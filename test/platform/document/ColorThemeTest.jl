@@ -81,7 +81,7 @@ end
 
 @testset "each palette meets the contrast rules in each mode and contrast" begin
     for name in get_palette_names(), mode in (:light, :dark), contrast in (:normal, :high)
-        appearance = Appearance(color_palette = name, color_mode = mode, color_contrast = contrast)
+        appearance = Appearance(colors = AppearanceColors(color_palette = name, color_mode = mode, color_contrast = contrast))
         color(role) = resolve_theme_color(ColorRole(role), appearance)
         for (roles, surfaces, normal, high) in _CONTRAST_RULES, role in roles, surface in surfaces
             # A translucent surface sits over the background.
@@ -98,7 +98,7 @@ end
 
 @testset "the selection ring and the focus ring differ in each variant" begin
     for mode in (:light, :dark), contrast in (:normal, :high)
-        appearance = Appearance(color_mode = mode, color_contrast = contrast)
+        appearance = Appearance(colors = AppearanceColors(color_mode = mode, color_contrast = contrast))
         @test resolve_theme_color(ColorRole(:selection_ring), appearance) !=
               resolve_theme_color(ColorRole(:focus_ring), appearance)
     end
@@ -111,7 +111,7 @@ end
     least = 0.025
     kinds = (:string_literal, :number_literal, :boolean_literal, :symbol_literal)
     for name in get_palette_names(), mode in (:light, :dark), contrast in (:normal, :high)
-        appearance = Appearance(color_palette = name, color_mode = mode, color_contrast = contrast)
+        appearance = Appearance(colors = AppearanceColors(color_palette = name, color_mode = mode, color_contrast = contrast))
         function oklab(role)
             lightness, chroma, hue = convert_color_to_oklch(resolve_theme_color(ColorRole(role), appearance))
             (lightness, chroma * cosd(hue), chroma * sind(hue))
@@ -168,26 +168,26 @@ end
     @test scaled.word.font.weight == 700
     @test scaled.word.color == resolve_theme_color(ColorRole(:keyword), appearance)
     @test scaled.fixed === color_white
-    appearance.color_mode = :dark
+    appearance.colors.color_mode = :dark
     @test scaled.key != light_key
     @test format_style_color(scaled.step) == format_style_color(find_palette_ramp(RADIX_PALETTE, :green, :dark)[9])
-    appearance.color_neutral = :sand
+    appearance.colors.color_neutral = :sand
     @test format_style_color(resolve_theme_color(ColorRole(:background), appearance)) == "#111110ff"
-    appearance.color_accent = :pink
+    appearance.colors.color_accent = :pink
     @test resolve_theme_color(ColorRole(:accent_tint), appearance) ==
           find_palette_ramp(RADIX_PALETTE, :pink, :dark)[3]
     # A fine-tune of a role in the dark theme stays in the dark theme.
     appearance.color_themes[:dark].field = color_red
     @test scaled.key === color_red
-    appearance.color_mode = :light
+    appearance.colors.color_mode = :light
     @test scaled.key == light_key
     # The high contrast theme of the light mode has a darker muted text.
     muted = resolve_theme_color(ColorRole(:text_muted), appearance)
-    appearance.color_contrast = :high
+    appearance.colors.color_contrast = :high
     @test compute_relative_luminance(resolve_theme_color(ColorRole(:text_muted), appearance)) <
           compute_relative_luminance(muted)
     # An unknown palette falls back to the default.
-    appearance.color_palette = "no-such-palette"
+    appearance.colors.color_palette = "no-such-palette"
     @test resolve_theme_color(ColorRole(:background), appearance) isa StyleColor
     # A theme read at no scale resolves in the default appearance.
     @test get_theme_value(ThColored(), :key) == resolve_theme_color(ColorRole(:field), Appearance())
@@ -195,33 +195,33 @@ end
 
 @testset "a :system setting follows the colour settings of the system" begin
     appearance = Appearance()
-    @test (appearance.color_mode, appearance.color_contrast) === (:system, :system)
+    @test (appearance.colors.color_mode, appearance.colors.color_contrast) === (:system, :system)
     # With no answer of a backend, the system is light and normal.
     @test get_color_variant(appearance) === :light
     scaled = make_scaled_theme(ThColored(), appearance)
     light_key = scaled.key
-    appearance.system_colors = SystemColors(; mode = :dark, contrast = :high)
+    appearance.colors.system_colors = SystemColors(; mode = :dark, contrast = :high)
     @test (get_color_mode(appearance), get_color_contrast(appearance)) === (:dark, :high)
     @test get_color_variant(appearance) === :dark_high_contrast
     @test resolve_theme_color(ColorRole(:background), appearance) ==
-          resolve_theme_color(ColorRole(:background), Appearance(color_mode = :dark, color_contrast = :high))
+          resolve_theme_color(ColorRole(:background), Appearance(colors = AppearanceColors(color_mode = :dark, color_contrast = :high)))
     @test scaled.key != light_key
     # A setting that names a mode or a contrast does not follow the system.
-    appearance.color_mode = :light
-    appearance.color_contrast = :normal
+    appearance.colors.color_mode = :light
+    appearance.colors.color_contrast = :normal
     @test get_color_variant(appearance) === :light
     @test scaled.key == light_key
     # The accent of the system takes the hue whose step 9 is nearest.
-    appearance.color_accent = :system
+    appearance.colors.color_accent = :system
     @test get_color_accent(appearance) === :blue              # the system names no accent
     for (bytes, hue) in (((0xe5, 0x48, 0x4d), :red),         # step 9 of the Radix red
                          ((0xaf, 0x52, 0xde), :violet),      # the purple of macOS
                          ((0x21, 0x90, 0xa4), :teal),        # the teal of GNOME
                          ((0x8e, 0x8e, 0x93), :blue))        # graphite, a grey
-        appearance.system_colors = SystemColors(; accent = bytes)
+        appearance.colors.system_colors = SystemColors(; accent = bytes)
         @test get_color_accent(appearance) === hue
     end
-    appearance.system_colors = SystemColors(; accent = (0xaf, 0x52, 0xde))
+    appearance.colors.system_colors = SystemColors(; accent = (0xaf, 0x52, 0xde))
     @test resolve_theme_color(PaletteColor(:accent, 9), appearance) ==
           find_palette_ramp(RADIX_PALETTE, :violet, :light)[9]
     @test find_nearest_accent_hue(color_gray127, RADIX_PALETTE, :light) === nothing
@@ -230,8 +230,7 @@ end
 @testset "save and load keep the colour settings, the fine-tunes and a role of a field" begin
     mktempdir(; prefix = "color-theme-") do directory
         path = joinpath(directory, "appearance.toml")
-        appearance = Appearance(color_mode = :dark, color_contrast = :high, color_accent = :violet,
-                                color_neutral = :mauve)
+        appearance = Appearance(colors = AppearanceColors(color_mode = :dark, color_contrast = :high, color_accent = :violet, color_neutral = :mauve))
         theme = get_color_theme(appearance)
         theme.keyword = PaletteColor(:pink, 11; minimum_contrast = 7.0)
         appearance.color_themes[:light].heading = color_red
@@ -246,11 +245,11 @@ end
         loaded = Appearance()
         set_theme!(loaded, ThColored())
         load_appearance!(loaded, path)
-        @test loaded.color_mode === :dark
-        @test loaded.color_contrast === :high
-        @test loaded.color_accent === :violet
-        @test loaded.color_neutral === :mauve
-        @test loaded.color_palette == "radix"
+        @test loaded.colors.color_mode === :dark
+        @test loaded.colors.color_contrast === :high
+        @test loaded.colors.color_accent === :violet
+        @test loaded.colors.color_neutral === :mauve
+        @test loaded.colors.color_palette == "radix"
         @test get_color_theme(loaded).keyword == PaletteColor(:pink, 11; minimum_contrast = 7.0)
         @test loaded.color_themes[:light].heading == color_red
         @test loaded.color_themes[:dark].keyword == make_color_theme(:dark).keyword
@@ -261,8 +260,8 @@ end
         # A mode that is not known takes the default, which follows the system.
         write(path, "color_mode = \"sepia\"\ncolor_contrast = \"high\"\n")
         load_appearance!(loaded, path)
-        @test loaded.color_mode === :system
-        @test loaded.color_contrast === :high
+        @test loaded.colors.color_mode === :system
+        @test loaded.colors.color_contrast === :high
         @test get_color_theme(loaded).keyword == make_color_theme(:light_high_contrast).keyword
     end
 end

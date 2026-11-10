@@ -35,7 +35,7 @@ end
     copy_system_colors!(backend, appearance) -> nothing
 
 Copy the colour settings of the operating system, as `backend` finds them, into
-the `system_colors` of `appearance`. A missing backend, or a backend that finds
+the `system_colors` of the colour settings of `appearance`. A missing backend, or a backend that finds
 nothing, changes nothing. Call it before the first print: a style field of a
 projection reads the colours with no edge, so a part that the first print drew
 keeps the colours of that print until the view prints again. A later change
@@ -47,7 +47,7 @@ function copy_system_colors!(backend, appearance::Appearance)
     # Through `invokelatest`: each backend package adds a method, and a call that
     # inference resolves would be invalidated when such a package loads.
     colors = Base.invokelatest(find_system_colors, backend)
-    colors === nothing || (appearance.system_colors = colors)
+    colors === nothing || (appearance.colors.system_colors = colors)
     nothing
 end
 

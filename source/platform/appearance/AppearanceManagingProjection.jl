@@ -95,7 +95,7 @@ _get_collected_intents(_) = nothing
 # `document`. It is view state, which a history does not record: no person made
 # the change, so no undo takes it back.
 _write_system_colors(document::AppearanceDocument, colors::SystemColors) =
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(document.appearance, "system_colors", colors))
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(document.appearance.colors, "system_colors", colors))
 
 # `operation` with each write of a theme made a `ReplaceThemeValueOperation`, and
 # with `InvalidateProjectionOperation` after it when it changes the appearance of
@@ -122,10 +122,10 @@ _wrap_theme_writes(appearance::Appearance, operation::WrappingOperation) =
     is_appearance_change(appearance, operation) -> Bool
 
 Whether `operation` changes `appearance`: a step of its zoom or of one of its
-scales, a load of a saved appearance, or a write into the appearance or into one
-of its themes, alone or inside a compound or a wrapping operation. A write of the
-place of the appearance tab or of its open sections changes no look: the tab
-follows it, and no view prints again.
+scales, a load of a saved appearance, or a write into the appearance, into one of
+its parts or into one of its themes, alone or inside a compound or a wrapping
+operation. A write of the place of the appearance tab or of the open cards of a
+heading changes no look: the tab follows it, and no view prints again.
 """
 is_appearance_change(appearance::Appearance, operation) = false
 is_appearance_change(appearance::Appearance,
@@ -138,23 +138,27 @@ is_appearance_change(appearance::Appearance, operation::WrappingOperation) =
 is_appearance_change(appearance::Appearance, operation::ReplaceReferencedValueOperation) =
     _is_appearance_part(appearance, operation.document) && !_is_tab_state_write(appearance, operation)
 
-# The fields of an `Appearance` that hold the state of the appearance tab.
-const _TAB_STATE_FIELDS = ("scroll_position", "open_sections")
+# The headings of the themes of `appearance`.
+_get_theme_groups(appearance::Appearance) =
+    (appearance.editor_themes, appearance.tool_themes, appearance.document_themes)
 
-# Whether `write` writes one field of `appearance` that holds the state of the tab.
+# Whether `write` writes one field that holds the state of the tab: the place of
+# the tab in `appearance`, or the open cards of one of its headings.
 function _is_tab_state_write(appearance::Appearance, write::ReplaceReferencedValueOperation)
-    write.document === appearance || return false
     reference = strip_reference_types(write.reference)
     reference isa ConcreteReference && get_reference_tail(reference) isa EmptyReference ||
         return false
     head = get_reference_head(reference)
-    head isa AFieldReferenceStep && head.name in _TAB_STATE_FIELDS
+    head isa AFieldReferenceStep || return false
+    write.document === appearance && return head.name == "scroll_position"
+    any(group -> group === write.document, _get_theme_groups(appearance)) && head.name == "open_names"
 end
 
-# Whether `object` is `appearance`, or the theme or the scaled theme of one of
-# its domains, or one of its colour themes.
+# Whether `object` is `appearance`, one of its parts or headings, or the theme or
+# the scaled theme of one of its domains, or one of its colour themes.
 function _is_appearance_part(appearance::Appearance, object)
-    object === appearance && return true
+    (object === appearance || object === appearance.scale || object === appearance.colors) && return true
+    any(group -> group === object, _get_theme_groups(appearance)) && return true
     _is_appearance_theme(appearance, object) ||
         any(entry -> object === entry.scaled, values(appearance.themes))
 end

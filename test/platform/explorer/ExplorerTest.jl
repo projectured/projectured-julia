@@ -725,6 +725,45 @@ function test_explorer()
         @test !fault.is_console_enabled && !editor.fault_policy.is_console_enabled
     end
 
+    @testset "the appearance has a node for each part and each heading, and a heading one for each theme" begin
+        appearance = Appearance()
+        get_scaled_theme!(appearance, WidgetTheme)
+        get_scaled_theme!(appearance, TextTheme)
+        get_scaled_theme!(appearance, UndoTheme)
+        children = collect_tree_children(appearance; limit = 10)
+        @test [format_tree_node_label(last(child)) for child in children] ==
+              ["Scale", "Colors", "Editor", "Tools", "Documents"]
+        @test last(children[1]) === appearance.scale && last(children[3]) === appearance.editor_themes
+        @test _nav_is(first(children[1]), _explorer_path(FieldReferenceStep("scale")))
+        # "Editor" holds the colour theme of the present mode, the font theme, and the
+        # themes that every view draws with, in the order of the tab.
+        editor_themes = collect_tree_children(appearance.editor_themes; limit = 10)
+        @test [format_tree_node_label(last(child)) for child in editor_themes] == ["Color", "Font", "Widget", "Text"]
+        @test last(editor_themes[1]) === get_color_theme(appearance)
+        @test _nav_is(first(editor_themes[1]), _explorer_path(FieldReferenceStep("color_theme")))
+        @test _nav_is(first(editor_themes[3]), _explorer_path(FieldReferenceStep("themes"), ElementReferenceStep(2)))
+        @test last(editor_themes[3]) === get_theme(appearance, WidgetTheme)
+        # The colour node follows the mode.
+        appearance.colors.color_mode = :dark
+        @test last(first(collect_tree_children(appearance.editor_themes; limit = 1))) ===
+              appearance.color_themes[:dark]
+        tools = collect_tree_children(appearance.tool_themes; limit = 50)
+        @test [last(child) for child in tools] == [get_theme(appearance, UndoTheme)]
+        @test isempty(collect_tree_children(appearance.document_themes; limit = 5))
+        # The tree draws the nodes, and a press on a node of a theme shows the theme as
+        # the page.
+        explorer = Explorer(ExplorerSection("Explorer", Any[appearance]))
+        editor, backend = _nav_editor(explorer)
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Appearance"))
+        @test _explorer_has_tree_text(backend, "Scale") && _explorer_has_tree_text(backend, "Documents")
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Editor"))
+        @test _explorer_has_tree_text(backend, "Widget") && _explorer_has_tree_text(backend, "Font")
+        _nav_press!(editor, backend, _explorer_click(backend, "Widget"))
+        @test get_navigator_page(explorer.navigator) === get_theme(appearance, WidgetTheme)
+        _nav_press!(editor, backend, _explorer_click(backend, "Scale"))
+        @test get_navigator_page(explorer.navigator) === appearance.scale
+    end
+
     @testset "the first content holds the session document of each kind that a loaded package marks" begin
         @test !is_session_explorer_entry_type(Int)
         editor, _ = _nav_editor(PrimitiveString("start"))

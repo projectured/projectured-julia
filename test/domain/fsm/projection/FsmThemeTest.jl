@@ -20,10 +20,10 @@ function test_fsm_theme()
 
     plain = draw(Appearance())
     @test !isempty(plain)
-    @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw(Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test FsmStateToSyntaxNode().keyword.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), FsmTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), FsmTheme)
     node = FsmStateToSyntaxNode(; keyword = get_fsm_style(theme, :keyword_text))
     @test node.keyword.font.size == 21
     @test is_color_equal(node.keyword.color, get_theme_value(FsmTheme(), :keyword_text).color)
@@ -46,7 +46,7 @@ function test_fsm_theme()
     @test !hasfield(FsmStateToSyntaxLabel, :theme)
     built = FsmToSyntax(; theme = FsmTheme())
     @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === FsmState)[2].keyword).font.size == 14
-    label = FsmToSyntaxLabel(; theme = get_scaled_theme!(Appearance(font_scale = 1.5), FsmTheme))
+    label = FsmToSyntaxLabel(; theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), FsmTheme))
     @test unwrap_cell(only(rule for rule in label.dispatch if first(rule) === FsmState)[2].name).font.size == 21
 end
 end

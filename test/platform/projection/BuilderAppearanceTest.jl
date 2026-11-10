@@ -33,7 +33,7 @@ _is_icon_text(text) = !isempty(text) && all(c -> '\ue000' <= c <= '\uf8ff', text
 # fixed measure gives a line the same height at each size of the font.
 function _find_texts_that_keep_their_size(draw)
     plain = _collect_text_styles(draw(Appearance()))
-    large = _collect_text_styles(draw(Appearance(font_scale = 2.0)))
+    large = _collect_text_styles(draw(Appearance(scale = AppearanceScale(font_scale = 2.0))))
     String[text for (text, (size, _)) in plain
            if !_is_icon_text(text) &&
               (!haskey(large, text) || first(large[text]) != scale_length(size, 2.0))]
@@ -49,7 +49,7 @@ widgets() = VerticalLayout(Any[WidgetLabel("Name"), WidgetButton("Save"), Widget
 natural(appearance) = NaturalToGraphics(; measure, appearance)
 
 @testset "two renderers with two appearances draw with their own widget themes" begin
-    light, dark = Appearance(), Appearance(color_mode = :dark)
+    light, dark = Appearance(), Appearance(colors = AppearanceColors(color_mode = :dark))
     color(appearance) = last(_collect_text_styles(print_output(natural(appearance), WidgetLabel("Name")))["Name"])
     @test is_color_equal(color(light), resolve_theme_color(ColorRole(:text), light))
     @test is_color_equal(color(dark), resolve_theme_color(ColorRole(:text), dark))

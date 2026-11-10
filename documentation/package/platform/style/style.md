@@ -148,10 +148,23 @@ appearance whose scales it follows (`get_theme_appearance`). A projection never
 reads it: every length that a projection draws is a value of its theme, of a kind
 that a scale scales.
 
-An **`Appearance`** holds what a person sets about the look of one editor: the
-`zoom`, the six scales (`font_scale`, `icon_scale`, `spacing_scale`, `control_scale`,
-`radius_scale`, `line_scale`), and for each domain its theme and its scaled theme,
-found by the type that the declaration names (`get_theme_type`).
+An **`Appearance`** holds what a person sets about the look of one editor: its
+`scale`, an `AppearanceScale` with the `zoom` and the six scales (`font_scale`,
+`icon_scale`, `spacing_scale`, `control_scale`, `radius_scale`, `line_scale`), its
+`colors`, an `AppearanceColors` with the five colour settings and the colours of the
+system, and for each domain its theme and its scaled theme, found by the type that
+the declaration names (`get_theme_type`). Three `ThemeGroup` documents,
+`editor_themes`, `tool_themes` and `document_themes`, hold the themes under the
+headings of the appearance tab, "Editor", "Tools" and "Documents"; `set_theme!`
+puts each theme into its heading at the place that `get_theme_place(T)` gives, a
+heading and a rank. The default places a theme of `ProjecturedPlatform` under
+"Tools" and any other under "Documents"; the appearance slice places the six themes
+that every view draws with under "Editor". The heading "Editor" holds the font
+theme first, and its `color_theme` is a computed cell: the colour theme of the
+present mode and contrast. The keyword default of `editor_themes` makes it from the
+fields before it, `colors` and `color_themes`, so it follows the colour settings
+and the colours of the system. Each part and each heading is a document, so a tree
+shows them as nodes and a reference names them.
 `get_scaled_theme!(appearance, JsonTheme)` answers the scaled theme, and makes and
 stores the default theme at the first request; a projection calls it while it is
 built, never while it prints. `set_theme!(appearance, theme)` puts another theme in
@@ -376,14 +389,14 @@ A script with no editor reads the pixels with `wait_for_cell!(getfield(picture, 
 
 ### The zoom and the scales
 
-The size of things on the screen comes from the `Appearance` of an editor: its
-`zoom` and its six scales (`font_scale`, `icon_scale`, `spacing_scale`,
-`control_scale`, `radius_scale`, `line_scale`). `AdjustZoomOperation` and
+The size of things on the screen comes from the `Appearance` of an editor: the
+`zoom` and the six scales of its `scale` (`font_scale`, `icon_scale`,
+`spacing_scale`, `control_scale`, `radius_scale`, `line_scale`). `AdjustZoomOperation` and
 `AdjustScaleOperation`, and the keys that reach them, are bindings of the
 `appearance` wrapper of `build_editor`; an editor built with no `Appearance` has
 no zoom keys.
 
-- **The zoom.** `AdjustZoomOperation` steps `appearance.zoom` and copies it into
+- **The zoom.** `AdjustZoomOperation` steps `appearance.scale.zoom` and copies it into
   the `zoom` of the `Display` of the editor. The backend multiplies it with the
   `density` of the hardware into the device pixel ratio. Layout does not read
   it, so a change needs a repaint and no reactive update. Each editor has its

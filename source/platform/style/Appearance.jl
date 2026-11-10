@@ -19,32 +19,109 @@ contrast of the operating system, `:normal` and `:high`.
 const COLOR_CONTRASTS = (:system, :normal, :high)
 
 """
-    Appearance(; zoom = 1.0, font_scale = 1.0, icon_scale = 1.0, spacing_scale = 1.0,
-                 control_scale = 1.0, radius_scale = 1.0, line_scale = 1.0,
-                 color_mode = :system, color_contrast = :system, color_palette = "radix",
-                 color_accent = :blue, color_neutral = :slate)
+    AppearanceScale(; zoom = 1.0, font_scale = 1.0, icon_scale = 1.0, spacing_scale = 1.0,
+                      control_scale = 1.0, radius_scale = 1.0, line_scale = 1.0)
 
-What a person sets about the look of one editor: the zoom of the interface, the
-six scales, the five colour settings, and for each domain its theme and its scaled
-theme, found by the type of the theme.
+The zoom of the interface and the six scales of an [`Appearance`](@ref), its part
+`scale`: the size of the text, of the icons, of the gaps, of the controls, of the
+corners and of the lines, each a factor of the size that a theme gives. The fields
+are cells, so a scaled theme follows a change of each.
+"""
+@document struct AppearanceScale
+    zoom::Float64 = 1.0
+    font_scale::Float64 = 1.0
+    icon_scale::Float64 = 1.0
+    spacing_scale::Float64 = 1.0
+    control_scale::Float64 = 1.0
+    radius_scale::Float64 = 1.0
+    line_scale::Float64 = 1.0
+end
 
-The colour settings say how a [`PaletteColor`](@ref) and a [`ColorRole`](@ref)
-become a colour: `color_mode` is one of [`COLOR_MODES`](@ref), `color_contrast`
-one of [`COLOR_CONTRASTS`](@ref), `color_palette` the name of a palette of the
-registry, `color_accent` the hue of the accent, or `:system` for the hue nearest
-to the accent of the operating system, and `color_neutral` the neutral ramp.
+"""
+    AppearanceColors(; color_mode = :system, color_contrast = :system, color_palette = "radix",
+                       color_accent = :blue, color_neutral = :slate,
+                       system_colors = SystemColors())
+
+The colour settings of an [`Appearance`](@ref), its part `colors`. They say how a
+[`PaletteColor`](@ref) and a [`ColorRole`](@ref) become a colour: `color_mode` is
+one of [`COLOR_MODES`](@ref), `color_contrast` one of [`COLOR_CONTRASTS`](@ref),
+`color_palette` the name of a palette of the registry, `color_accent` the hue of
+the accent, or `:system` for the hue nearest to the accent of the operating
+system, and `color_neutral` the neutral ramp.
+
 `system_colors` holds the colour settings of the operating system, a
 `SystemColors` that the `appearance` wrapper takes from the backend; a setting
 `:system` reads it (see [`get_color_mode`](@ref)). It is a fact of the system and
 not a setting, so a file does not keep it, and with no answer of a backend it is
-light, normal and with no accent. `color_themes` holds a [`ColorTheme`](@ref)
-for each pair of a mode and a contrast, by the name that
-[`get_color_variant`](@ref) gives the pair, so a fine-tune of a role stays with
-its mode and its contrast. `font_theme` holds the [`FontTheme`](@ref): the one table of font roles, the same in
-every mode, which a [`FontRole`](@ref) that names a role resolves in (see
-[`resolve_font_role`](@ref)). `saved_themes` holds the values of each theme that a loaded file
-names and that the appearance does not hold yet, by the name of its type; the
-theme takes them when it is made (see [`load_appearance!`](@ref)).
+light, normal and with no accent.
+"""
+@document struct AppearanceColors
+    color_mode::Symbol = :system
+    color_contrast::Symbol = :system
+    color_palette::String = DEFAULT_PALETTE_NAME
+    color_accent::Symbol = :blue
+    color_neutral::Symbol = :slate
+    system_colors::SystemColors = SystemColors()
+end
+
+"""
+    ThemeGroup(; title, color_theme = nothing, themes = CellVector(Any[]), open_names = String[])
+
+A heading of the themes of an [`Appearance`](@ref): its `title` and its themes, in
+the order that [`get_theme_place`](@ref) gives. The appearance tab shows each
+heading over the cards of its themes, and a tree has a node for each heading.
+
+`color_theme` is the colour theme of the present mode and contrast, which the
+heading "Editor" shows first: a computed cell that follows the colour settings.
+It is `nothing` for the other headings. `themes` holds the themes of the heading;
+the font theme stands first in "Editor". `open_names` holds the names of the theme
+types whose cards show open, in the appearance tab and on the page of the
+heading: view state, which a file does not keep.
+"""
+@document struct ThemeGroup
+    title::String
+    color_theme::Any = nothing
+    themes::CellVector = CellVector(Any[])
+    open_names::Vector{String} = String[]
+end
+
+"""
+    get_theme_place(T) -> (heading, rank)
+
+Where the themes of the theme type `T` stand: the `heading` of the appearance,
+`:editor`, `:tools` or `:documents`, and the `rank` of `T` in it. The themes of a
+heading stand in the order of their ranks, and of the names of their types for
+one rank. The default puts a theme type of `ProjecturedPlatform` under `:tools`
+and any other under `:documents`, at rank 0. A slice adds a method for a theme
+that every view draws with, under `:editor`.
+"""
+function get_theme_place end
+
+get_theme_place(T::Type) =
+    (Base.moduleroot(parentmodule(T)) === Base.moduleroot(@__MODULE__) ? :tools : :documents, 0)
+
+"""
+    Appearance(; scale = AppearanceScale(), colors = AppearanceColors())
+
+What a person sets about the look of one editor: its `scale`, the zoom of the
+interface and the six scales ([`AppearanceScale`](@ref)), its `colors`, the five
+colour settings ([`AppearanceColors`](@ref)), and for each domain its theme and its
+scaled theme, found by the type of the theme.
+
+`color_themes` holds a [`ColorTheme`](@ref) for each pair of a mode and a
+contrast, by the name that [`get_color_variant`](@ref) gives the pair, so a
+fine-tune of a role stays with its mode and its contrast. `font_theme` holds the
+[`FontTheme`](@ref): the one table of font roles, the same in every mode, which a
+[`FontRole`](@ref) that names a role resolves in (see [`resolve_font_role`](@ref)).
+`saved_themes` holds the values of each theme that a loaded file names and that
+the appearance does not hold yet, by the name of its type; the theme takes them
+when it is made (see [`load_appearance!`](@ref)).
+
+`editor_themes`, `tool_themes` and `document_themes` are the three headings of the
+themes ([`ThemeGroup`](@ref)): "Editor", with the colour theme of the present mode
+and contrast, the font theme and the themes that every view draws with; "Tools",
+the other themes of `ProjecturedPlatform`; and "Documents", the themes of the
+other packages. [`set_theme!`](@ref) puts each theme into its heading.
 
 `scroll_position` is the place of the appearance tab: view state, which a file
 does not keep. The tab keeps it here, and not in the pane that it prints, because
@@ -52,8 +129,6 @@ the tab is printed again at each change of the appearance: the `appearance`
 wrapper prints the whole view again, and a new pane would start at its top. The
 tab gives its pane this cell, so a step of a size or a typed digit of a colour far
 down the tab leaves the tab where it is. Every view of the tab shows this place.
-`open_sections` holds the names of the theme types whose sections the tab shows
-open, for the same reason; it is view state too.
 
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `appearance` wrapper of `build_editor`. A projection takes the scaled
@@ -62,25 +137,55 @@ the scales and the colour settings are cells, so a scaled theme follows a change
 of each; the wrapper then makes the view print again.
 """
 @document struct Appearance
-    zoom::Float64 = 1.0
-    font_scale::Float64 = 1.0
-    icon_scale::Float64 = 1.0
-    spacing_scale::Float64 = 1.0
-    control_scale::Float64 = 1.0
-    radius_scale::Float64 = 1.0
-    line_scale::Float64 = 1.0
-    color_mode::Symbol = :system
-    color_contrast::Symbol = :system
-    color_palette::String = DEFAULT_PALETTE_NAME
-    color_accent::Symbol = :blue
-    color_neutral::Symbol = :slate
-    system_colors::SystemColors = SystemColors()
+    scale::AppearanceScale = AppearanceScale()
+    colors::AppearanceColors = AppearanceColors()
     color_themes::Dict{Symbol,Any} = make_color_themes()
     font_theme::Theme = FontTheme()
+    editor_themes::ThemeGroup = _make_editor_theme_group(colors, color_themes, font_theme)
+    tool_themes::ThemeGroup = ThemeGroup(; title = "Tools")
+    document_themes::ThemeGroup = ThemeGroup(; title = "Documents")
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
     scroll_position::Point2D = Point2D(0, 0)
-    open_sections::Vector{String} = String[]
+end
+
+# A tab that shows a part or a heading of an appearance, and its node in a tree,
+# name it so.
+get_document_title(::AppearanceScale) = "Scale"
+get_document_title(::AppearanceColors) = "Colors"
+get_document_title(group::ThemeGroup) = group.title
+
+# The heading "Editor" of an appearance whose parts are `colors`, `color_themes`
+# and `font_theme`: the font theme first, and the colour theme of the present mode
+# and contrast as a cell that follows the colour settings.
+function _make_editor_theme_group(colors::AppearanceColors, color_themes::AbstractDict, font_theme::Theme)
+    group = ThemeGroup(; title = "Editor", themes = CellVector(Any[font_theme]))
+    set_cell_computation!(getfield(group, :color_theme),
+                          () -> color_themes[get_color_variant(get_color_mode(colors), get_color_contrast(colors))])
+    group
+end
+
+# The heading of `appearance` that `heading`, one of the headings of
+# `get_theme_place`, names.
+_get_theme_group(appearance::Appearance, heading::Symbol) =
+    heading === :editor ? appearance.editor_themes :
+    heading === :tools ? appearance.tool_themes : appearance.document_themes
+
+# Put `theme` into its heading of `appearance`, in place of the theme of its type,
+# or at the place of its rank and its name.
+function _put_theme_into_group!(appearance::Appearance, theme::Theme)
+    T = get_theme_type(theme)
+    (heading, rank) = get_theme_place(T)
+    themes = _get_theme_group(appearance, heading).themes
+    key = (rank, string(nameof(T)))
+    for i in eachindex(themes)
+        other = get_theme_type(themes[i])
+        other === T && return (themes[i] = theme; nothing)
+        (last(get_theme_place(other)), string(nameof(other))) > key &&
+            return (insert!(themes, i, theme); nothing)
+    end
+    push!(themes, theme)
+    nothing
 end
 
 """
@@ -104,7 +209,8 @@ end
     set_theme!(appearance, theme) -> ScaledTheme
 
 Put `theme` into `appearance` in place of the theme of its type, with a new scaled
-theme that follows the scales of `appearance`, and answer the scaled theme. When a
+theme that follows the scales of `appearance`, and into its heading of
+`appearance` ([`get_theme_place`](@ref)), and answer the scaled theme. When a
 loaded file named values for the type of `theme`, `theme` takes them first. A main
 builder calls it to give a domain a theme other than its default, such as a
 preset of the widgets.
@@ -114,6 +220,7 @@ function set_theme!(appearance::Appearance, theme::Theme)
     saved === nothing || _write_saved_theme!(theme, saved)
     scaled = make_scaled_theme(theme, appearance)
     appearance.themes[get_theme_type(theme)] = (theme = theme, scaled = scaled)
+    _put_theme_into_group!(appearance, theme)
     scaled
 end
 
@@ -138,21 +245,21 @@ names. Every other value, such as a color, stays as it is.
 """
 scale_theme_value(value, ::Appearance) = value
 scale_theme_value(font::StyleFont, appearance::Appearance) =
-    with_font_size(font, scale_length(font.size, appearance.font_scale))
+    with_font_size(font, scale_length(font.size, appearance.scale.font_scale))
 scale_theme_value(text::StyleText, appearance::Appearance) =
     StyleText(scale_theme_value(text.font, appearance), text.color)
 scale_theme_value(stroke::StyleStroke, appearance::Appearance) =
-    StyleStroke(stroke.color, scale_length(stroke.width, appearance.line_scale), stroke.dash)
+    StyleStroke(stroke.color, scale_length(stroke.width, appearance.scale.line_scale), stroke.dash)
 scale_theme_value(length::Spacing, appearance::Appearance) =
-    scale_length(length.value, appearance.spacing_scale)
+    scale_length(length.value, appearance.scale.spacing_scale)
 scale_theme_value(length::Radius, appearance::Appearance) =
-    scale_length(length.value, appearance.radius_scale)
+    scale_length(length.value, appearance.scale.radius_scale)
 scale_theme_value(length::LineWidth, appearance::Appearance) =
-    scale_length(length.value, appearance.line_scale)
+    scale_length(length.value, appearance.scale.line_scale)
 scale_theme_value(length::ControlSize, appearance::Appearance) =
-    scale_length(length.value, appearance.control_scale)
+    scale_length(length.value, appearance.scale.control_scale)
 scale_theme_value(length::IconSize, appearance::Appearance) =
-    scale_length(length.value, appearance.icon_scale)
+    scale_length(length.value, appearance.scale.icon_scale)
 
 """
     scale_theme_value(value, theme, appearance)
@@ -242,9 +349,9 @@ right) and for a point (x, y). A value of a kind that the file can not say is
 left out.
 """
 function save_appearance!(appearance::Appearance, path::AbstractString = get_appearance_file())
-    data = Dict{String,Any}(String(f) => Float64(getproperty(appearance, f)) for f in _APPEARANCE_FACTORS)
+    data = Dict{String,Any}(String(f) => Float64(getproperty(appearance.scale, f)) for f in _APPEARANCE_FACTORS)
     for field in _APPEARANCE_COLOR_SETTINGS
-        data[String(field)] = String(getproperty(appearance, field))
+        data[String(field)] = String(getproperty(appearance.colors, field))
     end
     fine_tunes = Dict{String,Any}()
     for (variant, theme) in appearance.color_themes
@@ -300,9 +407,9 @@ function load_appearance!(appearance::Appearance, path::AbstractString = get_app
     data = TOML.parsefile(path)
     for field in _APPEARANCE_FACTORS
         value = get(data, String(field), 1.0)
-        setproperty!(appearance, field, value isa Real && value > 0 ? Float64(value) : 1.0)
+        setproperty!(appearance.scale, field, value isa Real && value > 0 ? Float64(value) : 1.0)
     end
-    _load_color_settings!(appearance, data)
+    _load_color_settings!(appearance.colors, data)
     font_table = pop!(data, _FONT_THEME_KEY, Dict{String,Any}())
     _write_saved_font_theme!(appearance.font_theme, font_table isa AbstractDict ? font_table :
                                                                                   Dict{String,Any}())
@@ -348,10 +455,10 @@ function _write_saved_font_theme!(theme, saved::AbstractDict)
     theme
 end
 
-# Read the colour settings of `data` into `appearance`: a setting that `data` does
-# not name, or names as no text or as a mode or a contrast that is not known,
-# takes its default.
-function _load_color_settings!(appearance::Appearance, data::AbstractDict)
+# Read the colour settings of `data` into `colors`: a setting that `data` does not
+# name, or names as no text or as a mode or a contrast that is not known, takes
+# its default.
+function _load_color_settings!(colors::AppearanceColors, data::AbstractDict)
     default = (color_mode = :system, color_contrast = :system, color_palette = DEFAULT_PALETTE_NAME,
                color_accent = :blue, color_neutral = :slate)
     for field in _APPEARANCE_COLOR_SETTINGS
@@ -362,7 +469,7 @@ function _load_color_settings!(appearance::Appearance, data::AbstractDict)
             field === :color_mode && !(value in COLOR_MODES) && (value = default.color_mode)
             field === :color_contrast && !(value in COLOR_CONTRASTS) && (value = default.color_contrast)
         end
-        setproperty!(appearance, field, value)
+        setproperty!(colors, field, value)
     end
 end
 

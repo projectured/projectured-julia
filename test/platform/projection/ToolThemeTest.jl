@@ -12,7 +12,7 @@ function _check_tool_theme(build, theme_type, roles)
     defaults = theme_type()
     plain = build()
     @test !hasfield(typeof(plain), :theme)
-    scaled = build(theme = get_scaled_theme!(Appearance(font_scale = 1.5), theme_type))
+    scaled = build(theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), theme_type))
     for role in roles
         color = get_theme_value(defaults, role).color
         base_size = get_theme_value(defaults, role).font.size
@@ -34,7 +34,7 @@ function test_tool_themes()
     push!(log.entries, FaultLogEntry(1, UInt64(1), :print, :Test, "boom", 1))
     plain = draw_font_sizes(log, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(log, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(log, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 end
 
 @testset "GestureLogToSyntax reads GestureLogTheme" begin
@@ -50,7 +50,7 @@ end
     record_message!(log, "Info", "hello")
     plain = draw_font_sizes(log, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(log, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(log, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 end
 
 @testset "FrameStatisticsToWidget reads FrameStatisticsTheme" begin
@@ -61,7 +61,7 @@ end
     push!(statistics.rows, FrameStatisticsRow("frame_time", :second, 10, 1.0, 2.0, 1.5, 0.3, 15.0))
     plain = draw_font_sizes(statistics, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(statistics, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(statistics, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 end
 
 @testset "UndoBufferToSyntax reads UndoTheme" begin

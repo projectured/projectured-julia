@@ -88,10 +88,11 @@ find_theme(editor, name) = only(entry.theme for entry in values(find_editor_appe
 
 function describe_look(editor)
     appearance = find_editor_appearance(; editor)
-    (scales = [getproperty(appearance, row.field) for row in SCALE_CLICKS],
+    (scales = [getproperty(appearance.scale, row.field) for row in SCALE_CLICKS],
      key = format_style_color(find_theme(editor, :JsonTheme).key_text.color),
      background = format_style_color(find_theme(editor, :WidgetTheme).background),
-     open = appearance.open_sections)
+     open = [name for group in (appearance.editor_themes, appearance.tool_themes, appearance.document_themes)
+             for name in group.open_names])
 end
 
 # An entry that prints the look of the window when the take reaches it, and takes

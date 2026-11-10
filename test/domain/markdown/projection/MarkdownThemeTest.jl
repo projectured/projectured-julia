@@ -25,10 +25,10 @@ function test_markdown_theme()
 
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test MarkdownTextToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), MarkdownTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), MarkdownTheme)
     leaf = MarkdownTextToSyntaxLeaf(; style = get_markdown_style(theme, :source_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(MarkdownTheme(), :source_text).color)
@@ -44,7 +44,7 @@ function test_markdown_theme()
     rendered_plain = draw_rendered_markdown_font_sizes(document, Appearance())
     @test !isempty(rendered_plain)
     @test maximum(rendered_plain) > minimum(rendered_plain)
-    @test draw_rendered_markdown_font_sizes(document, Appearance(font_scale = 1.5)) ==
+    @test draw_rendered_markdown_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) ==
           round.(Int, rendered_plain .* 1.5)
 end
 end

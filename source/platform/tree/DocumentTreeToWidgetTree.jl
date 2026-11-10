@@ -177,9 +177,30 @@ _collect_tree_collections(document) =
     Any[steps => try_evaluate_reference(document, extend_reference(EmptyReference(), steps...), nothing)
         for steps in get_tree_children_steps(document)]
 
+# A path of children that reaches one document, which no collection holds, such
+# as a part in a field, reaches one child: that document, at the end of the path.
+_is_single_tree_child(collection) =
+    collection isa Document && !(collection isa ListDocument) && !is_element_collection(collection)
+
 # A lazy list has no count, so it gives no laid-out child.
 _get_collection_length(collection) =
-    collection === nothing || collection isa ListNode ? 0 : length(collection)
+    collection === nothing || collection isa ListNode ? 0 :
+    _is_single_tree_child(collection) ? 1 : length(collection)
+
+# The child `i` of `collection`: its element, or the one document that the path
+# reaches.
+_get_collection_child(collection, i::Int) = _is_single_tree_child(collection) ? collection : collection[i]
+
+# The steps from a node to its child `i` of the collection that `steps` reaches:
+# those steps and the step of the element, or those steps alone for one document.
+_get_child_steps(steps, collection, i::Int) =
+    _is_single_tree_child(collection) ? Any[steps...] : Any[steps..., ElementReferenceStep(i)]
+
+# Whether `steps` from `at` start with the steps of a collection of children that
+# reach one document, so the path goes into that child with no step of an element.
+_is_single_child_path(steps, at::Int, collection_steps, collection) =
+    _is_single_tree_child(collection) && at + length(collection_steps) - 1 <= length(steps) &&
+    all(steps[at + j - 1] == collection_steps[j] for j in eachindex(collection_steps))
 
 _count_tree_children(document) =
     sum((_get_collection_length(last(entry)) for entry in _collect_tree_collections(document)); init = 0)
@@ -197,7 +218,7 @@ end
 
 function _get_tree_child(document, k::Int)
     (_, collection, i) = _find_tree_child_place(document, k)
-    collection[i]
+    _get_collection_child(collection, i)
 end
 
 """
@@ -228,9 +249,10 @@ function collect_tree_children(document; limit::Integer, list_limit::Integer = l
         rest <= 0 && break
         collection === nothing && continue
         values = collection isa ListNode ? take_first(collection, min(rest, list_limit)) :
-                 Any[collection[k] for k in 1:min(length(collection), rest)]
+                 Any[_get_collection_child(collection, k)
+                     for k in 1:min(_get_collection_length(collection), rest)]
         for (k, value) in enumerate(values)
-            push!(found, extend_reference(EmptyReference(), steps..., ElementReferenceStep(k)) => value)
+            push!(found, extend_reference(EmptyReference(), _get_child_steps(steps, collection, k)...) => value)
         end
     end
     found
@@ -274,8 +296,9 @@ function collect_read_tree_children(document)
     end
     for (steps, collection) in _collect_tree_collections(document)
         (collection === nothing || collection isa ListNode) && continue
-        for k in 1:length(collection)
-            push!(found, extend_reference(EmptyReference(), steps..., ElementReferenceStep(k)) => collection[k])
+        for k in 1:_get_collection_length(collection)
+            push!(found, extend_reference(EmptyReference(), _get_child_steps(steps, collection, k)...) =>
+                         _get_collection_child(collection, k))
         end
     end
     found
@@ -539,6 +562,8 @@ function _find_child_entry(entry::_TreeEntry, steps, at::Int)
     for (collection_steps, collection) in _collect_tree_collections(entry.document)
         count = _get_collection_length(collection)
         index_at = at + length(collection_steps)
+        _is_single_child_path(steps, at, collection_steps, collection) &&
+            return (entry.entries[offset + 1], index_at)
         if index_at <= length(steps) &&
            all(steps[at + j - 1] == collection_steps[j] for j in eachindex(collection_steps))
             index = steps[index_at]
@@ -594,10 +619,13 @@ function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTree
         else
             place = _find_tree_child_place(entry.document, k)
             place === nothing && return nothing
-            (collection_steps, _, i) = place
+            (collection_steps, collection, i) = place
+            _is_single_tree_child(collection) && (append!(steps, collection_steps); i = 0)
         end
-        append!(steps, collection_steps)
-        push!(steps, ElementReferenceStep(i))
+        if i > 0
+            append!(steps, collection_steps)
+            push!(steps, ElementReferenceStep(i))
+        end
         child = _find_child_entry_at(entry, k)
         child === nothing && return nothing
         entry = child

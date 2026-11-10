@@ -217,12 +217,42 @@ makes one commit.
    Add a test: the node "Settings" has six children with the titles of the
    cards. Tests: `test_settings()`, `test_settings_wrapper()`,
    `test_settings_tab()`, `test_explorer()`.
-3. [ ] **The view of one group (D1, D11).** Add `SettingsGroupToWidget` and
+3. [x] **The view of one group (D1, D11).** Done. Fact: the settings tab needs no
+   new path mapping. The kernel carries the selection of the tab into the
+   document that a card holds (`set_output_tree_path_computations!`), so a path
+   into a card goes on into the selection of its group. Add `SettingsGroupToWidget` and
    register it beside `SettingsToWidget`. `SettingsToWidget` prints each card
    through it. Add a test: Enter on the node "Pointer" opens a tab "Pointer",
    and a step of a spin box there writes the setting. Tests:
    `test_settings_tab()`, `test_explorer()`.
-4. [ ] **Parts and headings of the appearance (D7, D8, D9, D10, D12).** Add
+4. [ ] **Parts and headings of the appearance (D7, D8, D9, D10, D12).** Facts and
+   choices of the implementation:
+   - The tree slice reads a path of children that reaches one document, which no
+     collection holds, as one child: that document, with no step of an element.
+     The parts of an appearance and the colour node of "Editor" are such
+     documents in fields.
+   - `system_colors` moves into `AppearanceColors` with the five colour
+     settings. The colour node is a computed cell that the keyword default of
+     `editor_themes` makes from the fields before it, `colors` and
+     `color_themes`; a write replaces `system_colors`, so it must be inside a
+     part that stays.
+   - `get_theme_place(T) -> (heading, rank)` is a generic of the style slice. Its
+     default places a theme of `ProjecturedPlatform` under "Tools" and any other
+     under "Documents", at rank 0. The appearance slice places the six themes of
+     every view under "Editor" at ranks 1 to 6, and the font theme and the colour
+     theme take rank 0. `set_theme!` puts each theme into its heading.
+   - `get_document_title(theme)`, the name of the theme type in words, moves from
+     the tab into the style slice, so the tab, a tree and a page name a theme
+     alike.
+   - The layering table gets two edges: `style` → `collection` and `appearance`
+     → `tree`.
+   - The appearance file keeps its form: the same keys, at the top level.
+   - A Sonnet agent changed the 40 test and example files that made an
+     `Appearance` with the old keywords or read the moved fields. Downstream, the
+     same change waits for the landing: eight tests of `omnet-julia` (the legacy
+     theme tests and `ResultChartTest.jl`) and `packetdiagram.jl` of
+     `inet-julia` make an `Appearance` with `font_scale`, `spacing_scale`,
+     `control_scale` or `color_mode`. Add
    `AppearanceScale`, `AppearanceColors` and `ThemeGroup`, and change each read
    of the twelve fields and of `open_sections`. About 30 test files build an
    `Appearance` with these keywords, and the tests of downstream packages do
