@@ -1,6 +1,8 @@
 # Settings and Appearance show their groups in the explorer
 
-**Status (2026-11-10): approved for implementation, in progress.** The owner
+**Status (2026-11-10): approved for implementation; the code and the tests are
+done on the branch, and the check in a window of step 5 waits for the
+permission of the owner.** The owner
 decided D1, D2 and D3. The assistant proposed D4 to D12, and the owner approved
 them with the plan on 2026-11-10.
 
@@ -273,8 +275,23 @@ makes one commit.
    Tests: `test_appearance_file()`, `test_appearance_wrapper()`,
    `test_appearance_tab()`, `test_explorer()`, and the suite of each package
    whose files the step changes.
-5. [ ] **The views of the appearance (D1, D3, D11).** Facts and choices of the
-   implementation:
+5. [ ] **The views of the appearance (D1, D3, D11).** The code and the tests are
+   done; the check in a window waits for the permission of the owner, because it
+   opens a window and takes the focus. Facts and choices of the implementation:
+   - The tab builds the cards of the parts, the headings and the themes with the
+     functions of the views of the parts (see D11, changed in step 5); it prints
+     no part through a view of a part.
+   - The tests: a press on the node "Widget" shows the theme alone, and the › of
+     its row "background" writes the next role, which Ctrl+Z takes back; a press
+     on "Scale" shows the scale, and its + steps the zoom; a press on "Tools"
+     shows a card for each theme of the heading. A press on a node shows its
+     page in the explorer, so the tests press; they press no Enter.
+   - The suites at `8a8b0d397` pass: `test_appearance_tab()` (159),
+     `test_appearance_wrapper()` (55), `test_explorer()` (421), `test_settings()`
+     (107), `test_settings_tab()` (60), `test_clipboard()`, and the theme tests of
+     the 17 domain packages, with `test_julia_code_pieces()`,
+     `test_data_frame_theme()` and `test_data_frame_view()`. With the test of the
+     write on the theme page, `test_explorer()` passes 424 at `07ac253c4`.
    - The four views are subtypes of one abstract projection,
      `AppearancePartToWidget`, in `AppearancePartToWidget.jl`, with one IO map,
      `AppearancePartToWidgetIoMap`, and one reader. Each holds the appearance of
@@ -293,16 +310,9 @@ makes one commit.
      not have (`_find_long_children_steps`). A paste or a cut on the node of a
      group, a part or a theme wrote into the live settings or appearance:
      `Settings` and `Appearance` now refuse a pasted document, as a tool does, and
-     a refusal covers each document inside them. Add
-   `AppearanceScaleToWidget`, `AppearanceColorsToWidget`, `ThemeGroupToWidget`
-   and `ThemeToWidget`. `AppearanceToWidget` prints the parts and the headings
-   through them. The paths of the caret of a colour text and of the part under
-   the pointer change with the tree of widgets: the step keeps both and records
-   the new form here. Add tests: Enter on "Tools" opens a tab with its theme
-   cards; Enter on a theme opens it, and a write there changes the theme and
-   Ctrl+Z takes it back. Tests: `test_appearance_tab()`, `test_explorer()`.
-   Then open the explorer in a window, and open one node of each kind with a
-   double click.
+     a refusal covers each document inside them.
+   - [ ] Open the explorer in a window, and open one node of each kind with a
+     double click.
 
 ## Not in this plan
 
