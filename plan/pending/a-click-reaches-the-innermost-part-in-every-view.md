@@ -826,6 +826,26 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       (`_leaf_cursor`). Inside a node, the parent drew the band, so the runs of
       step 4 did not show it. The printer now also maps a whole field to its
       band (`_find_whole_leaf_field`).
+    - **Run 3 of the click test** (2026-11-10, after b5bf7b9c0, 661 examples,
+      1 h 22 min). `alt:not-drawn` is the Alt+click that draws no mark, which
+      run 2 did not count apart:
+
+      | Kind | Run 2 points | Run 3 points | Run 2 examples | Run 3 examples |
+      | --- | --- | --- | --- | --- |
+      | `plain:no-caret` | 3365 | 3361 | 217 | 223 |
+      | `alt:not-drawn` | – | 2388 | – | 224 |
+      | `alt:outside` | 1709 | 1628 | 73 | 74 |
+      | `move:differs` | 9580 | 938 | 441 | 144 |
+      | `plain:caret-not-drawn` | 367 | 367 | 55 | 55 |
+      | `throws` | 606 | 204 | 69 | 44 |
+      | `alt:not-caret-part` | 7489 | 147 | 335 | 22 |
+      | `no-image` | 81 | 59 | 81 | 59 |
+      | all | 23240 | 9136 | | |
+
+      The 443 points of `alt:not-drawn` in the reflected object are all on a
+      delimiter: a space (234), a quote (161), `]` (45) and `}` (3). The caret
+      there goes to the part beside the delimiter, which does not hold the
+      point; this is the delimiter cause of step 6, not the wiring of D6.
   - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
     done (2026-11-10); the copy of a part that a view drew waits for 5.4.
 

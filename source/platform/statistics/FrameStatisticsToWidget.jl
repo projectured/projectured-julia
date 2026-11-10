@@ -135,38 +135,50 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
     # of the frames, which read their own cells, and so does the choice of the
     # statistic of the parts.
     set_cell_computation!(getfield(root.children, :elements), () -> begin
-        rows = statistics.rows
-        isempty(rows) && return Cell[Cell(head), Cell(WidgetLabel("no frame yet"; text_style = p.empty_text))]
-        layout = _get_page_layout(statistics)
-        children = Cell[Cell(head)]
-        if !isempty(layout.parts)
-            choice = _make_table_choice(statistics, :summary_statistic, _SUMMARY_STATISTICS,
-                                        _SUMMARY_STATISTIC_LABELS, _SUMMARY_CHOICE_NOTE)
-            push!(children, Cell(_make_title_line(p, "Parts of a frame", choice)),
-                  Cell(_make_part_table(p, statistics, layout)))
+        children = _build_page_children(p, statistics, head, bar)
+        # A child is built after the print, so it takes its part of the paths here.
+        for (k, child) in enumerate(children)
+            follow_widget_part!(child[], root, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
         end
-        if !isempty(layout.other)
-            title = isempty(layout.parts) ? "Summary" : "Other measurements"
-            push!(children, Cell(WidgetLabel(title; text_style = p.section_text)),
-                  Cell(_make_summary_table(p, [rows[k] for k in layout.other])))
-        end
-        choices = _collect_frame_measures(layout)
-        frame_title = length(choices) < 2 ?
-            WidgetLabel("Frames, newest first"; text_style = p.section_text) :
-            _make_title_line(p, "Frames, newest first",
-                             _make_table_choice(statistics, :frame_measure, choices,
-                                                map(_format_measure_name, choices),
-                                                _FRAME_CHOICE_NOTE))
-        columns = _collect_frame_columns(statistics, layout,
-                                         _get_frame_measure(statistics, choices))
-        push!(children, Cell(frame_title),
-              Cell(LayoutConstraint(_make_frame_table(p, statistics, columns,
-                                                      get(layout.index, "frame_time", nothing),
-                                                      bar);
-                                    width = Fill, height = Fill)))
         children
     end)
-    FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
+    iomap = FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
+    follow_widget_output!(root, statistics, path -> map_reference_forward(p, iomap, path))
+    iomap
+end
+
+# The children of the page: the head line, and the tables with their titles.
+function _build_page_children(p::FrameStatisticsToWidget, statistics::FrameStatistics, head, bar)
+    rows = statistics.rows
+    isempty(rows) && return Cell[Cell(head), Cell(WidgetLabel("no frame yet"; text_style = p.empty_text))]
+    layout = _get_page_layout(statistics)
+    children = Cell[Cell(head)]
+    if !isempty(layout.parts)
+        choice = _make_table_choice(statistics, :summary_statistic, _SUMMARY_STATISTICS,
+                                    _SUMMARY_STATISTIC_LABELS, _SUMMARY_CHOICE_NOTE)
+        push!(children, Cell(_make_title_line(p, "Parts of a frame", choice)),
+              Cell(_make_part_table(p, statistics, layout)))
+    end
+    if !isempty(layout.other)
+        title = isempty(layout.parts) ? "Summary" : "Other measurements"
+        push!(children, Cell(WidgetLabel(title; text_style = p.section_text)),
+              Cell(_make_summary_table(p, [rows[k] for k in layout.other])))
+    end
+    choices = _collect_frame_measures(layout)
+    frame_title = length(choices) < 2 ?
+        WidgetLabel("Frames, newest first"; text_style = p.section_text) :
+        _make_title_line(p, "Frames, newest first",
+                         _make_table_choice(statistics, :frame_measure, choices,
+                                            map(_format_measure_name, choices),
+                                            _FRAME_CHOICE_NOTE))
+    columns = _collect_frame_columns(statistics, layout,
+                                     _get_frame_measure(statistics, choices))
+    push!(children, Cell(frame_title),
+          Cell(LayoutConstraint(_make_frame_table(p, statistics, columns,
+                                                  get(layout.index, "frame_time", nothing),
+                                                  bar);
+                                width = Fill, height = Fill)))
+    children
 end
 
 # ── The shape of the page ───────────────────────────────────────────────────

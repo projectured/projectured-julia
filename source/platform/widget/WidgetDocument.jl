@@ -10,6 +10,60 @@ abstract type WidgetDocument <: Document end
 # function, such as a validator, refuses the duplicate.
 has_document_duplicate(::WidgetDocument) = true
 
+"""
+    is_widget_or_layout(node) -> Bool
+
+Is `node` a widget, a layout or a layout constraint: a document that a view builds
+to show its input, and not a document of a domain that the view puts into one of
+its widgets? A view passes it as `is_followed` to `follow_output_paths!`, so the
+walk gives a part of the selection to each widget and layout that the view built,
+and leaves the document of a domain, which holds its own selection.
+"""
+is_widget_or_layout(node) =
+    node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint
+
+"""
+    follow_widget_output!(root, input, map_forward; is_followed = is_widget_or_layout) -> root
+
+Make each widget and layout of the output tree `root`, which a view built from
+`input`, hold its part of the forward image of each kind of path of `input`: the
+selection and the part under the pointer, as `follow_output_selection!` does.
+`map_forward(path)` answers the path from `root` of a path of `input`, or
+`nothing`. A dormant selection gives no part. So the container that holds a part
+that the view drew marks it.
+
+A view calls it once in its printer. A part that the view builds later, inside a
+computation, is not in the tree at the print, and the view gives it its part with
+[`follow_widget_part!`](@ref).
+"""
+follow_widget_output!(root, input, map_forward::Function; is_followed = is_widget_or_layout) =
+    follow_output_selection!(root, () -> map_selection_forward(input, map_forward);
+                             forward_mouse_target = () -> map_mouse_target_forward(input, map_forward),
+                             is_followed)
+
+"""
+    follow_widget_part!(part, holder, steps::Tuple; is_followed = is_widget_or_layout) -> part
+
+Make `part`, a widget or a layout that a view builds inside a computation and puts
+at `steps` below `holder`, hold its part of each kind of path of `holder`, as
+[`follow_widget_output!`](@ref) makes the output of the print do. A view calls it
+where it builds the part, because the walk of the print reaches only the parts that
+are there at the print. The walk reads no cell for the computation that calls it.
+"""
+follow_widget_part!(part, holder, steps::Tuple; is_followed = is_widget_or_layout) =
+    run_without_cell_tracking(() ->
+        follow_widget_output!(part, holder, path -> _find_path_below_steps(path, steps); is_followed))
+
+# The part of `path` below `steps`, or `nothing` when `path` does not begin with them.
+function _find_path_below_steps(path, steps::Tuple)
+    path = strip_reference_types(path)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return nothing
+        path = path.tail
+    end
+    path
+end
+
 # ── WidgetInsertion ─────────────────────────────────────────────────────
 
 @document struct WidgetInsertion <: WidgetDocument
