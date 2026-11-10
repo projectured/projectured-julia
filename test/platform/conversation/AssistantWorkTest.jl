@@ -242,7 +242,8 @@ function test_assistant_work()
             children = ((FieldReferenceStep("subagents"),),
                         (FieldReferenceStep("background_tasks"),))
             turns = (FieldReferenceStep("conversation"), FieldReferenceStep("turns"))
-            @test get_tree_children_steps(work) == children
+            # The page also has the rows of the task list that its assistant started.
+            @test get_tree_children_steps(work) == (children..., (FieldReferenceStep("work_items"),))
             # A subagent and an assistant also have the turns of their conversation.
             @test get_tree_children_steps(child) == (children..., turns)
             @test get_tree_children_steps(a) ==
@@ -315,6 +316,42 @@ function test_assistant_work()
             # The page draws the tool call, right of the tree.
             tree_x = ProjecturedPlatformTest._explorer_click(backend, "tool · Grep \"outline\"").x
             @test any(entry -> occursin("Grep", entry[1]) && entry[2] > tree_x + 100, _work_page_texts(backend))
+        end
+
+        @testset "a group that a tool call starts names the assistant and the call, and the page lists it" begin
+            tasks_editor = Editor(PrimitiveString("tasks"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend = HeadlessBackend(), devices = Device[])
+            set = register_default_tools!(ToolSet())
+            started = Ref{Any}(nothing)
+            program = ProgramTask(["true"]; working_directory = tempdir(), name = "true")
+            register_tool!(set, Tool("start"; description = "a tool of the test", parameters = NamedTuple[],
+                                     handler = (target, arguments) -> begin
+                                         started[] = run_tasks!(TaskGroup([program]; name = "started", jobs = 1);
+                                                                editor = tasks_editor)
+                                         "started"
+                                     end))
+            llm = ScriptedLlm([make_scripted_turn(make_scripted_run(""; tool_id = "tu_1", tool_name = "start");
+                                                  stop_reason = "tool_use"),
+                               make_scripted_turn(make_scripted_say("Done."; delay = 0); stop_reason = "end_turn")])
+            a = Assistant(; llm)
+            @test occursin(r"^A\d+$", a.identifier)
+            @test make_document_duplicate(a).identifier != a.identifier
+            a.input.value = "Start it."
+            evaluate_operation((document = a, tools = set), SubmitProseOperation(a))
+            @test timedwait(() -> a.status !== :streaming, 30.0; pollint = 0.01) === :ok
+            group = started[]
+            @test group isa TaskGroupDocument
+            starter = get_work_item_starter(group)
+            @test starter == make_assistant_starter(a; tool_call = "tu_1")
+            @test (starter.kind, starter.identifier, starter.tool_call) == (:assistant, a.identifier, "tu_1")
+            @test describe_work_starter(starter) == "Assistant 1"
+            # The work page lists the rows that its assistant started, and no other.
+            other = run_tasks!(program; editor = tasks_editor)
+            work = AssistantWork(a)
+            @test run_with_evaluation_editor(() -> collect(work.work_items), tasks_editor) == Any[group]
+            @test get_work_item_starter(other).kind === :person
+            wait_for_task_group!(tasks_editor, group)
+            wait_for_tasks!(other; timeout = 20, editor = tasks_editor)
         end
     end
 end

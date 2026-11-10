@@ -149,6 +149,11 @@ no title: with no title, 1 is "Assistant" and 2 is "Assistant (2)". `Ctrl+T` wit
 the name "assistant" and a duplicate give the lowest number that no assistant in a
 tab of the window has. A `.pred` file does not keep it, and a load gives 1.
 
+`identifier` names the assistant in the rows of the task list that it starts
+(`WorkStarter`): `A1`, `A2`, … in the order the assistants of the process are
+made. It never changes while the assistant lives, so its work page finds its rows.
+A duplicate and a load get a new one.
+
 `turn_control` is the live control of the turn that runs, an
 `AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
 no data, like `llm`.
@@ -193,6 +198,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     max_rounds::Int
     wakes_left::Int
     number::Int
+    identifier::String
 end
 
 """
@@ -294,12 +300,29 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
                            Cell(Int(max_rounds)), Cell(0), Cell(Int(number)),
-                           Cell(nothing))
+                           Cell(_make_assistant_identifier()), Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
     draft.assistant = a
     a
 end
+
+# The counter of the identifiers of the assistants of the process.
+const _ASSISTANT_COUNT = Threads.Atomic{Int}(0)
+
+_make_assistant_identifier() = "A" * string(Threads.atomic_add!(_ASSISTANT_COUNT, 1) + 1)
+
+"""
+    make_assistant_starter(assistant; tool_call = "") -> WorkStarter
+
+The starter of the work that `assistant` starts: its identifier, the name that the
+Tasks pane shows, such as "Assistant 2", and `tool_call`, the id of the call of the
+model or of the agent that starts it. A turn binds it for the code of each tool
+call, so a row that the code starts records it.
+"""
+make_assistant_starter(a::Assistant; tool_call::AbstractString = "") =
+    WorkStarter(:assistant; identifier = a.identifier, name = string(ASSISTANT_TITLE, " ", a.number),
+                tool_call)
 
 _make_primitive_string(text::PrimitiveString) = text
 _make_primitive_string(text::AbstractString) = PrimitiveString(String(text))
@@ -393,7 +416,8 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_title = "", agent_usage = nothing,
                                 agent_commands = AgentCommand[],
                                 agent_work = AgentWork(""), wakes_left = 0,
-                                number = _compute_assistant_number(find_evaluation_editor()))
+                                number = _compute_assistant_number(find_evaluation_editor()),
+                                identifier = _make_assistant_identifier())
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&

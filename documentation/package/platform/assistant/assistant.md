@@ -23,6 +23,7 @@ The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the
 | `input` | a `PrimitiveString` that no printer shows; see Limits |
 | `description`, `comment` | what the person writes about the conversation, each a `PrimitiveString` that the detail of the Assistants pane edits |
 | `work_state` | the state of the work that the person sets: `:pending` (the default), `:in_progress`, `:complete` or `:abandoned` (`ASSISTANT_WORK_STATES`) |
+| `identifier` | `A1`, `A2`, … in the order the assistants of the process are made: it names the assistant in the rows of the task list that it starts, and it never changes while the assistant lives; a duplicate and a load get a new one |
 
 `backend` is `:ollama` by default, `:anthropic`, `:acp` for an external agent, or `:none`. An empty `model` and a `context` of `0` mean the default of the backend. The constructor sets `draft.assistant` to the new assistant, so Return and Alt+Return in the composer become operations of this assistant.
 
@@ -57,6 +58,15 @@ The person keeps the word: a wake that may not start a turn takes no wake and ad
 A model that waits for a group in its code holds the window, as every call of `execute_julia_code` does, so `wait_for_tasks!(group; timeout = 30)` waits a short while and says how the group stands; for a long group the model says how long it takes and ends the turn ([task.md](../task/task.md)).
 
 ### The tools
+
+**The work of a tool call names the assistant.** The code of each tool call runs
+with the assistant and the id of the call as the starter of its evaluation,
+`make_assistant_starter(assistant; tool_call)`, a `WorkStarter` of the task slice
+([task.md](../task/task.md)): the built-in turn passes `call_starter` to
+`run_turn!`, and the MCP server of the session of an agent gets a `call_starter`
+of the id that the agent gives the call (`claudecode/toolUseId`). So a group or a
+task alone that the code starts records "Assistant 2" and the call in its row,
+also when the call runs in the drain of the editor.
 
 The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../../adapter/mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes. `run_turn!` runs each tool call on the editor task, as the MCP server does for a client, so a tool behaves the same for both.
 
@@ -240,7 +250,7 @@ The agent runs its own loop, and it reports more than text: the subagents that i
 - **The job**: the title of the assistant and its first prompt. The plan of the plan mode, when the agent made one, follows in a card of its own.
 - **Now**: the activity of the turn (`describe_assistant_activity`), the step that is in progress in the first plan with steps, with its active title, how long the turn runs, and how much of its context the session uses. The elapsed time reads the clock only while a turn runs.
 - **The plans**: each other plan, with the view of a plan.
-- **Work**: a `DocumentTree` of the session, its subagents and its background tasks, at every depth. The root is the page, with the text "This session".
+- **Work**: a `DocumentTree` of the session, its subagents and its background tasks, at every depth, and the rows of the task list that the assistant started (`work_items`: its groups, its tasks alone and its searches, found by its identifier). The root is the page, with the text "This session". A background task that the agent only reports through `_session/background_task` stays in `agent_work`.
 - **Processes**: a `DocumentTree` of the processes of the session, or a line that says that the agent gives none.
 - **Notices**: the notices of the agent, the newest first.
 

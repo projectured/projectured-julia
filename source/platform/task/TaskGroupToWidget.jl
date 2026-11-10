@@ -1346,11 +1346,11 @@ end
 
 Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open work item
 of the session, newest first. A group shows its identifier, its title, its kind,
-the word of its state, its counts, how far it is and the time, and the buttons
-that stop it, run its unexpected tasks again, and close its row. Another work
-item, such as a search, shows its identifier, its title, its kind, and the word
-of its state and its line as its decoration says them, and the buttons that stop
-it and close its row. The title is a link to the page of the item. A closed row
+who started it, the word of its state, its counts, how far it is and the time, and
+the buttons that stop it, run its unexpected tasks again, and close its row.
+Another work item, such as a task alone or a search, shows its identifier, its
+title, its kind, who started it, and the word of its state and its line as its
+decoration says them, and the buttons that stop it and close its row. The title is a link to the page of the item. A closed row
 leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
@@ -1366,7 +1366,7 @@ leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
 
-const _LIST_COLUMNS = ("item", "title", "kind", "state", "counts", "progress", "elapsed", "")
+const _LIST_COLUMNS = ("item", "title", "kind", "started by", "state", "counts", "progress", "elapsed", "")
 
 """
     make_task_group_list_tab_title(list) -> PaneTabTitle
@@ -1408,6 +1408,7 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::
     Any[WidgetLabel(getfield(doc, :identifier)[]),
         title,
         WidgetLabel(group.name),
+        WidgetLabel(() -> describe_work_starter(getfield(doc, :started_by)[])),
         _make_live_label(() -> _get_group_state(p, doc, group)),
         WidgetLabel(() -> _format_group_counts(get_task_group_document_counts(doc))),
         WidgetLabel(() -> string(round(Int, 100 * get_task_group_document_summary(doc).progress), "%")),
@@ -1431,6 +1432,7 @@ function _build_list_row(p, list::TaskGroupList, item, index::Int)
     Any[WidgetLabel(get_work_item_identifier(item)),
         title,
         WidgetLabel(describe_work_item_kind(item, 1)),
+        WidgetLabel(() -> describe_work_starter(get_work_item_starter(item))),
         _make_live_label(() -> _get_work_item_state(p, item)),
         WidgetLabel(() -> get_document_decoration(item).detail),
         WidgetLabel(""),

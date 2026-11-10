@@ -330,7 +330,9 @@ marks work.
 `TaskDocument` is one task on the screen: the task, the native layout of its
 current execution in `running`, and the shadow of every execution of the task in
 `executions`, the newest last, a `CellVector`, so a selection goes into the page
-of an execution. It holds nothing that a kind of task knows: a view asks the task
+of an execution. A task with no group and an `identifier` is a task alone, a row
+of the task list of its own (below): `identifier` is `T…` from the counter of the
+groups, `title` is what its row calls it, and `started_by` is who started it. It holds nothing that a kind of task knows: a view asks the task
 for its columns, its facts and its buttons. `group` holds, in a `Ref`, the group
 document of the task and its place in it, which `wrap_task_group_document` sets
 (`find_task_document_group`); a walk and a copy of the documents do not go round
@@ -402,9 +404,9 @@ shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 
 `TaskGroupList` is the work items of the session of an editor, in the order of
-their starts, which the Tasks pane shows newest first. It holds groups, closed
-groups, and any other work item, such as a search below a node of an explorer
-([explorer.md](../explorer/explorer.md)). It is a session document of the
+their starts, which the Tasks pane shows newest first. It holds groups, tasks
+alone, closed rows, and any other work item, such as a search below a node of an
+explorer ([explorer.md](../explorer/explorer.md)). It is a session document of the
 editor (`get_session_task_group_list(; editor = find_evaluation_editor())`), and
 no module constant holds it. The first call with an editor takes the list that a
 tab of its window shows, or that the content of a tab holds a few documents down,
@@ -414,21 +416,53 @@ it reads no lazy part of a content. A group adds itself at the end of the
 list of the editor of the evaluation when it starts. A group that starts outside
 every editor, such as from a script, joins no list.
 
-A work item answers four generics (`TaskWorkItem.jl`). A group answers them too.
+A work item answers four generics (`TaskWorkItem.jl`). A group and a task alone
+answer them too.
 
 | Generic | Answers |
 | --- | --- |
-| `get_work_item_identifier(item)` | the identifier that never changes, `T3` for a group and `S1` for a search |
-| `describe_work_item_kind(item, count)` | the word for `count` items of the kind: "group" or "groups", "search" or "searches" |
-| `stop_work_item!(item)` | stops the item and keeps its row: a group stops its tasks, a search keeps what it found and reads nothing more |
+| `get_work_item_identifier(item)` | the identifier that never changes, `T3` for a group or a task alone and `S1` for a search |
+| `describe_work_item_kind(item, count)` | the word for `count` items of the kind: "group" or "groups", "task" or "tasks", "search" or "searches" |
+| `stop_work_item!(item)` | stops the item and keeps its row: a group stops its tasks, a task alone its process, a search keeps what it found and reads nothing more |
 | `describe_work_item(item; limit = 20)` | what the item did, in at most `limit` lines |
+
+**Who started a row.** Each row records who started it in its field
+`started_by`, a `WorkStarter`: the person (`:person`), an assistant (`:assistant`)
+with its identifier, the name that the pane shows, such as "Assistant 2", and the
+id of the tool call that started the row, or a client over MCP (`:client`). It is
+a plain value, with no editor and no document. `get_work_item_starter(item)` reads
+it, and `describe_work_starter(starter)` gives its words: "the person", "Assistant
+2", "MCP client". A table shows the words, and an arrangement filters and sorts by
+them (`format_roster_value`, `get_arrangement_value`).
+
+The start of a row takes the starter as the default of its keyword `started_by`,
+`get_work_starter()`, so no verb names it: `start_task_group_document!`, the
+`start_task!` of a task alone, and an `ExplorerSearch`. The first start records
+it, and a later start keeps it. `get_work_starter()` reads the starter of the
+evaluation, a `ScopedValue` of the kernel (`find_evaluation_starter`,
+[agent.md](../../kernel/agent.md)), and answers the person when none is bound.
+These bind it: a tool call of the built-in assistant (`run_turn!` with
+`call_starter`), a tool call of the agent of an assistant (its MCP server, with
+the id `claudecode/toolUseId` of the call), and a call of any other client over
+MCP. A call that such code posts to the loop of the editor keeps its starter
+there, because the door of the editor carries it, and the loop binds none for
+the operations that it reads from the gestures of the person.
+
+**A task alone.** `run_tasks!(task)` makes a `TaskDocument` with an identifier
+and starts it with `StartTaskOperation`, which the editor evaluates: `start_task!`
+starts it, records who started it, and puts its row at the end of the list of the
+session, or back into its place when a person closed it. A group of one task is
+not a task alone: its table, its row filter, its jobs and its run again mean
+nothing for one command. A start that throws, such as a program in a folder that
+does not exist, adds no row. `rerun_tasks!`, `wait_for_tasks!`, `get_task_output`,
+`stop_tasks!`, `describe_task_group` and `close_task_group!` take a task alone.
 
 The state and the line of a work item come from its decoration (`get_document_decoration`, with `work_item = true`). `collect_work_items(list)` gives the open items. `collect_task_group_documents(list)` gives the groups only. `add_task_group!`, `remove_task_group!` and `find_navigator_address(list, item)` take any work item. `list_task_groups`, `find_task_group`, `describe_task_group`, `stop_tasks!` and `close_task_group!` take any work item too.
 
 `TaskGroupList` has the insertion alias "tasks", and its insertion gives the list of the session (`make_insertion_document`). It is a kind of the explorer (`is_explorer_entry_type`). `pred_arguments` writes no field, and a loaded list is the list of the session of the editor that loads it, so a window file and the file of the explorer keep that a tab or an entry shows the list, and no group.
 
 A group keeps its place, so a path `groups[k]` names the same group for the whole
-session. A close of its row puts a `ClosedTaskGroup` in the place: the
+session, and a task alone keeps its place too. A close of its row puts a `ClosedTaskGroup` in the place: the
 identifier, the title and the line that sums the item up: for a group its kind,
 its counts and its time, and for another item its kind and the line of its
 decoration. The tasks and their
@@ -511,7 +545,7 @@ is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
 pane, one row for each open group of the session, newest first, with Stop, Run
 unexpected again and Close. The title of a row is a link to the page of the group.
 
-The pane draws a row for each other open work item. The row shows its identifier, its title as a link to its page, its kind, the word and the color of the first condition of its decoration, the line of its decoration, and Stop and Close. The first column header is "item". The heading counts each kind: "2 groups · 1 search · 1 running". A list of groups only reads "2 groups · 1 running". The decoration of the list counts the running items. For a group it reads the status only.
+The pane draws a row for each other open work item, a task alone or a search. The row shows its identifier, its title as a link to its page, its kind, who started it, the word and the color of the first condition of its decoration, the line of its decoration, and Stop and Close. The first column header is "item", and the column "started by" says who started each row, of a group too. The pane has no arrangement, so it does not filter or sort its rows. The heading counts each kind: "2 groups · 1 search · 1 running". A list of groups only reads "2 groups · 1 running". The decoration of the list counts the running items. For a group it reads the status only.
 
 `make_task_group_list_tab_title` is the title of the Tasks tab, and the
 `make_pane_tab_title` of a list: the icon of a list, and a badge with the count of
@@ -532,10 +566,12 @@ a row of the natural renderer for each. A part that leads to another page answer
 navigator around the page opens it, and Ctrl+press opens it in a new tab.
 
 - **The page of a task** (`TaskDocumentToWidgetPane`): the header line of the
-  detail (the badge, the name, the muted text) with a link to its group, and the
+  detail (the badge, the name, the muted text) with a link to its group, or for a
+  task alone its identifier and who started it, and the
   error line of an `ERROR`; Stop, Run again
   and the buttons of its kind, which act through the group of the task, so
-  the counts of the group follow, or on the task itself when it has no group; a
+  the counts of the group follow, or on the task itself when it has no group,
+  whose Run again is a `StartTaskOperation`, so a task alone goes back into its row; a
   kind that the editor does not start (`start_task`), such as a background task
   of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
   its kind; a link to the page of the group of a task that is a group; the
@@ -581,7 +617,8 @@ A person at the REPL and a model through `execute_julia_code` read and act on
 the groups of the session with the verbs of the slice: `list_task_groups`,
 `find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
 `wait_for_tasks!`, `stop_tasks!`, `stop_task!`, `rerun_tasks!`,
-`wait_for_task_group!`, `close_task_group!` and `run_tasks!`. Each but `wait_for_task_group!` takes the keyword
+`wait_for_task_group!`, `close_task_group!` and `run_tasks!`, which starts a
+group or one task alone. Each but `wait_for_task_group!` takes the keyword
 `editor = get_evaluation_editor()`, so the code of a model names no editor;
 `wait_for_task_group!` takes `editor` first. Each does its document work on the
 task of the editor through `run_on_editor_task!`, so a person at the REPL, who
@@ -607,7 +644,8 @@ the person allows them in the spin box under the message box.
 **The actions of a group are operations.** A start, a stop of the group, a stop of
 one task, a rerun and a close are `StartTaskGroupOperation`,
 `StopTaskGroupOperation`, `StopTaskOperation`, `RerunTaskGroupOperation` and
-`CloseTaskGroupOperation`, in `TaskGroupDocument.jl`. The buttons of the card, of
+`CloseTaskGroupOperation`, in `TaskGroupDocument.jl`, and the start of a task
+alone is `StartTaskOperation`, in `TaskWorkItem.jl`. The buttons of the card, of
 the table and of the Tasks list, and the verbs `stop_tasks!`, `stop_task!`,
 `rerun_tasks!` and `close_task_group!`, make them, and the editor evaluates them
 (`evaluate_operation(editor, operation)`), so the person and the assistant act on

@@ -3,15 +3,17 @@
 # task for what its kind adds ([`get_task_columns`](@ref)).
 
 """
-    TaskDocument(task; status = :pending, progress = nothing)
+    TaskDocument(task; status = :pending, progress = nothing, identifier = "", title = "")
 
 One task as a document: the task, its current execution, and the executions
 before it.
 
 Use it to show a task, and to start and stop it. A group of tasks holds one for
-each of its tasks ([`TaskGroupDocument`](@ref)). A `status` other than
-`:pending` gives the document an execution that holds `status` and `progress`
-and runs no process, for an example or a picture of a task.
+each of its tasks ([`TaskGroupDocument`](@ref)). A task with no group and an
+`identifier` is a row of the task list of its own, a task alone, which
+`run_tasks!(task)` starts. A `status` other than `:pending` gives the document an
+execution that holds `status` and `progress` and runs no process, for an example
+or a picture of a task.
 
 # Example
 
@@ -49,6 +51,14 @@ See also `TaskGroupDocument`, `TaskExecution`, `find_task_group` and `list_task_
 - `inner_group` — the [`TaskGroupDocument`](@ref) of a task that is a group, or
   `nothing`. It is a field, so the inner group has a path under the outer group,
   `tasks[i].inner_group`, and the page of the task shows the page of that group.
+- `identifier` — `T1`, `T2`, … for a task alone, from the counter of the groups
+  ([`make_task_group_identifier`](@ref)), so its row and its closed row keep it;
+  an empty string for a task of a group.
+- `title` — what the row and the page of a task alone call it, or an empty string
+  for the task in one line ([`format_task_parameters`](@ref)).
+- `started_by` — who started a task alone, a [`WorkStarter`](@ref) that its first
+  start records, or `nothing` before it and for a task of a group, whose group
+  records it.
 
 While the document has a current execution, its shadow is the last of
 `executions` ([`get_current_task_execution`](@ref)).
@@ -63,11 +73,16 @@ For the assistant.
     process_tree::Any
     group::Any
     inner_group::Any
+    identifier::String
+    title::String
+    started_by::Any
 end
 
-function TaskDocument(task; status::Symbol = :pending, progress = nothing)
+function TaskDocument(task; status::Symbol = :pending, progress = nothing, identifier::AbstractString = "",
+                      title::AbstractString = "")
     document = _follow_current_execution!(TaskDocument(Cell(task), Cell(nothing), Cell(CellVector()),
                                                        Cell(nothing), Cell(nothing), Cell(Ref{Any}(nothing)),
+                                                       Cell(nothing), Cell(String(identifier)), Cell(String(title)),
                                                        Cell(nothing), Cell(nothing)))
     status === :pending && return document
     execution = TaskExecution(task)
@@ -110,10 +125,15 @@ copy_document(policy::DuplicatePolicy, document::TaskDocument) =
     _follow_current_execution!(copy_document_fields(policy, document; running = nothing,
                                                     executions = CellVector(), kind_document = nothing,
                                                     process_tree = nothing, group = Ref{Any}(nothing),
-                                                    inner_group = nothing))
+                                                    inner_group = nothing, identifier = "",
+                                                    started_by = nothing))
 
-# A task is called by the task in one line, as the list of tasks writes it.
-get_document_title(document::TaskDocument) = format_task_parameters(getfield(document, :task)[])
+# A task is called by its title, or by the task in one line, as the list of tasks
+# writes it.
+function get_document_title(document::TaskDocument)
+    title = getfield(document, :title)[]
+    isempty(title) ? format_task_parameters(getfield(document, :task)[]) : title
+end
 
 """
     find_task_document_group(document) -> (group, index) or nothing
@@ -274,7 +294,7 @@ function get_tree_children_steps(document::TaskDocument)
 end
 
 function format_tree_node_label(document::TaskDocument)
-    name = format_task_parameters(getfield(document, :task)[])
+    name = get_document_title(document)
     isempty(name) ? String(get_task_document_status(document)) : name
 end
 
@@ -360,19 +380,31 @@ function collect_task_document_lines(document::TaskDocument, stream::Symbol = :o
 end
 
 """
-    start_task!(document; editor = find_evaluation_editor(), options...) -> document
+    start_task!(document; editor = find_evaluation_editor(), started_by = get_work_starter(),
+                options...) -> document
 
 Start the task of `document` and answer at once. `options` go to the
 [`start_task`](@ref) of its kind. The execution and its shadow are the current
 ones at once, and the session `TaskFeedStore` syncs the shadow: the window of
 `editor` a few times a second, and a caller with no window after
 [`wait_task_document`](@ref).
+
+A task alone, which has an `identifier`, is a row of the task list: its first
+start records `started_by`, who started it, and each start puts the row at the
+end of the list of the session of `editor`, or back into its place when a person
+closed it. A start that throws, such as a program in a folder that does not exist,
+adds no row.
 """
-function start_task!(document::TaskDocument; editor = find_evaluation_editor(), options...)
+function start_task!(document::TaskDocument; editor = find_evaluation_editor(),
+                     started_by = get_work_starter(), options...)
     execution = start_task(getfield(document, :task)[]; options...)
     shadow = make_task_execution_shadow(execution)
     add_task_execution!(document, execution, shadow)
     register_task_execution!(get_session_task_feed_store(), execution, document; shadow, editor)
+    isempty(getfield(document, :identifier)[]) && return document
+    starter = getfield(document, :started_by)
+    starter[] === nothing && set_cell_value!(starter, started_by)
+    add_task_group!(get_session_task_group_list(; editor), document)
     document
 end
 

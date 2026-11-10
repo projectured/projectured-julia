@@ -207,8 +207,23 @@ describe_task(group::ReferencedDocument, index::Integer; keywords...) =
 
 function _describe_task(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
+    _describe_task_facts(String[_format_task_line(group, index)], document)
+end
+
+# What a task alone did: its title and its state, then what every task has, at
+# most `limit` lines.
+function _describe_task_document(document::TaskDocument, limit::Integer)
+    result = get_task_document_result(document)
+    state = result === nothing ? String(get_task_document_status(document)) : format_task_result(result)
+    first_line = string(get_document_title(document), " — ", state)
+    lines = split(_describe_task_facts(String[first_line], document), "\n")
+    join(first(lines, limit), "\n")
+end
+
+# The facts of a task after its first line: its process, its time, its executions
+# and the last lines of its streams.
+function _describe_task_facts(lines::Vector{String}, document::TaskDocument)
     current = get_current_task_execution(document)
-    lines = String[_format_task_line(group, index)]
     if current !== nothing
         current.process_id === nothing || push!(lines, "process: " * string(current.process_id))
         started = current.start_time
@@ -233,9 +248,11 @@ end
 
 """
     get_task_output(group, index; stream = :stdout, lines = 50, editor = get_evaluation_editor()) -> String
+    get_task_output(task; stream = :stdout, lines = 50, editor = get_evaluation_editor()) -> String
 
 **The last `lines` lines that one task of a group printed** on `stream`,
-`:stdout` or `:stderr`.
+`:stdout` or `:stderr`, or that a task alone printed, as `run_tasks!(task)`
+answered it.
 
 Use it to read what a task printed, such as the error of a task that failed.
 
@@ -263,18 +280,31 @@ end
 get_task_output(group::ReferencedDocument, index::Integer; keywords...) =
     get_task_output(get_document(group), index; keywords...)
 
+# The output of a task alone, which `run_tasks!(task)` answered.
+function get_task_output(document::TaskDocument; stream::Symbol = :stdout, lines::Integer = 50,
+                         editor = get_evaluation_editor())
+    stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")
+    run_on_editor_task!(editor; description = "get_task_output") do
+        output = collect_task_document_lines(document, stream === :stdout ? :output : :error_output)
+        isempty(output) && return "(nothing printed)"
+        join(last(output, lines), "\n")
+    end
+end
+
 # ── Acting on a group ───────────────────────────────────────────────────────
 
 """
     run_tasks!(group; title = group.name, editor = get_evaluation_editor()) -> TaskGroupDocument
+    run_tasks!(task; title = format_task_parameters(task), editor = get_evaluation_editor()) -> TaskDocument
 
-**Start a group of tasks** and answer its document at once. The group joins the
-list of the session, so the Tasks pane shows it with its progress, each task has
-its log, exit status and stop, and a person can stop it. The answer goes to
-`describe_task_group`, `get_task_output`, `wait_for_tasks!`, `stop_tasks!`,
-`stop_task!`, `rerun_tasks!` and `close_task_group!`. It places no tab and moves
-no selection: `open_pane!(answer)` places one when the person asks. A group that
-started before throws an `ArgumentError`: run it again with `rerun_tasks!`.
+**Start a group of tasks, or one task alone,** and answer its document at once.
+The group joins the list of the session, so the Tasks pane shows it with its
+progress, each task has its log, exit status and stop, and a person can stop it.
+The answer goes to `describe_task_group`, `get_task_output`, `wait_for_tasks!`,
+`stop_tasks!`, `stop_task!`, `rerun_tasks!` and `close_task_group!`. It places no
+tab and moves no selection: `open_pane!(answer)` places one when the person asks.
+A group that started before throws an `ArgumentError`: run it again with
+`rerun_tasks!`.
 
 The group is a `TaskGroup` of `ProgramTask`s, or of any kind of task, and a task
 of a group can be a group. **For a chain, pass `jobs = 1` and
@@ -283,6 +313,11 @@ ended as expected, and the steps after a failed one end `CANCEL` with
 `Not started: …`. The default of `jobs` is the count of processor threads, so
 the steps would run at once. End the turn after the start when the group runs for
 minutes: the assistant starts a turn when the group ends, while it has wakes left.
+
+**One task alone**, such as one command, is a row of its own, with an identifier
+`T…` as a group has, and no group around it. Use it when the next command depends
+on what this one printed. A program in a folder that does not exist throws, and
+no row is added. Each row records who started it.
 
 Use it to run programs, such as a checkout, a build and an export, as tasks
 that the person sees and can stop.
@@ -296,12 +331,23 @@ that the person sees and can stop.
                                           environment = Dict("MODE" => "release"), name = "build")];
                              name = "commit 3fa2c1d", jobs = 1, stop_at_failure = true);
                    title = "commit 3fa2c1d")
+    t = run_tasks!(ProgramTask(`make -j8`; working_directory = w, name = "build"))
 
 See also `wait_for_tasks!`, `describe_task_group`, `stop_tasks!`, `rerun_tasks!`.
 
 For the assistant.
 """
 function run_tasks! end
+
+# A task alone is a row of its own, and its start is an operation of the editor.
+function run_tasks!(task::AbstractTask; title::AbstractString = format_task_parameters(task),
+                    editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "run_tasks!") do
+        document = TaskDocument(task; identifier = make_task_group_identifier(), title = String(title))
+        evaluate_operation(editor, StartTaskOperation(document))
+        document
+    end
+end
 
 function run_tasks!(group::TaskGroup; title::AbstractString = group.name, editor = get_evaluation_editor())
     lock(() -> group.start_time, group.runtime.lock) === nothing ||
@@ -436,9 +482,11 @@ stop_task!(task::ReferencedDocument, arguments...; keywords...) =
 
 """
     rerun_tasks!(group; which = :unexpected, wait = false, editor = get_evaluation_editor()) -> TaskGroupDocument
+    rerun_tasks!(task; editor = get_evaluation_editor()) -> TaskDocument
 
 **Run tasks of a group again, in place**: `:unexpected` (the default), `:failed`,
-`:unfinished`, `:all`, or a vector of their places.
+`:unfinished`, `:all`, or a vector of their places. A task alone runs again as a
+whole, and its row comes back into its place when it was closed.
 
 Use it to repeat the tasks that failed after a fix.
 
@@ -466,12 +514,20 @@ end
 rerun_tasks!(group::ReferencedDocument; keywords...) =
     rerun_tasks!(get_document(group); keywords...)
 
+# A task alone runs again as a whole, with no group, and its row goes back into its
+# place. A task that runs goes on as it is.
+function rerun_tasks!(document::TaskDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(() -> evaluate_operation(editor, StartTaskOperation(document)), editor;
+                        description = "rerun_tasks!")
+    document
+end
+
 """
     wait_for_tasks!(group; timeout = 30, editor = get_evaluation_editor()) -> String
 
-**Wait a short while for a group of tasks to end**, at most `timeout` seconds,
-and say how it stands: ended, with the line that sums it up, or still running,
-with what is done so far.
+**Wait a short while for a group of tasks, or a task alone, to end**, at most
+`timeout` seconds, and say how it stands: ended, with the line that sums it up, or
+still running, with what is done so far.
 
 **The wait holds the window**, as every call of `execute_julia_code` does, so
 keep it short. For a group that runs for minutes, say how long it takes and end
@@ -506,6 +562,31 @@ end
 
 wait_for_tasks!(group::ReferencedDocument; keywords...) =
     wait_for_tasks!(get_document(group); keywords...)
+
+# A task alone ends with its current execution: "Ended: DONE in 0.4" or "Still
+# running after 30: …" with its line.
+function wait_for_tasks!(document::TaskDocument; timeout::Real = 30, editor = get_evaluation_editor())
+    started = time()
+    execution = getfield(document, :running)[]
+    deadline = started + Float64(timeout)
+    # The execution goes on until its result is written, after its process ended.
+    is_running() = execution !== nothing && lock(() -> execution.result, execution.runtime.lock) === nothing
+    if get_current_code_unit() === nothing
+        is_running() && timedwait(() -> !is_running(), max(0.0, deadline - time()); pollint = 0.1)
+    else
+        while is_running() && time() < deadline
+            wait_in_code_unit(min(0.1, max(0.0, deadline - time())))
+        end
+    end
+    run_on_editor_task!(editor; description = "wait_for_tasks!") do
+        drain_task_feed!(; editor)
+        waited = format_elapsed_time(time() - started; precision = 0)
+        result = get_task_document_result(document)
+        is_running() ? string("Still running after ", waited, ": ", get_document_decoration(document).detail, ".") :
+        result === nothing ? string("Not started: ", get_document_title(document), ".") :
+                             string("Ended: ", format_task_result(result), ".")
+    end
+end
 
 """
     close_task_group!(group; editor = get_evaluation_editor()) -> String

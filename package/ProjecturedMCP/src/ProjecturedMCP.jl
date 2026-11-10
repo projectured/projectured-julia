@@ -23,10 +23,12 @@ for _src in (ProjecturedKernel,)
     end
 end
 
-# The one slice of the platform that the adapter uses: the store of the MCP log,
-# which it writes with each call that it answers.
+# The two slices of the platform that the adapter uses: the store of the MCP log,
+# which it writes with each call that it answers, and the tasks, whose rows record
+# that a client over MCP started them.
 import ProjecturedPlatform
 const McpLogModule = ProjecturedPlatform.McpLogModule
+const TaskModule = ProjecturedPlatform.TaskModule
 
 include("../../../source/adapter/mcp/McpModule.jl")
 

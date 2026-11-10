@@ -55,7 +55,8 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..SelectionModule: has_dormant_selection
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
-import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item
+import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item,
+                     get_work_item_starter
 import ..WidgetModule: make_graphics_projection
 
 export ExplorerFilter

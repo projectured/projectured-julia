@@ -19,7 +19,8 @@ const DEFAULT_MCP_PORT = 9876
 
 """
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS,
-              host = DEFAULT_MCP_HOST, port = DEFAULT_MCP_PORT, secret = false)
+              host = DEFAULT_MCP_HOST, port = DEFAULT_MCP_PORT, secret = false,
+              stop = nothing, call_starter = nothing)
 
 An MCP server bound to an editor. It listens at `http://<host>:<port>/mcp`,
 which is `http://127.0.0.1:9876/mcp` by default. Start/stop it through the
@@ -31,6 +32,13 @@ that carries `Authorization: Bearer <secret>`. Any other request gets `401`, so
 a program of this machine that does not know the secret, or a web page that
 reaches the loopback address, can not run a tool. `get_agent_server_access`
 gives the address and the header to the client that the editor chose.
+
+The code of each call runs with a starter ([`find_evaluation_starter`](@ref)), so
+a row of the task list that it starts records who asked for it. `call_starter` is
+a function of the id that the client gives the call, or of `nothing`, that answers
+that starter: the assistant whose agent the server serves passes its own. With
+`nothing`, the starter is a client over MCP, `WorkStarter(:client; name = "MCP
+client")`.
 """
 # The background work of each call of a server that runs, so the cancel of the
 # turn of its agent reaches it.
@@ -52,13 +60,17 @@ mutable struct McpServer
     # such as the cancel of the turn of the agent that made the call; or nothing.
     stop::Union{Function, Nothing}
     running::_RunningCallWork
+    # The starter of the code of a call, a function of the id of the call; or nothing
+    # for a client over MCP.
+    call_starter::Union{Function, Nothing}
 end
 
 function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS,
                    host::AbstractString = DEFAULT_MCP_HOST,
                    port::Integer = DEFAULT_MCP_PORT,
                    secret::Bool = false,
-                   stop::Union{Function, Nothing} = nothing)
+                   stop::Union{Function, Nothing} = nothing,
+                   call_starter::Union{Function, Nothing} = nothing)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
@@ -81,7 +93,8 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
     )
     port == 0 && (port = _choose_free_port(host))
     McpServer(editor, srv, nothing, String(host), Int(port),
-              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "", stop, _RunningCallWork())
+              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "", stop, _RunningCallWork(),
+              call_starter)
 end
 
 # A port that no other program holds now. The port is free again when the
@@ -223,7 +236,7 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    render_mcp_tools(editor, tools; stop = nothing) -> Vector{MCPTool}
+    render_mcp_tools(editor, tools; stop = nothing, call_starter = nothing) -> Vector{MCPTool}
 
 Render the given tools into the `MCPTool` shape the MCP server expects, binding
 each handler to `editor`. This is the MCP half of the same job `ProjecturedAnthropic`
@@ -246,10 +259,16 @@ When the client names its call in the `_meta` of the request, as Claude Code doe
 with `claudecode/toolUseId`, the document that an `execute_julia_code` call
 returns is kept in the tool set under that id with `keep_tool_call_value!`, so
 the turn of an agent can show it live.
+
+Each call runs with the starter that `call_starter` gives for the id of the call,
+or `nothing` when the client names none; with no `call_starter`, a client over MCP
+with that id as its tool call. The tool and every call that its code posts to the
+loop of the editor run with it.
 """
 function render_mcp_tools(editor, tools::AbstractVector{Tool};
                           stop::Union{Function, Nothing} = nothing,
-                          running::Union{_RunningCallWork, Nothing} = nothing)
+                          running::Union{_RunningCallWork, Nothing} = nothing,
+                          call_starter::Union{Function, Nothing} = nothing)
     out = MCPTool[]
     for t in tools
         params = ToolParameter[
@@ -313,17 +332,21 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                             (fault[] = true)
                     end
                 end
-                text = if !tool.reads_documents
-                    _run_on_default_pool(call)
-                else
-                    try
-                        run_on_editor_task!(call, editor; description = tool.name, stop)
-                    catch exception
-                        # The editor did not start the call in time: the client
-                        # reads why.
-                        exception isa EditorCallTimeoutException || rethrow()
-                        fault[] = true
-                        sprint(showerror, exception)
+                starter = call_starter === nothing ? _make_client_starter(call_id) :
+                                                     call_starter(call_id)
+                text = run_with_evaluation_starter(starter) do
+                    if !tool.reads_documents
+                        _run_on_default_pool(call)
+                    else
+                        try
+                            run_on_editor_task!(call, editor; description = tool.name, stop)
+                        catch exception
+                            # The editor did not start the call in time: the client
+                            # reads why.
+                            exception isa EditorCallTimeoutException || rethrow()
+                            fault[] = true
+                            sprint(showerror, exception)
+                        end
                     end
                 end
                 # Background work runs off the editor, and this task waits for it.
@@ -351,6 +374,11 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
     end
     out
 end
+
+# The starter of a call of a client that no assistant serves: a client over MCP,
+# with the id that it gives the call.
+_make_client_starter(call_id) =
+    WorkStarter(:client; name = "MCP client", tool_call = something(call_id, ""))
 
 # Run `function_` on a task of the default pool, and answer its value or throw its
 # exception. HTTP serves each request on a task of its interactive thread, which
@@ -455,7 +483,8 @@ end
 # server serves exactly the tools of the editor it is bound to.
 function _make_tools(mcp::McpServer)
     register_default_tools!(mcp.editor.tools)
-    render_mcp_tools(mcp.editor, list_tools(mcp.editor.tools); stop = mcp.stop, running = mcp.running)
+    render_mcp_tools(mcp.editor, list_tools(mcp.editor.tools); stop = mcp.stop, running = mcp.running,
+                     call_starter = mcp.call_starter)
 end
 
 function _make_resources(editor)

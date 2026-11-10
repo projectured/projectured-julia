@@ -14,7 +14,8 @@ lines of its facts when it gives no document; and the cards `Links`, `Process`, 
 kind, its process, its executions each a link to its page, and the last lines of each
 stream of its current execution with a link to the page of the stream. The page is a column in a scroll area that grows
 down; each card folds and keeps its own state, as the page has no group around it. A task
-of a group stops and runs again through its group. A kind that the editor does
+of a group stops and runs again through its group. A task alone shows its identifier
+and who started it, and runs again with no group, back in its row. A kind that the editor does
 not start has only the buttons of its kind. A task that is a group links to the
 page of its group.
 """
@@ -101,11 +102,17 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
     task = getfield(document, :task)[]
     place = find_task_document_group(document)
     parts = Any[]
-    heading = Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+    heading = Any[_make_task_state_badge(document), WidgetLabel(get_document_title(document)),
                   _make_task_header_note(p, document)]
     if place !== nothing
         (group, index) = place
         push!(heading, _make_task_link(() -> "in " * getfield(group, :title)[], group, EmptyReference()))
+    end
+    # A task alone is a row of the task list: its identifier, and who started it.
+    identifier = getfield(document, :identifier)[]
+    if !isempty(identifier)
+        push!(heading, WidgetBadge(identifier; variant = :outline))
+        push!(heading, _make_label(() -> _describe_row_starter(document), p.muted_color))
     end
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.label_gap))
     push!(parts, _make_task_error_line(p, document))
@@ -159,9 +166,16 @@ _build_task_links(p, task) =
                                         vertical_align = :center, gap = p.label_gap)
                        for link in get_task_links(task)]; gap = p.section_gap, child_width = Fill)
 
+# Who started a task alone, in words, or nothing before its start.
+function _describe_row_starter(document::TaskDocument)
+    starter = getfield(document, :started_by)[]
+    starter === nothing ? "" : "started by " * describe_work_starter(starter)
+end
+
 # Stop, Run again and the buttons of the kind. A task of a group acts through its
-# group, so the counts of the group follow; a task of no group acts on itself. A
-# kind that the editor does not start (`start_task`), such as a task that an agent
+# group, so the counts of the group follow; a task of no group acts on itself, and
+# its Run again is the start of the editor, so a task alone goes back into its row.
+# A kind that the editor does not start (`start_task`), such as a task that an agent
 # runs and the editor only watches, has no Stop and no Run again: the buttons of
 # its kind act on it. A task that is a group links to the page of its group.
 function _build_task_page_actions(p, document::TaskDocument, task, place)
@@ -169,7 +183,8 @@ function _build_task_page_actions(p, document::TaskDocument, task, place)
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = _ -> _run_guarded("stop", () -> stop_task!(document)))
         again = WidgetButton("Run again"; size = p.button_size,
-                             action = _ -> _run_guarded("run again", () -> start_task!(document)))
+                             action = editor -> _run_guarded("run again",
+                                 () -> evaluate_operation(editor, StartTaskOperation(document))))
         set_cell_computation!(getfield(again, :enabled), () -> !(get_task_document_status(document) in (:running, :cancelling)))
     else
         (group, index) = place

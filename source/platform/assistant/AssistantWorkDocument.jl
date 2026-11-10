@@ -16,9 +16,13 @@ navigator.
   session. They follow the work of a new session. A path from the page names a
   part of the work through them, such as `subagents[1]`, so Parent from the
   page of a subagent comes back to the page.
+- `work_items` — the rows of the task list of the session of the editor that the
+  assistant started: its groups, its tasks alone and its searches, in the order of
+  their starts. Each records the identifier of the assistant
+  (`get_work_item_starter`), so the page finds them by it.
 - `work_tree` — the `DocumentTree` of the page itself: the session, its
   subagents, their background tasks and the turns of each subagent, at every
-  depth.
+  depth, and the rows that the assistant started.
 - `process_tree` — a `DocumentTree` of `processes`, or `nothing` while the agent
   names no process.
 
@@ -33,15 +37,17 @@ file keeps the assistant of the page and nothing of its work.
     background_tasks::Any
     plans::Any
     processes::Any
+    work_items::Any
     work_tree::Any
     process_tree::Any
 end
 
 function AssistantWork(a::Assistant)
-    work = AssistantWork(Cell(a), (Cell(nothing) for _ in 1:7)...)
+    work = AssistantWork(Cell(a), (Cell(nothing) for _ in 1:8)...)
     for name in (:subagents, :background_tasks, :plans, :processes)
         set_cell_computation!(getfield(work, name), () -> getproperty(a.agent_work, name))
     end
+    set_cell_computation!(getfield(work, :work_items), () -> _collect_assistant_work_items(a))
     work.work_tree = DocumentTree(work; title = "Work")
     set_cell_computation!(getfield(work, :process_tree), () -> begin
         processes = a.agent_work.processes
@@ -63,10 +69,21 @@ accepts_pasted_document(::AssistantWork) = false
 # A file keeps the assistant, and the page draws its work again.
 pred_arguments(work::AssistantWork) = (work.assistant,), Pair{Symbol,Any}[]
 
+# The rows of the task list of the session that `a` started, which name its
+# identifier; none with no editor of the evaluation, whose list holds nothing.
+function _collect_assistant_work_items(a::Assistant)
+    identifier = a.identifier
+    items = collect_work_items(get_session_task_group_list())
+    CellVector(Any[item for item in items
+                   if (starter = get_work_item_starter(item)) isa WorkStarter &&
+                      starter.kind === :assistant && starter.identifier == identifier])
+end
+
 # The root of the tree of the work is the session: its subagents, then its
-# background tasks.
+# background tasks, then the rows that the assistant started.
 get_tree_children_steps(::AssistantWork) =
-    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
+    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),),
+     (FieldReferenceStep("work_items"),))
 format_tree_node_label(::AssistantWork) = "This session"
 get_document_decoration(work::AssistantWork) =
     is_assistant_turn_running(work.assistant) ?

@@ -49,7 +49,9 @@ using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!, is_walk_opaque,
                          is_field_walked
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type, get_item_facets,
-                       compute_item_facet, get_item_facet_type, has_item_facet, make_roster_cell, _has_item_facet
+                       compute_item_facet, get_item_facet_type, has_item_facet, make_roster_cell, _has_item_facet,
+                       format_roster_value
+import ..ArrangementModule: get_arrangement_value
 import ..DomainModule: accepts_pasted_document, get_document_decoration, get_insertion_aliases,
                        make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
@@ -107,7 +109,9 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group,
        measure_task_group_document_progress, get_task_group_document_status,
        StartTaskGroupOperation, StopTaskGroupOperation, StopTaskOperation,
        RerunTaskGroupOperation, CloseTaskGroupOperation
-export get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item
+export WorkStarter, WORK_STARTER_KINDS, get_work_starter, describe_work_starter, get_work_item_starter,
+       get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item,
+       StartTaskOperation
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
        collect_work_items, add_task_group!, remove_task_group!
 export TaskTheme, ScaledTaskTheme

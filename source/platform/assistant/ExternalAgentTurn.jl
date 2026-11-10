@@ -683,13 +683,16 @@ const _AGENT_SERVER_INSTRUCTIONS =
 # free port, with a secret that only this agent gets. With no MCP package loaded
 # the agent has its own tools only.
 # The server of the tools of the agent of `a`. A stop of a code unit in which one of
-# its calls runs cancels the turn of `a`.
+# its calls runs cancels the turn of `a`. The code of a call runs with `a` and the
+# id that the agent gives the call as its starter, so a row that it starts names
+# both.
 function _start_agent_tool_server!(editor, a::Assistant, session::ExternalAgentSession)
     session.tool_server === nothing || return session.tool_server
     :mcp in Base.invokelatest(get_agent_server_names) || return nothing
+    call_starter = call_id -> make_assistant_starter(a; tool_call = something(call_id, ""))
     server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true,
                                instructions = _AGENT_SERVER_INSTRUCTIONS,
-                               stop = _make_turn_stop_step(editor, a))
+                               stop = _make_turn_stop_step(editor, a), call_starter)
     Base.invokelatest(start_agent_server!, server)
     session.tool_server = server
 end

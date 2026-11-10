@@ -67,6 +67,9 @@ See also `find_task_group`, `list_task_groups`, `TaskDocument` and `TaskGroupLis
   alone, in the whole place of the table and the split. Return on the table sets
   it, and Escape clears it. While it is set, Up and Down select the previous or
   the next task in the order of the table.
+- `started_by` — who started the group, a [`WorkStarter`](@ref) that its first
+  start records: the person, an assistant and its tool call, or a client over MCP;
+  `nothing` before the start and for an inner group, whose outer group records it.
 
 For the assistant.
 """
@@ -86,6 +89,7 @@ For the assistant.
     shown::Any
     table::Any
     is_detail_alone::Bool
+    started_by::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -150,7 +154,7 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),
                             Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing),
-                            Cell(false))
+                            Cell(false), Cell(nothing))
     _make_task_group_table!(doc)
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.
@@ -418,7 +422,8 @@ function _refresh_status!(doc::TaskGroupDocument)
 end
 
 """
-    start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing) -> doc
+    start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing,
+                               started_by = get_work_starter()) -> doc
 
 Start every task of the group, `doc.jobs` at a time, and answer at once. Each
 task reports into its own document while it goes, through the feed of `editor`.
@@ -428,6 +433,10 @@ list, and a caller with no window drains the feed itself
 ([`wait_task_group_document`](@ref)). A verb that names its editor passes it,
 because a call that runs at once binds no editor of the evaluation.
 
+The first start records `started_by`, who started the group: by default the
+starter of the evaluation, the person for a press of a button, an assistant and
+its tool call for the code of a tool call. A later start keeps it.
+
 `end_operation` is an operation that `editor` evaluates when the group ends:
 its tasks ended, or it stopped. A build passes the operation that reads again
 what the build changes, such as the configurations of a project. A task of its
@@ -435,10 +444,12 @@ own waits for the group and posts the operation, so no document holds the
 editor; with no editor, nothing is posted.
 """
 function start_task_group_document!(doc::TaskGroupDocument; editor = find_evaluation_editor(),
-                                    end_operation = nothing)
+                                    end_operation = nothing, started_by = get_work_starter())
     group = get_task_group(doc)
     # A group that runs goes on as it is: its Run is off while it goes.
     group.runtime.scheduler !== nothing && !istaskdone(group.runtime.scheduler) && return doc
+    starter = getfield(doc, :started_by)
+    starter[] === nothing && set_cell_value!(starter, started_by)
     group.jobs = max(1, getfield(doc, :jobs)[])
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, eachindex(group.tasks))

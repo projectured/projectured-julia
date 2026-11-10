@@ -17,7 +17,8 @@ Draw an [`AssistantWork`](@ref) as a column of cards, in a scroll pane:
   idle page draws no frame.
 - **The plans**: each other plan of the agent, with the view of a plan.
 - **Work**: the tree of the work: the session, its subagents, their
-  background tasks and the turns of each subagent, at every depth. A double click on a node opens its page.
+  background tasks and the turns of each subagent, at every depth, and the rows
+  of the task list that the assistant started. A double click on a node opens its page.
 - **Processes**: the tree of the processes of the session, or a line that says
   that the agent gives none.
 - **Notices**: the notices of the agent, the newest first, each with its time
@@ -237,7 +238,8 @@ function _map_into_work_tree(kind::Symbol, path::ConcreteReference)
     root = FieldReferenceStep("root")
     if kind === :work
         is_work = steps[1] in (FieldReferenceStep("subagents"),
-                               FieldReferenceStep("background_tasks"))
+                               FieldReferenceStep("background_tasks"),
+                               FieldReferenceStep("work_items"))
         return is_work ? extend_reference(EmptyReference(), root, steps...) : nothing
     end
     steps[1] == FieldReferenceStep("processes") || return nothing

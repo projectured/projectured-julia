@@ -1,8 +1,8 @@
-# The groups of tasks of the session of an editor: every group that any door of
-# the editor started — a form, a verb, the assistant of the window, a client over
-# MCP — in the order of their starts, in one `TaskGroupList`. A group keeps its
-# place: a close of its row leaves a `ClosedTaskGroup` there, so a path to a later
-# group still names that group.
+# The groups of tasks of the session of an editor: every group and every task
+# alone that any door of the editor started — a form, a verb, the assistant of the
+# window, a client over MCP — in the order of their starts, in one `TaskGroupList`.
+# A row keeps its place: a close of its row leaves a `ClosedTaskGroup` there, so a
+# path to a later row still names that row.
 
 """
     TaskGroupList()
@@ -253,8 +253,11 @@ function find_navigator_address(list::TaskGroupList, item)
     index === nothing ? nothing : extend_reference(EmptyReference(), _get_element_steps("groups", index)...)
 end
 
-# A task is at its place in its group, or it is the preparation of a group.
+# A task alone is at its place in the list. A task of a group is at its place in
+# its group, or it is the preparation of a group.
 function find_navigator_address(list::TaskGroupList, task::TaskDocument)
+    index = findfirst(item -> item === task, collect(list.groups))
+    index === nothing || return extend_reference(EmptyReference(), _get_element_steps("groups", index)...)
     place = find_task_document_group(task)
     if place !== nothing
         (group, index) = place
@@ -291,8 +294,8 @@ end
 
 Close the row of `group`, a group of tasks or another work item: a
 [`ClosedTaskGroup`](@ref) takes its place in the list, and the files of the
-streams of the tasks of a group go. A group goes on if it runs, and its tasks
-keep their bounded lines.
+streams of the tasks of a group, and of a task alone, go. A group goes on if it
+runs, and its tasks keep their bounded lines.
 """
 function remove_task_group!(list::TaskGroupList, group)
     index = findfirst(g -> g === group, collect(list.groups))
@@ -305,6 +308,7 @@ function remove_task_group!(list::TaskGroupList, group)
 end
 
 _remove_work_item_files!(group::TaskGroupDocument) = remove_task_output_files!(group)
+_remove_work_item_files!(document::TaskDocument) = remove_task_output_files!(document)
 _remove_work_item_files!(_) = nothing
 
 # The tasks of the groups of the session, as a roster reads them: one part for

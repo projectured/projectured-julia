@@ -943,6 +943,9 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
         stop_reason = try
             run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
                 on_stop = _make_turn_stop_step(editor, a),
+                # The code of a tool call runs with the assistant and the id of the
+                # call as its starter, so a row that it starts names both.
+                call_starter = call -> make_assistant_starter(a; tool_call = call.id),
                 messages = () -> begin
                     control.is_cancelled && throw(TurnCancelledException())
                     _run_turn_call!(() -> build_messages(a.conversation; until = turn), editor, source)

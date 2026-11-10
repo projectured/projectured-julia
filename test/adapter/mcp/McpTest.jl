@@ -872,6 +872,26 @@ function test_mcp_keeps_evaluated_document()
     end
 end
 
+# The code of a call runs with the starter of its client: a client over MCP with
+# the id of the call, or what the `call_starter` of the server gives for that id.
+function test_mcp_call_starter()
+    @testset "the code of a call runs with the starter of its client" begin
+        editor = _mcp_editor()
+        seen = Any[]
+        probe = Tool("probe"; description = "a tool of the test", parameters = NamedTuple[],
+                     handler = (target, arguments) -> (push!(seen, find_evaluation_starter()); "ran"))
+        library = ProjecturedMCP.McpModule.ModelContextProtocol
+        server = library.mcp_server(name = "test", version = "0.0.1")
+        context = library.RequestContext(server = server, meta = Dict{String,Any}("claudecode/toolUseId" => "toolu_3"))
+        only(render_mcp_tools(editor, [probe])).handler(Dict{String,Any}(), context)
+        only(render_mcp_tools(editor, [probe])).handler(Dict{String,Any}())
+        only(render_mcp_tools(editor, [probe]; call_starter = id -> (:assistant, id))).handler(Dict{String,Any}(), context)
+        @test seen == Any[WorkStarter(:client; name = "MCP client", tool_call = "toolu_3"),
+                          WorkStarter(:client; name = "MCP client"), (:assistant, "toolu_3")]
+        @test describe_work_starter(first(seen)) == "MCP client"
+    end
+end
+
 # The MCP log holds each call that a client makes, in order: a read of a
 # resource, a call of code that answers, and a call of code that throws, which is
 # a fault. The client posts real requests to the server of a running loop.
@@ -951,6 +971,7 @@ function test_mcp_tools()
         test_mcp_server()
         test_mcp_tool_runs_on_editor_task()
         test_mcp_keeps_evaluated_document()
+        test_mcp_call_starter()
         test_mcp_log()
     end
 end
@@ -963,4 +984,4 @@ export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api
 export test_pane_tab_b1, test_print_object_options, test_search_object
-export test_mcp_server, test_mcp_tool_runs_on_editor_task
+export test_mcp_server, test_mcp_tool_runs_on_editor_task, test_mcp_call_starter
