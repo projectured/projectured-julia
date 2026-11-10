@@ -170,14 +170,16 @@ end
     @test snapshot.value.value == "v3"
     @test snapshot.value !== vo.versions[1].value       # deep copy
 
-    # Ctrl+Delete deletes the active version via a splice
+    # Alt+Delete deletes the active version via a splice
     # (make_delete_elements_operation): a ReplaceReferencedValueOperation with terminal
     # RangeReferenceStep(0,1) and an empty value.
-    op = read_intent(p, iomap, KeyDown(:delete, ctrl; time = 0.0))
+    op = read_intent(p, iomap, KeyDown(:delete, ModifierKeys(alt = true); time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     @test isempty(op.value)
+    # Ctrl+Delete is the removal of a word of a text, so the versioning leaves it.
+    @test read_intent(p, iomap, KeyDown(:delete, ctrl; time = 0.0)) === nothing
 end
 
 @testset "a version made with Ctrl+Shift+S has its author and time" begin

@@ -47,7 +47,9 @@ The reference maps are asymmetric, because the wrapper is not in the output. The
 | Key | What it does |
 | --- | --- |
 | Ctrl+Shift+S | copies the active value with `copy_document`, clears its selection, and puts it in a new `ObjectVersion` at the front of `versions`, with an author and a time |
-| Ctrl+Delete | deletes the active version |
+| Alt+Delete | deletes the active version |
+
+The delete of a version is on Alt+Delete, as the chart and the sequence chart remove a selected part with Alt+Delete. So a text in the value keeps Ctrl+Delete, which removes a word.
 
 A version that Ctrl+Shift+S makes has the properties that `VersionCriterionByAuthor` and `VersionCriterionAsOf` read. Its `timestamp` is `time()`, the seconds since 1970, and its `author` is the `author` of the projection, `VersioningToAnyProjection(author = "alice")`. With no author named, it is the user of the system, `Sys.username()`, when the version is made.
 

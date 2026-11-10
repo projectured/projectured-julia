@@ -414,10 +414,12 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      in `test_json_construct()` (27, 2 broken), `test_yaml_construct()` (15, 2
      broken), `test_workflow_to_widget()` 72, `test_settings_tab()` 55,
      `test_window_wrappers()` 74 and `test_widget_button_behavior()` 134.
-9. ⬜ **Delete version on Alt+Delete (D14).** Change
+9. ✅ **Delete version on Alt+Delete (D14).** Done 2026-11-11. Change
    [VersioningToAny.jl:195](../../source/platform/versioning/VersioningToAny.jl#L195)
    and [VersioningToAnyTest.jl:173](../../test/platform/projection/VersioningToAnyTest.jl#L173).
-   Test: `test_versioning_to_any()`.
+   Test: `test_versioning_to_any()`. It gives 62: the 61 of the baseline and a
+   check that Ctrl+Delete no longer deletes a version. `versioning.md` names
+   Alt+Delete and the reason.
 10. ⬜ **Through an editor, and the documents.** A new umbrella test,
     `test_text_keys()`, presses each key of this plan through an editor on a plain
     text, a string of `json_example`, the chat draft and a tab name. It checks the
