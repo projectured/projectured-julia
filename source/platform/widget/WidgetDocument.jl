@@ -17,10 +17,12 @@ Is `node` a widget, a layout or a layout constraint: a document that a view buil
 to show its input, and not a document of a domain that the view puts into one of
 its widgets? A view passes it as `is_followed` to `follow_output_paths!`, so the
 walk gives a part of the selection to each widget and layout that the view built,
-and leaves the document of a domain, which holds its own selection.
+and leaves the document of a domain, which holds its own selection. A vector of
+cells, such as the row of a table, is passed through, so the walk reaches the
+widgets in it.
 """
 is_widget_or_layout(node) =
-    node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint
+    node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint || node isa CellVector
 
 """
     follow_widget_output!(root, input, map_forward; is_followed = is_widget_or_layout) -> root

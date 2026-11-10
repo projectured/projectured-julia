@@ -33,19 +33,20 @@ function _print_folder_page(p::FileSystemDirectoryToWidget, owner, directory::Fi
     table = LayoutConstraint(_build_folder_table(owner, directory, steps, bounded);
                              width = Fill, height = bounded ? Fill : Content)
     root = VerticalLayout(Any[heading, table]; horizontal_align = :left, gap = p.gap)
+    place_field = nothing
     if owner isa WorkspaceFolder
         asked = _build_place_widgets(owner)
+        place_field = asked[2]
         set_cell_computation!(getfield(root.children, :elements), () ->
             Cell[Cell(widget) for widget in (_has_folder_place(owner) ? Any[heading, table] : asked)])
     end
     iomap = ChildrenIoMap(p, owner, root, Cell(Any[]))
-    # The part under the pointer, so each link lights and takes a press. A folder of
-    # a workspace gives the page its selection too, so a key goes to the field of
-    # the place that holds the caret.
-    owner isa WorkspaceFolder &&
-        set_output_path_computations!(root, owner, path -> map_reference_forward(p, iomap, path); dormant = false)
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(owner, path -> map_reference_forward(p, iomap, path)))
+    # The part under the pointer, so each link lights and takes a press, and the
+    # selection, so a key goes to the field of the place that holds the caret in a
+    # folder of a workspace. The field of the place has its own map, so the walk
+    # leaves it out.
+    follow_widget_output!(root, owner, path -> map_reference_forward(p, iomap, path);
+                          is_followed = node -> is_widget_or_layout(node) && node !== place_field)
     iomap
 end
 

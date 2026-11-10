@@ -54,8 +54,14 @@ function print_document(p::TooltipContentToVerticalLayout, recursion, content::T
     # one line is higher than the least height of the window, so the height needs
     # no least.
     least_width = Int(unwrap_cell(p.minimum_size).x[])
-    SimpleIoMap(p, content, VerticalLayout(Any[_make_tooltip_frame(p, column)];
-                                           child_width = SizePolicy(least_width, nothing, nothing, 0.0)))
+    root = VerticalLayout(Any[_make_tooltip_frame(p, column)];
+                          child_width = SizePolicy(least_width, nothing, nothing, 0.0))
+    iomap = SimpleIoMap(p, content, root)
+    # The documents of the layers hold their own selection.
+    embedded = Base.IdSet{Any}(document for (_, document) in layers[1:min(shown, count)])
+    follow_widget_output!(root, content, path -> map_reference_forward(p, iomap, path);
+                          is_followed = node -> is_widget_or_layout(node) && !(node in embedded))
+    iomap
 end
 
 # The frame around what a tooltip says: the line, then the padding of a control, both on the

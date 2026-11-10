@@ -1476,16 +1476,19 @@ function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroup
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         shown = _collect_shown_task_groups(list)
-        isempty(shown) && return Cell[Cell(_make_label(
-            "No group of tasks is open in this session.", p.muted_color))]
-        rows = Any[_build_list_row(p, list, item, index) for (index, item) in shown]
-        Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
+        part = if isempty(shown)
+            _make_label("No group of tasks is open in this session.", p.muted_color)
+        else
+            WidgetTable(collect(Any, _LIST_COLUMNS), Any[_build_list_row(p, list, item, index) for (index, item) in shown])
+        end
+        # The part is built after the print, so it takes its part of the paths here.
+        follow_widget_part!(part, body, (FieldReferenceStep("children"), RangeReferenceStep(0, 1)))
+        Cell[Cell(part)]
     end)
     root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.section_gap)
     iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(list, path -> map_reference_forward(p, iomap, path)))
+    follow_widget_output!(root, list, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 
@@ -1512,7 +1515,9 @@ function print_document(p::ClosedTaskGroupToWidgetPane, recursion, group::Closed
                                WidgetLabel(getfield(group, :summary)[])]; gap = p.section_gap, child_width = Fill)
     root = VerticalLayout(Any[WidgetCard(; title = heading, content = lines)]; horizontal_align = :left,
                           gap = p.section_gap)
-    ChildrenIoMap(p, group, root, Cell(Any[]))
+    iomap = ChildrenIoMap(p, group, root, Cell(Any[]))
+    follow_widget_output!(root, group, path -> map_reference_forward(p, iomap, path))
+    iomap
 end
 
 # ── Natural-projection registration ─────────────────────────────────────────

@@ -36,9 +36,9 @@ function print_document(p::SystemProcessToWidget, recursion, process::SystemProc
         gap = p.gap, child_width = Fill)
     root = WidgetComposite(Any[column]; child_width = Fill)
     iomap = ChildrenIoMap(p, process, root, Cell(Any[]))
-    # The part under the pointer, so a button lights and takes a press.
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(process, path -> map_reference_forward(p, iomap, path)))
+    # The selection and the part under the pointer, so a part is drawn marked, and a
+    # button lights and takes a press.
+    follow_widget_output!(root, process, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 
@@ -46,9 +46,14 @@ end
 # edge of the page between two words.
 function _build_command_line(p::SystemProcessToWidget, process::SystemProcess)
     line = FlowLayout(Any[]; horizontal_gap = p.gap)
-    set_cell_computation!(getfield(line.children, :elements), () ->
-        Cell[Cell(WidgetLabel(String(word)))
-             for word in [string(process.process_id); split(process.command)]])
+    set_cell_computation!(getfield(line.children, :elements), () -> begin
+        children = Cell[Cell(WidgetLabel(String(word)))
+                        for word in [string(process.process_id); split(process.command)]]
+        for (k, child) in enumerate(children)
+            follow_widget_part!(child[], line, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)))
+        end
+        children
+    end)
     line
 end
 

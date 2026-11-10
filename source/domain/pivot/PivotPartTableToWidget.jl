@@ -34,7 +34,9 @@ function print_document(p::PivotPartTableToWidget, recursion, table::PivotPartTa
                          Cell(Fixed(p.row_height)), Cell(:clip), Cell(true), Cell(nothing), Cell(nothing),
                          Cell(nothing), Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(nothing),
                          Cell(:auto), Cell(:auto), Cell(nothing), Cell(nothing), Cell(nothing))
-    SimpleIoMap(p, table, widget)
+    iomap = SimpleIoMap(p, table, widget)
+    follow_widget_output!(widget, table, path -> map_reference_forward(p, iomap, path))
+    iomap
 end
 
 """

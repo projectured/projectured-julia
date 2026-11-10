@@ -68,7 +68,15 @@ function print_document(p::TooltipNoteToVerticalLayout, recursion, note::Tooltip
     facts === nothing || push!(sections, facts)
     hint = _make_note_prose(note.hint, unwrap_cell(p.muted_text))
     hint === nothing || push!(sections, hint)
-    SimpleIoMap(p, note, VerticalLayout(sections; gap = unwrap_cell(p.title_gap)))
+    root = VerticalLayout(sections; gap = unwrap_cell(p.title_gap))
+    iomap = SimpleIoMap(p, note, root)
+    # The documents that the note puts into its layout hold their own selection.
+    embedded = Base.IdSet{Any}(document for document in
+        Any[note.title, note.code, note.text, note.hint,
+            (fact isa Tuple ? fact[2] : fact.second for fact in note.facts)...] if document isa Document)
+    follow_widget_output!(root, note, path -> map_reference_forward(p, iomap, path);
+                          is_followed = node -> is_widget_or_layout(node) && !(node in embedded))
+    iomap
 end
 
 # The first line of a note: the mark of its tone, its title and its key caps, or

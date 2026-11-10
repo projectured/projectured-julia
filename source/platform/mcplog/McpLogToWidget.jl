@@ -94,16 +94,27 @@ function print_document(p::McpLogToWidget, recursion, log::McpLog, ctx)
     set_cell_computation!(getfield(calls.children, :elements), () -> begin
         choice_value = log.shown.value
         shown = [entry for entry in log.entries if _is_shown_mcp_call(choice_value, entry)]
-        isempty(shown) && return Cell[Cell(WidgetLabel("no call yet"; text_style = p.muted_text))]
-        Cell[Cell(_build_mcp_call_block(p, entry)) for entry in shown]
+        blocks = isempty(shown) ? Cell[Cell(WidgetLabel("no call yet"; text_style = p.muted_text))] :
+                 Cell[Cell(_build_mcp_call_block(p, entry)) for entry in shown]
+        # A block is built after the print, so it takes its part of the paths here.
+        for (k, block) in enumerate(blocks)
+            follow_widget_part!(block[], calls, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k));
+                                is_followed = _is_followed_mcp_node)
+        end
+        blocks
     end)
     root = VerticalLayout(Any[heading, choice,
                               LayoutConstraint(WidgetScrollPane(calls; follow_end = true,
                                                                grows = (width = false, height = true));
                                                width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
-    ChildrenIoMap(p, log, root, Cell(Any[]))
+    iomap = ChildrenIoMap(p, log, root, Cell(Any[]))
+    follow_widget_output!(root, log, path -> map_reference_forward(p, iomap, path); is_followed = _is_followed_mcp_node)
+    iomap
 end
+
+# A line of code is a text field, which keeps its own selection.
+_is_followed_mcp_node(node) = is_widget_or_layout(node) && !(node isa WidgetText)
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that lets a tab draw the MCP log. The widgets it builds come back

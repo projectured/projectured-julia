@@ -21,8 +21,19 @@ end
 # The choices of the kind of entry that the table shows, in the order of the choice.
 const _JOURNAL_KINDS = (:all, :decision, :comment, :state, :link)
 
-print_document(p::WorkflowJournalToWidget, recursion, journal::WorkflowJournal, ctx) =
-    SimpleIoMap(p, journal, Cell(@computation _build_journal_view(p, journal)))
+function print_document(p::WorkflowJournalToWidget, recursion, journal::WorkflowJournal, ctx)
+    # The view is built again when the journal changes, and each build takes its part
+    # of the paths of the journal. The map is made after the first build.
+    iomap_cell = Cell(nothing)
+    view = Cell(@computation begin
+        built = _build_journal_view(p, journal)
+        run_without_cell_tracking(() -> follow_widget_output!(built, journal, path -> begin
+            iomap = iomap_cell[]
+            iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+        end))
+    end)
+    iomap_cell[] = SimpleIoMap(p, journal, view)
+end
 
 function _build_journal_view(p::WorkflowJournalToWidget, journal::WorkflowJournal)
     outline = unwrap_cell(p.outline)
