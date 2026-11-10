@@ -29,6 +29,7 @@ function test_sequencechart()
         test_sequencechart_selection()
         test_sequencechart_theme()
         test_sequencechart_verbs()
+        test_sequencechart_view_gestures()
     end
 end
 
