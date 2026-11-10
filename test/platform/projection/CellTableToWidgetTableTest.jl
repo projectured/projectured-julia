@@ -60,9 +60,10 @@ end
     back = map_reference_backward(chain, iomap, PointReferenceStep(5, 55))
     @test is_introduced_reference(back, view)
     @test _goes_through_cell(find_introduced_path(view, back))
-    # Only such a reference maps forward, so the part can be named again.
+    # Such a reference maps forward, so the part can be named again, and the whole
+    # table maps to the whole widget table, so a selection of the table is drawn.
     @test _goes_through_cell(map_reference_forward(view, view_iomap, back))
-    @test map_reference_forward(view, view_iomap, EmptyReference()) === nothing
+    @test strip_reference_types(map_reference_forward(view, view_iomap, EmptyReference())) isa EmptyReference
 end
 end # test_cell_table_to_widget_table
 

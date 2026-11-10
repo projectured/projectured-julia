@@ -547,9 +547,9 @@ _get_head_place(statistics::FrameStatistics) =
     clamp(statistics.anchor, 1, max(1, length(statistics.frames)))
 
 # No caret goes into a table. The default backward mapping names a part of a
-# table by an introduced reference, so a point names the cell under it, and only
-# such a reference maps forward again.
-map_reference_forward(p::FrameStatisticsToWidget, iomap, reference) = find_introduced_path(p, reference)
+# table by an introduced reference, so a point names the cell under it; the default
+# forward mapping takes such a reference to its place, and the whole frame to the
+# whole widget, so a selection of the frame is drawn.
 
 # A write of the widgets passes on through the default reader, but five. A
 # table that moves the head of its list of frames writes its `cells`, which

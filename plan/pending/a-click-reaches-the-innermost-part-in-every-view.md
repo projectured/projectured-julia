@@ -818,7 +818,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     that such a view maps those references "and only these" forward. So the
     whole document of such a view maps to `nothing`, and a selection of it draws
     no mark. The default forward map does the same and maps the whole input to
-    the whole output, so the one-liners go.
+    the whole output, so the one-liners go: the three of the platform and the
+    domains are gone, and the docstring of `find_introduced_path` says the new
+    rule. `statistics/frame_statistics` (79 points) and `workflow/journal` (23
+    points) have a forward image now; `CellTableToWidgetTableTest` expects the
+    whole table to map to the whole widget table. `SqlToCellTable` and the 35
+    files of omnet-julia follow in step 7. `statistics/frame_time_series` and
+    the other views of the list lose the whole document in maps of their own.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

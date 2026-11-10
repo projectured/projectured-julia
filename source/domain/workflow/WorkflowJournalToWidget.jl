@@ -62,4 +62,3 @@ function _make_journal_row(outline, node, entry::WorkflowEntry)
                      body = VerticalLayout(Any[text, about]; child_width = Fill))
 end
 
-map_reference_forward(p::WorkflowJournalToWidget, iomap, reference) = find_introduced_path(p, reference)
