@@ -1,6 +1,6 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-09): in progress, step 4; steps 1 to 3 are done.** The owner asked for the study
+> **Status (2026-11-10): in progress, step 5; steps 1 to 4 are done.** The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -492,10 +492,91 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     passes are larger in one process (197980 against 183944 for the IDE),
     because each package that loads registers its natural rows, and the walks
     then see more views.
-- [ ] 4. **The first run.** Run the click test on the catalog of both
+- [x] 4. **The first run.** (Done 2026-11-10.) Run the click test on the catalog of both
   repositories, on `examples` and on the omnet pages: the page of each kind of
   run task, the result table, the result file page and the runner form. Record
   the counts by cause in this plan. No fix in this step.
+
+  Found in the work (2026-11-09 and 2026-11-10, two runs in the environment of
+  the scratchpad, at projectured-julia `f8aa1ff98` with the test changes below
+  and omnet-julia `f488ce735`):
+  - **What ran.** 661 examples, each in the variant `natural`: 404 atoms of
+    projectured-julia, 104 atoms of omnet-julia, the 142 `examples` of
+    ProjecturedExample and the 11 `examples` of `OmnetLegacyExample`. The omnet
+    pages that this step names are atoms of the legacy list. The second run
+    pressed 14 227 points in 46 minutes. 38 examples have points and no
+    failure; 18 do not build; 6 draw nothing to press;
+    `legacy/simulation_task_list/natural` is not run, because its print does
+    not end (step 3).
+  - **Three changes of the test.** The first run pressed the whole window when
+    the document had no forward image, also the close button of a tab. That
+    press closed the tab, and each later point then threw
+    `SelectionMismatchException` (2059 lines in 64 examples). So now a document
+    with no forward image gets one line and no press, and a press that removes
+    the document stops the walk with one line. A line of a throw names the
+    first three frames in the source.
+  - **The meaning of `@∅` after a plain click.** The test selects the document
+    before each press. "A plain click gives no caret: @∅" thus means that the
+    press did nothing. For the card title the reader of the card answers
+    `DoNothingOperation` (`WidgetToGraphics.jl:9008`): the card draws its title
+    as a block of text that no text leaf reads (`_push_text_block!`), so no
+    caret can exist there.
+  - **The causes**, from the second run. An example counts once for each cause
+    that it has.
+
+    | Examples | Lines | Cause | Step |
+    | --- | --- | --- | --- |
+    | 205 | 4046 | The Alt+click cuts a drawn part of a view, such as a widget of `AppearanceToWidget`, to its document | 5 (P3) |
+    | 203 | 2697 | A plain click on a drawn text does nothing: the text is a block that no text leaf reads | 5 (P2, D1) |
+    | 134 | 2326 | The Alt+click cuts a glyph, such as a quote or a bracket, to its node | 5 (P3) |
+    | 125 | 1472 | The Alt+click selects the leaf, such as `.title`, and not the value in its field, `.title.value` | 5 (P8) |
+    | 115 | 807 | The text of a Julia or SQL syntax leaf maps to a step of the view, `‹JuliaIdentifierToSyntaxLeaf .value{1}›`, not to the field that holds the name | 6 (P8) |
+    | 81 | 81 | The forward map of the whole document answers `nothing`, so a selection of the document draws no ring | 6 |
+    | 74 | 7659 | The view of a reflected object, `ObjectNodeToSyntaxNode`, maps no point to a field: the Alt+click gives the document | 6 |
+    | 68 | 391 | The Alt+click stops above the part that the move names, such as `.menu_bar` for `.menu_bar.elements[2]` | 5 (P3) |
+    | 60 | 359 | A plain click on a text gives a part, not a caret | 5 (D1) |
+    | 57 | 535 | The Alt+click selects a part outside the deepest part under the point | 6 |
+    | 55 | 367 | The caret of a plain click is not drawn, such as `.title.value{3}` in a research item and a workflow step | 6 |
+    | 43 | 430 | A rest of the pointer on a fact or an icon throws `FieldError` of `tooltip` (`TooltipOperation.jl` to `WidgetDocument.jl`) | 6 |
+    | 18 | 18 | The example does not build with `build_editor` (list below) | 6, 7 |
+    | 14 | 1074 | The press falls out of the document, and the Alt+click selects the root of the pane | 6 |
+    | 14 | 73 | A legacy page of the IDE gives no caret (`LegacyPartPageToWidget`) | 7 |
+    | 13, 12, 6 | 206, 236, 100 | A table, a tree, a list or a roster chooses the row, or the move and the Alt+click name different parts | 6 (D4) |
+    | 9 | 42 | The caret is not at the character, or not inside the part | 6 |
+    | 4 | 101 | A press in a shell writes a path that does not match the document: `SelectionMismatchException` at `Operations.jl` | 6 |
+    | 4 | 57 | Other throws: `under-typed @reference` in `GraphToGraphLayout.jl`, `annotate_reference_types(::GraphicsCanvas)`, `keep_held_arrangement(nothing, …)` | 6 |
+    | 3 | 162 | An Alt+click on the label of a vertex or an edge of a graph gives the document | 6 |
+    | 1 | 1 | A press in `arrangement/document` removes the document from the editor | 6 |
+
+  - **The examples that do not build.** `text/bare_*` (5) and
+    `conversation/part`, `conversation/turn`: no `print_document` for
+    `WordWrapping` or `VerticalLayoutToGraphicsCanvas` under a
+    `RecursiveProjection`. `widget/screen_document`: a `GraphicsCanvas` has no
+    field `windows`. `appearance/document`, `omnet/timeline_strip`,
+    `omnet/simulation_workbench`, `omnet/simulation_execution`,
+    `ide/test_case`: `UndefRefError`. `legacy/run_entry`: no method of
+    `_get_configuration`. Both cosim atoms: `NestingIoMap` has no
+    `content_iomap`. `examples/chart` ("a Cell read itself while it computed")
+    and `examples/json_sorted` (`DeclaredTypeMismatchException`) built at the
+    first build in the probe and threw at the second build in the same
+    process, so their cause is not the click.
+  - **The omnet pages.** `run_task`: the facts throw on a rest, and a plain
+    click does nothing. `result_table_view` and `simulation_project_page`: the
+    Alt+click cuts each drawn part to the document. `result_file_view`: a
+    plain click does nothing, and the Alt+click selects the document outside
+    its `.entry`. `result_file`: rows (D4), the facts, and carets that are not
+    drawn. `simulation_runner`, `simulation_result_frame` and the results and
+    monitor widgets of `examples`: the document has no forward image.
+  - **The 81 documents with no forward image.** In each of them, the path of
+    the document in the editor has 13 steps and ends at `.content` of the
+    `PaneTab`: `windows[1].content.root.tabs[1].content`. Each prefix of it maps
+    forward, except the empty path of the pane tree and the whole path. The
+    forward map answers `nothing` and does not throw. `json/string/natural` has
+    the same path, and it maps. The pane tree and the tab group never answer
+    `nothing` for this path (`_child_forward`, `PaneToWidget.jl:110`), so the
+    view of the content of the tab, or a layer above the pane, drops it. Step 6
+    finds which one.
+  - **Slow.** `task/stream_lines/natural` takes 496 s and 9 GiB for 200 points.
 - [ ] 5. **A drawn part is a part.** P2, P3 and P4 in the kernel and the
   platform; the pane, the syntax tree, the card title and the shell band follow
   the one rule of `convert_to_whole_selection`. P5 in the clipboard.
