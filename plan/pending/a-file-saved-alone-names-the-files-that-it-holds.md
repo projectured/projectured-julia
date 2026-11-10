@@ -761,7 +761,7 @@ through the reload (D7), so no test can check the open without the reload.
      `test_workbench()` 182 pass; the workbench tests of `OmnetWorkbenchTest.jl` and
      `OmnetWorkbenchToWidgetTest.jl` pass; `test_fingerprint_store_document()` and
      `test_project_page()` of `OmnetLegacyTest` pass (100 for the page). omnet-julia needs no change.
-6. **The explorer content saves alone and splices its held files (D8).** Needs step 5.
+6. **The explorer content saves alone and splices its held files (D8).** **Done on 2026-11-10.** Needs step 5.
    `ExplorerContentFile.jl:60-70` and `:90-99`, with the keyword `folder`. `Application.jl:597-605`
    and `ApplicationExplorer.jl:87-94` give `root`. `explorer.md` says it. Test: the set of
    `test_explorer()` at `ExplorerTest.jl:777-818` grows. A card that holds the file document of a
@@ -772,6 +772,40 @@ through the reload (D7), so no test can check the open without the reload.
    code again before the step starts.
    A section that holds one dashboard at two places loads back with one object. The session lists
    and the titles read back as now. Then `test_application()`, because `Application.jl` changes.
+
+   What the implementation found (6):
+   - `ExplorerContentFile.jl`: `save_explorer_content!(content, path; folder, editor)` makes a
+     `PredFile` named `relpath(path, folder)` and saves it with `save_file_text!(file, folder)`, so
+     a file document in a card writes `content = file("notes.txt")`, or `file("../outside/far.txt")`
+     outside the work folder, and a node that the section holds at two places writes once, with a
+     marker into the state file for the other place. `load_explorer_content(path; folder, editor)`
+     reads with `load_file(folder, relpath(path, folder))` under the evaluation editor, then
+     `splice_held_files!(content, folder, held -> open_file_document!(editor, held))`. `folder` is a
+     required keyword: both callers set it. The save keeps its warning for an exception; a refusal
+     of the cut (a held file with no name) is logged by `save_file_text!` and writes nothing.
+   - `Application.jl` passes `folder = root` to the save, and `_restore_explorer_content!`
+     (`ApplicationExplorer.jl`) takes the folder and passes it to the load. `ExplorerModule` uses
+     `FileFormatModule` for `open_file_document!` (it is included before the explorer).
+   - The plan text said `open_file_page!` and line numbers of 2026-11-05; the code has
+     `open_file_document!(editor, path)` and the lines above.
+   - The save writes no held file and the save check of the held file document is untouched (D9);
+     the test checks that `notes.txt` and `far.txt` keep their bytes and that the work folder gains
+     no file.
+   - Test: a new set of `test_explorer()` ("the content of a folder saves a held file as
+     file(\"…\") and loads it as the file document of the next editor"), and the set of the state
+     folder passes `folder`. The next editor with a tab of `notes.txt` gives the card that file
+     document (`===`); `far.txt` has no tab, so the card holds the open file document of the editor
+     that is not read yet (`loaded_count < 0`, `read_count == 0`); a dashboard at two places loads
+     back as one object; the session list is the list of the next editor.
+   - Results (`d5e20db7d` before, this step after, one run each): `test_explorer()` 383 pass before,
+     397 after (14 new assertions); `test_application()` 402 pass, 1 fail, 2 broken before and
+     after (the fail is `ApplicationTest.jl:1008`, "a press on the bar of an agent starts it", which
+     main has); `test_pred_file()` 87 pass before and after.
+   - The load opens each held file with `open_file_document!`, so the explorer slice uses the file
+     format slice: the row `"explorer"` of `PLATFORM_SLICE_EDGES` (`test/platform/PlatformSuite.jl`)
+     and the list of slices in `explorer.md` name it. The file format slice uses no explorer, so the
+     edge makes no cycle. `test_platform_slice_edges()` and `test_platform_layering()` give the
+     findings of main and no other.
 
 After step 6 the plan moves to `plan/done/`, and the code quality steward reads the change.
 

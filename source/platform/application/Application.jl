@@ -616,14 +616,14 @@ function run_application(paths::AbstractString...;
     # The Explorer shows what the last window of this folder showed, and keeps it
     # for the next start when the window closes.
     file = get_explorer_content_file(root)
-    _restore_explorer_content!(editor, file)
+    _restore_explorer_content!(editor, file, root)
     mcp = get_settings_group!(settings, StartSettings).mcp
     # An outside client reads the text of the window as the instructions of the
     # server, with the full index.
     instructions = make_application_system(; backend = :mcp,
                                              settings = get_settings_group!(settings, AssistantIndexSettings))
     result = run_editor!(editor; mcp = mcp ? (; instructions, host = mcp_host, port = mcp_port) : false)
-    save_explorer_content!(get_session_explorer_content(; editor), file; editor)
+    save_explorer_content!(get_session_explorer_content(; editor), file; folder = root, editor)
     result
 end
 

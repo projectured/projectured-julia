@@ -883,19 +883,19 @@ function test_explorer()
             path = get_explorer_content_file(work)
             @test startswith(path, joinpath(state, "projectured", "explorer", "work-")) && endswith(path, ".pred")
             @test get_explorer_content_file(work * "/") == path && get_explorer_content_file(other) != path
-            @test load_explorer_content(path) === nothing
+            @test load_explorer_content(path; folder = work) === nothing
             first_editor, _ = _nav_editor(PrimitiveString("first"))
             content = make_editor_explorer_content(; editor = first_editor,
                                                    entries = Any[Workspace([WorkspaceFolder("work", work)])])
             # The kinds of the loaded packages stand after the lists of the session.
             kinds = length(ApplicationModule._collect_session_explorer_entry_types())
             push!(content.entries[6 + kinds].entries, ExplorerSection("Queue study"))
-            save_explorer_content!(content, path; editor = first_editor)
+            save_explorer_content!(content, path; folder = work, editor = first_editor)
             @test isfile(path)
             # The next editor reads the same entries: its own lists of the session,
             # the folder at its place, and the sections with their titles.
             next_editor, _ = _nav_editor(PrimitiveString("next"))
-            loaded = load_explorer_content(path; editor = next_editor)
+            loaded = load_explorer_content(path; folder = work, editor = next_editor)
             @test loaded isa ExplorerSection
             @test [format_tree_node_label(entry) for entry in loaded.entries] ==
                   [format_tree_node_label(entry) for entry in content.entries]
@@ -915,7 +915,58 @@ function test_explorer()
             @test processes.root_process_ids == [getpid()] && processes.title == "System processes"
             # A file that does not read gives nothing, and a warning says so.
             write(path, "ExplorerSection(")
-            @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path)) === nothing
+            @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path; folder = work)) === nothing
+        end
+    end
+
+    @testset "the content of a folder saves a held file as file(\"…\") and loads it as the file document of the next editor" begin
+        base = mktempdir()
+        try
+            work, outside = mkpath(joinpath(base, "work")), mkpath(joinpath(base, "outside"))
+            notes_path, far_path = joinpath(work, "notes.txt"), joinpath(outside, "far.txt")
+            write(notes_path, "notes on disk\n")
+            write(far_path, "far on disk\n")
+            path = joinpath(base, "state", "work.pred")
+            first_editor, _ = _nav_editor(PrimitiveString("first"); file_change = true, settings = Settings())
+            next_editor, _ = _nav_editor(PrimitiveString("next"); file_change = true, settings = Settings())
+            try
+                notes_file = open_file_document!(notes_path; editor = first_editor)
+                far_file = open_file_document!(far_path; editor = first_editor)
+                shared = Dashboard("Shared", Any[])
+                content = ExplorerSection("Explorer", Any[get_session_open_file_list(; editor = first_editor), shared,
+                    Dashboard("Held", Any[DashboardCard("notes", notes_file), DashboardCard("far", far_file)]),
+                    ExplorerSection("Again", Any[shared])])
+                save_explorer_content!(content, path; folder = work, editor = first_editor)
+                text = read(path, String)
+                # A held file is its name against the work folder, and its bytes stay where they were.
+                @test count("content = file(\"notes.txt\")", text) == 1
+                @test count("content = file(\"../outside/far.txt\")", text) == 1
+                @test !occursin("notes on disk", text) && !occursin("far on disk", text) && !occursin("FileDiskState", text)
+                @test read(notes_path, String) == "notes on disk\n" && read(far_path, String) == "far on disk\n"
+                @test sort(readdir(work)) == ["notes.txt"] && readdir(outside) == ["far.txt"]
+                # The next editor has a tab of notes.txt and none of far.txt.
+                tab_file = ProjecturedPlatform.FileSystemModule._make_opened_file(next_editor, OpenFileOperation(notes_path))
+                tab_view = make_file_view(tab_file)
+                evaluate_operation(next_editor, AcquireDocumentOperation(tab_view))
+                @test find_open_file_document(notes_path; editor = next_editor) === tab_file
+                loaded = load_explorer_content(path; folder = work, editor = next_editor)
+                @test loaded isa ExplorerSection && length(loaded.entries) == 4
+                @test loaded.entries[1] === get_session_open_file_list(; editor = next_editor)
+                @test loaded.entries[3].title == "Held"
+                cards = loaded.entries[3].cards
+                @test cards[1].content === tab_file
+                far_loaded = cards[2].content
+                @test far_loaded isa TextFile && get_filename(far_loaded) == far_path
+                @test far_loaded !== far_file && find_open_file_document(far_path; editor = next_editor) === far_loaded
+                @test get_file_disk_state(far_loaded).loaded_count < 0 && get_file_disk_state(far_loaded).read_count == 0
+                @test loaded.entries[2] isa Dashboard && loaded.entries[4].entries[1] === loaded.entries[2]
+                evaluate_operation(next_editor, ReleaseDocumentOperation(tab_view))
+            finally
+                foreach(step -> step(first_editor), first_editor.stop_steps)
+                foreach(step -> step(next_editor), next_editor.stop_steps)
+            end
+        finally
+            rm(base; recursive = true, force = true)
         end
     end
 

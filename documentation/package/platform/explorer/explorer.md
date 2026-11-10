@@ -128,7 +128,7 @@ A dashboard holds what its cards show, as a tree holds its open nodes. A card ke
 
 ### The file of the content
 
-`get_explorer_content_file(folder)` is `projectured/explorer/<name>-<hash>.pred` in the state folder of the user, with a 32-bit FNV-1a hash of the absolute path. `save_explorer_content!(content, path; editor)` writes the section, each entry as its kind writes itself, and `load_explorer_content(path; editor)` reads it, or answers `nothing`. A session document writes a mark that a load gives back as the session document of the editor that loads it. A file of an explorer, as the window file writes it, keeps the section only.
+`get_explorer_content_file(folder)` is `projectured/explorer/<name>-<hash>.pred` in the state folder of the user, with a 32-bit FNV-1a hash of the absolute path. `save_explorer_content!(content, path; folder, editor)` saves the section as a `.pred` file saved alone (`save_file_text!`), each entry as its kind writes itself, with `folder`, the work folder of the window, as the base of its names: a file document that a card holds is written as `file("notes.txt")` (`file("../other/notes.txt")` outside the folder), and the save writes nothing of that file. `load_explorer_content(path; folder, editor)` reads it with the file itself spliced, so a dashboard at two places is one object, and then gives each `file("…")` the file document that `editor` holds for that file (`open_file_document!`): the file document of a tab, else one that is not read yet. It answers `nothing` when the file is missing or does not read. A session document writes a mark that a load gives back as the session document of the editor that loads it. A file of an explorer, as the window file writes it, keeps the section only.
 
 ### What a row and a control say
 
@@ -152,7 +152,7 @@ The commands of a row come from `collect_part_commands(::Explorer, steps)`, the 
 
 ## How it fits
 
-The slice uses the collection, domain, focus, gesture help, layout, navigator, pane, projection, serialization, style, task, tooltip, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice, `is_explorer_entry_type` and `is_session_explorer_entry_type`, with no code of this slice.
+The slice uses the collection, domain, file format, focus, gesture help, layout, navigator, pane, projection, serialization, style, task, tooltip, tree and widget slices. It is included after the task slice. The shell uses it for the button Explorer of the toolbar, and the application uses it for the first tab of the window. A kind of another slice joins the explorer through the generics of the tree slice, `is_explorer_entry_type` and `is_session_explorer_entry_type`, with no code of this slice.
 
 ## Design decisions
 

@@ -19,6 +19,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EditorModule
 using ..EventModule
+using ..FileFormatModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GestureHelpModule

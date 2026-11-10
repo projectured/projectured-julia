@@ -39,61 +39,71 @@ function _compute_path_hash(path::AbstractString)
 end
 
 """
-    save_explorer_content!(content, path; editor = find_evaluation_editor())
+    save_explorer_content!(content, path; folder, editor = find_evaluation_editor())
 
-Write the section `content` to the file `path`, each entry as its kind writes
-itself: a folder its place, a list of the session of `editor` a mark that a load
-gives back as the list of the session of the editor that loads it, a section its
-title and its entries. The folder of the file is made when it is missing. A
-content that does not write leaves the file as it was, and a warning says why.
+Write the section `content` to the file `path` as a `.pred` file saved alone, each
+entry as its kind writes itself: a folder its place, a list of the session of
+`editor` a mark that a load gives back as the list of the session of the editor
+that loads it, a section its title and its entries. A file document that an entry
+holds, such as the file in a card, is written as `file("…")` with its path relative
+to `folder` (`..` for a file outside it), and the save writes nothing of that file.
+The folder of `path` is made when it is missing. A content that does not write
+leaves the file as it was, and a warning or an error says why.
 
-Use it to keep the content of an explorer for the next start.
+Use it to keep the content of an explorer for the next start; `folder` is the work
+folder of the window.
 
 # Example
 
-    save_explorer_content!(get_session_explorer_content(), get_explorer_content_file(pwd()))
+    folder = pwd()
+    save_explorer_content!(get_session_explorer_content(), get_explorer_content_file(folder); folder)
 
 See also `load_explorer_content` and `get_explorer_content_file`.
 """
 function save_explorer_content! end
 
-function save_explorer_content!(content::ExplorerSection, path::AbstractString; editor = find_evaluation_editor())
-    text = try
-        run_with_evaluation_editor(() -> print_pred_text(content), editor)
+function save_explorer_content!(content::ExplorerSection, path::AbstractString;
+                                folder::AbstractString, editor = find_evaluation_editor())
+    base = abspath(folder)
+    file = PredFile(relpath(abspath(path), base), content)
+    try
+        run_with_evaluation_editor(() -> save_file_text!(file, base), editor)
     catch exception
         @warn "The explorer content does not write, so $(path) stays as it was." exception
-        return nothing
     end
-    mkpath(dirname(path))
-    write(path, text)
     nothing
 end
 
 """
-    load_explorer_content(path; editor = find_evaluation_editor()) -> ExplorerSection or nothing
+    load_explorer_content(path; folder, editor = find_evaluation_editor()) -> ExplorerSection or nothing
 
 The section that the file `path` keeps, read for `editor`: each mark of a list of
-a session gives the list of the session of `editor`. `nothing` when there is no
-file, or when the file does not read, which a warning says.
+a session gives the list of the session of `editor`, and each `file("…")` (its path
+against `folder`) gives the file document that `editor` holds for that file, else a
+file document that is not read yet. `nothing` when there is no file, or when the
+file does not read, which a warning says.
 
 Use it to show at a start the content of the explorer that the last window of the
 folder showed.
 
 # Example
 
-    load_explorer_content(get_explorer_content_file(pwd()))
+    folder = pwd()
+    load_explorer_content(get_explorer_content_file(folder); folder)
 
 See also `save_explorer_content!` and `get_explorer_content_file`.
 """
 function load_explorer_content end
 
-function load_explorer_content(path::AbstractString; editor = find_evaluation_editor())
+function load_explorer_content(path::AbstractString; folder::AbstractString, editor = find_evaluation_editor())
     isfile(path) || return nothing
+    base = abspath(folder)
     content = try
-        run_with_evaluation_editor(() -> parse_pred_text(read(path, String)), editor)
+        run_with_evaluation_editor(() -> get_file_content(load_file(base, relpath(abspath(path), base))), editor)
     catch exception
         @warn "The explorer content in $(path) does not read." exception
         return nothing
     end
+    content = splice_held_files!(content, base, held -> open_file_document!(editor, held))
     content isa ExplorerSection ? content : nothing
 end
