@@ -753,7 +753,7 @@ function test_explorer()
         # The tree draws the nodes, and a press on a node of a theme shows the theme as
         # the page.
         explorer = Explorer(ExplorerSection("Explorer", Any[appearance]))
-        editor, backend = _nav_editor(explorer)
+        editor, backend = _nav_editor(explorer; undo = true)
         _nav_press!(editor, backend, _explorer_open_chevron(backend, "Appearance"))
         @test _explorer_has_tree_text(backend, "Scale") && _explorer_has_tree_text(backend, "Documents")
         _nav_press!(editor, backend, _explorer_open_chevron(backend, "Editor"))
@@ -763,6 +763,17 @@ function test_explorer()
         # The page draws the theme alone: its fields, and no card of another theme.
         @test _nav_has_text(backend, "background") && _nav_has_text(backend, "foreground")
         @test !_nav_has_text(backend, "Zoom")
+        # The › of the row "background" writes the next role into the theme, as an edit
+        # that the history records, so Ctrl+Z takes it back.
+        widget_theme = get_theme(appearance, WidgetTheme)
+        background = widget_theme.background
+        (_, _, row_y) = argmin(t -> t[3], [t for t in _nav_texts(backend) if t[1] == "background"])
+        (_, x, y) = argmin(t -> abs(t[3] - row_y), [t for t in _nav_texts(backend) if t[1] == "›"])
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+        @test widget_theme.background != background
+        @test _nav_has_text(backend, format_theme_color(widget_theme.background))
+        _nav_press!(editor, backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0))
+        @test widget_theme.background == background
         _nav_press!(editor, backend, _explorer_click(backend, "Scale"))
         @test get_navigator_page(explorer.navigator) === appearance.scale
         @test _nav_has_text(backend, "Zoom") && _nav_has_text(backend, "Reset all")
