@@ -347,6 +347,14 @@ end # @testset "Shift and a motion key select a range"
     @test press(one_line("foo"), at(3), :delete) === nothing
 end # @testset "Ctrl+Backspace and Ctrl+Delete remove a word"
 
+@testset "Ctrl+A selects the whole text" begin
+    block = set_selection!(TextBlock(TextLine(TextString("foo")), TextLine(TextString("bar"))),
+                           TextModule.make_flat_caret_reference(2))
+    operation = read_bound_gesture(block, KeyDown(:a, ModifierKeys(; ctrl = true); time = 0.0))
+    @test operation isa ReplaceSelectionOperation
+    @test operation.path == TextModule.make_flat_range_reference(0, 7)
+end # @testset "Ctrl+A selects the whole text"
+
 @testset "a text step hashes as it compares" begin
     for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,
                       TextColumnReferenceStep)

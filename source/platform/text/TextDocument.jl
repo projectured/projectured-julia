@@ -878,6 +878,7 @@ _span_at(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path
     KeyDown(:delete; ctrl)    => "Delete a word forward"  => _text_word_delete(doc, :delete)
     KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc, :start)
     KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc, :end)
+    KeyDown(:a; ctrl)      => "Select all"           => _text_select_all(doc)
     KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc, :left)
     KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc, :right)
     KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc, :left)
@@ -1275,6 +1276,14 @@ end
 # Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.
 function _text_jump(text::TextBlock, where::Symbol)
     ReplaceSelectionOperation(make_flat_caret_reference(where === :start ? 0 : _text_flat_total(text)))
+end
+
+# Ctrl+A: the whole text, with the moving end at its end. A stage that can not
+# carry the range back, as a syntax view, declines it, and the key goes on to the
+# table of its input. A lazy list of lines can be endless, so the key goes on.
+function _text_select_all(text::TextBlock)
+    text.elements isa ListNode && return nothing
+    ReplaceSelectionOperation(make_flat_range_reference(0, _text_flat_total(text)))
 end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on

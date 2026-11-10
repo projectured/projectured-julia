@@ -322,8 +322,21 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      `test_widget_text_editing()` 68, as the baseline.
    - Only the versioning table binds Ctrl+Delete too (step 9). No table binds
      Ctrl+Backspace.
-5. ⬜ **Ctrl+A (D10).** A row in the text table and a row in the syntax table.
-   Test: `test_text()`, and Ctrl+A in `json_example`.
+5. ✅ **Ctrl+A (D10).** Done 2026-11-10. A row in the text table and a row in the syntax table.
+   Test: `test_text()`, and Ctrl+A in `json_example`. Facts of the step:
+   - The syntax domain has two tables, one of a compound and one of a leaf, and
+     both bind Ctrl+Alt+Home, so both get the row. A key goes to the outer
+     document first, so the table of the root answers also from a caret in a
+     nested value.
+   - The text table declines Ctrl+A on a lazy list of lines, which can be
+     endless.
+   - `test_text()` gives 153 (2 new), `test_json()` 251 (6 new: Ctrl+A from the
+     caret at the end, from a caret in the first entry, and in a document of one
+     leaf), `test_syntax_to_text()` 339 with no failure.
+   - `test_text_range_selection()` gave 1 error once, in its test of a finished
+     message of the assistant: its wait for the answer ends after 3 seconds, and
+     the machine was 7 times slower than at the baseline. Two runs again gave 41
+     pass, as the baseline.
 6. ⬜ **Home (D11).** Test: `test_text_to_graphics()`.
 7. ⬜ **Page Up and Page Down (D12).** Move `KeepPointOperation` to the layout
    slice. Test: `test_text_to_graphics()` for the caret, and a text in a scroll

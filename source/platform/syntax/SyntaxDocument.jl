@@ -649,6 +649,8 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 # The entire mapping is geometry-free — it walks the compound tree and its
 # selection *paths* (e.g. `.children[i].children[j]…∅`):
 # - Ctrl+Alt+Home → select the root node (∅)
+# - Ctrl+A        → select the root node (∅): no part holds the range of the whole
+#                   text that the text table answers, so the key comes here
 # - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
 # - Alt+arrow     → tree-navigate from any selection (enter structural)
 # - plain arrow   → tree-navigate, but only once a whole element is selected
@@ -668,6 +670,7 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 @gestures SyntaxCompound begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
         sel = doc.selection
         new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
@@ -859,6 +862,7 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
 @gestures SyntaxLeaf begin
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
         sel = doc.selection
         new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :

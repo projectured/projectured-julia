@@ -59,6 +59,25 @@ function test_json_placeholder_navigation()
         end
     end
 
+    @testset "Ctrl+A selects the whole document" begin
+        # No part of the syntax holds the range of the whole text that the text table
+        # answers, so the syntax table answers: the root node, as Ctrl+Alt+Home
+        # selects it, also from a caret inside a nested value.
+        ctrl_a = KeyDown(:a, ModifierKeys(ctrl=true); time = 0.0)
+        nested = first(filter(s -> occursin("entries[1].", _jpn_str(s)),
+                              collect_position_selections(make_json_document_example())))
+        for (doc, caret) in ((make_json_document_example(), nothing),
+                             (make_json_document_example(), nested),
+                             (JsonString("hi"), nothing))
+            clear_selection!(doc); io = print_document(proj, doc)
+            caret === nothing && (caret = read_intent(proj, io, _JPN_CTRL_END).path)
+            set_selection!(doc, caret); io = print_document(proj, doc)
+            selected = read_intent(proj, io, ctrl_a)
+            @test selected isa ReplaceSelectionOperation
+            @test strip_reference_types(selected.path) isa EmptyReference
+        end
+    end
+
     @testset "empty insertion buffer: navigable + Ctrl+Space selects the whole insertion" begin
         doc = make_json_document_example()
         buf = only(filter(s -> occursin("entries[8].value.value{0}", _jpn_str(s)),
