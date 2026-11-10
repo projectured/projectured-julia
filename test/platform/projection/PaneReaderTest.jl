@@ -411,6 +411,24 @@ end
 _is_content_selected(tree, group, i) =
     string(strip_reference_types(get_selection(tree))) ==
     string(strip_reference_types(get_pane_content_path(tree, group, i)))
+# Whether the selection names a part below the content of the tab `i`.
+function _is_below_content(tree, group, i)
+    content = collect(get_reference_steps(strip_reference_types(get_pane_content_path(tree, group, i))))
+    selected = collect(get_reference_steps(strip_reference_types(get_selection(tree))))
+    length(selected) > length(content) && selected[1:length(content)] == content
+end
+# The drawn box of every band, a fill in the colour of the selection band.
+function _page_bands(root)
+    band = get_theme_defaults(GraphicsTheme).selection_band
+    bands = Tuple{Int,Int,Int,Int}[]
+    _page_walk(root) do node, x, y
+        (node isa GraphicsRect && Int(node.w) > 0 && Int(node.h) > 0 && node.color.alpha > 0 &&
+         node.color.red == band.red && node.color.green == band.green && node.color.blue == band.blue) || return
+        push!(bands, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    bands
+end
+_is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= y < by + bh, boxes)
 
 @testset "an Alt+click on a page selects what the tab holds, as a whole" begin
     for content in (WidgetLabel("label"), DocumentNothing())
@@ -426,12 +444,12 @@ _is_content_selected(tree, group, i) =
         @test op isa ReplaceSelectionOperation
         _apply!(editor, op)
         if content isa DocumentNothing
-            # @broken: the page draws `DocumentNothing` as a reflected object, whose
-            # type name is a text that the view computes, so an Alt+click selects that
-            # text; the view gives its output no selection, so no mark is drawn
-            # (plan a-click-reaches-the-innermost-part-in-every-view, 5.4 and step 6).
-            @test_broken _is_content_selected(tree, group, 1)
-            @test_broken length(_page_rings(iomap.output)) == 1
+            # The page draws `DocumentNothing` as a reflected object, whose type name
+            # is a text that the view prints. An Alt+click selects that text, a part
+            # of the view below the content of the tab, and the view draws a band over it.
+            @test _is_below_content(tree, group, 1)
+            @test has_introduced_step(get_selection(tree))
+            @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
         else
             @test _is_content_selected(tree, group, 1)
             @test evaluate_reference(tree, get_selection(tree)) === content
@@ -444,6 +462,7 @@ _is_content_selected(tree, group, i) =
         # A whole tab is not its page: the ring goes.
         _apply!(editor, make_pane_focus_operation(tree, group, 1))
         @test isempty(_page_rings(iomap.output))
+        @test !_is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
     end
 end
 

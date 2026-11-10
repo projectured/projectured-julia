@@ -812,6 +812,20 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `OutputReferenceStep` goes, and its users make the introduced step. Each
     place of the list above is checked; a paste and a cut refuse a target in a
     drawn part.
+
+    By D6, 5.4 also makes each view write the selection of its output. Found in
+    the work:
+    - **The reflected object** (`ObjectNodeToSyntaxNode`, `ObjectToSyntax.jl`)
+      gives the root of its output, the type-name leaf or the node of the
+      object, the forward image of the selection and of the part under the
+      pointer (`make_output_path_cells`). The syntax node maps a path into its
+      children by its own forward map, so the root alone is enough here.
+    - **A whole field of a root leaf drew nothing.** The forward map of
+      `SyntaxLeafToText` gives the band of a whole `.open`, `.value` or
+      `.close`, but the selection cell of its output used only the caret map
+      (`_leaf_cursor`). Inside a node, the parent drew the band, so the runs of
+      step 4 did not show it. The printer now also maps a whole field to its
+      band (`_find_whole_leaf_field`).
   - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
     done (2026-11-10); the copy of a part that a view drew waits for 5.4.
 

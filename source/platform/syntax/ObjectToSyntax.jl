@@ -214,9 +214,10 @@ _make_close_text(text::AbstractString, levels::Int) = levels == 0 ? text : "\n" 
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x
 
-# Build the type-name leaf for `T`.
-_type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString) =
-    SyntaxLeaf(TextString(name, p.type_name))
+# Build the type-name leaf for `T`. A leaf that is the whole output takes the path
+# cells of the output as `paths`.
+_type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString; paths...) =
+    SyntaxLeaf(TextString(name, p.type_name); paths...)
 
 # A field's static name leaf plus its child IoMap — projecting the field's *cell*
 # (reactive via CellToSyntax for an `@document` field) or its raw value. A `nothing`
@@ -256,6 +257,15 @@ _get_object_input(obj) = obj
 
 function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
+    # The root of the output holds the forward image of each path of `obj`, so a
+    # selection of the object, or of a part that the view printed, is drawn. The
+    # forward map reads the IO map, which is made last.
+    iomap_cell = Cell(nothing)
+    paths = make_output_path_cells(obj, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)
+    make_iomap(output) = (iomap_cell[] = SimpleIoMap(p, _get_object_input(obj), output))
 
     # Cycle detection for mutable ancestors. Self-referential graphs (e.g.
     # the gallery's introspection tab, which embeds the running document
@@ -267,7 +277,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     if ismutable(obj)
         visited = get_property(ctx, :objects_seen, nothing)
         if visited !== nothing && haskey(visited, obj)
-            return SimpleIoMap(p, _get_object_input(obj), _type_leaf(p, "⟨cycle: $(nameof(T))⟩"))
+            return make_iomap(_type_leaf(p, "⟨cycle: $(nameof(T))⟩"; paths...))
         end
         new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
         new_visited[obj] = true
@@ -294,8 +304,8 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
             open = _object_delimiter(p, _make_open_text(p.open_delimiter, ind)),
             close = _object_delimiter(p, _make_close_text(p.close_delimiter, ind)),
-            sep = _object_delimiter(p, _make_sep_text(" ", ind)), indentation = ind)))
-        return SimpleIoMap(p, _get_object_input(obj), output)
+            sep = _object_delimiter(p, _make_sep_text(" ", ind)), indentation = ind, paths...)))
+        return make_iomap(output)
     end
 
     # Struct: render as `TypeName { field … }` — the type name labels the
@@ -305,9 +315,9 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     if p.filter !== nothing
         fnames = filter(fn -> isdefined(obj, fn) && p.filter(_unwrap_cell(getfield(obj, fn))), fnames)
     end
-    type_leaf = _type_leaf(p, string(nameof(T)))
     # No fields → just the type name, no empty braces.
-    isempty(fnames) && return SimpleIoMap(p, _get_object_input(obj), type_leaf)
+    isempty(fnames) && return make_iomap(_type_leaf(p, string(nameof(T)); paths...))
+    type_leaf = _type_leaf(p, string(nameof(T)))
     # Field structure (which fields) is stable; build each field's entry once, then
     # assemble the node in a computed cell that reads each field's (reactive) value.
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
@@ -318,9 +328,9 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         fields_block = SyntaxNode(field_nodes; open = _object_delimiter(p, _make_open_text(p.open_delimiter, ind)),
             close = _object_delimiter(p, _make_close_text(p.close_delimiter, ind)),
             sep = _object_delimiter(p, _make_sep_text(" ", ind)), indentation = ind)
-        SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = _object_delimiter(p, " "))
+        SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = _object_delimiter(p, " "), paths...)
     end)
-    SimpleIoMap(p, _get_object_input(obj), output)
+    make_iomap(output)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

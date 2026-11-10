@@ -60,6 +60,15 @@ function _leaf_elem_path(leaf::SyntaxLeaf, field::Symbol, char_idx::Int)
     flat < 0 ? nothing : _flat_text_path(flat)
 end
 
+# The field of a leaf that `path`, a plain path, selects as a whole: `:open`,
+# `:value` or `:close`, or `nothing`.
+function _find_whole_leaf_field(path)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep && path.tail isa EmptyReference) ||
+        return nothing
+    name = path.head.name
+    name == "open" ? :open : name == "value" ? :value : name == "close" ? :close : nothing
+end
+
 # The characters of a leaf field as a band, a span of the flat text, or `nothing`
 # when the leaf has no such delimiter. A field selected as a whole, such as a
 # quote or the value, draws as this band.
@@ -160,6 +169,7 @@ end
 #   .open[k]       →  the open span   (only if the leaf has an opening delimiter)
 #   .value[k]      →  the value span
 #   .close[k]      →  the close span  (only if the leaf has a closing delimiter)
+#   .open, .value, .close as a whole  →  the band of that span
 #   anything else  →  no cursor
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     # The state travels with the image: a dormant selection maps forward as a
@@ -170,7 +180,9 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         range = _find_leaf_value_range(leaf_path)
         range === nothing || return _make_leaf_range_path(leaf, range...)
         c = _leaf_cursor(leaf, leaf_path)
-        c < 0 ? nothing : _flat_text_path(c)
+        c >= 0 && return _flat_text_path(c)
+        field = _find_whole_leaf_field(leaf_path)
+        field === nothing ? nothing : _leaf_field_span(leaf, field)
     end)
     SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _make_leaf_lines(leaf)),
                                    paths.selection, paths.mouse_target))
