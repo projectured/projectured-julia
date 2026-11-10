@@ -801,6 +801,24 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     sweep test names the three types. The click test finds no throw on
     `widget/fact_group`, `widget/icon`, `legacy/run_task` and
     `legacy/configuration_view` any more (9, 0, 13 and 20 before).
+  - **A primitive has no forward image** (part of the 81 examples). The
+    forward map of the primitives as text (`_forward_value`,
+    `PrimitiveToText.jl`) took only a place `.value{s:e}`: the whole primitive
+    and its whole value mapped to `nothing`, so a selection of either drew no
+    mark. It maps the whole primitive to the whole block and the whole value to
+    the range of all its characters now, also for the selection of the block.
+    The click test passes on `primitive/string`, `primitive/number`,
+    `primitive/bool` and `collection/vector`, with no failure. The 81 examples
+    are drawn by many views, and a type dispatch hands back the IO map of the
+    row, so no one place can map the whole input of every view.
+  - **A view that maps only introduced references forward.** About 40 views
+    have the one-line forward map `find_introduced_path(p, reference)` (3 in
+    the platform and the domains, `SqlToCellTable` in the `odbc` adapter, and 35
+    files of omnet-julia), and the docstring of `find_introduced_path` says
+    that such a view maps those references "and only these" forward. So the
+    whole document of such a view maps to `nothing`, and a selection of it draws
+    no mark. The default forward map does the same and maps the whole input to
+    the whole output, so the one-liners go.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

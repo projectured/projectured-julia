@@ -6,13 +6,17 @@
 # a string shows no quotes. The natural renderer draws every primitive that is no
 # part of a syntax tree through it: a cell of a table, an element of a
 # collection, a value in a tab.
-# Forward: the place `.value{s:e}` of the primitive is the flat range `{s:e}` of the
-# block, in the same direction. The block has one line, which holds the one run of
-# the value, so a flat offset is a character offset of the value; a caret is the
-# empty range.
-function _forward_value(reference)
+# Forward: the primitive as a whole is the block as a whole, and the place
+# `.value{s:e}` of the primitive is the flat range `{s:e}` of the block, in the same
+# direction. The block has one line, which holds the one run of the value, so a flat
+# offset is a character offset of the value; a caret is the empty range, and the
+# value as a whole, the innermost part that an Alt+click on it selects, is the range
+# of all of `text()`.
+function _forward_value(reference, text::Function)
     @reference_case reference begin
+        ∅ => @reference()
         value{s:e} => make_flat_range_reference(s, e; direction = get_range_direction(reference))
+        value => make_flat_range_reference(0, length(text()))
     end
 end
 
@@ -72,13 +76,13 @@ PrimitiveBoolToText(; theme = nothing,
     PrimitiveBoolToText(style)
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
-    _forward_value(reference)
+    _forward_value(reference, () -> string(iomap.input.value))
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _backward_bool(iomap.output, reference)
 
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     line = TextLine(TextString(() -> string(b.value), p.style))
-    paths = make_output_path_cells(b, _forward_value)
+    paths = make_output_path_cells(b, path -> _forward_value(path, () -> string(b.value)))
     out = TextBlock(CellVector(@computation TextDocument[line]),
                    paths.selection, paths.mouse_target)
     SimpleIoMap(p, b, out)
@@ -111,13 +115,13 @@ PrimitiveNumberToText(; theme = nothing,
     PrimitiveNumberToText(style, allows_type_in)
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
-    _forward_value(reference)
+    _forward_value(reference, () -> string(something(iomap.input.value, "")))
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _backward_number(iomap.output, reference)
 
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     line = TextLine(TextString(() -> string(something(n.value, "")), p.style))
-    paths = make_output_path_cells(n, _forward_value)
+    paths = make_output_path_cells(n, path -> _forward_value(path, () -> string(something(n.value, ""))))
     out = TextBlock(CellVector(@computation TextDocument[line]),
                    paths.selection, paths.mouse_target)
     SimpleIoMap(p, n, out)
@@ -186,7 +190,7 @@ function _backward_insertion(block, reference, ins::PrimitiveInsertion)
 end
 
 map_reference_forward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
-    _forward_value(reference)
+    _forward_value(reference, () -> something(iomap.input.value, ""))
 map_reference_backward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
     _backward_insertion(iomap.output, reference, iomap.input)
 
@@ -197,7 +201,7 @@ function print_document(p::PrimitiveInsertionToText, recursion, ins::PrimitiveIn
                       Cell(@computation style[].color), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(nothing))
     line = TextLine(span)
-    paths = make_output_path_cells(ins, _forward_value)
+    paths = make_output_path_cells(ins, path -> _forward_value(path, () -> something(ins.value, "")))
     out = TextBlock(CellVector(@computation TextDocument[line]), paths.selection, paths.mouse_target)
     SimpleIoMap(p, ins, out)
 end
@@ -248,7 +252,7 @@ function _get_text_style(p::PrimitiveStringToTextBlock, ctx)
 end
 
 map_reference_forward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
-    _forward_value(reference)
+    _forward_value(reference, () -> something(iomap.input.value, ""))
 map_reference_backward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
     _backward_string(iomap.output, reference)
 
@@ -279,7 +283,7 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
                    _compute_text_block_lines!(previous, head[], style)
     lines() = show_placeholder() ? TextDocument[placeholder_line] :
               push!(head_lines(), last_line)
-    paths = make_output_path_cells(s, _forward_value)
+    paths = make_output_path_cells(s, path -> _forward_value(path, value))
     out = TextBlock(CellVector(@computation lines()), paths.selection, paths.mouse_target)
     SimpleIoMap(p, s, out)
 end
