@@ -66,6 +66,9 @@ end
     @test _read_widget_tooltip(WidgetSplitPane(:horizontal, Any[])) === nothing
     @test _read_widget_tooltip(WidgetTree(Any[])) === nothing
     @test _read_widget_tooltip(WidgetMenuItem("Copy")) === nothing
+    @test _read_widget_tooltip(WidgetFact("exit code", "0")) === nothing
+    @test _read_widget_tooltip(WidgetIcon(:file)) === nothing
+    @test _read_widget_tooltip(WidgetIconMark(2)) === nothing
 end
 
 @testset "a document with nothing to say says nothing" begin

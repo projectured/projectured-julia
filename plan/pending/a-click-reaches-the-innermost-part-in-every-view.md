@@ -789,6 +789,18 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   of §4, and the table and the accordion, which go on into a cell and a header.
   The table, the list and the tree follow D4: a plain click on the text of a
   cell puts the caret there, and a plain click on the padding chooses the row.
+
+  Done so far (2026-11-10):
+  - **A fact and an icon throw on a rest of the pointer** (43 examples). Every
+    drawn widget type carries the field `tooltip`, as `test_widget_tooltip`
+    states ("the sweep is the claim"); `WidgetFact`, `WidgetIcon` and
+    `WidgetIconMark` had none, so the tooltip binding of `WidgetDocument` threw
+    `FieldError`. They have the field now, with the default `nothing`, so each
+    caller with fewer arguments stays as it is; about 36 lines of the recorded
+    precompile lists name the old types, far below the limit of 10 %. The
+    sweep test names the three types. The click test finds no throw on
+    `widget/fact_group`, `widget/icon`, `legacy/run_task` and
+    `legacy/configuration_view` any more (9, 0, 13 and 20 before).
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

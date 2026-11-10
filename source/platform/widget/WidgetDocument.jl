@@ -1869,6 +1869,7 @@ See also `WidgetIcon`.
 @document struct WidgetIconMark <: WidgetDocument
     content::Any
     role::Any
+    tooltip::Any = nothing
 end
 
 WidgetIconMark(content; role = nothing) = WidgetIconMark(content, role)
@@ -1903,6 +1904,7 @@ See also `WidgetIconMark` and `make_decoration_icon`.
     bottom_left::Any
     bottom_right::Any
     size::Int
+    tooltip::Any = nothing
 end
 
 WidgetIcon(name::Symbol; role = nothing, top_left = nothing, top_right = nothing, bottom_left = nothing,
@@ -2834,6 +2836,7 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
 @document struct WidgetFact <: WidgetDocument
     label::Any
     value::Any
+    tooltip::Any = nothing
 end
 
 _as_fact(fact::WidgetFact) = fact
