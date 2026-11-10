@@ -217,14 +217,14 @@ Do the work in a worktree on a branch. Make one commit for each step.
    `make_application_content_projections`. Remove `collapse_thinking`.
    Test: `test_conversation()`, `test_assistant_duplicate()`, and a test that a
    change of the setting opens the work of a finished turn.
-4. ☐ **A turn with no message folds nothing.** Make `_find_work_indices` give no
+4. ✅ **A turn with no message folds nothing.** Make `_find_work_indices` give no
    work line when only parts that stay out of the work come after the last part
    of work. Test: `test_conversation_transcript()`.
-5. ☐ **The agent knows that only its last text shows.** Give the built-in loop and
+5. ✅ **The agent knows that only its last text shows.** Give the built-in loop and
    an external agent one sentence that says so, outside the `system` text of a
    window, because a window can replace that text. Test:
    `test_external_agent_turn()`, `test_assistant_mvp()`.
-6. ☐ **Check by eye.** Render a seeded conversation with a running turn, a finished
+6. ✅ **Check by eye.** Render a seeded conversation with a running turn, a finished
    turn and a turn of an old file, with each value of the setting. Tune the label
    and the spacing of the work line.
 7. ☐ **Documentation.** Update
@@ -324,6 +324,66 @@ Do the work in a worktree on a branch. Make one commit for each step.
   tests (`test_conversation_transcript`, `test_assistant_mvp`,
   `test_assistant_duplicate`, `test_application`) waited for memory, and I stopped
   their job to add steps 4 and 5. They run with step 4.
+
+- **A fault that the umbrella tests found after the commit.** The field
+  `finished_turn` was `::Symbol`. A projection with the kind `UntrackedCell` makes
+  such a field an `UntrackedCell{Symbol}`, and its constructor refuses the tracked
+  cell of a setting: `Cannot convert ... Cell to ... UntrackedCell{Symbol}`. The
+  field is now `finished_turn::Cell = :message`, a reactive field: it keeps the
+  cell that it gets and wraps a plain value. The work line reads it in its
+  computation, so a change of the setting reaches it. The tests of the
+  application did not find the fault, because they call
+  `make_application_projection()` with no settings, and the window workload of the
+  application calls the real builder with settings, so it would have failed too.
+  `make_application_window` now gives its settings to the projection, so a test or
+  rehearsal window follows the setting of its editor.
+
+### Step 4
+
+- **The message is the parts after the last part of work that do not stay out of
+  the work.** `_find_work_indices` gives no work line when only a note, a sign-in
+  or a request that waits comes after the last part of work, or nothing does. A
+  turn that used its rounds ends on its note after a tool call, so it shows every
+  part.
+- **A text that comes later gives the turn its work line**, because the work line
+  is a computed cell of the parts. The new test pushes a text into a stopped turn
+  and sees the work line come.
+
+### Step 5
+
+- **The sentence is `ASSISTANT_ANSWER_INSTRUCTIONS`** in
+  [AssistantDocument.jl](../../source/platform/assistant/AssistantDocument.jl),
+  exported beside `DEFAULT_AGENT_INSTRUCTIONS`: "When your answer ends, the
+  assistant pane folds your thinking, your tool calls and every text before your
+  last tool call into one line, and shows only the text after your last tool call.
+  So end each answer with a text that stands alone: put in it what the person
+  needs from your earlier texts, such as a result, a finding, a decision or a
+  question."
+- **It stays outside the `system` text**, because the text of a window replaces
+  that text; the notebook window of omnet-julia gives its own. An external agent
+  gets it at the end of `DEFAULT_AGENT_INSTRUCTIONS`, and the built-in loop adds
+  it after the `system` text of the assistant.
+- **The sentence does not follow the setting.** With `:everything` the last text
+  still stands alone, which repeats a little. A text that follows the setting
+  would need the settings in the turn, for little gain.
+
+### Step 6
+
+- **The pictures show the rule:** a finished turn shows one work line and its
+  message; open, the work shows its parts in order, each folded, with the texts
+  between the tools; a turn that runs shows every part open and its error result
+  folded; the label fits at 420 px.
+- **The work line has the padding of a part card.** It had the 12 px indent of a
+  section of an evaluation, so its chevron stood 5 px right of the chevron of a
+  part card. Now it takes the padding of the theme, as a part card does, with no
+  panel. The field `section_padding` of the turn projection is removed.
+- **A code block before the last tool call counts as "other part"**, such as the
+  function of the example conversation: `Work: 4 tool calls · 1 thinking · 1 text
+  · 1 other part`.
+- **Results:** `test_conversation_theme` 58/58, `test_conversation_transcript`
+  passes, `test_assistant_mvp` 193 pass and 4 broken as on main. The seeded
+  pictures were drawn with `make_conversation_row(; settings)`, the path of the
+  application.
 
 ### The measurement behind decisions 4 and 5
 

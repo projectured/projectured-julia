@@ -62,7 +62,6 @@ end
     assistant_role_icon::StyleText = get_conversation_style(nothing, :assistant_role_icon)
     other_role_icon::StyleText = get_conversation_style(nothing, :other_role_icon)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
-    section_padding::Inset = get_conversation_style(nothing, :section_indent)
     # What a finished turn of the model shows: `:message`, its work folded into
     # one line before its message, or `:everything`. The field is a reactive
     # cell, and a builder gives the cell of `finished_turn` of the
@@ -345,12 +344,13 @@ end
 
 # The work line: a card with the count of each kind of part that it holds and how
 # long the turn ran, over the outputs of those parts. It folds with `work_fold` of
-# the turn, and a work line starts folded.
+# the turn, and a work line starts folded. It has the padding of a part card and
+# no panel, so its chevron stands where the chevron of a part card stands.
 function _make_work_card(p, t::ConversationTurn, indices::Vector{Int}, outputs::Vector)
     label = _describe_work(t, Any[t.parts[i].content for i in indices])
     card = WidgetCard(; title = WidgetLabel(label; text_style = p.kind_text),
                       content = VerticalLayout(outputs; gap = p.section_gap, child_width = Fill),
-                      variant = :plain, collapsible = true, padding = p.section_padding)
+                      variant = :plain, collapsible = true)
     _follow_fold!(card, () -> _is_fold_closed(t.work_fold, true))
 end
 
@@ -1298,8 +1298,7 @@ function ConversationToWidget(; theme = nothing, widget_theme = nothing, finishe
             user_role_icon = get_style(:user_role_icon),
             assistant_role_icon = get_style(:assistant_role_icon),
             other_role_icon = get_style(:other_role_icon),
-            kind_text = get_style(:kind_text), section_padding = get_style(:section_indent),
-            finished_turn),
+            kind_text = get_style(:kind_text), finished_turn),
         ConversationPart         => ConversationPartToWidget(;
             message_text = get_style(:message_text),
             kind_text = get_style(:kind_text), section_text = get_style(:section_text),
