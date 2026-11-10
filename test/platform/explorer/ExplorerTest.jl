@@ -760,6 +760,10 @@ function test_explorer()
         @test _explorer_has_tree_text(backend, "Widget") && _explorer_has_tree_text(backend, "Font")
         _nav_press!(editor, backend, _explorer_click(backend, "Widget"))
         @test get_navigator_page(explorer.navigator) === get_theme(appearance, WidgetTheme)
+        # The address names the appearance and the heading, as the tree does; the glyph
+        # between two names is that of a closed chevron.
+        arrow = _EXPLORER_CLOSED_CHEVRON
+        @test _nav_has_texts(backend, "Explorer", arrow, "Appearance", arrow, "Editor", arrow, "Widget")
         # The page draws the theme alone: its fields, and no card of another theme.
         @test _nav_has_text(backend, "background") && _nav_has_text(backend, "foreground")
         @test !_nav_has_text(backend, "Zoom")

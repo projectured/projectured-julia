@@ -149,8 +149,9 @@ of each; the wrapper then makes the view print again.
     scroll_position::Point2D = Point2D(0, 0)
 end
 
-# A tab that shows a part or a heading of an appearance, and its node in a tree,
-# name it so.
+# A tab that shows an appearance, a part or a heading of one, its node in a tree
+# and its name in the address of a page, name it so.
+get_document_title(::Appearance) = "Appearance"
 get_document_title(::AppearanceScale) = "Scale"
 get_document_title(::AppearanceColors) = "Colors"
 get_document_title(group::ThemeGroup) = group.title
