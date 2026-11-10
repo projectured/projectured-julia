@@ -1,9 +1,9 @@
 # A chart zooms, pans and fits by the mouse and the keys
 
 **Status (2026-11-10): in progress.** The owner approved the plan for
-implementation on 2026-11-10 ("Let's go"). The owner decided D12. The assistant
-proposed the other decisions of §4, and they are approved with the plan. No
-question is open.
+implementation on 2026-11-10 ("Let's go"). The owner decided D12, and D9 in its
+second form. The assistant proposed the other decisions of §4, and they are
+approved with the plan. No question is open.
 
 **Goal:** a person moves the view of a chart as in a plot tool: zoom in and
 out, pan, show all the data, fit one axis, with the mouse, the keys, a menu and
@@ -172,14 +172,20 @@ Each decision except D12 is proposed by the assistant and approved with the plan
   "Show the whole trace". Both use `make_context_menu_binding`, as
   `GraphLayout` does. The menu holds each action, and the buttons of D12 hold
   the three that a person uses most.
-- **D9. A zoomed chart shows a scroll bar.** The view of a chart sits in a
-  `WidgetScrollPane` whose two bars the chart gives. The thumb is the window
-  among the fit, in the space of the axis. A write of `value` pans the window,
-  and the chart keeps the drag of the thumb. A bar shows only while it is used,
-  as each bar of the editor. The ground is the owner's rule "a view that scrolls
-  shows a scroll bar" (2026-10-06), and a zoomed chart scrolls by the wheel.
-  Rejected: a bar that the chart printer draws itself. The editor then draws a
-  bar in two ways.
+- **D9. A zoomed chart shows a scroll bar.** The chart gives two
+  `WidgetScrollBar`s, and its renderer prints them through its recursion along
+  the bottom and the right edge of the plot area, over the data. The thumb is
+  the window among the fit, in the space of the axis. A write of `value` pans the
+  window, and the chart keeps the drag of the thumb. A bar shows only while it is
+  used, as each bar of the editor. The ground is the owner's rule "a view that
+  scrolls shows a scroll bar" (2026-10-06), and a zoomed chart scrolls by the
+  wheel. Decided by the owner, 2026-11-10, on the recommendation of the
+  assistant ("Agree with your recommendation"), in place of the first form of
+  this decision, a `WidgetScrollPane` around the view: a pane puts its bars at
+  the outer edges of the whole chart, under the labels and the title of the x
+  axis and right of the legend, and it takes the room of its host, so each chart
+  could change its size. Rejected also: a bar that the chart printer draws with
+  its own elements. The editor then draws a bar in two ways.
 - **D10. The pointer is a closed hand while a pan runs.** The band keeps the
   arrow. Rejected: an open hand at the hover. A hover does not know if Shift is
   held.
@@ -283,12 +289,26 @@ and makes one commit.
    514/514, `test_pivot_chart_views()` 24/24, `test_pivot_cell_views()` 30/30.
    The recorded calls of the workload of `ProjecturedChart` no longer resolve
    (119 of 574); step 7 records them again.
-5. [ ] **The scroll bars of the chart (D9).** The stage that puts the view in a
-   scroll pane with the two bars of the chart, in each chain that draws a chart:
-   the natural rows `:chart` and `:frame_time_series`, the examples, and
-   `PivotChartView.jl`. A test of the thumb at the fit, after a zoom, and after a
-   write of `value`. Run `test_chart()`, `test_pivot_chart_views()`,
+5. [x] **The scroll bars of the chart (D9).** The two bars of the plot, their
+   print through the recursion that `make_chart_projection` gives, their place
+   along the edges of the plot area, and their gestures. A test of the thumb at
+   the fit, after a zoom, after a click on the track and after a drag of the
+   thumb. Run `test_chart()`, `test_pivot_chart_views()`,
    `test_pivot_cell_views()`.
+
+   *As built (2026-11-10):* `make_chart_scroll_bar(plot, axis)` makes each bar,
+   whose `value` and `thumb_size` are computed from the window and the fit with
+   `compute_window_scroll_bar_value` and `compute_window_scroll_bar_thumb` of the
+   plot slice; `compute_window_at_scroll_bar_value` gives the window of a value.
+   `ChartToChartPlot` builds the two bars with the buttons and names their parts
+   by an introduced reference. The renderer prints a bar while its thumb is less
+   than 1, as long as its edge of the plot area; the vertical bar runs along the
+   whole right edge, and the bar under the plot stops before it. A click on the
+   track pages, a write of the value becomes the write of the view, and a press
+   on the thumb starts a drag that the chart keeps (`make_owned_scroll_bar_drag`,
+   `read_scroll_bar_drag`). `make_chart_projection` prints `WidgetScrollBar` too.
+   Results: `test_plot_geometry()` 144/144, `test_chart()` 535/535,
+   `test_pivot_chart_views()` 24/24, `test_pivot_cell_views()` 30/30.
 6. [ ] **The sequence chart (D2 to D10, D12, D13).** The window arithmetic, the
    band along the time, the drag pan of the time and the lanes, a drag and a
    double click on the time axis, the keys, the menu, the buttons and the bars. The move back from the end

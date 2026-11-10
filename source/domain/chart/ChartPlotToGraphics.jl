@@ -90,6 +90,8 @@ ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::In
     output::Any
     geometry::Cell      # the laid-out frame: ranges, plot rect, scales, ticks
     toolbar::Cell       # the print of the buttons while they show, or nothing
+    horizontal_scroll_bar::Cell  # the print of the bar under the plot while it is there, or nothing
+    vertical_scroll_bar::Cell    # the print of the bar right of the plot while it is there, or nothing
 end
 
 # ── Data ranges ──────────────────────────────────────────────────────────
@@ -1564,15 +1566,30 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, w, h, t)
     end)
-    # The buttons print while the pointer is over the chart, through the recursion:
-    # in the editor that is the renderer around the chart, which prints widgets. The
-    # wish is a cell of its own, so a move between the parts of the chart does not
-    # print them again.
+    # The buttons print while the pointer is over the chart, and a bar while the
+    # chart is zoomed on its axis, through the recursion, which
+    # `make_chart_projection` gives a printer of each. Each wish is a cell of its
+    # own, so a move between the parts of the chart does not print them again.
     wants_toolbar = Cell(@computation _is_chart_toolbar_wanted(plot, geometry[]))
     toolbar = Cell(@computation wants_toolbar[] ?
         print_child(recursion, plot.toolbar,
                     with_free_axis(with_free_axis(make_child_context(ctx, FieldReferenceStep("toolbar")),
                                                   :x), :y)) : nothing)
+    # A bar is as long as its edge of the plot area, and as thick as its printer
+    # makes it. The bar under the plot stops before the bar right of it.
+    wants_vertical = Cell(@computation _is_chart_scroll_bar_wanted(plot.vertical_scroll_bar, geometry[]))
+    vertical_length = Cell(@computation (g = geometry[]; g === nothing ? 0 : g.plot_h))
+    vertical = Cell(@computation wants_vertical[] ?
+        print_child(recursion, plot.vertical_scroll_bar,
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep("vertical_scroll_bar"));
+                                    width = nothing, height = vertical_length)) : nothing)
+    wants_horizontal = Cell(@computation _is_chart_scroll_bar_wanted(plot.horizontal_scroll_bar, geometry[]))
+    horizontal_length = Cell(@computation (g = geometry[]; bar = vertical[];
+        g === nothing ? 0 : g.plot_w - (bar === nothing ? 0 : Int(bar.output.w))))
+    horizontal = Cell(@computation wants_horizontal[] ?
+        print_child(recursion, plot.horizontal_scroll_bar,
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep("horizontal_scroll_bar"));
+                                    width = horizontal_length, height = nothing)) : nothing)
 
     elements = CellVector(@computation begin
         g = geometry[]
@@ -1603,10 +1620,10 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)
-        # The buttons over everything, in the top-right corner.
-        shown = _find_shown_chart_toolbar(g, toolbar[], _count_chart_buttons(plot))
-        shown === nothing ||
-            push!(out, GraphicsViewport(shown.x, shown.y, shown.w, shown.h, shown.iomap.output))
+        # The bars, and the buttons over everything.
+        for part in reverse(_find_shown_chart_parts(g, plot, toolbar[], horizontal[], vertical[]))
+            push!(out, GraphicsViewport(part.x, part.y, part.w, part.h, part.iomap.output))
+        end
         out
     end)
 
@@ -1618,7 +1635,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                             Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar)
+    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar, horizontal, vertical)
 end
 
 # Whether the buttons of `plot` show: while the pointer is over the chart and no
@@ -1641,13 +1658,50 @@ function _find_shown_chart_toolbar(g, toolbar, count::Integer)
     (; x = g.w - w - inset, y = inset, w, h, iomap = toolbar)
 end
 
-_find_shown_chart_toolbar(iomap::ChartPlotToGraphicsCanvasIoMap) =
-    _find_shown_chart_toolbar(iomap.geometry, iomap.toolbar, _count_chart_buttons(iomap.input))
-
 _count_chart_buttons(plot::ChartPlot) = plot.toolbar === nothing ? 0 : length(plot.toolbar.elements)
 
+# Whether the bar `bar` of a plot is there: while the window does not show all the
+# data on its axis, on a chart that has a window.
+_is_chart_scroll_bar_wanted(bar, g) =
+    g !== nothing && !g.pie && bar !== nothing && bar.thumb_size < 1
+
+# The parts that only the plot holds and that show now, the buttons first, as
+# `(; field, x, y, w, h, iomap)`: the buttons in the top-right corner of the chart,
+# the vertical bar along the right edge of the plot area, and the horizontal bar
+# along its bottom edge.
+function _find_shown_chart_parts(g, plot::ChartPlot, toolbar, horizontal, vertical)
+    parts = NamedTuple[]
+    g === nothing && return parts
+    shown = _find_shown_chart_toolbar(g, toolbar, _count_chart_buttons(plot))
+    shown === nothing || push!(parts, merge((; field = "toolbar"), shown))
+    if vertical !== nothing && vertical.output isa GraphicsCanvas
+        w, h = Int(vertical.output.w), Int(vertical.output.h)
+        push!(parts, (; field = "vertical_scroll_bar", x = g.plot_x + g.plot_w - w, y = g.plot_y,
+                       w, h, iomap = vertical))
+    end
+    if horizontal !== nothing && horizontal.output isa GraphicsCanvas
+        w, h = Int(horizontal.output.w), Int(horizontal.output.h)
+        push!(parts, (; field = "horizontal_scroll_bar", x = g.plot_x, y = g.plot_y + g.plot_h - h,
+                       w, h, iomap = horizontal))
+    end
+    parts
+end
+
+_find_shown_chart_parts(iomap::ChartPlotToGraphicsCanvasIoMap) =
+    _find_shown_chart_parts(iomap.geometry, iomap.input, iomap.toolbar,
+                            iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
+
+# The first of `parts` that holds the point `x`, `y`, or `nothing`.
+function _find_chart_part_at(parts, x::Integer, y::Integer)
+    for part in parts
+        _in_rect(x, y, part.x, part.y, part.w, part.h) && return part
+    end
+    nothing
+end
+
 get_child_iomaps(iomap::ChartPlotToGraphicsCanvasIoMap) =
-    iomap.toolbar === nothing ? Any[] : Any[iomap.toolbar]
+    Any[child for child in (iomap.toolbar, iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
+        if child !== nothing]
 
 """
     make_chart_projection(; measure, theme = nothing, widget_theme = WidgetTheme(),
@@ -1656,19 +1710,21 @@ get_child_iomaps(iomap::ChartPlotToGraphicsCanvasIoMap) =
 
 A chart view: a `Chart` through `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`
 to a `GraphicsCanvas`, with the buttons that show while the pointer is over the
-chart. `theme`, the size and the minimum size are those of the renderer of the
-chart; `widget_theme` is that of the buttons.
+chart and the bars of a zoomed chart. `theme`, the size and the minimum size are
+those of the renderer of the chart; `widget_theme` is that of the buttons and the
+bars.
 
-The renderer prints the buttons through its recursion, and this projection gives
-it a recursion that prints them, so a chart shows its buttons in any host. A chain
-of the two stages built by hand must give a recursion that prints a `WidgetToolbar`
-and a `WidgetToolbarItem`.
+The renderer prints the buttons and the bars through its recursion, and this
+projection gives it a recursion that prints them, so a chart shows them in any
+host. A chain of the two stages built by hand must give a recursion that prints a
+`WidgetToolbar`, a `WidgetToolbarItem` and a `WidgetScrollBar`.
 """
 make_chart_projection(; measure::TextMeasure, widget_theme = WidgetTheme(), kwargs...) =
     NestingProjection(ChainingProjection(ChartToChartPlot(), ChartPlotToGraphicsCanvas(; measure, kwargs...));
                       recursion = TypeDispatchingProjection(
                           WidgetToolbar => WidgetToolbarToGraphicsCanvas(widget_theme; measure),
-                          WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(widget_theme; measure)))
+                          WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(widget_theme; measure),
+                          WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(widget_theme)))
 
 # A chart-shaped placeholder for a `ChartNothing`/`ChartInsertion` root, so an
 # empty chart still occupies its space and reads as a chart rather than
@@ -1703,15 +1759,17 @@ function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
     canvas = iomap.output
     canvas isa GraphicsCanvas && canvas.w > 0 && canvas.h > 0 &&
         !_in_rect(x, y, Int(canvas.x), Int(canvas.y), Int(canvas.w), Int(canvas.h)) && return nothing
-    # The buttons are on top of every part: a point on them is the button there.
-    shown = _find_shown_chart_toolbar(iomap)
-    if shown !== nothing && _in_rect(x, y, shown.x, shown.y, shown.w, shown.h)
-        toolbar = shown.iomap
-        inner = map_reference_backward(get_iomap_projection(toolbar), toolbar,
+    # The buttons and the bars are on top of every part: a point on them is the
+    # part of them there.
+    shown = _find_chart_part_at(_find_shown_chart_parts(iomap), x, y)
+    if shown !== nothing
+        child = shown.iomap
+        inner = map_reference_backward(get_iomap_projection(child), child,
                                        ConcreteReference(PointReferenceStep(x - shown.x, y - shown.y),
                                                          EmptyReference()))
-        inner isa Reference || return @reference plot toolbar
-        return @reference plot toolbar.^(inner)
+        head = annotate_reference_types(plot, ConcreteReference(FieldReferenceStep(shown.field),
+                                                                EmptyReference()))
+        return inner isa Reference ? concat_references(head, inner) : head
     end
     index = _legend_hit(g, x, y)
     index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
@@ -1802,12 +1860,12 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     # A chart with no axes, a pie, has no window: it takes no view gesture, so the
     # page around it gets the turn and the keys.
     has_window = !g.pie
-    # The buttons are on top: a press, a release, a click, a dwell and a right
-    # click on them go to them, in their frame.
-    shown = _find_shown_chart_toolbar(iomap)
-    if shown !== nothing && event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell} &&
-       _in_rect(event.x, event.y, shown.x, shown.y, shown.w, shown.h)
-        return _read_chart_toolbar_event(plot, shown, event)
+    # The buttons and the bars are on top: a press, a release, a click, a dwell and
+    # a right click on them go to them, in their frame.
+    parts = _find_shown_chart_parts(iomap)
+    if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell}
+        part = _find_chart_part_at(parts, event.x, event.y)
+        part === nothing || return _read_chart_part_event(plot, part, event)
     end
 
     if event isa MouseScroll
@@ -1816,15 +1874,16 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         return has_window ? _drag_start(g, plot, event) : nothing
     elseif event isa Union{KeyDown, KeyPress}
         return has_window ? _key_intent(g, plot, event) : nothing
-    elseif event isa DragMove
-        # The drag comes by the path of the plot, also off the plot.
-        return _drag_move(g, plot, event)
-    elseif event isa DragEnd
-        return _drag_end(g, plot, event)
-    elseif event isa DragCancel
+    elseif event isa Union{DragMove, DragEnd, DragCancel}
+        # The drag comes by the path of the plot, also off the plot: the drag of
+        # the thumb of a bar, which the chart keeps, or a band or a pan.
+        bar = _read_chart_scroll_bar_drag(plot, event)
+        bar === nothing || return bar
+        event isa DragMove && return _drag_move(g, plot, event)
+        event isa DragEnd && return _drag_end(g, plot, event)
         return _cancel_drag(plot)
     elseif event isa MouseMove
-        return _read_chart_move(g, plot, shown, event)
+        return _read_chart_move(g, plot, parts, event)
     elseif is_outward_gesture(event)
         # A dwell and a right click go to the part at their point, and then out to
         # the plot, whose menu holds the view actions.
@@ -1862,36 +1921,84 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     nothing
 end
 
-# ── The buttons in the frame of the chart ────────────────────────────────
+# ── The buttons and the bars in the frame of the chart ───────────────────
 
-const _TOOLBAR_STEPS = (FieldReferenceStep("toolbar"),)
-
-# A move of the pointer: on the buttons it goes to them and clears the readout;
-# elsewhere it tracks the readout, and the button that the pointer leaves gets the
-# leave, so a press released off it ends.
-function _read_chart_move(g, plot::ChartPlot, shown, event::MouseMove)
-    if shown !== nothing && _in_rect(event.x, event.y, shown.x, shown.y, shown.w, shown.h)
-        move = MouseMove(event.x - shown.x, event.y - shown.y, event.buttons, event.modifiers;
-                         time = event.time)
-        answer = reroot_operation(shift_operation_position(read_child_move(shown.iomap, move),
-                                                           shown.x, shown.y), _TOOLBAR_STEPS)
-        return join_move_answers(answer, _clear_cursor(plot))
+# A move of the pointer: on a button or a bar it goes to that part and clears the
+# readout; elsewhere it tracks the readout. The part that the pointer leaves gets
+# the leave, so a press released off a button ends.
+function _read_chart_move(g, plot::ChartPlot, parts, event::MouseMove)
+    part = _find_chart_part_at(parts, event.x, event.y)
+    old_field = _find_plot_part_field(strip_reference_types(get_mouse_target(plot)))
+    left = nothing
+    if old_field !== nothing && (part === nothing || part.field != old_field)
+        index = findfirst(shown -> shown.field == old_field, parts)
+        if index !== nothing
+            old = parts[index]
+            left = reroot_operation(read_child_leave(old.iomap, event, old.x, old.y),
+                                    (FieldReferenceStep(old.field),))
+        end
     end
-    left = shown !== nothing && _get_toolbar_part(strip_reference_types(get_mouse_target(plot))) !== nothing ?
-        reroot_operation(read_child_leave(shown.iomap, event, shown.x, shown.y), _TOOLBAR_STEPS) : nothing
-    join_move_answers(left, _track_cursor(g, plot, event.x, event.y))
+    part === nothing && return join_move_answers(left, _track_cursor(g, plot, event.x, event.y))
+    move = MouseMove(event.x - part.x, event.y - part.y, event.buttons, event.modifiers; time = event.time)
+    answer = reroot_operation(shift_operation_position(read_child_move(part.iomap, move), part.x, part.y),
+                              (FieldReferenceStep(part.field),))
+    join_move_answers(left, answer, _clear_cursor(plot))
 end
 
-# The answer of the buttons to a pointer gesture on them. A dwell and a right click
-# that no button answers go out to the plot.
-function _read_chart_toolbar_event(plot::ChartPlot, shown, event)
-    moved = shift_event_position(event, -shown.x, -shown.y)
-    toolbar = shown.iomap
-    answer = is_outward_gesture(event) ? read_child_event(toolbar, moved) :
-             read_intent(get_iomap_projection(toolbar), toolbar, moved)
+# The answer of a button or a bar to a pointer gesture on it. A dwell and a right
+# click that no part answers go out to the plot. A press on the thumb of a bar
+# starts a drag that the chart keeps, and a write of the value of a bar moves the
+# view.
+function _read_chart_part_event(plot::ChartPlot, part, event)
+    moved = shift_event_position(event, -part.x, -part.y)
+    child = part.iomap
+    steps = (FieldReferenceStep(part.field),)
+    answer = is_outward_gesture(event) ? read_child_event(child, moved) :
+             read_intent(get_iomap_projection(child), child, moved)
     answer isa Operation || (answer = nothing)
-    answer = reroot_operation(shift_operation_position(answer, shown.x, shown.y), _TOOLBAR_STEPS)
-    is_outward_gesture(event) ? read_container_gesture(answer, event, plot; steps = _TOOLBAR_STEPS) : answer
+    answer = reroot_operation(shift_operation_position(answer, part.x, part.y), steps)
+    is_outward_gesture(event) && return read_container_gesture(answer, event, plot; steps)
+    part.field == "toolbar" && return answer
+    bar = getproperty(plot, Symbol(part.field))
+    event isa MouseDown && (answer = _keep_chart_scroll_bar_drag(make_owned_scroll_bar_drag(answer, bar, event)))
+    _convert_chart_scroll_bar_answer(plot, answer)
+end
+
+# `answer` with the start of a drag made the start of a drag of the plot, so each
+# part of the drag of a thumb comes to the chart, which keeps it.
+_keep_chart_scroll_bar_drag(answer) = answer
+_keep_chart_scroll_bar_drag(answer::CompoundOperation) =
+    CompoundOperation(Any[o isa StartDragOperation ? StartDragOperation(EmptyReference(), o.dragged) : o
+                          for o in answer.operations])
+
+# The answer of a bar whose thumb the chart drags to a part of that drag, with the
+# value made the move of the view, or `nothing` when no thumb is dragged.
+function _read_chart_scroll_bar_drag(plot::ChartPlot, event)
+    for bar in (plot.horizontal_scroll_bar, plot.vertical_scroll_bar)
+        bar === nothing && continue
+        answer = read_scroll_bar_drag(bar, event)
+        answer === nothing || return _convert_chart_scroll_bar_answer(plot, answer)
+    end
+    nothing
+end
+
+# `answer` with each write of the value of a bar of `plot` made the move of the
+# view to that value. A move that changes nothing is left out.
+function _convert_chart_scroll_bar_answer(plot::ChartPlot, answer)
+    if answer isa CompoundOperation
+        kept = Any[]
+        for operation in answer.operations
+            converted = _convert_chart_scroll_bar_answer(plot, operation)
+            converted === nothing || push!(kept, converted)
+        end
+        return isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
+    end
+    write = answer isa ReplaceViewStateOperation ? get_wrapped_operation(answer) : answer
+    (write isa ReplaceReferencedValueOperation && write.reference isa ConcreteReference &&
+     write.reference.head == FieldReferenceStep("value")) || return answer
+    write.document === plot.horizontal_scroll_bar && return _move_chart_view_to_bar_value(plot, :x, write.value)
+    write.document === plot.vertical_scroll_bar && return _move_chart_view_to_bar_value(plot, :y, write.value)
+    answer
 end
 
 # ── View interaction ─────────────────────────────────────────────────────
@@ -2074,6 +2181,51 @@ function make_chart_buttons(plot::ChartPlot)
     WidgetToolbar(Any[button("Zoom in", :zoom_in, "Ctrl+=", _zoom_in_view),
                       button("Zoom out", :zoom_out, "Ctrl+-", _zoom_out_view),
                       button("Show all the data", :maximize, "Ctrl+0", _show_all_view)])
+end
+
+"""
+    make_chart_scroll_bar(plot, axis) -> WidgetScrollBar
+
+The bar of `plot` along `axis`, `:x` or `:y`, which the renderer draws along the
+bottom or the right edge of the plot area. Its thumb is the part of the data that
+the window shows on that axis, and its value the place of the window, from the
+left and from the top, both in the space of the axis. It is there while the
+window does not show all the data on that axis. A write of its value moves the
+view, and the chart keeps the drag of its thumb.
+"""
+function make_chart_scroll_bar(plot::ChartPlot, axis::Symbol)
+    bar = WidgetScrollBar(axis === :x ? :horizontal : :vertical)
+    place = Cell(@computation _get_chart_scroll_bar_place(plot, axis))
+    set_cell_computation!(getfield(bar, :value), () -> place[][1])
+    set_cell_computation!(getfield(bar, :thumb_size), () -> place[][2])
+    bar
+end
+
+# The window, the extent and the kind of `axis` of `plot`, as the window
+# arithmetic takes them.
+function _get_chart_axis_window(plot::ChartPlot, view::ChartView, fit::ChartView, axis::Symbol)
+    axis === :x && return ((view.x_min, view.x_max), (fit.x_min, fit.x_max), _is_log_axis(plot.chart.x_axis))
+    ((view.y_min, view.y_max), (fit.y_min, fit.y_max), _is_log_axis(plot.chart.y_axis))
+end
+
+# The value and the thumb of the bar of `axis`. A y axis grows up, so the value of
+# its bar is 0 at the top of the data.
+function _get_chart_scroll_bar_place(plot::ChartPlot, axis::Symbol)
+    _has_chart_window(plot) || return (0.0, 1.0)
+    window, extent, log = _get_chart_axis_window(plot, resolve_view(plot), _compute_fit_view(plot), axis)
+    value = compute_window_scroll_bar_value(window; extent, log)
+    (axis === :x ? value : 1.0 - value, compute_window_scroll_bar_thumb(window; extent, log))
+end
+
+# The write of the view with the window of `axis` at the place `value` of its bar.
+function _move_chart_view_to_bar_value(plot::ChartPlot, axis::Symbol, value::Real)
+    _has_chart_window(plot) || return nothing
+    view = resolve_view(plot)
+    fit = _compute_fit_view(plot)
+    window, extent, log = _get_chart_axis_window(plot, view, fit, axis)
+    moved = compute_window_at_scroll_bar_value(window, axis === :x ? value : 1.0 - value; extent, log)
+    axis === :x && return _set_view(plot, _make_chart_view(fit, moved, (view.y_min, view.y_max)))
+    _set_view(plot, _make_chart_view(fit, (view.x_min, view.x_max), moved))
 end
 
 # Ctrl and the wheel zoom; over an axis strip they zoom only that axis, which is

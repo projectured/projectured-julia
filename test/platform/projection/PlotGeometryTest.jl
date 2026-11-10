@@ -118,6 +118,23 @@ function test_plot_geometry()
             @test P.compute_limited_window((90.0, 110.0); extent) == (80.0, 100.0)
             w = P.compute_limited_window((50.0, 50.0); extent)
             @test w[2] - w[1] ≈ 1e4 * eps(50.0) rtol = 1e-3
+
+            # A scroll bar shows the place of a window among the data: its thumb is
+            # the part shown, and its value the place, from the low end.
+            @test P.compute_window_scroll_bar_thumb((20.0, 45.0); extent) == 0.25
+            @test P.compute_window_scroll_bar_value((20.0, 45.0); extent) ≈ 20 / 75
+            @test P.compute_window_scroll_bar_thumb(extent; extent) == 1.0
+            @test P.compute_window_scroll_bar_value(extent; extent) == 0.0
+            @test P.compute_window_at_scroll_bar_value((20.0, 45.0), 1.0; extent) == (75.0, 100.0)
+            @test P.compute_window_at_scroll_bar_value((20.0, 45.0), 0.0; extent) == (0.0, 25.0)
+            w = P.compute_window_at_scroll_bar_value((20.0, 45.0), 0.5; extent)
+            @test w[1] ≈ 37.5 && w[2] ≈ 62.5
+            @test P.compute_window_at_scroll_bar_value(extent, 0.5; extent) == extent
+            # On a log axis the place is on the decades.
+            @test P.compute_window_scroll_bar_thumb((10.0, 100.0); extent = log_extent, log = true) ≈ 1 / 3
+            @test P.compute_window_scroll_bar_value((10.0, 100.0); extent = log_extent, log = true) ≈ 0.5
+            w = P.compute_window_at_scroll_bar_value((10.0, 100.0), 1.0; extent = log_extent, log = true)
+            @test w[1] ≈ 100.0 && w[2] == 1000.0
         end
 
         @testset "ticks" begin

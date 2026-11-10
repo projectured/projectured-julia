@@ -22,7 +22,8 @@ end
 # its renderer: a test prints the two stages with it, so a hover can show them.
 _chart_widgets() = TypeDispatchingProjection(
     WidgetToolbar => WidgetToolbarToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
-    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()))
+    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(WidgetTheme()))
 
 _chart_canvas(chart; kw...) = print_document(_chart_projection(; kw...), _chart_widgets(),
                                              chart, PrinterContext()).output
@@ -1553,7 +1554,7 @@ function test_chart_projection()
             @test length(viewports()) == 1
             replace_mouse_target!(chart, EmptyReference())
             @test length(viewports()) == 2
-            shown = ChartModule._find_shown_chart_toolbar(canvas_iomap)
+            shown = first(ChartModule._find_shown_chart_parts(canvas_iomap))
             @test shown.x + shown.w < canvas_iomap.output.w && shown.y < g.plot_y + g.plot_h
             # A click on the first button zooms in; the third then shows all the data.
             centre(k) = (shown.x + (2k - 1) * shown.w ÷ 6, shown.y + shown.h ÷ 2)
@@ -1585,6 +1586,75 @@ function test_chart_projection()
             pie_iomap = _find_chart_canvas_iomap(print_document(view, view, pie, PrinterContext()))
             replace_mouse_target!(pie, EmptyReference())
             @test count(e -> e isa GraphicsViewport, pie_iomap.output.elements) == 1
+        end
+
+        @testset "the bars of a zoomed chart" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            view = make_chart_projection(; measure = FontFileMeasure())
+            iomap = print_document(view, view, chart, PrinterContext())
+            canvas_iomap = _find_chart_canvas_iomap(iomap)
+            plot = canvas_iomap.input
+            apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
+                         op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
+                         evaluate_operation(nothing, op)
+            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            bars() = Dict(part.field => part for part in ChartModule._find_shown_chart_parts(canvas_iomap))
+            fit = resolve_view(plot)
+            h, v = plot.horizontal_scroll_bar, plot.vertical_scroll_bar
+            span_x, span_y = fit.x_max - fit.x_min, fit.y_max - fit.y_min
+
+            # At the fit no bar is there.
+            @test h.thumb_size == 1.0 && v.thumb_size == 1.0
+            @test isempty(bars())
+            # A zoom on x: the bar under the plot holds the place of the window.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            @test h.thumb_size ≈ 25 / span_x
+            @test h.value ≈ (25 - fit.x_min) / (span_x - 25)
+            @test v.thumb_size == 1.0
+            shown = bars()
+            @test haskey(shown, "horizontal_scroll_bar") && !haskey(shown, "vertical_scroll_bar")
+            g = canvas_iomap.geometry
+            bar = shown["horizontal_scroll_bar"]
+            @test bar.x == g.plot_x && bar.w == g.plot_w
+            @test bar.y + bar.h == g.plot_y + g.plot_h
+            # A zoom on y too: the bar right of the plot holds the place from the
+            # top, and the bar under the plot stops before it.
+            plot.view = ChartView(25.0, 50.0, 0.0, 0.5)
+            @test v.thumb_size ≈ 0.5 / span_y
+            @test v.value ≈ 1 - (0.0 - fit.y_min) / (span_y - 0.5)
+            shown = bars()
+            right, under = shown["vertical_scroll_bar"], shown["horizontal_scroll_bar"]
+            @test right.x + right.w == g.plot_x + g.plot_w && right.y == g.plot_y && right.h == g.plot_h
+            @test under.x + under.w == right.x
+
+            # A click on the track moves the window a page; a press there starts no band.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            under = bars()["horizontal_scroll_bar"]
+            far, middle = under.x + under.w - 2, under.y + under.h ÷ 2
+            send(MouseDown(:left, far, middle, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor === nothing
+            send(MouseUp(:left, far, middle, ModifierKeys(); time = 0.0))
+            send(MouseClick(:left, far, middle, 1, ModifierKeys(); time = 0.0))
+            @test plot.view.x_min > 25.0
+            @test plot.view.x_max - plot.view.x_min ≈ 25.0
+
+            # A drag of the thumb moves the window with the pointer, and the chart
+            # keeps the drag.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            under = bars()["horizontal_scroll_bar"]
+            along = under.x + round(Int, under.w * (h.value * (1 - h.thumb_size) + h.thumb_size / 2))
+            send(MouseDown(:left, along, middle, ModifierKeys(); time = 0.0))
+            @test h.thumb_drag !== nothing
+            @test plot.drag_anchor === nothing
+            send(DragMove(along + 40, middle; time = 0.0))
+            @test plot.view.x_min > 25.0
+            @test plot.view.x_max - plot.view.x_min ≈ 25.0
+            send(DragEnd(along + 40, middle; time = 0.0))
+            @test h.thumb_drag === nothing
+            # A view that shows all the data on x again takes the bar away.
+            plot.view = nothing
+            @test isempty(bars())
         end
 
         @testset "crosshair" begin

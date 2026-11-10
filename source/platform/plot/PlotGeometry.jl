@@ -231,6 +231,56 @@ function compute_panned_window(window, fraction::Real; extent, log::Bool=false)
     (_convert_from_axis_space(t0 + d, log), _convert_from_axis_space(t1 + d, log))
 end
 
+"""
+    compute_window_scroll_bar_thumb(window; extent, log=false) -> Float64
+
+The part of `extent` that `window` shows, in the space of the axis: the size of
+the thumb of a scroll bar, 1 when the window shows all of `extent`.
+"""
+function compute_window_scroll_bar_thumb(window; extent, log::Bool=false)
+    t0, t1 = _convert_to_axis_space(window[1], log), _convert_to_axis_space(window[2], log)
+    e0, e1 = _convert_to_axis_space(extent[1], log), _convert_to_axis_space(extent[2], log)
+    e1 > e0 || return 1.0
+    clamp((t1 - t0) / (e1 - e0), 0.0, 1.0)
+end
+
+"""
+    compute_window_scroll_bar_value(window; extent, log=false) -> Float64
+
+The place of `window` among the places that it can take inside `extent`, in the
+space of the axis: 0 at the low end, 1 at the high end, and 0 when the window
+shows all of `extent`. It is the value of a scroll bar along the axis.
+"""
+function compute_window_scroll_bar_value(window; extent, log::Bool=false)
+    t0, t1 = _convert_to_axis_space(window[1], log), _convert_to_axis_space(window[2], log)
+    e0, e1 = _convert_to_axis_space(extent[1], log), _convert_to_axis_space(extent[2], log)
+    room = (e1 - e0) - (t1 - t0)
+    room > 0 || return 0.0
+    clamp((t0 - e0) / room, 0.0, 1.0)
+end
+
+"""
+    compute_window_at_scroll_bar_value(window, value; extent, log=false) -> (lo, hi)
+
+`window` with its span, moved to the place `value` of
+[`compute_window_scroll_bar_value`](@ref) inside `extent`. A window that shows
+all of `extent` comes back unchanged.
+"""
+function compute_window_at_scroll_bar_value(window, value::Real; extent, log::Bool=false)
+    lo, hi = Float64(window[1]), Float64(window[2])
+    extent_lo, extent_hi = Float64(extent[1]), Float64(extent[2])
+    t0, t1 = _convert_to_axis_space(lo, log), _convert_to_axis_space(hi, log)
+    e0, e1 = _convert_to_axis_space(extent_lo, log), _convert_to_axis_space(extent_hi, log)
+    span = t1 - t0
+    room = (e1 - e0) - span
+    room > 0 || return (lo, hi)
+    v = clamp(Float64(value), 0.0, 1.0)
+    v == 0 && return (extent_lo, _convert_from_axis_space(e0 + span, log))
+    v == 1 && return (_convert_from_axis_space(e1 - span, log), extent_hi)
+    start = e0 + v * room
+    (_convert_from_axis_space(start, log), _convert_from_axis_space(start + span, log))
+end
+
 # ── Ticks ────────────────────────────────────────────────────────────────
 
 """
