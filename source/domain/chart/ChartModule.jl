@@ -29,7 +29,10 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+    get_child_iomaps
+import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..DomainModule: compute_context_menu
 import ..DisplayModule: make_workload_file
 import ..EditorModule: make_change
 
@@ -42,7 +45,8 @@ export ChartSeries, get_chart_series_family, get_chart_axis_family,
 export ChartView, get_chart_view, is_point_in_chart_view
 export ChartToChartPlot, ChartToChartPlotIoMap
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
-       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
+       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference,
+       make_chart_buttons, make_chart_projection
 export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartFunctionSeries, ChartBarSeries, ChartPieSeries, ChartHistogramSeries, ChartStripSeries, strip_state_name
 export CHART_INTERVAL_STYLES
 export FrameTimeSeriesToChart
@@ -61,14 +65,13 @@ include("FrameTimeSeriesToChart.jl")
 # renderer builds its own projection instances.
 function __init__()
     register_natural_graphics!(:frame_time_series, (; measure, appearance) -> Pair{Type,Any}[
-        FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
-                                              ChartPlotToGraphicsCanvas(measure = measure,
-                                                  theme = get_scaled_theme!(appearance, ChartTheme))),
+        FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(),
+            make_chart_projection(; measure, theme = get_scaled_theme!(appearance, ChartTheme),
+                                  widget_theme = get_scaled_theme!(appearance, WidgetTheme))),
     ])
     register_natural_graphics!(:chart, (; measure, appearance) -> Pair{Type,Any}[
-        Chart => ChainingProjection(ChartToChartPlot(),
-                                    ChartPlotToGraphicsCanvas(measure = measure,
-                                        theme = get_scaled_theme!(appearance, ChartTheme))),
+        Chart => make_chart_projection(; measure, theme = get_scaled_theme!(appearance, ChartTheme),
+                                       widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
     register_assistant_api!(Any[];
         description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *

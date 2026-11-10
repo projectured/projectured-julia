@@ -10237,6 +10237,9 @@ const LUCIDE_ICON_GLYPHS = (
     :code           => 0xe093,  # code: a piece of code
     :message_square => 0xe117,  # message-square: the entries of a journal
     :copy           => 0xe09e,  # copy: a copy of a document
+    :zoom_in        => 0xe1b6,  # zoom-in: a magnifier with a plus
+    :zoom_out       => 0xe1b7,  # zoom-out: a magnifier with a minus
+    :maximize       => 0xe112,  # maximize: four corners that point out
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS

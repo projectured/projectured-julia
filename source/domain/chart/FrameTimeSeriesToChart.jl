@@ -17,8 +17,7 @@ repaints the lines and prints nothing again.
 
 # Example
 
-    projection = ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
-                                    ChartPlotToGraphicsCanvas(measure = measure))
+    projection = ChainingProjection(FrameTimeSeriesToChart(), make_chart_projection(; measure))
 
 See also [`FrameStatisticsToWidget`](@ref), which shows the same measurements
 as tables.

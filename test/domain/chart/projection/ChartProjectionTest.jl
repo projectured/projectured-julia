@@ -18,8 +18,13 @@ function _chart_projection(; width::Integer=760, height::Integer=460)
                                   width=width, height=height))
 end
 
-_chart_canvas(chart; kw...) = print_document(_chart_projection(; kw...),
-                                             _chart_projection(; kw...),
+# A recursion that prints the buttons of a chart, as `make_chart_projection` gives
+# its renderer: a test prints the two stages with it, so a hover can show them.
+_chart_widgets() = TypeDispatchingProjection(
+    WidgetToolbar => WidgetToolbarToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()))
+
+_chart_canvas(chart; kw...) = print_document(_chart_projection(; kw...), _chart_widgets(),
                                              chart, PrinterContext()).output
 
 # Every element of a canvas, descending into viewports and nested canvases —
@@ -49,8 +54,29 @@ _series_elements(canvas) = collect(_viewport_of(canvas).content.elements)
 # way to see which histogram value transform is in effect.
 _chart_y_max(chart) = resolve_view(ChartPlot(chart)).y_max
 
+# The IO map of the canvas of a chart, found in an IO map tree.
+function _find_chart_canvas_iomap(root)
+    force(value) = value isa AbstractCell ? force(value[]) : value
+    seen = Set{UInt}()
+    stack = Any[root]
+    while !isempty(stack)
+        value = force(pop!(stack))
+        value isa ChartPlotToGraphicsCanvasIoMap && return value
+        if value isa IoMap
+            objectid(value) in seen && continue
+            push!(seen, objectid(value))
+            for name in fieldnames(typeof(value))
+                name in (:projection, :input, :output) || push!(stack, getfield(value, name))
+            end
+        elseif value isa Union{AbstractVector,Tuple}
+            append!(stack, value)
+        end
+    end
+    nothing
+end
+
 _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
-                              print_document(p, p, chart, PrinterContext()))
+                              print_document(p, _chart_widgets(), chart, PrinterContext()))
 
 # The laid-out frame the renderer works from, as the printer and the reader both
 # see it.
@@ -358,7 +384,7 @@ function test_chart_projection()
             x = collect(0.0:0.01:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             canvas = iomap.output
 
@@ -382,7 +408,7 @@ function test_chart_projection()
         @testset "selection round-trip" begin
             chart = _line_chart()
             proj = ChartToChartPlot()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
 
             # Every node of a reference names the type it reaches, terminal
             # included — that is the invariant @reference enforces.
@@ -691,7 +717,7 @@ function test_chart_projection()
             # A click round-trips through both stages to a chart-rooted sample
             # reference: stage 1 peels its own step off on the way back.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             gg = iomap.step_iomaps[2][].geometry
             band2 = ChartModule._strip_band(gg, 1)
             op = read_intent(proj, iomap,
@@ -783,7 +809,7 @@ function test_chart_projection()
             # a click on one means the legend, the way empty space in the box
             # already does. The strip's own row still toggles.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plan = iomap.step_iomaps[2][].geometry.legend
             rects = get_legend_item_rects(plan)
             series_row = first(r for r in rects if r[1] != 0)
@@ -906,7 +932,7 @@ function test_chart_projection()
         @testset "legend interaction" begin
             chart = _line_chart()
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             plan = iomap.step_iomaps[2][].geometry.legend
             index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
@@ -940,7 +966,7 @@ function test_chart_projection()
         @testset "part selection" begin
             chart = _line_chart()
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
 
             # A click on the title strip selects the title, on an axis strip the
@@ -1013,7 +1039,7 @@ function test_chart_projection()
             big_x = collect(range(0.0, 1000.0; length=1_000_000))
             big = Chart("big", [ChartLineSeries("a", big_x, sin.(big_x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, big, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), big, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             target = PlotModule.to_pixel(g.xs, 500.0)
             elapsed = @elapsed op = read_intent(proj, iomap,
@@ -1031,7 +1057,7 @@ function test_chart_projection()
             cloud = Chart("c", [ChartScatterSeries("a", rand(50_000), rand(50_000))];
                           style=ChartStyle(; scatter_fold_threshold=1_000))
             proj = _chart_projection()
-            iomap = print_document(proj, proj, cloud, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), cloud, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             op = read_intent(proj, iomap,
                 MouseClick(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
@@ -1079,7 +1105,7 @@ function test_chart_projection()
             x = collect(0.0:0.1:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
             mid_x = g.plot_x + g.plot_w ÷ 2
@@ -1176,12 +1202,15 @@ function test_chart_projection()
             @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
             # Keyboard: pan, zoom, and reset to auto-fit.
-            # Shift+arrow pans; the bare arrows belong to selection navigation.
+            # Shift+arrow pans; the bare arrows belong to selection navigation. A
+            # chart that shows all its data has nowhere to pan to.
             plot.view = nothing
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            plot.view = zoomed
             op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
-            @test resolve_view(plot).x_min > before.x_min
+            @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
             # A bare arrow falls past the view reader to the chart's own
             # navigation, which is what moves the selection.
             @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
@@ -1196,7 +1225,7 @@ function test_chart_projection()
             x = collect(0.0:0.1:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
             x0, y0 = g.plot_x + 30, g.plot_y + 30
@@ -1231,23 +1260,338 @@ function test_chart_projection()
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
-            # Shift-dragging pans instead of banding.
+            # Shift-dragging pans instead of banding, in a window that has room to move.
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
             evaluate_operation(nothing, read_intent(proj, iomap,
                 MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)))
             evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)))
             @test plot.drag_rect === nothing
-            @test plot.view !== nothing
+            @test plot.view.x_min > 20.0
             # A move to the point of the last move writes no cell, though the pan
             # changed the geometry that the first move read.
             @test read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)) === nothing
             evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1 - 40, y1; time = 0.0)))
+
+            # A pan stops at the edge of the data.
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
+            fit = (plot.view = nothing; resolve_view(plot))
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseDown(:left, x0, y0, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x0 + 2000, y0; time = 0.0)))
+            @test plot.view.x_min == fit.x_min
+            @test plot.view.x_max - plot.view.x_min ≈ 40.0
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x0 + 2000, y0; time = 0.0)))
+        end
+
+        @testset "the limits of the window" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            ctrl = ModifierKeys(; ctrl=true)
+            # A zoom out stops at all the data: the view goes back to the fit, and
+            # the next notch is not the chart's.
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            @test plot.view isa ChartView
+            for _ in 1:10
+                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            @test plot.view === nothing
+            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('-'; time = 0.0)) === nothing
+            # A zoom in stops before two ticks get the same label.
+            notches = 0
+            while notches < 1000
+                op = read_intent(proj, iomap, MouseScroll(0, 10, mid_x, mid_y, ctrl; time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+                notches += 1
+            end
+            @test notches < 1000
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min > 0
+            @test length(unique(iomap.step_iomaps[2][].geometry.xlabels)) ==
+                  length(iomap.step_iomaps[2][].geometry.xlabels)
+        end
+
+        @testset "a log axis pans and zooms on its decades" begin
+            x = 10 .^ range(0, 3; length = 300)
+            chart = Chart("log", [ChartLineSeries("a", collect(x), collect(range(0, 1; length = 300)))];
+                          x_axis = ChartAxis(; log = true))
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            ctrl = ModifierKeys(; ctrl=true)
+            for _ in 1:4
+                evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0)))
+            end
+            zoomed = resolve_view(plot)
+            g = iomap.step_iomaps[2][].geometry
+            # A Shift+drag keeps the value under the press under the pointer, and
+            # no bound reaches zero.
+            press_x = mid_x + 50
+            under = PlotModule.to_data(g.xs, press_x)
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseDown(:left, press_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(press_x - 100, mid_y; time = 0.0)))
+            v = resolve_view(plot)
+            @test v.x_min > zoomed.x_min > 0
+            g2 = iomap.step_iomaps[2][].geometry
+            @test PlotModule.to_data(g2.xs, press_x - 100) ≈ under rtol = 0.02
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(press_x - 100, mid_y; time = 0.0)))
+            # A turn across keeps the decades that the window spans.
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            v = resolve_view(plot)
+            @test log10(v.x_max / v.x_min) ≈ log10(zoomed.x_max / zoomed.x_min)
+            @test v.x_min < zoomed.x_min
+            # The pan stops at the first decade of the data.
+            for _ in 1:40
+                op = read_intent(proj, iomap, KeyDown(:left, ModifierKeys(; shift=true); time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            plot_fit = (saved = plot.view; plot.view = nothing; f = resolve_view(plot); plot.view = saved; f)
+            @test resolve_view(plot).x_min == plot_fit.x_min
+            @test resolve_view(plot).x_min > 0
+        end
+
+        @testset "a pie takes no view gesture" begin
+            chart = Chart("pie", Any[ChartPieSeries("p", ["a", "b"], [1.0, 2.0])])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; ctrl=true); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('+'; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test plot.view === nothing && plot.drag_anchor === nothing
+        end
+
+        @testset "the mouse moves the view" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            below = g.plot_y + g.plot_h + 4
+            left = g.plot_x - 4
+            fit = resolve_view(plot)
+            zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
+            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            unwrap(o) = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
+            shape(op) = only(unwrap(o).shape for o in op.operations if unwrap(o) isa ChangeScreenPointerShapeOperation)
+
+            # The middle button pans, and a pan shows the closed hand.
+            plot.view = zoomed
+            op = send(MouseDown(:middle, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, mid_y; time = 0.0))
+            @test plot.view.x_min > zoomed.x_min
+            @test plot.view.x_max - plot.view.x_min ≈ 40.0
+            send(DragEnd(mid_x - 40, mid_y; time = 0.0))
+            @test plot.drag_anchor === nothing
+            # A band keeps the arrow.
+            plot.view = nothing
+            op = send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test shape(op) === :arrow
+            send(DragCancel(; time = 0.0))
+
+            # A band that is thin across y zooms x alone, and draws over the whole
+            # height of the plot; one thin across x zooms y alone.
+            send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            send(DragMove(mid_x + 100, mid_y + 5; time = 0.0))
+            @test plot.drag_rect == (mid_x, g.plot_y, 100, g.plot_h)
+            send(DragEnd(mid_x + 100, mid_y + 5; time = 0.0))
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min < fit.x_max - fit.x_min
+            @test (v.y_min, v.y_max) == (fit.y_min, fit.y_max)
+            plot.view = nothing
+            send(MouseDown(:left, mid_x, mid_y - 50, ModifierKeys(); time = 0.0))
+            send(DragMove(mid_x + 4, mid_y + 50; time = 0.0))
+            @test plot.drag_rect == (g.plot_x, mid_y - 50, g.plot_w, 100)
+            send(DragEnd(mid_x + 4, mid_y + 50; time = 0.0))
+            v = resolve_view(plot)
+            @test (v.x_min, v.x_max) == (fit.x_min, fit.x_max)
+            @test v.y_max - v.y_min < fit.y_max - fit.y_min
+
+            # A drag on an axis pans that axis alone.
+            plot.view = zoomed
+            op = send(MouseDown(:left, mid_x, below, ModifierKeys(); time = 0.0))
+            @test shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, below + 30; time = 0.0))
+            @test plot.view.x_min > zoomed.x_min
+            @test (plot.view.y_min, plot.view.y_max) == (zoomed.y_min, zoomed.y_max)
+            send(DragEnd(mid_x - 40, below + 30; time = 0.0))
+            plot.view = zoomed
+            send(MouseDown(:left, left, mid_y, ModifierKeys(); time = 0.0))
+            send(DragMove(left + 30, mid_y + 40; time = 0.0))
+            @test plot.view.y_min > zoomed.y_min
+            @test (plot.view.x_min, plot.view.x_max) == (zoomed.x_min, zoomed.x_max)
+            send(DragEnd(left + 30, mid_y + 40; time = 0.0))
+
+            # A double click on the x axis fits x to all the data, and one on the y
+            # axis fits y to the data that the x window shows.
+            plot.view = zoomed
+            send(MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (fit.x_min, fit.x_max)
+            @test (plot.view.y_min, plot.view.y_max) == (zoomed.y_min, zoomed.y_max)
+            plot.view = ChartView(20.0, 21.0, -1.0, 0.0)
+            send(MouseClick(:left, left, mid_y, 2, ModifierKeys(); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 21.0)
+            @test 0.5 < plot.view.y_min < 0.8
+            @test 1.0 < plot.view.y_max < 1.1
+            # A double click on an axis at its fit selects the axis, as a click does.
+            plot.view = nothing
+            @test read_intent(proj, iomap, MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0)) isa
+                  ReplaceSelectionOperation
+        end
+
+        @testset "the keys move the view" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            fit = resolve_view(plot)
+            zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
+            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            ctrl = ModifierKeys(; ctrl = true)
+
+            # Ctrl+= and Ctrl+- zoom about the middle, and Ctrl+0 shows all the data.
+            @test send(KeyDown(:equals, ctrl; time = 0.0)) !== nothing
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min ≈ (fit.x_max - fit.x_min) / 1.15
+            @test (v.x_min + v.x_max) / 2 ≈ (fit.x_min + fit.x_max) / 2
+            send(KeyDown(:minus, ctrl; time = 0.0))
+            @test plot.view === nothing
+            # At a limit the key is not the chart's: Ctrl+- and Ctrl+0 at the fit
+            # go on to the zoom of the interface.
+            @test read_intent(proj, iomap, KeyDown(:minus, ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyDown(:zero, ctrl; time = 0.0)) === nothing
+            plot.view = zoomed
+            send(KeyDown(:zero, ctrl; time = 0.0))
+            @test plot.view === nothing
+            # A typed character with Ctrl is not a second zoom.
+            @test read_intent(proj, iomap, KeyPress('=', ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('+', ModifierKeys(; shift = true); time = 0.0)) !== nothing
+
+            # Page Up and Page Down scroll a page up and down, Alt and the page keys
+            # a page across, and each stops at the edge of the data.
+            plot.view = zoomed
+            send(KeyDown(:page_up, ModifierKeys(); time = 0.0))
+            @test plot.view.y_min ≈ min(0.5, fit.y_max - 1.0)
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 60.0)
+            plot.view = zoomed
+            send(KeyDown(:page_down, ModifierKeys(; alt = true); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (60.0, 100.0)
+            send(KeyDown(:page_up, ModifierKeys(; alt = true); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 60.0)
+            plot.view = nothing
+            @test read_intent(proj, iomap, KeyDown(:page_down, ModifierKeys(); time = 0.0)) === nothing
+
+            # Ctrl+Shift and an arrow is the move of a series, not a pan.
+            plot.view = zoomed
+            send(KeyDown(:up, ModifierKeys(; ctrl = true, shift = true); time = 0.0))
+            @test plot.view == zoomed
+        end
+
+        @testset "the menu and the buttons" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            view = make_chart_projection(; measure = FontFileMeasure())
+            iomap = print_document(view, view, chart, PrinterContext())
+            canvas_iomap = _find_chart_canvas_iomap(iomap)
+            plot = canvas_iomap.input
+            # An answer as the editor takes it: a mouse target goes to the chart.
+            apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
+                         op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
+                         evaluate_operation(nothing, op)
+            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            viewports() = [e for e in canvas_iomap.output.elements if e isa GraphicsViewport]
+
+            # The menu holds the view actions, and an action that changes nothing is
+            # disabled: a chart that shows all its data can not zoom out.
+            menu = compute_context_menu(plot)
+            labels = [String(string(item.action.label)) for item in menu.elements]
+            @test labels == ["Zoom in", "Zoom out", "Show all the data", "Fit the x axis", "Fit the y axis"]
+            @test [item.enabled for item in menu.elements] == [true, false, false, false, false]
+            evaluate_operation(nothing, menu.elements[1].operation)
+            @test plot.view isa ChartView
+            menu = compute_context_menu(plot)
+            @test menu.elements[3].enabled
+            evaluate_operation(nothing, menu.elements[3].operation)
+            @test plot.view === nothing
+            # A right click on the plot opens that menu.
+            g = canvas_iomap.geometry
+            op = read_intent(view, iomap, MouseClick(:right, g.plot_x + 20, g.plot_y + 20, 1, ModifierKeys(); time = 0.0))
+            @test op !== nothing
+            @test compute_context_menu(ChartPlot(Chart("pie", Any[ChartPieSeries("p", ["a"], [1.0])]))) === nothing
+
+            # The buttons: their icons, and the disabled state of an action at a limit.
+            buttons = plot.toolbar.elements
+            @test [item.action.icon for item in buttons] == [:zoom_in, :zoom_out, :maximize]
+            @test [item.enabled for item in buttons] == [true, false, false]
+            # They show only while the pointer is over the chart.
+            @test length(viewports()) == 1
+            replace_mouse_target!(chart, EmptyReference())
+            @test length(viewports()) == 2
+            shown = ChartModule._find_shown_chart_toolbar(canvas_iomap)
+            @test shown.x + shown.w < canvas_iomap.output.w && shown.y < g.plot_y + g.plot_h
+            # A click on the first button zooms in; the third then shows all the data.
+            centre(k) = (shown.x + (2k - 1) * shown.w ÷ 6, shown.y + shown.h ÷ 2)
+            bx, by = centre(1)
+            # The button under the pointer lights, and a press holds it down.
+            send(MouseMove(bx, by, MouseButtons(), ModifierKeys(); time = 0.0))
+            @test get_mouse_target(buttons[1]) !== nothing
+            @test get_mouse_target(buttons[2]) === nothing
+            @test length(viewports()) == 2
+            send(MouseDown(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor === nothing
+            @test buttons[1].pressed
+            send(MouseUp(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test !buttons[1].pressed
+            send(MouseClick(:left, bx, by, 1, ModifierKeys(); time = 0.0))
+            @test plot.view isa ChartView
+            @test buttons[3].enabled
+            cx, cy = centre(3)
+            send(MouseClick(:left, cx, cy, 1, ModifierKeys(); time = 0.0))
+            @test plot.view === nothing
+            # A drag hides them, and so does the leave of the pointer.
+            plot.drag_anchor = (0, 0, :zoom, resolve_view(plot), g.xs, g.ys, nothing)
+            @test length(viewports()) == 1
+            plot.drag_anchor = nothing
+            replace_mouse_target!(chart, nothing)
+            @test length(viewports()) == 1
+            # A pie shows none.
+            pie = Chart("pie", Any[ChartPieSeries("p", ["a", "b"], [1.0, 2.0])])
+            pie_iomap = _find_chart_canvas_iomap(print_document(view, view, pie, PrinterContext()))
+            replace_mouse_target!(pie, EmptyReference())
+            @test count(e -> e isa GraphicsViewport, pie_iomap.output.elements) == 1
         end
 
         @testset "crosshair" begin
             x = collect(0.0:1.0:20.0)
             chart = Chart("c", [ChartLineSeries("a", x, x)])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
 
@@ -1328,9 +1672,11 @@ function test_chart_projection()
 
             # The view gestures do not take the arrows away from navigation.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
                               KeyDown(:right, no_modifier; time = 0.0)) === nothing
+            # Shift and an arrow pan a window that has room to move.
+            iomap.step_iomaps[1][].output.view = ChartView(2.0, 4.0, 0.0, 1.0)
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
                               KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) !== nothing
         end
@@ -1479,7 +1825,7 @@ function test_chart_scale()
             plot = ChartPlot(chart)
             plot.view = ChartView(0.0, 0.1, 0.5, 1.5)
             p = ChartPlotToGraphicsCanvas(measure=FontFileMeasure())
-            zoomed = print_document(p, p, plot, PrinterContext()).output
+            zoomed = print_document(p, _chart_widgets(), plot, PrinterContext()).output
             spans = filter(e -> e isa GraphicsRect, _series_elements(zoomed))
             visible = count(v -> 0.0 <= v <= 0.1, x)
             # Every visible segment draws as its own rect — nothing folded away.
@@ -1531,7 +1877,7 @@ function test_chart_scale()
             x = collect(0.0:1.0:100_000.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x ./ 500))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             plot.view = ChartView(0.0, 100.0, -1.0, 1.0)
             pl = first(e for e in _series_elements(iomap.output) if e isa GraphicsPolyline)

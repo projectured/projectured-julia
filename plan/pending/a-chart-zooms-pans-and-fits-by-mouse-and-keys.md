@@ -219,26 +219,70 @@ Each decision except D12 is proposed by the assistant and approved with the plan
 Each step adds the reader tests of what it changes, runs the narrowest suites,
 and makes one commit.
 
-1. [ ] **The window arithmetic (D2, D3).** The functions of D2 in the plot
+1. [x] **The window arithmetic (D2, D3).** The functions of D2 in the plot
    slice, with unit tests in `test_plot_geometry()`: a zoom and a pan on a log
    axis keep the point under the pointer, a pan stops at the extent, and the
    two limits hold. The chart calls them for each gesture that it has now. Its
    pan by a drag and by the keys stops at the fit. A pie takes no view gesture
    (D11). A new test in `ChartProjectionTest.jl` repeats the log pan of the
    probe. Run `test_plot_geometry()`, `test_chart_projection()`.
-2. [ ] **The mouse of the chart (D4, D5, D6, D10).** A middle drag pans. A thin
+
+   *As built (2026-11-10):* `compute_zoomed_window`, `compute_panned_window` and
+   `compute_limited_window` in `PlotGeometry.jl`, each on a window `(lo, hi)`
+   with `extent` and `log`. Two facts came up in the tests. A zoom in and the
+   same zoom out came back to the extent only to within rounding, so a window
+   within 1e-9 of the extent is the extent, and the view becomes `nothing`
+   again. At the zoom-in limit the rounding of one zoom moved the window again
+   on the next notch, so a window within 1.001 of the smallest span is at the
+   limit. `format_tick` wrote at most 6 decimals and 2 digits of a mantissa, so
+   two ticks got the same label long before the limit, for example on
+   `[1e6, 1e6 + 1]`; it now takes the digits from the step in both forms, also
+   for the labels of the sequence chart.
+2. [x] **The mouse of the chart (D4, D5, D6, D10).** A middle drag pans. A thin
    band zooms one axis. A drag on an axis pans it. A double click on an axis
    fits it. The pointer is a closed hand while a pan runs. Run
    `test_chart_projection()`.
-3. [ ] **The keys of the chart (D7).** Ctrl+=, Ctrl+-, Ctrl+0, the page keys
+
+   *As built:* a band is thin across an axis by the rule of Plotly: less than
+   0.6 of its length, at least 6 px and at most 20 px (`_THIN_BAND_MAX`). A
+   fixed 6 px was too small for a hand that drags across. The strips of the
+   axes leave out a legend that lies in them, so a drag or a double click on a
+   legend under the plot stays the legend's.
+3. [x] **The keys of the chart (D7).** Ctrl+=, Ctrl+-, Ctrl+0, the page keys
    and Alt with the page keys. A test shows that Ctrl+0 on a chart at the fit
    answers `nothing`. Run `test_chart_projection()`.
-4. [ ] **The menu and the buttons of the chart (D8, D12, D13).** The binding on
+
+   *As built:* the pan of Shift and an arrow read only Shift, so Ctrl+Shift+Up,
+   the move of a series, also panned; the pan now takes Shift alone. A typed
+   `+`, `-` or `0` with Ctrl or Alt is not the chart's, so Ctrl+= does not zoom
+   two times when a backend also gives its character.
+4. [x] **The menu and the buttons of the chart (D8, D12, D13).** The binding on
    `ChartPlot` and a test of each item. The three icons, the toolbar of the
    plot, its print and its press. Tests: the buttons show while the plot has a
    mouse target and hide at the leave and during a drag; a press on each button
    gives the view of its key; "Show all the data" is disabled at the fit; a pie
    and a small chart show none. Run `test_chart_projection()`.
+
+   *As built:* the menu is `compute_context_menu(::ChartPlot)`, bound with
+   `make_context_menu_binding`. The renderer reads a dwell and a right click out
+   from the part at their point to the plot (`read_child_part_gesture`), so the
+   menu of the plot answers them. The buttons are `make_chart_buttons(plot)`,
+   which `ChartToChartPlot` builds once; `follow_output_mouse_target!` gives
+   them their part of the mouse target, and `ChartToChartPlot` names a part of
+   the buttons by an introduced reference. The renderer prints the buttons
+   through its recursion while they show, and gives them the pointer events in
+   their frame. A chain of the two stages has no printer of a toolbar, so a
+   hover failed there; `make_chart_projection(; measure, theme, widget_theme,
+   …)` builds the whole view, a `NestingProjection` whose recursion prints the
+   toolbar and its items, as `make_scrolling_graph_projection` does for the
+   graph. The natural rows `:chart` and `:frame_time_series`, the pivot cells,
+   the frame-time chart and the examples use it. The icons are `:zoom_in`,
+   `:zoom_out` and `:maximize`. Steps 2 to 4 share one test run and one commit:
+   the memory budget of the machine, which other sessions held, allowed one
+   run at a time. Results: `test_plot_geometry()` 133/133, `test_chart()`
+   514/514, `test_pivot_chart_views()` 24/24, `test_pivot_cell_views()` 30/30.
+   The recorded calls of the workload of `ProjecturedChart` no longer resolve
+   (119 of 574); step 7 records them again.
 5. [ ] **The scroll bars of the chart (D9).** The stage that puts the view in a
    scroll pane with the two bars of the chart, in each chain that draws a chart:
    the natural rows `:chart` and `:frame_time_series`, the examples, and

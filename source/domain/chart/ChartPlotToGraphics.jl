@@ -89,6 +89,7 @@ ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::In
     input::Any
     output::Any
     geometry::Cell      # the laid-out frame: ranges, plot rect, scales, ticks
+    toolbar::Cell       # the print of the buttons while they show, or nothing
 end
 
 # ── Data ranges ──────────────────────────────────────────────────────────
@@ -333,6 +334,88 @@ function _compute_fit_view(plot::ChartPlot)
     y0, y1 = _fit_range(yb, chart.y_axis, 0.08)
     ChartView(x0, x1, y0, y1)
 end
+
+# The y window that fits the data inside the x window of `view`, padded as the fit
+# pads it: what a fit of the y axis shows after a zoom on x. A chart of strips
+# keeps its rows, and a window with no data in it fits all the data.
+function _compute_shown_y_fit(plot::ChartPlot, view::ChartView)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    chart isa Chart || return (fit.y_min, fit.y_max)
+    series = _visible_series(chart)
+    yb = _compute_shown_y_bounds(series, chart, view)
+    yb === nothing && return (fit.y_min, fit.y_max)
+    _fit_range(yb, chart.y_axis, 0.08)
+end
+
+# The y bounds of what the series draw inside the x window of `view`, or `nothing`
+# when they draw nothing there or are strips, which keep their rows.
+function _compute_shown_y_bounds(series, chart::Chart, view::ChartView)
+    lo, hi = view.x_min, view.x_max
+    if get_chart_axis_family(chart.x_axis) === :category
+        n = length(chart.x_axis.categories)
+        shown = max(1, ceil(Int, lo - 0.5)):min(n, floor(Int, hi + 0.5))
+        isempty(shown) && return nothing
+        yb = (chart.bar_baseline, chart.bar_baseline)
+        for c in shown
+            total = 0.0
+            for (_, s) in series
+                (s isa ChartBarSeries && c <= length(s.values)) || continue
+                v = Float64(s.values[c])
+                isfinite(v) || continue
+                chart.bar_placement === :stacked ? (total += abs(v)) : (yb = merge_bounds(yb, (v, v)))
+            end
+            chart.bar_placement === :stacked && (yb = merge_bounds(yb, (0.0, total)))
+        end
+        return yb
+    end
+    any(s -> s isa ChartStripSeries, (s for (_, s) in series)) && return nothing
+    yb = nothing
+    for (_, s) in series
+        yb = merge_bounds(yb, _compute_shown_series_y_bounds(s, lo, hi))
+    end
+    for (_, samples) in _compute_function_series_samples(series, view)
+        yb = merge_bounds(yb, get_column_bounds(samples.y))
+    end
+    yb
+end
+
+# The y bounds of a series inside the x window `lo`..`hi`. A line is ascending in x,
+# so a binary search finds its part; a scatter cloud is read point by point.
+function _compute_shown_series_y_bounds(s::ChartLineSeries, lo::Real, hi::Real)
+    i0, i1 = get_visible_range(s.x, lo, hi)
+    i1 < i0 && return nothing
+    shown(column) = column === nothing ? nothing :
+                    get_column_bounds(@view column[i0:min(i1, length(column))])
+    _join_bounds(shown(s.y), shown(s.lower), shown(s.upper))
+end
+
+function _compute_shown_series_y_bounds(s::ChartScatterSeries, lo::Real, hi::Real)
+    yb = nothing
+    for i in 1:min(length(s.x), length(s.y))
+        lo <= Float64(s.x[i]) <= hi || continue
+        for column in (s.y, s.lower, s.upper)
+            (column === nothing || i > length(column)) && continue
+            v = Float64(column[i])
+            isfinite(v) && (yb = merge_bounds(yb, (v, v)))
+        end
+    end
+    yb
+end
+
+# A histogram holds the bins that overlap the window, from zero.
+function _compute_shown_series_y_bounds(s::ChartHistogramSeries, lo::Real, hi::Real)
+    values = _histogram_shown_values(s)
+    yb = nothing
+    for k in 1:min(length(values), length(s.binedges) - 1)
+        (s.binedges[k + 1] >= lo && s.binedges[k] <= hi) || continue
+        v = Float64(values[k])
+        isfinite(v) && (yb = merge_bounds(yb, (min(v, 0.0), max(v, 0.0))))
+    end
+    yb
+end
+
+_compute_shown_series_y_bounds(::Any, ::Real, ::Real) = nothing
 
 # ── Layout ───────────────────────────────────────────────────────────────
 
@@ -634,7 +717,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     end
     xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t)
     # A chart of pie series has no axes: no ticks and no labels.
-    pie = !isempty(series) && all(s -> s isa ChartPieSeries, (s for (_, s) in series))
+    pie = _is_pie_chart(series)
     if pie
         yticks, ylabels = Float64[], String[]
         xticks, xlabels = empty(xticks), String[]
@@ -703,6 +786,10 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
 end
 
 # ── Pie ──────────────────────────────────────────────────────────────────
+
+# Whether the visible `series` of a chart are pies: such a chart has no axes and no
+# window.
+_is_pie_chart(series) = !isempty(series) && all(s -> s isa ChartPieSeries, (s for (_, s) in series))
 
 # The slices of the first visible pie series, in the coordinates of the plot: an
 # arc as wide as its radius for each slice, from the top, clockwise, in the
@@ -1477,6 +1564,15 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, w, h, t)
     end)
+    # The buttons print while the pointer is over the chart, through the recursion:
+    # in the editor that is the renderer around the chart, which prints widgets. The
+    # wish is a cell of its own, so a move between the parts of the chart does not
+    # print them again.
+    wants_toolbar = Cell(@computation _is_chart_toolbar_wanted(plot, geometry[]))
+    toolbar = Cell(@computation wants_toolbar[] ?
+        print_child(recursion, plot.toolbar,
+                    with_free_axis(with_free_axis(make_child_context(ctx, FieldReferenceStep("toolbar")),
+                                                  :x), :y)) : nothing)
 
     elements = CellVector(@computation begin
         g = geometry[]
@@ -1507,6 +1603,10 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)
+        # The buttons over everything, in the top-right corner.
+        shown = _find_shown_chart_toolbar(g, toolbar[], _count_chart_buttons(plot))
+        shown === nothing ||
+            push!(out, GraphicsViewport(shown.x, shown.y, shown.w, shown.h, shown.iomap.output))
         out
     end)
 
@@ -1518,8 +1618,57 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                             Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry)
+    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar)
 end
+
+# Whether the buttons of `plot` show: while the pointer is over the chart and no
+# drag runs, on a chart that has a window.
+_is_chart_toolbar_wanted(plot::ChartPlot, g) =
+    g !== nothing && !g.pie && plot.toolbar !== nothing && plot.drag_anchor === nothing &&
+    get_mouse_target(plot) !== nothing
+
+# Where the buttons of the print `toolbar` show, of `count` buttons: the top-right
+# corner of the chart, as `(; x, y, w, h, iomap)`, or `nothing` when they do not
+# show, or when the plot is narrower than four buttons or lower than two.
+function _find_shown_chart_toolbar(g, toolbar, count::Integer)
+    (g === nothing || toolbar === nothing || count == 0) && return nothing
+    canvas = toolbar.output
+    canvas isa GraphicsCanvas || return nothing
+    w, h = Int(canvas.w), Int(canvas.h)
+    (w > 0 && h > 0) || return nothing
+    (g.plot_w >= 4 * w / count && g.plot_h >= 2 * h) || return nothing
+    inset = max(1, g.theme_values.padding ÷ 2)
+    (; x = g.w - w - inset, y = inset, w, h, iomap = toolbar)
+end
+
+_find_shown_chart_toolbar(iomap::ChartPlotToGraphicsCanvasIoMap) =
+    _find_shown_chart_toolbar(iomap.geometry, iomap.toolbar, _count_chart_buttons(iomap.input))
+
+_count_chart_buttons(plot::ChartPlot) = plot.toolbar === nothing ? 0 : length(plot.toolbar.elements)
+
+get_child_iomaps(iomap::ChartPlotToGraphicsCanvasIoMap) =
+    iomap.toolbar === nothing ? Any[] : Any[iomap.toolbar]
+
+"""
+    make_chart_projection(; measure, theme = nothing, widget_theme = WidgetTheme(),
+                          width = 760, height = 460, minimum_width = 120,
+                          minimum_height = 80) -> Projection
+
+A chart view: a `Chart` through `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`
+to a `GraphicsCanvas`, with the buttons that show while the pointer is over the
+chart. `theme`, the size and the minimum size are those of the renderer of the
+chart; `widget_theme` is that of the buttons.
+
+The renderer prints the buttons through its recursion, and this projection gives
+it a recursion that prints them, so a chart shows its buttons in any host. A chain
+of the two stages built by hand must give a recursion that prints a `WidgetToolbar`
+and a `WidgetToolbarItem`.
+"""
+make_chart_projection(; measure::TextMeasure, widget_theme = WidgetTheme(), kwargs...) =
+    NestingProjection(ChainingProjection(ChartToChartPlot(), ChartPlotToGraphicsCanvas(; measure, kwargs...));
+                      recursion = TypeDispatchingProjection(
+                          WidgetToolbar => WidgetToolbarToGraphicsCanvas(widget_theme; measure),
+                          WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(widget_theme; measure)))
 
 # A chart-shaped placeholder for a `ChartNothing`/`ChartInsertion` root, so an
 # empty chart still occupies its space and reads as a chart rather than
@@ -1554,6 +1703,16 @@ function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
     canvas = iomap.output
     canvas isa GraphicsCanvas && canvas.w > 0 && canvas.h > 0 &&
         !_in_rect(x, y, Int(canvas.x), Int(canvas.y), Int(canvas.w), Int(canvas.h)) && return nothing
+    # The buttons are on top of every part: a point on them is the button there.
+    shown = _find_shown_chart_toolbar(iomap)
+    if shown !== nothing && _in_rect(x, y, shown.x, shown.y, shown.w, shown.h)
+        toolbar = shown.iomap
+        inner = map_reference_backward(get_iomap_projection(toolbar), toolbar,
+                                       ConcreteReference(PointReferenceStep(x - shown.x, y - shown.y),
+                                                         EmptyReference()))
+        inner isa Reference || return @reference plot toolbar
+        return @reference plot toolbar.^(inner)
+    end
     index = _legend_hit(g, x, y)
     index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
                                         get_chart_part_reference(:legend, plot)
@@ -1640,13 +1799,23 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input
+    # A chart with no axes, a pie, has no window: it takes no view gesture, so the
+    # page around it gets the turn and the keys.
+    has_window = !g.pie
+    # The buttons are on top: a press, a release, a click, a dwell and a right
+    # click on them go to them, in their frame.
+    shown = _find_shown_chart_toolbar(iomap)
+    if shown !== nothing && event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell} &&
+       _in_rect(event.x, event.y, shown.x, shown.y, shown.w, shown.h)
+        return _read_chart_toolbar_event(plot, shown, event)
+    end
 
     if event isa MouseScroll
-        return _scroll_intent(g, plot, event)
-    elseif event isa MouseDown && event.button === :left
-        return _drag_start(g, plot, event)
+        return has_window ? _scroll_intent(g, plot, event) : nothing
+    elseif event isa MouseDown && event.button in (:left, :middle)
+        return has_window ? _drag_start(g, plot, event) : nothing
     elseif event isa Union{KeyDown, KeyPress}
-        return _key_intent(g, plot, event)
+        return has_window ? _key_intent(g, plot, event) : nothing
     elseif event isa DragMove
         # The drag comes by the path of the plot, also off the plot.
         return _drag_move(g, plot, event)
@@ -1655,11 +1824,21 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     elseif event isa DragCancel
         return _cancel_drag(plot)
     elseif event isa MouseMove
-        return _track_cursor(g, plot, event.x, event.y)
+        return _read_chart_move(g, plot, shown, event)
+    elseif is_outward_gesture(event)
+        # A dwell and a right click go to the part at their point, and then out to
+        # the plot, whose menu holds the view actions.
+        return read_child_part_gesture(iomap, event)
     elseif event isa MouseClick && event.button === :left
-        # A double click anywhere in the plot means "show me everything again".
-        if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
-            return _set_view(plot, nothing)
+        # A double click in the plot shows all the data again, and a double click
+        # on an axis fits that axis. A fit that changes nothing goes on to the
+        # click, which selects the axis.
+        if has_window && event.count >= 2
+            _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) &&
+                return _set_view(plot, nothing)
+            fit = _is_over_x_axis(g, event.x, event.y) ? _fit_axis_view(plot, :x) :
+                  _is_over_y_axis(g, event.x, event.y) ? _fit_axis_view(plot, :y) : nothing
+            fit === nothing || return fit
         end
         index = _legend_hit(g, event.x, event.y)
         if index isa Int && index > 0
@@ -1683,6 +1862,38 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     nothing
 end
 
+# ── The buttons in the frame of the chart ────────────────────────────────
+
+const _TOOLBAR_STEPS = (FieldReferenceStep("toolbar"),)
+
+# A move of the pointer: on the buttons it goes to them and clears the readout;
+# elsewhere it tracks the readout, and the button that the pointer leaves gets the
+# leave, so a press released off it ends.
+function _read_chart_move(g, plot::ChartPlot, shown, event::MouseMove)
+    if shown !== nothing && _in_rect(event.x, event.y, shown.x, shown.y, shown.w, shown.h)
+        move = MouseMove(event.x - shown.x, event.y - shown.y, event.buttons, event.modifiers;
+                         time = event.time)
+        answer = reroot_operation(shift_operation_position(read_child_move(shown.iomap, move),
+                                                           shown.x, shown.y), _TOOLBAR_STEPS)
+        return join_move_answers(answer, _clear_cursor(plot))
+    end
+    left = shown !== nothing && _get_toolbar_part(strip_reference_types(get_mouse_target(plot))) !== nothing ?
+        reroot_operation(read_child_leave(shown.iomap, event, shown.x, shown.y), _TOOLBAR_STEPS) : nothing
+    join_move_answers(left, _track_cursor(g, plot, event.x, event.y))
+end
+
+# The answer of the buttons to a pointer gesture on them. A dwell and a right click
+# that no button answers go out to the plot.
+function _read_chart_toolbar_event(plot::ChartPlot, shown, event)
+    moved = shift_event_position(event, -shown.x, -shown.y)
+    toolbar = shown.iomap
+    answer = is_outward_gesture(event) ? read_child_event(toolbar, moved) :
+             read_intent(get_iomap_projection(toolbar), toolbar, moved)
+    answer isa Operation || (answer = nothing)
+    answer = reroot_operation(shift_operation_position(answer, shown.x, shown.y), _TOOLBAR_STEPS)
+    is_outward_gesture(event) ? read_container_gesture(answer, event, plot; steps = _TOOLBAR_STEPS) : answer
+end
+
 # ── View interaction ─────────────────────────────────────────────────────
 #
 # Zooming a chart is not zooming a picture. Every gesture here rewrites the data
@@ -1692,6 +1903,52 @@ end
 const _ZOOM_STEP = 1.15      # per wheel notch
 const _PAN_STEP = 0.1        # fraction of the window per keyboard pan
 const _DRAG_MIN = 6          # a rubber band smaller than this is a click, not a zoom
+const _THIN_BAND_MAX = 20    # a band thinner than this across one axis can zoom the other alone
+
+# The strips of the axes: under the plot for the x axis, left of it for the y axis,
+# and not on a legend there. Ctrl and the wheel zoom one axis there, a drag pans it,
+# and a double click fits it.
+_is_over_x_axis(g, x::Integer, y::Integer) =
+    y >= g.plot_y + g.plot_h && g.plot_x <= x <= g.plot_x + g.plot_w && _legend_hit(g, x, y) === nothing
+_is_over_y_axis(g, x::Integer, y::Integer) =
+    x <= g.plot_x && g.plot_y <= y <= g.plot_y + g.plot_h && _legend_hit(g, x, y) === nothing
+
+# The write of the view with one axis fitted: the x axis to all the data, the y
+# axis to the data that the x window shows. A fit that changes nothing writes
+# nothing.
+function _fit_axis_view(plot::ChartPlot, axis::Symbol)
+    view = resolve_view(plot)
+    fit = _compute_fit_view(plot)
+    axis === :x &&
+        return _set_view(plot, _make_chart_view(fit, (fit.x_min, fit.x_max), (view.y_min, view.y_max)))
+    y = compute_limited_window(_compute_shown_y_fit(plot, view); extent = (fit.y_min, fit.y_max),
+                               log = _is_log_axis(plot.chart.y_axis))
+    _set_view(plot, _make_chart_view(fit, (view.x_min, view.x_max), y))
+end
+
+# The axes that a band of `w` by `h` pixels zooms: both; the x axis alone when the
+# band is thin across it, or the y axis alone, as Plotly does; or none, for a band
+# that did not grow. A band is thin across an axis when it is less high there than
+# 0.6 of its length, and less than `_THIN_BAND_MAX`.
+function _find_band_axes(w::Integer, h::Integer)
+    _is_thin_band(h, w) && return :x
+    _is_thin_band(w, h) && return :y
+    (w >= _DRAG_MIN && h >= _DRAG_MIN) ? :both : nothing
+end
+
+_is_thin_band(across::Integer, along::Integer) =
+    along >= _DRAG_MIN && across < min(max(0.6 * along, _DRAG_MIN), _THIN_BAND_MAX)
+
+# The rectangle that a band from the press `ax`, `ay` to `x`, `y` draws: across the
+# whole plot on an axis that it does not zoom, so the person sees what the release
+# does.
+function _get_band_rect(g, ax::Integer, ay::Integer, x::Integer, y::Integer)
+    w, h = abs(x - ax), abs(y - ay)
+    axes = _find_band_axes(w, h)
+    axes === :x && return (min(ax, x), g.plot_y, w, g.plot_h)
+    axes === :y && return (g.plot_x, min(ay, y), g.plot_w, h)
+    (min(ax, x), min(ay, y), w, h)
+end
 
 _compound(a, b) = a === nothing ? b : b === nothing ? a :
                   CompoundOperation(Operation[a, b])
@@ -1708,15 +1965,116 @@ _write_view_state(plot::ChartPlot, field::AbstractString, value) =
 _set_view(plot::ChartPlot, view) =
     isequal(plot.view, view) ? nothing : _write_view_state(plot, "view", view)
 
-# Scale a window about a fixed data point, so whatever is under the cursor stays
-# under the cursor.
-function _zoom_about(view::ChartView, fx::Real, fy::Real, kx::Real, ky::Real)
-    ChartView(fx - (fx - view.x_min) * kx, fx + (view.x_max - fx) * kx,
-              fy - (fy - view.y_min) * ky, fy + (view.y_max - fy) * ky)
+# Whether an axis zooms and pans in its log space.
+_is_log_axis(axis) = axis isa ChartAxis && axis.log
+
+# The view of a window on each axis: `nothing` when the two windows are the fit,
+# so a chart that shows all its data follows a change of the data.
+_make_chart_view(fit::ChartView, x, y) =
+    (x == (fit.x_min, fit.x_max) && y == (fit.y_min, fit.y_max)) ? nothing :
+    ChartView(x[1], x[2], y[1], y[2])
+
+# The write of `view` scaled by `kx` and `ky` about the data point `fx`, `fy`, or
+# about the middle of an axis that has no point, inside the limits of the fit. A
+# factor of 1 leaves its axis alone. A zoom at a limit writes nothing.
+function _zoom_view(plot::ChartPlot, view::ChartView, kx::Real, ky::Real;
+                    fx = nothing, fy = nothing)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = (view.x_min, view.x_max)
+    y = (view.y_min, view.y_max)
+    kx == 1 || (x = compute_zoomed_window(x, kx; extent = (fit.x_min, fit.x_max), focus = fx,
+                                          log = _is_log_axis(chart.x_axis)))
+    ky == 1 || (y = compute_zoomed_window(y, ky; extent = (fit.y_min, fit.y_max), focus = fy,
+                                          log = _is_log_axis(chart.y_axis)))
+    _set_view(plot, _make_chart_view(fit, x, y))
 end
 
-_pan_by(view::ChartView, dx::Real, dy::Real) =
-    ChartView(view.x_min + dx, view.x_max + dx, view.y_min + dy, view.y_max + dy)
+# The write of `view` moved by `fraction_x` and `fraction_y` of its spans toward
+# the high ends of the axes, inside the fit. A move that the fit stops writes
+# nothing.
+function _pan_view(plot::ChartPlot, view::ChartView, fraction_x::Real, fraction_y::Real)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = (view.x_min, view.x_max)
+    y = (view.y_min, view.y_max)
+    fraction_x == 0 ||
+        (x = compute_panned_window(x, fraction_x; extent = (fit.x_min, fit.x_max),
+                                   log = _is_log_axis(chart.x_axis)))
+    fraction_y == 0 ||
+        (y = compute_panned_window(y, fraction_y; extent = (fit.y_min, fit.y_max),
+                                   log = _is_log_axis(chart.y_axis)))
+    _set_view(plot, _make_chart_view(fit, x, y))
+end
+
+# The write of the window `x` by `y` inside the limits of the fit: the end of a
+# band zoom.
+function _limit_view(plot::ChartPlot, x, y)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = compute_limited_window(x; extent = (fit.x_min, fit.x_max), log = _is_log_axis(chart.x_axis))
+    y = compute_limited_window(y; extent = (fit.y_min, fit.y_max), log = _is_log_axis(chart.y_axis))
+    _set_view(plot, _make_chart_view(fit, x, y))
+end
+
+# The view actions that the keys, the menu and the buttons share: each answers the
+# write of the view, or `nothing` at a limit.
+_zoom_in_view(plot::ChartPlot) =
+    _has_chart_window(plot) ? _zoom_view(plot, resolve_view(plot), 1 / _ZOOM_STEP, 1 / _ZOOM_STEP) : nothing
+_zoom_out_view(plot::ChartPlot) =
+    _has_chart_window(plot) ? _zoom_view(plot, resolve_view(plot), _ZOOM_STEP, _ZOOM_STEP) : nothing
+_show_all_view(plot::ChartPlot) = _set_view(plot, nothing)
+
+# Whether a plot has a window to move: an empty chart and a chart of pie series
+# have no axes.
+_has_chart_window(plot::ChartPlot) =
+    plot.chart isa Chart && !_is_pie_chart(_visible_series(plot.chart))
+
+# ── The menu and the buttons ─────────────────────────────────────────────
+
+"""
+    compute_context_menu(plot::ChartPlot) -> WidgetMenu | Nothing
+
+The menu that a right click on a chart opens: "Zoom in", "Zoom out", "Show all
+the data", "Fit the x axis" and "Fit the y axis", each with its key. An item
+whose action changes nothing is disabled. A chart with no window, a pie, has no
+menu.
+"""
+function compute_context_menu(plot::ChartPlot)
+    _has_chart_window(plot) || return nothing
+    item(label, operation, keys) =
+        WidgetMenuItem(label; keys, enabled = operation !== nothing,
+                       operation = something(operation, DoNothingOperation()))
+    WidgetMenu(Any[item("Zoom in", _zoom_in_view(plot), Any["Ctrl+="]),
+                   item("Zoom out", _zoom_out_view(plot), Any["Ctrl+-"]),
+                   item("Show all the data", _show_all_view(plot), Any["Ctrl+0"]),
+                   item("Fit the x axis", _fit_axis_view(plot, :x), Any["Double click on the x axis"]),
+                   item("Fit the y axis", _fit_axis_view(plot, :y), Any["Double click on the y axis"])])
+end
+
+get_document_gesture_bindings_own(::Type{ChartPlot}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu; description = "Show the menu of the chart")]
+
+"""
+    make_chart_buttons(plot) -> WidgetToolbar
+
+The buttons that show over `plot` while the pointer is over the chart: "Zoom in",
+"Zoom out" and "Show all the data". A press does what the key of the button does,
+and the tooltip names the key. A button whose action changes nothing is disabled,
+so "Show all the data" is disabled while the chart shows all its data.
+"""
+function make_chart_buttons(plot::ChartPlot)
+    function button(label, icon, key, action)
+        item = WidgetToolbarItem(label; icon, focusable = false, tooltip = "$label ($key)",
+            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> action(plot);
+                                                     description = label, domain = "chart")])
+        set_cell_computation!(getfield(item, :enabled), () -> action(plot) !== nothing)
+        item
+    end
+    WidgetToolbar(Any[button("Zoom in", :zoom_in, "Ctrl+=", _zoom_in_view),
+                      button("Zoom out", :zoom_out, "Ctrl+-", _zoom_out_view),
+                      button("Show all the data", :maximize, "Ctrl+0", _show_all_view)])
+end
 
 # Ctrl and the wheel zoom; over an axis strip they zoom only that axis, which is
 # how a chart offers per-axis zoom without a separate control. A plain turn
@@ -1727,8 +2085,8 @@ _pan_by(view::ChartView, dx::Real, dy::Real) =
 # chart that shows all its data scrolls.
 function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
     over_plot = _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
-    over_x = event.y >= g.plot_y + g.plot_h && g.plot_x <= event.x <= g.plot_x + g.plot_w
-    over_y = event.x <= g.plot_x && g.plot_y <= event.y <= g.plot_y + g.plot_h
+    over_x = _is_over_x_axis(g, event.x, event.y)
+    over_y = _is_over_y_axis(g, event.x, event.y)
     (over_plot || over_x || over_y) || return nothing
     view = resolve_view(plot)
     event.modifiers.ctrl || return _scroll_view(plot, view, event)
@@ -1740,7 +2098,7 @@ function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
     fy = to_data(g.ys, clamp(event.y, g.plot_y, g.plot_y + g.plot_h))
     kx = over_y ? 1.0 : k
     ky = over_x ? 1.0 : k
-    _set_view(plot, _zoom_about(view, fx, fy, kx, ky))
+    _zoom_view(plot, view, kx, ky; fx, fy)
 end
 
 # The scroll of `view` by a turn of the wheel with no Ctrl: `_PAN_STEP` of the
@@ -1752,70 +2110,74 @@ function _scroll_view(plot::ChartPlot, view::ChartView, event::MouseScroll)
     across = event.modifiers.shift || (turn_x != 0 && turn_y == 0)
     turn = across ? (turn_x != 0 ? turn_x : turn_y) : turn_y
     turn == 0 && return nothing
-    fit = _compute_fit_view(plot)
-    if across
-        d = _clamp_pan(-(view.x_max - view.x_min) * _PAN_STEP * turn;
-                       window = (view.x_min, view.x_max), extent = (fit.x_min, fit.x_max))
-        return d == 0 ? nothing : _set_view(plot, _pan_by(view, d, 0.0))
-    end
-    d = _clamp_pan((view.y_max - view.y_min) * _PAN_STEP * turn;
-                   window = (view.y_min, view.y_max), extent = (fit.y_min, fit.y_max))
-    d == 0 ? nothing : _set_view(plot, _pan_by(view, 0.0, d))
+    across && return _pan_view(plot, view, -_PAN_STEP * turn, 0.0)
+    _pan_view(plot, view, 0.0, _PAN_STEP * turn)
 end
 
-# The part of a pan by `d` that keeps the `window` (low, high) inside the `extent`
-# (low, high), or 0 when the window can not move that way. A window that is past
-# an edge can move back toward the extent.
-_clamp_pan(d::Real; window, extent) =
-    d > 0 ? min(d, max(0.0, extent[2] - window[2])) : max(d, -max(0.0, window[1] - extent[1]))
-
 # Dragging in the plot draws a rubber band and commits it as the new window;
-# with Shift it pans instead. There is no precedent for a rubber band in this
-# codebase, so the lifecycle mirrors the splitter drag: the anchor goes down on
-# press and starts the drag of the plot, the rectangle grows on each `DragMove`,
-# and `DragEnd` either commits or — if the band never grew past a few pixels —
-# leaves the window alone. The anchor keeps the view of the press as the plot
-# holds it, so `DragCancel` puts back a pan.
+# with Shift or the middle button it pans instead, and a drag on an axis pans that
+# axis. The lifecycle mirrors the splitter drag: the anchor goes down on press and
+# starts the drag of the plot, the rectangle grows on each `DragMove`, and
+# `DragEnd` either commits or — if the band never grew past a few pixels — leaves
+# the window alone. The anchor keeps the view of the press as the plot holds it,
+# so `DragCancel` puts back a pan.
 function _drag_start(g, plot::ChartPlot, event::MouseDown)
-    _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
-    mode = event.modifiers.shift ? :pan : :zoom
-    # The pointer keeps the arrow of the press while the drag is on.
+    mode = _find_drag_mode(g, event)
+    mode === nothing && return nothing
+    # A pan shows the closed hand while the drag is on; a band keeps the arrow of
+    # the press.
     CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor",
                           (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys, plot.view)),
         StartDragOperation(EmptyReference(), nothing),
-        make_screen_pointer_shape_operation(:arrow)])
+        make_screen_pointer_shape_operation(mode === :zoom ? :arrow : :closed_hand)])
+end
+
+# What a press starts: in the plot a band zoom, or a pan with Shift or the middle
+# button; on an axis a pan of that axis; elsewhere nothing.
+function _find_drag_mode(g, event::MouseDown)
+    pan = event.button === :middle || event.modifiers.shift
+    _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) && return pan ? :pan : :zoom
+    _is_over_x_axis(g, event.x, event.y) && return :pan_x
+    _is_over_y_axis(g, event.x, event.y) && return :pan_y
+    nothing
 end
 
 function _drag_move(g, plot::ChartPlot, event::DragMove)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
     ax, ay, mode, start_view, xs, ys = anchor
-    if mode === :pan
+    if mode !== :zoom
         # Pan against the window and the scales the drag started from, so a slow
         # drag does not accumulate rounding, and a move to the point of the last
-        # move gives the same window, which is not written again.
-        dx = (to_data(xs, ax) - to_data(xs, event.x))
-        dy = (to_data(ys, ay) - to_data(ys, event.y))
-        return _set_view(plot, _pan_by(start_view, dx, dy))
+        # move gives the same window, which is not written again. The distance is
+        # the part of the pixel span of each axis, so the value under the press
+        # stays under the pointer on a log axis too. A pan of one axis leaves the
+        # other alone.
+        fraction_x = mode === :pan_y ? 0.0 : (ax - event.x) / (xs.p1 - xs.p0)
+        fraction_y = mode === :pan_x ? 0.0 : (ay - event.y) / (ys.p1 - ys.p0)
+        return _pan_view(plot, start_view, fraction_x, fraction_y)
     end
-    _rect_op(plot, (min(ax, event.x), min(ay, event.y),
-                    abs(event.x - ax), abs(event.y - ay)))
+    _rect_op(plot, _get_band_rect(g, ax, ay, event.x, event.y))
 end
 
 function _drag_end(g, plot::ChartPlot, event::DragEnd)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
-    ax, ay, mode, _ = anchor
+    ax, ay, mode, start_view = anchor
     clear = CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor", nothing),
         _write_view_state(plot, "drag_rect", nothing),
         make_screen_pointer_shape_operation(nothing)])
-    (mode === :zoom && abs(event.x - ax) >= _DRAG_MIN && abs(event.y - ay) >= _DRAG_MIN) || return clear
+    mode === :zoom || return clear
+    axes = _find_band_axes(abs(event.x - ax), abs(event.y - ay))
+    axes === nothing && return clear
 
-    x0, x1 = minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
-    y0, y1 = minmax(to_data(g.ys, ay), to_data(g.ys, event.y))
-    _compound(_set_view(plot, ChartView(x0, x1, y0, y1)), clear)
+    x = axes === :y ? (start_view.x_min, start_view.x_max) :
+        minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
+    y = axes === :x ? (start_view.y_min, start_view.y_max) :
+        minmax(to_data(g.ys, ay), to_data(g.ys, event.y))
+    _compound(_limit_view(plot, x, y), clear)
 end
 
 _rect_op(plot::ChartPlot, rect) =
@@ -1830,37 +2192,56 @@ function _cancel_drag(plot::ChartPlot)
         _write_view_state(plot, "drag_anchor", nothing),
         _write_view_state(plot, "drag_rect", nothing),
         make_screen_pointer_shape_operation(nothing)])
-    (anchor !== nothing && anchor[3] === :pan) || return clear
+    (anchor !== nothing && anchor[3] !== :zoom) || return clear
     _compound(_set_view(plot, anchor[7]), clear)
 end
 
 # Keyboard view control. This lives in the reader rather than in a `@gestures`
 # block because the window belongs to the plot, and a document gesture only ever
 # sees the chart.
+#
+# - Ctrl+=, Ctrl+- and Ctrl+0 zoom in, zoom out and show all the data, before the
+#   zoom of the interface reads them, as a transform pane does. At a limit the key
+#   is not the chart's, so Ctrl+0 on a chart that shows all its data resets the
+#   zoom of the interface.
+# - Page Up and Page Down scroll a page up and down, and with Alt a page across,
+#   as in a spreadsheet. A page is the window.
+# - Shift and an arrow pan a tenth of the window. Bare and Alt arrows belong to
+#   selection navigation, as everywhere else in the editor, and Ctrl+Shift and an
+#   arrow move the selected series, so this reader declines them.
 function _key_intent(g, plot::ChartPlot, event::KeyDown)
-    # Bare and Alt arrows belong to selection navigation, as everywhere else in
-    # the editor, so panning takes Shift and this reader declines the rest.
-    event.modifiers.shift || return nothing
+    m = event.modifiers
+    m.meta && return nothing
+    key = event.key
+    if m.ctrl
+        (m.shift || m.alt) && return nothing
+        key === :equals && return _zoom_in_view(plot)
+        key === :minus && return _zoom_out_view(plot)
+        key === :zero && return _show_all_view(plot)
+        return nothing
+    end
+    if key in (:page_up, :page_down) && !m.shift
+        page = key === :page_up ? 1.0 : -1.0
+        return m.alt ? _pan_view(plot, resolve_view(plot), -page, 0.0) :
+                       _pan_view(plot, resolve_view(plot), 0.0, page)
+    end
+    (m.shift && !m.alt) || return nothing
     view = resolve_view(plot)
-    w = view.x_max - view.x_min
-    h = view.y_max - view.y_min
-    event.key === :left && return _set_view(plot, _pan_by(view, -w * _PAN_STEP, 0.0))
-    event.key === :right && return _set_view(plot, _pan_by(view, w * _PAN_STEP, 0.0))
-    event.key === :up && return _set_view(plot, _pan_by(view, 0.0, h * _PAN_STEP))
-    event.key === :down && return _set_view(plot, _pan_by(view, 0.0, -h * _PAN_STEP))
+    key === :left && return _pan_view(plot, view, -_PAN_STEP, 0.0)
+    key === :right && return _pan_view(plot, view, _PAN_STEP, 0.0)
+    key === :up && return _pan_view(plot, view, 0.0, _PAN_STEP)
+    key === :down && return _pan_view(plot, view, 0.0, -_PAN_STEP)
     nothing
 end
 
-# Zoom and reset arrive as characters rather than named keys.
+# Zoom and reset arrive as characters rather than named keys. A character typed
+# with Ctrl or Alt is the key of the `KeyDown` reader, or of the editor.
 function _key_intent(g, plot::ChartPlot, event::KeyPress)
-    event.char == '0' && return _set_view(plot, nothing)
-    view = resolve_view(plot)
-    cx = (view.x_min + view.x_max) / 2
-    cy = (view.y_min + view.y_max) / 2
-    event.char in ('+', '=') &&
-        return _set_view(plot, _zoom_about(view, cx, cy, 1 / _ZOOM_STEP, 1 / _ZOOM_STEP))
-    event.char == '-' &&
-        return _set_view(plot, _zoom_about(view, cx, cy, _ZOOM_STEP, _ZOOM_STEP))
+    m = event.modifiers
+    (m.ctrl || m.alt || m.meta) && return nothing
+    event.char == '0' && return _show_all_view(plot)
+    event.char in ('+', '=') && return _zoom_in_view(plot)
+    event.char == '-' && return _zoom_out_view(plot)
     nothing
 end
 
