@@ -291,7 +291,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   - C. Each view writes its own maps, as the card does for its title on an
     Alt+click. Each new view then has dead clicks until it does.
 - **Q3. How the output of a view follows the selection** (open, written
-  2026-11-10; 5.4 waits for it, and Q2 is asked first). A part that a view
+  2026-11-10; 5.4 waits for it). A probe of 2026-11-10 showed that the
+  appearance view, the first example of this question, already wires its
+  output (`_follow_tab_paths!` and `set_output_tree_path_computations!`): an
+  Alt+click on "Save" selects the button, and the button draws its focus ring,
+  in the colour of the focus ring, which the click test did not count as a mark.
+  The click test counts it now. A view that wires nothing is the reflected
+  object (`ObjectNodeToSyntaxNode`, `_type_leaf`), beside the placeholder leaf
+  (`InsertionNothingToSyntaxLeaf`), which wires its leaf. A part that a view
   drew is selected by P3, but it is marked only where the documents of the
   output of the view hold their part of the selection. A printer of the
   template gives each output node its selection; a view that builds its output

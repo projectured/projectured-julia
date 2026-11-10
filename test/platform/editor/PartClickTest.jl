@@ -79,13 +79,16 @@ function _pc_collect_elements!(found, output, window_box, node, reference, above
 end
 
 # Whether `node` marks the selection: a ring, an outline in the colour of the
-# selection ring, or a band, a fill in the colour of the selection band.
+# selection ring or of the focus ring, which a control draws when it is selected,
+# or a band, a fill in the colour of the selection band.
 function _pc_is_selection_mark(node)
     node isa GraphicsRect || return false
     theme = get_theme_defaults(GraphicsTheme)
+    focus = get_theme_defaults(WidgetTheme).ring
     is_same(a, b) = a.red == b.red && a.green == b.green && a.blue == b.blue
     fill = _pc_read_value(node.color)
-    (Int(_pc_read_value(node.border_width)) > 0 && is_same(_pc_read_value(node.border_color), theme.selection_ring)) ||
+    border = _pc_read_value(node.border_color)
+    (Int(_pc_read_value(node.border_width)) > 0 && (is_same(border, theme.selection_ring) || is_same(border, focus))) ||
         (fill.alpha > 0 && is_same(fill, theme.selection_band))
 end
 
