@@ -1719,8 +1719,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     spans = Int[get_column_span(doc.children[i]) for i in 1:n]
     places = Cell(@computation _gl_place(spans, cols_cell[]))
     row_count_cell = Cell(Computation(function ()
-        p = places[]
-        isempty(p) ? 0 : maximum(first, p)
+        rows_of_places = places[]
+        isempty(rows_of_places) ? 0 : maximum(first, rows_of_places)
     end))
     content_col_w = Cell[]
     content_row_h = Cell[]
