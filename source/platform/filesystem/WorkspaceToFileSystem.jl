@@ -114,13 +114,10 @@ function read_intent(p::WorkspaceToFileSystemDirectory, iomap, op)
     path === nothing ? nothing : make_path_operation(op, path)
 end
 
-# An Alt+press selects the workspace as a whole. The row under the pointer is a
-# place the projection introduced, and the rule for such a place selects the
-# folder it was printed for; but the folder draws as the whole view, so the
-# workspace, whose page shows the selection, is the object a person selects.
+# The view reads the operation that the stage below answered, or else the gesture.
+# An Alt+press on a row selects the row that the view drew, by the rule of the
+# container above (`convert_to_whole_selection`).
 function read_intent(p::WorkspaceToFileSystemDirectory, recursion, change::Intent, iomap)
-    is_whole_selection_press(change.gesture) &&
-        return Intent(change.gesture, ReplaceSelectionOperation(EmptyReference()))
     payload = change.operation === nothing ? change.gesture : change.operation
     Intent(change.gesture, read_intent(p, iomap, payload))
 end

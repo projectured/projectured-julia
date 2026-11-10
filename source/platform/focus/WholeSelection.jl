@@ -49,43 +49,90 @@ function _is_whole_part(document, path::Reference, target)
 end
 
 """
+    find_whole_part(document, path) -> Reference
+
+The innermost part that `path` reaches inside `document`, named as a whole.
+
+A path that names a part as a whole (`is_whole_selection`) is the answer. A path
+that ends in a place inside a value, such as a caret or a range of text, loses
+the place, step by step, until a whole part is left: a caret in the title of a
+card, `.title.value{3}`, gives the `String` in its field, `.title.value`. A
+caret directly in `document` gives `document`, the empty path.
+
+A part that a projection drew and that `document` does not hold, such as the
+bracket of a call or the label of a row, is a part too. Its path ends in a
+`ProjectionReferenceStep` at the innermost node that printed it, and the place is
+cut inside the output path of that step: a field and one element reach a drawn
+part, and any other last step is a place in it. So a caret beside the bracket,
+`‹.open{0}›`, gives the bracket, `‹.open›`. An output path that loses every step
+gives the node that printed it.
+
+A path that does not resolve in `document` is the answer as it is. A container
+can answer a path in its own terms that is not a path of its document, as a
+tabbed pane names a widget page without the `element` step of the page, and the
+level above maps it back.
+"""
+function find_whole_part(document, path)
+    path isa ConcreteReference || return path
+    step = _get_last_step(path)
+    step isa ProjectionReferenceStep && return _cut_introduced_part(path, step)
+    target = try_evaluate_reference(document, path, missing)
+    (target === missing || _is_whole_part(document, path, target)) && return path
+    find_whole_part(document, _drop_last_step(path))
+end
+
+# `path`, whose last step is the introduced `step`, with the place cut off the
+# output path of that step.
+function _cut_introduced_part(path, step::ProjectionReferenceStep)
+    inner = _cut_output_place(step.output_path)
+    inner isa EmptyReference && return _drop_last_step(path)
+    inner === step.output_path && return path
+    _replace_last_step(path, ProjectionReferenceStep(step.projection, inner))
+end
+
+# `output_path`, a path in the output of a projection, without the place at its
+# end. No document of the output is at hand, so the steps decide: a field and one
+# element reach a drawn part, and any other last step is a place in it.
+function _cut_output_place(output_path)
+    output_path isa ConcreteReference || return output_path
+    step = _get_last_step(output_path)
+    step isa ProjectionReferenceStep && return _cut_introduced_part(output_path, step)
+    (step isa FieldReferenceStep || (step isa RangeReferenceStep && step.stop == step.start + 1)) &&
+        return output_path
+    _cut_output_place(_drop_last_step(output_path))
+end
+
+_get_last_step(path::ConcreteReference) =
+    path.tail isa ConcreteReference ? _get_last_step(path.tail) : path.head
+
+# `path` without its last step. The new end keeps the type of the node that the
+# step stood on.
+_drop_last_step(path::ConcreteReference) =
+    path.tail isa ConcreteReference ? ConcreteReference(path.type, path.head, _drop_last_step(path.tail)) :
+    EmptyReference(path.type)
+
+_replace_last_step(path::ConcreteReference, step) =
+    path.tail isa ConcreteReference ? ConcreteReference(path.type, path.head, _replace_last_step(path.tail, step)) :
+    ConcreteReference(path.type, step, path.tail)
+
+"""
     convert_to_whole_selection(operation, child) -> ReplaceSelectionOperation
 
 The answer a container gives for an Alt+press that hit `child`, where
 `operation` is what `child` itself answered.
 
-A selection of a part inside `child` is kept, so the innermost part under the
-pointer wins: a document, or a value that a field or one element of a
-collection holds (`is_whole_selection`). Any other answer becomes the selection
-of `child` as a whole: nothing, a control's action, and a selection that names a
-place inside a value, such as a caret or a range of text. An Alt+press therefore
-never acts, because the action a button answered is dropped here, and a reader
-has no side effect of its own.
-
-A place that a projection introduced, such as the bracket of a call, names the
-node that the projection printed it for, and that node is selected as a whole.
-
-A selection that does not resolve in `child` is kept too. A container can answer
-a path in its own terms that is not a path of its document — a tabbed pane names
-a widget page without the page's `element` step — and the level above maps it
-back.
+A selection inside `child` becomes the innermost whole part that it reaches
+(`find_whole_part`), so the innermost part under the pointer wins: a document, a
+value that a field or one element of a collection holds, or a part that a
+projection drew. Any other answer becomes the selection of `child` as a whole:
+nothing, and a control's action. An Alt+press therefore never acts, because the
+action a button answered is dropped here, and a reader has no side effect of its
+own.
 """
 function convert_to_whole_selection(operation, child)
     operation isa ReplaceSelectionOperation || return ReplaceSelectionOperation(EmptyReference())
-    path = _cut_introduced_place(operation.path)
-    kept = path === operation.path ? operation : ReplaceSelectionOperation(path)
-    target = try_evaluate_reference(child, path, missing)
-    (target === missing || _is_whole_part(child, path, target)) ? kept :
-        ReplaceSelectionOperation(EmptyReference())
-end
-
-# `path` up to the first place a projection introduced, which then ends at the
-# node the place was printed for.
-function _cut_introduced_place(path)
-    path isa ConcreteReference || return path
-    path.head isa ProjectionReferenceStep && return EmptyReference(path.type)
-    tail = _cut_introduced_place(path.tail)
-    tail === path.tail ? path : ConcreteReference(path.type, path.head, tail)
+    path = find_whole_part(child, operation.path)
+    path === operation.path ? operation : ReplaceSelectionOperation(path)
 end
 
 """
@@ -106,13 +153,27 @@ function find_whole_selected_index(selection, field::AbstractString)
 end
 
 """
-    is_whole_selected_field(selection, field) -> Bool
+    is_whole_selected_field(selection, field; document = nothing) -> Bool
 
 Whether `selection` names the document in field `field` as a whole (`field` and
 nothing after it). The node types a path carries are ignored.
+
+With `document`, the holder of `field`, a selection of a value in one field of
+the document in `field` that is not a document itself (`field.value`, the
+`String` of a `PrimitiveString` title) counts too: that document draws no mark of
+its own for the value, so the holder that marks the field marks it.
 """
-function is_whole_selected_field(selection, field::AbstractString)
+function is_whole_selected_field(selection, field::AbstractString; document = nothing)
     selection isa ConcreteReference || return false
     steps = get_reference_steps(strip_reference_types(selection))
-    length(steps) == 1 && steps[1] isa FieldReferenceStep && steps[1].name == field
+    (length(steps) == 1 || (length(steps) == 2 && _is_value_field(document, steps))) || return false
+    steps[1] isa FieldReferenceStep && steps[1].name == field
+end
+
+# Whether `steps`, read in `document`, end in a field step that reaches a value that
+# is not a document.
+function _is_value_field(document, steps)
+    (document !== nothing && last(steps) isa FieldReferenceStep) || return false
+    target = try_evaluate_reference(document, _prepend_steps(Tuple(steps), EmptyReference()), missing)
+    target !== missing && !(target isa Document)
 end

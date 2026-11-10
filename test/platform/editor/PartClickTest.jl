@@ -12,7 +12,8 @@
 #   under the point, and the forward map of that caret draws it there.
 #
 # An Alt+click at the same point selects the part that holds that caret as a
-# whole, and the mouse target of a move there names the same part.
+# whole, a ring or a band of the selection is drawn at the point, and the mouse
+# target of a move there names the same part.
 
 import ProjecturedKernelExample: HeadlessBackend, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
@@ -42,8 +43,10 @@ end
 
 # Every element that draws something, in the order of the paint, so the last one
 # whose box holds a point is the one on top there. A `GraphicsPointerShape` sets
-# the shape of the pointer over its box and draws nothing.
-function _pc_collect_elements!(found, output, window_box, node, reference, above, depth = 0)
+# the shape of the pointer over its box and draws nothing. `keep` leaves out an
+# element before its box is measured.
+function _pc_collect_elements!(found, output, window_box, node, reference, above, depth = 0;
+                               keep = _ -> true)
     depth > 40 && return found
     node = _pc_read_value(node)
     if node isa GraphicsCanvas
@@ -56,13 +59,13 @@ function _pc_collect_elements!(found, output, window_box, node, reference, above
             _pc_collect_elements!(found, output, window_box, element,
                                   _pc_extend_reference(reference, FieldReferenceStep("elements"),
                                                        ElementReferenceStep(k)),
-                                  inner, depth + 1)
+                                  inner, depth + 1; keep)
         end
     elseif node isa GraphicsViewport
         _pc_collect_elements!(found, output, window_box, getfield(node, :content),
                               _pc_extend_reference(reference, FieldReferenceStep("content")),
-                              vcat(above, Any[node]), depth + 1)
-    elseif node isa GraphicsDocument && !(node isa GraphicsPointerShape)
+                              vcat(above, Any[node]), depth + 1; keep)
+    elseif node isa GraphicsDocument && !(node isa GraphicsPointerShape) && keep(node)
         box = try
             find_reference_box(output, reference; visible = true)
         catch
@@ -73,6 +76,26 @@ function _pc_collect_elements!(found, output, window_box, node, reference, above
                                                   width = box.width, height = box.height), above))
     end
     found
+end
+
+# Whether `node` marks the selection: a ring, an outline in the colour of the
+# selection ring, or a band, a fill in the colour of the selection band.
+function _pc_is_selection_mark(node)
+    node isa GraphicsRect || return false
+    theme = get_theme_defaults(GraphicsTheme)
+    is_same(a, b) = a.red == b.red && a.green == b.green && a.blue == b.blue
+    fill = _pc_read_value(node.color)
+    (Int(_pc_read_value(node.border_width)) > 0 && is_same(_pc_read_value(node.border_color), theme.selection_ring)) ||
+        (fill.alpha > 0 && is_same(fill, theme.selection_band))
+end
+
+# Whether a mark of the selection that the output draws now holds the point.
+function _pc_is_selection_drawn(session, x, y)
+    output = _pc_read_value(get_iomap_output(session.editor.iomap))
+    window = _pc_read_value(_pc_read_value(output.windows)[1])
+    marks = _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
+                                  session.window_reference, Any[]; keep = _pc_is_selection_mark)
+    any(mark -> _pc_is_in_box(mark.box, x, y), marks)
 end
 
 # The element on top at a point of the window.
@@ -118,10 +141,27 @@ function _pc_cut_place(path)
     steps = collect(get_reference_steps(path))
     step = last(steps)
     head = extend_reference(EmptyReference(), steps[1:(end - 1)]...)
-    step isa ProjectionReferenceStep &&
-        return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, _pc_cut_place(step.output_path)))
+    if step isa ProjectionReferenceStep
+        # An output path that loses every step names the node that printed it.
+        inner = _pc_cut_place(step.output_path)
+        inner isa EmptyReference && return head
+        return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, inner))
+    end
     _pc_is_place(path) ? head : path
 end
+
+# `path` with no node types, also inside the output path of an introduced step.
+function _pc_normalize(path)
+    path isa Reference || return path
+    steps = map(collect(get_reference_steps(strip_reference_types(path)))) do step
+        step isa ProjectionReferenceStep ?
+            ProjectionReferenceStep(step.projection, _pc_normalize(step.output_path)) : step
+    end
+    extend_reference(EmptyReference(), steps...)
+end
+
+# Whether two paths name the same part, whatever node types they carry.
+_pc_is_same_part(a, b) = _pc_normalize(a) == _pc_normalize(b)
 
 _pc_format_step(step::ProjectionReferenceStep) =
     string("‹", nameof(typeof(_pc_read_value(step.projection))), " ", _pc_format_path(step.output_path), "›")
@@ -293,16 +333,18 @@ function _pc_check_point!(session, element)
     else
         _pc_is_within(deepest, whole) ||
             push!(session.failures, "$at: an Alt+click selects $(format(whole)), outside $(format(deepest))")
-        caret === nothing || _pc_cut_place(caret) == whole ||
+        caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
             push!(session.failures, "$at: an Alt+click selects $(format(whole)), not $(format(_pc_cut_place(caret))), " *
                                     "the part of the caret")
+        _pc_is_selection_drawn(session, x, y) ||
+            push!(session.failures, "$at: an Alt+click selects $(format(whole)), and no ring or band holds the point")
     end
     # A move names the part that the Alt+click selects.
     target = _pc_move!(session, x, y)
     _pc_count!(session, :moves)
     if target === nothing
         push!(session.failures, "$at: a move names no part under the pointer")
-    elseif whole !== nothing && !_pc_is_place(whole) && _pc_cut_place(target) != whole
+    elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole)
         push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), the part of the Alt+click")
     end
     nothing
@@ -354,8 +396,8 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
     node = parts[index].node
     shown = filter(element -> element.node === node || any(above -> above === node, element.above), elements)
     counts[:elements] = length(shown)
-    session = (; editor, root, base, output, window_id = _pc_read_value(window.id), window_box, elements,
-               parts, failures, counts, label, clock = Ref(time() - 1.0e6))
+    session = (; editor, root, base, output, window_id = _pc_read_value(window.id), window_box, window_reference,
+               elements, parts, failures, counts, label, clock = Ref(time() - 1.0e6))
     for element in shown[1:min(end, limit)]
         try
             _pc_check_point!(session, element)

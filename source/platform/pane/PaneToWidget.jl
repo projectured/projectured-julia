@@ -572,20 +572,22 @@ end
 # re-targets through `map_reference_backward`: its bare
 # `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`.
 #
-# An Alt+click inside a page names a part of the tab's document. When the
-# content's projection maps it back to a whole part (`is_whole_selection`), a
-# document or a value that a field or one element holds, the answer is that
-# part. A caret, or a place the content's projection introduced, names the
-# innermost document on its path: the one that holds the caret, or the one the
-# projection printed the place for. Any other answer — the tab, because the
+# An Alt+click inside a page names a part of the tab's document: the innermost
+# whole part that the answer of the content reaches (`find_whole_part`), a
+# document, a value that a field or one element holds, or a part that the
+# content's projection drew. An answer that reaches no such part names the
+# innermost document on its path, and any other answer — the tab, because the
 # content maps nothing back — names the tab's content, as a whole.
 function _select_page_content(tree::PaneTree, widget_operation, answer)
     (widget_operation isa ReplaceSelectionOperation && _is_inside_page(widget_operation.path)) ||
         return answer
     answer isa ReplaceSelectionOperation || return answer
-    target = try_evaluate_reference(tree, answer.path, nothing)
-    (is_whole_selection(tree, answer.path) && !(target isa PaneDocument)) && return answer
-    innermost = _find_innermost_document_path(tree, answer.path)
+    whole = find_whole_part(tree, answer.path)
+    selected = whole === answer.path ? answer : ReplaceSelectionOperation(whole)
+    has_introduced_step(whole) && return selected
+    target = try_evaluate_reference(tree, whole, nothing)
+    (is_whole_selection(tree, whole) && !(target isa PaneDocument)) && return selected
+    innermost = _find_innermost_document_path(tree, whole)
     innermost === nothing || return ReplaceSelectionOperation(innermost)
     rest = _after_field(answer.path, "root")
     rest === nothing && return answer
@@ -598,13 +600,10 @@ function _select_page_content(tree::PaneTree, widget_operation, answer)
 end
 
 # The longest prefix of `path` that names a document inside a tab, or `nothing`.
-# The walk stops before a place a projection introduced, skips a collection, and
-# gives up at a pane.
+# The walk skips a collection, and gives up at a pane.
 function _find_innermost_document_path(tree::PaneTree, path)
     steps = collect(get_reference_steps(strip_reference_types(path)))
-    introduced = findfirst(step -> step isa ProjectionReferenceStep, steps)
-    longest = introduced === nothing ? length(steps) - 1 : introduced - 1
-    for n in longest:-1:1
+    for n in (length(steps) - 1):-1:1
         prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
         node = try_evaluate_reference(tree, prefix, nothing)
         node isa PaneDocument && return nothing

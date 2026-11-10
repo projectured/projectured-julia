@@ -1170,12 +1170,11 @@ end
 #
 # A plain click names a place in the text of a text part, and at most a part
 # anywhere else, so a click in a result selects the part that holds it. An
-# Alt+click keeps the innermost object the maps named, except in a text part,
-# where it names the part: a place in a text and the whole part are the two
-# selections a text part gives. And Alt with an arrow walks the objects: a
-# message, its parts, and the form and the result of an evaluation. The
-# transcript is read, so no widget inside it has a use for these keys, and the
-# walk answers them whatever a widget said.
+# Alt+click selects the innermost whole part under the pointer
+# (`convert_to_whole_selection`): in a text part, the text that the caret is in.
+# And Alt with an arrow walks the objects: a message, its parts, and the form and
+# the result of an evaluation. The transcript is read, so no widget inside it has
+# a use for these keys, and the walk answers them whatever a widget said.
 function read_intent(p::ConversationConversationToWidgetComposite, recursion,
                      change::Intent, iomap)
     gesture = change.gesture
@@ -1186,13 +1185,14 @@ function read_intent(p::ConversationConversationToWidgetComposite, recursion,
     end
     payload = change.operation === nothing ? gesture : change.operation
     answer = read_intent(p, iomap, payload)
-    if answer isa ReplaceSelectionOperation && gesture isa MouseClick
+    if answer isa ReplaceSelectionOperation && is_whole_selection_press(gesture)
+        answer = convert_to_whole_selection(answer, iomap.input)
+    elseif answer isa ReplaceSelectionOperation && gesture isa MouseClick
         steps = _steps(strip_reference_types(answer.path))
-        in_text = steps !== nothing && _is_text_path(iomap.input, steps)
         # A press in the live field of a part keeps its place, as the caret of
         # a person who types there, and so does a plain press in a text.
-        keeps = is_whole_selection_press(gesture) ? !in_text :
-                in_text || (steps !== nothing && _is_live_path(iomap.input, steps))
+        keeps = steps !== nothing &&
+                (_is_text_path(iomap.input, steps) || _is_live_path(iomap.input, steps))
         keeps || (answer = ReplaceSelectionOperation(_get_part_prefix(answer.path)))
     end
     Intent(gesture, answer)

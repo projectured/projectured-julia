@@ -268,6 +268,39 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   Rejected (B of Q1): a plain click chooses the row, and a double click puts
   the caret in the cell; then a click does not put the caret where the mouse
   is, which D1 says.
+- **Q2. How a widget knows which part a drawn text shows** (open, asked
+  2026-11-10; sub-step 5.3 waits for it). A plain click on the title of a card
+  must give `.title{k}`, and a move and the caret must agree with it. Three
+  ways, recommended first by the assistant:
+  - A. The printer records a line of text with the part it shows: for each
+    drawn line, the index of its element, the path of the part, such as
+    `.title` or an introduced path of a computed value, and the character where
+    the line starts. The record is in the IO map of the widget, as
+    `char_to_coord` is in the IO map of `TextToGraphics`, and one helper of the
+    widget slice maps a point to the caret, the caret to its box and the box
+    back. Each of the 41 calls that draw text passes the part.
+  - B. A widget draws each text through a text leaf, a `TextBlock` with
+    `TextToGraphics`, as `WidgetText` does, so the carets of the text domain
+    work with no new code. Each label then is a projection chain, which costs
+    time and memory in a page of many labels.
+  - C. Each view writes its own maps, as the card does for its title on an
+    Alt+click. Each new view then has dead clicks until it does.
+- **Q3. How the output of a view follows the selection** (open, written
+  2026-11-10; 5.4 waits for it, and Q2 is asked first). A part that a view
+  drew is selected by P3, but it is marked only where the documents of the
+  output of the view hold their part of the selection. A printer of the
+  template gives each output node its selection; a view that builds its output
+  inline, such as `AppearanceToWidget` or `ObjectNodeToSyntaxNode`, gives it to
+  the root at most (`make_output_path_cells`), and 5 views call
+  `follow_output_selection!`. Two ways, recommended first by the assistant:
+  - A. Each view whose output is a tree of documents wires the tree with
+    `follow_output_selection!` and the mouse target with it, one call in each
+    printer, about 20 printers in projectured-julia and the views of
+    omnet-julia; the click test finds the views that do not.
+  - B. The printer of a chain wires the output of each stage whose output
+    documents hold no computed selection, with no call in the view. A view
+    that wires its own keeps its own. A walk of each output tree at each print
+    costs time in a large page.
 - **P7. The catalog takes the atoms of a package** (proposed by the
   assistant). `catalog`, `test_catalog` and the coverage guard take a list of
   atoms and the modules whose printers they cover, with the atoms of
@@ -620,7 +653,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   The sub-steps, in this order. The rules of P3 and P8 read the path alone and
   do not need P2, and they fix the largest causes, so they come first. One
   commit for each.
-  - [ ] 5.1 **One rule for the whole part.** `find_whole_part(document, path)`
+  - [x] 5.1 **One rule for the whole part.** (Done 2026-11-10, with 5.2 in one commit, because both change `SyntaxToText.jl`.) `find_whole_part(document, path)`
     in `WholeSelection.jl` answers the innermost whole part that `path`
     reaches: the path when it names a part as a whole; else the path without
     the place at its end, a caret or a range of text, until a whole part is
@@ -631,15 +664,95 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     the node that printed it. `convert_to_whole_selection` and the pane use it;
     `_cut_introduced_place` and the introduced cut of
     `_find_innermost_document_path` go.
-  - [ ] 5.2 **The copies follow the rule.** Each reader of the list above
-    answers what its child answered, and the container decides by
-    `find_whole_part`, or the reader calls it. A control still acts on a plain
-    click.
+
+    Found in the work (2026-11-10):
+    - **A selection must be drawn.** The click test checks now that a ring or a
+      band of the selection holds the point after an Alt+click (`_pc_is_selection_drawn`;
+      the colours `selection_ring` and `selection_band` of `GraphicsTheme`). On
+      15 examples, the rule alone left a glyph and a value with no mark, for
+      example 169 points of 200 in `examples/fsm`, where the old rule drew a mark
+      at each point. So the marks are part of this sub-step:
+      - The syntax tree maps a whole field of a leaf (`.open`, `.value`,
+        `.close`) and a whole delimiter of a node to a band over its characters,
+        a `TextSpanReferenceStep`, and moves the band of a child into the frame
+        of the parent (`SyntaxToText.jl`, `_leaf_field_span`,
+        `_make_entries_span`, `_shift_child_span`).
+      - A widget marks a value in one of its own fields:
+        `is_whole_selected_field(selection, field; document)` counts
+        `.title.value` of a `PrimitiveString` title as the title. A container
+        does not do so for its elements, because an element such as a card
+        draws its own mark on its title, and the two marks were one too many.
+    - **The value of a leaf maps to the field of the domain.** The leaf wiring
+      of the template (`AtomicWiring`, `ProjectionTemplate.jl`) mapped a caret
+      in the value of a leaf to the bound field, and the whole value to
+      `nothing`. It maps the whole value both ways now, so an Alt+click on
+      `Alice` gives `.entries[1].value.value` (P8).
+    - **A reflected object draws no mark.** The page of the pane test draws
+      `DocumentNothing` as a reflected object (`ObjectNodeToSyntaxNode`), whose
+      type name is a text that the view computes, so an Alt+click on it selects
+      that text, by D1. The view builds its output leaves inline and gives them
+      no selection, so no mark is drawn; the old rule selected the content of the
+      tab, with the ring of the page. The two assertions are `@test_broken` in
+      `PaneReaderTest`; 5.4 and the cause `object` of step 6 fix them.
+    - **The tests that change.** `WidgetSelectionTest` (a caret and a letter of
+      a card title give `.title`; a text box gives its `String`; new cases for a
+      glyph and a caret in a drawn text), `WidgetCardFoldTest` (a
+      `PrimitiveString` title gives its `String`), `PaneReaderTest` (a caret in
+      a `PrimitiveString` gives its `String`). The click test compares two
+      paths without their node types (`_pc_is_same_part`), also inside an
+      introduced step, and its cut drops an introduced step whose output path
+      becomes empty, as the rule does.
+    - **A drawn widget part has no mark yet.** An Alt+click on the button
+      "Save" of the appearance view selects
+      `‹AppearanceToWidget .content.children[1].children[1]›`, and no ring is
+      drawn: the view gives the root of its output the forward image of the
+      selection (`make_output_path_cells`, `OutputPaths.jl`), but the widgets
+      below the root get no part of it, so no container rings the button. Only
+      5 views call `follow_output_selection!`. This is the work of 5.4 (Q3).
+    - **The result on 15 examples of the large causes**, against the second
+      run of step 4. `alt:not-caret-part` is the Alt+click that is not the part
+      of the caret, `alt:not-drawn` the Alt+click that draws no mark:
+
+      | Example | `alt:not-caret-part` before → after | `alt:not-drawn` after |
+      | --- | --- | --- |
+      | `examples/fsm` | 185 → 0 | 2 |
+      | `examples/formula` | 155 → 2 | 61 |
+      | `examples/json` | 85 → 1 | 12 |
+      | `sql/and/natural` | 15 → 0 | 0 |
+      | `collection/vector/natural` | 5 → 0 | 5 |
+      | `appearance/appearance/natural` | 0 → 0 | 105 |
+
+      The marks that are left: a value that a widget draws, such as an element
+      of a vector or the title of a workflow step (Q2); a part that a widget
+      view drew, such as the buttons of the appearance view (5.4, Q3); a
+      delimiter of zero width at the start of a leaf in a formula, and the left
+      half of a closing quote, which the caret gives to the value (step 6).
+  - [x] 5.2 **The copies follow the rule.** (Done 2026-11-10.) Each reader of
+    the list above answers what its child answered, and the container decides
+    by `find_whole_part`, or the reader calls it. A control still acts on a
+    plain click.
+
+    Found in the work: the syntax tree (`SyntaxLeafToText`, and
+    `SyntaxCompoundToText` through `_resolve_click`), the conversation and the
+    workspace answer an Alt+click by `convert_to_whole_selection`. The table
+    and the accordion stay for step 6, because a plain click and an Alt+click
+    go into a cell there (D4). The card title already selects its field; the
+    toolbar item declines an Alt+click and the level above selects the item; the
+    shell band calls `read_child_event`; the mark of a fault and the runner form
+    of omnet-julia make an `OutputReferenceStep` and wait for 5.4.
   - [ ] 5.3 **A plain click on a drawn text (D1, P4).** A plain click on a text
     that no text leaf reads puts the caret at the character: the view that drew
     the text names it by its output path and the index of the character, and
     its backward map names the field that it shows, or an introduced caret. A
     plain click on a part with no text selects it whole; a control acts.
+    Found before the work: a widget draws its text as `GraphicsText` lines
+    (`_push_text_block!`, `_push_text!`, 41 calls in `WidgetToGraphics.jl`),
+    and no map knows which part a line shows. The label answers a point with
+    `nothing` (`map_reference_backward`, `WidgetToGraphics.jl:1914`) and reads
+    only its bound gestures; the card maps each path of its output into its
+    content (`:9088`). So a view needs three maps for a caret in its text: a
+    point to the caret, the caret to the drawn place, and the place back. This
+    needs new data in the IO map of a widget, so it waits for the owner (Q2).
   - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
     output that its projection drew, and evaluates to the drawn part.
     `OutputReferenceStep` goes, and its users make the introduced step. Each

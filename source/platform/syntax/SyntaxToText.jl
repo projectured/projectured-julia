@@ -60,6 +60,18 @@ function _leaf_elem_path(leaf::SyntaxLeaf, field::Symbol, char_idx::Int)
     flat < 0 ? nothing : _flat_text_path(flat)
 end
 
+# The characters of a leaf field as a band, a span of the flat text, or `nothing`
+# when the leaf has no such delimiter. A field selected as a whole, such as a
+# quote or the value, draws as this band.
+function _leaf_field_span(leaf::SyntaxLeaf, field::Symbol)
+    i = _leaf_span_index(leaf, field)
+    i == 0 && return nothing
+    spans = _leaf_spans(leaf)
+    start = _text_elem_path_to_flat(spans, i, 0)
+    start < 0 && return nothing
+    ConcreteReference(TextSpanReferenceStep(start, start + _span_len(spans[i])), EmptyReference())
+end
+
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
     leaf = iomap.input
     range = _find_leaf_value_range(reference)
@@ -69,6 +81,9 @@ function map_reference_forward(::SyntaxLeafToText, iomap, reference)
         ::SyntaxLeaf.open{s:_}     => _leaf_elem_path(leaf, :open, s)
         ::SyntaxLeaf.value{s:_}    => _leaf_elem_path(leaf, :value, s)
         ::SyntaxLeaf.close{s:_}    => _leaf_elem_path(leaf, :close, s)
+        ::SyntaxLeaf.open          => _leaf_field_span(leaf, :open)
+        ::SyntaxLeaf.value         => _leaf_field_span(leaf, :value)
+        ::SyntaxLeaf.close         => _leaf_field_span(leaf, :close)
     end
 end
 
@@ -168,14 +183,14 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplacePathOpe
 end
 
 # Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
-# node. Alt+click promotes the click to a whole-element (tree) selection on the
-# leaf — the same rule `_resolve_click` applies to a leaf child of a compound.
+# node. An Alt+click selects the innermost whole part under the pointer
+# (`convert_to_whole_selection`): the field of the leaf that the caret of the
+# click is in, its value or one of its delimiters, and the leaf when the click
+# names no caret.
 #
-# A leaf needs its own copy of the rule, because a leaf is not always printed
-# under a compound. A tab holding one placeholder, a scalar example, any
-# single-leaf projection: there the compound resolver never runs, and without
-# this method nothing resolved the leaf's clicks at all. Alt+click was silently
-# ignored and the click stayed a character cursor.
+# A leaf applies the rule itself, because a leaf is not always printed under a
+# compound or a container: a tab that holds one placeholder, a scalar example,
+# any projection of one leaf.
 #
 # Everything else falls through exactly as the generic 4-arg bridge does, so
 # keyboard navigation that lands on the same glyph still places the cursor.
@@ -185,12 +200,11 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     # The edit beside an inline image writes the element list of the output, which
     # has no pre-image in the syntax: decline it.
     is_text_element_write(op) && return Intent(gesture, nothing)
-    if op isa ReplaceSelectionOperation && gesture isa MouseClick && gesture.modifiers.alt
-        return Intent(gesture,
-                      ReplaceSelectionOperation(EmptyReference(get_reference_node_type(iomap.input))))
-    end
     payload = op === nothing ? gesture : op
-    Intent(gesture, read_intent(p, iomap, payload))
+    answer = read_intent(p, iomap, payload)
+    op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
+        (answer = convert_to_whole_selection(answer, iomap.input))
+    Intent(gesture, answer)
 end
 
 # Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
@@ -420,6 +434,37 @@ function _shift_child_cursor(inner, child_elements, elements, range::UnitRange{I
     _flat_text_path(pf)
 end
 
+# The bounds of a band, a path of one `TextSpanReferenceStep`, or `nothing`.
+function _get_span_bounds(path)
+    p = strip_reference_types(path)
+    (p isa ConcreteReference && p.head isa TextSpanReferenceStep && p.tail isa EmptyReference) || return nothing
+    (p.head.start::Int, p.head.stop::Int)
+end
+
+# A band of a child in this node's flat space, as `_shift_child_cursor` shifts a
+# cursor: its start moves to the entry of this node, and its length stays.
+function _shift_child_span(bounds, child_elements, elements, range::UnitRange{Int})
+    start, stop = bounds
+    loc = _flat_to_span_char(child_elements, start)
+    loc === nothing && return nothing
+    span_idx, char_idx = loc
+    shifted = _text_elem_path_to_flat(elements, range.start + span_idx - 1, char_idx)
+    shifted < 0 && return nothing
+    ConcreteReference(TextSpanReferenceStep(shifted, shifted + stop - start), EmptyReference())
+end
+
+# A band over the entries of `places`, the pairs `entry => offset` of a delimiter
+# of this node: from the first character of the first entry to the last character
+# of the last.
+function _make_entries_span(elements, places)
+    isempty(places) && return nothing
+    first_entry, last_entry = first(first(places)), first(last(places))
+    start = _text_elem_path_to_flat(elements, first_entry, 0)
+    stop = _text_elem_path_to_flat(elements, last_entry, _span_len(elements[last_entry]))
+    (start < 0 || stop < 0) && return nothing
+    ConcreteReference(TextSpanReferenceStep(start, stop), EmptyReference())
+end
+
 # Entry range (in `iomap.flat_elements`) covered by a whole-element
 # (∅-terminating, children-only) sub-path under child `child_i`. Recurses through
 # nested `.children[j]` steps, shifting each level's child range by its splice
@@ -525,27 +570,30 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
             e = s + sum(_span_len(elements[j]) for j in rng; init = 0)
             return ConcreteReference(TextSpanReferenceStep(s, e), EmptyReference())
         end
-        # Cursor or range → delegate to the child's own mapper, then re-anchor at
+        # A cursor, a range or a band → delegate to the child's own mapper, then re-anchor at
         # parent flat.
         child = cims[child_i]
         inner = map_reference_forward(child.projection, child, ctail)
         inner === nothing && return nothing
+        bounds = _get_span_bounds(inner)
+        bounds === nothing ||
+            return _shift_child_span(bounds, _compute_flat_entries(child), elements, iomap.child_elem_ranges[child_i])
         return _shift_child_selection(inner, _compute_flat_entries(child), elements,
                                       iomap.child_elem_ranges[child_i])
     end
-    rest = reference.tail
-    rest isa ConcreteReference || return nothing
     fname = h.name
-    k = _rr_start(rest.head); k === nothing && return nothing
     # The separator renders between every pair of children; a cursor on it is placed
-    # at the first occurrence (right after child 1).
+    # at the first occurrence (right after child 1). A delimiter is wherever the
+    # printer put it; a compound that has no such delimiter rendered no span for it,
+    # so the field addresses nothing.
     separator = get_separator(node)
-    if separator !== nothing && fname == String(separator.first)
-        return _anchor_text_offset(elements, _find_first_separator_places(iomap), k)
-    end
-    # A delimiter, wherever the printer put it. A compound that has no such
-    # delimiter rendered no span for it, so the field addresses nothing.
-    return _anchor_text_offset(elements, _find_own_places(iomap, fname), k)
+    places = separator !== nothing && fname == String(separator.first) ?
+             _find_first_separator_places(iomap) : _find_own_places(iomap, fname)
+    rest = reference.tail
+    # A delimiter selected as a whole draws as a band over its entries.
+    rest isa ConcreteReference || return _make_entries_span(elements, places)
+    k = _rr_start(rest.head); k === nothing && return nothing
+    return _anchor_text_offset(elements, places, k)
 end
 
 # The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
@@ -1179,12 +1227,13 @@ end
 # `change.gesture isa MouseClick`, so keyboard navigation that lands on the same
 # glyph still places the cursor:
 #   1. A click on a node's inline marker (either state) or its collapsed ellipsis
-#      is a fold gesture → toggle that specific node.
-#   2. Alt+click promotes the click to a whole-element (tree) selection on the
-#      enclosing node — the mouse half of tree navigation.
-# Both are resolved by `_resolve_click`, which classifies the click's element into
-# a zone and delegates a child-zone click to that child's own click resolution —
-# never re-walking the input subtree.
+#      is a fold gesture → toggle that specific node. `_resolve_click` finds it: it
+#      classifies the click's element into a zone and delegates a child-zone click
+#      to that child's own click resolution, never re-walking the input subtree.
+#   2. An Alt+click selects the innermost whole part under the pointer
+#      (`convert_to_whole_selection`) — the mouse half of tree navigation: the
+#      field that the caret of the click is in, such as the value of a leaf or a
+#      delimiter of a node, and this node when the click names no caret.
 function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::SyntaxCompoundToTextIoMap)
     op = change.operation
     gesture = change.gesture
@@ -1199,6 +1248,8 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # the operation-typed readers below.
     payload = op === nothing ? gesture : op
     result = read_intent(p, iomap, payload)
+    op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
+        return Intent(gesture, convert_to_whole_selection(result, iomap.input))
 
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
     # already filled the operation slot via its own `read_gesture` delegation, so
@@ -1229,8 +1280,8 @@ end
 #   - a child node zone → recurse with the child-local flat caret; a returned
 #     `ToggleCollapseOperation` (object target) propagates up unchanged, a returned
 #     tree `ReplaceSelectionOperation` gets `.children[i]` prepended;
-#   - a leaf child zone → Alt: whole-leaf `.children[i]∅`; else cursor (`nothing`);
-#   - own delimiters/decoration → Alt: whole-node `∅`; else cursor (`nothing`).
+#   - a leaf child zone, and own delimiters and decoration → the cursor
+#     (`nothing`), which an Alt+click then makes the whole part it is in.
 function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, gesture, path)
     elements = iomap.flat_elements
     # Locate the clicked entry through the flat offset, which the marker
@@ -1263,13 +1314,12 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
                     return ReplaceSelectionOperation(_prepend_child(node, i, inner.path))
                 return inner
             end
-            # Leaf child: Alt selects the whole leaf; a plain click places a cursor.
-            return gesture.modifiers.alt ?
-                ReplaceSelectionOperation(_prepend_child(node, i, EmptyReference(get_reference_node_type(cim.input)))) : nothing
+            # Leaf child: the cursor.
+            return nothing
         end
     end
-    # Own delimiters / decoration: Alt selects this whole node.
-    gesture.modifiers.alt ? ReplaceSelectionOperation(EmptyReference()) : nothing
+    # Own delimiters / decoration: the cursor.
+    nothing
 end
 
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplacePathOperation)

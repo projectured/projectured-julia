@@ -147,13 +147,15 @@ function test_widget_selection()
         @test !is_whole_selection(titled, title_letter)
         @test !is_whole_selection(titled, title_caret)
 
-        # A child's whole selection is kept; anything else selects the child.
+        # A child's whole selection is kept, and a place inside a value names the
+        # value: a letter and a caret of the title name the title.
         inside = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
         @test convert_to_whole_selection(inside, t.card) === inside
         named = ReplaceSelectionOperation(title)
         @test convert_to_whole_selection(named, titled) === named
         for place in (title_letter, title_caret)
-            @test convert_to_whole_selection(ReplaceSelectionOperation(place), titled).path isa EmptyReference
+            @test strip_reference_types(convert_to_whole_selection(ReplaceSelectionOperation(place), titled).path) ==
+                  title
         end
         for (answer, child) in ((nothing, t.card), (InvokeActionOperation(Action("go")), t.card),
                                 (ReplaceSelectionOperation(letter), text))
@@ -173,6 +175,19 @@ function test_widget_selection()
         @test evaluate_reference(t.card, cut.path) === t.layout
         @test convert_to_whole_selection(ReplaceSelectionOperation(
                   ConcreteReference(place, EmptyReference())), t.card).path isa EmptyReference
+        # A caret beside a bracket that a projection drew names the bracket, at the
+        # node that printed it; a caret in the drawn text alone names the node.
+        open = ConcreteReference(FieldReferenceStep("open"), EmptyReference())
+        beside = ConcreteReference(FieldReferenceStep("open"),
+                     ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
+        drawn(output_path) = ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(ProjecturedKernel.ProjectionModule.ProjectionReferenceStep(nothing, output_path),
+                              EmptyReference()))
+        bracket_part = find_whole_part(t.card, drawn(beside))
+        @test last(get_reference_steps(bracket_part)).output_path == open
+        @test strip_reference_types(find_whole_part(t.card, drawn(open))) == drawn(open)
+        @test evaluate_reference(t.card, find_whole_part(t.card,
+                  drawn(ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))) === t.layout
 
         # The container's own view of a whole selection.
         second = ConcreteReference(FieldReferenceStep("children"),
@@ -207,12 +222,13 @@ function test_widget_selection()
         # A plain press on the button still answers its action.
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
 
-        # An Alt+press names the innermost part, whole, and nothing acts. The
-        # point (1, 1) is in the padding of the card, before its title.
+        # An Alt+press names the innermost part, whole, and nothing acts: in a text
+        # box, the `String` that it holds. The point (1, 1) is in the padding of the
+        # card, before its title.
         @test tx > 1 && ty > 1
         for ((x, y), wanted) in (((bx + 2, by + 2), t.button),
                                  ((lx + 2, ly + 2), t.label),
-                                 ((fx + 2, fy + 2), t.field),
+                                 ((fx + 2, fy + 2), t.field.content),
                                  ((1, 1), t.card))
             op = read_intent(projection, iomap, _press(x, y, _ALT))
             @test op isa ReplaceSelectionOperation

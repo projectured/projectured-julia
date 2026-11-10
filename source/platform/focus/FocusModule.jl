@@ -49,7 +49,7 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document, is_focusing_press, convert_to_focus_selection
-export is_whole_selection_press, is_whole_selection, convert_to_whole_selection,
+export is_whole_selection_press, is_whole_selection, find_whole_part, convert_to_whole_selection,
        find_whole_selected_index, is_whole_selected_field
 export FocusCyclingProjection, FocusCyclingIoMap
 export SelectionWalkingProjection, SelectionWalkingIoMap,

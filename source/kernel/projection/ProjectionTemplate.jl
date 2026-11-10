@@ -867,7 +867,9 @@ function _map_forward(w::AtomicWiring, iomap, reference; projection)
     if core isa ConcreteReference && core.head isa FieldReferenceStep &&
        core.head.name == String(w.bound_field)
         rest = core.tail
-        if rest isa ConcreteReference && rest.head isa RangeReferenceStep
+        # A place in the bound field is the same place in the value of the leaf, and
+        # the bound field as a whole is that value as a whole.
+        if (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || rest isa EmptyReference
             return _prepend(rest, TypeReferenceStep(w.outtype),
                             FieldReferenceStep(String(w.value_field)),
                             TypeReferenceStep(w.value_checkpoint))
@@ -890,7 +892,10 @@ function _map_backward(w::AtomicWiring, iomap, reference; projection)
         fname = Symbol(core.head.name)
         if fname == w.value_field
             rest = core.tail
-            if rest isa ConcreteReference && rest.head isa RangeReferenceStep
+            # A place in the value of the leaf is the same place in the bound field,
+            # and the value as a whole is the value of the bound field, the innermost
+            # part that an Alt+click on it selects.
+            if (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || rest isa EmptyReference
                 return _prepend(rest, TypeReferenceStep(w.intype),
                                 FieldReferenceStep(String(w.bound_field)),
                                 TypeReferenceStep(w.bound_type))

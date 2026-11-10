@@ -34,6 +34,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..EventModule
+using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..IntentModule

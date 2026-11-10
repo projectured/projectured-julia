@@ -343,11 +343,12 @@ function test_widget_card_fold()
         folds = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0))
         @test folds isa ToggleCollapseOperation
         @test iomap.header.height == Int(iomap.child_iomaps[1][3].output.h)
-        # Its own printer reads a press with Alt: the answer names the string.
+        # Its own printer reads a press with Alt: the answer names the innermost
+        # part, the `String` that the title holds.
         selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8,
                                                        ModifierKeys(alt = true); time = 0.0))
         @test selected isa ReplaceSelectionOperation
-        @test evaluate_reference(card, selected.path) === text
+        @test evaluate_reference(card, selected.path) === text.value
     end
 
     @testset "a title that is a WidgetLabel keeps the style of the label" begin
@@ -367,7 +368,7 @@ function test_widget_card_fold()
         answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8,
                                                      ModifierKeys(alt = true); time = 0.0))
         @test answer isa ReplaceSelectionOperation
-        @test evaluate_reference(composite, answer.path) === text
+        @test evaluate_reference(composite, answer.path) === text.value
     end
 
     @testset "an Alt+press on a String title inside a container selects the title of the card" begin

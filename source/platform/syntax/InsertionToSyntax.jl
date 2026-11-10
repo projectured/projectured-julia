@@ -554,10 +554,8 @@ InsertionNothingToSyntaxLeaf(; theme = nothing) =
 # the raw path. A cursor on the label is carried on the placeholder as a
 # projection-introduced caret (`proj(p, value{k})`, from the generic backward
 # below); forward-mapping unwraps it to the leaf's own `value{k}`, so the label is
-# char-navigable via `ProjectionReferenceStep` steps (like every literal leaf). Copying
-# the raw path instead left the leaf holding a `proj(p, …)` cursor that
-# `SyntaxLeafToText` cannot place, so navigation stalled at the label. The forward
-# ref-break (fill `iomap_cell` after) mirrors the compound printers.
+# char-navigable via `ProjectionReferenceStep` steps (like every literal leaf). The
+# forward ref-break (fill `iomap_cell` after) mirrors the compound printers.
 function print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx)
     iomap_cell = Cell(nothing)
     leaf = SyntaxLeaf(TextString(_nothing_label(doc), p.style);

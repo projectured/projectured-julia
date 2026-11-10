@@ -8869,7 +8869,7 @@ function _make_title_band(p, w::WidgetCard, title_box)
     band = GraphicsRect(x, y, width, height; color = color_transparent, radius = p.corner_radius)
     selected = p.row_selected_color
     set_cell_computation!(getfield(band, :color), () ->
-        is_whole_selected_field(w.selection, "title") ? selected : color_transparent)
+        is_whole_selected_field(w.selection, "title"; document = w) ? selected : color_transparent)
     band
 end
 
@@ -8954,7 +8954,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
             entry === nothing && continue
             (x, y, child) = entry
             name = _card_slot_name(w, child)
-            (name !== nothing && is_whole_selected_field(w.selection, name)) || continue
+            (name !== nothing && is_whole_selected_field(w.selection, name; document = w)) || continue
             return _get_entry_box(x, y, child, _p_measure(p))
         end
         nothing
