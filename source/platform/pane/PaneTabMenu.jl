@@ -35,8 +35,9 @@ function _make_tab_menu(tree::PaneTree, group::PaneGroup, index::Integer)
     duplicate = has_document_duplicate(tab.content) ?
                 make_pane_duplicate_tab_operation(tree, group, index) : nothing
     maximized = find_pane_maximized_group(tree) !== nothing
+    # A window of one group has nothing to maximize, also when a split holds it.
     maximize = maximized ? make_pane_restore_operation(tree) :
-               tree.root isa PaneGroup ? nothing : make_pane_maximize_operation(tree, group)
+               length(get_pane_groups(tree)) < 2 ? nothing : make_pane_maximize_operation(tree, group)
     WidgetMenu(Any[
         item("Duplicate", duplicate, "Duplicate the focused tab"),
         item("Rename", make_pane_title_caret_operation(tree, group, index), "Put the caret in the tab name"),

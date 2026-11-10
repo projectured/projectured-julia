@@ -654,6 +654,13 @@ end
     @test "Restore layout" in _menu_labels(menu)
     _apply!(editor, _menu_item(menu, "Restore layout").operation)
     @test find_pane_maximized_group(tree) === nothing
+    # One group in a split, as the window of the application holds it, has nothing
+    # to maximize either.
+    only_group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(PaneSplit(:vertical, Any[only_group]))
+    driver = MttDriver(proj, tree)
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, only_group, 2), "b")
+    @test !_menu_item(menu, "Maximize group").enabled
 end
 
 @testset "Duplicate is greyed for a content whose copy fails" begin
