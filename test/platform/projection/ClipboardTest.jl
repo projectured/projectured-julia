@@ -670,6 +670,19 @@ end
     @test ProjecturedPlatform.ClipboardModule.find_clipboard_document(42) === nothing
 end
 
+@testset "a copy of a selected value is the primitive document of its kind, and a note takes none" begin
+    for (content, wanted) in ((PrimitiveString("hello"), "hello"), (PrimitiveNumber(42), 42),
+                              (PrimitiveBool(true), true))
+        slice = ClipboardSlice(content)
+        slice.selection = cpath(FieldReferenceStep("content"), FieldReferenceStep("value"))
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)).operations[1])
+        @test copied isa typeof(content) && copied !== content && copied.value == wanted
+        @test read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0)) === nothing
+    end
+end
+
 @testset "a copy and a note reach a widget a projection drew, and a paste leaves it" begin
     focus = ProjecturedPlatform.FocusModule
     owner = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))

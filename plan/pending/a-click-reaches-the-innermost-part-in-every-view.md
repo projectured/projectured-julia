@@ -758,7 +758,16 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `OutputReferenceStep` goes, and its users make the introduced step. Each
     place of the list above is checked; a paste and a cut refuse a target in a
     drawn part.
-  - [ ] 5.5 **Ctrl+C copies a selected value (P5).**
+  - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
+    done (2026-11-10); the copy of a part that a view drew waits for 5.4.
+
+    Found in the work: the copy (`_clipboard_copy`, `ClipboardSliceToAny.jl`)
+    takes a selected value that is not a document as the primitive document of
+    its kind (`_make_value_document`: `PrimitiveString`, `PrimitiveNumber`,
+    `PrimitiveBool`), and the mirror into the clipboard of the system takes
+    its text as for any document. `find_clipboard_document` does not change,
+    because a note names the original: a note of a value takes nothing. The
+    test is in `ClipboardTest.jl`.
   - [ ] 5.6 **The check.** The click test on the catalogs, against the counts
     of step 4, and the suites that the change touches, against main.
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4

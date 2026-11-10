@@ -447,12 +447,22 @@ function _text_target_copy(p, input)
                           WriteOsClipboardOperation(text)])
 end
 
+# The document that a copy takes for a selected value that is not a document: the
+# primitive document of its kind, or `nothing` for a value that has none. A note
+# names the original, so it takes no such document.
+_make_value_document(value::AbstractString) = PrimitiveString(String(value))
+_make_value_document(value::Bool) = PrimitiveBool(value)
+_make_value_document(value::Number) = PrimitiveNumber(value)
+_make_value_document(value) = nothing
+
 # Copy: store an independent copy of the selected object in the slice, made with
 # `ClipboardCopyPolicy`, so a tool is stored as its duplicate. The
 # write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
 # selection to where it writes), so a trailing ReplaceSelectionOperation restores
 # the user's original selection on the copied source. When the projection has a
-# `to_text` converter, the copy is also mirrored to the OS clipboard.
+# `to_text` converter, the copy is also mirrored to the OS clipboard. A selected
+# value that is not a document, such as the `String` title of a card, is copied as
+# the primitive document of its kind.
 function _clipboard_copy(p, input)
     # Text mode is exclusive over a TextBlock content: never fall through to the node
     # path (which would `evaluate_reference` a character selection).
@@ -461,6 +471,7 @@ function _clipboard_copy(p, input)
     text === nothing || return text
     sel, selected = _selected(input)
     obj = find_clipboard_document(selected)
+    obj === nothing && (obj = _make_value_document(selected))
     obj === nothing && return nothing
     payload = _make_clipboard_copy(obj)
     payload === nothing && return nothing
