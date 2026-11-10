@@ -124,7 +124,7 @@ end
     @test is_appearance_change(appearance, CompoundOperation(Any[DoNothingOperation(), write(theme)]))
     @test !is_appearance_change(appearance, write(document.content))
     @test !is_appearance_change(appearance, DoNothingOperation())
-    @test !is_appearance_change(Appearance(), AdjustZoomOperation(appearance, 1))
+    @test !is_appearance_change(Appearance(), AdjustZoomOperation(appearance.scale, 1))
 end
 
 @testset "the keys are listed with the keys of the content" begin

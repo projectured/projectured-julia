@@ -225,7 +225,7 @@ makes one commit.
    through it. Add a test: Enter on the node "Pointer" opens a tab "Pointer",
    and a step of a spin box there writes the setting. Tests:
    `test_settings_tab()`, `test_explorer()`.
-4. [ ] **Parts and headings of the appearance (D7, D8, D9, D10, D12).** Facts and
+4. [x] **Parts and headings of the appearance (D7, D8, D9, D10, D12).** Done. Facts and
    choices of the implementation:
    - The tree slice reads a path of children that reaches one document, which no
      collection holds, as one child: that document, with no step of an element.
@@ -262,7 +262,22 @@ makes one commit.
    Tests: `test_appearance_file()`, `test_appearance_wrapper()`,
    `test_appearance_tab()`, `test_explorer()`, and the suite of each package
    whose files the step changes.
-5. [ ] **The views of the appearance (D1, D3, D11).** Add
+5. [ ] **The views of the appearance (D1, D3, D11).** Facts and choices of the
+   implementation:
+   - The four views are subtypes of one abstract projection,
+     `AppearancePartToWidget`, in `AppearancePartToWidget.jl`, with one IO map,
+     `AppearancePartToWidgetIoMap`, and one reader. Each holds the appearance of
+     the editor, which the natural renderer gives it, for the widget theme and
+     the colours that it draws with.
+   - `AdjustZoomOperation` and `AdjustScaleOperation` hold the `AppearanceScale`
+     in place of the `Appearance`, so the view of the scale alone steps it.
+   - A closed theme card holds no body, as before: the card holds the theme in a
+     vector that is empty while the card is closed, so the tab prints a theme
+     only when its card opens. A closed card shows the summary of its type under
+     its title; an open card shows the theme, whose view starts with the summary.
+   - The two cards "Scale" and "Colors" have their summary inside the body, in
+     the small font and the muted colour, in place of the description of the
+     card. Add
    `AppearanceScaleToWidget`, `AppearanceColorsToWidget`, `ThemeGroupToWidget`
    and `ThemeToWidget`. `AppearanceToWidget` prints the parts and the headings
    through them. The paths of the caret of a colour text and of the part under

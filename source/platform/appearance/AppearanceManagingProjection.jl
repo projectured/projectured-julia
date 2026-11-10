@@ -128,8 +128,9 @@ operation. A write of the place of the appearance tab or of the open cards of a
 heading changes no look: the tab follows it, and no view prints again.
 """
 is_appearance_change(appearance::Appearance, operation) = false
-is_appearance_change(appearance::Appearance,
-                     operation::Union{AdjustZoomOperation, AdjustScaleOperation, LoadAppearanceOperation}) =
+is_appearance_change(appearance::Appearance, operation::Union{AdjustZoomOperation, AdjustScaleOperation}) =
+    operation.document === appearance.scale
+is_appearance_change(appearance::Appearance, operation::LoadAppearanceOperation) =
     operation.appearance === appearance
 is_appearance_change(appearance::Appearance, operation::CompoundOperation) =
     any(member -> is_appearance_change(appearance, member), operation.operations)

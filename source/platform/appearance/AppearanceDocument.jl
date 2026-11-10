@@ -36,23 +36,23 @@ end
 # view that binds one of them, such as the zoom of a `WidgetTransformPane`, keeps
 # it. The control, radius and line scales have no key.
 @gestures AppearanceDocument begin
-    KeyDown(:equals; ctrl) => "Zoom in" => AdjustZoomOperation(doc.appearance, 1)
-    KeyDown(:minus; ctrl) => "Zoom out" => AdjustZoomOperation(doc.appearance, -1)
-    KeyDown(:zero; ctrl) => "Reset the zoom" => AdjustZoomOperation(doc.appearance, 0)
+    KeyDown(:equals; ctrl) => "Zoom in" => AdjustZoomOperation(doc.appearance.scale, 1)
+    KeyDown(:minus; ctrl) => "Zoom out" => AdjustZoomOperation(doc.appearance.scale, -1)
+    KeyDown(:zero; ctrl) => "Reset the zoom" => AdjustZoomOperation(doc.appearance.scale, 0)
     KeyDown(:equals; ctrl, alt) => "Make the text larger" =>
-        AdjustScaleOperation(doc.appearance, :font_scale, 1)
+        AdjustScaleOperation(doc.appearance.scale, :font_scale, 1)
     KeyDown(:minus; ctrl, alt) => "Make the text smaller" =>
-        AdjustScaleOperation(doc.appearance, :font_scale, -1)
+        AdjustScaleOperation(doc.appearance.scale, :font_scale, -1)
     KeyDown(:zero; ctrl, alt) => "Reset the size of the text" =>
-        AdjustScaleOperation(doc.appearance, :font_scale, 0)
+        AdjustScaleOperation(doc.appearance.scale, :font_scale, 0)
     KeyDown(:period; ctrl, alt) => "Make the icons larger" =>
-        AdjustScaleOperation(doc.appearance, :icon_scale, 1)
+        AdjustScaleOperation(doc.appearance.scale, :icon_scale, 1)
     KeyDown(:comma; ctrl, alt) => "Make the icons smaller" =>
-        AdjustScaleOperation(doc.appearance, :icon_scale, -1)
+        AdjustScaleOperation(doc.appearance.scale, :icon_scale, -1)
     KeyDown(:right_bracket; ctrl, alt) => "Make the spacing larger" =>
-        AdjustScaleOperation(doc.appearance, :spacing_scale, 1)
+        AdjustScaleOperation(doc.appearance.scale, :spacing_scale, 1)
     KeyDown(:left_bracket; ctrl, alt) => "Make the spacing smaller" =>
-        AdjustScaleOperation(doc.appearance, :spacing_scale, -1)
+        AdjustScaleOperation(doc.appearance.scale, :spacing_scale, -1)
     KeyDown(:comma; ctrl) => "Show the appearance" =>
         InvokeActionOperation(Action("Show the appearance";
             callback = editor -> show_document!(doc.appearance; title = "Appearance", editor)))

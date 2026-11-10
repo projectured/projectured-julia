@@ -322,15 +322,16 @@ end
 The hue of the accent that the colours of `appearance` use: the setting, or for
 `:system` the hue that [`find_nearest_accent_hue`](@ref) finds for the accent of
 the operating system, and `:blue` when the system names no accent or a grey one.
+It also takes the colour settings themselves, an [`AppearanceColors`](@ref).
 """
-function get_color_accent(appearance::Appearance)
-    accent = appearance.colors.color_accent
+get_color_accent(appearance::Appearance) = get_color_accent(appearance.colors)
+function get_color_accent(colors::AppearanceColors)
+    accent = colors.color_accent
     accent === :system || return accent
-    bytes = appearance.colors.system_colors.accent
+    bytes = colors.system_colors.accent
     bytes === nothing && return :blue
     color = StyleColor((Float64(byte) / 255 for byte in bytes)..., 1.0)
-    something(find_nearest_accent_hue(color, _get_appearance_palette(appearance),
-                                      get_color_mode(appearance)), :blue)
+    something(find_nearest_accent_hue(color, _get_appearance_palette(colors), get_color_mode(colors)), :blue)
 end
 
 # The least chroma of a colour that has a hue; a colour with less is grey.
@@ -360,8 +361,9 @@ end
 
 # The palette of `appearance`, or the default palette when the registry holds no
 # palette of its name.
-_get_appearance_palette(appearance::Appearance) =
-    something(find_palette(appearance.colors.color_palette), find_palette(DEFAULT_PALETTE_NAME))
+_get_appearance_palette(appearance::Appearance) = _get_appearance_palette(appearance.colors)
+_get_appearance_palette(colors::AppearanceColors) =
+    something(find_palette(colors.color_palette), find_palette(DEFAULT_PALETTE_NAME))
 
 """
     resolve_theme_color(color, appearance) -> StyleColor

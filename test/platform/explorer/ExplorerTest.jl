@@ -760,8 +760,21 @@ function test_explorer()
         @test _explorer_has_tree_text(backend, "Widget") && _explorer_has_tree_text(backend, "Font")
         _nav_press!(editor, backend, _explorer_click(backend, "Widget"))
         @test get_navigator_page(explorer.navigator) === get_theme(appearance, WidgetTheme)
+        # The page draws the theme alone: its fields, and no card of another theme.
+        @test _nav_has_text(backend, "background") && _nav_has_text(backend, "foreground")
+        @test !_nav_has_text(backend, "Zoom")
         _nav_press!(editor, backend, _explorer_click(backend, "Scale"))
         @test get_navigator_page(explorer.navigator) === appearance.scale
+        @test _nav_has_text(backend, "Zoom") && _nav_has_text(backend, "Reset all")
+        # The + of the row of the zoom steps the zoom of the part.
+        (_, _, zoom_y) = only(t for t in _nav_texts(backend) if t[1] == "Zoom")
+        (_, x, y) = only(t for t in _nav_texts(backend) if t[1] == "+" && abs(t[3] - zoom_y) <= 6)
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+        @test appearance.scale.zoom > 1.0
+        # The page of a heading draws a card for each of its themes.
+        _nav_press!(editor, backend, _explorer_click(backend, "Tools"))
+        @test get_navigator_page(explorer.navigator) === appearance.tool_themes
+        @test _nav_has_text(backend, "Undo")
     end
 
     @testset "the first content holds the session document of each kind that a loaded package marks" begin

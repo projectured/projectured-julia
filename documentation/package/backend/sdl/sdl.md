@@ -121,7 +121,7 @@ wrapper of `build_editor`, an `AppearanceDocument` around the content; an editor
 built with no `Appearance` has no zoom keys. [style.md](../../platform/style/style.md#the-zoom-and-the-scales)
 describes the two kinds of change they reach.
 
-- `AdjustZoomOperation` steps the `zoom` of the `Appearance` and copies it into
+- `AdjustZoomOperation` steps the `zoom` of the `AppearanceScale` of the `Appearance` and copies it into
   the `zoom` of the `Display` of the backend, which scales the logical size and
   place of each window the other way. The native window keeps its device size
   and place, and the content lays out again through the exact range that the

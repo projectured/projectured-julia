@@ -7,7 +7,7 @@ The appearance slice of `ProjecturedPlatform` connects the `Appearance` of an ed
 ## The parts
 
 - `AppearanceDocument(appearance, content)` is the root document of an editor with the wrapper. The `Appearance` is a part of the document, so a view can show it and a reference can name it. `get_wrapped_document` goes through it to the content.
-- `AdjustZoomOperation(appearance, delta)` steps the zoom, and `AdjustScaleOperation(appearance, scale, delta)` steps one of the six scales (`APPEARANCE_SCALES`), through the table of `step_factor`: `+1` up, `-1` down, `0` back to 1. The zoom operation also copies the zoom into the `Display` of the editor, where the backends read it. Neither is an edit of the content, so the inverse is `DoNothingOperation`.
+- `AdjustZoomOperation(document, delta)` steps the zoom, and `AdjustScaleOperation(document, scale, delta)` steps one of the six scales of `document`, the `AppearanceScale` of an appearance (`APPEARANCE_SCALES`), through the table of `step_factor`: `+1` up, `-1` down, `0` back to 1. The zoom operation also copies the zoom into the `Display` of the editor, where the backends read it. Neither is an edit of the content, so the inverse is `DoNothingOperation`.
 - `ReplaceThemeValueOperation(write)` writes one field of a theme and then prints the view again. Its inverse writes the old value and prints the view again, so a history that records a change of a theme takes it back with the view.
 - `AppearanceManagingProjection(inner)` prints the content through `inner` and returns its output, and maps references through the `content` field.
 - The `appearance` wrapper of `build_editor` puts both around everything else, the window manager too. It is on by default.
@@ -50,6 +50,17 @@ The natural renderer draws an `Appearance` as the appearance tab, with
 `AppearanceToWidget` inside a pane that scrolls. A toolbar button with a palette,
 the item "Appearance" of the View menu and Ctrl+, open it on the `Appearance` of
 the window (`find_editor_appearance`).
+
+The tab draws its two buttons, and holds each part of the appearance as a
+document: the `scale` and the `colors` each in a card, and each heading under its
+title. The natural renderer draws a part through its own view, a subtype of
+`AppearancePartToWidget`: `AppearanceScaleToWidget`, `AppearanceColorsToWidget`,
+`ThemeGroupToWidget`, which puts a folding card around each theme, and
+`ThemeToWidget`. So the page of a part in the explorer draws the same widgets
+alone. A view holds the appearance of the editor, whose widget theme and colours it
+draws with, makes its controls as the tab does (`_make_view_controls`), and reads
+as the tab reads. The kernel carries the selection of the tab into each part, so
+a press or a caret in a part works the same in the tab and on its page.
 
 - At the top: "Save" and "Load", which act on the whole appearance.
 - The card "Scale": a row for the zoom and one for each scale, with the name, −,

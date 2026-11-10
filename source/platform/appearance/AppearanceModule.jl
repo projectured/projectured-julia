@@ -22,6 +22,9 @@ and the editor prints the whole view again.
 - [`AppearanceWrapper.jl`](AppearanceWrapper.jl) — the `appearance` wrapper of
   `build_editor`.
 - [`AppearanceToWidget.jl`](AppearanceToWidget.jl) — the appearance tab.
+- [`AppearancePartToWidget.jl`](AppearancePartToWidget.jl) — the views of the scale,
+  the colour settings, a heading and a theme: the page of each, and its body in
+  the tab.
 """
 module AppearanceModule
 
@@ -71,22 +74,28 @@ export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_t
        ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
 export copy_system_colors!, follow_window_backgrounds!
-export AppearanceToWidget, AppearanceToWidgetIoMap
+export AppearanceToWidget, AppearanceToWidgetIoMap, AppearancePartToWidget, AppearancePartToWidgetIoMap,
+       AppearanceScaleToWidget, AppearanceColorsToWidget, ThemeGroupToWidget, ThemeToWidget
 
 include("AppearanceDocument.jl")
 include("AppearanceOperations.jl")
 include("AppearanceManagingProjection.jl")
 include("AppearanceWrapper.jl")
 include("AppearanceToWidget.jl")
+include("AppearancePartToWidget.jl")
 
-# The natural renderer draws an `Appearance` as the appearance tab, with the
-# widgets of the editor.
+# The natural renderer draws an `Appearance` as the appearance tab, and a part, a
+# heading and a theme of it as its page, with the widgets of the editor.
 function __init__()
     register_natural_graphics!(:appearance, (; measure, appearance) -> begin
         widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
                                    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
-        Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane)]
+        Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane),
+                       AppearanceScale => AppearanceScaleToWidget(; appearance),
+                       AppearanceColors => AppearanceColorsToWidget(; appearance),
+                       ThemeGroup => ThemeGroupToWidget(; appearance),
+                       Theme => ThemeToWidget(; appearance)]
     end)
 end
 
