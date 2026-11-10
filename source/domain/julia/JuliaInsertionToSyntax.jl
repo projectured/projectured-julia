@@ -101,7 +101,8 @@ end
     JuliaInsertionToSyntaxLeaf(; theme = nothing)
 
 A Julia source-insertion hole. Renders the typed buffer plus a pale-green keyword
-completion continuation; all editing/commit is `@gestures JuliaInsertion`. `theme`
+completion continuation. The text domain edits the buffer, and
+`@gestures JuliaInsertion` commits it. `theme`
 is a `JuliaTheme`, scaled or not, or `nothing` for the default styles.
 """
 @projection UntrackedCell struct JuliaInsertionToSyntaxLeaf <: Projection
@@ -174,8 +175,9 @@ function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInse
     iomap
 end
 
-# Only the structural selection mapping lives here; raw key input has no method and
-# falls through to the generic `read_gesture` fallback → `@gestures JuliaInsertion`.
+# Only the structural selection mapping lives here. An edit of the text goes back
+# through the generic reader by the backward map, and a raw key falls through to the
+# generic `read_gesture` fallback → `@gestures JuliaInsertion`.
 function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
     path === nothing ? nothing : make_path_operation(op, path)
@@ -215,15 +217,10 @@ function _julia_ins_tab(ins)
                           SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)])
 end
 
-# All `JuliaInsertion` editing, reified. Char insert / Backspace / Delete reuse the
-# shared `insertion_*` helpers (they decline with `nothing` off a `value[range]`
-# cursor, so the gesture keeps propagating); Return commits in place; Tab commits and
-# jumps to the next hole. A hole holds one line of text, so the insert takes
-# printable text only.
+# The keys of a hole that mean something to Julia: Return commits in place, and Tab
+# commits and jumps to the next hole. The keys that edit the buffer are the text
+# domain's, and their edit comes back as an edit of `value` through the backward map.
 @gestures JuliaInsertion begin
-    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => insert_insertion_text_operation(doc, t)
-    KeyDown(:backspace;) => "Delete backward"   => delete_insertion_text_operation(doc, :backspace)
-    KeyDown(:delete;)    => "Delete forward"    => delete_insertion_text_operation(doc, :delete)
     KeyPress('\n';)      => "Commit hole"       => _julia_ins_commit(doc)
     KeyPress('\t';)      => "Commit + next hole" => _julia_ins_tab(doc)
 end

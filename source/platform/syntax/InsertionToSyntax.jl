@@ -279,12 +279,10 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePa
         make_path_operation(op, make_introduced_reference(p, iomap, path))
 end
 
-# A text edit lowered onto the buffer's rendered value span (the pipeline turns a
+# A text edit lowered onto the buffer's rendered value span (the text domain turns a
 # keystroke into a `ReplaceStringRangeOperation` before it reaches here) backward-maps
-# to the buffer's own `value[range]` — the same value the `Insert character` gesture
-# edits. An edit on a label/hint span has no value pre-image and declines. Without this
-# the generic leaf reader has no `ReplaceStringRangeOperation` method and typing into the
-# buffer through the full projection throws.
+# to the buffer's own `value[range]`. This is the one way a key edits the buffer. An
+# edit on a label/hint span has no value pre-image and declines.
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     mapped = map_reference_backward(p, iomap, op.reference)
     mapped === nothing && return nothing
@@ -294,12 +292,13 @@ end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
 # `read_projection_gesture` -- so the same set that fires is what a listing
-# shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
-# Commit / Cancel are projection-specific (they call `p.commit` / abort to a
-# `DocumentNothing`), which is why this stays a projection table rather than a
-# document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`).
-# Operations capture `p`/`ins` and return `nothing` to decline (no value cursor /
-# commit refused).
+# shows. The keys that edit the text of the buffer are the text domain's: its
+# edit comes back through the reader of `ReplaceStringRangeOperation` above. This
+# table holds the keys that mean something to an insertion: Commit and Cancel
+# call `p.commit` or abort to a `DocumentNothing`, which is why this stays a
+# projection table rather than a document-level `@gestures`. ModifierKeys are
+# matched loosely (`mods=nothing`). Operations capture `p`/`ins` and return
+# `nothing` to decline (no value cursor / commit refused).
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     # The rule that printed the insertion holds its place. A dispatch table passes the
     # rule of the table, so the printed one comes from the iomap.
@@ -321,18 +320,6 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         GestureBinding(KeyPressPattern('\t'),
                        (doc, event) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:backspace),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           delete_insertion_text_operation(ins, :backspace));
-                       description = "Delete backward", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:delete),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           delete_insertion_text_operation(ins, :delete));
-                       description = "Delete forward", domain = "insertion"),
-        # A type-in holds one line, so it takes printable text only.
-        GestureBinding(KeyPressPattern(nothing; guard = event -> !any(iscntrl, event.text)),
-                       (doc, event) -> _make_insertion_typed_operation(p, ins, event.text);
-                       description = "Insert character", domain = "insertion"),
         # Insert widens the insertion of a domain to the insertion of every domain, with
         # the same text, where the place admits a `DocumentInsertion` as it is: a
         # person can then type a document of any domain there.
@@ -350,12 +337,6 @@ function _make_insertion_widen_operation(ins)
     text = something(ins.value, "")
     make_replace_document_operation(EmptyReference(),
                                     with_value_caret(DocumentInsertion(text), length(text)))
-end
-
-# Insert printable text at the value cursor; nothing without a value[range] cursor.
-function insert_insertion_text_operation(ins, text)
-    range = _value_range(ins)
-    range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(range), text)
 end
 
 # Commit the typed value through the projection's `commit` callback; nothing when
@@ -383,10 +364,6 @@ function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
     document === nothing ? operation :
         make_replace_document_operation(EmptyReference(), document)
 end
-
-# A typed key: the edit of the text, with the list of the kinds that it names.
-_make_insertion_typed_operation(p::InsertionToSyntaxLeaf, ins, text::AbstractString) =
-    _add_insertion_popup(p, ins, _make_insertion_key_operation(p, ins, insert_insertion_text_operation(ins, text)))
 
 # `operation`, an edit of the text of `ins`, and with the option `popup`, when the
 # edit types text, the list of the kinds that the text after the edit names, which
@@ -430,22 +407,7 @@ function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
     ReplaceStringRangeOperation(_value_path(RangeReferenceStep(n, n)), extension)
 end
 
-# Backspace/Delete range computation; nothing at the value boundary.
-function delete_insertion_text_operation(ins, dir::Symbol)
-    range = _value_range(ins)
-    range === nothing && return nothing
-    n = length(something(ins.value, ""))
-    new_range = if range.start != range.stop
-        range
-    elseif dir === :backspace
-        range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
-    else  # :delete
-        range.stop < n ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
-    end
-    new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
-end
-
-# The projection's own table first (buffer editing / commit / cancel / Tab);
+# The projection's own table first (commit / cancel / Tab / widen);
 # when every binding declines — e.g. a printable char with no value cursor —
 # fall through to the input document's own gesture table, exactly like the
 # generic `read_intent` leaf default this method shadows. That keeps the

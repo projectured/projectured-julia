@@ -86,7 +86,7 @@ export ConversationComposerToWidget, make_conversation_composer_projection,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,
        make_submit_operation, make_evaluate_operation,
-       ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
+       ComposerInputOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
        ComposerRevertOperation, ComposerSubmitOperation, InsertDraftDocumentOperation, has_text_form

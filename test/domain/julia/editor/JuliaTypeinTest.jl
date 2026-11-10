@@ -11,13 +11,13 @@
 #   2. The gesture-produced operations, applied to a document (with rerooting),
 #      compose into exactly `make_julia_document_example()`.
 #   3. Interactive: replaying the full keystroke script as real key events through
-#      `RecursiveProjection(JuliaToSyntax())` builds the same factorial tree — the
-#      end-to-end acceptance, now that every JuliaToSyntax node is templated and so
-#      routes nested-hole input and reroots the resulting edits.
+#      the chain of `make_julia_projection_example`, from Julia to syntax, text and
+#      graphics, builds the same factorial tree. The text domain edits each hole,
+#      and the hole commits it.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.CellModule: Cell, Computation
-using ProjecturedJuliaExample: make_julia_document_example
+using ProjecturedJuliaExample: make_julia_document_example, make_julia_projection_example
 
 const _JT_M      = JuliaModule
 const _jt_reroot = OperationModule.reroot_operation
@@ -95,9 +95,10 @@ function _jt_feed(proj, doc, ev)
     ed.document
 end
 
-# Replay an event script from a fresh root `JuliaInsertion` through `JuliaToSyntax`.
+# Replay an event script from a fresh root `JuliaInsertion` through the chain that
+# draws Julia code.
 function _jt_interactive(script)
-    proj = RecursiveProjection(JuliaToSyntax())
+    proj = make_julia_projection_example(measure = FixedMeasure(10, 18, 6, 0))
     doc  = set_selection!(JuliaInsertion(""), _jt_v0())
     for ev in script
         doc = _jt_feed(proj, doc, ev)

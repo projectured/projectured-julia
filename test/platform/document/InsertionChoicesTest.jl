@@ -34,7 +34,10 @@ function test_insertion_choices()
         leaf = DocumentInsertionToSyntaxLeaf()
         insertion = with_value_caret(DocumentInsertion(""), 0)
         iomap = print_document(leaf, nothing, insertion, PrinterContext())
-        answer = read_intent(leaf, iomap, KeyPress('c'; time = 0.0))
+        # The text domain answers the key with an edit of the text that the leaf
+        # printed, at the caret, and the leaf answers that edit.
+        caret = map_reference_forward(leaf, iomap, get_selection(insertion))
+        answer = read_intent(leaf, iomap, ReplaceStringRangeOperation(caret, "c"))
         @test answer isa CompoundOperation
         typed, opened = answer.operations
         @test typed isa ReplaceStringRangeOperation && typed.replacement == "c"
@@ -67,8 +70,10 @@ function test_insertion_choices()
         # An insertion of a domain, which a person types in place, opens no list.
         domain = DomainInsertionToSyntaxLeaf(TextDocument)
         text = with_value_caret(TextInsertion(""), 0)
-        @test read_intent(domain, print_document(domain, nothing, text, PrinterContext()),
-                          KeyPress('b'; time = 0.0)) isa ReplaceStringRangeOperation
+        domain_iomap = print_document(domain, nothing, text, PrinterContext())
+        domain_caret = map_reference_forward(domain, domain_iomap, get_selection(text))
+        @test read_intent(domain, domain_iomap,
+                          ReplaceStringRangeOperation(domain_caret, "b")) isa ReplaceStringRangeOperation
     end
 end
 end

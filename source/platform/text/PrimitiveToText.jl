@@ -343,22 +343,15 @@ function _string_delete(s::PrimitiveString, dir::Symbol)
     ReplaceStringRangeOperation(_string_value_path(new_range), "")
 end
 
-# The keys of a type-in, as `@gestures PrimitiveString` gives a string its keys:
-# a key edits the text, or makes the value that the new text shows exactly;
-# Return makes the value that the text parses as, and Escape drops the text. The
+# The keys of a type-in that mean something to a type-in: Return makes the value
+# that the text parses as, and Escape drops the text. The keys that edit the text
+# are the text domain's; the reader of `ReplaceRangeOperation` above turns their
+# edit into the value that the new text shows exactly, or the edit of the text. The
 # syntax leaf of a type-in reads the same keys in its own table first.
 @gestures PrimitiveInsertion begin
     when(find_value_range(doc) !== nothing)
-    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => make_type_in_edit_operation(doc, find_value_range(doc), t)
-    KeyDown(:backspace;)  => "Delete backward"  => _make_type_in_deletion(doc, :backspace)
-    KeyDown(:delete;)     => "Delete forward"   => _make_type_in_deletion(doc, :delete)
     KeyPress('\n';)       => "Make the value"   => make_type_in_commit_operation(doc)
     KeyDown(:escape;)     => "Drop the text"    => make_type_in_cancel_operation(doc)
-end
-
-function _make_type_in_deletion(ins::PrimitiveInsertion, direction::Symbol)
-    range = find_deletion_range(find_value_range(ins), length(something(ins.value, "")), direction)
-    range === nothing ? nothing : make_type_in_edit_operation(ins, range, "")
 end
 
 # A Bool switches with one key: `t` makes it true and `f` false, as a JSON

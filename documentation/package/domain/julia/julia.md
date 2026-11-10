@@ -57,7 +57,7 @@ A comment stands where a statement stands. In an expression place, it holds the 
 
 ### Type-in
 
-`JuliaInsertion` is a text buffer. The `@gestures JuliaInsertion` table does the editing, the commit and the navigation, so `JuliaInsertionToSyntaxLeaf` only prints the buffer and a pale-green completion. On commit, a complete keyword (`function`, `if`, `while`, `for`, `begin`, `return`) expands into a scaffold with holes, and the first hole is selected. Any other text goes to `parse_julia`, so a typed `# note` becomes a `JuliaComment`.
+`JuliaInsertion` is a text buffer. The text domain edits it, as it edits every text: its edit comes back through the backward map of `JuliaInsertionToSyntaxLeaf` as an edit of `value`. The `@gestures JuliaInsertion` table holds the commit and the navigation, so `JuliaInsertionToSyntaxLeaf` only prints the buffer and a pale-green completion. On commit, a complete keyword (`function`, `if`, `while`, `for`, `begin`, `return`) expands into a scaffold with holes, and the first hole is selected. Any other text goes to `parse_julia`, so a typed `# note` becomes a `JuliaComment`.
 
 ### The file
 

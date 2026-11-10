@@ -63,11 +63,11 @@ carry the answer.
 | A string, `PrimitiveString` | The text table. `@gestures PrimitiveString` types, and removes with `find_deletion_range`, only where no text table answered. | [PrimitiveToText.jl:313-338](../../source/platform/text/PrimitiveToText.jl#L313-L338), [PrimitiveDocument.jl:538](../../source/platform/primitive/PrimitiveDocument.jl#L538) |
 | The type-in, `PrimitiveInsertion`: the field of a value whose type the text decides, such as a number that a person types and that shows red until it parses | The text table, carried back by `PrimitiveInsertionToText` and by `InsertionToSyntaxLeaf`. `@gestures PrimitiveInsertion` types and removes only where no text table answered. Return makes the value, and Escape drops the text. | [PrimitiveToText.jl:340-357](../../source/platform/text/PrimitiveToText.jl#L340-L357), [PrimitiveToText.jl:211](../../source/platform/text/PrimitiveToText.jl#L211) |
 | The insertion field of a syntax domain, `InsertionToSyntaxLeaf` | The text table, carried back at [InsertionToSyntax.jl:288-293](../../source/platform/syntax/InsertionToSyntax.jl#L288-L293). Its own table types and removes only where no text table answered, and its Backspace and Delete match any modifier. Return commits, Escape cancels, and Tab accepts the completion. | [InsertionToSyntax.jl:303-337](../../source/platform/syntax/InsertionToSyntax.jl#L303-L337) |
-| The hole of Julia code, `JuliaInsertion` | Its own table. `JuliaInsertionToSyntaxLeaf` can not carry an edit of the text, so every key comes back raw to `@gestures JuliaInsertion`. Return commits, and Tab commits and goes to the next hole. | [JuliaInsertionToSyntax.jl:177-229](../../source/domain/julia/JuliaInsertionToSyntax.jl#L177-L229) |
-| A step of the address of a navigator, `ReferenceStepToSyntaxLeaf` | A key turns the step into a `ReferenceInsertion`. Its reader appends the text of any edit, or removes the last character, and does not read the range of the edit. Its own Backspace rule removes the last character. | [NavigatorAddressToSyntax.jl:40-85](../../source/platform/navigator/NavigatorAddressToSyntax.jl#L40-L85) |
+| The hole of Julia code, `JuliaInsertion` | The text table, carried back by the default reader of the kernel through the backward map of `JuliaInsertionToSyntaxLeaf` ([ProjectionDefaults.jl:209-226](../../source/kernel/projection/ProjectionDefaults.jl#L209-L226)). `@gestures JuliaInsertion` types and removes only where no text table answered. Return commits, and Tab commits and goes to the next hole. The first form of this plan said that the leaf can not carry the edit; the reading of the default reader in step 1 showed that it can. | [JuliaInsertionToSyntax.jl:177-229](../../source/domain/julia/JuliaInsertionToSyntax.jl#L177-L229) |
+| A step of the address of a navigator, `ReferenceStepToSyntaxLeaf` | No text caret. A step is a value, so every place in its text maps back to the whole step, and a selected step draws as a box, where the text table declines. A typed key or Backspace on the selected step turns it into a `ReferenceInsertion` with the text of the step and the key, or with its last character removed. The insertion is a text of the text domain. | [NavigatorAddressToSyntax.jl:40-85](../../source/platform/navigator/NavigatorAddressToSyntax.jl#L40-L85) |
 | The query of a `WidgetChoiceList` | Its own reader. The query is drawn as a label with no caret. A typed key adds a character, and Backspace removes the last one. | [WidgetChoiceList.jl:205-225](../../source/platform/widget/WidgetChoiceList.jl#L205-L225) |
 | The draft of a conversation | The text table. `ComposerBackspaceOperation` and `ComposerNewlineOperation` have no producer: only their definitions and the export are left. | [ConversationEditor.jl:210-225](../../source/platform/conversation/ConversationEditor.jl#L210-L225), [ConversationEditor.jl:315](../../source/platform/conversation/ConversationEditor.jl#L315) |
-| A chain with no `TextToGraphics`: the console | No stage reads the text table. `SelectionInverting` gives `nothing` for a key, and `SyntaxLeafToText` gives the raw key back, so the private tables above do the typing there. | [SelectionInverting.jl:246-253](../../source/platform/text/SelectionInverting.jl#L246-L253), [SyntaxToText.jl:277-287](../../source/platform/syntax/SyntaxToText.jl#L277-L287), `make_json_console_projection_example` |
+| A chain with no `TextToGraphics`: the console | `SyntaxToText` reads the key against the syntax first, and when the syntax gives no answer, it asks the text table of its output ([SyntaxToText.jl:1203-1218](../../source/platform/syntax/SyntaxToText.jl#L1203-L1218)). So the private tables above answer first in the console, and the text table answers when they are gone. `SelectionInverting` gives `nothing` for a raw key, so the key goes on to `SyntaxToText`. | [SelectionInverting.jl:246-253](../../source/platform/text/SelectionInverting.jl#L246-L253), `make_json_console_projection_example` |
 
 ### The keys
 
@@ -131,17 +131,35 @@ carry the answer.
   assistant; approved with the plan (2026-11-10). Rejected: the pane hands the key to the text table instead of to
   the `PrimitiveString` table. Then the name would still be read in a place
   that draws no text.
-- **D3. A chain with no `TextToGraphics` reads the text table too.**
-  `SelectionInverting` reads a key with the text table of its input block, as
-  the other decorators do, so the console keeps its typing when the private
-  tables go. Proposed by the assistant; approved with the plan (2026-11-10). Rejected: keep the private tables for
-  the console. Then the console would be a second text domain.
-- **D4. A step of an address applies the edit at its range.**
-  `ReferenceStepToSyntaxLeaf` makes the text of the insertion from the text of
-  the step with the edit applied at the range of the edit, and the caret after
-  it, so Ctrl+Backspace on a step removes a word. Its own Backspace rule goes.
-  Proposed by the assistant; approved with the plan (2026-11-10). Rejected: keep "append or remove the last
-  character", which ignores the range.
+
+  How step 2 does it, found while reading the code:
+  - The strip of `WidgetTabbedPaneToGraphicsCanvas` draws the name that holds
+    the caret through a text view of one run (`_print_tab_name_view`), but keeps
+    the IO map of that view only in a local variable of its printer. The tabbed
+    pane gets an IO map type of its own, `WidgetTabbedPaneToGraphicsCanvasIoMap`:
+    the fields of a `WidgetChildrenIoMap` and `name_view`, the cell of the IO map
+    of the view. A card has an IO map of its own in the same way, with `header`.
+  - The reader of the tabbed pane gives a key to that view while the selection is
+    in a name, before the selected page gets it, and maps the answer back to
+    `selector_element_pairs[i].selector.text{s:e}`. It declines an edit that holds
+    a break, because a name is one line.
+  - The selection of a name can be a range: the strip draws the range, and the
+    pane maps `title.name.value{s:e}` both ways, not only a caret.
+  - A name with no text shows a stand-in, the title of the document or
+    "untitled". The pane maps back only a place inside the name, so in an empty
+    name only a typed key edits, and the stand-in is never edited.
+  - `make_pane_retarget_title_operation` loses its last caller and goes.
+- **D3. Dropped in step 1: the console needs no change.** The decision was that
+  `SelectionInverting` reads a key with the text table, so that the console keeps
+  its typing when the private tables go. Step 1 found that `SyntaxToText` already
+  asks the text table of its output in a chain with no `TextToGraphics` (§2), so
+  the change would give the console a second way to the same table.
+- **D4. Dropped in step 1: a step of an address stays as it is.** The decision
+  was that `ReferenceStepToSyntaxLeaf` applies an edit at its range. Step 1 found
+  that a step has no text caret (§2): its two key rules turn a selected value
+  into an insertion, as a typed key replaces a selected value in a JSON
+  document, and they edit no text. The insertion that they make is a text of the
+  text domain.
 - **D5. The query of a `WidgetChoiceList` is a text.** The list draws its query
   through a text view, with a caret, and the keys of the query go to the text
   table. The list keeps Up, Down, Page Up, Page Down and Return, and reads the
@@ -242,21 +260,40 @@ Each step ends with its tests and a commit on the branch. A step that removes
 code also compares `test_repls()` with the same run on `main`, because the walk
 of every example types keys into each one.
 
-1. ⬜ **The leaves keep no key of the text (D1, D3, D4).** Remove the rows that
-   type or remove a character from `@gestures PrimitiveString`,
-   `@gestures PrimitiveInsertion`, the table of `InsertionToSyntaxLeaf` and
-   `@gestures JuliaInsertion`. Give `JuliaInsertionToSyntaxLeaf` a reader of
-   `ReplaceStringRangeOperation` that carries the edit to `value{s:e}`, as
-   `InsertionToSyntaxLeaf` has. `SelectionInverting` reads a key with the text
-   table. `ReferenceStepToSyntaxLeaf` applies the edit at its range. Remove each
-   helper that loses its last caller, and the two composer operations that have no
-   producer. Test: `test_text()`, `test_primitive_to_text()`,
-   `test_insertion_in_tab()`, `test_typein` on the examples of a type-in,
-   `test/domain/julia/editor/JuliaTypeinTest.jl`, `test_console_backend()`, the
-   test of the address in `test/platform/navigator/NavigatorAddressTest.jl`, and
-   `test_repls()` against `main`.
-2. ⬜ **The tab name (D2).** Test: `test_pane_rename()`, which presses F2, types,
-   removes and leaves through a real editor.
+**The baseline** is the branch point `b14502b56`, run in the worktree before any
+change (Julia 1.13.1, 2026-11-10). Every function of the list of step 1 passes
+with no failure, except two: `test_repls()` gives 31988 pass, 206 fail, 0 error
+and 8 broken, and `test_typeins()` gives 5148 pass and 20 broken. Also with no
+failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
+`test_inline_image_caret()`, `test_widget_menu_keys()`, `test_command_palette()`,
+`test_widget_text_editing()` and `test_text_range_selection()`.
+
+1. ✅ **The leaves keep no key of the text (D1).** Done 2026-11-10. Every
+   function of the list below gives the counts of the baseline. Two tests read a
+   raw key with a projection that has no text stage, so they relied on a private
+   table: `InsertionChoicesTest.jl` now gives the leaf the text edit that the
+   text domain makes of the key, and `JuliaTypeinTest.jl` types through the chain
+   of `make_julia_projection_example`, from Julia to graphics. Remove the rows that type or
+   remove a character from `@gestures PrimitiveInsertion`, the table of
+   `InsertionToSyntaxLeaf` and `@gestures JuliaInsertion`, and the helpers that
+   lose their last caller: `insert_insertion_text_operation`,
+   `delete_insertion_text_operation`, `_make_insertion_typed_operation` and
+   `_make_type_in_deletion`. Remove the two composer operations that have no
+   producer, `ComposerBackspaceOperation` and `ComposerNewlineOperation`.
+   `JuliaInsertionToSyntaxLeaf` needs no new reader (§2). `@gestures
+   PrimitiveString` stays until step 2, because the pane reads it for the tab
+   name. The removed exports give `ProjecturedPlatform` a minor step at its next
+   release. Test: `test_text()`, `test_primitive()`, `test_primitive_type_in()`,
+   `test_primitive_to_text()`, `test_insertion_choices()`,
+   `test_insertion_in_tab()`, `test_pane_rename()`, `test_console_backend()`,
+   `test_julia_typein()`, `test_navigator_address()`,
+   `test_conversation_editor()`, `test_assistant_composer_panel()`,
+   `test_typeins()`, `test_json()`, `test_sql()`, `test_evaluator_toplevel()` and
+   `test_repls()` against the baseline of the branch point.
+2. ⬜ **The tab name (D2).** Remove `@gestures PrimitiveString`, `_string_delete`
+   and `find_deletion_range`, which then have no caller. Test:
+   `test_pane_rename()`, which presses F2, types, removes and leaves through a
+   real editor.
 3. ⬜ **The query of a choice list (D5).** Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.

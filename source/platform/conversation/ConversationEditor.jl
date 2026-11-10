@@ -213,16 +213,6 @@ struct ComposerInputOperation <: Operation
     text::String
 end
 
-"Delete the character before the active content's cursor."
-struct ComposerBackspaceOperation <: Operation
-    draft::ConversationDraft
-end
-
-"Insert a newline at the active content's cursor (SHIFT+ENTER)."
-struct ComposerNewlineOperation <: Operation
-    draft::ConversationDraft
-end
-
 """
 INSERT: commit the active text typein, which stays the `PrimitiveString` that the
 person typed and is dropped when blank, and append a `DocumentInsertion` kind
@@ -287,7 +277,7 @@ end
 # They travel up the chain as they are — which is what lets a composer rendered
 # inside a page reach the editor at all.
 OperationModule.is_self_contained_operation(::Union{
-    ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
+    ComposerInputOperation,
     ComposerInsertPartOperation, ComposerCommitChooserOperation,
     ComposerCommitSourceOperation, ComposerEvaluateOperation,
     ComposerRevertOperation, ComposerSubmitOperation, InsertDraftDocumentOperation}) = true
@@ -301,23 +291,6 @@ function evaluate_operation(editor, op::ComposerInputOperation)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     _set_value!(c, first(v, k) * op.text * last(v, length(v) - k), k + length(op.text))
-    sync_draft_selection!(editor, op.draft)
-end
-
-function evaluate_operation(editor, op::ComposerNewlineOperation)
-    c = _active_content(op.draft)
-    _is_editable(c) || return nothing
-    v = _value(c); k = clamp(_cursor(c), 0, length(v))
-    _set_value!(c, first(v, k) * "\n" * last(v, length(v) - k), k + 1)
-    sync_draft_selection!(editor, op.draft)
-end
-
-function evaluate_operation(editor, op::ComposerBackspaceOperation)
-    c = _active_content(op.draft)
-    _is_editable(c) || return nothing
-    v = _value(c); k = clamp(_cursor(c), 0, length(v))
-    k == 0 && return nothing
-    _set_value!(c, first(v, k - 1) * last(v, length(v) - k), k - 1)
     sync_draft_selection!(editor, op.draft)
 end
 
