@@ -66,6 +66,7 @@ using ..WidgetModule
 
 import ..DisplayModule: make_workload_file
 import ..LlmModule: stream_turn
+import ..OperationModule: evaluate_operation
 import ..SettingsModule: is_settings_group_read_at_start
 
 export default_backend

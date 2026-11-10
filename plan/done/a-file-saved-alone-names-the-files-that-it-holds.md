@@ -810,6 +810,35 @@ through the reload (D7), so no test can check the open without the reload.
 
 After step 6 the plan moves to `plan/done/`, and the code quality steward reads the change.
 
+**The review of step 6 (2026-11-10).** The code quality steward found one defect and three small
+points in the step 6 code, and 14 small points in the code of steps 1 to 5 (on main, for the
+owner later).
+- **The defect: one file got two documents.** `run_application` called the restore at once after
+  `_make_application_editor`, but `start_application!` only posts the acquire of the window, which
+  the first drain applies. So a card of `notes.txt` and a tab of `notes.txt` from the command line
+  each made a file document. The step 6 test acquired the tab before the load, the opposite of the
+  real order. Before step 6 a card held a copy of the text, so the order did not matter.
+- **The owner chose (2026-11-10):** the load runs in the loop, after the window documents (option A).
+  The carrier is a new operation, `RestoreExplorerContentOperation(path; folder)`, in
+  `ApplicationExplorer.jl` (option A1). `RunFunctionOperation` was the first proposal, but a drain
+  that holds one runs whole as a code unit (`drain_operations!` → `run_code_unit!`): in a real window
+  the first drain, with the acquire of the window, would run on another thread with held frames
+  and the busy bar before the first paint. A test that runs the frames by hand runs the unit
+  inline, so it does not see that.
+- The three small points: the splice of the load is now inside its `try`, so a failure gives the
+  warning and `nothing` that the docstring promises; the operation takes `folder` as a keyword, so
+  a caller can not swap the two paths; a comment says why the state file is named against `folder`.
+- A close before the first drain would write the first content over the kept one. It does not occur:
+  each frame of `run_editor!` starts with the drain.
+- Test: a new set of `test_application()` ("a start restores the explorer after the documents of the
+  window, …") runs the steps of `run_application` up to its loop: a start with a tab of `notes.txt`
+  posts the load, the drain applies both, and the card holds the document of the tab, with one entry
+  of `notes.txt` in the open files. The test takes the document of the tab from the window before the
+  drain: `find_open_file_document` answers the first of two documents, so with the load before the
+  drain it answers the document of the card, and only the count shows the defect. The same steps
+  with the load before the drain give a card that does not hold the document of the tab, and two
+  entries of `notes.txt`.
+
 ## 7. Risks
 
 - **A new file document is in the open files before any holder holds it.** Since G4 step 1b the

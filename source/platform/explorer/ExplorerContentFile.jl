@@ -65,6 +65,8 @@ function save_explorer_content! end
 function save_explorer_content!(content::ExplorerSection, path::AbstractString;
                                 folder::AbstractString, editor = find_evaluation_editor())
     base = abspath(folder)
+    # The file is named against `folder`, because the save names each held file, and
+    # each mark into the file itself, against that folder, and a load reads them so.
     file = PredFile(relpath(abspath(path), base), content)
     try
         run_with_evaluation_editor(() -> save_file_text!(file, base), editor)
@@ -95,15 +97,18 @@ See also `save_explorer_content!` and `get_explorer_content_file`.
 """
 function load_explorer_content end
 
-function load_explorer_content(path::AbstractString; folder::AbstractString, editor = find_evaluation_editor())
+function load_explorer_content(path::AbstractString; folder::AbstractString,
+                               editor = find_evaluation_editor())
     isfile(path) || return nothing
     base = abspath(folder)
     content = try
-        run_with_evaluation_editor(() -> get_file_content(load_file(base, relpath(abspath(path), base))), editor)
+        loaded = run_with_evaluation_editor(editor) do
+            get_file_content(load_file(base, relpath(abspath(path), base)))
+        end
+        splice_held_files!(loaded, base, held -> open_file_document!(editor, held))
     catch exception
         @warn "The explorer content in $(path) does not read." exception
         return nothing
     end
-    content = splice_held_files!(content, base, held -> open_file_document!(editor, held))
     content isa ExplorerSection ? content : nothing
 end

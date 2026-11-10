@@ -5,6 +5,7 @@
 # the screen.
 
 using Test
+import ProjecturedPlatform.ApplicationModule: RestoreExplorerContentOperation
 
 # `evaluate_operation` reads `document` and `iomap` of an editor.
 mutable struct _AppFakeEditor; document::Any; iomap::Any; end
@@ -2154,6 +2155,50 @@ function test_application()
                 # The groups print nothing again, so the Explorer keeps its divider.
                 drag!(outer, outer - 100, 2.0)
                 @test dividers() == [inner + 100, outer - 100]
+            end
+        end
+
+        @testset "a start restores the explorer after the documents of the window, so a card and a tab of one file hold one document" begin
+            mktempdir() do place
+                notes_path = joinpath(place, "notes.txt")
+                write(notes_path, "notes on disk\n")
+                state = joinpath(place, "state", "explorer.pred")
+                # The steps of `run_application` up to its loop, with no window on the screen.
+                function start(paths)
+                    settings = make_settings()
+                    document = make_application_document(paths; root = place, settings,
+                                                         assistant = make_application_assistant(:none))
+                    editor = build_editor(document, make_application_projection(); backend = HeadlessBackend(), settings,
+                                          window = (; title = "ProjecturEd", width = 1600, height = 1000,
+                                                    opened_window_projections = make_opened_window_projections()),
+                                          make_application_wrappers(; root = place, document)...)
+                    start_application!(editor)
+                    editor
+                end
+                last_editor = start(String[])
+                editor = start([notes_path])
+                try
+                    # The last window of the folder kept a card of notes.txt.
+                    drain_operations!(last_editor)
+                    card = DashboardCard("notes", open_file_document!(notes_path; editor = last_editor))
+                    save_explorer_content!(ExplorerSection("Explorer", Any[Dashboard("Held", Any[card])]), state;
+                                           folder = place, editor = last_editor)
+                    # The next start shows notes.txt in a tab, and posts the load after the acquire of the window.
+                    # Before the drain, the tab holds the one file document of the window.
+                    tab_file = only(search_documents(editor.document, node -> node isa FileDocument))
+                    @test abspath(get_filename(tab_file)) == abspath(notes_path)
+                    post_operation!(editor, RestoreExplorerContentOperation(state; folder = place))
+                    drain_operations!(editor)
+                    restored = only(only(get_session_explorer_content(; editor).entries).cards)
+                    @test restored.content === tab_file
+                    @test find_open_file_document(notes_path; editor) === tab_file
+                    @test count(==(abspath(notes_path)), collect_open_file_paths(; editor)) == 1
+                    run_frame!(editor)
+                    @test count(==(abspath(notes_path)), collect_open_file_paths(; editor)) == 1
+                finally
+                    foreach(step -> step(last_editor), last_editor.stop_steps)
+                    foreach(step -> step(editor), editor.stop_steps)
+                end
             end
         end
         rm(dir; recursive = true)

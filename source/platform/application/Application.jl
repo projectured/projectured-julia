@@ -614,9 +614,11 @@ function run_application(paths::AbstractString...;
     editor = _make_application_editor(collect(String, paths), settings; backend, root,
                                       width, height, measure, appearance)
     # The Explorer shows what the last window of this folder showed, and keeps it
-    # for the next start when the window closes.
+    # for the next start when the window closes. The first drain applies the load
+    # after the acquire of the window, so a card of a file that a tab shows holds
+    # the file document of that tab.
     file = get_explorer_content_file(root)
-    _restore_explorer_content!(editor, file, root)
+    post_operation!(editor, RestoreExplorerContentOperation(file; folder = root))
     mcp = get_settings_group!(settings, StartSettings).mcp
     # An outside client reads the text of the window as the instructions of the
     # server, with the full index.

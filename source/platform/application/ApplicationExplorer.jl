@@ -81,11 +81,23 @@ function _fill_explorer_content!(editor)
     nothing
 end
 
-# The content that the file `path` keeps for the work folder `folder`, in the place
-# of the first content, when the file reads; the first content stays when there is
-# no file or it does not read.
-function _restore_explorer_content!(editor, path::AbstractString, folder::AbstractString)
-    loaded = load_explorer_content(path; folder, editor)
+"""
+    RestoreExplorerContentOperation(path; folder)
+
+Put the content that the file `path` keeps for the work folder `folder` in the place
+of the content of the explorer of the editor, when the file reads. The content stays
+when there is no file or it does not read. The start of a window posts it after the
+acquire of the documents of the window, so a card of a file that a tab shows holds
+the file document of that tab.
+"""
+struct RestoreExplorerContentOperation <: Operation
+    path::String
+    folder::String
+    RestoreExplorerContentOperation(path::AbstractString; folder::AbstractString) = new(path, folder)
+end
+
+function evaluate_operation(editor, operation::RestoreExplorerContentOperation)
+    loaded = load_explorer_content(operation.path; folder = operation.folder, editor)
     loaded === nothing && return nothing
     content = get_session_explorer_content(; editor)
     content.title = loaded.title
