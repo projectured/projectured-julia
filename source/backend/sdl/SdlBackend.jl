@@ -128,7 +128,9 @@ end
 # `guards` holds the guard cell of each painted canvas (`_read_guard!`), and
 # `guard_places` the content origin and the clip edges of the canvas, the place
 # that its guard reads for; the key of a placement names the canvas itself. `visits` is the count of the elements whose cells the last
-# walk tested (`_collect_dirty_elem!`), which a test and a measurement read.
+# walk tested (`_collect_dirty_elem!`), and `kept_entries` the count of the graphics
+# that stay in view in a moved content and whose records the last walk entered
+# (`_record_moved_element!`); a test and a measurement read both.
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform,Union{Nothing,NTuple{4,Int}}}}
@@ -140,11 +142,12 @@ mutable struct _PaintedGeometry
     visits::Int        # the elements that the last walk tested
     recordings::Int    # the graphics that the last walk recorded from their cells
     new_guards::Int    # the guards that the last walk made
+    kept_entries::Int  # the graphics that stay in view in a moved content, entered by the last walk
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
                                       Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
                                       Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0,
-                                      Dict{UInt,Any}(), Dict{UInt,Any}(), 0, 0, 0)
+                                      Dict{UInt,Any}(), Dict{UInt,Any}(), 0, 0, 0, 0)
 
 """
     SdlWindowResources
@@ -3282,6 +3285,7 @@ end
 function _record_moved_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
                                 edges::_ClipEdges, old_edges::_ClipEdges, offset::NTuple{2,Int},
                                 rects::Vector{NTuple{4,Int}})
+    res.painted.kept_entries += 1
     elem isa GraphicsCanvas &&
         return _record_moved_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, old_edges,
                                      offset, rects)
@@ -3899,6 +3903,7 @@ end
 function _compute_dirty_change(res::SdlWindowResources, canvas::GraphicsCanvas)
     res.painted.recordings = 0
     res.painted.new_guards = 0
+    res.painted.kept_entries = 0
     walk = _DirtyWalk()
     root = _make_placement_key(canvas, UInt(0))
     edges = _ClipEdges(0, 0, res.width, res.height)

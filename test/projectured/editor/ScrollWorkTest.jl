@@ -3,8 +3,9 @@
 # frame is painted by the walk of the partial paint into an offscreen renderer,
 # and its pixels are compared with a full paint. The test counts the work of each
 # frame: the boxes that it copies, the leaves that it draws, and the elements,
-# records and guards of its walk. The counts hold on a busy machine, where a time
-# does not.
+# records and guards of its walk, and the graphics that stay in view and that a
+# move enters, which a window twice as tall does not double. The counts hold on a
+# busy machine, where a time does not.
 
 using Test
 
@@ -16,8 +17,9 @@ _sw_read_pixels(off) = (_SW_SDL.SDL_RenderFlush(off.renderer); s = unsafe_load(o
                         copy(unsafe_wrap(Array, Ptr{UInt32}(s.pixels), (Int(s.pitch) ÷ 4, Int(s.h)))))
 
 # The window of the application over a Julia file of `count` functions, with its
-# tab focused, as a person who opened the file has it.
-function _sw_make_julia_editor(backend, count::Int)
+# tab focused, as a person who opened the file has it, in a window `height` pixels
+# high.
+function _sw_make_julia_editor(backend, count::Int; height::Int = _SW_HEIGHT)
     directory = mktempdir()
     path = joinpath(directory, "values.jl")
     write(path, join(["# The value $k.\nfunction value_$k(x)\n    x + $k\nend\n" for k in 1:count], "\n"))
@@ -25,9 +27,31 @@ function _sw_make_julia_editor(backend, count::Int)
                                                    assistant = nothing)
     _app_focus_first_file!(document)
     build_editor(document, projection; backend, tabs = false,
-                 window = (; title = "ProjecturEd", width = _SW_WIDTH, height = _SW_HEIGHT,
+                 window = (; title = "ProjecturEd", width = _SW_WIDTH, height,
                            opened_window_projections = make_opened_window_projections()))
 end
+
+# The Files pane over 50 folders and 450 files, in a window `height` pixels high.
+function _sw_make_files_editor(backend; height::Int = _SW_HEIGHT)
+    folder = mktempdir()
+    foreach(k -> mkpath(joinpath(folder, string("d", lpad(k, 3, '0')))), 1:50)
+    foreach(k -> write(joinpath(folder, string("f", lpad(k, 3, '0'), ".jl")), ""), 1:450)
+    explorer = WorkspaceExplorer(Workspace([WorkspaceFolder("folder", folder)]))
+    foreach(f -> read_filesystem_folder!(f.directory), explorer.workspace.folders)
+    build_editor(explorer; backend, window = (; title = "Files", width = _SW_WIDTH, height), tabs = (; title = "Files"))
+end
+
+# A data frame of 1000 rows, in a window `height` pixels high.
+function _sw_make_data_frame_editor(backend; height::Int = _SW_HEIGHT)
+    frame = DataFrames.DataFrame(id = 1:1000, name = ["row $k" for k in 1:1000], value = [k / 7 for k in 1:1000])
+    build_editor(ProjecturedDataFrames.DataFrameView(frame); backend,
+                 window = (; title = "Data", width = _SW_WIDTH, height), tabs = (; title = "Data"))
+end
+
+# True when each notch of `tall`, the frames of a window twice as high, enters at
+# most 10% more kept graphics than the same notch of `frames`.
+_sw_has_entries_of_short_window(frames, tall) =
+    all(((f, t),) -> 10 * t.work[4] <= 11 * f.work[4], zip(frames, tall))
 
 # The canvases of `canvas` that the paint of `res` draws with more than `limit`
 # elements and no layout, or with overlap, as their counts of elements. A walk and
@@ -76,10 +100,10 @@ end
 # `editor`, after a first paint. Each frame tells whether its pixels equal a full
 # paint, the boxes that it copied, the leaves that it drew, the leaves that a paint
 # of the whole window draws, and the counts of its walk. Also the canvases with no
-# layout that the last frame drew.
-function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 6)
+# layout that the last frame drew. The window is `height` pixels high.
+function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 6, height::Int = _SW_HEIGHT)
     SDL = _SW_SDL
-    width, height, background = _SW_WIDTH, _SW_HEIGHT, _SW_BACKGROUND
+    width, background = _SW_WIDTH, _SW_BACKGROUND
     partial = SDL.open_offscreen_renderer(width, height; supersample = 1, density = 1)
     full = SDL.open_offscreen_renderer(width, height; supersample = 1, density = 1)
     frames = NamedTuple[]
@@ -98,7 +122,7 @@ function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 
             whole = SDL._paint_dirty_rects!(full.renderer, canvas(), [(0, 0, width, height)], background,
                                             width, height, 1.0; records = state.res.dirty_bounds).drawn
             push!(frames, (; same, copies = length(state.last_copies), drawn = state.last_drawn, whole,
-                           work = (painted.visits, painted.recordings, painted.new_guards)))
+                           work = (painted.visits, painted.recordings, painted.new_guards, painted.kept_entries)))
         end
         (frames, _sw_find_unlaid_canvases(state.res, canvas()))
     finally
@@ -113,7 +137,7 @@ end
 A scroll of a Julia file in a focused tab, of the Files pane and of a data frame
 paints the pixels of a full paint, copies the boxes whose content only moved,
 draws a small part of what the window shows, and does work that does not grow
-with the length of the file.
+with the length of the file or with the height of the window.
 """
 function test_scroll_work()
 @testset "a scroll costs what comes into view" begin
@@ -136,17 +160,17 @@ function test_scroll_work()
         # notch, where a record of the moved content wrote 860 and made 504.
         @test all(f -> f.work[2] <= 80 && f.work[3] <= 60, frames)
         @test isempty(unlaid)
+        # A window twice as high enters no more of what stays in view.
+        tall_backend = HeadlessBackend()
+        tall = _sw_make_julia_editor(tall_backend, 800; height = 2 * _SW_HEIGHT)
+        tall_frames, _ = _sw_scroll(tall, tall_backend, :ProjecturEd, 700, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
+        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
     end
     @testset "the Files pane" begin
-        folder = mktempdir()
-        foreach(k -> mkpath(joinpath(folder, string("d", lpad(k, 3, '0')))), 1:50)
-        foreach(k -> write(joinpath(folder, string("f", lpad(k, 3, '0'), ".jl")), ""), 1:450)
-        explorer = WorkspaceExplorer(Workspace([WorkspaceFolder("folder", folder)]))
-        foreach(f -> read_filesystem_folder!(f.directory), explorer.workspace.folders)
         backend = HeadlessBackend()
-        editor = build_editor(explorer; backend, window = (; title = "Files", width = _SW_WIDTH, height = _SW_HEIGHT),
-                              tabs = (; title = "Files"))
-        frames, unlaid = _sw_scroll(editor, backend, :Files, 300, 500)
+        frames, unlaid = _sw_scroll(_sw_make_files_editor(backend), backend, :Files, 300, 500)
         @test all(f -> f.same, frames)
         @test all(f -> f.copies == 1, frames)
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
@@ -154,14 +178,16 @@ function test_scroll_work()
         # content wrote 306 and made 52.
         @test all(f -> f.work[2] <= 30 && f.work[3] <= 12, frames)
         @test isempty(unlaid)
+        tall_backend = HeadlessBackend()
+        tall_frames, _ = _sw_scroll(_sw_make_files_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
+                                    :Files, 300, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
+        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
     end
     @testset "a data frame" begin
-        frame = DataFrames.DataFrame(id = 1:1000, name = ["row $k" for k in 1:1000], value = [k / 7 for k in 1:1000])
         backend = HeadlessBackend()
-        editor = build_editor(ProjecturedDataFrames.DataFrameView(frame); backend,
-                              window = (; title = "Data", width = _SW_WIDTH, height = _SW_HEIGHT),
-                              tabs = (; title = "Data"))
-        frames, unlaid = _sw_scroll(editor, backend, :Data, 700, 500)
+        frames, unlaid = _sw_scroll(_sw_make_data_frame_editor(backend), backend, :Data, 700, 500)
         @test all(f -> f.same, frames)
         @test all(f -> f.copies >= 1, frames)
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
@@ -169,6 +195,12 @@ function test_scroll_work()
         # moved content wrote 1831 at the first notch and more at each one after.
         @test all(f -> f.work[2] <= 200 && f.work[3] <= 150, frames)
         @test isempty(unlaid)
+        tall_backend = HeadlessBackend()
+        tall_frames, _ = _sw_scroll(_sw_make_data_frame_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
+                                    :Data, 700, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        # @broken: a move enters every graphic that stays in view to move its records; plan/pending/a-saved-position-is-relative-to-its-canvas.md, step 3
+        @test_broken _sw_has_entries_of_short_window(frames, tall_frames)
     end
 end
 end

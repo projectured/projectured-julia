@@ -154,7 +154,8 @@ through `bounded-run`, with the load written beside it. A count needs neither.
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The guards of the work, failing where they must.** Count the graphics
+1. [x] **The guards of the work, failing where they must.** Done; see
+   [As built](#as-built). Count the graphics
    that the record of a move enters (`_PaintedGeometry`), and give the count to
    `test_scroll_work`. For each of the three scenes, assert that a notch in a
    window of 2000 pixels enters at most 10% more graphics than in a window of
@@ -196,7 +197,20 @@ My estimate: the walk of a notch of the data frame falls from 11 ms to about
 
 ## As built
 
-### Step 1: what the new tests found on `main`, 2026-11-11
+### Step 1: the guards of the work, 2026-11-11
+
+`_PaintedGeometry` counts `kept_entries`, the graphics that stay in view in a
+moved content and that `_record_moved_element!` enters. `test_scroll_work` gives
+it to each frame and scrolls each scene in a window of 2000 pixels too; each
+scene marks `_sw_has_entries_of_short_window` as `@test_broken` until step 4.
+The random scenes of `test_partial_paint()` use a generator of their own
+(`make_scene_numbers`), 40 seeds, and assert no difference at the three settings
+with a whole number of device pixels for each pixel; at density 1.25 the
+assertion is `@test_broken` until fault b is fixed. Before step 1 could be
+committed, fault a had to be fixed, because it made the random scenes fail in
+some processes only.
+
+### What the new tests found on `main`, 2026-11-11
 
 The count `kept_entries` and the window of 2000 pixels work: each scene gives one
 `@test_broken` for the height of the window, as planned. The new tests also found

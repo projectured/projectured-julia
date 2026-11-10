@@ -630,5 +630,147 @@ end
         end
     end
 end
+# The numbers of a random scene, from `seed`: the same seed gives the same scene
+# on every Julia. `pick` takes one of a range or a tuple, and `chance` a number
+# from 0 to 1.
+function make_scene_numbers(seed)
+    state = Ref(UInt64(seed) * 0x9e3779b97f4a7c15 + 0x632be59bd9b4e019)
+    next() = (state[] = state[] * 0x5851f42d4c957f2d + 0x14057b7ef767814f; state[] >> 33)
+    pick(values::AbstractRange) = values[1 + Int(next() % length(values))]
+    pick(values::Tuple) = values[1 + Int(next() % length(values))]
+    chance() = Int(next() % 1_000_000) / 1_000_000
+    (; pick, chance)
+end
+
+make_random_color(numbers) =
+    StyleColor(numbers.chance(), numbers.chance(), numbers.chance(), numbers.pick((1.0, 0.5)))
+
+# `count` rows of random kinds, `h` pixels apart, in a laid-out canvas, and the
+# cells of their texts: a text, a canvas with a filled rectangle and a text, or a
+# rectangle with a border.
+function make_random_rows(numbers, count, h)
+    texts = Cell[]
+    slots = Cell[]
+    for k in 1:count
+        y = (k - 1) * h
+        kind = numbers.pick(1:3)
+        if kind == 1
+            text = Cell(string(numbers.pick(("Ṏ", "ƒ", "a", "W")), " r", k, "x"^numbers.pick(0:20)))
+            push!(texts, text)
+            x, row_font = numbers.pick(-6:6), numbers.pick((font, StyleFont("DejaVu Sans", 30)))
+            push!(slots, Cell(@computation GraphicsText(text[], x, y; font = row_font, color = black)))
+        elseif kind == 2
+            fill = GraphicsRect(0, 0, numbers.pick(10:300), h - 2; color = make_random_color(numbers),
+                                radius = numbers.pick((0, 3)))
+            label = GraphicsText("c$k", numbers.pick(0:30), 1; font, color = black)
+            push!(slots, Cell(GraphicsCanvas(Any[fill, label]; y, x = numbers.pick(-10:10))))
+        else
+            push!(slots, Cell(GraphicsRect(numbers.pick(0:40), y + 2, numbers.pick(20:200), h - 4;
+                                           color = make_random_color(numbers),
+                                           border_width = numbers.pick((0, 1, 2)), border_color = black)))
+        end
+    end
+    (GraphicsCanvas(CellVector(slots); w = 400, h = count * h, layout = layout_vertical, overlapping = false),
+     texts)
+end
+
+function make_random_list(numbers, count, h)
+    nodes = [ListNode(GraphicsText("line $k", numbers.pick(0:6), (k - 1) * h; font, color = black))
+             for k in 1:count]
+    for k in 1:(count - 1)
+        nodes[k].next = nodes[k + 1]
+        nodes[k + 1].prev = nodes[k]
+    end
+    GraphicsCanvas(nodes[1]; layout = layout_vertical, overlapping = false)
+end
+
+# A random scene and its eight changes: a background, rectangles, and up to three
+# panes of rows, each with maybe a list, a pane inside it, a viewport with a
+# scale, a ring around it, a thumb that follows its scroll and a dot over it. A
+# change scrolls a pane, scrolls two at once, edits a text and scrolls, or moves
+# a dot.
+function make_random_scene(seed)
+    numbers = make_scene_numbers(seed)
+    elements = Any[]
+    scrolls = Cell[]
+    texts = Cell[]
+    dots = Cell[]
+    numbers.pick((true, false)) && push!(elements, GraphicsRect(0, 0, width, height; color = make_random_color(numbers)))
+    for _ in 1:numbers.pick(0:6)
+        push!(elements, GraphicsRect(numbers.pick(0:380), numbers.pick(0:280), numbers.pick(4:40), numbers.pick(4:200);
+                                     color = make_random_color(numbers)))
+    end
+    for _ in 1:numbers.pick(1:3)
+        x, y = numbers.pick(0:200), numbers.pick(0:150)
+        w, h = numbers.pick(60:(width - x)), numbers.pick(40:(height - y))
+        rows, row_texts = make_random_rows(numbers, 120, numbers.pick((14, 16, 23, 40)))
+        append!(texts, row_texts)
+        content = Any[rows]
+        numbers.chance() < 0.3 && push!(content, make_random_list(numbers, 40, 16))
+        if numbers.chance() < 0.3
+            inner_rows, inner_texts = make_random_rows(numbers, 60, 16)
+            append!(texts, inner_texts)
+            inner_scroll = Cell(0)
+            push!(scrolls, inner_scroll)
+            push!(content, make_pane((numbers.pick(0:100), numbers.pick(0:300), numbers.pick(40:150), numbers.pick(30:120)),
+                                     [inner_rows], Cell(0), inner_scroll))
+        end
+        numbers.chance() < 0.2 &&
+            push!(content, GraphicsViewport(numbers.pick(0:100), numbers.pick(0:300), 80, 40,
+                                            GraphicsCanvas(Any[GraphicsText("zoom", 0, 0; font, color = black)]);
+                                            transform = make_affine_scale(2)))
+        scroll_x, scroll_y = Cell(0), Cell(0)
+        push!(scrolls, scroll_y)
+        numbers.chance() < 0.3 && push!(scrolls, scroll_x)
+        push!(elements, make_pane((x, y, w, h), content, scroll_x, scroll_y))
+        numbers.pick((true, false)) &&
+            push!(elements, GraphicsRect(x - 1, y - 1, w + 2, h + 2; color = color_transparent, radius = 3,
+                                         border_width = 2, border_color = make_random_color(numbers)))
+        numbers.pick((true, false)) &&
+            push!(elements, GraphicsRect(x + w - 6, () -> y + (scroll_y[] ÷ 20) % max(1, h - 20), 5, 20;
+                                         color = make_random_color(numbers)))
+        if numbers.pick((true, false))
+            dot = Cell(numbers.pick(0:h))
+            push!(dots, dot)
+            push!(elements, GraphicsCircle(x + numbers.pick(0:w), () -> y + dot[], 5; color = make_random_color(numbers)))
+        end
+    end
+    changes = Any[]
+    for _ in 1:8
+        r = numbers.chance()
+        if r < 0.5
+            cell = numbers.pick(Tuple(scrolls))
+            value = numbers.pick((0, 1, 7, 16, 23, 48, 69, 120, 400)) * numbers.pick((1, 1, 1, -1))
+            push!(changes, () -> (cell[] = max(0, cell[] + value)))
+        elseif r < 0.65 && length(scrolls) > 1
+            a, b = numbers.pick(Tuple(scrolls)), numbers.pick(Tuple(scrolls))
+            va, vb = numbers.pick(0:150), numbers.pick(0:150)
+            push!(changes, () -> (a[] = va; b[] = vb))
+        elseif r < 0.8 && !isempty(texts)
+            text, value = numbers.pick(Tuple(texts)), string("edit ", numbers.pick(("Ṏ", "ƒ", "q")), numbers.pick(1:99))
+            scroll, step = numbers.pick(Tuple(scrolls)), numbers.pick(0:60)
+            push!(changes, () -> (text[] = value; scroll[] = scroll[] + step))
+        elseif !isempty(dots)
+            dot, value = numbers.pick(Tuple(dots)), numbers.pick(0:200)
+            push!(changes, () -> (dot[] = value))
+        else
+            cell = numbers.pick(Tuple(scrolls))
+            push!(changes, () -> (cell[] = cell[] + 16))
+        end
+    end
+    (GraphicsCanvas(elements; w = width, h = height), changes)
+end
+
+@testset "random scenes of panes that scroll" begin
+    # Each scene is made again for each setting, because its changes write its cells.
+    find_differing_scenes(settings) =
+        [(; seed, supersample, density, frames)
+         for seed in 1:40, (supersample, density) in settings
+         for frames in (find_differing_frames(make_random_scene(seed)...; supersample, density),)
+         if !isempty(frames)]
+    @test isempty(find_differing_scenes(filter(((_, density),) -> isinteger(density), scroll_settings)))
+    # @broken: at 2.5 device pixels for each pixel a partial paint differs from a full paint in 30 of 40 scenes, with no copy, on main too
+    @test_broken isempty(find_differing_scenes(filter(((_, density),) -> !isinteger(density), scroll_settings)))
+end
 end
 end
