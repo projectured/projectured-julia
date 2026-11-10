@@ -667,13 +667,14 @@ function test_explorer()
     end
 
     @testset "the first content of a window holds the work of the session and the tools of the editor" begin
-        editor, _ = _nav_editor(PrimitiveString("start"))
+        editor, _ = _nav_editor(PrimitiveString("start"); settings = Settings(), appearance = Appearance())
         content = make_editor_explorer_content(; editor, entries = Any[Workspace([WorkspaceFolder("work", pwd())])])
         titles = [format_tree_node_label(entry) for entry in content.entries]
         # The kinds of the loaded packages stand after the lists of the session.
         kinds = length(ApplicationModule._collect_session_explorer_entry_types())
         @test titles[[1:4; (5 + kinds):end]] ==
-              ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings", "Help"]
+              ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings",
+               "Appearance", "Help"]
         @test content.entries[2] === get_session_open_file_list(; editor)
         @test content.entries[3] === get_session_task_group_list(; editor)
         @test content.entries[4] === get_session_assistant_list(; editor)
@@ -685,7 +686,9 @@ function test_explorer()
         @test dashboard isa Dashboard && isempty(dashboard.cards)
         editor_section = content.entries[7 + kinds]
         @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
-        @test length(content.entries[9 + kinds].entries) == 3
+        @test content.entries[8 + kinds] === find_editor_settings(; editor)
+        @test content.entries[9 + kinds] === find_editor_appearance(; editor)
+        @test length(content.entries[10 + kinds].entries) == 3
     end
 
     @testset "the first content holds the session document of each kind that a loaded package marks" begin

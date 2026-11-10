@@ -12,8 +12,8 @@ document of each kind for which `is_session_explorer_entry_type` answers `true`,
 in the order of the names of their types; a section of evaluators with one
 evaluator, which has an empty form to type into; a section of dashboards with one
 empty dashboard; a section of what the editor does now,
-with its logs, its statistics, the selection and the processes of the system; a
-section of the settings; and a section of the help. `mcp_log` adds the log of the
+with its logs, its statistics, the selection and the processes of the system; the
+settings and the appearance of the editor; and a section of the help. `mcp_log` adds the log of the
 calls of a client to the section of the editor, for a window that serves MCP.
 
 Each document of a session is the one of `editor`, so a Tasks tab and the
@@ -52,7 +52,7 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
                                       get_session_background_work_log(; editor),
                                       SelectionInspector(),
                                       SystemProcessTree([getpid()]; title = "System processes")]),
-        ExplorerSection("Settings", settings),
+        settings...,
         ExplorerSection("Help", Any[DocumentTypeList(), ProjectionList(), AboutPage()])])
 end
 
