@@ -440,6 +440,7 @@ end
     child_iomaps::Any
     box::Any
     header::Any
+    drawn::Any            # the lines of the title and the description (`DrawnText`)
 end
 
 # The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, and
@@ -1224,13 +1225,19 @@ end
 # many lines are drawn, and the last ends with an ellipsis where the text goes on.
 # A `LineSpacing` in `spacing` sets the height of each line, with the half of its
 # leading above the text; `nothing` keeps the lines of the font.
+#
+# With `drawn`, a vector of `DrawnText`, and `part`, the path of the part of the
+# input that `text` shows, each line that the block draws is recorded with the
+# character of `text` where it starts.
 function _push_text_block!(elements::Vector, measure, style::StyleText,
                            text::AbstractString, x::Int, y::Int, bound::Int;
-                           max_lines::Int = 0, spacing = nothing)
+                           max_lines::Int = 0, spacing = nothing, part = nothing, drawn = nothing)
     width = 0
     height = 0
-    for line in _limit_text_lines(measure, style.font, _text_lines(measure, style.font, text, bound),
-                                  bound, max_lines)
+    lines = _limit_text_lines(measure, style.font, _text_lines(measure, style.font, text, bound),
+                              bound, max_lines)
+    starts = drawn === nothing ? nothing : _find_line_starts(text, lines)
+    for (index, line) in enumerate(lines)
         if spacing === nothing
             drawn_width, step = _text_size(measure, style.font, line)
             lift = 0
@@ -1239,6 +1246,7 @@ function _push_text_block!(elements::Vector, measure, style::StyleText,
             drawn_width, step, lift = box.width, box.height, box.text_y
         end
         _push_text!(elements, measure, style.font, line, x, y + height + Int(lift), style.color)
+        drawn === nothing || push!(drawn, DrawnText(last(elements), part, starts[index]))
         width = max(width, Int(drawn_width))
         height += Int(step)
     end
@@ -8721,6 +8729,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     content_x, content_y = _get_content_offset(box)
     inset_width, inset_height = _get_inset_total(box)
     header_elements = Any[]
+    drawn = DrawnText[]
     body_elements = Any[]
     footer_elements = Any[]
     child_iomaps = Any[]
@@ -8762,7 +8771,9 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     elseif w.title !== nothing
         band_index = length(header_elements) + 1
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
-                                                      string(w.title), padding, y, text_bound)
+                                                      string(w.title), padding, y, text_bound;
+                                                      part = _card_title_reference(),
+                                                      drawn = w.title isa AbstractString ? drawn : nothing)
         title_box = (padding, y, title_width, title_height)
         insert!(header_elements, band_index, _make_title_band(p, w, title_box))
         header_h = title_height
@@ -8788,7 +8799,9 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     if w.description !== nothing
         description_width, description_height =
             _push_text_block!(header_elements, p.measure, description_text,
-                              string(w.description), padding, y, text_bound)
+                              string(w.description), padding, y, text_bound;
+                              part = ConcreteReference(FieldReferenceStep("description"), EmptyReference()),
+                              drawn = w.description isa AbstractString ? drawn : nothing)
         max_content_width = max(max_content_width, description_width)
         y += description_height + p.section_gap
     end
@@ -8871,7 +8884,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
                 fill = _get_state_color(p, w, :footer))
     append!(surface, footer_elements)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps,
-     header = (height = header_h, title_box = title_box))
+     header = (height = header_h, title_box = title_box), drawn = drawn)
 end
 
 # The band of a title that is a `String` while the selection names the title
@@ -8921,7 +8934,7 @@ end
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false &&
         return WidgetCardToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY,
-                                               Cell((height = 0, title_box = nothing)))
+                                               Cell((height = 0, title_box = nothing)), Cell(DrawnText[]))
     position = w.position::Point2D
     ox, oy = _origin(position)
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
@@ -8972,13 +8985,15 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
         end
         nothing
     end, p.graphics_style)
+    # The caret in the title or the description, which a plain click puts there.
+    caret = make_drawn_caret_mark(() -> build[].drawn, () -> w.selection, p.measure)
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(@computation Int32(build[].w)),
                            Cell(@computation Int32(build[].h)),
-                           CellVector(@computation vcat(build[].elements, Any[ring])),
+                           CellVector(@computation vcat(build[].elements, Any[ring, caret])),
                            layout_none, true, Cell(nothing))
     WidgetCardToGraphicsCanvasIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry,
-                                    Cell(@computation build[].header))
+                                    Cell(@computation build[].header), Cell(@computation build[].drawn))
 end
 
 # The context that the title of a card is printed in. A `PrimitiveString` title
@@ -9038,11 +9053,13 @@ function _read_card_hit(w::WidgetCard, gesture, hit)
 end
 
 # A move of the pointer: the slot that the card's own mouse target names (the
-# pointer leaves it), then the slot under the point.
-function _read_card_move(w::WidgetCard, entries::Vector, evt::MouseMove)
+# pointer leaves it), then the slot under the point, or the caret under the point
+# in the text of the title or the description, `drawn`.
+function _read_card_move(w::WidgetCard, entries::Vector, evt::MouseMove, drawn = nothing)
     hit = _find_child_hit(entries, evt,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
-    new_answer = hit === nothing ? nothing : _card_reroot(w, hit[2], hit[1])
+    new_answer = hit !== nothing ? _card_reroot(w, hit[2], hit[1]) :
+                 drawn === nothing ? nothing : ReplaceMouseTargetOperation(annotate_reference_types(w, drawn))
     target = get_mouse_target(w)
     target isa ConcreteReference && target.head isa FieldReferenceStep || return new_answer
     for entry in entries
@@ -9064,14 +9081,23 @@ end
 # A card is a solid surface: a plain left click on it that nothing inside it
 # uses ends there, so it does not reach a document that a stack draws under the
 # card, such as the text under the bar of a find bar view. The bindings of the
-# card answer such a click first. Any other click goes on, to the menus of the
+# card answer such a click first; a click on the text of the title or of the
+# description then puts the caret at the character under the pointer, and an
+# Alt+click answers that caret too, which the container makes the field as a whole
+# (`convert_to_whole_selection`). Any other click goes on, to the menus of the
 # parts around the card and to a whole selection.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     answer = _read_card_click(p, iomap, evt)
     answer === nothing || return answer
     _outside_widget(iomap, evt) && return nothing
-    (evt.button === :left && evt.modifiers == ModifierKeys()) || return nothing
-    something(read_bound_gesture(iomap.input, evt), DoNothingOperation())
+    plain = evt.button === :left && evt.modifiers == ModifierKeys()
+    (plain || is_whole_selection_press(evt)) || return nothing
+    if plain
+        bound = read_bound_gesture(iomap.input, evt)
+        bound === nothing || return bound
+    end
+    caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
+    caret === nothing ? (plain ? DoNothingOperation() : nothing) : ReplaceSelectionOperation(caret)
 end
 
 function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
@@ -9104,13 +9130,14 @@ end
 # A coordless keyboard event has no coordinate to hit-test, so it routes into the
 # card's CONTENT selection-directed: forwarded only when the card's `selection`
 # actually points inside it, so a card onto which nothing projects (every card in
-# a plain display, where `selection === nothing`) behaves exactly as it did before.
-function read_intent(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt)
+# a plain display, where `selection === nothing`) routes no key into its content.
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt)
     # A move that is off the card still goes to the slot the pointer leaves.
     _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
-    evt isa MouseMove && return _read_card_move(w, entries, evt)
+    evt isa MouseMove && return _read_card_move(w, entries, evt,
+        _outside_widget(iomap, evt) ? nothing : find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure))
     evt isa MouseDwell &&
         return _read_card_hit(w, evt, _find_child_hit(entries, evt,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y)))
@@ -9140,16 +9167,29 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCa
     read_bound_gesture(w, evt)
 end
 
-map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+# A caret or a range in the title or the description is drawn on its line; any
+# other path goes to the slot that holds it.
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, reference) =
+    something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
+              Some(_map_child_forward(iomap, reference)))
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The body slot, for a caller that re-roots a path out of the card without having
 # routed the event itself. The reader does not come through here: it knows which
 # of the two slots answered and prepends that one (`_card_reroot`).
-map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
-    reference === nothing ? nothing :
-    find_reference_point(reference) !== nothing ? _map_child_point(iomap, reference) :
-    ConcreteReference(FieldReferenceStep("content"), reference)
+# A place of characters of the title or the description, and a point on their
+# text, is the caret or the range in that field.
+function map_reference_backward(p::WidgetCardToGraphicsCanvas, iomap, reference)
+    reference === nothing && return nothing
+    drawn = iomap isa WidgetCardToGraphicsCanvasIoMap ? iomap.drawn : DrawnText[]
+    place = map_drawn_place_backward(drawn, iomap.output, reference)
+    place === nothing || return place
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
+    child = _map_child_point(iomap, reference)
+    child === nothing || return child
+    find_drawn_caret(drawn, iomap.output, point.x, point.y, p.measure)
+end
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 

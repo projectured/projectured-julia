@@ -306,11 +306,13 @@ function test_widget_card_fold()
         @test !(press(title_x + 2, _fold_pad + 8) isa ToggleCollapseOperation)
         @test iomap.header.height > 0
 
-        # An Alt+press on the title selects its field, and no other press does.
+        # An Alt+press on the title selects its field, a plain press puts the caret
+        # in it, and a right press selects neither.
         title = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
         selected = press(title_x + 2, _fold_pad + 8; modifiers = ModifierKeys(alt = true))
         @test selected isa ReplaceSelectionOperation && strip_reference_types(selected.path) == title
-        @test !(press(title_x + 2, _fold_pad + 8) isa ReplaceSelectionOperation)
+        @test strip_reference_types(press(title_x + 2, _fold_pad + 8).path) ==
+              ConcreteReference(FieldReferenceStep("title"), ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
         @test !(press(title_x + 2, _fold_pad + 8; button = :right,
                       modifiers = ModifierKeys(alt = true)) isa ReplaceSelectionOperation &&
                 strip_reference_types(press(title_x + 2, _fold_pad + 8; button = :right,
@@ -327,6 +329,29 @@ function test_widget_card_fold()
         # A card that holds no selection of its title draws no band.
         set_selection!(card, nothing)
         @test isempty(_find_rects_with_color(iomap.output, band))
+    end
+
+    @testset "a plain click on a String title puts the caret at the character, and the caret is drawn" begin
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "the body")
+        iomap = print_document(proj, proj, card, PrinterContext())
+        x0, y0, _, height = iomap.header.title_box
+        caret = ConcreteReference(FieldReferenceStep("title"),
+                    ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+        # Each character of the stub measure is 10 wide, so 32 is nearest the place after "Det".
+        answer = read_intent(proj, iomap, MouseClick(:left, x0 + 32, y0 + height ÷ 2, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
+        # A point there maps back to the same caret, and the caret maps forward to its
+        # place on the line, which has a box.
+        @test strip_reference_types(map_reference_backward(iomap.projection, iomap,
+                                                           PointReferenceStep(x0 + 32, y0 + 2))) == caret
+        place = map_reference_forward(iomap.projection, iomap, caret)
+        @test place !== nothing && find_reference_box(iomap.output, place; measure = _fold_stub) !== nothing
+        # The card draws the caret, and no caret before.
+        mark() = [e for e in iomap.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+        @test isempty(mark())
+        evaluate_operation((document = card,), answer)
+        @test length(mark()) == 1 && Int(only(mark()).x) == x0 + 30
     end
 
     @testset "a PrimitiveString title draws in the title style, and its Alt+press selects it" begin
