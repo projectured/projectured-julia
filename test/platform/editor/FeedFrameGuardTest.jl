@@ -105,9 +105,9 @@ end
 # ── File change ──
 
 # A receiver of a change of a file that takes it and does nothing more, so a frame
-# measures the drain of the store and not the reload of a document.
+# measures the drain of the store and not the read of a document.
 struct FeedFrameGuardFileReceiver end
-FileFormatModule.receive_file_change!(editor, ::FeedFrameGuardFileReceiver, file_hash, content) = true
+FileFormatModule.receive_file_change!(editor, ::FeedFrameGuardFileReceiver) = true
 
 function _make_file_change_frame_guard_scene()
     store = Ref{Any}(nothing)
@@ -127,14 +127,14 @@ function _make_file_change_frame_guard_scene()
             end
             editor
         end,
-        # The watcher read one file again and found a new hash, as after a save of
-        # another program.
+        # The watcher found a new time of one file, as after a save of another
+        # program.
         give_input! = function (editor, size)
             round[] += 1
             changed = store[]
             lock(changed.lock) do
                 watched = first(changed.files)
-                watched.prepared = FileChangeModule._PreparedFile(UInt64(round[]), nothing, nothing)
+                watched.stamp = (Float64(round[]), 4)
                 push!(changed.changed, watched.path)
             end
             nothing
