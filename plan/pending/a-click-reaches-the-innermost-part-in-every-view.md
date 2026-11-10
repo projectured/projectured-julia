@@ -828,6 +828,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
+
+  Done so far (2026-11-10, omnet-julia `98367a408` and the cleanup after it):
+  15 views of the presentation (in 14 files) had the one-line forward map by
+  `find_introduced_path`, and they use the default forward map now, which maps
+  the whole document of the view to its whole output; a view that extends the
+  forward map no more does not import it. The atom tests, against step 3: IDE
+  197999 pass and 14 broken, cosim 32189 and 422, presentation 1416927 and
+  1174, legacy 768123 and 516; no Fail and no Error. The other omnet views of
+  the list of step 4 lose the whole document in maps of their own.
 - [ ] 8. **The test in the suites (P6).** Each failure that is left is
   `@test_broken`, with its cause.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
