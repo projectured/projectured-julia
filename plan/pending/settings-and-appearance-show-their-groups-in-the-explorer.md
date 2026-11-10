@@ -311,8 +311,18 @@ makes one commit.
      group, a part or a theme wrote into the live settings or appearance:
      `Settings` and `Appearance` now refuse a pasted document, as a tool does, and
      a refusal covers each document inside them.
-   - [ ] Open the explorer in a window, and open one node of each kind with a
-     double click.
+   - [x] Open the explorer in a window, and open one node of each kind with a
+     double click. Done 2026-11-10 with the owner's permission: the window of the
+     application, with the SDL backend, no settings file and a new appearance.
+     The nodes Settings, Appearance and Editor open with their chevrons, and a
+     double click on Pointer, Scale, Colors, Widget, Tools and Editor shows the
+     page of each. The window showed two faults:
+     - The address named the appearance by the place of its node,
+       `entries[10]`: an `Appearance` had no title. It now has the title
+       "Appearance", and a test checks the address of the page of a theme.
+     - The page of one part has no margin, so its summary touches the frame of
+       the page. A page of the explorer gets no margin from the navigator, but a
+       tab gives its content `slot_padding`; the owner decides who gives it.
 
 ## Not in this plan
 
