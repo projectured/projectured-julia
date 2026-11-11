@@ -1,6 +1,6 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-11): in progress, step 5; steps 1 to 4 are done.** The owner asked for this plan
+> **Status (2026-11-12): steps 1 to 5 are done; the landing waits for the owner.** The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -267,14 +267,48 @@ The work is in two repositories, each in its own worktree:
      such as `ProjecturedMath`, no longer resolve; this is known on main, and the
      change touches no list.
 
-5. **The guides, and a check in the real editor.** Update
+5. ~~**The guides, and a check in the real editor.** Update
    `documentation/package/platform/assistant/assistant.md` ("A duplicate starts
    a new session"), `documentation/package/kernel/agent.md`,
    `documentation/package/adapter/acp/acp.md`, the docstrings of `Assistant`
    and `duplicate_pane!`, and the README of `ClaudeCodeACP`. Then, in the editor
    with the built-in agent: ask the original a question, duplicate the tab, and
    ask the copy "What did I ask you first?". The copy must answer with the first
-   question. This check costs three short prompts.
+   question. This check costs three short prompts.~~ **Done 2026-11-12** (`29ca99c6c` guides, `7087755cb` fix).
+   - The guides: assistant.md ("A duplicate forks the session of its agent"),
+     agent.md and acp.md. The docstring of `duplicate_pane!` already said
+     "another assistant that knows this conversation", which is now true. The
+     README of `ClaudeCodeACP` went with step 2.
+   - **The check found a fault, now fixed.** The check ran the real loop of
+     `run_editor!` with `HeadlessBackend`, `ProjecturedACP` and
+     `ProjecturedMCP`, the agent of the worktree as the external command
+     `julia --project=<ClaudeCodeACP.jl-session-fork> -e 'using ClaudeCodeACP;
+     ClaudeCodeACP.main(ARGS)'`, the real `claude`, and the model `haiku`. It
+     called `duplicate_pane!` from another task, as the code of an agent does.
+     That call runs in a code unit, and the start of the agent of the copy, a
+     plain `Threads.@spawn` task, took that unit with it. Its first call to the
+     editor then threw `CodeUnitWaitException`, so the copy forked only at its
+     first message, after the original had learned a later code word, and
+     answered with that one. A gesture, which runs in the loop with no unit,
+     did not show it. The fix: `_start_agent_task` runs its work with
+     `start_background_work(...; parent = nothing)`, as a turn does, so its
+     calls wait for the end of the unit. The new test "a start of the agent in
+     a code unit waits for the editor until the unit ends" plays the loop with
+     the test task; `test_external_agent_turn()` passes 357 of 357.
+   - **The check after the fix** (the third run): the original learned
+     "PELICAN-42"; the copy opened its session 6 seconds after the duplicate
+     and took the model `haiku`; the original then learned "ZEBRA-7"; the copy
+     answered "PELICAN-42" and the original "ZEBRA-7"; the copy had no note.
+     The three prompts and the setup cost about 0.005 USD. The log also had one
+     `ForeignCellWriteException`. A probe of the check found all 620 writes in
+     the script itself: it read the text of the turns with `_part_text` outside
+     the editor task, and that prints the welcome text. It is no fault of the
+     editor.
+   - **For the landing:** ClaudeCodeACP.jl lands first. Then `ProjecturedACP`
+     asks for `ClaudeCodeACP = "0.1.11"`, and the `Manifest.toml` of
+     `environment/all` names 0.1.11 (it names 0.1.9 on main now, while the
+     checkout is 0.1.10). The registration of 0.1.11 in `ProjecturedRegistry`
+     is a step of the owner.
 
 ## 7. The limits
 
@@ -299,3 +333,4 @@ The work is in two repositories, each in its own worktree:
 - 2026-11-11: step 2 done (ClaudeCodeACP.jl `29ebe0a`).
 - 2026-11-11: step 3 done (`7ab53f05a`).
 - 2026-11-11: step 4 done (`94e390d2e`).
+- 2026-11-12: step 5 done (`29ca99c6c`, `7087755cb`); the check in the real editor passes.
