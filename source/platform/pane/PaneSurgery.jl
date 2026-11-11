@@ -780,6 +780,71 @@ function _close_group(tree::PaneTree, group::PaneGroup)
         CompoundOperation(Any[drop_tab, slot, ReplaceSelectionOperation(cursor)]))
 end
 
+# ── Close the other tabs ───────────────────────────────────────────────────
+
+"""
+    make_pane_close_other_tabs_operation(tree, group, index) -> Operation | Nothing
+
+Remove each tab of `group` except tab `index`, in one step that one undo takes
+back. Each closed tab is released, as [`make_pane_close_tab_operation`](@ref)
+releases it. Tab `index` stays, so the group and the layout stay.
+
+The focus moves only when a closed tab has it, and then to tab `index`. A group
+that showed a closed tab then shows tab `index`. Otherwise the focus stays on its
+tab, and each group shows the tab that it showed.
+
+`nothing` when there is no such tab, or when it is the only tab of the group.
+"""
+function make_pane_close_other_tabs_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    n = length(group.tabs)
+    (1 <= index <= n && n > 1) || return nothing
+    _close_tabs_around(tree, group, index, index - 1, n - index)
+end
+
+"""
+    make_pane_close_tabs_to_the_right_operation(tree, group, index) -> Operation | Nothing
+
+Remove each tab of `group` after tab `index`, in one step that one undo takes
+back. The tabs, the focus and the shown tab follow the rule of
+[`make_pane_close_other_tabs_operation`](@ref).
+
+`nothing` when there is no such tab, or when it is the last tab of the group.
+"""
+function make_pane_close_tabs_to_the_right_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    n = length(group.tabs)
+    (1 <= index < n) || return nothing
+    _close_tabs_around(tree, group, index, 0, n - index)
+end
+
+# The close of the `before` tabs before tab `index` of `group` and of the `after`
+# tabs after it. The run after the tab goes first, so the index of the run before
+# it stays correct. The tab stays at index `index - before`.
+function _close_tabs_around(tree::PaneTree, group::PaneGroup, index::Integer,
+                            before::Integer, after::Integer)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    tabs_path === nothing && return nothing
+    is_closed(k) = k != index && index - before <= k <= index + after
+    closed = Any[group.tabs[k] for k in eachindex(group.tabs) if is_closed(k)]
+    remaining = Any[group.tabs[k] for k in eachindex(group.tabs) if !is_closed(k)]
+    kept, at = group.tabs[index], index - before
+    writes = Any[]
+    after > 0 && push!(writes, make_delete_elements_operation(tabs_path, index + 1; count = after))
+    before > 0 && push!(writes, make_delete_elements_operation(tabs_path, at; count = before))
+    focus = get_pane_focus(tree)
+    close = if focus !== nothing && focus[1] === group && (focus[2] == 0 || is_closed(focus[2]))
+        cursor = _element_path(tree, group, :tabs, at, kept)
+        cursor === nothing && return nothing
+        _with_focus_restore(tree, group, CompoundOperation(Any[writes..., ReplaceSelectionOperation(cursor)]))
+    else
+        kept_view = _with_kept_view(tree, CompoundOperation(writes), Any[group => remaining])
+        is_closed(get_pane_shown_tab_index(group)) ?
+            CompoundOperation(Any[kept_view, _make_dormant_selection_write(tree, group,
+                                      Reference(FieldReferenceStep("tabs"), ElementReferenceStep(at)))]) :
+            kept_view
+    end
+    CompoundOperation(Any[close, (ReleaseDocumentOperation(tab) for tab in closed)...])
+end
+
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """

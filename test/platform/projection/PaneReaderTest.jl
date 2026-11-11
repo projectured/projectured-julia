@@ -634,11 +634,15 @@ end
     menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
     @test menu !== nothing
     @test _menu_labels(menu) == ["Duplicate", "Rename", "Split right", "Split down", "Maximize group",
-                                 "Add to explorer", "Close"]
-    # A window of one group has nothing to maximize.
+                                 "Add to explorer", "Close", "Close others", "Close to the right"]
+    # A window of one group has nothing to maximize, and the last tab has no tab
+    # to its right.
     @test !_menu_item(menu, "Maximize group").enabled
+    @test !_menu_item(menu, "Close to the right").enabled
     @test all(_menu_item(menu, label).enabled
-              for label in ("Duplicate", "Rename", "Split right", "Split down", "Add to explorer", "Close"))
+              for label in ("Duplicate", "Rename", "Split right", "Split down", "Add to explorer", "Close",
+                            "Close others"))
+    @test isempty(_menu_item(menu, "Close others").keys) && isempty(_menu_item(menu, "Close to the right").keys)
     # Each item shows the keys that do the same to the focused tab.
     @test _menu_item(menu, "Close").keys == find_bound_keys(PaneTree, "Close the focused tab")
     @test _menu_item(menu, "Duplicate").keys == find_bound_keys(PaneTree, "Duplicate the focused tab")
@@ -689,6 +693,70 @@ end
     driver = MttDriver(proj, tree)
     menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, only_group, 2), "b")
     @test !_menu_item(menu, "Maximize group").enabled
+end
+
+# A group of the tabs `names`, alone in its tree, with the focus on tab `focus`.
+function _close_fixture(names, focus)
+    group = PaneGroup(PaneTab[_tab(name) for name in names])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, group, focus))
+    proj = _chain()
+    (; group, tree, editor, proj, driver = MttDriver(proj, tree))
+end
+
+_tab_names(group) = [get_pane_tab_title_string(tab) for tab in group.tabs]
+
+# The operation of item `label` in the menu of tab `index` of the group of `f`.
+function _menu_operation(f, index, label)
+    title = get_pane_tab_title_string(f.group.tabs[index])
+    menu = _right_click_menu(f.proj, f.driver, _header_point(f.proj, f.driver.iomap, f.tree, f.group, index), title)
+    _menu_item(menu, label).operation
+end
+
+@testset "Close others and Close to the right close the tabs around the tab of the menu" begin
+    # The focus is on a tab that closes, so it goes to the tab of the menu. One
+    # undo opens the tabs again, and gives the focus back.
+    f = _close_fixture(["a", "b", "c", "d"], 4)
+    tabs = collect(f.group.tabs)
+    inverse = evaluate_invertible_operation!(f.editor, _menu_operation(f, 2, "Close to the right"))
+    @test _tab_names(f.group) == ["a", "b"]
+    @test get_pane_focus(f.tree) == (f.group, 2)
+    evaluate_operation(f.editor, inverse)
+    @test all(f.group.tabs .=== tabs)
+    @test get_pane_focus(f.tree) == (f.group, 4)
+    f = _close_fixture(["a", "b", "c", "d"], 1)
+    _apply!(f.editor, _menu_operation(f, 3, "Close others"))
+    @test _tab_names(f.group) == ["c"]
+    @test get_pane_focus(f.tree) == (f.group, 1)
+    # The focus is on a tab that stays, so it stays on that tab.
+    f = _close_fixture(["a", "b", "c", "d"], 3)
+    _apply!(f.editor, _menu_operation(f, 3, "Close others"))
+    @test _tab_names(f.group) == ["c"] && get_pane_focus(f.tree) == (f.group, 1)
+    f = _close_fixture(["a", "b", "c", "d"], 1)
+    _apply!(f.editor, _menu_operation(f, 2, "Close to the right"))
+    @test _tab_names(f.group) == ["a", "b"] && get_pane_focus(f.tree) == (f.group, 1)
+    # A tab that is alone has no other tab to close.
+    f = _close_fixture(["a"], 1)
+    menu = _right_click_menu(f.proj, f.driver, _header_point(f.proj, f.driver.iomap, f.tree, f.group, 1), "a")
+    @test !_menu_item(menu, "Close others").enabled && !_menu_item(menu, "Close to the right").enabled
+end
+
+@testset "a group with no focus that shows a tab that closes then shows the tab of the menu" begin
+    left = PaneGroup(PaneTab[_tab("a"), _tab("b"), _tab("c")])
+    right = PaneGroup(PaneTab[_tab("d")])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    editor = _PaneReaderMockEditor(tree)
+    _apply!(editor, make_pane_focus_operation(tree, left, 3))
+    _apply!(editor, make_pane_focus_operation(tree, right, 1))
+    @test get_pane_shown_tab_index(left) == 3
+    proj = _chain()
+    driver = MttDriver(proj, tree)
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, left, 1), "a")
+    _apply!(editor, _menu_item(menu, "Close others").operation)
+    @test _tab_names(left) == ["a"]
+    @test get_pane_shown_tab_index(left) == 1
+    @test get_pane_focus(tree) == (right, 1)
 end
 
 @testset "Duplicate is greyed for a content whose copy fails" begin

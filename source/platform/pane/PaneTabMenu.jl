@@ -55,7 +55,9 @@ function _make_tab_menu(tree::PaneTree, group::PaneGroup, index::Integer)
         WidgetSeparator(),
         item("Add to explorer", AddExplorerEntryOperation(_get_tab_document(tab))),
         WidgetSeparator(),
-        item("Close", make_pane_close_tab_operation(tree, group, index), "Close the focused tab")])
+        item("Close", make_pane_close_tab_operation(tree, group, index), "Close the focused tab"),
+        item("Close others", make_pane_close_other_tabs_operation(tree, group, index)),
+        item("Close to the right", make_pane_close_tabs_to_the_right_operation(tree, group, index))])
 end
 
 # The menu of the tab under the pointer, as a layer named by the tab.
