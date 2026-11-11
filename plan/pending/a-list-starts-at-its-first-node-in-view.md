@@ -253,3 +253,13 @@ graphics. Step 3 measures it.
   - `test_video()`: 78 Pass, 1 Fail, the known `ApplicationVideoTest.jl:317`.
   - `test_dataframes()`: 613 Pass.
 
+### Step 3: the guide, 2026-11-11
+
+[sdl.md](../../documentation/package/backend/sdl/sdl.md) describes how each walk
+of a list steps from its head and skips a node outside the edges on the axis, the
+node that waits for the start of the node after it, the guard that reads where
+each node between the head and the view starts, the reflow of a changed link over
+the bounds that the list drew in the last paint, the random scenes of lazy lists
+and the data frame 60 notches down. A decision bullet names this plan with a
+link. The timing waits for the word of the owner.
+
