@@ -5608,8 +5608,13 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # A tabbed pane is a part of the frame: its strip and its page reach the edges
     # of its slot, so it takes no space around it.
     geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
+    # The view of the name that holds the caret. A pane with no tab makes it too:
+    # a live editor keeps this IO map when a person adds the first tab, and the
+    # keys in the name of that tab go to this view.
+    name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
+    name_view = _print_tab_name_view(p, recursion, w, name_place, _with_no_space(ctx))
     if isempty(pairs)
-        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, nothing, Cell(Any[]))
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, name_view, Cell(Any[]))
     end
 
     box = geometry[]                     # stable — independent of the tab count
@@ -5628,8 +5633,6 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     geom = Cell(@computation _tab_strip_geometry(p, w, geometry[], _get_close_button_sizes(close_iomaps[])))
 
     sel_cell = getfield(w, :selection)
-    name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
-    name_view = _print_tab_name_view(p, recursion, w, name_place, _with_no_space(ctx))
 
     _active_idx(sel, ntabs) = begin
         i = _tab_index_from_selection(sel, ntabs)
