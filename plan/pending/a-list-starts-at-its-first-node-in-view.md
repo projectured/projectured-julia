@@ -150,7 +150,7 @@ on `main` before the owner approves.
 
    Mark each assertion that `main` fails with `@test_broken` and its reason.
    Commit.
-2. [ ] **Skip the nodes outside the view.** Points 1, 2 and 3 of the way of the
+2. [x] **Skip the nodes outside the view.** Done; see [As built](#as-built). Points 1, 2 and 3 of the way of the
    change. Promote the assertions of step 1 that pass, and write the counts in
    this plan. Run `test_sdl()`, `test_scroll_work()` and `test_video()` with the
    offscreen driver, and `test_dataframes()`, because a table is a list. Commit.
@@ -201,3 +201,55 @@ graphics. Step 3 measures it.
 - The precompile of `main` warns that 1675 of the 12464 recorded calls of
   `ProjecturedPlatform`, and 164 of the 648 of `ProjecturedChart`, no longer
   resolve. That is the state of `main`; this branch changes no source.
+
+### Step 2: the nodes outside the view are skipped, 2026-11-11
+
+- `_is_skipped_list_node(start, following, near, far)` is the rule, with
+  `_get_list_edges` for the near and the far edge and `_find_list_start` for the
+  start of an element in window coordinates. The render (`_render_canvas!`),
+  `_collect_drawn_nodes` and the dirty walk (`_collect_listnode_dirty!`) apply it.
+  Each walk forward holds a node until it reads the start of the node after it;
+  a walk back knows the start of the node that it came from.
+  `_is_before_early_start` had no caller left, and it is gone.
+- The dirty walk tests the head for stale cells first, with
+  `_read_dirty_list_node`, because the place of a node before the head is
+  computed from the place of the head. `_visit_dirty_list_node!` adds a drawn
+  node to the visited nodes, or clears the place of a painted node that the walk
+  skips.
+- **A fault that the random scenes of step 1 found.** Seed 38 at all four
+  settings: a row inserted just above the view makes new nodes from there on
+  (`make_mapped_list` links them from the changed link), and the old nodes leave
+  the list with their pixels on the screen. The reflow of a changed spine covered
+  the old and the new bounds of the visited nodes only. On `main` the walk visited
+  each row from the head, and their union was wide enough by chance; with the
+  skip, the visited rows were narrower than an old row. The reflow now also
+  takes the bounds that the list drew in the last paint, the record of the list
+  canvas, which the walk reads before it records the list again.
+- The records of the content of a node whose place the dirty walk clears stay
+  until the forget after too many records, as for a node past the far edge. The
+  move forgets them (`_forget_recorded_element!`). This is as on `main`.
+- The guard of a list still reads where each node between the head and the
+  view starts (D1), and none of their content.
+- Counts of `test_scroll_work` (6 notches, kept entries, records and guards):
+
+  | Scene | Depth | Kept entries | Records | Guards |
+  | --- | --- | --- | --- | --- |
+  | Julia file | 0 | 13 to 36 | 29 to 59 | 38 to 51 |
+  | Julia file | 60 | 14 to 40 | 29 to 60 | 38 to 52 |
+  | Files pane | 0 | 5 to 8 | 14 to 20 | 6 to 8 |
+  | Files pane | 60 | 5 to 8 | 14 to 20 | 6 to 8 |
+  | Data frame | 0 | 30 | 118 to 144 | 76 to 90 |
+  | Data frame | 60 | 23 to 30 | 105 to 118 | 62 to 76 |
+
+  The data frame entered 45 to 195 kept graphics in the first 6 notches before
+  this step, and 1323 to 3738 in the timing at notches 25 to 99.
+- Suites with the offscreen driver, Julia 1.13.1:
+  - `test_sdl()`: 1333 Pass, 1 Fail, 2 Error. `main` `cfb077e2d` gives 1330
+    Pass with the same three: `SdlWorkloadTest.jl` lines 29 and 72, where an
+    earlier test shuts the event system of SDL down, and line 78, where a
+    finished turn of an agent folds its code, so the click on `lengths_1` finds
+    no target. Commit `3fd04ea4b` on `main` removed that click.
+  - `test_scroll_work()`: 24 Pass, the deep data frame among them.
+  - `test_video()`: 78 Pass, 1 Fail, the known `ApplicationVideoTest.jl:317`.
+  - `test_dataframes()`: 613 Pass.
+

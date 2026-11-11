@@ -2124,42 +2124,42 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
     if elements isa ListNode
         # A list can be endless, so only a layout with no overlap may hold one.
         check_list_canvas(elements, layout, canvas.overlapping_elements)
-        # Traverse prev links to render content before the head (e.g. negative y offsets)
-        prev_node = elements.prev
-        while prev_node !== nothing
-            elem = prev_node.value
-            is_drawn(elem) &&
-                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
-                                         key = _make_render_key(paint, elem, _make_render_key(paint, prev_node, key)))
-            if early_stop
-                if layout == layout_vertical
-                    ey = _find_render_coordinate(_render_elem_y, elem)
-                    ey !== nothing && (ey + oy) < edges.top && break
-                elseif layout == layout_horizontal
-                    ex = _find_render_coordinate(_render_elem_x, elem)
-                    ex !== nothing && (ex + ox) < edges.left && break
-                end
-            end
-            prev_node = prev_node.prev
-        end
-        # Traverse next links from the head (existing forward rendering)
-        node = elements
-        while node !== nothing
-            elem = node.value
-            if early_stop
-                if layout == layout_vertical
-                    ey = _find_render_coordinate(_render_elem_y, elem)
-                    ey !== nothing && (ey + oy) >= edges.bottom && break
-                elseif layout == layout_horizontal
-                    ex = _find_render_coordinate(_render_elem_x, elem)
-                    ex !== nothing && (ex + ox) >= edges.right && break
-                end
-            end
+        near, far = _get_list_edges(edges, layout)
+        start_of(elem) = early_stop ? _find_render_coordinate(e -> _find_list_start(e, ox, oy, layout), elem) : nothing
+        render_node!(node, elem) =
             is_drawn(elem) &&
                 _render_element_guarded!(renderer, elem, ox, oy, edges, ratio; paint,
                                          key = _make_render_key(paint, elem, _make_render_key(paint, node, key)))
+        # Back along the prev links from the head, up to and with the first node that
+        # starts before the near edge. The node after each one is the node that the
+        # walk came from.
+        following = start_of(elements.value)
+        prev_node = elements.prev
+        while prev_node !== nothing
+            elem = prev_node.value
+            start = start_of(elem)
+            _is_skipped_list_node(start, following, near, far) || render_node!(prev_node, elem)
+            start !== nothing && start < near && break
+            following = start
+            prev_node = prev_node.prev
+        end
+        # Forward along the next links from the head, up to the first node that
+        # starts at or past the far edge. A node waits for the start of the node
+        # after it.
+        pending, pending_elem, pending_start = nothing, nothing, nothing
+        node = elements
+        while node !== nothing
+            elem = node.value
+            start = start_of(elem)
+            pending === nothing || _is_skipped_list_node(pending_start, start, near, far) ||
+                render_node!(pending, pending_elem)
+            pending = nothing
+            start !== nothing && start >= far && break
+            pending, pending_elem, pending_start = node, elem, start
             node = node.next
         end
+        pending === nothing || _is_skipped_list_node(pending_start, nothing, near, far) ||
+            render_node!(pending, pending_elem)
     else
         # A laid-out canvas starts at the first element that reaches into the
         # clip. The elements before it end before the near edge, so their
@@ -2505,7 +2505,8 @@ end
 # the first element past the far edge of the viewport, and a list stops at the
 # first element before the near edge when it walks back. `edges` are the
 # absolute edges of the clip; the render passes them to a nested canvas
-# unchanged. A laid-out `CellVector` starts at `_compute_first_drawn_index`.
+# unchanged. A laid-out `CellVector` starts at `_compute_first_drawn_index`, and a
+# list skips each node outside the edges on its axis (`_is_skipped_list_node`).
 
 # Whether the render draws `elem` at the content origin `(ox, oy)` between `edges`.
 # A fence draws nothing. An image draws inside its box only, so one whose box
@@ -2534,21 +2535,33 @@ function _is_past_early_stop(elem, ox::Int, oy::Int, edges::_ClipEdges,
     false
 end
 
-function _is_before_early_start(elem, ox::Int, oy::Int, edges::_ClipEdges,
-                                layout::LayoutDirection, early::Bool)::Bool
-    early || return false
-    if layout == layout_vertical
-        ey = _render_elem_y(elem)
-        return ey !== nothing && (ey + oy) < edges.top
-    elseif layout == layout_horizontal
-        ex = _render_elem_x(elem)
-        return ex !== nothing && (ex + ox) < edges.left
-    end
-    false
-end
-
 _is_early_stop_layout(canvas::GraphicsCanvas) =
     !canvas.overlapping_elements && canvas.layout != layout_none
+
+# The near and the far edge of `edges` on the axis of `layout`.
+_get_list_edges(edges::_ClipEdges, layout::LayoutDirection) =
+    layout == layout_horizontal ? (edges.left, edges.right) : (edges.top, edges.bottom)
+
+# Where `elem` starts on the axis of `layout`, at the content origin `(ox, oy)`, or
+# `nothing` when it has no place on that axis.
+function _find_list_start(elem, ox::Int, oy::Int, layout::LayoutDirection)
+    if layout == layout_horizontal
+        x = _render_elem_x(elem)
+        return x === nothing ? nothing : x + ox
+    end
+    y = _render_elem_y(elem)
+    y === nothing ? nothing : y + oy
+end
+
+# Whether each walk of a laid-out list skips a node, as the search of a vector
+# (`compute_first_visible_index`) skips an element. The node starts at `start`, and
+# the node after it along the next links at `following`; either is `nothing` where
+# it has no place, and `following` where no node follows. The nodes of a list do
+# not overlap and follow the axis, so a node ends where the node after it starts.
+# A node that ends at or before the near edge, or that starts at or past the far
+# edge, draws nothing between the edges, and a walk reads nothing in it.
+_is_skipped_list_node(start, following, near::Int, far::Int) =
+    (start !== nothing && start >= far) || (following !== nothing && following <= near)
 
 # ── What a paint records ──
 #
@@ -3614,24 +3627,37 @@ end
 # The nodes of a list that the render draws, in its order: back along the prev
 # links from the head, up to and with the first node before the near edge, then
 # forward along the next links from the head, up to the first node past the far
-# edge.
+# edge. A node outside the edges on the axis is skipped (`_is_skipped_list_node`).
 function _collect_drawn_nodes(head::ListNode, ox::Int, oy::Int, edges::_ClipEdges,
                               layout::LayoutDirection, early::Bool)
     nodes = ListNode[]
+    near, far = _get_list_edges(edges, layout)
+    start_of(value) = early ? _find_list_start(value, ox, oy, layout) : nothing
+    following = start_of(head.value)
     node = head.prev
     while node !== nothing
         value = node.value
-        _is_drawn_element(value, ox, oy, edges) && push!(nodes, node)
-        _is_before_early_start(value, ox, oy, edges, layout, early) && break
+        start = start_of(value)
+        _is_skipped_list_node(start, following, near, far) || !_is_drawn_element(value, ox, oy, edges) ||
+            push!(nodes, node)
+        start !== nothing && start < near && break
+        following = start
         node = node.prev
     end
+    pending, pending_start = nothing, nothing
     node = head
     while node !== nothing
         value = node.value
-        _is_past_early_stop(value, ox, oy, edges, layout, early) && break
-        _is_drawn_element(value, ox, oy, edges) && push!(nodes, node)
+        start = start_of(value)
+        pending === nothing || _is_skipped_list_node(pending_start, start, near, far) ||
+            !_is_drawn_element(pending.value, ox, oy, edges) || push!(nodes, pending)
+        pending = nothing
+        start !== nothing && start >= far && break
+        pending, pending_start = node, start
         node = node.next
     end
+    pending === nothing || _is_skipped_list_node(pending_start, nothing, near, far) ||
+        !_is_drawn_element(pending.value, ox, oy, edges) || push!(nodes, pending)
     nodes
 end
 
@@ -3658,10 +3684,36 @@ function _clear_left_view_nodes!(res::SdlWindowResources, walk::_DirtyWalk, node
     cleared
 end
 
+# The value of `node`, and whether that value or the cells of a leaf value are
+# stale. The test comes before a walk reads the place of the node, as a leaf is
+# tested for stale cells before the box of an image reads them.
+function _read_dirty_list_node(node::ListNode)
+    vcell = getfield(node, :value)
+    stale = !is_cell_valid(vcell)
+    elem = vcell[]
+    (elem, stale || (_is_leaf_graphic(elem) && _node_dirty(elem)))
+end
+
+# The dirty walk at `node` of the list at `list`, whose value `elem` it read and
+# found `stale` or not. A node that the render draws joins `visited`. A node that
+# the walk skips, and an image outside the clip, leaves its place when it was
+# painted. True when a place was cleared.
+function _visit_dirty_list_node!(res::SdlWindowResources, walk::_DirtyWalk, visited, node::ListNode,
+                                 list::UInt, elem, stale::Bool, skipped::Bool, ox::Int, oy::Int,
+                                 edges::_ClipEdges, old_origin::NTuple{2,Int})::Bool
+    node_key = _make_placement_key(node, list)
+    if !skipped && _is_drawn_element(elem, ox, oy, edges)
+        push!(visited, (node, node_key, elem, stale))
+        return false
+    end
+    _clear_left_view!(res, walk, node_key, old_origin...)
+end
+
 # Walk a `ListNode`-backed element list the same way `_render_canvas!` does
 # (prev links, then next links, with the layout early-stop), visiting only the
-# nodes the renderer would draw. A change confined to one node's value is a
-# per-node dirty unit (one edited line stays tight, with old∪new bounds so a
+# nodes the renderer would draw: a node outside the edges on the axis is skipped
+# (`_is_skipped_list_node`), and nothing in it is read. A change confined to one
+# node's value is a per-node dirty unit (one edited line stays tight, with old∪new bounds so a
 # shrinking line clears its tail), and so is a node new to the screen. A spine
 # change (line inserted/removed), or a `reflow` the caller asks for, reflows
 # everything below it, so the dirty region is extended down to the viewport
@@ -3675,62 +3727,75 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     visited = Tuple{ListNode,UInt,Any,Bool}[]
     spine_dirty = reflow
     changed = false
+    near, far = _get_list_edges(edges, layout)
+    start_of(elem) = early ? _find_list_start(elem, ox, oy, layout) : nothing
+    # Each node is tested for stale cells before the walk reads its place. The head
+    # comes first, because the place of a node before it can follow its place.
+    head_elem, head_stale = _read_dirty_list_node(head)
+    head_start = start_of(head_elem)
 
-    # Prev links (negative offsets): process, then early-stop (as in render).
+    # Prev links (negative offsets): process, then early-stop (as in render). The
+    # node after each one is the node that the walk came from.
     pcell = getfield(head, :prev)
     is_cell_valid(pcell) || (spine_dirty = true)
     node = pcell[]
+    following = head_start
     above = nothing                        # the first node the render does not reach back
     while node !== nothing
-        vcell = getfield(node, :value)
-        vstale = !is_cell_valid(vcell)
-        elem = vcell[]
+        elem, stale = _read_dirty_list_node(node)
+        start = start_of(elem)
         pc = getfield(node, :prev)
-        # A leaf is tested for stale cells before the box of an image reads them.
-        stale = vstale || (_is_leaf_graphic(elem) && _node_dirty(elem))
-        if _is_drawn_element(elem, ox, oy, edges)
-            push!(visited, (node, _make_placement_key(node, key), elem, stale))
-        else
-            # An image outside the clip that was painted leaves its place.
-            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key), old_origin...)
-        end
-        if _is_before_early_start(elem, ox, oy, edges, layout, early)
+        changed |= _visit_dirty_list_node!(res, walk, visited, node, key, elem, stale,
+                                           _is_skipped_list_node(start, following, near, far),
+                                           ox, oy, edges, old_origin)
+        if start !== nothing && start < near
             above = is_cell_valid(pc) ? pc[] : nothing
             break
         end
         is_cell_valid(pc) || (spine_dirty = true)
+        following = start
         node = pc[]
     end
 
-    # Next links from head: early-stop, then process (as in render). A leaf value
-    # is tested before the early-stop reads its place.
-    node = head
+    # Next links from head: early-stop, then process (as in render). A node waits
+    # for the start of the node after it.
+    node, elem, stale, start = head, head_elem, head_stale, head_start
+    pending, pending_elem, pending_stale, pending_start = nothing, nothing, false, nothing
     below = nothing                        # the first node the render does not reach forward
-    while node !== nothing
-        vcell = getfield(node, :value)
-        vstale = !is_cell_valid(vcell)
-        elem = vcell[]
-        leaf_dirty = _is_leaf_graphic(elem) && _node_dirty(elem)
-        if _is_past_early_stop(elem, ox, oy, edges, layout, early)
+    while true
+        pending === nothing ||
+            (changed |= _visit_dirty_list_node!(res, walk, visited, pending, key, pending_elem, pending_stale,
+                                                _is_skipped_list_node(pending_start, start, near, far),
+                                                ox, oy, edges, old_origin))
+        pending = nothing
+        if start !== nothing && start >= far
             below = node
             break
         end
-        if _is_drawn_element(elem, ox, oy, edges)
-            push!(visited, (node, _make_placement_key(node, key), elem, vstale || leaf_dirty))
-        else
-            changed |= _clear_left_view!(res, walk, _make_placement_key(node, key), old_origin...)
-        end
+        pending, pending_elem, pending_stale, pending_start = node, elem, stale, start
         nc = getfield(node, :next)
         is_cell_valid(nc) || (spine_dirty = true)
         node = nc[]
+        node === nothing && break
+        elem, stale = _read_dirty_list_node(node)
+        start = start_of(elem)
     end
+    pending === nothing ||
+        (changed |= _visit_dirty_list_node!(res, walk, visited, pending, key, pending_elem, pending_stale,
+                                            _is_skipped_list_node(pending_start, nothing, near, far),
+                                            ox, oy, edges, old_origin))
 
     changed |= _clear_left_view_nodes!(res, walk, above, key, :prev, ox, oy, edges, old_origin)
     changed |= _clear_left_view_nodes!(res, walk, below, key, :next, ox, oy, edges, old_origin)
 
     if spine_dirty
+        # A changed link takes nodes off the list, and the walk no longer reaches
+        # them. Their pixels lie inside the bounds that the list drew in the last
+        # paint, and its container did not move.
+        drawn_before = _find_window_bounds(res, key, _get_container_origin(res, key, ox, oy)...)
         changed = _defer!(walk, () -> begin
             wb = _DirtyAcc()
+            drawn_before === nothing || _acc_extend!(wb, drawn_before)
             for (n, nkey, val, _) in visited
                 old = _find_window_bounds(res, nkey, old_origin...)
                 old === nothing || _acc_extend!(wb, old)

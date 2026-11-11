@@ -213,10 +213,7 @@ function test_scroll_work()
         deep_frames, _ = _sw_scroll(_sw_make_data_frame_editor(deep_backend), deep_backend, :Data, 700, 500;
                                     depth = 60)
         @test all(f -> f.same, deep_frames)
-        # @broken: each walk of the list of rows starts at its head, so a move enters
-        # each row between the head and the view: about 40 more graphics for each
-        # notch further down.
-        @test_broken _sw_enters_as_few(deep_frames, frames)
+        @test _sw_enters_as_few(deep_frames, frames)
     end
 end
 end

@@ -229,13 +229,11 @@ end
     # starts at the near edge, and row 107 is the last row that starts before the
     # far edge.
     head, number_of = make_numbered_list(1:300)
-    # @broken: the walk draws each row from the head to the view.
-    @test_broken find_drawn_rows(head, number_of, -1600) == collect(101:107)
+    @test find_drawn_rows(head, number_of, -1600) == collect(101:107)
     # The view shows y = -1600 to -1500, 100 rows before the head. The walk reaches
     # these rows back from the head, so it meets row -93 first and row -99 last.
     head, number_of = make_numbered_list(-200:10)
-    # @broken: the walk draws each row from the head back to the view.
-    @test_broken find_drawn_rows(head, number_of, 1600) == collect(-93:-1:-99)
+    @test find_drawn_rows(head, number_of, 1600) == collect(-93:-1:-99)
 end
 
 @testset "a scroll under and over other graphics" begin
