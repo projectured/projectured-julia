@@ -1,6 +1,6 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-11): in progress, step 4; steps 1 to 3 are done.** The owner asked for this plan
+> **Status (2026-11-11): in progress, step 5; steps 1 to 4 are done.** The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -231,7 +231,7 @@ The work is in two repositories, each in its own worktree:
    - Test: `test_acp_connection()` passes 257 of 257, in the environment of
      `ProjecturedACPTest`.
 
-4. **The copy of an assistant forks the session of its agent.** `copy_document`
+4. ~~**The copy of an assistant forks the session of its agent.** `copy_document`
    of an `Assistant` keeps the source of the fork: the id and the folder of the
    session of the original, the count of the turns that the session saw, and
    the options that the person chose. The source is live state, so a file does
@@ -244,7 +244,29 @@ The work is in two repositories, each in its own worktree:
    session of the original and has no note; the next prompt of the copy sends
    only the new message; a fork that gives `nothing` gives the note of P5; a copy
    of an assistant that answers gives the note of P4; the undo of the duplicate
-   stops the agent of the copy. Then `test_assistant_duplicate()`.
+   stops the agent of the copy. Then `test_assistant_duplicate()`.~~ **Done 2026-11-11** (`94e390d2e`).
+   - The source is an `AgentSessionFork(session_id, directory, turn_count,
+     options)` in the new field `agent_fork` of `Assistant`.
+   - **The copy keeps `agent_fork` until the first answer of its agent.** Fact
+     (a) of step 1 holds for the copy too: before that answer, `claude` keeps no
+     file of the fork, so a kept id of the fork could not resume. So the open of
+     the fork does not write the kept session; the first answer writes it, as
+     for any session, and clears `agent_fork`. A start again before the first
+     answer, as after the undo of the duplicate and its redo, forks the source
+     again.
+   - A copy that nobody acquires, such as one that a program makes and does not
+     open in a tab, forks at its first turn, through the same open.
+   - A new conversation clears `agent_fork`. A copy of a copy whose agent did
+     not answer yet forks the same source.
+   - When the fork gives `nothing`, the note comes after the open, so in a copy
+     that forks at its first turn it stands between the message and the answer.
+   - Tests: `test_external_agent_turn()` passes 355 of 355 and
+     `test_assistant_duplicate()` 29 of 29. The five "Assistant turn failed"
+     errors in the log come from tests that make a turn fail on purpose. The
+     build of `environment/all` warns that the recorded calls of eight packages,
+     such as `ProjecturedMath`, no longer resolve; this is known on main, and the
+     change touches no list.
+
 5. **The guides, and a check in the real editor.** Update
    `documentation/package/platform/assistant/assistant.md` ("A duplicate starts
    a new session"), `documentation/package/kernel/agent.md`,
@@ -276,3 +298,4 @@ The work is in two repositories, each in its own worktree:
 - 2026-11-11: step 1 done (facts in step 1).
 - 2026-11-11: step 2 done (ClaudeCodeACP.jl `29ebe0a`).
 - 2026-11-11: step 3 done (`7ab53f05a`).
+- 2026-11-11: step 4 done (`94e390d2e`).
