@@ -149,22 +149,18 @@ function map_drawn_place_backward(drawn, canvas, reference)
 end
 
 """
-    make_drawn_caret_mark(drawn, selection, measure) -> GraphicsRect
+    make_drawn_caret_elements(drawn, selection, measure) -> Vector{Any}
 
-The caret of a widget that keeps the records `drawn()`: a thin rectangle in the
-colour of the line, at the place of `selection()`, the stored selection of the
-widget, while it is a caret in a part that a line shows, and of no size else. The
-mark stands in the canvas that holds the lines.
+The caret of a widget that keeps the records `drawn`: one thin rectangle in the
+colour of the line, at the place of `selection`, the stored selection of the
+widget, while it is a caret in a part that a line shows, and no element else. The
+widget appends it to the elements of the canvas that holds the lines, so a widget
+that holds no caret has no element and no cell for it.
 """
-function make_drawn_caret_mark(drawn::Function, selection::Function, measure)
-    mark = GraphicsRect(0, 0, 0, 0; color = color_transparent)
-    place = Cell(@computation _find_drawn_caret_place(drawn(), selection(), measure))
-    set_cell_computation!(getfield(mark, :x), () -> Int32(place[] === nothing ? 0 : place[].x))
-    set_cell_computation!(getfield(mark, :y), () -> Int32(place[] === nothing ? 0 : place[].y))
-    set_cell_computation!(getfield(mark, :w), () -> Int32(place[] === nothing ? 0 : 2))
-    set_cell_computation!(getfield(mark, :h), () -> Int32(place[] === nothing ? 0 : place[].height))
-    set_cell_computation!(getfield(mark, :color), () -> place[] === nothing ? color_transparent : place[].color)
-    mark
+function make_drawn_caret_elements(drawn, selection, measure)
+    place = _find_drawn_caret_place(drawn, selection, measure)
+    place === nothing && return Any[]
+    Any[GraphicsRect(place.x, place.y, 2, place.height; color = place.color)]
 end
 
 # The place of the caret `selection` on its line, in the frame of the canvas of

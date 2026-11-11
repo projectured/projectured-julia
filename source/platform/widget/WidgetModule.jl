@@ -89,7 +89,8 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetOptionToGraphicsCanvas,
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
 export make_decoration_icon, make_decoration_badges, make_decoration_note, make_fault_report_note
-export DrawnText, find_drawn_caret, map_drawn_caret_forward, map_drawn_place_backward, make_drawn_caret_mark
+export DrawnText, find_drawn_caret, map_drawn_caret_forward, map_drawn_place_backward,
+       make_drawn_caret_elements
 export is_widget_or_layout, follow_widget_output!, follow_built_children!
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap

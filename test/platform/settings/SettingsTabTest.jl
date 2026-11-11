@@ -8,8 +8,10 @@ import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 import ProjecturedPlatform.ScreenModule: show_document!
 
+# The width of a character of the measure of the tab.
+const _STAB_CHARACTER_WIDTH = 8
 _stab_natural(; extra = Pair{Type,Any}[]) =
-    NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
+    NaturalToGraphics(; measure = FixedMeasure(_STAB_CHARACTER_WIDTH, 12, 4, 0), extra)
 
 # An editor whose content is `content`, a tab that shows `settings`, with the
 # settings wrapper over the same `settings`, after its first frame.
@@ -68,11 +70,12 @@ function _stab_find_click(editor, backend, label, name)
     nothing
 end
 
-# The click on the row of `label`, right of the label, whose answer `is_wanted`
-# takes; `nothing` when no point of the row answers so.
+# The click on the row of `label`, right of the text of the label, whose answer
+# `is_wanted` takes; `nothing` when no point of the row answers so. A click on
+# the text of the label puts the caret in the label.
 function _stab_find_click_answer(editor, backend, label, is_wanted)
     (_, lx, ly) = only(text for text in _stab_texts(backend) if text[1] == label)
-    for x in lx:2:(lx + 800)
+    for x in (lx + _STAB_CHARACTER_WIDTH * length(label)):2:(lx + 800)
         answer = read_intent(editor.projection, nothing, Intent(_stab_click(x, ly + 6)),
                              editor.iomap)
         is_wanted(answer isa Intent ? answer.operation : answer) && return _stab_click(x, ly + 6)

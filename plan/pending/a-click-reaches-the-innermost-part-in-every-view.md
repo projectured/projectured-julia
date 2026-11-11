@@ -807,6 +807,45 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       while its selection is a caret in a part that it recorded.
     - The card title is the first model, then the fact and the label; the other
       calls follow in step 6, one cause at a time.
+
+    Done so far (2026-11-11):
+    - ~~The card title~~ (7ab296844, on main). The record of a line is
+      `DrawnTextLine` (first named `DrawnText`, which `ApplicationModule`
+      already exports for the target of a workload click; the rename removes
+      the clash).
+    - ~~The label.~~ `WidgetLabelToGraphicsCanvas` records each line of a
+      `String` content with the part `.content`; its IO map keeps the records
+      (`WidgetBoxIoMap.drawn`). A plain single click on the text answers
+      `ReplaceSelectionOperation(.content{c})`, a move names that caret, and
+      the forward and backward maps use the helpers. A label of a value that is
+      not a `String` records no line and answers nothing.
+    - **The caret is an element of the canvas of the lines.**
+      `make_drawn_caret_elements(drawn, selection, measure)` gives one thin
+      rectangle while the selection is a caret on a recorded line, and no
+      element else; the card and the label append it to their elements. It
+      takes the place of the separate caret mark of the card.
+    - **A label leaves a double click to the widget around it** (my decision).
+      The help navigator opens the page of a row on a double click; when the
+      label answered the double click with a caret, no row opened
+      (`test_help_pages` 30/10). A label reads a single click only, so the row
+      gets the double click as before. A word selection on a double click is
+      not part of this plan.
+    - **A header and the corner follow the rule of a cell** (my reading of step
+      6: the table goes on into a cell and a header). The table gives a plain
+      click on a header or on the corner to what it holds, and selects the
+      line, or the whole table for the corner, only when that declines. A label
+      there now takes a click on its text, so the click puts the caret in the
+      header; a click on the padding selects the line, as D4 says for a cell.
+      No special case keeps the old answer. The tests that pressed on the text
+      to select a line now press on the padding and also check the caret:
+      `WidgetTableTest`, `WidgetTablePartsTest`, `WidgetTablePartSelectionTest`,
+      `WidgetTableHeaderLevelsTest`. The point tests now expect the caret in
+      the text of the label under the point: `LayoutPointTest`,
+      `WidgetPointTest`, `AnchoredLayoutTest`. The search of the settings test
+      starts right of the text of the label.
+    - **Found:** the note of a tooltip threw a `FieldError` (`second`) on a
+      fact that is a condition of a decoration, since the D6 wiring of
+      212901ac9 (efda41c32).
   - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
     output that its projection drew, and evaluates to the drawn part.
     `OutputReferenceStep` goes, and its users make the introduced step. Each

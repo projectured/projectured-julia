@@ -409,14 +409,22 @@ end
 # `WidgetChildrenIoMap`. A widget with an IO map of its own holds the shape in
 # its field `box`.
 
-# The IO map of a widget that holds no child: the fields of a `SimpleIoMap`, and
-# the shape of the box.
+# The IO map of a widget that holds no child: the fields of a `SimpleIoMap`, the
+# shape of the box, and the lines of text that the widget drew with the part of its
+# input that each shows (`DrawnText`).
 @iomap struct WidgetBoxIoMap
     projection::Any
     input::Any
     output::Any
     box::Any
+    drawn::Any
 end
+
+# The IO map of a widget that records no line of text.
+WidgetBoxIoMap(projection, input, output, box) =
+    WidgetBoxIoMap(projection, input, output, box, _NO_DRAWN_TEXT)
+
+const _NO_DRAWN_TEXT = DrawnText[]
 
 # The IO map of a widget that holds children: the fields of a `ChildrenIoMap`,
 # whose `child_iomaps` holds an `(x, y, child_iomap)` entry for each child, and
@@ -1898,63 +1906,92 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        content = get_shown_picture(w.content)
-        # A label may carry its own font+color (e.g. a chat card's title) that
-        # overrides the theme's default label style — or a bare COLOUR, which
-        # takes the theme's font and only changes the ink, or a bare FONT, which
-        # takes the theme's ink. The colour is what lets a severity, a diff or a
-        # status be coloured without a caller naming a font and so dropping out
-        # of the theme; the font is what lets a label write an icon of the icon
-        # font in the color of the text beside it. `text_style` wins over the
-        # `label_text_color` of a style.
-        style = _get_label_style(p, w)
-        box = geometry[]
-        colors = _get_box_colors(p, w)
-        inset_width, inset_height = _get_inset_total(box)
-        content_x, content_y = _get_content_offset(box)
-        content_width, content_height = _content_size(p.measure, style.font, content)
-        content isa ImageDocument &&
-            ((content_width, content_height) = _fit_image_size(content_width, content_height, ctx,
-                                                               inset_width, inset_height))
-        elements = Any[]
-        # Text breaks at the edge of the range the parent gave, exact or bounded,
-        # less the box. A label in a column holds prose in that column, and a line
-        # longer than the column would be drawn past it and lost. An image is not
-        # broken; it fills its box.
-        edge = ctx === nothing ? nothing : ctx.maximum_width
-        bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
-        radius = w.corner_radius
-        text = content isa ImageDocument ? "" : string(content)
-        if !(content isa ImageDocument) && (bound > 0 && content_width > bound ||
-                                             w.line_spacing !== nothing || occursin('\n', text))
-            text_elements = Any[]
-            text_width, text_height = _push_text_block!(text_elements, p.measure, style, text,
-                                                        content_x, content_y, bound;
-                                                        max_lines = w.max_lines, spacing = w.line_spacing)
-            outer_width = _resolve_width(ctx, 0, text_width + inset_width)
-            outer_height = _resolve_height(ctx, 0, text_height + inset_height)
-            _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
-                             radius)
-            append!(elements, text_elements)
-            return (width = outer_width, height = outer_height, elements = elements)
-        end
-        # No size of its own, so the offer decides and the content is the floor.
-        # An image label fills what it is given; text stays where it is drawn.
-        outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
-        outer_height = _resolve_height(ctx, 0, content_height + inset_height)
-        content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
-                       content_height; placeholder_color = p.placeholder_color)
-        (width = outer_width, height = outer_height, elements = elements)
-    end), geometry)
+    build = Cell(Computation(() -> _build_label(p, w, geometry[], ctx)))
+    x, y = _origin(position)
+    # The caret in the text, which a plain click puts there.
+    canvas = GraphicsCanvas(Int32(x), Int32(y),
+                            Cell(@computation Int32(build[].width)),
+                            Cell(@computation Int32(build[].height)),
+                            CellVector(@computation vcat(build[].elements,
+                                                         make_drawn_caret_elements(build[].drawn, w.selection,
+                                                                                   p.measure))),
+                            layout_none, true, Cell(nothing))
+    WidgetBoxIoMap(p, w, canvas, geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# The box, the text and the lines of a label: `(; width, height, elements, drawn)`.
+# A label whose content is a `String` records each line that it draws, as the part
+# `.content` from the character where the line starts.
+function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGeometry, ctx)
+    drawn = DrawnText[]
+    part = w.content isa AbstractString ? _LABEL_CONTENT : nothing
+    content = get_shown_picture(w.content)
+    # A label may carry its own font+color (e.g. a chat card's title) that
+    # overrides the theme's default label style — or a bare COLOUR, which
+    # takes the theme's font and only changes the ink, or a bare FONT, which
+    # takes the theme's ink. The colour is what lets a severity, a diff or a
+    # status be coloured without a caller naming a font and so dropping out
+    # of the theme; the font is what lets a label write an icon of the icon
+    # font in the color of the text beside it. `text_style` wins over the
+    # `label_text_color` of a style.
+    style = _get_label_style(p, w)
+    colors = _get_box_colors(p, w)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    content_width, content_height = _content_size(p.measure, style.font, content)
+    content isa ImageDocument &&
+        ((content_width, content_height) = _fit_image_size(content_width, content_height, ctx,
+                                                           inset_width, inset_height))
+    elements = Any[]
+    # Text breaks at the edge of the range the parent gave, exact or bounded,
+    # less the box. A label in a column holds prose in that column, and a line
+    # longer than the column would be drawn past it and lost. An image is not
+    # broken; it fills its box.
+    edge = ctx === nothing ? nothing : ctx.maximum_width
+    bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
+    radius = w.corner_radius
+    text = content isa ImageDocument ? "" : string(content)
+    if !(content isa ImageDocument) && (bound > 0 && content_width > bound ||
+                                         w.line_spacing !== nothing || occursin('\n', text))
+        text_elements = Any[]
+        text_width, text_height = _push_text_block!(text_elements, p.measure, style, text,
+                                                    content_x, content_y, bound;
+                                                    max_lines = w.max_lines, spacing = w.line_spacing,
+                                                    part, drawn = part === nothing ? nothing : drawn)
+        outer_width = _resolve_width(ctx, 0, text_width + inset_width)
+        outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+        _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
+                         radius)
+        append!(elements, text_elements)
+        return (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
+    end
+    # No size of its own, so the offer decides and the content is the floor.
+    # An image label fills what it is given; text stays where it is drawn.
+    outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
+    outer_height = _resolve_height(ctx, 0, content_height + inset_height)
+    content_width, content_height = outer_width - inset_width, outer_height - inset_height
+    _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+    _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
+                   content_height; placeholder_color = p.placeholder_color)
+    part === nothing || push!(drawn, DrawnText(last(elements), part, 0))
+    (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
+end
 
-function map_reference_backward(::WidgetLabelToGraphicsCanvas, iomap, reference)
-    return nothing
+const _LABEL_CONTENT = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+
+# A caret or a range in the text of a label is drawn on its line.
+map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) =
+    something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
+              Some(_map_child_forward(iomap, reference)))
+
+# A place of characters of the text, and a point on it, is the caret or the range in
+# the content; any other place names nothing.
+function map_reference_backward(p::WidgetLabelToGraphicsCanvas, iomap, reference)
+    reference === nothing && return nothing
+    place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
+    point = find_reference_point(reference)
+    point === nothing ? nothing : find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
 end
 
 
@@ -2009,12 +2046,21 @@ function _find_row_index(bounds, y::Real)
     nothing
 end
 
-# A label takes only the gestures that it is given, such as a press on a chip.
-function read_intent(::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+# A label takes the gestures that it is given, such as a press on a chip. Else a
+# plain single click on its text puts the caret at the character under the pointer,
+# and a move names that caret as the part under the pointer. A double click is left
+# to the widget around the label, such as the row that it opens.
+function read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
-    read_bound_gesture(w, evt)
+    bound = read_bound_gesture(w, evt)
+    bound === nothing || return bound
+    plain = evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
+    (plain || evt isa MouseMove) || return nothing
+    caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
+    caret === nothing && return nothing
+    plain ? ReplaceSelectionOperation(caret) : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
@@ -9157,11 +9203,12 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
         nothing
     end, p.graphics_style)
     # The caret in the title or the description, which a plain click puts there.
-    caret = make_drawn_caret_mark(() -> build[].drawn, () -> w.selection, p.measure)
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(@computation Int32(build[].w)),
                            Cell(@computation Int32(build[].h)),
-                           CellVector(@computation vcat(build[].elements, Any[ring, caret])),
+                           CellVector(@computation vcat(build[].elements, Any[ring],
+                                                        make_drawn_caret_elements(build[].drawn, w.selection,
+                                                                                  p.measure))),
                            layout_none, true, Cell(nothing))
     WidgetCardToGraphicsCanvasIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry,
                                     Cell(@computation build[].header), Cell(@computation build[].drawn))

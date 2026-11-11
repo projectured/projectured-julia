@@ -48,7 +48,9 @@ end
     # it, past the divider of the width of a border.
     theme = get_theme_defaults(WidgetTheme)
     left, top = Int(theme.slot_padding.left[]), Int(theme.slot_padding.top[])
-    @test _map(split, left + 5, top + 5) == _path(FieldReferenceStep("elements"), _at(1))
+    # The left pane is a label, so the point is on its text: the caret there.
+    @test _map(split, left + 5, top + 5) ==
+          _path(FieldReferenceStep("elements"), _at(1), FieldReferenceStep("content"), RangeReferenceStep(0, 0))
     @test _map(split, 300 + theme.border_width + left + 5, top + 5) ==
           _path(FieldReferenceStep("elements"), _at(2), FieldReferenceStep("elements"), _at(1))
 end
@@ -56,8 +58,10 @@ end
 @testset "a scroll pane maps into its content" begin
     scroll = WidgetScrollPane(WidgetComposite(Any[WidgetLabel("Item $i"; position = Point2D(4, (i - 1) * 44))
                                                   for i in 1:8]))
+    # The point is on the text of the second label: the caret there.
     @test _map(scroll, 10, 50) ==
-          _path(FieldReferenceStep("content"), FieldReferenceStep("elements"), _at(2))
+          _path(FieldReferenceStep("content"), FieldReferenceStep("elements"), _at(2),
+                FieldReferenceStep("content"), RangeReferenceStep(1, 1))
 end
 
 @testset "a table maps to a column header or a cell" begin

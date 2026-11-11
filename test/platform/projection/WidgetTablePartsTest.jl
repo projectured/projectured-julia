@@ -208,16 +208,22 @@ end
     plain = read(io, MouseClick(:left, x + 4, y + 4, mods; time = 0.0))
     @test plain isa ReplaceReferencedValueOperation
     @test plain.document === box
-    # A plain press on a label, which declines it, selects the row.
-    (x2, y2) = place(io, 2, 2)
-    on_text = read(io, MouseClick(:left, x2 + 2, y2 + 2, mods; time = 0.0))
+    # A plain press on the text of a label puts the caret there, and a press on
+    # the padding of the cell, which the label declines, selects the row.
+    (tx, ty, _) = only(t for t in texts(io.output) if t[3] == texts_of(2, 2))
+    on_text = read(io, MouseClick(:left, tx + 2, ty + 2, mods; time = 0.0))
     @test on_text isa ReplaceSelectionOperation
-    @test on_text.path.head.name == "rows"
-    @test row_of(on_text.path) == 2
-    @test on_text.path.tail.tail isa EmptyReference
-    # A press on a header selects its column.
+    @test strip_reference_types(on_text.path) ==
+          concat_references(cell_reference(2, 2), extend_reference(EmptyReference(),
+              FieldReferenceStep("content"), RangeReferenceStep(0, 0)))
+    on_padding = read(io, MouseClick(:left, tx - 1, ty + 2, mods; time = 0.0))
+    @test on_padding isa ReplaceSelectionOperation
+    @test on_padding.path.head.name == "rows"
+    @test row_of(on_padding.path) == 2
+    @test on_padding.path.tail.tail isa EmptyReference
+    # A press on the padding of a header selects its column.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "value")
-    column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
+    column = read(io, MouseClick(:left, hx - 1, hy + 2, mods; time = 0.0))
     @test column isa ReplaceSelectionOperation
     @test column.path.head.name == "columns"
     @test column.path.tail.head.start + 1 == 2
@@ -609,9 +615,10 @@ text_x(io, label) = only(t[1] for t in texts(io.output) if t[3] == label)
     @test text_x(io, "r1 c4") - text_x(io, "r1 c3") ==
           8 * length("a longer header") + 2 * io.state.pad_x + io.state.bw
     @test text_x(io, "r1 c3") - text_x(io, "r1 c2") == 60 + 2 * io.state.pad_x + io.state.bw
-    # A press on a header selects its column, and on a cell its row.
+    # A press on the padding of a header selects its column, and an Alt+press on
+    # a cell the cell.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
-    column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
+    column = read(io, MouseClick(:left, hx - 1, hy + 2, mods; time = 0.0))
     @test column.path.head.name == "columns" && column.path.tail.head.start + 1 == 2
     (x, y) = place(io, 2, 4)
     cell = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
@@ -747,11 +754,12 @@ end
 @testset "a press on a row header selects its row, and a press on the corner the table" begin
     table = make_headed_table(1000)
     io = print_document(rec, nothing, table, context())
+    # On the padding of the header and of the corner: their labels decline it.
     (x, y) = text_at(io, "#2")
-    op = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0))
+    op = read(io, MouseClick(:left, x - 1, y + 2, mods; time = 0.0))
     @test op.path.head.name == "rows" && row_of(op.path) == 2
     (x, y) = text_at(io, "corner")
-    @test read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path == EmptyReference()
+    @test read(io, MouseClick(:left, x - 1, y + 2, mods; time = 0.0)).path == EmptyReference()
     # The row bands its cells; its header alone is a part of its own and bands
     # none of them.
     getfield(table, :selection)[] = op.path
@@ -862,10 +870,10 @@ end
     @test key isa ReplaceStringRangeOperation
     @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
           [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
-    # A header that declines a press selects its column, and an Alt+press selects
-    # the header itself.
+    # A header that declines a press, on the padding of its label, selects its
+    # column, and an Alt+press selects the header itself.
     (x, y) = text_at(io, "name")
-    path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
+    path = read(io, MouseClick(:left, x - 1, y + 2, mods; time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("columns"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
     path = read(io, MouseClick(:left, x + 2, y + 2, ModifierKeys(alt = true); time = 0.0)).path

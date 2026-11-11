@@ -60,6 +60,9 @@ end
 text_at(io, text) = only((t[2], t[3]) for t in drawn(io.output) if t[1] === :text && t[6] == text)
 press_text(io, text, modifiers) = ((x, y) = text_at(io, text);
                                    read(io, MouseClick(:left, x + 2, y + 2, modifiers; time = 0.0)))
+# A press on the padding left of the text `text`, where no text is drawn.
+press_padding(io, text, modifiers) = ((x, y) = text_at(io, text);
+                                      read(io, MouseClick(:left, x - 1, y + 2, modifiers; time = 0.0)))
 box(io, path) = find_reference_box(io.output, map_reference_forward(io.projection, io, path))
 # The rectangles that the selection `path` adds to what the table draws.
 function band_of(table, io, path)
@@ -105,9 +108,14 @@ for (form, make) in (("eager", eager), ("list", listed))
         table = make(check, field)
         io = print_document(rec, nothing, table, context())
         @test (io isa WidgetTableListIoMap) == (form == "list")
-        # A header that declines a press selects its row or its column.
-        @test path_of(press_text(io, "#3", mods)) == part("rows", 3)
-        @test path_of(press_text(io, "b", mods)) == part("columns", 2)
+        # A header whose label declines a press, on its padding, selects its row or
+        # its column; a press on the text of the label puts the caret there.
+        @test path_of(press_padding(io, "#3", mods)) == part("rows", 3)
+        @test path_of(press_padding(io, "b", mods)) == part("columns", 2)
+        @test path_of(press_text(io, "b", mods)) ==
+              concat_references(part("column_headers", 2),
+                                extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                                                 RangeReferenceStep(0, 0)))
         # A header that takes a press gets it: the checkbox toggles its own document.
         b = box(io, part("row_headers", 1))
         toggle = read(io, MouseClick(:left, b.x + 4, b.y + 4, mods; time = 0.0))
@@ -127,11 +135,15 @@ for (form, make) in (("eager", eager), ("list", listed))
         @test path_of(press_text(io, "#3", alt)) == part("row_headers", 3)
         @test path_of(press_text(io, "b", alt)) == part("column_headers", 2)
         @test path_of(press_text(io, name(2, 3), alt)) == cell(2, 3)
-        @test path_of(press_text(io, name(2, 3), mods)) == part("rows", 2)
+        @test path_of(press_padding(io, name(2, 3), mods)) == part("rows", 2)
+        @test path_of(press_text(io, name(2, 3), mods)) ==
+              concat_references(cell(2, 3), extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                                                             RangeReferenceStep(0, 0)))
         if form == "list"
-            # The corner takes a press first, and a declined one selects the
-            # table; an Alt+press selects the corner, which shows its band.
-            @test path_of(press_text(io, "corner", mods)) == EmptyReference()
+            # The corner takes a press first, and a declined one, on the padding
+            # of its label, selects the table; an Alt+press selects the corner,
+            # which shows its band.
+            @test path_of(press_padding(io, "corner", mods)) == EmptyReference()
             @test path_of(press_text(io, "corner", alt)) == whole("corner")
             corner_box = box(io, whole("corner"))
             band = band_of(table, io, whole("corner"))
