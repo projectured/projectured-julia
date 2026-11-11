@@ -13,7 +13,9 @@
 #
 # An Alt+click at the same point selects the part that holds that caret as a
 # whole, a ring or a band of the selection is drawn at the point, and the mouse
-# target of a move there names the same part.
+# target of a move there names the same part. A text of only whitespace draws
+# nothing, so it is an empty area: a band hugs the characters that draw, and the
+# mark of the part that the Alt+click selects there can lie beside the point.
 
 import ProjecturedKernelExample: HeadlessBackend, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
@@ -92,14 +94,18 @@ function _pc_is_selection_mark(node)
         (fill.alpha > 0 && is_same(fill, theme.selection_band))
 end
 
-# Whether a mark of the selection that the output draws now holds the point.
-function _pc_is_selection_drawn(session, x, y)
+# Whether a mark of the selection that the output draws now holds the point, or,
+# with `anywhere`, whether the output draws a mark of the selection at all.
+function _pc_is_selection_drawn(session, x, y; anywhere::Bool = false)
     output = _pc_read_value(get_iomap_output(session.editor.iomap))
     window = _pc_read_value(_pc_read_value(output.windows)[1])
     marks = _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
                                   session.window_reference, Any[]; keep = _pc_is_selection_mark)
-    any(mark -> _pc_is_in_box(mark.box, x, y), marks)
+    anywhere ? !isempty(marks) : any(mark -> _pc_is_in_box(mark.box, x, y), marks)
 end
+
+# Whether the element is a text of only whitespace, which draws nothing.
+_pc_is_blank_text(node) = node isa GraphicsText && all(isspace, String(_pc_read_value(node.text)))
 
 # The element on top at a point of the window.
 function _pc_find_top(elements, x, y)
@@ -339,8 +345,10 @@ function _pc_check_point!(session, element)
         caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
             push!(session.failures, "$at: an Alt+click selects $(format(whole)), not $(format(_pc_cut_place(caret))), " *
                                     "the part of the caret")
-        _pc_is_selection_drawn(session, x, y) ||
-            push!(session.failures, "$at: an Alt+click selects $(format(whole)), and no ring or band holds the point")
+        blank = _pc_is_blank_text(top.node)
+        _pc_is_selection_drawn(session, x, y; anywhere = blank) ||
+            push!(session.failures, blank ? "$at: an Alt+click selects $(format(whole)), and no ring or band is drawn" :
+                                            "$at: an Alt+click selects $(format(whole)), and no ring or band holds the point")
     end
     # A move names the part that the Alt+click selects.
     target = _pc_move!(session, x, y)

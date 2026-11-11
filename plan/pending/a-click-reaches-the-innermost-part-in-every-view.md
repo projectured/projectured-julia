@@ -1130,6 +1130,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     a child into the parent and kept its length, and the parent indents the lines
     of the child further. It moves the first and the last character now, each to
     its entry (`_shift_child_flat`).
+  - ~~**A space at the end of a line lies beside the band**~~ (most of the 201
+    spaces). The space is the separator of a node, and the Alt+click selects
+    that node, which is right. The band of a node hugs the characters that
+    draw: a piece of only whitespace sets no edge of a row (`_hl_piece_blank`,
+    `TextToGraphics.jl`), so the band ends before the space. A text of only
+    whitespace draws nothing, so the click test takes it as an empty area (P4,
+    my reading): after an Alt+click there, it checks that the output draws a
+    mark of the selection, not that the mark holds the point
+    (`_pc_is_blank_text`).
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
