@@ -1,6 +1,6 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-11): in progress, step 1.** The owner asked for this plan
+> **Status (2026-11-11): in progress, step 2; step 1 is done.** The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -155,12 +155,34 @@ The work is in two repositories, each in its own worktree:
 - ClaudeCodeACP.jl: the branch `session-fork` in the worktree
   `ClaudeCodeACP.jl-session-fork`.
 
-1. **Find how `claude` forks a session.** In a folder of the scratchpad, make a
+1. ~~**Find how `claude` forks a session.** In a folder of the scratchpad, make a
    session with one short prompt, then fork it. Record in this plan: when
    `claude` writes the file of the fork; what `--resume-session-at` takes, and
    if it works with `--fork-session`; and if the first answer of the fork reads
    the history from the cache (its usage shows `cache_read_input_tokens`). This
-   step costs two short prompts. It changes no code.
+   step costs two short prompts. It changes no code.~~ **Done 2026-11-11.**
+   - **(a) `claude` writes the file of the fork only at its first prompt.** A
+     `claude -p --input-format stream-json --resume S --fork-session --session-id N`
+     that got no prompt for 12 seconds wrote no file `N.jsonl` and printed
+     nothing. So a start again before the first prompt can not resume `N`, and
+     P7 takes its second way.
+   - **(b) `--resume-session-at` takes the uuid of an `assistant` record of the
+     source file, and it works with `--fork-session` and `--session-id`.** A
+     source said "apple" and then "banana". A fork with
+     `--resume-session-at <uuid of the record "apple">` answered "apple" to
+     "List every word that you said before". Each record of the file is one
+     JSON line with `type` and `uuid`; the records of a prompt are `user`,
+     `attachment` and `assistant`, with other types between them.
+   - **(c) The fork shares the work of the model on the history.** A source and
+     its fork in the stream mode of the agent: the second prompt of the source
+     read 26 263 tokens from the cache; the first prompt of the fork read
+     30 830 and wrote only 383. A fork whose source ran in another mode
+     (`--output-format json`) read 0, because its system prompt differs.
+   - **The way of P7.** At the request, `ClaudeCodeACP` reads the file of the
+     source, which the Claude Agent SDK also reads, and keeps the uuid of its
+     last `assistant` record. Each start of the fork before its first prompt
+     adds `--resume-session-at` with it. A source with no file, or with no
+     `assistant` record, answers an error of the protocol.
 2. **`ClaudeCodeACP` answers `session/fork`.** It advertises
    `sessionCapabilities.fork`. It opens the fork with
    `--resume S --fork-session --session-id N`, by the way of P7 that step 1
@@ -219,4 +241,4 @@ The work is in two repositories, each in its own worktree:
 
 ## 9. Progress
 
-Not started.
+- 2026-11-11: step 1 done (facts in step 1).
