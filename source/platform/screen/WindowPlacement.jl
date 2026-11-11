@@ -196,7 +196,8 @@ _is_unplaced_dialog(op::OpenWindowOperation) =
 # `op` with the placement at the center of the window `id`.
 _place_at_window_center(op::OpenWindowOperation, id::Symbol) =
     OpenWindowOperation(op.id, op.title, op.x, op.y, op.width, op.height, op.minimum_size, op.maximum_size,
-                        op.bg, op.style, op.auto_dismiss, op.modal, make_window_center_placement(id), op.content)
+                        op.bg, op.style, op.auto_dismiss, op.modal, make_window_center_placement(id), op.content,
+                        op.selection)
 
 """
     find_screen_reference(document, reference) -> Reference | Nothing

@@ -57,10 +57,16 @@ the text narrows to.
   typed text makes, such as the text of the field that the list opened under, or
   `nothing` for none; `edit` itself is `nothing` for a list that edits no part.
 
-Typing narrows the list, Backspace removes the last character, Up and Down move
-the row, Page Up and Page Down move it by the rows that show, and Return chooses
-it. The rows that show follow the row, and the wheel scrolls them. It is view state of a popup: an undo records no
-change of it, no file keeps it, and a walk of the documents does not go into it.
+The typed text is a text of the text domain. A list with no `edit` takes the
+selection to the end of its typed text when its window opens, so a person types,
+removes and moves the caret there as in every text, and the window gives the
+selection back when it closes. A list with `edit` leaves the selection in the
+part that it belongs to, such as the field under it, and gives a key of the text
+on to that part. Typing narrows the list, Up and Down move the row, Page Up and
+Page Down move it by the rows that show, and Return chooses it. The rows that
+show follow the row, and the wheel scrolls them. It is view state of a popup: an
+undo records no change of it, no file keeps it, and a walk of the documents does
+not go into it.
 
 See also `make_choice_list_operation`, which opens one in the context menu window.
 """
@@ -136,10 +142,52 @@ make_graphics_projection(::Type{WidgetChoiceList}; measure, appearance) =
 
 function print_document(p::WidgetChoiceListToWidget, recursion, list::WidgetChoiceList, ctx)
     width = list.fills_offer ? _get_choice_list_width(ctx) : nothing
-    column = VerticalLayout(CellVector(@computation _make_choice_widgets(list, width)),
+    line = _make_choice_query_line(list)
+    column = VerticalLayout(CellVector(@computation _make_choice_widgets(list, line, width)),
                             Cell(:left), Cell(p.gap), Cell(nothing), Cell(nothing), Cell(nothing))
-    SimpleIoMap(p, list, GridLayout(Any[column], 1))
+    output = GridLayout(Any[column], 1)
+    iomap = SimpleIoMap(p, list, output)
+    # A key goes to the field of the typed text by the selection, so the grid and
+    # each container down to the field carry the place of the caret.
+    set_output_path_computations!(output, list, path -> map_reference_forward(p, iomap, path); dormant = false)
+    set_output_tree_path_computations!(output)
+    iomap
 end
+
+# The line of the typed text: the prompt, and a field that the text domain edits,
+# which shows the placeholder while it is empty and its box only while it holds
+# the caret. It is made once, so the field keeps its place while the rows change.
+function _make_choice_query_line(list::WidgetChoiceList)
+    field = WidgetText(""; placeholder = list.placeholder, quiet = true)
+    set_cell_computation!(field, () -> list.query)
+    HorizontalLayout(Any[WidgetLabel(list.prompt * ": "), field]; vertical_align = :center)
+end
+
+# The steps from the grid of the list to the field of its typed text: the column,
+# its first child, the line, and its second child, the field.
+const _CHOICE_QUERY_FIELD_STEPS = (FieldReferenceStep("children"), ElementReferenceStep(1),
+                                   FieldReferenceStep("children"), ElementReferenceStep(1),
+                                   FieldReferenceStep("children"), ElementReferenceStep(2))
+
+# The range step of a place `query{s:e}` of the list, or `nothing`.
+function _find_choice_query_range(reference)
+    reference isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    (length(steps) == 2 && steps[1] == FieldReferenceStep("query") && steps[2] isa RangeReferenceStep) ||
+        return nothing
+    steps[2]
+end
+
+_make_choice_query_reference(range::RangeReferenceStep) =
+    Reference(FieldReferenceStep("query"), RangeReferenceStep(range.start, range.stop, range.direction))
+
+# The place in the typed text where a window that opens with `document` puts the
+# selection, or `nothing` (`OpenWindowOperation`): the end of the typed text of a
+# list with no `edit`.
+_find_window_selection(document) = nothing
+_find_window_selection(list::WidgetChoiceList) =
+    list.edit === nothing ? _make_choice_query_reference(RangeReferenceStep(length(list.query), length(list.query))) :
+                            nothing
 
 # The width that a list that fills its offer gives its menu: the slot of a window
 # of a fixed size, or the minimum width of a window that fits its content, which a
@@ -153,10 +201,9 @@ end
 # row that Return chooses while it shows. The rows are a lazy list of the choices
 # with its head at the first row that shows, and the menu walks only the rows that
 # show.
-function _make_choice_widgets(list::WidgetChoiceList, width = nothing)
+function _make_choice_widgets(list::WidgetChoiceList, line, width = nothing)
     minimum_width = width === nothing ? nothing : width[]
     query = list.query
-    line = WidgetLabel(list.prompt * ": " * (isempty(query) ? list.placeholder : query))
     choices = list.find(query)
     count = length(choices)
     footer = list.footer isa Function ? list.footer() : list.footer
@@ -190,37 +237,69 @@ function _make_choice_item(list::WidgetChoiceList, choice::WidgetChoice)
                    operation = something(list.choose(choice.value), DoNothingOperation()))
 end
 
-# A key is read by the list alone, before any widget of it, and `nothing` leaves
-# it to the window under the list. A press on a row comes back from the menu.
+# A key is read by the list: its own keys first, then the answer of the field of
+# its typed text, which the text domain made. A list with `edit` gives a key of
+# the text on to the window under it, where the part that it belongs to reads it.
+# Any other key with no modifier but Shift does nothing, so a letter does not edit
+# the page under the list; a key with Ctrl, Alt or Meta goes on. A press on a row
+# comes back from the menu.
 function read_intent(p::WidgetChoiceListToWidget, recursion, change::Intent, iomap)
     gesture = change.gesture
-    change.route === nothing && gesture isa Union{KeyDown, KeyPress} &&
-        return Intent(gesture, _read_choice_key(iomap.input, gesture))
+    list = iomap.input
+    if change.route === nothing && gesture isa Union{KeyDown, KeyPress}
+        own = _read_choice_key(list, gesture)
+        own === nothing || return Intent(gesture, own)
+        list.edit === nothing || return Intent(gesture, nothing)
+        typed = _read_choice_query_answer(p, iomap, change.operation)
+        typed === nothing || return Intent(gesture, typed)
+        modifiers = gesture.modifiers
+        return Intent(gesture, (modifiers.ctrl || modifiers.alt || modifiers.meta) ? nothing : DoNothingOperation())
+    end
     change.route === nothing && gesture isa MouseScroll &&
-        return Intent(gesture, _scroll_choice_list(iomap.input, gesture))
+        return Intent(gesture, _scroll_choice_list(list, gesture))
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
 end
 
-# Up, Down and Backspace with no modifier but Shift, and Return, a typed `'\n'`.
-# Any other key with no modifier but Shift does nothing, so a letter does not edit
-# the page under the list; a key with Ctrl, Alt or Meta goes on.
+# Up, Down, Page Up and Page Down move the row, and Return, a typed `'\n'`, chooses
+# it, each with no modifier but Shift. Any other key is `nothing`.
 function _read_choice_key(list::WidgetChoiceList, key::KeyDown)
     modifiers = key.modifiers
     (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
     step = key.key === :up ? -1 : key.key === :down ? 1 :
-           key.key === :pageup ? -list.shown_rows : key.key === :pagedown ? list.shown_rows : 0
-    step == 0 || return _move_choice_row(list, step)
-    key.key === :backspace && return _type_choice_list(list, String(chop(list.query)))
-    DoNothingOperation()
+           key.key === :page_up ? -list.shown_rows : key.key === :page_down ? list.shown_rows : 0
+    step == 0 ? nothing : _move_choice_row(list, step)
 end
 
 function _read_choice_key(list::WidgetChoiceList, key::KeyPress)
-    if !isprint(key.char)
-        modifiers = key.modifiers
-        (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
-        return key.char == '\n' ? _choose_choice_row(list) : DoNothingOperation()
-    end
-    _type_choice_list(list, list.query * key.char)
+    modifiers = key.modifiers
+    (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
+    key.char == '\n' ? _choose_choice_row(list) : nothing
+end
+
+# The answer of the field of the typed text, as an answer of the list: an edit of
+# the typed text narrows the list and puts the caret after the inserted text, and a
+# move of the caret or a range is a selection in the typed text. `nothing` for any
+# other answer, or for a part of it that has no place in the typed text.
+_read_choice_query_answer(p, iomap, operation) = nothing
+
+function _read_choice_query_answer(p, iomap, operation::ReplaceStringRangeOperation)
+    range = _find_choice_query_range(map_reference_backward(p, iomap, operation.reference))
+    range === nothing && return nothing
+    list = iomap.input
+    query = _apply_range(list.query, range.start, range.stop, operation.replacement)
+    caret = range.start + length(operation.replacement)
+    CompoundOperation(Any[_type_choice_list(list, query),
+                          ReplaceSelectionOperation(_make_choice_query_reference(RangeReferenceStep(caret, caret)))])
+end
+
+function _read_choice_query_answer(p, iomap, operation::ReplaceSelectionOperation)
+    range = _find_choice_query_range(map_reference_backward(p, iomap, operation.path))
+    range === nothing ? nothing : ReplaceSelectionOperation(_make_choice_query_reference(range))
+end
+
+function _read_choice_query_answer(p, iomap, operation::CompoundOperation)
+    members = Any[_read_choice_query_answer(p, iomap, member) for member in operation.operations]
+    any(isnothing, members) ? nothing : CompoundOperation(members)
 end
 
 # The row `step` rows on, in the list, and the rows that show it.
@@ -262,6 +341,26 @@ function _choose_choice_row(list::WidgetChoiceList)
     operation === nothing ? close : CompoundOperation(Any[EditMenuPartOperation(operation, choice.label), close])
 end
 
-# The list has no part that a path names.
-map_reference_forward(::WidgetChoiceListToWidget, iomap, reference) = nothing
-map_reference_backward(::WidgetChoiceListToWidget, iomap, reference) = EmptyReference()
+# A place `query{s:e}` of a list with no `edit` is the range of the field of its
+# typed text, and the whole list is the whole grid. A list with `edit` holds no
+# caret, and no other part of the list has a place.
+function map_reference_forward(::WidgetChoiceListToWidget, iomap, reference)
+    reference isa EmptyReference && return EmptyReference()
+    iomap.input.edit === nothing || return nothing
+    range = _find_choice_query_range(reference)
+    range === nothing && return nothing
+    Reference(_CHOICE_QUERY_FIELD_STEPS..., FieldReferenceStep("content"),
+              RangeReferenceStep(range.start, range.stop, range.direction))
+end
+
+# A range of the field of the typed text is that range of the typed text; any
+# other place of the grid is the whole list.
+function map_reference_backward(::WidgetChoiceListToWidget, iomap, reference)
+    reference isa Reference || return EmptyReference()
+    steps = get_reference_steps(strip_reference_types(reference))
+    n = length(_CHOICE_QUERY_FIELD_STEPS)
+    (length(steps) == n + 2 && all(k -> steps[k] == _CHOICE_QUERY_FIELD_STEPS[k], 1:n) &&
+     steps[n + 1] == FieldReferenceStep("content") && steps[end] isa RangeReferenceStep) ||
+        return EmptyReference()
+    _make_choice_query_reference(steps[end])
+end

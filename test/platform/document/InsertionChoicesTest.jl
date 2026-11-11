@@ -30,7 +30,7 @@ function test_insertion_choices()
         @test DOCUMENT_INSERTION_PLACEHOLDER == "Type a kind"
     end
 
-    @testset "the first key of an insertion opens the list of the kinds it names, which the next keys type into" begin
+    @testset "the first key of an insertion opens the list of the kinds it names, and the next keys open it again" begin
         leaf = DocumentInsertionToSyntaxLeaf()
         insertion = with_value_caret(DocumentInsertion(""), 0)
         iomap = print_document(leaf, nothing, insertion, PrinterContext())
@@ -47,19 +47,20 @@ function test_insertion_choices()
         # The rows are the kinds that the text names, the whole-name matches first.
         @test [choice.value for choice in list.find("c")] == first(find_insertion_choices(Document, "c"), 12)
         @test all(choice -> !isempty(choice.label), list.find("c"))
-        # A key in the list narrows it and writes the text of the field.
-        insertion.value = "c"
+        # The list gives a key of the text on to the field, which keeps the
+        # selection, and the next edit of the field opens the list again with the
+        # text of the field.
         choice_projection = WidgetChoiceListToWidget()
         listed = print_document(choice_projection, nothing, list, PrinterContext())
+        @test read_intent(choice_projection, nothing, Intent(KeyPress('h'; time = 0.0)), listed).operation === nothing
+        next = with_value_caret(DocumentInsertion("c"), 1)
+        next_iomap = print_document(leaf, nothing, next, PrinterContext())
+        reopened = read_intent(leaf, next_iomap,
+                               ReplaceStringRangeOperation(map_reference_forward(leaf, next_iomap, get_selection(next)), "h"))
+        list = reopened.operations[2].operation.layers[1][2]
+        @test list isa WidgetChoiceList && list.query == "ch"
+        listed = print_document(choice_projection, nothing, list, PrinterContext())
         read_list(gesture) = read_intent(choice_projection, nothing, Intent(gesture), listed).operation
-        narrowed = read_list(KeyPress('h'; time = 0.0))
-        @test narrowed isa CompoundOperation
-        edited = narrowed.operations[2]
-        @test edited isa EditMenuPartOperation
-        @test edited.operation isa ReplaceStringRangeOperation && edited.operation.replacement == "ch"
-        @test string(edited.operation.reference) == ".value[1]"
-        evaluate_operation(nothing, narrowed.operations[1])
-        @test list.query == "ch"
         # Return makes a document of the kind of the first row in place of the insertion.
         found = list.find("ch")
         if !isempty(found)

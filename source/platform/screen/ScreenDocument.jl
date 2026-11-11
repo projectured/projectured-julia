@@ -76,6 +76,10 @@ projected.
 - `content::Document` — the document tree this window displays. Before
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
+- `selection_before` — `nothing`, or the selection of the screen before the
+  window took it, when the window opened with a `selection`
+  (`OpenWindowOperation`). The selection goes back there when the window closes
+  while it holds the selection. It is the state of a view. Default `nothing`.
 """
 @document struct WindowDocument
     id::Symbol = :default
@@ -92,11 +96,12 @@ projected.
     modal::Bool = false
     placement::Any = nothing
     content::Document
+    selection_before::Any = nothing
 end
 
 # Where a window stands is the state of a view of the screen, and a function that
-# a file can not write.
-get_view_state_fields(::Type{<:WindowDocument}) = (:placement,)
+# a file can not write; so is the selection that the window gives back.
+get_view_state_fields(::Type{<:WindowDocument}) = (:placement, :selection_before)
 
 """
     is_window_placed(window::WindowDocument) -> Bool
@@ -143,7 +148,7 @@ is_automatic_window_place(window::WindowDocument) = (window.x, window.y) == AUTO
 
 """
     OpenWindowOperation(; id, title, x, y, width, height, minimum_size, maximum_size,
-                          bg, style, auto_dismiss, modal, placement, content)
+                          bg, style, auto_dismiss, modal, placement, content, selection)
 
 Request that a new `WindowDocument` (with the given fields) be added to the
 screen. The fields mirror `WindowDocument`'s schema 1:1. A window-manager
@@ -159,6 +164,12 @@ has the colour that the appearance gives the windows. An update of a window with
 
 `placement` is `nothing`, or the function that places the window, as the field
 of `WindowDocument` says; the window then takes no place from `x` and `y`.
+
+`selection` is `nothing`, or a place in `content` that takes the selection when
+the window opens, such as the end of the typed text of a list that a person
+types into. The window keeps the selection that the screen had before
+(`selection_before`), and the selection goes back there when the window closes
+while it holds the selection.
 """
 struct OpenWindowOperation <: Operation
     id::Symbol
@@ -175,6 +186,7 @@ struct OpenWindowOperation <: Operation
     modal::Bool
     placement::Any
     content::Document
+    selection::Any
 end
 
 OpenWindowOperation(; id::Symbol,
@@ -190,12 +202,13 @@ OpenWindowOperation(; id::Symbol,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,
                       placement = nothing,
-                      content::Document) =
+                      content::Document,
+                      selection = nothing) =
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (Int(minimum_size[1]), Int(minimum_size[2])),
                         (Int(maximum_size[1]), Int(maximum_size[2])),
                         bg === nothing ? nothing : (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
-                        style, auto_dismiss, modal, placement, content)
+                        style, auto_dismiss, modal, placement, content, selection)
 
 """
     OpenPopupOperation(; id, x = 0, y = 0, anchor_size = (0, 0), gap = 0,

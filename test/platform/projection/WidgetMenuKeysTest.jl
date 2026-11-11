@@ -86,19 +86,32 @@ function test_widget_menu_keys()
                                                              for name in names
                                                              if occursin(lowercase(query), lowercase(name))],
                                 choose = value -> ReplaceReferencedValueOperation(nothing, EmptyReference(), value))
-        choice_projection = WidgetChoiceListToWidget()
-        iomap = print_document(choice_projection, nothing, list, PrinterContext())
-        read(gesture) = read_intent(choice_projection, nothing, Intent(gesture), iomap).operation
-        typed = read(KeyPress('c'; time = 0.0))
-        @test typed isa ReplaceViewStateOperation
-        evaluate_operation(nothing, typed)
+        # The typed text is a text of the text domain: the list holds the caret in
+        # it, and a key reaches it through the field that draws it.
+        set_selection!(list, Reference(FieldReferenceStep("query"), RangeReferenceStep(0, 0)))
+        list_projection = RecursiveProjection(TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[WidgetChoiceList => ChainingProjection(WidgetChoiceListToWidget(), GridLayoutToGraphicsCanvas())],
+            LayoutToGraphics().dispatch, WidgetToGraphics(; measure).dispatch,
+            Pair{Type,Any}[TextBlock => TextToGraphics(measure = measure)])))
+        read(gesture) = read_intent(list_projection, print_document(list_projection, list), gesture)
+        press!(gesture) = evaluate_operation((document = list,), read(gesture))
+        press!(KeyPress('c'; time = 0.0))
         @test list.query == "c"
-        evaluate_operation(nothing, read(KeyPress('h'; time = 0.0)))
+        press!(KeyPress('h'; time = 0.0))
         @test [choice.label for choice in list.find(list.query)] == ["Chart", "Sequence chart"]
-        evaluate_operation(nothing, read(key(:down)))
+        press!(key(:down))
         @test list.row == 2
-        evaluate_operation(nothing, read(key(:backspace)))
+        press!(key(:backspace))
         @test list.query == "c" && list.row == 1
+        # The caret moves in the typed text, and Ctrl+Backspace removes a word.
+        press!(key(:left))
+        press!(KeyPress('o'; time = 0.0))
+        @test list.query == "oc"
+        press!(KeyDown(:backspace, ModifierKeys(ctrl = true); time = 0.0))
+        @test list.query == "c"
+        # A list that edits a part leaves a key of the text to that part.
+        edited = WidgetChoiceList(; find = query -> WidgetChoice[], edit = query -> DoNothingOperation())
+        @test read_intent(list_projection, print_document(list_projection, edited), KeyPress('a'; time = 0.0)) === nothing
         returned = read(KeyPress('\n'; time = 0.0))
         @test returned isa CompoundOperation
         @test returned.operations[1] isa EditMenuPartOperation
@@ -112,10 +125,10 @@ function test_widget_menu_keys()
         reads = Ref(0)
         choices = _MenuKeysCountedChoices(10_000, reads)
         list = WidgetChoiceList(; shown_rows = 12, find = query -> choices, choose = value -> nothing)
-        shown() = [item.action.label for item in WidgetModule._make_choice_widgets(list)[2].elements]
+        shown() = [item.action.label for item in WidgetModule._make_choice_widgets(list, nothing)[2].elements]
         # The index of the lit row among the rows that show, and its icon.
-        lit() = WidgetModule._make_choice_widgets(list)[2].highlighted
-        lit_icon() = WidgetModule._make_choice_widgets(list)[2].elements[lit()].action.icon
+        lit() = WidgetModule._make_choice_widgets(list, nothing)[2].highlighted
+        lit_icon() = WidgetModule._make_choice_widgets(list, nothing)[2].elements[lit()].action.icon
         @test shown() == ["row $index" for index in 1:12]
         # The lazy list builds the rows that show, and the link after the last one.
         @test reads[] <= 13
@@ -131,7 +144,7 @@ function test_widget_menu_keys()
         @test (list.row, list.top) == (13, 2)
         @test first(shown()) == "row 2" && last(shown()) == "row 13"
         @test lit() == 12
-        evaluate_operation(nothing, read(key(:pagedown)))
+        evaluate_operation(nothing, read(key(:page_down)))
         @test (list.row, list.top) == (25, 14)
         evaluate_operation(nothing, read(key(:up)))
         @test (list.row, list.top) == (24, 14)
@@ -147,8 +160,8 @@ function test_widget_menu_keys()
         # The top stops at the last rows of the list.
         list.top = 20_000
         @test last(shown()) == "row 10000"
-        # A typed letter narrows the list to its first row, at the top.
-        evaluate_operation(nothing, read(KeyPress('r'; time = 0.0)))
+        # A typed text narrows the list to its first row, at the top.
+        evaluate_operation(nothing, WidgetModule._type_choice_list(list, "r"))
         @test (list.row, list.top) == (1, 1)
     end
 

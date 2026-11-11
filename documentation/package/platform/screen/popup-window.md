@@ -104,6 +104,15 @@ window all close this way. A choice in a menu closes the popup in the same
 operation that runs the choice: a `CompoundOperation` of the action and
 `CloseWindowOperation` of the popup's id, `:widget_popup`.
 
+A window that opens with a `selection`, a place in its content
+(`OpenWindowOperation`), takes the selection there, and keeps the selection that
+the screen had before (`selection_before`). The command palette opens so, with the
+selection at the end of its typed text. When the window closes while it holds the
+selection, the window manager gives the kept selection back, in every way that a
+popup closes. The give-back comes first in the answer, so a selection that the
+same answer makes, such as the one of a press in another window or of a choice,
+comes after it and wins.
+
 The tooltip window carries no `auto_dismiss`; it closes by its own rule
 instead, inside the reader of `TooltipWindowProjection`: a move whose point
 leaves the part, Escape, a press, a scroll, and the leave of a window each

@@ -360,17 +360,20 @@ end
     @test Int(_cm_force(menu.w)) == 250
 end
 
-@testset "the first key of an insertion opens its kinds under it, the next keys type into them, and Return makes one" begin
+@testset "the first key of an insertion opens its kinds under it, the next keys type into the field, and Return makes one" begin
     insertion = with_value_caret(DocumentInsertion(""), 0)
     editor, backend, scene = _cm_editor(insertion; projection = NaturalToGraphics(; measure = _cm_measure()))
     _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
     @test insertion.value == "t"
     list = only(_cm_menus(scene)).content
     @test list isa WidgetChoiceList && list.query == "t"
-    # The next key goes to the list, which writes the field too.
+    # The next key goes to the field, which keeps the selection, and its edit
+    # opens the list again with the text of the field.
     _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
-    @test list.query == "te"
     @test insertion.value == "te"
+    list = only(_cm_menus(scene)).content
+    @test list.query == "te"
+    @test !occursin("query", string(strip_reference_types(editor.document.selection)))
     expected = list.find("te")
     @test !isempty(expected)
     _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))
@@ -404,6 +407,7 @@ end
     list = only(_cm_menus(scene)).content
     @test list isa WidgetChoiceList && list.query == "t"
     _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
+    list = only(_cm_menus(scene)).content
     @test list.query == "te" && insertion.value == "te"
     expected = list.find("te")
     _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))

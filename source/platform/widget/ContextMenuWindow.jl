@@ -82,7 +82,11 @@ both keys in its gesture table, so the gesture help lists them.
 **Keys.** The window is a popup, so the window under it keeps the focus. While
 the window is open, a key of that window goes first to the content of the
 menu, after F2 and Shift+F2: a menu that answers a key, such as a list that a
-person types into, takes it, and a key that the menu does not answer goes on.
+person types into, takes it, and a key that the menu does not answer goes on. A
+list that a person types into, and that edits no part, opens its window with the
+selection at the end of its typed text (`selection` of `OpenWindowOperation`), so
+the text domain edits the typed text; the window manager gives the selection back
+when the window closes.
 
 Sit it around the screen, inside the gesture tracker, as the tooltip window
 sits. The screen gives the right click to the part at its point.
@@ -281,12 +285,13 @@ function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWin
     size = unwrap_cell(p.maximum_size)
     maximum_size = (Int(size.x[]), Int(size.y[]))
     x, y = menu.point === nothing ? (0, 0) : menu.point
+    content = _make_context_menu_content(menu.layers, 1)
     window = OpenWindowOperation(; id = p.id, title = "context menu", x = x, y = y,
                                    width = maximum_size[1], height = maximum_size[2],
                                    maximum_size, style = :popup,
                                    auto_dismiss = true,
                                    placement = _make_menu_placement(p, state, menu),
-                                   content = _make_context_menu_content(menu.layers, 1))
+                                   content, selection = _find_window_selection(content))
     CompoundOperation(Any[_write_menu_state(state, "layers", menu.layers),
                           _write_menu_state(state, "shown", 1),
                           _write_menu_state(state, "source",

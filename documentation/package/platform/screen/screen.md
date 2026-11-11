@@ -16,6 +16,7 @@ The screen slice of `ProjecturedPlatform` holds the window model: a screen docum
 - `modal`: while the window is open, no other window gets input.
 - `placement`, `nothing` by default, or a function that places the window ([below](#the-placement-of-a-window)). It is view state (`get_view_state_fields`), so a file does not keep it. `is_window_placed(window)` tells whether a window has one.
 - `content`, any document. The projection chain goes into this field only.
+- `selection_before`, `nothing` by default, or the selection of the screen before the window took it, when it opened with a `selection` (`OpenWindowOperation`). The window manager gives it back when the window closes while it holds the selection ([popup-window.md](popup-window.md#how-it-closes)). It is view state.
 
 The screen is data like any other document. To open a window, a program adds a `WindowDocument` to `windows`. To close one, it removes it. The backend compares the output screen with its native windows on each frame. No `open_window!` call exists.
 

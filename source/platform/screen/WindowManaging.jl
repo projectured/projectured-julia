@@ -85,40 +85,47 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     if window_input isa WindowInput && window_input.event isa WindowClose
         win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
-        _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
-        return Intent(change.gesture, nothing)
+        given_back = _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
+        return Intent(change.gesture, given_back)
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the default window or a tooltip.
     # A `:popup` never holds the focus, which stays in the window under it, so a
-    # loss of focus of any other window closes every `:popup`.
+    # loss of focus of any other window closes every `:popup`. A closed window that
+    # holds the selection gives it back.
     if window_input isa WindowInput && window_input.event isa WindowDefocus
         win = _find_window(iomap.input, window_input.window_id)
-        if win !== nothing && win.auto_dismiss === true
+        given_back = if win !== nothing && win.auto_dismiss === true
             _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
         else
-            _close_popup_windows!(iomap; style = :popup)
+            _join_window_answers(something(_close_popup_windows!(iomap; style = :popup), Any[]))
         end
-        return Intent(change.gesture, nothing)
+        return Intent(change.gesture, given_back)
     end
     # A press in a window that is not a popup closes every popup, and the press
     # goes on to that window: a press on another menu name closes the open menu
-    # and opens its own.
+    # and opens its own. The selection that a closed popup gives back comes first,
+    # so a selection that the press makes wins.
+    given_back = Any[]
     if window_input isa WindowInput && window_input.event isa MouseDown
         win = _find_window(iomap.input, window_input.window_id)
-        (win !== nothing && win.auto_dismiss === true) || _close_popup_windows!(iomap)
+        (win !== nothing && win.auto_dismiss === true) ||
+            (given_back = something(_close_popup_windows!(iomap), Any[]))
     end
     # A bare Escape closes the open popups and goes no further. The keyboard of a
     # `:popup` stays in the window under it, and there an `EscapeQuittingProjection`
     # quits on an Escape that no reader claims, so the answer is an operation that
-    # does nothing.
-    if window_input isa WindowInput && _is_bare_escape(window_input.event) &&
-       _close_popup_windows!(iomap)
-        return Intent(change.gesture, DoNothingOperation())
+    # does nothing, or the selection that a closed popup gives back.
+    if window_input isa WindowInput && _is_bare_escape(window_input.event)
+        closed = _close_popup_windows!(iomap)
+        closed === nothing ||
+            return Intent(change.gesture, something(_join_window_answers(closed), DoNothingOperation()))
     end
 
     inner = read_intent(p.inner, recursion, change, iomap.inner_iomap)
     answer = _apply_window_ops(iomap, change, inner)
+    isempty(given_back) ||
+        (answer = Intent(answer.gesture, _join_window_answers(given_back, Any[answer.operation])))
     answer = Intent(answer.gesture, _take_pointer_shape(answer.operation, iomap.input))
     window_input isa WindowInput || return answer
     _keep_pointer_shape(iomap.input, window_input.event, answer)
@@ -159,31 +166,35 @@ end
 # op may be bundled with document edits in a `CompoundOperation` — e.g. picking a
 # dropdown option writes the value AND closes the popup — so unpack it: apply the
 # Open/Close ops here and pass any remaining ops upward for `evaluate_operation`.
+#
+# A close that gives the selection back puts that selection first, so a selection
+# that the rest of the answer makes, such as the one of a press in another window or
+# of a choice, comes after it and wins. An open that takes the selection puts the
+# selection of the new window last.
 function _apply_window_ops(iomap, change, inner)
     op = inner.operation
-    if op isa OpenWindowOperation
-        _apply_open!(iomap, op)
-        return Intent(change.gesture, nothing)
-    elseif op isa CloseWindowOperation
-        _apply_close!(iomap, op)
-        return Intent(change.gesture, nothing)
-    elseif op isa CompoundOperation
-        rest = Any[]
-        for o in op.operations
-            if o isa OpenWindowOperation
-                _apply_open!(iomap, o)
-            elseif o isa CloseWindowOperation
-                _apply_close!(iomap, o)
-            else
-                push!(rest, o)
-            end
+    operations = op isa CompoundOperation ? op.operations : Any[op]
+    any(o -> o isa Union{OpenWindowOperation, CloseWindowOperation}, operations) || return inner
+    given_back, rest, taken = Any[], Any[], Any[]
+    for o in operations
+        if o isa OpenWindowOperation
+            selection = _apply_open!(iomap, o)
+            selection === nothing || push!(taken, selection)
+        elseif o isa CloseWindowOperation
+            selection = _apply_close!(iomap, o)
+            selection === nothing || push!(given_back, selection)
+        else
+            push!(rest, o)
         end
-        isempty(rest) && return Intent(change.gesture, nothing)
-        length(rest) == 1 && return Intent(change.gesture, rest[1])
-        return Intent(change.gesture, CompoundOperation(rest))
-    else
-        return inner
     end
+    Intent(change.gesture, _join_window_answers(given_back, rest, taken))
+end
+
+# The operations in order, without the ones that are `nothing`, as one answer:
+# `nothing` for none, one alone, or a compound.
+function _join_window_answers(parts::Vector...)
+    kept = Any[o for part in parts for o in part if o !== nothing]
+    isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
 end
 
 read_intent(p::WindowManagingProjection, iomap::WindowManagingIoMap, payload) =
@@ -198,30 +209,50 @@ read_intent(p::WindowManagingProjection, iomap::WindowManagingIoMap, payload) =
 _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation) =
     _open_screen_window!(iomap.input, op)
 
+# Answers the selection of the place that the window opens with, or `nothing`.
 function _open_screen_window!(screen, op::OpenWindowOperation)
-    screen isa ScreenDocument || return
+    screen isa ScreenDocument || return nothing
     op = _place_dialog_at_main_window(screen, op)
 
     # Existing window with this id → update in place. A window that a placement
     # places has a computed place in the output, and a window with no placement
     # shares its place with the output, so a window that changes between the two
-    # is a new window in the same slot.
+    # is a new window in the same slot. A window that holds the selection already
+    # keeps the selection that it gives back.
     in_wins = screen.windows
     for i in 1:length(in_wins)
         existing_in = in_wins[i]
         existing_in isa WindowDocument || continue
         existing_in.id === op.id || continue
+        before = _holds_screen_selection(screen, i) ? existing_in.selection_before : copy_reference(get_selection(screen))
         if is_window_placed(existing_in) == (op.placement !== nothing)
             _update_window!(existing_in, op)
         else
             in_wins[i] = _make_opened_window(screen, op)
         end
-        return
+        return _take_window_selection(in_wins[i], op, before)
     end
 
     # New window: construct and push; the inner stage projects the output side.
+    before = copy_reference(get_selection(screen))
     push!(in_wins, Cell(_make_opened_window(screen, op)))
+    _take_window_selection(in_wins[end], op, before)
 end
+
+# The selection of the place `op.selection` in the content of `window`, which the
+# window keeps `before`, a copy of the selection of the screen, because the steps of
+# a selection change in place, to give back; or `nothing`
+# when the window opens with no selection.
+function _take_window_selection(window::WindowDocument, op::OpenWindowOperation, before)
+    op.selection === nothing && return nothing
+    window.selection_before = before
+    SelectDocumentOperation(window, concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                                                      op.selection))
+end
+
+# Whether the selection of `screen` is in its window `i`.
+_holds_screen_selection(screen::ScreenDocument, i::Int) =
+    _get_window_step_index(get_selection(screen), length(screen.windows)) == i
 
 # A dialog that names no place of its own and that no window opened, as one that a
 # callback opens, stands at the center of the first window of the screen, the main
@@ -277,27 +308,61 @@ end
 _apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation) =
     _close_screen_window!(iomap.input, op)
 
+# Answers the selection that the window gives back, or `nothing`.
 function _close_screen_window!(screen, op::CloseWindowOperation)
-    screen isa ScreenDocument || return
+    screen isa ScreenDocument || return nothing
 
     in_wins = screen.windows
     for i in 1:length(in_wins)
         existing = in_wins[i]
         existing isa WindowDocument || continue
         existing.id === op.id || continue
+        given_back = _give_back_window_selection(screen, i, existing)
         deleteat!(in_wins, i)
-        return
+        return given_back
     end
+    nothing
+end
+
+# The selection that window `i` gives back as it closes: the selection that the
+# screen had before the window took it, while the window still holds the selection
+# and that selection is still a place of the screen. `nothing` otherwise.
+function _give_back_window_selection(screen::ScreenDocument, i::Int, window::WindowDocument)
+    before = window.selection_before
+    (before isa Reference && _holds_screen_selection(screen, i)) || return nothing
+    _get_window_step_index(before, length(screen.windows)) == i && return nothing
+    _is_screen_place(screen, before) || return nothing
+    SelectDocumentOperation(screen, before)
+end
+
+# Whether `path` still names a place of `screen`. A caret at its end names a place
+# in a text, which the resolver of a path does not read, so the path is read up to
+# the node that holds the caret, as the write of a selection reads it.
+function _is_screen_place(screen::ScreenDocument, path::Reference)
+    steps = get_reference_steps(strip_reference_types(path))
+    isempty(steps) && return true
+    tail = steps[end]
+    caret = hasproperty(tail, :start) && hasproperty(tail, :stop) && tail.start == tail.stop
+    caret || return is_valid_reference(screen, strip_reference_types(path))
+    is_valid_reference(screen, extend_reference(EmptyReference(), steps[1:(end - 1)]...))
 end
 
 # A window operation that reaches the editor applies to the screen that the
 # editor's document wraps, as the window manager applies one that passes it. It
 # comes from a wrapper outside the screen projection, such as the one that keeps
-# the tooltip window, or from a verb, such as the one that opens a file dialog.
-evaluate_operation(editor, op::OpenWindowOperation) =
-    _open_screen_window!(_find_editor_screen(editor), op)
-evaluate_operation(editor, op::CloseWindowOperation) =
-    _close_screen_window!(_find_editor_screen(editor), op)
+# the tooltip window, or from a verb, such as the one that opens a file dialog. The
+# selection that the window takes or gives back is applied after it.
+function evaluate_operation(editor, op::OpenWindowOperation)
+    selection = _open_screen_window!(_find_editor_screen(editor), op)
+    selection === nothing || evaluate_operation(editor, selection)
+    nothing
+end
+
+function evaluate_operation(editor, op::CloseWindowOperation)
+    selection = _close_screen_window!(_find_editor_screen(editor), op)
+    selection === nothing || evaluate_operation(editor, selection)
+    nothing
+end
 function evaluate_operation(editor, op::ChangeScreenPointerShapeOperation)
     screen = _find_editor_screen(editor)
     screen isa ScreenDocument && screen.pointer_shape !== op.shape && (screen.pointer_shape = op.shape)
@@ -308,17 +373,16 @@ _find_editor_screen(editor) =
     hasproperty(editor, :document) ? get_wrapped_document(editor.document) : nothing
 
 # Close every window that dismisses itself (`auto_dismiss`), or only those of
-# `style` when it is given, and answer whether one closed.
+# `style` when it is given. Answers the selections that the closed windows give
+# back, or `nothing` when no window closed.
 function _close_popup_windows!(iomap::WindowManagingIoMap; style::Union{Symbol,Nothing} = nothing)
     input = iomap.input
-    input isa ScreenDocument || return false
+    input isa ScreenDocument || return nothing
     ids = Symbol[w.id for w in input.windows
                  if w isa WindowDocument && w.auto_dismiss === true &&
                     (style === nothing || w.style === style)]
-    for id in ids
-        _apply_close!(iomap, CloseWindowOperation(id))
-    end
-    !isempty(ids)
+    isempty(ids) && return nothing
+    Any[_apply_close!(iomap, CloseWindowOperation(id)) for id in ids]
 end
 
 _is_bare_escape(event) = false

@@ -156,18 +156,40 @@ function test_command_palette_decorator()
             compose = (projections, _) -> ProjecturedExample._multi_window_projection(projections))
         screen = get_wrapped_document(editor.document)
         send!(event) = (push_event!(editor.backend, WindowInput(:json, event)); run_frame!(editor))
+        path() = string(strip_reference_types(editor.document.selection))
+        popups() = [window for window in screen.windows if window.style === :popup]
+        before = path()
         send!(summon)
-        popups = [window for window in screen.windows if window.style === :popup]
-        @test length(popups) == 1
-        list = only(popups).content
+        @test length(popups()) == 1
+        list = only(popups()).content
         @test list isa WidgetChoiceList
+        # The list takes the selection to the end of its typed text, so the text
+        # domain edits the typed text: the caret moves, and a word goes.
+        @test endswith(path(), "query{0}")
         for c in "insert"
             send!(KeyPress(c; time = 0.0))
         end
         @test list.query == "insert"
+        send!(KeyDown(:left, ModifierKeys(); time = 0.0))
+        send!(KeyPress('X'; time = 0.0))
+        @test list.query == "inserXt"
+        send!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
+        @test list.query == "insert"
+        send!(KeyDown(:backspace, ModifierKeys(ctrl = true); time = 0.0))
+        @test list.query == "t"
+        # Escape closes the list and gives the selection back to where it was.
+        send!(KeyDown(:escape, ModifierKeys(); time = 0.0))
+        @test isempty(popups())
+        @test path() == before
+        # Return runs the command of the row that the typed text names.
+        send!(summon)
+        for c in "insert"
+            send!(KeyPress(c; time = 0.0))
+        end
         send!(enter)
-        @test isempty([window for window in screen.windows if window.style === :popup])
+        @test isempty(popups())
         @test length(arr.elements) == 2
+        @test !occursin("query", path())
     end
 
     # A document wrapper puts the domain document one level down. Asking the

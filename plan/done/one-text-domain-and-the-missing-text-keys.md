@@ -305,7 +305,7 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      stage are now six checks through a chain to graphics, and one check that a
      string reads no key of its own.
    - The other functions of the list of step 1 give the counts of the baseline.
-3. ⬜ **The query of a choice list (D5).** Test:
+3. ✅ **The query of a choice list (D5, D18).** Done 2026-11-11. Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.
    **Open question for the owner, so the step waits.** The first form of the
@@ -333,8 +333,7 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    back when it closes. The list that opens under an insertion field (a list
    with `edit`) leaves the selection in the field.
 
-   **Proposal for D18, which waits for the approval of the owner, because it is
-   a new step of the window manager:** no code moves the selection into a window
+   **The way of D18, which the owner approved (2026-11-11) with the word "Yes":** no code moves the selection into a window
    that opens, or back when it closes.
    - `OpenWindowOperation` (`ScreenDocument.jl`, a platform file) gets an
      optional `selection`, a path in its content. The window manager, which opens
@@ -354,6 +353,41 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    - A list with `edit` gives the keys of text on, so they reach the field under
      it, whose edit opens the list again with the new query, as now. Its query
      draws no caret.
+
+   Facts of the step:
+   - The window manager answers the selection of the open and of the give-back as
+     a `SelectDocumentOperation`: of the opened window with `content` and the
+     place, and of the screen with the kept path. So it needs no index of the
+     window, and an open or a close that reaches the editor, as the open of the
+     context menu window does, applies it in `evaluate_operation`.
+   - The steps of a selection change in place, so the window keeps a
+     `copy_reference` of the selection of the screen; the first run kept the live
+     path, which showed the new selection.
+   - The give-back is checked against the screen first (`_is_screen_place`), with a
+     caret at its end read as the write of a selection reads it, so a stale path
+     gives nothing back and throws nothing.
+   - The typed text is a quiet `WidgetText` that the printer makes once, so it
+     keeps its place while the rows change. `set_output_path_computations!` and
+     `set_output_tree_path_computations!` carry the place of the caret from the
+     list down to the field, and the reader of the list maps the answer of the
+     field back to `query{s:e}`.
+   - Five tests changed. `WidgetMenuKeysTest.jl` types through a chain that draws
+     the field, with Left and Ctrl+Backspace, reads Page Down as `:page_down`, and
+     checks that a list with `edit` gives a key on. `CommandPaletteTest.jl` checks
+     in the real editor that the selection goes into the typed text, that the text
+     keys edit it, that Escape gives the selection back, and that Return runs the
+     command. `InsertionChoicesTest.jl` and `ContextMenuWindowTest.jl` read the
+     list again from its window after a key, because the edit of the field opens
+     a new list, and check that the selection stays in the field.
+     `GestureHelpTest.jl` proves that a collection goes into the content of a
+     clipboard with the table of a Boolean value, because the table of a string
+     went in step 2.
+   - Counts: `test_widget_menu_keys()` 45, `test_command_palette_decorator()` 36,
+     `test_context_menu_window()` 74, `test_insertion_choices()` 20,
+     `test_gesture_help()` 47, `test_text_keys()` 23, `test_data_frame_cells()`
+     173, and no failure in the tests of the windows, the outline, the files, a
+     research item and the navigator. `test_repls()` 31988/206/8 and
+     `test_typeins()` 5148/20, the counts of the branch point.
 4. ✅ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Done 2026-11-10. Two rows in the text table,
    "Delete a word backward" and "Delete a word forward". Test: the rows of §3 in
    `test_text()`, and the two image rows in `test_inline_image_caret()`. Facts of
