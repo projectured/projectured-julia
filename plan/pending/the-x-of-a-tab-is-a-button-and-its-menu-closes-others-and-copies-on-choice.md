@@ -1,6 +1,6 @@
 # The x of a tab is a button, and its menu closes others and copies on choice
 
-**Status (2026-11-11): approved, in work.** The owner asked for this plan on 2026-11-11 and approved it on 2026-11-11.
+**Status (2026-11-11): done.** The owner asked for this plan on 2026-11-11 and approved it on 2026-11-11.
 The decisions D1 to D9 are proposals of the assistant, approved with the plan.
 No question is open.
 
@@ -237,7 +237,7 @@ choice, so the key does not change.
    tab, and a right click on it opens the menu of the tab. Run
    `test_widget_tab_strip()`, `test_pane_reader()`, `test_part_pointer_shape()`
    and `test_pane_drag()`.
-4. [ ] **Guides, list, and a look at the window.** Change widget.md and pane.md
+4. [x] **Guides, list, and a look at the window.** Change widget.md and pane.md
    to §3. Record the precompile list of `ProjecturedPlatform` again. Take
    pictures of the real window: the pointer on the `x` of a tab that is not
    open, and the open menu of a tab. Run `test_platform()` once, in two halves.
@@ -294,6 +294,35 @@ choice, so the key does not change.
   with `set_output_path_computations!`, as `FindBarViewToWidget` wires its
   children. A strip that is an input document gets the mouse target of its
   buttons from the walk.
+- **Step 4.** Before the recording, 1806 of the 12464 recorded calls of
+  `ProjecturedPlatform` did not resolve on the branch, and 1675 on main. The
+  list of the kernel resolved in full, so a recording of the one package takes
+  in no stale calls of a package below it. The first recording ran on main
+  cfb077e2d, where the window workload stops at
+  `WorkloadClick(DrawnText(r"lengths_1"))`, so its list missed the calls after
+  that step. Main 3fd04ea4b fixes the workload, so the branch was rebased on it
+  and the list recorded again. The new list has 10642 lines, the old one 10260:
+  1889 calls are new, 161 of them name a changed type, and most of the others
+  replace the stale calls of main. A load after it gives no warning of
+  unresolved calls.
+- **Step 4, the window.** Pictures of the application window, written with the
+  SDL image writer from an editor that runs its frames with real events, show:
+  the open tab alone shows its `x` at rest; the pointer on a tab that is not open
+  shows its `x`; the pointer on that `x` shows the light surface tight around
+  it; a held button shows the darker surface; a press that leaves the button
+  before the release closes nothing; and the menu of a tab shows Close, Close
+  others and Close to the right. The context menu opens only through
+  `wrap_context_menu_window` in the tracking screen, as in the application.
+  Duplicate is greyed for a text file, as on main: a text file has no duplicate.
+- **Step 4, the suite.** `test_platform()` ran in two halves. Half 1: 220087
+  passed, 4 failed; the 4 are static layering checks of files that the branch
+  does not change. Half 2: 8047 passed, 2 failed, 1 error. The Save As check of
+  the file dialog fails on main too. The error of `test_tooltip_note` comes from
+  main 212901ac9, which reads `fact.second` of a `DocumentCondition`. The
+  failure of `test_widget_round_trip` came from this plan: a page holds a close
+  button, and a pane that is not closable draws none. The test now counts that
+  button as a part that is not shown, as it counts the content of a tab that is
+  not open, and passes 2 of 2.
 
 ## Not in this plan
 

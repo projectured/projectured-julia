@@ -13,8 +13,9 @@ _rt_place(node) = (hasproperty(node, :x) && hasproperty(node, :y)) ?
 _rt_center(box) = (box.x + box.width ÷ 2, box.y + box.height ÷ 2)
 
 # Whether the widgets do not display the part at `reference`: the content of a
-# tab that is not open, a menu or a submenu that is closed, the dialog of a
-# button, what an action holds, and a widget that is not visible.
+# tab that is not open, the close button of a tab of a pane that is not
+# closable, a menu or a submenu that is closed, the dialog of a button, what an
+# action holds, and a widget that is not visible.
 function _rt_is_hidden(document, reference)
     node = _rt_value(document)
     steps = collect(get_reference_steps(reference))
@@ -26,6 +27,8 @@ function _rt_is_hidden(document, reference)
             count = length(node.selector_element_pairs)
             open = WidgetModule._tab_index_from_selection(get_stored_selection(node), count)
             steps[i + 1].start + 1 == (open == 0 ? 1 : open) || return true
+            closes = i + 2 <= length(steps) && steps[i + 2] isa FieldReferenceStep && steps[i + 2].name == "close"
+            closes && node.closable !== true && return true
         end
         node = _rt_value(evaluate_reference_step(step, node))
     end
