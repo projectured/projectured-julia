@@ -846,22 +846,28 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       (`test_help_pages` 30/10). A label reads a single click only, so the row
       gets the double click as before. A word selection on a double click is
       not part of this plan.
-    - **A header and the corner keep only a control's answer** (D7). The
-      table gives a plain click on a header or on the corner to what it holds,
-      and keeps the answer only when it is an action, such as the toggle of a
-      checkbox, or a selection inside a control, a document that takes the focus
-      (`is_focusable_document`), such as the caret in a text field
-      (`_find_control_answer`). A selection in a label is not kept, so the click
-      selects the line, or the table for the corner. The rule names no widget
-      type. A first version gave the caret to the header text as to a cell (my
-      reading of step 6); the data frame suite showed 5 failures and 9 errors,
-      and the owner chose D7.
+    - **A header and the corner keep every answer but a caret in a label**
+      (D7). The table gives a plain click on a header or on the corner to what
+      it holds, and keeps the answer unless it is a selection in a text that
+      takes no key (`_find_control_answer`, `_is_read_only_text`, true for a
+      label). So a click on the label of a header selects the line, or the
+      table for the corner, and an action, such as the toggle of a checkbox, and
+      a caret in a text that takes keys stay: a text field, and the text of the
+      header of a markdown table, which is the text of the document (my reading
+      of D7, which the owner gave for a header that shows a label). Two first
+      versions failed: the caret in the header text as in a cell (my reading of
+      step 6; the data frame suite showed 5 failures and 9 errors), and a rule
+      that kept only a selection in a document that takes the focus
+      (`is_focusable_document`), which dropped the caret in a markdown header
+      (`MarkdownTableTest.jl:150`).
     - **A cell follows D4.** A click on the text of a label cell puts the caret
       there, and a click on its padding selects the row: `WidgetTableTest`,
       `WidgetTablePartsTest`, `WidgetTablePartSelectionTest`. The point tests
       expect the caret in the text of the label under the point:
       `LayoutPointTest`, `WidgetPointTest`, `AnchoredLayoutTest`. The search of
-      the settings test starts right of the text of the label.
+      the settings test starts right of the text of the label. The pivot keeps
+      the labels of its cells as its own documents, so the caret in a cell of a
+      pivot is a place of the pivot (`PivotTableToWidgetTest`).
     - **A label cell of a data frame view is selected whole.** The view shows a
       value that no primitive document holds, such as a `Symbol`, as a label
       that it makes (`make_data_frame_cell`), so the text of the label has no

@@ -13017,10 +13017,10 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here: a plain click goes to the
-# content of a cell or a header first. A header keeps only an action or a
-# selection in a control (`_find_control_answer`); a click that the header does
-# not keep selects its row or its column, and a click that a cell declines selects
-# its row. The corner selects the table; an Alt+click selects the cell or the
+# content of a cell or a header first. A header keeps every answer but a caret
+# in a label (`_find_control_answer`); a click that the header does not keep
+# selects its row or its column, and a click that a cell declines selects its
+# row. The corner selects the table; an Alt+click selects the cell or the
 # header itself. Keyboard grid navigation (the arrows,
 # Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
 # against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
@@ -13100,28 +13100,34 @@ end
 
 # What a part that is a control of something else, such as the header of a column
 # or the corner of a table, keeps of `operation`, the answer of `content`, the
-# document that the part holds, to a plain click: an action, such as the toggle of
-# a checkbox, and a selection inside a control, a document that takes the focus,
-# such as the caret in a text field. A selection in a document that is no control,
-# such as the caret in the text of a label, is not kept, so the click acts on what
-# the part controls, as a click on a tab switches its page. `nothing` when nothing
-# is kept.
+# document that the part holds, to a plain click: every answer but a selection in
+# a text that takes no key, such as the caret in the text of a label. So a click
+# on the label of a header acts on what the header controls, as a click on a tab
+# switches its page, and an action, such as the toggle of a checkbox, and the
+# caret in a text that takes keys, such as a text field, stay. `nothing` when
+# nothing is kept.
 function _find_control_answer(content, operation)
     operation isa ReplaceSelectionOperation || return operation
-    _is_path_in_control(content, strip_reference_types(operation.path)) ? operation : nothing
+    _is_path_in_read_only_text(content, strip_reference_types(operation.path)) ? nothing : operation
 end
 
-# Whether `document`, or a document on `path` inside it, takes the focus.
-function _is_path_in_control(document, path)
+# Whether `document`, or a document on `path` inside it, shows a text that takes no
+# key (`_is_read_only_text`).
+function _is_path_in_read_only_text(document, path)
     node = document
     while true
-        is_focusable_document(node) && return true
+        _is_read_only_text(node) && return true
         path isa ConcreteReference || return false
         node = try_evaluate_reference(node, ConcreteReference(path.head, EmptyReference()))
         node === nothing && return false
         path = path.tail
     end
 end
+
+# Whether `node` shows a text that takes no key, as a label does: a caret in it
+# selects text to read or to copy, and edits nothing.
+_is_read_only_text(node) = false
+_is_read_only_text(::WidgetLabel) = true
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)

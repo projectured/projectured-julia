@@ -1595,7 +1595,7 @@ end
 # cell, and in a header with levels the label of the level under the pointer. A
 # plain press goes to the part first: the corner, a header or a cell, and in a
 # header with levels the label of that level. The corner and a header are
-# controls of their line, so they keep only an action or a selection in a control
+# controls of their line, so they keep every answer but a caret in a label
 # (`_find_control_answer`), and a cell keeps the caret in its text too. A press
 # that the part does not keep selects its line: the corner the table, a row
 # header its row, a column header its column, `columns[c]`, and a cell, on its

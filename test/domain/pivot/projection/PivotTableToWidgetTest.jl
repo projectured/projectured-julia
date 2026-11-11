@@ -96,7 +96,13 @@ cell_path(r, c) = ConcreteReference(FieldReferenceStep("cells"), ConcreteReferen
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
 row_path(r) = ConcreteReference(FieldReferenceStep("cells"),
     ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
+# A press on the text of a cell puts the caret in its label, which is the cell of
+# the pivot, and a press on its padding selects the row.
 op = press(cell[1], cell[2])
+@test op isa ReplaceSelectionOperation && strip_reference_types(op.path) ==
+      concat_references(cell_path(1, 1), ConcreteReference(FieldReferenceStep("content"),
+                                                           ConcreteReference(RangeReferenceStep(0, 0), EmptyReference())))
+op = press(cell[1] - 3, cell[2])
 @test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == row_path(1)
 op = press(cell[1], cell[2]; alt = true)
 @test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == cell_path(1, 1)
