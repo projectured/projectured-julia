@@ -196,6 +196,20 @@ end
 
 get_work_item_identifier(search::ExplorerSearch) = search.identifier
 get_work_item_starter(search::ExplorerSearch) = search.started_by
+
+# The facets of a search as a row of the task list, which the table of the Tasks
+# pane filters and sorts by.
+get_item_facets(::Type{ExplorerSearch}) = [
+    "title" => "what the search looks for, as its row calls it",
+    "kind" => "\"search\"",
+    "state" => "the word of its state: running or stopped",
+    "counts" => "what it found, in a line"]
+compute_item_facet(search::ExplorerSearch, ::Val{:title}) = get_document_title(search)
+compute_item_facet(search::ExplorerSearch, ::Val{:kind}) = describe_work_item_kind(search, 1)
+compute_item_facet(search::ExplorerSearch, ::Val{:state}) =
+    (conditions = get_document_decoration(search).conditions;
+     isempty(conditions) ? "" : get_condition_look(Val(first(conditions).name)).words)
+compute_item_facet(search::ExplorerSearch, ::Val{:counts}) = get_document_decoration(search).detail
 describe_work_item_kind(::ExplorerSearch, count::Integer) = count == 1 ? "search" : "searches"
 
 # A stop keeps the result as it is, and the search reads nothing more.

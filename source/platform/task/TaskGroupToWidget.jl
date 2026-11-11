@@ -435,7 +435,29 @@ _get_task_codes(document::TaskDocument) =
 # memory in their units, and the columns of the kind of the task as the value that
 # the kind gives, which follows the result, also for a column that has the name of
 # a field of the document. Any other item has the cells of the table.
-make_roster_cell(::TaskCells, item, key, value) = nothing
+# A row of the Tasks pane whose item is a work item of another kind, such as a
+# search, says its kind, its state and its line as its decoration says them; any
+# other cell is the cell of the table.
+function make_roster_cell(cells::TaskCells, item, key, value)
+    hasmethod(get_work_item_identifier, Tuple{typeof(item)}) || return nothing
+    key == "identifier" && return WidgetLabel(get_work_item_identifier(item))
+    key == "kind" && return WidgetLabel(describe_work_item_kind(item, 1))
+    key == "started_by" && return WidgetLabel(() -> describe_work_starter(get_work_item_starter(item)))
+    key == "state" && return _make_live_label(() -> _get_work_item_state(cells, item))
+    key == "counts" && return WidgetLabel(() -> get_document_decoration(item).detail)
+    nothing
+end
+
+# A row of the Tasks pane whose item is a group: the word of its state in the color
+# of its role, how far it is and its time, which follow the group.
+function make_roster_cell(cells::TaskCells, item::TaskGroupDocument, key, value)
+    key == "state" && return _make_live_label(() -> _get_group_state(cells, item, get_task_group(item)))
+    key == "progress" &&
+        return WidgetLabel(() -> string(round(Int, 100 * get_task_group_document_summary(item).progress), "%"))
+    key == "elapsed" &&
+        return WidgetLabel(() -> (e = get_task_group_document_summary(item).elapsed; e === nothing ? "" : _format_duration(e)))
+    nothing
+end
 
 function make_roster_cell(cells::TaskCells, item::TaskDocument, key, value)
     key == "state" && return _make_live_label(() -> _get_task_state(cells, _get_task_codes(item), item))
@@ -1344,14 +1366,16 @@ end
 """
     TaskGroupListToWidgetPane(; theme styles…)
 
-Draw a [`TaskGroupList`](@ref) as the Tasks pane: one row for each open work item
-of the session, newest first. A group shows its identifier, its title, its kind,
-who started it, the word of its state, its counts, how far it is and the time, and
-the buttons that stop it, run its unexpected tasks again, and close its row.
-Another work item, such as a task alone or a search, shows its identifier, its
-title, its kind, who started it, and the word of its state and its line as its
-decoration says them, and the buttons that stop it and close its row. The title is a link to the page of the item. A closed row
-leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
+Draw a [`TaskGroupList`](@ref) as the Tasks pane: a heading that counts the open
+rows of each kind and the rows that run, one line of buttons that act on the
+selected row (Stop, Run again and Close), and the table of the list, an
+arrangement of a roster of the open rows, newest first, which a person filters,
+sorts and finds in its bar. A row shows the title of its item as a link to its
+page, its identifier, its kind, who started it, the word of its state, its counts,
+how far it is and its time; a work item of another kind says its state and its
+line as its decoration says them. A press that puts the selection into a row
+selects the row for the buttons. A closed row leaves a [`ClosedTaskGroup`](@ref)
+in the list, which the pane does not show.
 """
 @projection UntrackedCell struct TaskGroupListToWidgetPane <: Projection
     button_size::Point2D = get_task_style(nothing, :button_size)
@@ -1365,8 +1389,6 @@ leaves a [`ClosedTaskGroup`](@ref) in the list, which the pane does not show.
     running_color::StyleColor = get_task_style(nothing, :running_color)
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
-
-const _LIST_COLUMNS = ("item", "title", "kind", "started by", "state", "counts", "progress", "elapsed", "")
 
 """
     make_task_group_list_tab_title(list) -> PaneTabTitle
@@ -1389,57 +1411,6 @@ function get_document_decoration(list::TaskGroupList)
                        counts = [DocumentCount(string(running, " running"); role = :accent)], tooltip)
 end
 
-function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument, index::Int)
-    group = get_task_group(doc)
-    # The title is a link to the page of the group.
-    title = WidgetLink(() -> getfield(doc, :title)[],
-                       DocumentLocator(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(index - 1, index))))
-    is_going() = getfield(doc, :status)[] in (:running, :stopping)
-    stop_button = _make_action_button(p, "Stop", editor -> evaluate_operation(editor, StopTaskGroupOperation(doc));
-                                      enabled = is_going,
-                                      tooltip = "Stop the tasks that run and start no more.")
-    again_button = _make_action_button(p, "Run unexpected again",
-                                       editor -> evaluate_operation(editor, RerunTaskGroupOperation(doc, :unexpected));
-                                       enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected,
-                                       tooltip = _make_rerun_note(doc))
-    close_button = _make_action_button(p, "Close", editor -> evaluate_operation(editor, CloseTaskGroupOperation(list, doc));
-                                       enabled = () -> !is_going(),
-                                       tooltip = "Close the group: its tasks and their output are gone, and its summary stays.")
-    Any[WidgetLabel(getfield(doc, :identifier)[]),
-        title,
-        WidgetLabel(group.name),
-        WidgetLabel(() -> describe_work_starter(getfield(doc, :started_by)[])),
-        _make_live_label(() -> _get_group_state(p, doc, group)),
-        WidgetLabel(() -> _format_group_counts(get_task_group_document_counts(doc))),
-        WidgetLabel(() -> string(round(Int, 100 * get_task_group_document_summary(doc).progress), "%")),
-        WidgetLabel(() -> (e = get_task_group_document_summary(doc).elapsed; e === nothing ? "" : _format_duration(e))),
-        HorizontalLayout(Any[stop_button, again_button, close_button]; vertical_align = :center,
-                         gap = p.button_gap)]
-end
-
-# The row of another work item: its identifier, its title as a link to its page,
-# its kind, the word of its state and its line, as its decoration says them, and
-# the buttons that stop it and close its row.
-function _build_list_row(p, list::TaskGroupList, item, index::Int)
-    title = WidgetLink(() -> get_document_title(item),
-                       DocumentLocator(list, Reference(FieldReferenceStep("groups"), RangeReferenceStep(index - 1, index))))
-    is_going() = _is_work_item_running(item)
-    stop_button = _make_action_button(p, "Stop", () -> stop_work_item!(item); enabled = is_going,
-                                      tooltip = "Stop this work before it ends.")
-    close_button = _make_action_button(p, "Close", editor -> evaluate_operation(editor, CloseTaskGroupOperation(list, item));
-                                       enabled = () -> !is_going(),
-                                       tooltip = "Close the row: a summary of the work takes its place.")
-    Any[WidgetLabel(get_work_item_identifier(item)),
-        title,
-        WidgetLabel(describe_work_item_kind(item, 1)),
-        WidgetLabel(() -> describe_work_starter(get_work_item_starter(item))),
-        _make_live_label(() -> _get_work_item_state(p, item)),
-        WidgetLabel(() -> get_document_decoration(item).detail),
-        WidgetLabel(""),
-        WidgetLabel(""),
-        HorizontalLayout(Any[stop_button, close_button]; vertical_align = :center, gap = p.button_gap)]
-end
-
 # The word of the state of a work item and its color: the first condition of its
 # decoration.
 function _get_work_item_state(p, item)
@@ -1450,12 +1421,6 @@ function _get_work_item_state(p, item)
     role = something(condition.role, Some(look.role))
     (look.words, role === :accent ? p.running_color : role === nothing ? p.muted_color : _get_role_color(p, role))
 end
-
-# The open work items of the list, newest first, each with its place in the list,
-# which the path of its link names.
-_collect_shown_task_groups(list::TaskGroupList) =
-    [(index, item) for (index, item) in Iterators.reverse(collect(enumerate(list.groups)))
-     if !(item isa ClosedTaskGroup)]
 
 # The count of each kind of the open work items, in the order of the first start
 # of each kind, and how many run: "2 groups · 1 search · 1 running". With no item,
@@ -1473,22 +1438,122 @@ function _format_list_heading(items)
     join(vcat(parts, string(count(_is_work_item_running, items), " running")), " · ")
 end
 
+# The steps from the root of the pane to the table: the third child of its grid.
+const _LIST_TABLE_STEP = FieldReferenceStep("table")
+const _LIST_GRID_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(2, 3))
+
 function print_document(p::TaskGroupListToWidgetPane, recursion, list::TaskGroupList, ctx)
     heading = WidgetLabel(() -> _format_list_heading(collect_work_items(list)))
-    body = VerticalLayout(Any[]; child_width = Fill)
-    set_cell_computation!(getfield(body.children, :elements), () -> begin
-        shown = _collect_shown_task_groups(list)
-        isempty(shown) && return Cell[Cell(_make_label(
-            "No group of tasks is open in this session.", p.muted_color))]
-        rows = Any[_build_list_row(p, list, item, index) for (index, item) in shown]
-        Cell[Cell(WidgetTable(collect(Any, _LIST_COLUMNS), rows))]
-    end)
-    follow_built_children!(body)
-    root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
-                          horizontal_align = :left, gap = p.section_gap)
-    iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
-    follow_widget_output!(root, list, path -> map_reference_forward(p, iomap, path))
+    output = GridLayout(Any[heading, _build_list_actions(p, list), getfield(list, :table)[]], 1;
+                        vertical_gap = p.section_gap, column_policy = Fill, row_policies = Any[Content, Content, Fill])
+    iomap = SimpleIoMap(p, list, output)
+    # Each widget and layout of the pane holds its part of the paths of the list, and
+    # the grid passes a key by its own selection. The table is a document of the
+    # list, which holds its own.
+    follow_widget_output!(output, list, path -> map_reference_forward(p, iomap, path))
     iomap
+end
+
+# The buttons that act on the selected row: Stop while it runs; Run again, which runs
+# the tasks of a group that ended unexpectedly again, or a task alone as a whole;
+# and Close while it does not run.
+function _build_list_actions(p, list::TaskGroupList)
+    selected() = _find_selected_work_item(list)
+    is_going() = (item = selected(); item !== nothing && _is_work_item_running(item))
+    stop = _make_action_button(p, "Stop", editor -> _stop_list_item!(editor, selected()); enabled = is_going,
+                               tooltip = "Stop the work of the selected row before it ends.")
+    again = _make_action_button(p, "Run again", editor -> _rerun_list_item!(editor, selected());
+                                enabled = () -> _can_run_list_item_again(selected()),
+                                tooltip = "Run the selected row again: a task alone as a whole, and the tasks of a " *
+                                          "group that ended with a result that was not expected.")
+    close = _make_action_button(p, "Close",
+                                editor -> (item = selected(); item === nothing ||
+                                           evaluate_operation(editor, CloseTaskGroupOperation(list, item)));
+                                enabled = () -> (item = selected(); item !== nothing && !_is_work_item_running(item)),
+                                tooltip = "Close the selected row: a summary of the work takes its place.")
+    HorizontalLayout(Any[stop, again, close]; vertical_align = :center, gap = p.button_gap)
+end
+
+_stop_list_item!(editor, ::Nothing) = nothing
+_stop_list_item!(editor, group::TaskGroupDocument) = evaluate_operation(editor, StopTaskGroupOperation(group))
+_stop_list_item!(editor, item) = stop_work_item!(item)
+
+_rerun_list_item!(editor, ::Nothing) = nothing
+_rerun_list_item!(editor, group::TaskGroupDocument) =
+    evaluate_operation(editor, RerunTaskGroupOperation(group, :unexpected))
+_rerun_list_item!(editor, document::TaskDocument) = evaluate_operation(editor, StartTaskOperation(document))
+_rerun_list_item!(editor, item) = nothing
+
+_can_run_list_item_again(::Nothing) = false
+_can_run_list_item_again(group::TaskGroupDocument) =
+    !_is_work_item_running(group) && !get_task_group_document_counts(group).is_expected
+_can_run_list_item_again(document::TaskDocument) =
+    !_is_work_item_running(document) && applicable(start_task, getfield(document, :task)[])
+_can_run_list_item_again(item) = false
+
+# `table.<rest>` ↔ the table in the grid.
+function map_reference_forward(::TaskGroupListToWidgetPane, iomap::SimpleIoMap, reference)
+    output = iomap.output
+    reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    (reference isa ConcreteReference && get_reference_head(reference) == _LIST_TABLE_STEP) || return nothing
+    rest = get_reference_tail(reference)
+    is_fully_typed_reference(rest) ||
+        (rest = annotate_reference_types(getfield(iomap.input, :table)[], strip_reference_types(rest)))
+    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _LIST_GRID_STEPS...)),
+                      rest)
+end
+
+# A path into the table takes the step of the table; a path into the heading or the
+# buttons names nothing, so a press there leaves the selection where it is; a path
+# to the grid itself names the whole list.
+function map_reference_backward(::TaskGroupListToWidgetPane, iomap::SimpleIoMap, reference)
+    steps = get_reference_steps(strip_reference_types(reference))
+    isempty(steps) && return EmptyReference()
+    (length(steps) >= 2 && steps[1] == _LIST_GRID_STEPS[1] && steps[2] == _LIST_GRID_STEPS[2]) || return nothing
+    concat_references(ConcreteReference(_LIST_TABLE_STEP, EmptyReference()),
+                      get_reference_tail(get_reference_tail(reference)))
+end
+
+# The generic bridge maps the answer of the grid back. The pane keeps the
+# arrangement of its table when the last entry goes, opens the item of a row at
+# its place in the list, `groups[j]`, and a press that puts the selection into a
+# row also makes that row the selected row of the buttons, as view state.
+function read_intent(p::TaskGroupListToWidgetPane, recursion, change::Intent, iomap::SimpleIoMap)
+    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    answer isa Intent || return answer
+    list = iomap.input
+    operation = keep_held_arrangement(answer.operation, getfield(list, :table)[], _LIST_TABLE_STEP)
+    operation = retarget_held_row_open(operation, list, _LIST_TABLE_STEP)
+    operation = _select_pressed_list_row(list, operation)
+    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+end
+
+# A selection that goes into a row of the table, and the same selection after a write
+# of the identifier of the item of that row to `selected`.
+function _select_pressed_list_row(list::TaskGroupList, operation)
+    if operation isa CompoundOperation
+        parts = Any[_select_pressed_list_row(list, part) for part in operation.operations]
+        return all(k -> parts[k] === operation.operations[k], eachindex(parts)) ? operation : CompoundOperation(parts)
+    end
+    operation isa ReplaceSelectionOperation || return operation
+    item = _find_list_row_item(list, operation.path)
+    item === nothing && return operation
+    select = ReplaceViewStateOperation(ReplaceReferencedValueOperation(list, "selected",
+                                                                      String(get_work_item_identifier(item))))
+    CompoundOperation(Any[select, operation])
+end
+
+# The item of the row of the table that `path`, a path of the list, goes into, or
+# `nothing`.
+function _find_list_row_item(list::TaskGroupList, path)
+    path isa ConcreteReference || return nothing
+    rest = _find_path_below(path, (_LIST_TABLE_STEP, FieldReferenceStep("document"), FieldReferenceStep("rows")))
+    rest isa ConcreteReference || return nothing
+    step = first(get_reference_steps(rest))
+    (step isa RangeReferenceStep && is_element_reference_step(step)) || return nothing
+    rows = getfield(list, :table)[].document.rows
+    k = step.start + 1
+    (1 <= k <= length(rows)) ? peek(getfield(rows[k], :item)) : nothing
 end
 
 # ── A closed group ───────────────────────────────────────────────────────────
@@ -1510,7 +1575,7 @@ function print_document(p::ClosedTaskGroupToWidgetPane, recursion, group::Closed
     heading = HorizontalLayout(Any[WidgetLabel(getfield(group, :title)[]),
                                    WidgetBadge(getfield(group, :identifier)[]; variant = :outline)];
                                vertical_align = :center, gap = p.label_gap)
-    lines = VerticalLayout(Any[_make_label("This group is closed. Its tasks and their output are gone.", p.muted_color),
+    lines = VerticalLayout(Any[_make_label(_describe_closed_row(getfield(group, :kind)[]), p.muted_color),
                                WidgetLabel(getfield(group, :summary)[])]; gap = p.section_gap, child_width = Fill)
     root = VerticalLayout(Any[WidgetCard(; title = heading, content = lines)]; horizontal_align = :left,
                           gap = p.section_gap)
@@ -1518,6 +1583,12 @@ function print_document(p::ClosedTaskGroupToWidgetPane, recursion, group::Closed
     follow_widget_output!(root, group, path -> map_reference_forward(p, iomap, path))
     iomap
 end
+
+# What the page of a closed row says, by the word for its kind.
+_describe_closed_row(kind::AbstractString) =
+    kind == "group" ? "This group is closed. Its tasks and their output are gone." :
+    kind == "task" ? "This task is closed. Its output is gone." :
+    string("This ", isempty(kind) ? "row" : kind, " is closed.")
 
 # ── Natural-projection registration ─────────────────────────────────────────
 

@@ -3,6 +3,8 @@
 # with no group is a row of its own: it stops, runs again with no group, closes and
 # keeps its place and its identifier. The code of a call that goes to a running
 # loop keeps its starter there, and a press that a frame reads names the person.
+# The Tasks pane is an arrangement of a roster of the rows, which filters and sorts
+# by who started them, and one line of buttons acts on the selected row.
 
 # A program that prints its name, or runs `script`.
 _work_item_program(name, script = "echo $name") =
@@ -188,6 +190,119 @@ function test_task_work_item()
             @test posted == outer
             @test probe.seen[] === nothing
             wait_task_group(get_task_group(group))
+        end
+    end
+end
+
+# The pane of `list` printed alone, and the place of each word that it draws.
+function _work_item_list_view(list)
+    projection, iomap = _print_task_view(list; height = 600)
+    (projection, iomap, _collect_task_view_texts(iomap.output))
+end
+
+# What a press on the first drawn `text` of the pane of `list` answers.
+function _work_item_list_press(list, text; count = 1)
+    projection, iomap, texts = _work_item_list_view(list)
+    (x, y, _) = first(t for t in texts if t[3] == text)
+    read_intent(projection, iomap, MouseClick(:left, x + 2, y + 2, count, ModifierKeys(); time = 0.0))
+end
+
+# The items of the rows of the table of `list` that its arrangement shows, in order.
+function _work_item_shown_items(list)
+    found = find_arranged_collection(list, extend_reference(EmptyReference(), FieldReferenceStep("table"),
+                                                            FieldReferenceStep("document"), FieldReferenceStep("rows")))
+    Any[peek(getfield(row, :item)) for row in collect_shown_items(found.entry, found.items) if row isa RosterRow]
+end
+
+# The table of `list` with one entry of an arrangement at its rows.
+function _work_item_arrange!(list; options...)
+    entries = list.table.entries
+    foreach(_ -> pop!(entries), 1:length(entries))
+    push!(entries, make_arrangement_entry(extend_reference(EmptyReference(), FieldReferenceStep("rows")); options...))
+    list
+end
+
+# The operations inside `operation`, a compound or one.
+_work_item_operations(operation) =
+    operation isa CompoundOperation ? reduce(vcat, map(_work_item_operations, operation.operations); init = Any[]) :
+    Any[operation]
+
+function test_task_list_pane()
+    @testset "the Tasks pane is an arrangement of a roster of its rows" begin
+        editor, list = _work_item_editor()
+        assistant_task = run_with_evaluation_starter(() -> run_tasks!(_work_item_program("alpha"); editor),
+                                                     _WORK_ITEM_ASSISTANT)
+        person_group = wrap_task_group_document(TaskGroup([_work_item_program("beta", "exit 1")]; name = "pressed",
+                                                          jobs = 1); title = "the group of the person")
+        run_with_evaluation_editor(() -> start_task_group_document!(person_group), editor)
+        slow = run_tasks!(_work_item_program("slow", "sleep 30"); editor)
+        wait_for_tasks!(assistant_task; timeout = 20, editor)
+        wait_for_task_group!(editor, person_group)
+
+        @testset "the rows are the open rows, newest first, and the title of a row opens its page" begin
+            @test _work_item_shown_items(list) == Any[slow, person_group, assistant_task]
+            words = [t[3] for t in last(_work_item_list_view(list))]
+            @test all(in(words), ("title", "identifier", "started by", "state", "the group of the person",
+                                  "Assistant 9", "the person", "task", "pressed"))
+            # The title is the link of the row: it opens the item at its place in the list.
+            opened = _work_item_list_press(list, "the group of the person")
+            @test typeof(opened) == OpenPageOperation
+            @test opened.document === nothing
+            @test evaluate_reference(list, opened.reference) === person_group
+        end
+
+        @testset "the filter keeps only the rows of the person, and a sort orders by who started them" begin
+            _work_item_arrange!(list; filter = ["started_by" => ==("the person")])
+            @test _work_item_shown_items(list) == Any[slow, person_group]
+            words = [t[3] for t in last(_work_item_list_view(list))]
+            @test "the group of the person" in words && !("Assistant 9" in words)
+            _work_item_arrange!(list; sort = ["started_by" => :descending, "identifier"])
+            shown = _work_item_shown_items(list)
+            @test shown[3] === assistant_task && Set(shown[1:2]) == Set(Any[slow, person_group])
+            _work_item_arrange!(list; sort = ["started_by"])
+            @test first(_work_item_shown_items(list)) === assistant_task
+            foreach(_ -> pop!(list.table.entries), 1:length(list.table.entries))
+        end
+
+        @testset "a press on a row selects it, and the line of buttons stops, runs again and closes it" begin
+            identifier = get_work_item_identifier(slow)
+            pressed = _work_item_list_press(list, identifier)
+            writes = [get_wrapped_operation(operation) for operation in _work_item_operations(pressed)
+                      if operation isa ReplaceViewStateOperation]
+            @test any(write -> write isa ReplaceReferencedValueOperation && write.value == identifier, writes)
+            foreach(write -> evaluate_operation(nothing, write), writes)
+            @test getfield(list, :selected)[] == identifier
+            @test list.table.document.marked === slow
+            # Stop stops the selected row, and its row stays.
+            _work_item_list_press(list, "Stop").action.callback(editor)
+            @test occursin("CANCEL", string(wait_for_tasks!(slow; timeout = 20, editor)))
+            # Run again runs the selected task alone again, with no group.
+            _work_item_list_press(list, "Run again").action.callback(editor)
+            @test length(getfield(slow, :executions)[]) == 2
+            stop_work_item!(slow)
+            wait_for_tasks!(slow; timeout = 20, editor)
+            # Close closes it: its closed row keeps its place, and no row is selected.
+            _work_item_list_press(list, "Close").action.callback(editor)
+            closed = list.groups[findfirst(item -> get_work_item_identifier(item) == identifier, collect(list.groups))]
+            @test closed isa ClosedTaskGroup && getfield(closed, :kind)[] == "task"
+            @test !any(item -> item === slow, _work_item_shown_items(list))
+            @test list.table.document.marked === nothing
+            # The page of the closed task says that a task closed.
+            words = [t[3] for t in _collect_task_view_texts(last(_print_task_view(closed)).output)]
+            @test "This task is closed. Its output is gone." in words
+            # The selected group runs its unexpected tasks again.
+            list.selected = get_work_item_identifier(person_group)
+            _work_item_list_press(list, "Run again").action.callback(editor)
+            wait_for_task_group!(editor, person_group)
+            @test length(getfield(person_group.tasks[1], :executions)[]) == 2
+        end
+
+        @testset "the :tasks source of a roster lists a task alone too" begin
+            roster = Roster(StoreRecords(:tasks); columns = ["name", "within.title"])
+            link_roster!(roster, editor.document)
+            items = run_with_evaluation_editor(() -> [peek(getfield(row, :item)) for row in roster.rows], editor)
+            @test any(item -> item === assistant_task, items)
+            @test any(item -> item === person_group.tasks[1], items)
         end
     end
 end

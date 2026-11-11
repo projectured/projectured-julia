@@ -799,7 +799,8 @@ function test_task_views()
             projection, iomap = _print_task_view(list)
             title = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "linked tasks")
             opened = press(projection, iomap, title)
-            @test opened isa OpenPageOperation && opened.document === list
+            @test typeof(opened) == OpenPageOperation
+            @test opened.document === nothing
             @test evaluate_reference(list, opened.reference) === document
         end
 

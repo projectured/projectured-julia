@@ -58,6 +58,7 @@ import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explore
 import ..TaskModule: get_work_item_identifier, describe_work_item_kind, stop_work_item!, describe_work_item,
                      get_work_item_starter
 import ..WidgetModule: make_graphics_projection
+import ..RosterModule: get_item_facets, compute_item_facet
 
 export ExplorerFilter
 export ExplorerSection, Explorer, get_session_explorer_content, find_explorer_content, open_explorer_page!

@@ -111,8 +111,17 @@ get_document_title(doc::TaskGroupDocument) = getfield(doc, :title)[]
 # The facet of a group in a roster of tasks, which the tasks reach as `within.kind`:
 # the name of the group, which the list of groups shows as its kind.
 get_item_facets(::Type{TaskGroupDocument}) = [
-    "kind" => "the kind of the group, its name, such as smoke test or fingerprint test"]
+    "kind" => "the kind of the group, its name, such as smoke test or fingerprint test",
+    "state" => "the word of the state of the group: not started, running, stopping, cancelled, or the worst code " *
+               "that its tasks ended with",
+    "counts" => "the count of each code that its tasks ended with, and of the tasks that run and wait, in a line",
+    "progress" => "the fraction of the tasks of the group that ended, between 0 and 1",
+    "elapsed" => "the time in seconds from the start of the group, or nothing before it"]
 compute_item_facet(doc::TaskGroupDocument, ::Val{:kind}) = get_task_group(doc).name
+compute_item_facet(doc::TaskGroupDocument, ::Val{:state}) = first(_get_group_state_role(doc, get_task_group(doc)))
+compute_item_facet(doc::TaskGroupDocument, ::Val{:counts}) = _format_group_counts(get_task_group_document_counts(doc))
+compute_item_facet(doc::TaskGroupDocument, ::Val{:progress}) = get_task_group_document_summary(doc).progress
+compute_item_facet(doc::TaskGroupDocument, ::Val{:elapsed}) = get_task_group_document_summary(doc).elapsed
 
 # A group holds its task documents in its tasks and its preparation; its model and
 # its shadow hold the task values, which hold no task document.

@@ -314,7 +314,7 @@ function test_task_document()
             @test find_decoration_tint(decoration) === :error
             list = get_session_task_group_list(; editor)
             @test get_tree_children_steps(list) == ((FieldReferenceStep("groups"),),)
-            closed = ClosedTaskGroup(Cell("T9"), Cell("gone"), Cell("smoke test"))
+            closed = ClosedTaskGroup(Cell("T9"), Cell("gone"), Cell("smoke test"), Cell("group"))
             @test format_tree_node_label(closed) == "T9 gone"
             @test get_document_decoration(closed).icon === :minus && get_document_decoration(closed).detail == "closed"
             # A run again of a phase puts its tasks back to waiting, and they

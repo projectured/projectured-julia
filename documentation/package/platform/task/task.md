@@ -384,9 +384,11 @@ never changes, a `title` that the tab shows, and a `description`, the words that
 chose the tasks (`wrap_task_group_document(group; description)`, an empty string
 by default). A roster reads the group and its tasks by facets. A task has the
 facets `name`, `status`, `result`, `expected` and `reason`; a group has `kind`,
-the name of its `TaskGroup`. The `:tasks` source of the roster slice lists the
-tasks of the open groups of the session, each with its group as `within`
-([roster.md](../roster/roster.md)). The slot of each task syncs the shadow of the group after the
+the name of its `TaskGroup`, and `state`, `counts`, `progress` and `elapsed`, which
+the Tasks pane shows; a task has `kind` too, the column `kind` of its kind of task,
+or "task" for a task alone. The `:tasks` source of the roster slice lists the
+tasks of the open groups of the session, each with its group as `within`, and each
+open task alone, with no `within` ([roster.md](../roster/roster.md)). The slot of each task syncs the shadow of the group after the
 task (`get_task_group_document_summary`, `get_task_group_document_counts`). Each task that is
 a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
 `TaskDocument` holds in the field `inner_group`
@@ -463,13 +465,14 @@ The state and the line of a work item come from its decoration (`get_document_de
 
 A group keeps its place, so a path `groups[k]` names the same group for the whole
 session, and a task alone keeps its place too. A close of its row puts a `ClosedTaskGroup` in the place: the
-identifier, the title and the line that sums the item up: for a group its kind,
+identifier, the title, the line that sums the item up (for a group its kind,
 its counts and its time, and for another item its kind and the line of its
-decoration. The tasks and their
+decoration), and the word for its kind, "group", "task" or "search". The tasks and their
 executions go with the group, so their memory goes. The Tasks pane and the
 records of the tasks hide a closed group, `collect_task_group_documents` gives the
-open groups, and the page of a closed group says that it closed. A group that
-runs again goes back into its place.
+open groups, and the page of a closed row says what closed: "This group is closed.
+Its tasks and their output are gone.", "This task is closed. Its output is gone.",
+or "This search is closed.". A row that runs again goes back into its place.
 
 ## The views
 
@@ -542,16 +545,35 @@ In a tree, the text of a task is its name and its status with the time when it s
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
-pane, one row for each open group of the session, newest first, with Stop, Run
-unexpected again and Close. The title of a row is a link to the page of the group.
+pane: a heading, one line of buttons, and the table of the list.
 
-The pane draws a row for each other open work item, a task alone or a search. The row shows its identifier, its title as a link to its page, its kind, who started it, the word and the color of the first condition of its decoration, the line of its decoration, and Stop and Close. The first column header is "item", and the column "started by" says who started each row, of a group too. The pane has no arrangement, so it does not filter or sort its rows. The heading counts each kind: "2 groups · 1 search · 1 running". A list of groups only reads "2 groups · 1 running". The decoration of the list counts the running items. For a group it reads the status only.
+**The table** is the field `table` of the list, an `ArrangementDocument` around a
+`Roster` of the open rows, newest first, as the page of the open files has one, so
+a person filters, sorts and finds in its bar. The source of the roster gives each
+row its place `groups[j]`, so the title of a row, its first column, is a link that
+opens the page of the item at that place. The columns are `title`, `identifier`,
+`kind`, `started_by` ("started by"), `state`, `counts`, `progress` and `elapsed`:
+the fields and the facets of a group, a task alone and a search, so a filter of
+"started by" keeps the rows of the person, and a sort orders them by who started
+them. The cells of the state, the progress and the time follow the item; a work
+item of another kind says its kind, its state and its line as its decoration says
+them. The rules of a press are those of every table: a click on the text of a cell
+puts the caret there, and a click on the padding chooses the row.
+
+**The line of buttons** acts on the selected row: the field `selected` of the list,
+the identifier of a row, which a press that puts the selection into a row writes as
+view state, and which the roster marks. Stop stops it while it runs; Run again
+runs the unexpected tasks of a group again, or a task alone as a whole; Close
+closes its row while it does not run. The heading counts each kind: "2 groups · 1
+search · 1 running". A list of groups only reads "2 groups · 1 running". The
+decoration of the list counts the running items. For a group it reads the status
+only.
 
 `make_task_group_list_tab_title` is the title of the Tasks tab, and the
 `make_pane_tab_title` of a list: the icon of a list, and a badge with the count of
 the work items that run. So a navigator whose page is the list gives its tab the same
 icon and badge. `ClosedTaskGroupToWidgetPane` draws the page of a
-closed group.
+closed row.
 
 The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
 the natural renderer for both panes, each with a widget renderer of its own so

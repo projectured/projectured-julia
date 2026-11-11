@@ -228,7 +228,9 @@ get_item_facets(::Type{TaskDocument}) = [
     "elapsed" => "the time in seconds that a finished task took, or nothing while it runs or before it starts",
     "process" => "the number of the process of the current execution, or nothing",
     "processor" => "the load of the processor of the current execution, in percent, or nothing",
-    "memory" => "the resident memory of the process of the current execution, in bytes, or nothing"]
+    "memory" => "the resident memory of the process of the current execution, in bytes, or nothing",
+    "kind" => "the column kind of the kind of the task when it has one; else \"task\" for a task alone, a row " *
+              "of the task list, or nothing"]
 compute_item_facet(document::TaskDocument, ::Val{:name}) = format_task_parameters(getfield(document, :task)[])
 compute_item_facet(document::TaskDocument, ::Val{:status}) = get_task_document_status(document)
 compute_item_facet(document::TaskDocument, ::Val{:result}) =
@@ -252,6 +254,12 @@ end
 compute_item_facet(document::TaskDocument, ::Val{:process}) = _get_current_field(document, :process_id)
 compute_item_facet(document::TaskDocument, ::Val{:processor}) = _get_current_field(document, :processor_load)
 compute_item_facet(document::TaskDocument, ::Val{:memory}) = _get_current_field(document, :resident_memory)
+function compute_item_facet(document::TaskDocument, ::Val{:kind})
+    task = getfield(document, :task)[]
+    any(column -> first(column) == "kind", get_task_columns(task)) &&
+        return get_task_column_value(task, get_task_document_result(document), "kind")
+    isempty(getfield(document, :identifier)[]) ? nothing : describe_work_item_kind(document, 1)
+end
 
 # What a task document says in the column `state` of a table of tasks: its result
 # code once it has one, else the state it is in.
