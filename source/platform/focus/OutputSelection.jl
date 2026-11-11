@@ -76,6 +76,12 @@ part under the pointer, and each document holds its part of it in the same way.
 The walk leaves out a node for which `is_followed` answers `false`, and what is
 below it, such as a document of the domain that the projection put into a widget.
 
+The walk reads the fields of the tree without tracking. A printer calls it while it
+prints, often inside the cell that holds its print, and the walk only sets the
+computations of the paths, once. So a value that changes in a field of the tree,
+such as the state of a button, does not compute that cell again, and does not wake
+a container that reads the cell.
+
 The walk does not go along a lazy list (`ListNode`), whose nodes are built as a
 viewport reaches them. A path counts into such a list from its head, and the part
 under the pointer is in the window, near the head. So the list gets one rule:
@@ -85,9 +91,11 @@ Each node takes its part from that rule when the list builds it.
 """
 function follow_output_selection!(root, forward::Function; forward_mouse_target = nothing,
                                   is_followed = node -> true)
-    _follow_output!(root, (), :selection, forward, is_followed, IdDict{Any,Bool}())
-    forward_mouse_target === nothing ||
-        _follow_output!(root, (), :mouse_target, forward_mouse_target, is_followed, IdDict{Any,Bool}())
+    run_without_cell_tracking() do
+        _follow_output!(root, (), :selection, forward, is_followed, IdDict{Any,Bool}())
+        forward_mouse_target === nothing ||
+            _follow_output!(root, (), :mouse_target, forward_mouse_target, is_followed, IdDict{Any,Bool}())
+    end
     root
 end
 
@@ -99,10 +107,12 @@ the part under the pointer that `forward()` answers, as
 [`follow_output_selection!`](@ref) does, for a view that keeps the selection of its
 output in its own way. So each widget that the view makes lights while the pointer
 is on it. `forward()` answers a path from `root`, or `nothing`; `is_followed` leaves
-a node out, and what is below it.
+a node out, and what is below it. The walk reads the tree without tracking, as the
+walk of `follow_output_selection!` does.
 """
 follow_output_mouse_target!(root, forward::Function; is_followed = node -> true) =
-    (_follow_output!(root, (), :mouse_target, forward, is_followed, IdDict{Any,Bool}()); root)
+    (run_without_cell_tracking(() -> _follow_output!(root, (), :mouse_target, forward, is_followed,
+                                                     IdDict{Any,Bool}())); root)
 
 function _follow_output!(node, @nospecialize(prefix::Tuple), field::Symbol, forward, is_followed, seen)
     (haskey(seen, node) || !is_followed(node)) && return

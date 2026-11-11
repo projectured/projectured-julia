@@ -223,6 +223,28 @@ end
     @test get_mouse_target(head.value[1]) == EmptyReference()
 end
 
+@testset "a print that walks its widgets does not compute again when a field of them changes" begin
+    # The walk sets the paths of the widgets once; the cell that holds the print
+    # reads no field of them, such as the state of a button.
+    state = Cell(false)
+    item = WidgetToolbarItem("Zoom out")
+    set_cell_computation!(getfield(item, :enabled), () -> state[])
+    toolbar = WidgetToolbar(Any[item])
+    prints = Ref(0)
+    print_cell = Cell(@computation begin
+        prints[] += 1
+        follow_output_mouse_target!(toolbar, () -> nothing)
+        follow_output_selection!(toolbar, () -> nothing)
+        toolbar
+    end)
+    @test print_cell[] === toolbar
+    @test item.enabled == false
+    state[] = true
+    @test item.enabled == true
+    @test print_cell[] === toolbar
+    @test prints[] == 1
+end
+
 @testset "across a composite of buttons" begin
     one = WidgetButton("One"; size = Point2D(80, 30))
     two = WidgetButton("Two"; size = Point2D(80, 30), position = Point2D(0, 40))
