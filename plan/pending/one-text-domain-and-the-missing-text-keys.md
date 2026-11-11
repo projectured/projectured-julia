@@ -420,8 +420,8 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    Test: `test_versioning_to_any()`. It gives 62: the 61 of the baseline and a
    check that Ctrl+Delete no longer deletes a version. `versioning.md` names
    Alt+Delete and the reason.
-10. ✅ **Through an editor, and the documents.** Done 2026-11-11, but Page Down
-    and the query of a choice list wait for step 3. A new umbrella test,
+10. ✅ **Through an editor, and the documents.** Done 2026-11-11. The keys of
+    the query of a choice list wait for step 3. A new umbrella test,
     `test_text_keys()`, presses each key of this plan through an editor on a plain
     text, a string of `json_example`, the chat draft and a tab name. It checks the
     document and the caret that renders, and that one undo takes back one
