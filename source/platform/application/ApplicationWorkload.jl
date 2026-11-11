@@ -526,8 +526,8 @@ Run the gestures of the application window with [`run_application_workload`](@re
 on `backend`: each item of each menu but File › Exit, the open of a text file and
 of a `.pred` file from the Files pane with a click, a key, a save and an undo in
 each, a tab, each tool of the toolbar, an assistant turn with a tool call, a turn
-of an external agent ([`WorkloadAgentTurn`](@ref)) with a click in its code and on
-the option of its permission request, the Explorer and its context menu, and then, with a tab of each kind open, a new tab
+of an external agent ([`WorkloadAgentTurn`](@ref)) with a click on the option of
+its permission request, the Explorer and its context menu, and then, with a tab of each kind open, a new tab
 named in the name buffer, F1 and the command palette. Each item and each tool
 opens a document of its own type or changes the panes, and the printers compile
 for each type, so the list presses each one.
@@ -564,10 +564,11 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
         WorkloadClick(DrawnPart(input -> input isa ConversationDraft)),
         WorkloadTyping("hi"), WorkloadKey(:return),
         WorkloadWait(DrawnText("The sum is two.")),
-        # One turn of an external agent in the same assistant, a click in its code,
-        # and a click on the option of its permission request.
+        # One turn of an external agent in the same assistant, and a click on the
+        # option of its permission request. The finished turn folds its code into
+        # its work line, so no step clicks in the code.
         WorkloadAgentTurn(), WorkloadWait(DrawnText(r"33\.5")),
-        WorkloadClick(DrawnText(r"lengths_1")), WorkloadClick(DrawnText("Allow")),
+        WorkloadClick(DrawnText("Allow")),
         WorkloadClick(tool("Explorer")),
         WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
         WorkloadClick(DrawnText("Open in a new tab")),

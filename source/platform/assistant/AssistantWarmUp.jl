@@ -17,10 +17,9 @@ The turn holds a thinking block, Markdown text with a list and a code block, a
 `search_api` call with a Markdown answer, a permission request to run a command,
 which stays open, an `execute_julia_code` call whose code comes in a later
 update, with its result, and the answer, which says `33.5`. The code comes last
-but one, because a pane follows the end of a turn, so the code is in view. The
-turn ends at the usage that the agent reports, as a turn that an agent starts by
-itself ends. The assistant keeps the session, so only a window that its
-workload closes afterwards takes the turn.
+but one. The turn ends at the usage that the agent reports, as a turn that an
+agent starts by itself ends. The assistant keeps the session, so only a window
+that its workload closes afterwards takes the turn.
 
 Only a compile workload calls it, as the step `WorkloadAgentTurn` of a window
 workload. No path that a person starts calls it.
