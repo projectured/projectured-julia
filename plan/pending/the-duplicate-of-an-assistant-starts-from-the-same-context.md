@@ -1,6 +1,6 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-11): in progress, step 2; step 1 is done.** The owner asked for this plan
+> **Status (2026-11-11): in progress, step 3; steps 1 and 2 are done.** The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -183,7 +183,7 @@ The work is in two repositories, each in its own worktree:
      last `assistant` record. Each start of the fork before its first prompt
      adds `--resume-session-at` with it. A source with no file, or with no
      `assistant` record, answers an error of the protocol.
-2. **`ClaudeCodeACP` answers `session/fork`.** It advertises
+2. ~~**`ClaudeCodeACP` answers `session/fork`.** It advertises
    `sessionCapabilities.fork`. It opens the fork with
    `--resume S --fork-session --session-id N`, by the way of P7 that step 1
    chose. After the first prompt of the fork, the fork resumes as a session of
@@ -191,7 +191,25 @@ The work is in two repositories, each in its own worktree:
    arguments, also at a start again before its first prompt; a fork of a session
    that does not exist answers an error of the protocol. The version becomes
    0.1.11, and `ProjecturedACP` asks for 0.1.11. The registration in
-   `ProjecturedRegistry` is a step of the owner.
+   `ProjecturedRegistry` is a step of the owner.~~ **Done 2026-11-11** (ClaudeCodeACP.jl `29ebe0a` on `session-fork`).
+   - The settings of the agent get `find_last_answer(session_id, directory)`,
+     with the default `find_claude_last_answer`. It reads the file of the source
+     in the folder `projects` of the configuration of `claude`, in the
+     subfolder that `claude` names after the folder (each character that is not
+     a letter or a digit becomes `-`), else by the name of the file in any
+     subfolder. The last answer is the last record of the type `assistant`
+     whose `isSidechain` is not `true`. An id that is no UUID finds nothing.
+   - A source with no answer answers `RESOURCE_NOT_FOUND`, and no `claude`
+     starts.
+   - The first prompt of a fork gives it a title of its own, as the first prompt
+     of a new session does.
+   - The README says how a fork runs.
+   - `ProjecturedACP` can ask for 0.1.11 only after `ClaudeCodeACP` lands on its
+     main: the `[sources]` path of `ProjecturedACP` reaches the main checkout of
+     ClaudeCodeACP.jl, which is 0.1.10 until then, so a resolve in the worktree
+     fails. The change of the compat goes with the landing.
+   - Test: `Pkg.test()` of ClaudeCodeACP passes 385 of 385.
+
 3. **The agent connection forks a session.** Declare `fork_agent_session!` in
    `source/kernel/agent/AgentConnectionInterface.jl`, with the default `nothing`
    in `AgentConnectionDefaults.jl`. `AcpConnection` sends `session/fork` when
@@ -242,3 +260,4 @@ The work is in two repositories, each in its own worktree:
 ## 9. Progress
 
 - 2026-11-11: step 1 done (facts in step 1).
+- 2026-11-11: step 2 done (ClaudeCodeACP.jl `29ebe0a`).
