@@ -85,6 +85,20 @@ end
     @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
 end
 
+@testset "the band of a delimiter of a child covers its characters in the widened lines" begin
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="[\n", close="\n]", sep=",\n",
+                       indentation=1)
+    outer = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="[\n", close="\n]", sep=",\n", indentation=1)
+    iomap = print_document(pipe, outer)
+    text = get_flat_string(iomap.output)
+    band(path) = (b = map_reference_forward(iomap.projection, iomap, path).head; text[(b.start + 1):b.stop])
+    # The closing delimiter of the child is on a line of its own, which the parent
+    # indents, so its band reaches the `]` past the wider indentation.
+    @test band(@reference(outer, children[2].close)) == "\n  ]"
+    @test band(@reference(outer, children[2].open)) == "[\n"
+    @test band(@reference(outer, close)) == "\n]"
+end
+
 @testset "a value with a break is lines, which follow the code around them" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
     @test leaf.value isa TextBlock

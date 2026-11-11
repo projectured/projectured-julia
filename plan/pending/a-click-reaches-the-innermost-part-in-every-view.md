@@ -1093,6 +1093,43 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     whole table to map to the whole widget table. `SqlToCellTable` and the 35
     files of omnet-julia follow in step 7. `statistics/frame_time_series` and
     the other views of the list lose the whole document in maps of their own.
+
+  **The baseline of step 6** (2026-11-11, run 1 of step 6, branch at
+  e7ff5e058 on main 165fabe77). The click test on the catalog of
+  projectured-julia (404 atoms, variant `natural`) and its 142 `examples`, in
+  `environment/all` of the worktree, with a cap of 8 GiB: 546 examples in 29
+  min, 6164 lines. `task/stream_lines` does not run, because it needs 9 GiB.
+  The omnet atoms are not in this run; step 7 runs them.
+
+  | Examples | Lines | Cause |
+  | --- | --- | --- |
+  | 115 | 1594 | A plain click on a text does nothing: icons, badges, chips, buttons with no action and other texts that a widget draws with no record of its part (most in the research views, the task group and the workflow) |
+  | 65 | 394 | A plain click on a text gives a part, not a caret |
+  | 62 | 303 | The text of a syntax leaf maps to a step of the view, not to the field (P8) |
+  | 51 | 401 | The reflected object: an Alt+click on a delimiter (a space 201, a quote 152, `]` 45, `}` 3) selects a part that does not hold the point, or one that draws no mark |
+  | 48 | 342 | The caret of a plain click is not drawn |
+  | 45 | 354 | The Alt+click selects a part outside the deepest part under the point |
+  | 38 | 162 | The move and the Alt+click name different parts |
+  | 37 | 37 | The document has no forward image |
+  | 15 | 1110 | The press falls out of the document to the pane |
+  | 14 | 188 | The Alt+click selects the leaf, not the value in its field (P8) |
+  | 10 | 75 | `SelectionMismatchException` |
+  | 9 | 9 | The example does not build |
+  | 6, 2 | 91, 38 | A table, a tree or a roster chooses the row (D4) |
+
+  The Alt+clicks that draw no mark (1274 lines) are in the rows above by their
+  view: the reflected object 401, the formula 184 and the Julia operations 112,
+  the work plan 36, XML 32, the primitive string 32, and widget parts such as
+  `.menu_bar`, `.elements[i]` of a split pane and the tabs of a tabbed pane.
+
+  The causes of the reflected object, from a probe of `primitive/object_field`:
+  - ~~**A delimiter of a child on a line of its own draws no band**~~ (the `]`
+    and the `}`). The Alt+click selects `.close` of the inner node, and the
+    syntax text holds a band for it, but the band covered the break and the
+    indentation, not the `]`: `_shift_child_span` moved the start of the band of
+    a child into the parent and kept its length, and the parent indents the lines
+    of the child further. It moves the first and the last character now, each to
+    its entry (`_shift_child_flat`).
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

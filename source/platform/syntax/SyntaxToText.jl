@@ -457,15 +457,28 @@ function _get_span_bounds(path)
 end
 
 # A band of a child in this node's flat space, as `_shift_child_cursor` shifts a
-# cursor: its start moves to the entry of this node, and its length stays.
+# cursor: its first and its last character move to their entries of this node. This
+# node indents the lines of the child further, so a band over a break, such as a
+# closing delimiter on a line of its own, is longer here than in the child.
 function _shift_child_span(bounds, child_elements, elements, range::UnitRange{Int})
     start, stop = bounds
-    loc = _flat_to_span_char(child_elements, start)
+    first_character = _shift_child_flat(start, child_elements, elements, range)
+    first_character === nothing && return nothing
+    stop <= start &&
+        return ConcreteReference(TextSpanReferenceStep(first_character, first_character), EmptyReference())
+    last_character = _shift_child_flat(stop - 1, child_elements, elements, range)
+    last_character === nothing && return nothing
+    ConcreteReference(TextSpanReferenceStep(first_character, last_character + 1), EmptyReference())
+end
+
+# The offset in this node's flat space of the character at `flat` of a child whose
+# entries are `child_elements`, spliced at `range`, or `nothing`.
+function _shift_child_flat(flat::Int, child_elements, elements, range::UnitRange{Int})
+    loc = _flat_to_span_char(child_elements, flat)
     loc === nothing && return nothing
     span_idx, char_idx = loc
     shifted = _text_elem_path_to_flat(elements, range.start + span_idx - 1, char_idx)
-    shifted < 0 && return nothing
-    ConcreteReference(TextSpanReferenceStep(shifted, shifted + stop - start), EmptyReference())
+    shifted < 0 ? nothing : shifted
 end
 
 # A band over the entries of `places`, the pairs `entry => offset` of a delimiter
