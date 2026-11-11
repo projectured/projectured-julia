@@ -1244,11 +1244,9 @@ function __init__()
                                GraphLayoutToGraphicsCanvas(theme = get_scaled_theme!(appearance, GraphTheme)));
             measure, widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
-    # The sentence that the system text of a window says about a graph: the
-    # vertices, the edges between them, and the graph that holds both.
+    # The sentence that the system text of a window says about a graph: the graph
+    # that holds the vertices and the edges between them.
     register_assistant_api!(Any[];
-        description = "A graph is `GraphGraph(vertices, edges)` of `GraphVertex(content)` " *
-                      "and `GraphEdge(source, target)`; the content of a vertex is a " *
-                      "document, such as `WidgetLabel(\"Paris\")`, and `open_pane!` draws " *
-                      "the graph.")
+        description = "A graph is a `GraphGraph` of vertices and of the edges between them, " *
+                      "and the content of each vertex is a document.")
 end

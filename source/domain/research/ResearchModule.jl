@@ -73,18 +73,12 @@ function __init__()
     # one as its card inside any other document.
     register_natural_graphics!(:research, make_research_graphics_entries)
 
-    # The sentence that the system text of a window says about a study: the
-    # documents, the verbs that write it as the assistant, and the reads of a study.
+    # The sentence that the system text of a window says about a study: what a
+    # study records, and the one rule of the decisions, which are the person's.
     register_assistant_api!(Any[];
         description = "A study records the work on one problem by the scientific approach: " *
                       "questions, sources, hypotheses, experiments, analyses, results, evidence, " *
-                      "decisions and answers, each with an id such as H1, its author and its time. " *
-                      "`start_study!` makes one; `add_question!`, `add_hypothesis!`, `add_evidence!` " *
-                      "and the other add verbs add an item that links to others by item or id; " *
-                      "`record_decision!` accepts or rejects items, only when the person asks; " *
-                      "`add_element!` adds a document of any domain, such as code or a table, to an item; " *
-                      "`describe_study` reads it, and `show_roster!(StudyItems(study); sort = [\"time\"])` " *
-                      "shows its timeline.")
+                      "decisions and answers. Accept or reject an item only when the person asks.")
 end
 
 # The file that a workload of the window opens (`run_file_workload`).

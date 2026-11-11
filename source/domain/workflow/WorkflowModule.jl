@@ -69,14 +69,10 @@ function __init__()
                             description = "the workflows of the open files of the session, each with its file " *
                                           "as within")
 
-    # The sentence that the system text of a window says about a workflow: the
-    # documents, the verbs that record the work, and the read of a journal.
+    # The sentence that the system text of a window says about a workflow: what a
+    # workflow records.
     register_assistant_api!(Any[];
-        description = "A workflow records the work as steps, decisions and elements: " *
-                      "`add_workflow_step!` and `record_workflow_decision!` add to it, " *
-                      "`add_element!` adds a document of any domain to a node, and " *
-                      "`collect_workflow_entries` reads its journal. `get_session_workflow_list` " *
-                      "answers the workflows of the open files.")
+        description = "A workflow records the work as steps, decisions and elements.")
 end
 
 # The file that a workload of the window opens (`run_file_workload`).

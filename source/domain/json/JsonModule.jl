@@ -61,11 +61,9 @@ function __init__()
     register_file_document_type!(".json", JsonFile)
 
     # A JSON document is written as its text, so the domain offers no name to a
-    # model, and tells it how to write a value.
+    # model, and says what a JSON value is.
     register_assistant_api!(Any[];
-        description = "A JSON value is written as its text: " *
-                      "`parse_natural_text(:json, \"[1, 2]\")` makes one, for a verb such " *
-                      "as `replace_referenced_value!`.")
+        description = "A JSON value is a document that is written and read as its JSON text.")
 end
 
 # The file that a workload of the window opens (`run_file_workload`).

@@ -83,9 +83,8 @@ function __init__()
     register_assistant_api!(DataFrames => (:DataFrame, :select, :transform, :combine,
                                            :groupby, :subset, :ByRow, :Not, :nrow,
                                            :describe => :summarize_frame);
-        description = "A data frame is made, narrowed, grouped and counted with " *
-                      "`DataFrame`, `select`, `transform`, `combine`, `groupby`, `subset` " *
-                      "and `nrow`, and `summarize_frame` gives the statistics of each column.")
+        description = "A data frame is a `DataFrame` of the package DataFrames: a table of " *
+                      "named columns.")
 end
 
 end # module DataFramesModule

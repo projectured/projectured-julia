@@ -33,6 +33,7 @@ as the menu of the field changes it.
 
     PivotDimension("year"; order = :measure, descending = true, limit = 5)
     replace_referenced_value!(pivot_1.row_dimensions[1], :limit, 10)
+    replace_referenced_value!(pivot_1.row_dimensions[2], :bin, :month)
 
 See also `move_pivot_field!`, `make_pivot_table`, `PivotMeasure`.
 

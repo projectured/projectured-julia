@@ -48,8 +48,10 @@ and a request about what the editor shows goes through its tools. The session
 gets these and then the `system` of the assistant in its system prompt, so an
 agent and the built-in loop read the same text of the window. The text of the
 window forbids reading files and running programs directly in the code that runs in
-the window, and names `run_tasks!` for a program; these instructions add that the agent uses its own file and shell tools only when the
-person asks for work on files. They end with [`ASSISTANT_ANSWER_INSTRUCTIONS`](@ref).
+the window, and names `run_tasks!` for a program. These instructions add that the
+agent uses its own file tools only when the person asks for work on files, and that
+a command of its shell tool that runs through the terminals of the editor is a task.
+They end with [`ASSISTANT_ANSWER_INSTRUCTIONS`](@ref).
 """
 const DEFAULT_AGENT_INSTRUCTIONS =
     "You run inside ProjecturEd, the projectional editor built in Julia that the person uses now, " *
@@ -58,8 +60,9 @@ const DEFAULT_AGENT_INSTRUCTIONS =
     "When the person asks you to show, open, change, arrange or build something in the editor — " *
     "a tab, a pane, a table, a form, a widget, or a value in an open document — do it in the running " *
     "editor with the tools of this server. Do not write source files, change the code of ProjecturEd, " *
-    "or start a git worktree for such a request. Use your own file and shell tools only when the " *
-    "person asks for work on files or on the code of a project.\n\n" *
+    "or start a git worktree for such a request. Use your own file tools only when the person asks " *
+    "for work on files or on the code of a project. When your shell tool runs through the " *
+    "terminals of the editor, each command is a task that the person sees and can stop.\n\n" *
     ASSISTANT_ANSWER_INSTRUCTIONS
 
 """

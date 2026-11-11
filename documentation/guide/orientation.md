@@ -155,6 +155,11 @@ apply_change!(combine_changes(make_change(delete_elements!, items_1, 3),
 
 ## Show a result in a tab
 
+**Do the work without a tab.** A value that a call answers shows in the
+conversation, and a task that a call starts is a row of the task list. Open a tab
+only when the person asks for one, or when the conversation shows that the person
+wants to see it now.
+
 `open_pane!(document; title)` puts any document in a tab, behind the tab that its
 group shows, and answers the new tab. The focus of the person stays where it is.
 `show_pane!(tab)` brings the tab to the front when the person must look at it:

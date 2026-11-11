@@ -74,8 +74,7 @@ function __init__()
                                        widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
     register_assistant_api!(Any[];
-        description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
-                      "a series of each kind, and `open_pane!` draws it.")
+        description = "A chart is a `Chart` that draws series of numbers, such as lines and bars.")
 end
 
 # The file that a workload of the window opens (`run_file_workload`).
