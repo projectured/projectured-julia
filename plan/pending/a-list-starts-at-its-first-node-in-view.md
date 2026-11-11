@@ -136,7 +136,8 @@ through `bounded-run`, with the load written beside it. A count needs neither.
 Do the work in a worktree on a branch of its own. Commit each step. Do not land
 on `main` before the owner approves.
 
-1. [ ] **The guards of the work, failing where they must.**
+1. [x] **The guards of the work, failing where they must.** Done; see
+   [As built](#as-built).
    - Give `_sw_scroll` a count of notches that it scrolls before it counts. Each
      of those frames is painted, so the paint state follows the window. Add the
      deep data frame of D2.
@@ -174,4 +175,29 @@ graphics. Step 3 measures it.
 
 ## As built
 
-Nothing yet.
+### Step 1: the guards of the work, 2026-11-11
+
+- `test_scroll_work`: the rename tool renamed `_sw_has_entries_of_short_window`
+  to `_sw_enters_as_few(frames, reference)`, which now takes the frames that it
+  tests first, so one helper serves the window twice as high and the deep table.
+  `_sw_scroll` takes `depth`, the notches that it paints and does not count. The
+  data frame scrolls 60 notches and then counts 6, and `_sw_enters_as_few` of
+  those notches against the first 6 is `@test_broken`. The suite gives 23 Pass
+  and 1 Broken.
+- `test_partial_paint`: the set "a list draws its nodes in view and skips the
+  nodes outside the view" asserts the rows that `_collect_drawn_nodes` answers
+  for a view 100 rows after the head (rows 101 to 107) and 100 rows before it
+  (rows -93 to -99, in the order of the walk back). Both are `@test_broken`:
+  `main` answers rows 1 to 107 and rows 0 to -100.
+- The set "random scenes of lazy lists that scroll far from their heads" builds
+  each list with `make_mapped_list` over a chain of specs, as a layout prints
+  the rows of a table, and passes on `main` at the four settings. A probe of
+  its 40 scenes found that the full paint changes in 208 of 320 frames, and that
+  a pane shows rows of its list in 464 frames, so the scenes test the walk of a
+  list.
+- The suite gives 100 Pass and 2 Broken.
+- `package/ProjecturedSDLTest` has no installed environment in a new worktree,
+  so its tests run from `environment/all` with `using ProjecturedSDLTest`.
+- The precompile of `main` warns that 1675 of the 12464 recorded calls of
+  `ProjecturedPlatform`, and 164 of the 648 of `ProjecturedChart`, no longer
+  resolve. That is the state of `main`; this branch changes no source.

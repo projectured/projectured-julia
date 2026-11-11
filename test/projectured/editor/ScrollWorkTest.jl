@@ -4,8 +4,9 @@
 # and its pixels are compared with a full paint. The test counts the work of each
 # frame: the boxes that it copies, the leaves that it draws, and the elements,
 # records and guards of its walk, and the graphics that stay in view and that a
-# move enters, which a window twice as tall does not double. The counts hold on a
-# busy machine, where a time does not.
+# move enters, which a window twice as tall does not double, and which a notch
+# deep in a table does not raise. The counts hold on a busy machine, where a time
+# does not.
 
 using Test
 
@@ -48,11 +49,11 @@ function _sw_make_data_frame_editor(backend; height::Int = _SW_HEIGHT)
                  window = (; title = "Data", width = _SW_WIDTH, height), tabs = (; title = "Data"))
 end
 
-# True when the notches of `tall`, the frames of a window twice as high, enter at
-# most 10% more kept graphics in all than the same notches of `frames`. A notch
-# enters the graphics that the edges cut, and those differ from notch to notch.
-_sw_has_entries_of_short_window(frames, tall) =
-    10 * sum(t.work[4] for t in tall) <= 11 * sum(f.work[4] for f in frames)
+# True when the notches of `frames` enter at most 10% more kept graphics in all
+# than the same notches of `reference`. A notch enters the graphics that the edges
+# cut, and those differ from notch to notch.
+_sw_enters_as_few(frames, reference) =
+    10 * sum(f.work[4] for f in frames) <= 11 * sum(r.work[4] for r in reference)
 
 # The canvases of `canvas` that the paint of `res` draws with more than `limit`
 # elements and no layout, or with overlap, as their counts of elements. A walk and
@@ -98,11 +99,13 @@ function _sw_find_unlaid_canvases(res, canvas; limit::Int = 200)
 end
 
 # The frames of `notches` turns of the wheel at `(x, y)` in the window `id` of
-# `editor`, after a first paint. Each frame tells whether its pixels equal a full
-# paint, the boxes that it copied, the leaves that it drew, the leaves that a paint
-# of the whole window draws, and the counts of its walk. Also the canvases with no
-# layout that the last frame drew. The window is `height` pixels high.
-function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 6, height::Int = _SW_HEIGHT)
+# `editor`, after a first paint and `depth` turns that are painted and not counted.
+# Each frame tells whether its pixels equal a full paint, the boxes that it copied,
+# the leaves that it drew, the leaves that a paint of the whole window draws, and
+# the counts of its walk. Also the canvases with no layout that the last frame
+# drew. The window is `height` pixels high.
+function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 6, height::Int = _SW_HEIGHT,
+                    depth::Int = 0)
     SDL = _SW_SDL
     width, background = _SW_WIDTH, _SW_BACKGROUND
     partial = SDL.open_offscreen_renderer(width, height; supersample = 1, density = 1)
@@ -113,8 +116,13 @@ function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 
         state = SDL.make_offscreen_paint_state(partial)
         foreach(_ -> run_frame!(editor), 1:3)
         SDL.render_offscreen_changes!(partial, state, canvas(); background)
-        for n in 1:notches
+        for n in 1:depth
             push_event!(backend, WindowInput(id, MouseScroll(0, -1, x, y, ModifierKeys(); time = 10.0 + n)))
+            run_frame!(editor)
+            SDL.render_offscreen_changes!(partial, state, canvas(); background)
+        end
+        for n in 1:notches
+            push_event!(backend, WindowInput(id, MouseScroll(0, -1, x, y, ModifierKeys(); time = 10.0 + depth + n)))
             run_frame!(editor)
             SDL.render_offscreen_changes!(partial, state, canvas(); background)
             painted = state.res.painted
@@ -138,7 +146,8 @@ end
 A scroll of a Julia file in a focused tab, of the Files pane and of a data frame
 paints the pixels of a full paint, copies the boxes whose content only moved,
 draws a small part of what the window shows, and does work that does not grow
-with the length of the file or with the height of the window.
+with the length of the file, with the height of the window or with the depth of
+the scroll.
 """
 function test_scroll_work()
 @testset "a scroll costs what comes into view" begin
@@ -166,7 +175,7 @@ function test_scroll_work()
         tall = _sw_make_julia_editor(tall_backend, 800; height = 2 * _SW_HEIGHT)
         tall_frames, _ = _sw_scroll(tall, tall_backend, :ProjecturEd, 700, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        @test _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
     end
     @testset "the Files pane" begin
         backend = HeadlessBackend()
@@ -182,7 +191,7 @@ function test_scroll_work()
         tall_frames, _ = _sw_scroll(_sw_make_files_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
                                     :Files, 300, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        @test _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
     end
     @testset "a data frame" begin
         backend = HeadlessBackend()
@@ -198,7 +207,16 @@ function test_scroll_work()
         tall_frames, _ = _sw_scroll(_sw_make_data_frame_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
                                     :Data, 700, 500; height = 2 * _SW_HEIGHT)
         @test all(f -> f.same, tall_frames)
-        @test _sw_has_entries_of_short_window(frames, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
+        # 60 notches down the table, a notch enters no more than a notch at its top.
+        deep_backend = HeadlessBackend()
+        deep_frames, _ = _sw_scroll(_sw_make_data_frame_editor(deep_backend), deep_backend, :Data, 700, 500;
+                                    depth = 60)
+        @test all(f -> f.same, deep_frames)
+        # @broken: each walk of the list of rows starts at its head, so a move enters
+        # each row between the head and the view: about 40 more graphics for each
+        # notch further down.
+        @test_broken _sw_enters_as_few(deep_frames, frames)
     end
 end
 end

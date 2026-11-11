@@ -205,6 +205,39 @@ end
     end
 end
 
+# Link each node of `nodes` to the node after it, and back.
+function link_nodes!(nodes)
+    for k in 1:(length(nodes) - 1)
+        nodes[k].next = nodes[k + 1]
+        nodes[k + 1].prev = nodes[k]
+    end
+    nodes
+end
+
+@testset "a list draws its nodes in view and skips the nodes outside the view" begin
+    # Rows 16 pixels high, linked by hand, with the numbers `numbers`: row 1 is the
+    # head, at y = 0, and row k is at y = 16 (k - 1). Also the number of each node.
+    function make_numbered_list(numbers)
+        nodes = link_nodes!([ListNode(GraphicsText("row $k", 4, (k - 1) * 16; font, color = black))
+                             for k in numbers])
+        (nodes[findfirst(==(1), numbers)], IdDict(node => k for (node, k) in zip(nodes, numbers)))
+    end
+    edges = SDL._ClipEdges(0, 0, 400, 100)
+    find_drawn_rows(head, number_of, oy) =
+        [number_of[node] for node in SDL._collect_drawn_nodes(head, 0, oy, edges, layout_vertical, true)]
+    # The view shows y = 1600 to 1700 of the list, 100 rows after the head: row 101
+    # starts at the near edge, and row 107 is the last row that starts before the
+    # far edge.
+    head, number_of = make_numbered_list(1:300)
+    # @broken: the walk draws each row from the head to the view.
+    @test_broken find_drawn_rows(head, number_of, -1600) == collect(101:107)
+    # The view shows y = -1600 to -1500, 100 rows before the head. The walk reaches
+    # these rows back from the head, so it meets row -93 first and row -99 last.
+    head, number_of = make_numbered_list(-200:10)
+    # @broken: the walk draws each row from the head back to the view.
+    @test_broken find_drawn_rows(head, number_of, 1600) == collect(-93:-1:-99)
+end
+
 @testset "a scroll under and over other graphics" begin
     for (supersample, density) in scroll_settings
         gray = StyleColor(0.8, 0.8, 0.8, 1.0)
@@ -838,6 +871,138 @@ end
          for frames in (find_differing_frames(make_random_scene(seed)...; supersample, density),)
          if !isempty(frames)]
     @test isempty(find_differing_scenes(scroll_settings))
+end
+
+# A lazy list of `count` rows of random kinds and heights, as a layout prints the
+# rows of a table: a node is made when a walk first reads the link to it
+# (`make_mapped_list`) from a chain of the specs of the rows, and each row is a
+# canvas that states its height, placed after the row that the walk came from, or
+# before it. The head is the row `at`. Also the chain, which a change relinks, its
+# head, four spare specs that a change inserts, and the cells of the texts.
+function make_random_lazy_list(numbers, count, at)
+    texts = Cell[]
+    function make_spec()
+        kind = numbers.pick(1:3)
+        text = Cell(string(numbers.pick(("Ṏ", "ƒ", "a", "W")), " r", "x"^numbers.pick(0:12)))
+        kind == 1 && push!(texts, text)
+        ListNode((; kind, text, h = numbers.pick((14, 16, 23, 40)), x = numbers.pick(-6:6),
+                    w = numbers.pick(10:300), color = make_random_color(numbers),
+                    border = numbers.pick((0, 1, 2))))
+    end
+    chain = link_nodes!([make_spec() for _ in 1:count])
+    spares = [make_spec() for _ in 1:4]
+    function make_row(source, k, before, after)
+        spec = source.value
+        y = before !== nothing ? (() -> Int(before.value.y) + Int(before.value.h)) :
+            after !== nothing ? (() -> Int(after.value.y) - spec.h) : 0
+        spec.kind == 1 &&
+            return GraphicsCanvas(CellVector(Cell[Cell(@computation GraphicsText(spec.text[], spec.x, 0;
+                                                                                   font, color = black))]);
+                                  y, w = 380, h = spec.h)
+        elements = spec.kind == 2 ?
+            Any[GraphicsRect(0, 0, spec.w, spec.h - 2; color = spec.color),
+                GraphicsText("c$k", spec.x + 10, 1; font, color = black)] :
+            Any[GraphicsRect(spec.x + 10, 2, spec.w, spec.h - 4; color = spec.color,
+                             border_width = spec.border, border_color = black)]
+        GraphicsCanvas(elements; y, w = 380, h = spec.h)
+    end
+    list = GraphicsCanvas(make_mapped_list(make_row, chain[at]; at); layout = layout_vertical, overlapping = false)
+    (list, chain, chain[at], spares, texts)
+end
+
+# Insert a spare spec into `chain` after the spec at the share `place` of it.
+function insert_spec!(chain, spares, place)
+    isempty(spares) && return nothing
+    spec = pop!(spares)
+    j = 1 + floor(Int, place * length(chain))
+    before, after = chain[j], chain[j].next
+    before.next = spec
+    spec.prev = before
+    spec.next = after
+    after === nothing || (after.prev = spec)
+    insert!(chain, j + 1, spec)
+    nothing
+end
+
+# Remove from `chain` the spec at the share `place` of it, unless it is `head`.
+function remove_spec!(chain, head, place)
+    j = 1 + floor(Int, place * length(chain))
+    spec = chain[j]
+    spec === head && return nothing
+    before, after = spec.prev, spec.next
+    before === nothing || (before.next = after)
+    after === nothing || (after.prev = before)
+    deleteat!(chain, j)
+    nothing
+end
+
+# A random scene of lazy lists that scroll far from their heads, and its eight
+# changes: up to two panes, each over a list of 200 rows whose head is near the
+# middle, and maybe a dot over a pane. A change scrolls a pane by a step or to a
+# place far above or far below the head, inserts a row, removes one, or edits a
+# text and scrolls.
+function make_random_list_scene(seed)
+    numbers = make_scene_numbers(seed)
+    elements = Any[]
+    scrolls = Cell[]
+    lists = Any[]
+    texts = Cell[]
+    dots = Cell[]
+    numbers.pick((true, false)) && push!(elements, GraphicsRect(0, 0, width, height; color = make_random_color(numbers)))
+    for _ in 1:numbers.pick(1:2)
+        x, y = numbers.pick(0:200), numbers.pick(0:150)
+        w, h = numbers.pick(60:(width - x)), numbers.pick(40:(height - y))
+        list, chain, head, spares, list_texts = make_random_lazy_list(numbers, 200, numbers.pick(60:140))
+        push!(lists, (chain, head, spares))
+        append!(texts, list_texts)
+        scroll_y = Cell(numbers.pick((-1600, -400, 0, 400, 1600)))
+        push!(scrolls, scroll_y)
+        push!(elements, make_pane((x, y, w, h), [list], Cell(0), scroll_y))
+        if numbers.pick((true, false))
+            dot = Cell(numbers.pick(0:h))
+            push!(dots, dot)
+            push!(elements, GraphicsCircle(x + numbers.pick(0:w), () -> y + dot[], 5; color = make_random_color(numbers)))
+        end
+    end
+    changes = Any[]
+    for _ in 1:8
+        r = numbers.chance()
+        if r < 0.4
+            cell = numbers.pick(Tuple(scrolls))
+            value = numbers.pick((16, 23, 48, 69, 120, 400, 1600)) * numbers.pick((1, -1))
+            push!(changes, () -> (cell[] = cell[] + value))
+        elseif r < 0.55
+            cell, value = numbers.pick(Tuple(scrolls)), numbers.pick((-3000, -1200, 1200, 3000))
+            push!(changes, () -> (cell[] = value))
+        elseif r < 0.7
+            (chain, _, spares), place = numbers.pick(Tuple(lists)), numbers.chance()
+            push!(changes, () -> insert_spec!(chain, spares, place))
+        elseif r < 0.85
+            (chain, head, _), place = numbers.pick(Tuple(lists)), numbers.chance()
+            push!(changes, () -> remove_spec!(chain, head, place))
+        elseif r < 0.95 && !isempty(texts)
+            text, value = numbers.pick(Tuple(texts)), string("edit ", numbers.pick(("Ṏ", "ƒ", "q")), numbers.pick(1:99))
+            scroll, step = numbers.pick(Tuple(scrolls)), numbers.pick(-60:60)
+            push!(changes, () -> (text[] = value; scroll[] = scroll[] + step))
+        elseif !isempty(dots)
+            dot, value = numbers.pick(Tuple(dots)), numbers.pick(0:200)
+            push!(changes, () -> (dot[] = value))
+        else
+            cell = numbers.pick(Tuple(scrolls))
+            push!(changes, () -> (cell[] = cell[] + 16))
+        end
+    end
+    (GraphicsCanvas(elements; w = width, h = height), changes)
+end
+
+@testset "random scenes of lazy lists that scroll far from their heads" begin
+    # Each scene is made again for each setting, because its changes write its cells.
+    find_differing_list_scenes(settings) =
+        [(; seed, supersample, density, frames)
+         for seed in 1:40, (supersample, density) in settings
+         for frames in (find_differing_frames(make_random_list_scene(seed)...; supersample, density),)
+         if !isempty(frames)]
+    @test isempty(find_differing_list_scenes(scroll_settings))
 end
 end
 end
