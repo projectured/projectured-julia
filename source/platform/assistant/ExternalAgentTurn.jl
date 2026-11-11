@@ -608,9 +608,12 @@ end
 
 # Run `work` on a task of its own. The start of an agent runs the agent of this
 # process too, so with a running loop the task runs on a thread of the default
-# pool.
+# pool. No code unit waits for the start, so it belongs to none: an operation in
+# the code of an agent, such as the acquire of the copy that `duplicate_pane!`
+# opens, starts it, and its calls to the editor wait for the end of that unit.
 _start_agent_task(work::Function, editor) =
-    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, work()) : @async(work()))
+    errormonitor(start_background_work(work; description = "the start of an agent", editor, parent = nothing,
+                                       is_sticky = !is_editor_loop_running(editor)).task)
 
 # The sign-ins that run in the conversation of `a` end with it.
 function _release_agent_sign_ins!(editor, a::Assistant)

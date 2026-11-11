@@ -761,6 +761,27 @@ function test_external_agent_turn()
             @test copy_document(DuplicatePolicy(), fork).agent_fork.session_id == "scripted-fork-3"
         end
 
+        @testset "a start of the agent in a code unit waits for the editor until the unit ends" begin
+            # The code of an agent runs in a unit, such as a call of
+            # `duplicate_pane!` whose copy forks at its acquire. The test task
+            # plays the loop. Where the process has no thread for a unit, the
+            # unit runs inline, and the start waits for no unit.
+            connection = ScriptedAgentConnection([Any[]])
+            a = _make_agent_assistant(connection)
+            editor = build_editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                                  window = false, tabs = false, appearance = false, settings = false)
+            editor.loop_task = current_task()
+            ProjecturedKernel.EditorModule.run_code_unit!(editor; parts = ["the code of an agent"]) do
+                evaluate_operation(editor, StartExternalAgentOperation(a))
+                # The start posts its first call to the editor while the unit runs.
+                timedwait(() -> isready(editor.inbox), 5.0; pollint = 0.01)
+            end
+            @test timedwait(() -> (ProjecturedKernel.EditorModule.drain_operations!(editor);
+                                   !isempty(a.agent_session.session_id)), 10.0; pollint = 0.01) === :ok
+            @test length(connection.sessions) == 1
+            editor.loop_task = nothing
+        end
+
         @testset "a duplicate whose agent can not fork starts a new session with a note" begin
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
                                                   Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()],
