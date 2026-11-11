@@ -1,6 +1,6 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11; step 1 done on the branch
+> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–2 done on the branch
 > `no-files-behind` of projectured-julia and omnet-team · **Covers:** the agent
 > rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory notes;
 > `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; julia-reactive-compiler;
@@ -90,11 +90,21 @@ Instead, its change is recorded here.
      build. `inet-cpp/src/libINET_dbg.so` (0.9 GB) is a hard link to the file in `out/`, so the
      command is `rsync -aH --exclude=results/ --exclude='/tests/*/work/' --exclude=/.git/worktrees/`.
      A copy without `-H` would hold the library twice.
-2. [ ] **`bounded-run` removes old jobs** (no git: `workspace/bin/bounded-run`).
-   - At the start of `command_start`, call the code of `command_clean` with `older` set to 7 days (D3).
-   - In `bounded-run-tool.md`, write that `start` does this.
-   - Check: `bounded-run selftest` passes. Then a `start` of a short job leaves no folder of a job
-     that ended more than 7 days ago.
+2. [x] **`bounded-run` removes old jobs** (no git: `workspace/bin/bounded-run`). **Done 2026-11-11.**
+   - `remove_ended_jobs(jobs, older)` holds the loop that `command_clean` had, and `clean` keeps
+     its output. `command_start` calls it with `OLD_JOB_DAYS = 7` before the room check, so a start
+     that has no room also removes old jobs. An `OSError` of the removal prints one line to stderr
+     and does not stop the start. A removal prints its count to stderr; stdout of `start` stays the
+     same. The header text of the tool says the rule.
+   - `bounded-run-tool.md` says that each `start` removes the old jobs of every session.
+   - The copy before the change: the scratchpad file `bounded-run.before-step-2` of this session.
+   - Check: `bounded-run selftest` passes 17 of 17. The new case writes a job that ended 8 days ago
+     and one that ended 6 days ago: a start removes the first and keeps the second. On the real
+     folder a start takes 0.13 s with 780 jobs.
+
+   Found in the work: on 2026-11-11 no job of the 780 in `/var/tmp/bounded-run` (221 MB) ended
+   more than 7 days ago, so the first start removed nothing. With about 800 jobs in a week, the
+   folder stays near this size.
 3. [ ] **Two settings of the machine** (no git).
    - Run `perf config record.build-id=no-cache` once, and change the two `perf record` lines in the
      memory notes to `perf record -N`.
