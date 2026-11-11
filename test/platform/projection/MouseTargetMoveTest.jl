@@ -195,6 +195,34 @@ projection = make_widget_projection_example(measure = _mtm_measure())
     @test built[] == 3
 end
 
+@testset "a holder that builds a new list at each refresh lets the rows of the old lists go" begin
+    # As the table of the frame statistics does: each refresh builds a new list of
+    # rows. The walk keeps the nodes of a few lists, and no row of the lists before.
+    refresh = Cell(1)
+    buttons = WeakRef[]
+    table = WidgetTable(; column_headers = Any["row"], cells = ListNode(CellVector(Cell[])))
+    set_cell_computation!(getfield(table, :cells), () -> begin
+        button = Cell(WidgetButton("row $(refresh[])"))
+        push!(buttons, WeakRef(button))
+        ListNode(CellVector(Cell[button]))
+    end)
+    path = Cell(nothing)
+    follow_output_mouse_target!(table, () -> path[])
+    for k in 2:300
+        refresh[] = k
+        getfield(table, :cells)[]
+    end
+    GC.gc(true)
+    @test buttons[1].value === nothing
+    @test count(button -> button.value !== nothing, buttons) <=
+          FocusModule._FOLLOWED_LIST_SWEEP_MINIMUM + 2
+    # The walk still follows the list that the holder holds now.
+    head = getfield(table, :cells)[]
+    set_cell_value!(path, _mtm_path(FieldReferenceStep("cells"), ElementReferenceStep(1),
+                                    ElementReferenceStep(1)))
+    @test get_mouse_target(head.value[1]) == EmptyReference()
+end
+
 @testset "across a composite of buttons" begin
     one = WidgetButton("One"; size = Point2D(80, 30))
     two = WidgetButton("Two"; size = Point2D(80, 30), position = Point2D(0, 40))

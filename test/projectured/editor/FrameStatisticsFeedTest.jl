@@ -619,6 +619,41 @@ function test_frame_statistics_feed()
         @test string(held + 1) ∉ frame_numbers()
     end
 
+    @testset "a long session keeps only the readers of the frames of the store" begin
+        # Each flush writes `frames`, and the write visits every reader of it, so a
+        # reader of a frame that left the store would make each flush slower.
+        statistics = FrameStatistics()
+        clock = Ref(0.0)
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
+                                   now = () -> clock[])
+        editor = build_editor(statistics, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                              backend = _FrameStatisticsBackend(),
+                              devices = Device[Keyboard(), Mouse(), Display()],
+                              tabs = false, feeds = Feed[feed],
+                              window = (; title = "Statistics", width = 800, height = 400))
+        capacity = 20
+        editor.frame_measurements = FrameMeasurementStore(; capacity)
+        force(value) = value isa AbstractCell ? force(value[]) : value
+        window() = first(force(force(get_iomap_output(editor.iomap)).windows))
+        function count_readers()
+            GC.gc(true)
+            readers = getfield(getfield(statistics, :frames), :dependents)
+            readers === nothing ? 0 : count(reader -> reader.value !== nothing, readers)
+        end
+        for _ in 1:200
+            clock[] += 0.25
+            drain_feeds!(editor)
+            run_frame!(editor)
+            _get_drawn_texts(force(window().content))
+            EditorModule.record_frame_performance!(editor, 0.01)
+        end
+        @test statistics.frame_count == 199
+        # A frame of the store has a row of 8 labels and a flag of a slow frame. The
+        # walk of the output keeps the rows of a few lists, so a frame that left the
+        # store a few flushes ago can still have readers.
+        @test count_readers() <= 2 * 9 * capacity
+    end
+
     @testset "the table summarizes the recent frames" begin
         store = FrameMeasurementStore(capacity = 2)
         for seconds in (0.010, 0.020, 0.030)
