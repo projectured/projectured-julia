@@ -308,15 +308,22 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
 3. ⬜ **The query of a choice list (D5).** Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.
-   **Open question for the owner (2026-11-10), so the step waits:** where does
-   the caret of the query live? The list is the content of a popup window that
-   never takes the focus: the context menu window gives it the keys of the window
-   under it (`_read_menu_key`), so the one selection from the root never goes
-   into the list. A caret field in the list would be a second selection, which
-   the owner ruled out for a document (2026-09-17). The assistant recommends a
-   query with its caret always at its end: the text table types, removes a
-   character and removes a word there, and a key that moves the caret or makes a
-   range, Ctrl+A among them, does nothing in the query.
+   **Open question for the owner, so the step waits.** The first form of the
+   question (2026-11-10) said that the one selection from the root can not go
+   into the list. The owner asked why not, and the facts show that it can: the
+   screen holds one selection, a path through `windows[i]`, and the list is the
+   content of one more window of that screen, so `windows[k].content.query{3}`
+   is a valid path. Only a choice of the window manager keeps it out today: a
+   window of the style `:popup` never holds the focus (`WindowManaging.jl`), its
+   keys come with the id of the window under it, the context menu window gives
+   them to the list (`_read_menu_key`), and no code writes the selection into a
+   popup. For the selection to reach the query: when the list opens, the
+   selection moves to the end of its query; the window under it keeps its part of
+   the path, drawn pale, as a pane with no focus does; and when the list closes,
+   by a choice, Escape or a press outside, the selection goes back to that part.
+   The list that opens under an insertion field writes the typed text into the
+   field too, so there the field then shows a pale caret. The question now: does
+   the owner want this move of the selection into the list and back?
 4. ✅ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Done 2026-11-10. Two rows in the text table,
    "Delete a word backward" and "Delete a word forward". Test: the rows of §3 in
    `test_text()`, and the two image rows in `test_inline_image_caret()`. Facts of
