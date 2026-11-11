@@ -1,6 +1,6 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–2 done on the branch
+> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–3 done on the branch
 > `no-files-behind` of projectured-julia and omnet-team · **Covers:** the agent
 > rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory notes;
 > `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; julia-reactive-compiler;
@@ -105,11 +105,27 @@ Instead, its change is recorded here.
    Found in the work: on 2026-11-11 no job of the 780 in `/var/tmp/bounded-run` (221 MB) ended
    more than 7 days ago, so the first start removed nothing. With about 800 jobs in a week, the
    folder stays near this size.
-3. [ ] **Two settings of the machine** (no git).
-   - Run `perf config record.build-id=no-cache` once, and change the two `perf record` lines in the
-     memory notes to `perf record -N`.
-   - Set `JULIA_MAX_NUM_PRECOMPILE_FILES=4` in `~/.profile` (D4).
-   - Check: `perf config record.build-id` prints `no-cache`. A new login shell has the variable.
+3. [x] **Two settings of the machine** (no git). **Done 2026-11-11.**
+   - `perf config record.build-id=no-cache` wrote `~/.perfconfig`. The two `perf record` lines in
+     the memory notes (`jll-library-const-bakes-build-path.md`, `memory-regions-branch-series.md`)
+     now have `-N`.
+   - `~/.profile` exports `JULIA_MAX_NUM_PRECOMPILE_FILES=4` (D4), outside the block that juliaup
+     manages.
+   - Check: `perf config record.build-id` prints `no-cache`, and the `perf` program holds the key
+     `record.build-id` and the value `no-cache`. A login shell has the variable. A Julia 1.13.1 job
+     that `bounded-run` started from a login shell prints `Base.MAX_NUM_PRECOMPILE_FILES[] == 4`.
+
+   Found in the work:
+   - **The `perf` setting could not be tested with a recording.** `perf_event_paranoid` is 4, so
+     this user can open no event, and no file in `~/.debug` changed after October. The setting takes
+     effect at the next recording. The local manual gives one more way: `buildid.dir = /dev/null`.
+   - **The limit stops the growth, but it does not make a cache smaller.** When Julia writes a new
+     cache file and the package has the limit or more, it evicts the one oldest file
+     (`base/loading.jl:3436`). A package that has 9 files keeps 9. On 2026-11-11 a one-time trim to
+     the 4 newest files would free 24 GB: 8.7 GB in 539 packages of `v1.12` and 15.4 GB in 625
+     packages of `v1.13`.
+   - **The variable reaches a process that a new login starts.** Sessions that run now do not have
+     it, and neither do their `bounded-run` jobs. VS Code reads the login environment when it starts.
 4. [ ] **omnet-julia: the campaign tests remove their stub projects.**
    - Apply D5 to `CampaignFixture.jl` and to each caller.
    - Check: count the `/tmp/jl_*` folders. Then run the campaign tests of `test/ide/` and count again.
@@ -132,3 +148,5 @@ Instead, its change is recorded here.
 - Fixed `/tmp` paths in omnet-julia `tool/trim-routing/*.sh`, and the staging folder of a
   distribution that a failed build keeps.
 - The `<app>.object` folders. The builder keeps them on purpose for a relink.
+- A one-time trim of `~/.julia/compiled` to the 4 newest files of each package (24 GB, step 3).
+- 214 coverage files `*.cov` (10 MB) of 2026-11-01 in the source tree of `julia-merged-next`.
