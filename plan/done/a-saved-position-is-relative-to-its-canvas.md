@@ -181,7 +181,7 @@ on `main` before the owner approves.
    assertions of step 1 that pass, and write the counts in this plan. Run the
    same tests, and `test_dataframes()`, because a change of a table shows there
    first. Commit.
-5. [ ] **The measurement, the guide and the end.** On the word of the owner,
+5. [x] **The measurement, the guide and the end.** On the word of the owner,
    time the three scenes in real windows on `main` and on the branch, and
    profile the walk of the data frame again. Describe the frame of reference of
    the records and whole canvases in
@@ -396,6 +396,66 @@ reference of the records, the whole axes, the places of the guards, the move tha
 does not enter a whole canvas, the cover rule cut to the clip in force, the edges
 across the move, the boxes of zoomed viewports that cut each other, the texts on
 whole texels, the count `kept_entries`, the random scenes and the window twice as
-high, and names the decision with a link to this plan. The timing waits for the
-word of the owner.
+high, and names the decision with a link to this plan.
+
+### Step 5: the timing in real windows, 2026-11-11
+
+On the word of the owner, after a watch found the machine idle for 5 minutes,
+the timing of the earlier plan ran again in real SDL windows on the screen. It
+used the same scenes, sizes and order: 1600 × 1000 pixels, notches of 48 pixels,
+and in each process the moves on and off in six blocks of 15 notches, after a
+warm-up of 24. `main` (`f2f2c3a42`, whose SDL code is that of the base
+`2d8d7e117`) ran first, then the branch (`59ed4e244`). Both ran on Julia 1.13.1,
+each with a private depot, in the lane `taskset -c 28,30,31`. The load was 2.2
+to 2.3 during `main`, and 5.0 to 5.9 during the branch, because other sessions
+started jobs between the two runs. Each number is the median of 45 notches, in
+milliseconds.
+
+| Scene | Code, moves | Frame | Walk | Paint | Leaves drawn | Copies | Records | Guards | Kept entries |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Julia file | `main`, on | 15.75 | 1.94 | 0.85 | 287 | 0 | 48 | 33 | |
+| Julia file | branch, on | 15.97 | 1.36 | 0.52 | 54 | 90 | 48 | 46 | 23 |
+| Julia file | branch, off | 15.76 | 2.83 | 0.90 | 292 | 0 | 850 | 46 | 0 |
+| Files pane | `main`, on | 16.49 | 0.82 | 0.36 | 29 | 45 | 14 | 5 | |
+| Files pane | branch, on | 16.50 | 0.62 | 0.35 | 29 | 45 | 14 | 7 | 8 |
+| Data frame | `main`, on | 18.67 | 13.53 | 2.79 | 354 | 88 | 202 | 134 | |
+| Data frame | `main`, off | 37.50 | 31.04 | 3.76 | 1264 | 0 | 5129 | 1876 | |
+| Data frame | branch, on | 16.43 | 9.31 | 2.91 | 354 | 90 | 202 | 128 | 2532 |
+| Data frame | branch, off | 28.22 | 22.27 | 4.08 | 1264 | 0 | 5129 | 528 | 0 |
+
+- **The Julia file** copies its two boxes again (step 2c), so it draws 54 leaves
+  where `main` draws 287, and its walk takes 1.36 ms where `main` takes 1.94 ms.
+  The frame waits for the refresh of the screen at 60 Hz in both.
+- **The Files pane** walks in 0.62 ms where `main` walks in 0.82 ms. It waits for
+  the screen in both.
+- **The data frame** walks in 9.31 ms where `main` walks in 13.53 ms, and its
+  frame of 16.43 ms now fits the refresh. The estimate of this plan was 11 to
+  7 ms.
+- **The data frame costs more the deeper it scrolls.** The three blocks with the
+  moves on are the notches 25 to 39, 55 to 69 and 85 to 99:
+
+  | Code | Walk, block 1 | Walk, block 3 | Walk, block 5 | Kept entries, blocks 1, 3, 5 |
+  | --- | --- | --- | --- | --- |
+  | `main` | 11.70 | 12.98 | 15.16 | |
+  | branch | 6.43 | 9.31 | 12.24 | 1323, 2532, 3738 |
+
+  A notch enters about 40 more kept graphics for each notch further down. Those
+  graphics are the rows above the view: a list draws and walks each node from
+  its head, so the rows above the view are drawn under the clip, and they are
+  not whole on the axis of the move. So the gain of this plan falls from 5.3 ms
+  to 2.9 ms in a notch between notch 25 and notch 99. A list that starts its walk
+  at the first node in view is the next step. It is not in this plan.
+
+A profile of the walk of the data frame on the branch, over 90 notches from
+notch 70, gives the parts of the walk (inclusive, so they overlap):
+
+- the move that enters the kept graphics (`_record_moved_element!`): 46%;
+- the computation of the cells that the walk reads (`_recompute!`), which is
+  the rows that come into view and the reads of the guards: 31%;
+- the reads of the guards (`_read_guard!`): 14%;
+- the garbage collection: 20% of the samples and 22% of the walk time. It ran in
+  2 of 45 notches, about 57 ms each, so it does not change the median. It makes
+  two long frames;
+- `objectid` and the hashes of the placement keys: about 7%;
+- calls whose method the compiler does not know: about 3%.
 
