@@ -1187,6 +1187,23 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `examples/collection` 25 → 5, `examples/filtering` 16 → 8,
     `examples/reversing` 25 → 5, `examples/formula` 9 → 5. The other views of
     the leaf cause are widget parts of a view, the model class.
+  - **A plain click on a text that a widget draws with no record of its part**
+    (1594 lines in 115 examples). Two groups:
+    - ~~The glyph of an icon~~ (581 lines in 52 examples). An icon is a picture
+      that an icon font draws (`make_glyph_icon`), and a picture takes no caret
+      (P4). The click test takes a text of only characters of the private use
+      area of Unicode, where Lucide keeps its glyphs, as a picture
+      (`_pc_is_icon_glyph`). The walk: `examples/research_contested` 360 → 303,
+      `task/group` 115 → 95, `examples/workflow_recorded` 255 → 193,
+      `widget/icon` 4 → 3.
+    - The texts (1013 lines in 101 examples). Most are in the views of research,
+      the task group and the workflow, which make a label of a `String` that
+      they compute from the document, in their own output: a caret there is a
+      place in the output of the view, the caret in a computed label of 5.4
+      (P2). The rest are the texts of about 25 widgets that record no line: the
+      badge, the avatar, the alert, the status bar, the tree, the list, the
+      tooltip, the dialog, the accordion, and the controls (a button, a link, a
+      menu item), whose plain click acts. They follow one widget at a time.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

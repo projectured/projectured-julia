@@ -9,7 +9,8 @@
 #   draws it, so every part whose node draws the element under the point is a
 #   part that the answer must lie inside;
 # - the drawn caret: a plain click on a text puts the caret on the character
-#   under the point, and the forward map of that caret draws it there.
+#   under the point, and the forward map of that caret draws it there. The glyph
+#   of an icon font is a picture, not a text (P4), so it takes no caret.
 #
 # An Alt+click at the same point selects the part that holds that caret as a
 # whole, a ring or a band of the selection is drawn at the point, and the mouse
@@ -104,6 +105,15 @@ function _pc_is_selection_drawn(session, x, y; anywhere::Bool = false)
     marks = _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
                                   session.window_reference, Any[]; keep = _pc_is_selection_mark)
     anywhere ? !isempty(marks) : any(mark -> _pc_is_in_box(mark.box, x, y), marks)
+end
+
+# Whether the element is the glyph of an icon font: a text of only characters of
+# the private use area of Unicode, where an icon font such as Lucide keeps its
+# pictures.
+function _pc_is_icon_glyph(node)
+    node isa GraphicsText || return false
+    text = String(_pc_read_value(node.text))
+    !isempty(text) && all(character -> 0xe000 <= UInt32(character) <= 0xf8ff, text)
 end
 
 # Whether the element is a text of only whitespace, which draws nothing.
@@ -325,7 +335,7 @@ function _pc_check_point!(session, element)
     _pc_select!(session, base)
     plain = _pc_press!(session, x, y, ModifierKeys())
     caret = nothing
-    if top.node isa GraphicsText && !_pc_is_action(plain.up)
+    if top.node isa GraphicsText && !_pc_is_icon_glyph(top.node) && !_pc_is_action(plain.up)
         if !_pc_is_place(plain.selection)
             push!(session.failures, "$at: a plain click gives no caret: $(format(plain.selection))")
         else
