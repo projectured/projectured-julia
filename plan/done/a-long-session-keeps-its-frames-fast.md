@@ -1,7 +1,8 @@
 # A long session keeps its frames fast
 
-**Status (2026-11-11): done on the branch.** All three steps are done. The
-landing on main waits for the owner.
+**Status (2026-11-11): done and landed.** All three steps are done. The owner
+approved the landing, and it is on main as `6c493c5b4`, `0c323f2f1` and
+`b03f9d4b8`, not pushed. Section 5 holds the suites that ran after the landing.
 
 **Goal:** a view whose table builds a new list of rows at each refresh keeps no
 row of an old list. So the frame statistics of a long session refresh as fast
@@ -97,3 +98,29 @@ were in the part `feed`. At the start of the session these frames took about
    flat. The list of readers holds up to twice its live entries, because a cell
    sweeps its collected readers only when the list doubles; the time of a flush
    follows the entries of the list, so it stays between 8 and 13 ms.
+
+## 5. After the landing
+
+The owner asked to land first and to test afterwards. The suites ran in the
+worktree at `b03f9d4b8`, the commit of main, with Julia 1.13.1.
+`test_platform()` needs more than 10 GB in one process, so it ran in two halves
+of its 253 calls.
+
+| suite | pass | fail | broken |
+| --- | --- | --- | --- |
+| `test_dataframes` | 616 | 0 | 0 |
+| `test_platform`, half 1 | 222,224 | 8 | 10 |
+| `test_platform`, half 2 | 8,077 | 5 | 13 |
+
+None of the 13 failures comes from this plan:
+
+- `CheckLayering.jl:880`, `:889` and `:922` (two) and `FileDialogTest.jl:138`
+  (Save As) fail on main before the plan.
+- `SystemProcessTest.jl:279` and `:332` wait for a process with a deadline,
+  and fail when the machine is busy; the second run passed 80 of 80.
+- `NavigatorChoicesTest.jl:174`, `:178`, `:208`, `:211` and
+  `ClipboardTest.jl:502` to `:504` fail in the same way when the walk of
+  main before the plan (`784b13373`) is put back at run time in the same
+  process. They passed at `3fd04ea4b`, so a commit between `3fd04ea4b` and
+  `784b13373` makes them fail; the work on the text domain touches both (a cut
+  of a text range, and the field of the list of the navigator). No bisect ran.
