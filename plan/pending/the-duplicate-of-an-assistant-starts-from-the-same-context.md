@@ -1,6 +1,6 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-11): in progress, step 3; steps 1 and 2 are done.** The owner asked for this plan
+> **Status (2026-11-11): in progress, step 4; steps 1 to 3 are done.** The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -135,7 +135,11 @@ All decisions were proposed by the assistant and approved with the plan on 2026-
   not have the history above." The note of P4 is the other case.
 - **P6. The copy keeps the options that the person chose.** After the fork
   opens, the copy sets each option whose value differs from the value of the
-  original, as the open sets the mode now.
+  original, as the open sets the mode now. *Found in step 4:* the mode is not
+  one of them. It follows `agent_mode`, as in every new session, so a copy does
+  not take a mode such as `bypassPermissions` by itself. The release of an
+  assistant clears `agent_options`, so the copy keeps the options of the
+  original in its `AgentSessionFork`.
 - **P7. A fork in `ClaudeCodeACP` has the history of its source as it was at
   the request.** This holds also when `claude` starts again before the first
   prompt of the fork (fact 5). Step 1 finds which of these two ways is
@@ -210,13 +214,23 @@ The work is in two repositories, each in its own worktree:
      fails. The change of the compat goes with the landing.
    - Test: `Pkg.test()` of ClaudeCodeACP passes 385 of 385.
 
-3. **The agent connection forks a session.** Declare `fork_agent_session!` in
+3. ~~**The agent connection forks a session.** Declare `fork_agent_session!` in
    `source/kernel/agent/AgentConnectionInterface.jl`, with the default `nothing`
    in `AgentConnectionDefaults.jl`. `AcpConnection` sends `session/fork` when
    the agent advertises it, with the instructions and the MCP servers as
    `open_agent_session!` sends them, and registers the session the same way. An
    error of the protocol answers `nothing`. `ScriptedAgentConnection` forks a
-   session when a test asks for it. Test: `test_acp_connection()`.
+   session when a test asks for it. Test: `test_acp_connection()`.~~ **Done 2026-11-11** (`7ab53f05a`).
+   - `open_agent_session!` and `fork_agent_session!` of `AcpConnection` share
+     one helper, `_run_session_open!`, which holds the instructions, the MCP
+     servers, the count of the opens that run, the options and the queue of the
+     session.
+   - `ScriptedAgentConnection` gets `can_fork`; a fork answers
+     `scripted-fork-<k>`, and its entry in `sessions` names the source in
+     `fork_session_id`.
+   - Test: `test_acp_connection()` passes 257 of 257, in the environment of
+     `ProjecturedACPTest`.
+
 4. **The copy of an assistant forks the session of its agent.** `copy_document`
    of an `Assistant` keeps the source of the fork: the id and the folder of the
    session of the original, the count of the turns that the session saw, and
@@ -261,3 +275,4 @@ The work is in two repositories, each in its own worktree:
 
 - 2026-11-11: step 1 done (facts in step 1).
 - 2026-11-11: step 2 done (ClaudeCodeACP.jl `29ebe0a`).
+- 2026-11-11: step 3 done (`7ab53f05a`).
