@@ -85,11 +85,20 @@ function test_data_frame_cells()
             @test entry.document isa PrimitiveInsertion && entry.document.placeholder == "missing"
         end
 
-        @testset "a click on a label opens no cell, and selects the row" begin
+        @testset "a click on a label opens no cell: on its text it selects the cell, and on its padding the row" begin
             view = DataFrameView(make_frame())
             io = print_document(projection, nothing, view, context())
             (x, y) = place_of(io, "y1")
+            # The text of the label has no place in the frame, so the cell, which
+            # takes no key, is selected whole.
             op = press(io, x + 2, y + 2)
+            @test op isa ReplaceSelectionOperation
+            evaluate_operation(_DataFrameFilterEditor(view), op)
+            @test isempty(view.edits)
+            @test strip_reference_types(get_selection(view)) ==
+                  ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(1, 2),
+                      ConcreteReference(RangeReferenceStep(3, 4), EmptyReference())))
+            op = press(io, x - 1, y + 2)
             @test op isa ReplaceSelectionOperation
             evaluate_operation(_DataFrameFilterEditor(view), op)
             @test isempty(view.edits)

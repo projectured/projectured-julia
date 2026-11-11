@@ -530,28 +530,35 @@ function _make_open_cell_operation(view::DataFrameView, path)
     ReplaceViewStateOperation(OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing)))
 end
 
-# `path`, a path of the view, or the whole cell when it goes into a cell of a
-# column that takes no write: such a cell shows its value as any other does, and
+# `path`, a path of the view, or the whole cell when it goes into a cell that
+# takes no key: a cell of a column that takes no write, which shows its value as
+# any other does, and a cell that shows its value as a label
+# (`make_data_frame_cell`), whose text has no place in the frame. Such a cell
 # takes no caret and no key.
 function _find_whole_read_only_cell(view::DataFrameView, path)
     found = _find_cell_tail(path)
     found === nothing && return path
     r, c, _ = found
     frame = view.frame
-    (1 <= c <= ncol(frame) && !_is_writable_column(frame[!, c])) || return path
-    _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+    (1 <= r <= nrow(frame) && 1 <= c <= ncol(frame)) || return path
+    column = frame[!, c]
+    takes_keys = _is_writable_column(column) && !_is_shown_as_label(column[r], eltype(column))
+    takes_keys ? path :
+        _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
 # selection there does (`_find_view_path`): the header of a column to the column,
-# a field of the query to its text, and the corner to the view. So a right click on
-# the header of a column reads the gesture table of the column. Any other place is
-# a part that the view introduced, as the default map of the kernel says.
+# a field of the query to its text, the corner to the view, and a place in a cell
+# that takes no key to the whole cell (`_find_whole_read_only_cell`). So a right
+# click on the header of a column reads the gesture table of the column. Any other
+# place is a part that the view introduced, as the default map of the kernel says.
 function map_reference_backward(p::DataFrameViewToWidget,
                                 iomap::DataFrameViewToWidgetIoMap, reference)
     path = reference isa Reference ? _find_table_path(reference) : nothing
     target = path === nothing ? nothing : _find_view_path(iomap, path)
-    target === nothing || return annotate_reference_types(iomap.input, target)
+    target === nothing ||
+        return annotate_reference_types(iomap.input, _find_whole_read_only_cell(iomap.input, target))
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 

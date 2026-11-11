@@ -108,14 +108,11 @@ for (form, make) in (("eager", eager), ("list", listed))
         table = make(check, field)
         io = print_document(rec, nothing, table, context())
         @test (io isa WidgetTableListIoMap) == (form == "list")
-        # A header whose label declines a press, on its padding, selects its row or
-        # its column; a press on the text of the label puts the caret there.
-        @test path_of(press_padding(io, "#3", mods)) == part("rows", 3)
+        # A header is a control of its line: a press on the text of its label, or
+        # on its padding, selects its row or its column.
+        @test path_of(press_text(io, "#3", mods)) == part("rows", 3)
+        @test path_of(press_text(io, "b", mods)) == part("columns", 2)
         @test path_of(press_padding(io, "b", mods)) == part("columns", 2)
-        @test path_of(press_text(io, "b", mods)) ==
-              concat_references(part("column_headers", 2),
-                                extend_reference(EmptyReference(), FieldReferenceStep("content"),
-                                                 RangeReferenceStep(0, 0)))
         # A header that takes a press gets it: the checkbox toggles its own document.
         b = box(io, part("row_headers", 1))
         toggle = read(io, MouseClick(:left, b.x + 4, b.y + 4, mods; time = 0.0))
@@ -140,10 +137,10 @@ for (form, make) in (("eager", eager), ("list", listed))
               concat_references(cell(2, 3), extend_reference(EmptyReference(), FieldReferenceStep("content"),
                                                              RangeReferenceStep(0, 0)))
         if form == "list"
-            # The corner takes a press first, and a declined one, on the padding
-            # of its label, selects the table; an Alt+press selects the corner,
-            # which shows its band.
-            @test path_of(press_padding(io, "corner", mods)) == EmptyReference()
+            # The corner takes a press first, and one that it does not keep, such
+            # as the caret in the text of its label, selects the table; an
+            # Alt+press selects the corner, which shows its band.
+            @test path_of(press_text(io, "corner", mods)) == EmptyReference()
             @test path_of(press_text(io, "corner", alt)) == whole("corner")
             corner_box = box(io, whole("corner"))
             band = band_of(table, io, whole("corner"))

@@ -104,24 +104,19 @@ rule_at(x) = [r for r in header_graphics if r isa GraphicsRect && Int(r.x) == x 
 # ── A press ──────────────────────────────────────────────────────────────────
 
 # An Alt+press on the label of an outer level selects the label of its run. A
-# plain press on the text of a label puts the caret there. A plain press on the
-# padding of a label goes to the label, which declines it, and selects the column
-# or the row under the pointer.
+# plain press goes to the label, and the header keeps no caret in the text of a
+# label, so the press selects the column or the row under the pointer.
 alt = ModifierKeys(alt = true)
 op = press(io, year_2025[1] + 2, year_2025[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("column_headers", 3, 1)
 op = press(io, year_2025[1] + 2, year_2025[2] + 2)
-@test op isa ReplaceSelectionOperation &&
-      get_reference_steps(strip_reference_types(op.path))[end - 1:end] ==
-      [FieldReferenceStep("content"), RangeReferenceStep(0, 0)]
-op = press(io, year_2025[1] - 1, year_2025[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
-op = press(io, quarters[3][1] - 1, quarters[3][2] + 2)
+op = press(io, quarters[3][1] + 2, quarters[3][2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 us = place_of(io, "US")
 op = press(io, us[1] + 2, us[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
-op = press(io, us[1] - 1, us[2] + 2)
+op = press(io, us[1] + 2, us[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 3)
 # The empty cell of the outer level of the last row is in the run of US.
 ny = place_of(io, "NY")
@@ -129,7 +124,7 @@ op = press(io, us[1] + 2, ny[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
 op = press(io, us[1] + 2, ny[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 4)
-op = press(io, ny[1] - 1, ny[2] + 2)
+op = press(io, ny[1] + 2, ny[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 4)
 
 # ── The band of a selected run ──────────────────────────────────────────────

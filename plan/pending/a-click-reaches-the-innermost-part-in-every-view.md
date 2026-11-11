@@ -282,6 +282,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (`Chaining.jl`, the forward map of the chain). So each view writes the forward
   image of the selection into the documents of the output that it prints, one
   call in its printer, as `InsertionNothingToSyntaxLeaf` does.
+- **D7 (owner, 2026-11-11). A header controls its line.** The owner chose A of
+  Q4 ("Agreed"): a plain click on the text of a header selects its column or its
+  row, and a click on the corner selects the table, as a click on a tab switches
+  its page. The caret goes only into the text of a cell (D4). Q4 came from the
+  label caret of 5.3: a header gives a click to the label that it holds, and the
+  label now takes it, so a click on the number of a row of a data frame view put
+  a caret there, and Ctrl+Return opened no row. Rejected (B of Q4): the caret goes
+  into the text of a header too, and a click on its padding selects the line;
+  then the selection of a row or a column needs a click on a small place.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -322,6 +331,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     documents hold no computed selection, with no call in the view. A view
     that wires its own keeps its own. A walk of each output tree at each print
     costs time in a large page.
+- **Q4. What a plain click on the text of a header selects** (answered by D7,
+  2026-11-11). A header gives a click to the label that it holds, and the label
+  of 5.3 takes a click on its text.
+  - A. The header selects its column or its row, as a tab switches its page;
+    the caret goes only into the text of a cell.
+  - B. The caret goes into the text of the header, as in a cell; a click on the
+    padding of the header, or an Alt+click, selects the line.
 - **P7. The catalog takes the atoms of a package** (proposed by the
   assistant). `catalog`, `test_catalog` and the coverage guard take a list of
   atoms and the modules whose printers they cover, with the atoms of
@@ -830,19 +846,31 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       (`test_help_pages` 30/10). A label reads a single click only, so the row
       gets the double click as before. A word selection on a double click is
       not part of this plan.
-    - **A header and the corner follow the rule of a cell** (my reading of step
-      6: the table goes on into a cell and a header). The table gives a plain
-      click on a header or on the corner to what it holds, and selects the
-      line, or the whole table for the corner, only when that declines. A label
-      there now takes a click on its text, so the click puts the caret in the
-      header; a click on the padding selects the line, as D4 says for a cell.
-      No special case keeps the old answer. The tests that pressed on the text
-      to select a line now press on the padding and also check the caret:
-      `WidgetTableTest`, `WidgetTablePartsTest`, `WidgetTablePartSelectionTest`,
-      `WidgetTableHeaderLevelsTest`. The point tests now expect the caret in
-      the text of the label under the point: `LayoutPointTest`,
-      `WidgetPointTest`, `AnchoredLayoutTest`. The search of the settings test
-      starts right of the text of the label.
+    - **A header and the corner keep only a control's answer** (D7). The
+      table gives a plain click on a header or on the corner to what it holds,
+      and keeps the answer only when it is an action, such as the toggle of a
+      checkbox, or a selection inside a control, a document that takes the focus
+      (`is_focusable_document`), such as the caret in a text field
+      (`_find_control_answer`). A selection in a label is not kept, so the click
+      selects the line, or the table for the corner. The rule names no widget
+      type. A first version gave the caret to the header text as to a cell (my
+      reading of step 6); the data frame suite showed 5 failures and 9 errors,
+      and the owner chose D7.
+    - **A cell follows D4.** A click on the text of a label cell puts the caret
+      there, and a click on its padding selects the row: `WidgetTableTest`,
+      `WidgetTablePartsTest`, `WidgetTablePartSelectionTest`. The point tests
+      expect the caret in the text of the label under the point:
+      `LayoutPointTest`, `WidgetPointTest`, `AnchoredLayoutTest`. The search of
+      the settings test starts right of the text of the label.
+    - **A label cell of a data frame view is selected whole.** The view shows a
+      value that no primitive document holds, such as a `Symbol`, as a label
+      that it makes (`make_data_frame_cell`), so the text of the label has no
+      place in the frame, and the caret there threw a
+      `SelectionMismatchException`. The view already selects a cell of a column
+      that takes no write whole (`_find_whole_read_only_cell`); a label cell
+      takes no key either, so it follows the same rule, in the selection and in
+      the backward map (`_is_shown_as_label`). A caret in the text of such a cell
+      waits for the step for a drawn part (5.4).
     - **Found:** the note of a tooltip threw a `FieldError` (`second`) on a
       fact that is a condition of a decoration, since the D6 wiring of
       212901ac9 (efda41c32).

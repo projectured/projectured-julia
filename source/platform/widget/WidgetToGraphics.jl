@@ -13017,9 +13017,11 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here: a plain click goes to the
-# content of a cell or a header first, and one that the content declines selects
-# its row or its column; the corner selects the table; an Alt+click selects the
-# cell or the header itself. Keyboard grid navigation (the arrows,
+# content of a cell or a header first. A header keeps only an action or a
+# selection in a control (`_find_control_answer`); a click that the header does
+# not keep selects its row or its column, and a click that a cell declines selects
+# its row. The corner selects the table; an Alt+click selects the cell or the
+# header itself. Keyboard grid navigation (the arrows,
 # Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
 # against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
 # cell (`_wt_route_event`). An operation from below finds no cell to go to.
@@ -13078,9 +13080,9 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
 end
 
 # Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
-# content of the header that `header` names, and root what it answers under the
-# header. A header that declines it — a label has nothing to say to one —
-# selects `line`, its row or its column, as the table of a list does.
+# content of the header that `header` names, and root what it keeps of the answer
+# under the header (`_find_control_answer`). Else the click selects `line`, its row
+# or its column, as the table of a list does.
 function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header::Reference, line::Reference,
                                 g::MouseClick, x::Int, y::Int)
     declined = ReplaceSelectionOperation(line)
@@ -13090,9 +13092,35 @@ function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header:
     cell = _wt_find_part_cell(iomap, pane, i)
     cell === nothing && return declined
     cim, left, top = cell
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
-                                                     time = g.time))
+    op = _find_control_answer(get_iomap_input(cim),
+                             read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                                         g.modifiers; time = g.time)))
     op === nothing ? declined : reroot_operation(op, steps)
+end
+
+# What a part that is a control of something else, such as the header of a column
+# or the corner of a table, keeps of `operation`, the answer of `content`, the
+# document that the part holds, to a plain click: an action, such as the toggle of
+# a checkbox, and a selection inside a control, a document that takes the focus,
+# such as the caret in a text field. A selection in a document that is no control,
+# such as the caret in the text of a label, is not kept, so the click acts on what
+# the part controls, as a click on a tab switches its page. `nothing` when nothing
+# is kept.
+function _find_control_answer(content, operation)
+    operation isa ReplaceSelectionOperation || return operation
+    _is_path_in_control(content, strip_reference_types(operation.path)) ? operation : nothing
+end
+
+# Whether `document`, or a document on `path` inside it, takes the focus.
+function _is_path_in_control(document, path)
+    node = document
+    while true
+        is_focusable_document(node) && return true
+        path isa ConcreteReference || return false
+        node = try_evaluate_reference(node, ConcreteReference(path.head, EmptyReference()))
+        node === nothing && return false
+        path = path.tail
+    end
 end
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.

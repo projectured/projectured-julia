@@ -352,6 +352,12 @@ end
 make_data_frame_cell(value, type::Type = typeof(value)) =
     WidgetLabel(_get_cell_text(value); tooltip = "A value of type $(typeof(value)) takes no key here")
 
+# Whether `make_data_frame_cell` shows `value`, of a column of element type
+# `type`, as a label: a value that no primitive document holds.
+_is_shown_as_label(value::Union{Bool, Real, AbstractString}, type::Type) = false
+_is_shown_as_label(::Missing, type::Type) = _find_primitive_type(nonmissingtype(type)) === nothing
+_is_shown_as_label(value, type::Type) = true
+
 # The primitive document of the values of a column of element type `type`, or
 # `nothing` for a type that no primitive document holds.
 function _find_primitive_type(type::Type)

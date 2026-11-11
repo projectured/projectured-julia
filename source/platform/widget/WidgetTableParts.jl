@@ -1584,8 +1584,9 @@ end
 function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y::Int)
     found === nothing && return nothing
     cim, left, top = found
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                     g.modifiers; time = g.time))
+    op = _find_control_answer(get_iomap_input(cim),
+                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                                          g.modifiers; time = g.time)))
     op === nothing && return nothing
     reroot_operation(op, steps)
 end
@@ -1593,10 +1594,12 @@ end
 # A left press. An Alt+press selects the part itself: the corner, a header or a
 # cell, and in a header with levels the label of the level under the pointer. A
 # plain press goes to the part first: the corner, a header or a cell, and in a
-# header with levels the label of that level. A press that the part declines
-# selects its line: the corner the table, a row header its row, a column header
-# its column, `columns[c]`, and a cell its row — a label has nothing to say to
-# one, and a table of text is a table of rows.
+# header with levels the label of that level. The corner and a header are
+# controls of their line, so they keep only an action or a selection in a control
+# (`_find_control_answer`), and a cell keeps the caret in its text too. A press
+# that the part does not keep selects its line: the corner the table, a row
+# header its row, a column header its column, `columns[c]`, and a cell, on its
+# padding, its row.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state
@@ -1606,7 +1609,7 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     if part === :corner
         g.modifiers.alt && st.corner !== nothing &&
             return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("corner"), EmptyReference()))
-        op = _read_table_corner(st, MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time))
+        op = _read_table_corner_press(st, MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time))
         return op === nothing ? ReplaceSelectionOperation(EmptyReference()) : op
     end
     if part === :row_header
@@ -2004,6 +2007,15 @@ function _read_table_corner(st::WidgetTablePartsState, event)
     cim = st.corner
     cim === nothing && return nothing
     reroot_operation(read_intent(cim.projection, cim, event), (FieldReferenceStep("corner"),))
+end
+
+# A plain press on the corner: what the corner keeps of the answer of what it
+# holds (`_find_control_answer`), rooted under the corner, or `nothing`.
+function _read_table_corner_press(st::WidgetTablePartsState, press::MouseClick)
+    cim = st.corner
+    cim === nothing && return nothing
+    op = _find_control_answer(get_iomap_input(cim), read_intent(cim.projection, cim, press))
+    op === nothing ? nothing : reroot_operation(op, (FieldReferenceStep("corner"),))
 end
 
 # A left press within `_COLUMN_EDGE_REACH` of the right edge of a header starts
