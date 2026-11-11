@@ -280,7 +280,10 @@ end
 get_task_output(group::ReferencedDocument, index::Integer; keywords...) =
     get_task_output(get_document(group), index; keywords...)
 
-# The output of a task alone, which `run_tasks!(task)` answered.
+# The output of a task alone, which `run_tasks!(task)` answered, or a part that
+# holds it.
+get_task_output(task::ReferencedDocument; keywords...) = get_task_output(get_document(task); keywords...)
+
 function get_task_output(document::TaskDocument; stream::Symbol = :stdout, lines::Integer = 50,
                          editor = get_evaluation_editor())
     stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")

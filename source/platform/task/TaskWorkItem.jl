@@ -94,7 +94,7 @@ Use it to tell who started a row of the task list.
 
     get_work_item_starter(find_task_group("T3"))
 
-See also `WorkStarter`.
+See also `describe_work_item` and `find_task_group`.
 
 For the assistant.
 """
