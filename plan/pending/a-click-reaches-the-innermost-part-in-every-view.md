@@ -919,7 +919,28 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       the description of a card has its band too. The node of a row of facts
       draws the same band while its fact is selected as a whole.
   - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
-    output that its projection drew, and evaluates to the drawn part.
+    output that its projection drew, and evaluates to the drawn part. The owner
+    chose it as the next work on 2026-11-11 ("Ok"), before the widgets that record
+    no line, because most of the plain clicks that do nothing in step 6 are on a
+    label that a view computes.
+
+    Found before the work (2026-11-11, two probes), against the reason of that
+    choice:
+    - **A step of a view validates today.** It evaluates to its output path, and
+      the selection records the type of that path at its end
+      (`annotate_reference_types`, `get_valid_reference_prefix`), so a caret in a
+      label that a view made is a valid selection as soon as the view names it
+      by an introduced reference. The kernel change of 5.4 gives the copy, the
+      note and the whole rule a drawn part (P2); it does not give a caret.
+    - **The dead plain clicks have other causes.** In `task/group`, "T2" and "not
+      started" are badges in the title of a card: the badge records no line, so
+      the card answers `DoNothingOperation`; the Alt+click and the move already
+      name the badge. In `examples/research_contested`, a click on "Q1" or
+      "answered by" selects the question, `.questions[1]`: the research view
+      chooses its row by a rule of its own (D4 for a row), and the statement of a
+      question already takes the caret since 2bebb39d7.
+    - So the order waits for the owner again: the widgets that record no line
+      and the rows of the views first, or 5.4 first.
     `OutputReferenceStep` goes, and its users make the introduced step. Each
     place of the list above is checked; a paste and a cut refuse a target in a
     drawn part.
