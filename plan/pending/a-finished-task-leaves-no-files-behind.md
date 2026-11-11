@@ -1,7 +1,7 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–3 done on the branch
-> `no-files-behind` of projectured-julia and omnet-team · **Covers:** the agent
+> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–4 done on the branch
+> `no-files-behind` of projectured-julia, omnet-team and omnet-julia · **Covers:** the agent
 > rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory notes;
 > `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; julia-reactive-compiler;
 > projectured-julia · **Not in this plan:** opp_repl, which another agent changes.
@@ -32,7 +32,7 @@ most, so that the files go away without a person. It does not cover every source
 | `bounded-run` makes a job folder for each job and never removes it. `clean --older` exists, but nothing calls it. A plain `clean` is forbidden, because it removes the fresh jobs of other sessions. There are 870 job folders. | `workspace/bin/bounded-run:65`, `:685`, `:892`; memory `bounded-run-tool.md:49-51` |
 | `perf record` copies each binary that it profiles into `~/.debug` (7.4 GB). No `~/.perfconfig` exists. | `~/.debug` |
 | Julia keeps up to 10 cache files for each package and each Julia version. `~/.julia/compiled` is 46 GB; `ProjecturedPlatform` alone has 9 files, 3 GB. `bounded-run` passes every `JULIA_*` variable to a job. | `~/.julia/compiled/v1.13`; `bounded-run:78` |
-| `campaign_test_project` makes a stub project in a new `mktempdir()` for each call. The tests call it at 30 places, directly or through `campaign_test_session`. Julia removes such a folder only at a normal exit of the process. 165 of the 290 `/tmp/jl_*` folders of 2026-11-11 are these stub projects. | omnet-julia `example/ide/CampaignFixture.jl:92`, `:121`; `test/ide/Campaign*Test.jl`, `TestVerbsTest.jl:13`, `LegacyPartPageTest.jl:140`, `:184` |
+| `campaign_test_project` makes a stub project in a new `mktempdir()` for each call. The tests call it at 30 places, directly or through `campaign_test_session`. Julia removes such a folder only at a normal exit of the process, so a killed test process keeps every folder it made. Of the 290 `/tmp/jl_*` folders of 2026-11-11, about 72 are these stub projects; 78 more come from `test/ide/AssistantSessionTest.jl` and 18 from a third writer. | omnet-julia `example/ide/CampaignFixture.jl:92`, `:121`; `test/ide/Campaign*Test.jl`, `TestVerbsTest.jl:13`, `LegacyPartPageTest.jl:140`, `:184` |
 | The reactive compiler server precompiles the trace whose path its caller sends. It writes the statements that did not resolve to `<trace>.unresolved` beside the trace. The caller removes the trace, but not the listing: `/tmp` holds 30 listings and 2 traces, up to 460 KB each. The code that names the trace `jl_*-trace.jl` was not found in the first search. | julia-reactive-compiler `stdlib/ReactiveCompiler/src/server.jl:184`, `child.jl:941-945` |
 | The assistant writes a new PNG to `~/.cache/projectured/pictures` for each picture, and nothing deletes old ones. There are 160 files. | projectured-julia `source/platform/assistant/AssistantPicture.jl:97-110` |
 
@@ -126,10 +126,31 @@ Instead, its change is recorded here.
      packages of `v1.13`.
    - **The variable reaches a process that a new login starts.** Sessions that run now do not have
      it, and neither do their `bounded-run` jobs. VS Code reads the login environment when it starts.
-4. [ ] **omnet-julia: the campaign tests remove their stub projects.**
-   - Apply D5 to `CampaignFixture.jl` and to each caller.
-   - Check: count the `/tmp/jl_*` folders. Then run the campaign tests of `test/ide/` and count again.
-     The count must be the same. The tests pass with the same counts as before.
+4. [x] **omnet-julia: the campaign tests remove their stub projects.** **Done 2026-11-11**, commit
+   `4ef6f3cb7` on the branch `no-files-behind` of omnet-julia.
+   - `campaign_test_project(root)` takes an empty folder, and `campaign_test_session` takes its
+     `project` with no default (D5). The helpers `_make_task_verbs_project`,
+     `_make_test_verbs_project` and `_project_verbs_run_window` take `root` and pass it on. The 18
+     calls in 13 test files make their folders with `mktempdir() do … end`; a test with two
+     projects makes two folders. No project lives longer than one test function.
+   - Check: `test_campaign_window()` and `test_project_verbs()`, on the merged Julia with the depot
+     `/var/tmp/omnet-julia-no-files-behind-depot` (D1), in a capped scope with `unshare -rn`. Main:
+     584 passed, 6 failed. After: 584 passed and the same 6 failed (`CampaignControlTest.jl:141`,
+     `CampaignDuplicateTest.jl:56`, `CampaignLoopTest.jl:159`, `:244`, `PaneProgramTest.jl:227`,
+     `:340`). With a private `TMPDIR`, 0 stub projects were left before the exit, and 4 other
+     folders that the fixture does not make.
+
+   Found in the work:
+   - **A normal exit removes the folders; a kill keeps them all.** A Julia process that ended
+     normally left no `mktempdir()` folder. So a killed test process keeps every folder that it
+     made since its start, which explains the bursts of 2026-11-11.
+   - **A count in the shared `/tmp` is not a check.** Tests of another session wrote 121 stub
+     folders into `/tmp` during the run, and the first count took them in. A check of the folders
+     of one process sets a private `TMPDIR`.
+   - **`bounded-run` can not run `unshare -rn`.** A service of the user manager gets no user
+     namespace under `kernel.apparmor_restrict_unprivileged_userns = 1`. A scope of
+     `systemd-run --user --scope` keeps the AppArmor label of its caller and can. The memory note of
+     `bounded-run` says this.
 5. [ ] **julia-reactive-compiler: the caller of the server removes the listing with the trace.**
    - Find the code that makes the `jl_*-trace.jl` path and sends it to `server.jl:184`. In that
      code, remove `<trace>.unresolved` where it removes the trace.
@@ -150,3 +171,5 @@ Instead, its change is recorded here.
 - The `<app>.object` folders. The builder keeps them on purpose for a relink.
 - A one-time trim of `~/.julia/compiled` to the 4 newest files of each package (24 GB, step 3).
 - 214 coverage files `*.cov` (10 MB) of 2026-11-01 in the source tree of `julia-merged-next`.
+- The stub folders of `test/ide/AssistantSessionTest.jl` (78 on 2026-11-11) and of the third
+  writer (18), and the 4 other plain `mktempdir()` folders of the campaign suites (step 4).
