@@ -324,6 +324,36 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    The list that opens under an insertion field writes the typed text into the
    field too, so there the field then shows a pale caret. The question now: does
    the owner want this move of the selection into the list and back?
+
+   **D18. The owner decided (2026-11-11), with the words "Yes, for the palette,
+   but for the insertion the selection should stay in the text input field":**
+   a list with no field under it, such as the command palette, the list of the
+   files, the address of the navigator, the add of an outline and the link of a
+   research item, takes the selection into its query when it opens and gives it
+   back when it closes. The list that opens under an insertion field (a list
+   with `edit`) leaves the selection in the field.
+
+   **Proposal for D18, which waits for the approval of the owner, because it is
+   a new step of the window manager:** no code moves the selection into a window
+   that opens, or back when it closes.
+   - `OpenWindowOperation` (`ScreenDocument.jl`, a platform file) gets an
+     optional `selection`, a path in its content. The window manager, which opens
+     the window and so knows its index, writes the root selection to that window
+     and the path, and keeps the path that the selection had before. The palette
+     names `query{n}`, the end of its query.
+   - The window under the list keeps its branch dormant where a document on the
+     branch keeps one, as the pane group of the application does, so its caret
+     shows pale.
+   - When the window manager closes a window that holds the root selection, it
+     writes the kept path back, unless the answer that closes it puts a selection
+     of its own, as a press in another window does.
+   - The list gives a key of text to the text view of its query, as the tab bar
+     gives one to the view of a name, so the text domain edits the query, and its
+     edits stay view state. It keeps Up, Down, Page Up, Page Down (read as
+     `:page_up` and `:page_down`) and Return.
+   - A list with `edit` gives the keys of text on, so they reach the field under
+     it, whose edit opens the list again with the new query, as now. Its query
+     draws no caret.
 4. ✅ **Ctrl+Backspace and Ctrl+Delete (D6 to D9).** Done 2026-11-10. Two rows in the text table,
    "Delete a word backward" and "Delete a word forward". Test: the rows of §3 in
    `test_text()`, and the two image rows in `test_inline_image_caret()`. Facts of
