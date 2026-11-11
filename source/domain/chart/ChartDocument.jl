@@ -569,6 +569,21 @@ function Chart(title::AbstractString, series::AbstractVector;
           bar_placement, Float64(bar_baseline), bar_baseline_color, nothing)
 end
 
+# A chart is data that a person reads and changes, so its duplicate is a copy of
+# it: a chart of its own, with its axes, its legend, its style and its series. The
+# plot that draws a chart is no data, and has no duplicate.
+has_document_duplicate(::Union{Chart, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartSeries}) = true
+
+# The title of a chart is its name, so a tab that shows the chart has that name.
+get_document_title(chart::Chart) = isempty(chart.title) ? nothing : chart.title
+
+# What a chart holds now: the number of its series, which a reader needs first, and
+# its title.
+function describe_document(chart::Chart)
+    count = length(chart.series)
+    "a chart of " * string(count) * " series" * (isempty(chart.title) ? "" : ", " * chart.title)
+end
+
 # ── Family traits ────────────────────────────────────────────────────────
 
 """

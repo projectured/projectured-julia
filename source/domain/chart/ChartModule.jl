@@ -35,6 +35,8 @@ import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..DomainModule: compute_context_menu
 import ..DisplayModule: make_workload_file
 import ..EditorModule: make_change
+import ..DocumentModule: get_document_title, has_document_duplicate
+import ..PaneModule: describe_document
 
 export ChartSampleReferenceStep
 export ChartTheme, ScaledChartTheme
