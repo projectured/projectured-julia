@@ -49,14 +49,13 @@ function print_document(p::SequenceChartToSequenceChartPlot, recursion,
             im === nothing ? nothing : map_reference_forward(p, im, path)
         end)))
     # The buttons and the bars belong to this plot, and each of their parts holds
-    # the part of the mouse target of the plot below it, so the part under the
-    # pointer lights.
+    # the part of the selection and of the mouse target of the plot below it, so a
+    # selected part is drawn and the part under the pointer lights.
     for (cell, field, part) in ((toolbar_cell, "toolbar", make_sequence_chart_buttons(plot)),
                                 (time_cell, "time_scroll_bar", make_sequence_chart_scroll_bar(plot, :time)),
                                 (lane_cell, "lane_scroll_bar", make_sequence_chart_scroll_bar(plot, :lanes)))
         cell[] = part
-        follow_output_mouse_target!(part, () -> find_drawn_child_path(get_mouse_target(plot),
-                                                                      (FieldReferenceStep(field),)))
+        follow_widget_output!(part, plot, path -> find_drawn_child_path(path, (FieldReferenceStep(field),)))
     end
     iomap = SequenceChartToSequenceChartPlotIoMap(p, chart, plot)
     iomap_cell[] = iomap
