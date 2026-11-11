@@ -305,6 +305,13 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
      stage are now six checks through a chain to graphics, and one check that a
      string reads no key of its own.
    - The other functions of the list of step 1 give the counts of the baseline.
+   - Found after the landing (2026-11-11): the first tab of an empty group took
+     no key in its name. `print_document` of a tab bar with no tab returned
+     early with no view of the name, and a live editor keeps that IO map when
+     Ctrl+T adds the tab. `test_pane_rename()` missed it, because it prints the
+     tree again for each key; `test_pane_construct()`, which keeps one IO map,
+     gave 59 pass and 4 failures. The fix (`b30195708`) makes the view of the
+     name before the early return, and `test_pane_construct()` gives 63 pass.
 3. ✅ **The query of a choice list (D5, D18).** Done 2026-11-11. Test:
    `test/platform/projection/WidgetMenuKeysTest.jl` and
    `test/projectured/projection/CommandPaletteTest.jl`, with Page Down added.
