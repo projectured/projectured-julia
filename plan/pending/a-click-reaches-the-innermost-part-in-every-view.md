@@ -1139,6 +1139,29 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     my reading): after an Alt+click there, it checks that the output draws a
     mark of the selection, not that the mark holds the point
     (`_pc_is_blank_text`).
+  - **The inner half of a quote gives the value** (152 points, and the quotes of
+    JSON and of the other syntax views). Not fixed: it needs a change in four
+    slices, which waits for the owner. A plain click puts the caret at the edge
+    nearest the point, which is right. The Alt+click and the move take their
+    part from that caret, and a caret on the edge of two parts belongs to one
+    of them by the backward map of the syntax text, which takes the left part
+    at one edge and the right part at another. So they must name the character
+    under the point, as a range of one character. A try (not committed) showed
+    what that needs:
+    - the text view answers the range of the character under the point to an
+      Alt+click and a move (`TextToGraphics`);
+    - the node and the leaf of the syntax text map a range in a delimiter of
+      their own back to that field; today `_map_compound_range_backward` looks
+      only into the children and answers `nothing`, and the editor selected the
+      whole document;
+    - `find_whole_part` takes a range of one step in the output path of a view
+      as one drawn element, so it must read a range of one character of a text
+      as a place;
+    - the click test reads such a range as a place, and accepts a caret at an
+      edge of the mark of the part that the Alt+click selects.
+  - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
+    of a label, which e7ff5e058 changed (P8); its two test sets now expect the
+    text of the label and its band, and the ring for the label as a whole.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

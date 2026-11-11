@@ -451,9 +451,17 @@ _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= 
             @test has_introduced_step(get_selection(tree))
             @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
         else
+            # An Alt+click on the text of the label selects that text, the `String`
+            # that the label holds (P8), below the content of the tab, and the label
+            # draws the band of a selected part over it, so the page draws no ring.
+            @test _is_below_content(tree, group, 1)
+            @test evaluate_reference(tree, get_selection(tree)) == "label"
+            @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
+            @test isempty(_page_rings(iomap.output))
+            # The label as a whole is what the tab holds: the page draws the ring
+            # around the text that was pressed.
+            _apply!(editor, ReplaceSelectionOperation(get_pane_content_path(tree, group, 1)))
             @test _is_content_selected(tree, group, 1)
-            @test evaluate_reference(tree, get_selection(tree)) === content
-            # The page draws the ring, around the text that was pressed.
             rings = _page_rings(iomap.output)
             @test length(rings) == 1
             (rx, ry, rw, rh) = only(rings)
@@ -466,7 +474,7 @@ _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= 
     end
 end
 
-@testset "an Alt+click inside a widget page selects the widget, not the page" begin
+@testset "an Alt+click inside a widget page selects a part of the widget, not the page" begin
     label = WidgetLabel("inner")
     view = WidgetCard(; title = "a view",
                       content = HorizontalLayout(Any[label, WidgetLabel("other")]))
@@ -481,8 +489,15 @@ end
     op = read_intent(proj, iomap, _alt_press(at[1] + 2, at[2] + 2))
     @test op isa ReplaceSelectionOperation
     _apply!(editor, op)
+    # The Alt+click selects the text of the label (P8), and the label draws the band
+    # of a selected part over it, not the page.
+    @test evaluate_reference(tree, get_selection(tree)) == "inner"
+    @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
+    @test isempty(_page_rings(iomap.output))
+    # The label as a whole: the ring is the layout's, around the label, and not the page's.
+    steps = collect(get_reference_steps(get_selection(tree)))
+    _apply!(editor, ReplaceSelectionOperation(foldr(ConcreteReference, steps[1:(end - 1)]; init = EmptyReference())))
     @test evaluate_reference(tree, get_selection(tree)) === label
-    # The ring is the layout's, around the label, and not the page's.
     rings = _page_rings(iomap.output)
     @test length(rings) == 1
     (rx, ry, rw, rh) = only(rings)
