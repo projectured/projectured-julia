@@ -1172,6 +1172,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     that are left: a caret on `42` that goes to the empty delimiter at the
     start of the number (5 lines, 3 before), and the math leaves that map their
     value to a step of the view (P8, 4 lines).
+  - ~~**The value of a primitive leaf is a step of the view**~~ (P8; 124 of the
+    303 lines of the leaf cause: `PrimitiveStringToSyntaxLeaf` 80,
+    `PrimitiveNumberToSyntaxLeaf` 36, `MathVariableToSyntaxLeaf` 8). These leaves
+    mapped a caret in the text of the leaf to the field of the primitive, but
+    not the text as a whole, so an Alt+click selected
+    `‹PrimitiveStringToSyntaxLeaf .value›`, which no mark draws. The text as a
+    whole maps to the field as a whole now, both ways, for the bool, the number
+    and the string, and for the name of a math variable. The walk:
+    `examples/collection` 25 → 5, `examples/filtering` 16 → 8,
+    `examples/reversing` 25 → 5, `examples/formula` 9 → 5. The other views of
+    the leaf cause are widget parts of a view, the model class.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

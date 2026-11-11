@@ -42,6 +42,9 @@ function map_reference_forward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, 
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
+        # The name as a whole is the text of the leaf as a whole, both ways, so an
+        # Alt+click on the text selects the name in its field (P8).
+        ::MathVariable.name => @reference ::SyntaxLeaf.value::TextString
         ::MathVariable.name{s:e} => begin
             (a, m) = get_range_ends(reference)
             @reference ::SyntaxLeaf.value::TextString{a:m}::Position
@@ -52,6 +55,7 @@ end
 function map_reference_backward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value => @reference ::MathVariable.name::String
         ::SyntaxLeaf.value{s:e} => begin
             (a, m) = get_range_ends(reference)
             @reference ::MathVariable.name::String{a:m}::Position

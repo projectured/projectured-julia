@@ -59,6 +59,19 @@ function test_introduced_part_round_trip()
         @test !any(_ip_is_flat(step) for path in paths for step in _ip_steps(path))
     end
 end
+
+@testset "the value of a primitive is no part that its leaf printed: it maps to the text of the leaf as a whole" begin
+    field = ConcreteReference(FieldReferenceStep("value"), EmptyReference())
+    for (projection, primitive) in ((PrimitiveNumberToSyntaxLeaf(), PrimitiveNumber(42)),
+                                    (PrimitiveStringToSyntaxLeaf(), PrimitiveString("ab")),
+                                    (PrimitiveBoolToSyntaxLeaf(), PrimitiveBool(true)))
+        iomap = print_document(projection, nothing, primitive, PrinterContext())
+        @test strip_reference_types(map_reference_forward(projection, iomap, annotate_reference_types(primitive, field))) ==
+              field
+        @test strip_reference_types(map_reference_backward(projection, iomap,
+                                                           annotate_reference_types(iomap.output, field))) == field
+    end
+end
 end # test_introduced_part_round_trip
 
 # Every kind of path maps back as the selection does: a mouse target at a text
