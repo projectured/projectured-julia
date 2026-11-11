@@ -134,16 +134,85 @@ function _follow_output_list!(holder, head::ListNode, @nospecialize(prefix::Tupl
     target = Cell(nothing)
     set_cell_computation!(target, () ->
         _find_output_list_target(_get_output_part(forward(), prefix), unwrap_cell(holder)))
-    followed = IdDict{ListNode,Bool}()
+    followed = _FollowedListNodes(IdDict{ListNode,Bool}(), 0)
     follow_node = function (node::ListNode)
-        haskey(followed, node) && return false
-        followed[node] = true
+        haskey(followed.nodes, node) && return false
+        followed.nodes[node] = true
         part = () -> (found = target[]; found !== nothing && found[1] === node ? found[2] : nothing)
         _follow_output!(node.value, (), field, part, is_followed, IdDict{Any,Bool}())
         true
     end
-    holder isa AbstractCell && _follow_built_list_nodes!(holder, follow_node)
+    holder isa AbstractCell && _follow_built_list_heads!(holder, followed, follow_node)
     _follow_list_chain!(head, follow_node)
+end
+
+# The nodes of a lazy list that the walk followed, so a walk that meets one again
+# stops there, also at a node that a new head shares with the head before it. A
+# `ListNode` is immutable, so no set with weak keys can hold it, and the set holds
+# each node strongly: a node that no head links any more leaves it at a sweep
+# (`_sweep_followed_list_nodes!`). `swept_length` is the length after the last sweep.
+mutable struct _FollowedListNodes
+    nodes::IdDict{ListNode,Bool}
+    swept_length::Int
+end
+
+# The length under which the followed nodes are not swept.
+const _FOLLOWED_LIST_SWEEP_MINIMUM = 64
+
+# Put a computation around the one of `holder`, which builds the head of the list,
+# so each head that it builds is followed. A new head sweeps `followed` first. A
+# view that builds a new list at each refresh, as the table of the frame statistics
+# does, so keeps only the nodes of its last few lists.
+function _follow_built_list_heads!(holder::AbstractCell, followed::_FollowedListNodes, follow_node)
+    build = get_cell_computation(holder)
+    build === nothing && return nothing
+    set_cell_computation!(holder, () -> begin
+        built = build()
+        built isa ListNode && run_without_cell_tracking(() -> begin
+            _sweep_followed_list_nodes!(followed, built)
+            _follow_list_chain!(built, follow_node)
+        end)
+        built
+    end)
+    nothing
+end
+
+# Keep only the followed nodes that `head` reaches through links that are built, once
+# the nodes grew to twice their length after the last sweep. The walk reads no link
+# that is not built, so it builds no node, and the doubling bounds its cost by the
+# follows since the last sweep, as `_sweep_dependents!` bounds the sweep of the
+# readers of a cell.
+function _sweep_followed_list_nodes!(followed::_FollowedListNodes, head::ListNode)
+    nodes = followed.nodes
+    length(nodes) > 2 * followed.swept_length + _FOLLOWED_LIST_SWEEP_MINIMUM || return nothing
+    kept = IdDict{ListNode,Bool}()
+    haskey(nodes, head) && (kept[head] = true)
+    reached = IdDict{ListNode,Bool}(head => true)
+    for link in (:next, :prev)
+        node = head
+        while true
+            neighbour = _find_built_list_neighbour(node, link)
+            (neighbour === nothing || haskey(reached, neighbour)) && break
+            reached[neighbour] = true
+            haskey(nodes, neighbour) && (kept[neighbour] = true)
+            node = neighbour
+        end
+    end
+    followed.nodes = kept
+    followed.swept_length = length(kept)
+    nothing
+end
+
+# Whether the cell of a link computes a node that it has not built yet.
+_is_unbuilt_list_link(cell) = cell isa AbstractCell && is_computed_cell(cell) && !is_cell_valid(cell)
+
+# The node beside `node` along `link`, `:next` or `:prev`, when the link built it, and
+# `nothing` at the end of the list or before a link that is not built.
+function _find_built_list_neighbour(node::ListNode, link::Symbol)
+    cell = getfield(node, link)
+    _is_unbuilt_list_link(cell) && return nothing
+    neighbour = unwrap_cell(cell)
+    neighbour isa ListNode ? neighbour : nothing
 end
 
 # The node of `head`'s list that `part` names by its first step, an index counted
@@ -167,7 +236,7 @@ function _follow_list_chain!(start::ListNode, follow_node)
         node = start
         while true
             cell = getfield(node, link)
-            if cell isa AbstractCell && is_computed_cell(cell) && !is_cell_valid(cell)
+            if _is_unbuilt_list_link(cell)
                 _follow_built_list_nodes!(cell, follow_node)
                 break
             end
