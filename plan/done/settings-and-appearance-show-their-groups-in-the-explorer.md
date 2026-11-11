@@ -1,8 +1,8 @@
 # Settings and Appearance show their groups in the explorer
 
-**Status (2026-11-10): approved for implementation; the code and the tests are
-done on the branch, and the check in a window of step 5 waits for the
-permission of the owner.** The owner
+**Status (2026-11-11): done.** All five steps and the check in a window are
+done. The owner approved the landing on 2026-11-11, and put the space between
+the ring of a whole page and its first line into a later plan. The owner
 decided D1, D2 and D3. The assistant proposed D4 to D12, and the owner approved
 them with the plan on 2026-11-10.
 
@@ -275,9 +275,8 @@ makes one commit.
    Tests: `test_appearance_file()`, `test_appearance_wrapper()`,
    `test_appearance_tab()`, `test_explorer()`, and the suite of each package
    whose files the step changes.
-5. [ ] **The views of the appearance (D1, D3, D11).** The code and the tests are
-   done; the check in a window waits for the permission of the owner, because it
-   opens a window and takes the focus. Facts and choices of the implementation:
+5. [x] **The views of the appearance (D1, D3, D11).** Done. Facts and choices of
+   the implementation:
    - The tab builds the cards of the parts, the headings and the themes with the
      functions of the views of the parts (see D11, changed in step 5); it prints
      no part through a view of a part.
@@ -330,6 +329,11 @@ makes one commit.
        the page stands 8 px from the bar, as `section_gap` gives.
 
 ## Not in this plan
+
+The space between the ring of a whole page and its first line, at the top: the
+page must take a space of its own there, and no layout gives a space to a part
+that is not the first box of its slot. The owner put it into a later plan
+(2026-11-11).
 
 A page of the explorer has the place of its node as its address, such as
 `tool_themes.themes[3]`. When a new theme type takes a place before it in its
