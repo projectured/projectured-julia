@@ -395,8 +395,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[WidgetTabPage(_make_tab_label(tabs[i]), entries[i].pane)
-            for i in eachindex(entries)]
+        Any[_make_tab_page(pane, i, tabs[i], entries[i].pane) for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
@@ -424,14 +423,60 @@ end
 _get_group_routing(group::PaneGroup, selection) =
     (is_live_selection(group) && _is_place_in_tab_name(selection)) ? selection : _index_prefix(selection)
 
+# The page of tab `i` of the strip `pane`, which shows `content`. The strip is the
+# output of this projection, so the close button of the page holds the part of the
+# mouse target of the strip that names it, as each output path does: the button
+# shows its surface under the pointer by its own mouse target.
+function _make_tab_page(pane::WidgetTabbedPane, i::Int, tab::PaneTab, content)
+    page = WidgetTabPage(_make_tab_label(tab), content)
+    set_output_path_computations!(page.close, pane, path -> _get_close_button_path(path, i))
+    page
+end
+
+# The part of `path`, a path of the strip, below the close button of tab `i`, or
+# `nothing` when `path` does not name that button.
+function _get_close_button_path(path, i::Int)
+    path isa ConcreteReference || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    (length(steps) >= 3 && steps[1] == FieldReferenceStep("selector_element_pairs") &&
+     steps[2] isa RangeReferenceStep && steps[2].start + 1 == i &&
+     steps[3] == FieldReferenceStep("close")) || return nothing
+    foldr(ConcreteReference, steps[4:end]; init = EmptyReference())
+end
+
 # The part of a group's mouse target that its tabbed pane needs. A path into the
 # title of a tab passes whole, because the strip draws the title as the header of
-# the tab, and shows the close button of the header under the pointer; everything
-# else is the routing prefix.
-_get_group_target_routing(path) = _is_tab_title_path(path) ? path : _index_prefix(path)
+# the tab, and shows the close button of the header under the pointer, and so does
+# a path to the close button, which shows its surface under the pointer;
+# everything else is the routing prefix.
+_get_group_target_routing(path) =
+    (_is_tab_title_path(path) || _is_tab_close_path(path)) ? path : _index_prefix(path)
 
 _is_tab_title_path(path) = (@reference_case path begin
     ::PaneGroup.tabs[i].rest... => _is_title_path(rest)
+end) === true
+
+_is_tab_close_path(path) = (@reference_case path begin
+    ::PaneGroup.tabs[i].rest... => _is_close_button_reference(rest)
+end) === true
+
+# The close button of a tab is a part that this projection puts in the strip, and
+# it has no place in the group. A path names it as the tab and a step that this
+# projection introduced, whose output path is the field of the button in the page.
+const _CLOSE_BUTTON_PATH = Reference(FieldReferenceStep("close"))
+
+# Whether `rest`, a path below a tab, names its close button.
+_is_close_button_reference(rest) =
+    rest isa ConcreteReference && _is_close_button_step(rest.head)
+
+_is_close_button_step(step) =
+    step isa ProjectionReferenceStep && step.projection isa PaneGroupToWidgetTabbedPane &&
+    collect(get_reference_steps(strip_reference_types(step.output_path))) == [FieldReferenceStep("close")]
+
+# Whether `rest`, a path below a tab page of the widget, goes into its close
+# button.
+_is_close_path(rest) = (@reference_case rest begin
+    ::WidgetTabPage.close.inner... => true
 end) === true
 
 _is_place_in_tab_name(selection) = (@reference_case selection begin
@@ -482,6 +527,8 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             # the header, as the pointer on the header is the title.
             _is_title_path(rest) &&
                 return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel
+            _is_close_button_reference(rest) &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.close::WidgetToolbarItem
             # The node at `[i]` is the tab page, and the content is its `element`. A
             # selection that names the tab whole names the page.
             inside = _get_tab_content_path(rest)
@@ -511,7 +558,7 @@ function _get_tab_content_path(rest)
     end
 end
 
-function map_reference_backward(::PaneGroupToWidgetTabbedPane,
+function map_reference_backward(p::PaneGroupToWidgetTabbedPane,
                                 iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
     # The tabbed pane is the view of the group, whole.
     reference isa EmptyReference && return EmptyReference(PaneGroup)
@@ -539,6 +586,9 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             # the header names the title whole, as the pointer on it does.
             _is_selector_path(rest) &&
                 return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle
+            # The close button of a tab is a part that this projection put there.
+            _is_close_path(rest) &&
+                return concat_references(tab, make_introduced_reference(p, PaneTab, _CLOSE_BUTTON_PATH))
             # `concat_references`, not the `^` splice of `@reference`: the splice
             # hoists the spliced path's leading type onto the node before it, so a
             # content path that starts at its own checkpoint would overwrite

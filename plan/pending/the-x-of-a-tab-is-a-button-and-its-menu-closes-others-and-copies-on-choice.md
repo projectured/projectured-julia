@@ -218,17 +218,17 @@ choice, so the key does not change.
 
 ## 5. Steps
 
-1. [ ] **Close others and Close to the right.** Add the two builders of D2 to
+1. [x] **Close others and Close to the right.** Add the two builders of D2 to
    PaneSurgery.jl and the two items to the menu of PaneTabMenu.jl. Add tests to
    `PaneReaderTest` through a right click on a tab: the two items, their greyed
    states, the tabs that stay, the focus of D3 and one undo. Run
    `test_pane_reader()` and `test_pane_surgery()`.
-2. [ ] **Duplicate on choice.** Add `DuplicatePaneTabOperation` of D4 to the pane
+2. [x] **Duplicate on choice.** Add `DuplicatePaneTabOperation` of D4 to the pane
    slice, and make the Duplicate item hold it. Add tests: a content whose
    duplicate counts its calls gets no copy at the right click and one copy at the
    choice, and an undo closes the copy. Keep the greyed Duplicate of a content
    with no duplicate. Run `test_pane_reader()` and `test_pane_construct()`.
-3. [ ] **The `x` is a toolbar button.** Do D5 to D8. Change the tests of
+3. [x] **The `x` is a toolbar button.** Do D5 to D8. Change the tests of
    `WidgetTabStripTest`: the click on the button closes the tab, a press above
    the button does not, the button under the pointer draws the surface of a
    button and the darker surface while held, and the open tab and the tab under
@@ -243,6 +243,57 @@ choice, so the key does not change.
    open, and the open menu of a tab. Run `test_platform()` once, in two halves.
 
 ## 6. Notes from the implementation
+
+- The shared memory of the machine was full for a long time, so steps 1, 2 and
+  3 were written before their tests ran, and steps 1 and 2 were committed then.
+  The tests of the three steps ran in one job after that. The first run gave 677
+  passes, 1 failure and 3 errors, all in the tests. The undo check of step 1 ran
+  the inverse with its selection moves before the tabs came back, so it now runs
+  the inverse with no selection moves and puts the selection back after, as the
+  undo does. Three checks of step 3 read a full column under the `x`, or read
+  the buttons from the top IO map; they now read the box of the button and find
+  the strip IO map first. These fixes are in the commit of step 3. The second
+  run gave 708 of 708 in `test_pane_reader`, `test_widget_tab_strip`,
+  `test_part_pointer_shape`, `test_pane_surgery`, `test_pane_construct` and
+  `test_pane_drag`.
+- **Step 1.** A group with no focus that shows a tab that closes keeps a dormant
+  selection with the old index. `_make_kept_view_operation` finds no shown tab in
+  the list after the close, so `_close_tabs_around` writes the dormant selection
+  of the group to the tab of the menu itself.
+- **Step 2.** The pane surgery declares no operation type, so
+  `DuplicatePaneTabOperation` is in PaneTabMenu.jl. An operation that names no
+  reference is dropped on its way up, so the operation carries `place`, the path
+  of its tree, through `operation_reference` and `retarget_operation`, as
+  `AddExplorerEntryOperation` carries its selection. When it runs, it puts the
+  steps of `place` before the paths of the duplicate with `reroot_operation`, as
+  the playback does. The undo document runs `evaluate_invertible_operation!`, so
+  the operation has a method of it.
+- **Step 2, a change of behaviour that follows D4.** `has_document_duplicate`
+  answers from the kind of the content, and a copy can still fail on what the
+  tree holds, such as a text field with a validator. The menu can not know that
+  without the copy, so the item is enabled for such a content, and its choice
+  logs the refusal and adds no tab, as Ctrl+Shift+D does. Before, the copy at the
+  right click greyed the item.
+- **Step 3.** The strip keeps the IO maps of the buttons in a new IO map type,
+  `WidgetTabbedPaneToGraphicsCanvasIoMap`, with the fields of a
+  `WidgetChildrenIoMap` and `close_iomaps`, as the card and the fact group have
+  types of their own. It is in `_ChildEntriesIoMap`, its `get_child_iomaps` adds
+  the buttons, and its `read_child_by_route` places each button where the strip
+  draws it. The entries of `child_iomaps` stay one for each tab, because the
+  reader finds a page by its index.
+- **Step 3.** The geometry of the strip reads the width and the height of the
+  canvas of each button, not `get_graphics_size`: that walks the elements, and
+  the hover layer is one of them, so each move would lay out the strip again.
+  The button gets a bounded size with no minimum, as a toolbar gives its items.
+  `_get_tab_button_box`, `_get_tab_part` and `_push_tab_close_button!` stay with
+  new bodies: the box comes from the size of the button, and the push places the
+  output of the button.
+- **Step 3.** In the pane the strip is the output of the group projection, so
+  the walk of the mouse target does not reach the documents in it.
+  `_make_tab_page` wires the paths of each button from the paths of the strip
+  with `set_output_path_computations!`, as `FindBarViewToWidget` wires its
+  children. A strip that is an input document gets the mouse target of its
+  buttons from the walk.
 
 ## Not in this plan
 

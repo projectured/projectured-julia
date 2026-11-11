@@ -457,10 +457,13 @@ end
     box::Any
 end
 
-# The IO map of a tabbed pane: the fields of a `WidgetChildrenIoMap`, and
-# `name_view`, the IO map of the text view that draws the name that holds the
-# caret, or `nothing` for a pane that draws no strip. The reader gives a key in a
-# name to that view, so the text domain edits a name as it edits every text.
+# The IO map of a tabbed pane: the fields of a `WidgetChildrenIoMap`, one entry
+# for the content of each tab; `name_view`, the IO map of the text view that
+# draws the name that holds the caret, or `nothing` for a pane that draws no
+# strip; and `close_iomaps`, the IO map of the close button of each tab, or
+# `nothing` for each tab of a pane that is not `closable`. The reader gives a key
+# in a name to the name view, so the text domain edits a name as it edits every
+# text.
 @iomap struct WidgetTabbedPaneToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -468,6 +471,7 @@ end
     child_iomaps::Any
     box::Any
     name_view::Any
+    close_iomaps::Any
 end
 
 # An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
@@ -481,6 +485,10 @@ _get_box_geometry(iomap) = iomap.box
 # What a route reaches through a container: see `_collect_child_iomaps`.
 ProjectionModule.get_child_iomaps(iomap::_ChildEntriesIoMap) =
     _collect_child_iomaps(iomap.child_iomaps...)
+
+# A route reaches the content of each tab, and the close button of each tab.
+ProjectionModule.get_child_iomaps(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.child_iomaps..., iomap.close_iomaps...)
 
 # A widget with no child answers the baseline of its text by a method for its
 # projection. One that draws no text answers none.
@@ -5367,15 +5375,17 @@ end
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
 # a NamedTuple of the content offset, the tab padding, the strip height, the natural
 # strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, button_w,
-# text_w, badges)`, where `x`/`rw` are the tab's left edge and full width in
-# strip coordinates, `button_w` is the width of its close button (0 when the pane
-# is not `closable`), `text_w` is the width of the label's text, and
+# text_w, badges, button_h)`, where `x`/`rw` are the tab's left edge and full width in
+# strip coordinates, `button_w` and `button_h` are the size of its close button (0
+# when the pane is not `closable`), `text_w` is the width of the label's text, and
 # `badges` holds a `(badge, box, width, height)` for each badge after the text — and the
 # new-tab button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
 #
 # The first six fields come in the order a positional destructure reads them.
-# `box` is the shape of the pane.
-function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, box::BoxGeometry)
+# `box` is the shape of the pane, and `buttons` holds the size of the close button
+# of each tab as its IO map printed it, or `nothing` for a tab with none.
+function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, box::BoxGeometry,
+                             buttons::Vector)
     cox, coy = _get_content_offset(box)
     pad = p.tab_padding
     pad_top, pad_bottom = Int(pad.top[]), Int(pad.bottom[])
@@ -5385,7 +5395,7 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     # starts in.
     _, em_h = _text_size(p.measure, p.font, "M")
     closable = w.closable === true
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, text_w, badges)
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, text_w, badges, button_h)
     # An icon and a button are a square of one line times `icon_size`, and the
     # row is as tall as the largest of them and the line.
     new_side = w.new_tab === true ? scale_length(em_h, p.icon_size) : 0
@@ -5394,7 +5404,7 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     # A name takes the wider of the font of a tab and the font of the selected tab,
     # so the name of the selected tab fits, and no tab moves when the selection does.
     name_fonts = (_get_state_text(p, w, :tab).font, _get_state_text(p, w, :tab; state = :selected).font)
-    for pair in w.selector_element_pairs
+    for (i, pair) in enumerate(w.selector_element_pairs)
         selector = pair.selector
         label = _get_tab_selector_text(selector)
         icon  = _get_tab_icon(selector, pair.icon)
@@ -5411,12 +5421,13 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
             badges_w += p.label_gap + bw
             tab_h = max(tab_h, bh)
         end
-        button_w = closable ? scale_length(th, p.icon_size) : 0
+        button = (closable && i <= length(buttons)) ? buttons[i] : nothing
+        button_w, button_h = button === nothing ? (0, 0) : button
         button_gap = button_w > 0 ? p.label_gap : 0
         rw  = tw + badges_w + iw + gap + button_w + button_gap + pad_left + pad_right
-        push!(tabs, (label, icon, iw, gap, x, rw, button_w, tw, badges))
+        push!(tabs, (label, icon, iw, gap, x, rw, button_w, tw, badges, button_h))
         x += rw
-        tab_h = max(tab_h, th, iw, button_w)
+        tab_h = max(tab_h, th, iw, button_h)
     end
     sel_h = tab_h + pad_top + pad_bottom
     rule = max(1, Int(p.tab_row_line_stroke.width))
@@ -5450,27 +5461,46 @@ function _get_tab_badges(selector::WidgetTabLabel)
 end
 _get_tab_badges(selector) = WidgetBadge[]
 
-# The close button's box inside a tab tuple: its left edge and its width, or
-# `nothing` when the tab has none.
-function _get_tab_button_box(tab, pad)
-    button_w = tab[7]
-    button_w > 0 ? (tab[5] + tab[6] - pad.right - button_w, button_w) : nothing
+# The sizes of the close buttons that `close_iomaps` printed, one for each tab, or
+# `nothing` for a tab with none.
+_get_close_button_sizes(close_iomaps) =
+    Any[cim === nothing ? nothing : _get_close_button_size(cim.output) for cim in close_iomaps]
+
+# The size that the button gives its canvas. A walk of what the canvas holds would
+# read the layer that shows under the pointer, and lay out the strip at each move.
+_get_close_button_size(output::GraphicsCanvas) =
+    (Int(unwrap_cell(getfield(output, :w))), Int(unwrap_cell(getfield(output, :h))))
+_get_close_button_size(output) = (0, 0)
+
+# The geometry of the strip that `iomap` printed, with its close buttons.
+_get_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, iomap) =
+    _tab_strip_geometry(p, w, _get_box_geometry(iomap),
+                        _get_close_button_sizes(getfield(iomap, :close_iomaps)[]))
+
+# The box of the close button of a tab in strip coordinates, `(x, y, width,
+# height)`: at the right end of the tab, and at the middle of the height of the
+# label. `nothing` when the tab has none.
+function _get_tab_button_box(g, tab)
+    button_w, button_h = tab[7], tab[10]
+    button_w > 0 || return nothing
+    (tab[5] + tab[6] - g.pad.right - button_w,
+     g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - button_h) ÷ 2, button_w, button_h)
 end
 
-# The part of the strip a point on tab `tab` lands on: `:close` on its close
-# button, and `:tab` for the rest.
-function _get_tab_part(g, tab, xx::Int)
-    box = _get_tab_button_box(tab, g.pad)
-    (box !== nothing && xx >= box[1] && xx < box[1] + box[2]) ? :close : :tab
+# The part of the strip that the point `(xx, yy)` on tab `tab` lands on: `:close`
+# in the box of its close button, and `:tab` for the rest of the tab.
+function _get_tab_part(g, tab, xx::Int, yy::Int)
+    box = _get_tab_button_box(g, tab)
+    box === nothing && return :tab
+    x, y, width, height = box
+    (x <= xx < x + width && y <= yy < y + height) ? :close : :tab
 end
 
-# Draw the close button of a tab, at the height of the label.
-function _push_tab_close_button!(result, g, tab, color)
-    box = _get_tab_button_box(tab, g.pad)
-    box === nothing && return
-    x, w = box
-    _push_icon!(result, :close, x, g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - w) ÷ 2,
-                w, color)
+# The close button of a tab: the output that its IO map printed, at its box.
+function _push_tab_close_button!(result, g, tab, close_iomap)
+    box = _get_tab_button_box(g, tab)
+    (box === nothing || close_iomap === nothing) && return
+    push!(result, _make_canvas(box[1], box[2], Any[close_iomap.output]))
 end
 
 # Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
@@ -5526,22 +5556,30 @@ end
 
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
     w.visible == false &&
-        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing)
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing, Cell(Any[]))
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
     # A tabbed pane is a part of the frame: its strip and its page reach the edges
     # of its slot, so it takes no space around it.
     geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
     if isempty(pairs)
-        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, nothing)
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, nothing, Cell(Any[]))
     end
 
     box = geometry[]                     # stable — independent of the tab count
     colors = _get_box_colors(p, w)
     cox, coy = _get_content_offset(box)  # stable — independent of the tab count
+    # The close button of each tab of a `closable` pane, printed as a child: it
+    # draws its own look under the pointer, and reads its own press. As in a
+    # toolbar, it gets no minimum, so it is as large as what it shows.
+    button_ctx = ctx === nothing ? nothing :
+                 with_bounded_size(ctx; width = ctx.maximum_width, height = ctx.maximum_height)
+    close_iomaps = make_reconciled_child_iomaps_cell(
+        () -> Any[w.closable === true ? pair.close : nothing for pair in w.selector_element_pairs],
+        (_, button) -> button isa WidgetToolbarItem ? print_child(recursion, button, button_ctx) : nothing)
     # Reactive tab-strip geometry: re-derives when a tab is added / removed, so the
     # strip and everything sized from it (`sel_h`, `strip_w`, the tab tuples) reflows.
-    geom = Cell(@computation _tab_strip_geometry(p, w, geometry[]))
+    geom = Cell(@computation _tab_strip_geometry(p, w, geometry[], _get_close_button_sizes(close_iomaps[])))
 
     sel_cell = getfield(w, :selection)
     name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
@@ -5554,6 +5592,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
 
     selector_cv = CellVector(@computation begin
         g = geom[]
+        buttons = close_iomaps[]
         pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(get_stored_selection(w), length(tabs))
         result = Any[]
@@ -5599,13 +5638,13 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                            _build_badge_elements(p.badge, badge, badge_box, bw, bh)))
                 badge_x += bw
             end
-            # The close button sits at the tab's right edge, tinted like its label.
-            # The open tab always shows it. Another tab shows it only while the
-            # pointer is on its header: a cell of its own canvas reads the mouse
+            # The close button sits at the tab's right edge. The open tab always
+            # shows it. Another tab shows it only while the pointer is on its
+            # header or on the button: a cell of its own canvas reads the mouse
             # target, so a move redraws that canvas and not the strip. The button
             # keeps its place while it is hidden, so no tab changes its width.
             close = Any[]
-            _push_tab_close_button!(close, g, tabs[i], fg)
+            _push_tab_close_button!(close, g, tabs[i], i <= length(buttons) ? buttons[i] : nothing)
             if i == active
                 append!(header, close)
             elseif !isempty(close)
@@ -5614,10 +5653,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                              CellVector(@computation _is_tab_header_under_pointer(w, i, n) ? close : Any[]),
                                              layout_none, true, Cell(nothing)))
             end
-            button_box = _get_tab_button_box(tabs[i], g.pad)
-            button_box === nothing ||
-                push!(header, GraphicsPointerShape(button_box[1], coy, button_box[2], sel_h,
-                                                   :pointing_hand))
+            button_box = _get_tab_button_box(g, tabs[i])
+            button_box === nothing || push!(header, GraphicsPointerShape(button_box..., :pointing_hand))
             push!(result, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                          CellVector(Cell[Cell(e) for e in header]),
                                          layout_none, true, Cell(nothing)))
@@ -5798,7 +5835,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
-    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view)
+    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps)
 end
 
 # The extent of the page of a tabbed pane: the slot offered on each axis, else
@@ -5826,9 +5863,20 @@ function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, refere
         return index == (active == 0 ? 1 : active) ? EmptyReference() : nothing
     end
     head = get_reference_head(rest)
+    # The close button of a tab is the canvas that it printed, in the header.
+    head isa FieldReferenceStep && head.name == "close" && return _find_tab_close_reference(iomap, index)
     (head isa FieldReferenceStep && head.name == "selector") || return _map_child_forward(iomap, reference)
     get_reference_tail(rest) isa EmptyReference || return nothing
     _find_tab_header_reference(iomap, index)
+end
+
+# The close button of tab `index`: the canvas that its IO map printed, or `nothing`
+# while the strip does not draw it.
+function _find_tab_close_reference(iomap, index::Int)
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
+    close_iomaps = getfield(iomap, :close_iomaps)[]
+    (1 <= index <= length(close_iomaps) && close_iomaps[index] !== nothing) || return nothing
+    find_node_reference(unwrap_cell(get_iomap_output(iomap)), close_iomaps[index].output; depth = 10)
 end
 
 # `selector_element_pairs[i]` and the rest after it, as `(i, rest)`, or `nothing`.
@@ -5890,8 +5938,8 @@ end
 function map_reference_backward(p::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     if point !== nothing
-        header = _find_tab_header_at(p, iomap, point)
-        return header === nothing ? _map_open_page_point(iomap, point) : header
+        part = _find_tab_part_at(p, iomap, point)
+        return part === nothing ? _map_open_page_point(iomap, point) : part
     end
     # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
     # it in its own input coordinates, so it maps back as itself; without the case
@@ -5922,18 +5970,20 @@ function _map_open_page_point(iomap, point)
     _map_point_to_child(w, entries, point)
 end
 
-# The `selector` of the tab whose header is at `point`, the part that the header
-# draws, or `nothing` when no header is there.
-function _find_tab_header_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
+# The part of the tab whose header is at `point`: its `close` button in the box of
+# the button, else its `selector`, the part that the header draws, or `nothing`
+# when no header is there.
+function _find_tab_part_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
     iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     strip_x = _tab_strip_coordinate(p, w, iomap, point.x, point.y)
     strip_x === nothing && return nothing
-    index, _ = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), strip_x)
+    index, part = _find_tab_at_strip_point(_get_strip_geometry(p, w, iomap), strip_x, point.y)
     index == 0 && return nothing
     annotate_reference_types(w, extend_reference(EmptyReference(), FieldReferenceStep("selector_element_pairs"),
-                                                 ElementReferenceStep(index), FieldReferenceStep("selector")))
+                                                 ElementReferenceStep(index),
+                                                 FieldReferenceStep(part === :close ? "close" : "selector")))
 end
 
 # Selector-viewport width as drawn (the clip box). Read back from the output so the
@@ -5953,7 +6003,7 @@ end
 # strip hit-test starts here.
 function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane,
                                iomap, x::Int, y::Int)
-    g = _tab_strip_geometry(p, w, _get_box_geometry(iomap))
+    g = _get_strip_geometry(p, w, iomap)
     (isempty(g.tabs) && g.new_w == 0) && return nothing
     (y >= g.coy && y < g.coy + g.height) || return nothing
     view_w = _tab_view_w(iomap, g.strip_w)
@@ -5961,15 +6011,44 @@ function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTab
     x + _tab_scroll_offset(w, g.strip_w, view_w)
 end
 
-# The 1-based tab at the strip-space x `xx`, or 0, and the part of the tab there:
-# `:tab` or `:close` (see `_get_tab_part`).
-function _find_tab_at_strip_point(g, xx::Int)
+# The 1-based tab at the strip-space point `(xx, yy)`, or 0, and the part of the
+# tab there: `:tab` or `:close` (see `_get_tab_part`).
+function _find_tab_at_strip_point(g, xx::Int, yy::Int)
     for (i, t) in enumerate(g.tabs)
         tx, rw = t[5], t[6]
         (xx >= tx && xx < tx + rw) || continue
-        return (i, _get_tab_part(g, t, xx))
+        return (i, _get_tab_part(g, t, xx, yy))
     end
     (0, :tab)
+end
+
+# The answer of the close button of tab `index` to `evt`, read in the frame of the
+# button. The command of the button closes its tab, so the strip reports it as
+# `CloseTabOperation`. Its other answers, such as the write of its `pressed`, name
+# the button itself and go up as they are.
+function _read_close_button(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
+                            index::Int, evt)
+    w = iomap.input
+    close_iomaps = getfield(iomap, :close_iomaps)[]
+    (1 <= index <= length(close_iomaps) && close_iomaps[index] !== nothing) || return nothing
+    g = _get_strip_geometry(p, w, iomap)
+    index <= length(g.tabs) || return nothing
+    box = _get_tab_button_box(g, g.tabs[index])
+    box === nothing && return nothing
+    scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+    dx, dy = box[1] - scroll, box[2]
+    answer = shift_operation_position(read_child_event(close_iomaps[index], shift_event_position(evt, -dx, -dy)),
+                                      dx, dy)
+    answer isa InvokeActionOperation ? CloseTabOperation(w, index) : answer
+end
+
+# The tab whose close button the pane's mouse target names, or 0.
+function _find_mouse_target_close(w::WidgetTabbedPane, n::Int)
+    target = get_mouse_target(w)
+    index = _tab_index_from_selection(target, n)
+    index == 0 && return 0
+    rest = target.head isa FieldReferenceStep ? target.tail.tail : target.tail
+    (rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "close") ? index : 0
 end
 
 function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, evt)
@@ -5986,19 +6065,22 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPan
         end
         xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
         if xx !== nothing
-            g = _tab_strip_geometry(p, w, _get_box_geometry(iomap))
+            g = _get_strip_geometry(p, w, iomap)
             # A middle click on a tab of a `closable` pane closes the tab, as its
             # close button does. Anywhere else in the strip it does nothing.
             if evt.button === :middle
-                index, _ = _find_tab_at_strip_point(g, xx)
+                index, _ = _find_tab_at_strip_point(g, xx, evt.y)
                 return (index > 0 && w.closable === true) ? CloseTabOperation(w, index) : nothing
             end
             # The new-tab button first: it follows the last tab, so no tab box can
             # claim it.
             g.new_w > 0 && xx >= g.new_x && xx < g.new_x + g.new_w &&
                 return OpenTabOperation(w)
-            index, part = _find_tab_at_strip_point(g, xx)
-            index > 0 && part === :close && return CloseTabOperation(w, index)
+            # A click on the close button is the button's. A click that it declines,
+            # such as Alt and a press, which selects the button whole, is declined
+            # here too.
+            index, part = _find_tab_at_strip_point(g, xx, evt.y)
+            index > 0 && part === :close && return _read_close_button(p, iomap, index, evt)
             # A tab click is a selection change, nothing more. Emitted as this pane's
             # own local path, so the ordinary re-targeting carries it to the document
             # root: the walk then starts high enough to see a sibling group and mark
@@ -6012,7 +6094,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPan
     if evt isa MouseScroll
         w = iomap.input
         if w isa WidgetTabbedPane
-            cox, coy, _, sel_h, strip_w, tabs = _tab_strip_geometry(p, w, _get_box_geometry(iomap))
+            cox, coy, _, sel_h, strip_w, tabs = _get_strip_geometry(p, w, iomap)
             # A wheel over the strip scrolls it horizontally (the strip is a horizontal
             # row, so vertical wheel maps to horizontal motion); over the content it
             # scrolls the active tab as before. Ctrl and the wheel never scroll it.
@@ -6038,17 +6120,16 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPan
     # tab's frame.
     # A left button down on a tab of a `draggable` pane is a grab. The strip
     # resolves which tab; the projection that owns the tabs runs the drag from
-    # there, because only it knows where a tab may be dropped. A down on the close
-    # button is not a grab, and a down anywhere else routes to
+    # there, because only it knows where a tab may be dropped. A down or an up on
+    # the close button is the button's, and no grab; a down anywhere else routes to
     # the visible tab.
-    if evt isa MouseDown && evt.button === :left
+    if (evt isa MouseDown || evt isa MouseUp) && evt.button === :left
         w = iomap.input
-        if w isa WidgetTabbedPane && w.draggable === true
-            xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
-            if xx !== nothing
-                index, part = _find_tab_at_strip_point(_tab_strip_geometry(p, w, _get_box_geometry(iomap)), xx)
-                index > 0 && part === :tab && return DragTabOperation(w, index)
-            end
+        xx = w isa WidgetTabbedPane ? _tab_strip_coordinate(p, w, iomap, evt.x, evt.y) : nothing
+        if xx !== nothing
+            index, part = _find_tab_at_strip_point(_get_strip_geometry(p, w, iomap), xx, evt.y)
+            index > 0 && part === :close && return _read_close_button(p, iomap, index, evt)
+            evt isa MouseDown && w.draggable === true && index > 0 && return DragTabOperation(w, index)
         end
     end
     if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove
@@ -6122,7 +6203,7 @@ end
 # the page, as a click does. Neither opens, closes or selects a tab.
 function _read_tabbed_pane_outward(p::WidgetTabbedPaneToGraphicsCanvas,
                                    iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, gesture)
-    _find_tab_header_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
+    _find_tab_part_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
         return read_child_part_gesture(iomap, gesture)
     w = iomap.input
     w isa WidgetTabbedPane || return read_container_gesture(nothing, gesture, w)
@@ -6148,19 +6229,38 @@ function _get_tab_page_steps(widget::WidgetTabbedPane, idx::Int)
 end
 
 # A move of the pointer. The open page gets a move off it first when the
-# pane's own mouse target is in that page and the point is not. Then the part at
-# the point answers: a tab header is its `selector`, and the open page reads the
-# move itself.
+# pane's own mouse target is in that page and the point is not, and so does a
+# close button that the pointer leaves, so a press that was released off it ends.
+# Then the part at the point answers: a tab header is its `selector`, a close
+# button is its `close`, and the open page reads the move itself.
 function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
                                 child_iomaps::Vector, evt::MouseMove)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
+    answer = _read_tabbed_pane_move_answer(p, iomap, child_iomaps, evt)
+    left = _find_mouse_target_close(w, length(child_iomaps))
+    (left == 0 || _is_close_button_target(answer, left)) && return answer
+    join_move_answers(_read_close_button(p, iomap, left, evt), answer)
+end
+
+# Whether `answer` puts the mouse target on the close button of tab `index`.
+function _is_close_button_target(answer, index::Int)
+    answer isa ReplaceMouseTargetOperation || return false
+    place = _find_tab_page_place(strip_reference_types(get_operation_path(answer)))
+    place === nothing && return false
+    i, rest = place
+    i == index && rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "close"
+end
+
+function _read_tabbed_pane_move_answer(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
+                                       child_iomaps::Vector, evt::MouseMove)
+    w = iomap.input
     active = _active_tab_index(w, length(child_iomaps))
     entry = active == 0 ? nothing : child_iomaps[active]
     new_answer = nothing
     on_page = false
     if !_outside_widget(iomap, evt)
-        header = _find_tab_header_at(p, iomap, (x = evt.x, y = evt.y))
+        header = _find_tab_part_at(p, iomap, (x = evt.x, y = evt.y))
         if header !== nothing
             new_answer = ReplaceMouseTargetOperation(header)
         elseif entry !== nothing
@@ -6185,14 +6285,14 @@ function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::Widg
 end
 
 # The tab of the part that the pane's mouse target names, or 0, and whether that
-# part is the header of the tab, `selector_element_pairs[i].selector`.
+# part is the header of the tab: its `selector`, or its `close` button in it.
 function _find_mouse_target_tab(w::WidgetTabbedPane, n::Int)
     target = get_mouse_target(w)
     index = _tab_index_from_selection(target, n)
     index == 0 && return (0, false)
     rest = target.head isa FieldReferenceStep ? target.tail.tail : target.tail
     (index, rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
-            rest.head.name == "selector")
+            rest.head.name in ("selector", "close"))
 end
 
 # The tab whose page holds the part that the pane's mouse target names, or 0. A
@@ -14641,6 +14741,24 @@ ProjectionModule.read_child_by_route(::_PlacingWidgetProjection, recursion, chan
                                      iomap, child) =
     read_routed_entry_child(recursion, change, child;
                             entries = _get_route_entries(iomap.child_iomaps))
+
+# A tabbed pane places the content of each tab, and the close button of each tab
+# where the strip draws it.
+function ProjectionModule.read_child_by_route(p::WidgetTabbedPaneToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child)
+    entries = Any[_get_route_entries(iomap.child_iomaps)...]
+    w = iomap.input
+    if w isa WidgetTabbedPane
+        g = _get_strip_geometry(p, w, iomap)
+        scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+        for (tab, cim) in zip(g.tabs, getfield(iomap, :close_iomaps)[])
+            box = _get_tab_button_box(g, tab)
+            (cim === nothing || box === nothing) || push!(entries, (box[1] - scroll, box[2], cim))
+        end
+    end
+    read_routed_entry_child(recursion, change, child; entries)
+end
 
 function ProjectionModule.read_child_by_route(::WidgetDialogToGraphicsCanvas, recursion,
                                               change::Intent,

@@ -1493,12 +1493,23 @@ _get_tab_selector_text(selector) = string(selector)
 # selection sync (`replace_selection!`) reaches the leaf and leaves the routing
 # ancestors untouched, and a caret move inside a tab does not re-point the
 # pane's active tab.
+#
+# `close` is the close button of the tab, a toolbar button that the strip of a
+# `closable` pane draws at the right end of the header. The page carries it, so the
+# button stays with its tab when the tab moves.
 @document struct WidgetTabPage <: WidgetDocument
     selector::Any
     element::Any
     icon::Any = nothing
     tooltip::Any = nothing
+    close::Any = _make_tab_close_button()
 end
+
+# The close button of a tab: the icon alone, with no padding, so the tab is as
+# wide as its name and its icon need. It is no stop of Tab, because a key closes
+# the tab in another way.
+_make_tab_close_button() =
+    WidgetToolbarItem("Close"; icon = :close, padding = Inset(0, 0, 0, 0), focusable = false)
 
 # `WidgetTabPage(selector, element)` and `(selector, element, icon)` are Rule Y
 # constructors: `icon` and `selection` are the trailing defaulted run.
@@ -1527,9 +1538,11 @@ this is for tabs inside a widget.
     open_pane!(WidgetTabbedPane(Any[("Table", table), ("Note", note)]); title = "Results")
 
 Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` gives every tab a
-close button, and a middle click on a tab closes it too. The open tab always
-shows its close button. Another tab shows it only while the pointer is on that
-tab, and keeps its space while it is hidden, so no tab changes its width.
+close button, and a middle click on a tab closes it too. The close button is a
+[`WidgetToolbarItem`](@ref): flat at rest, and the surface of a button while the
+pointer is on it. The open tab always shows its close button. Another tab shows
+it only while the pointer is on that tab, and keeps its space while it is
+hidden, so no tab changes its width.
 `new_tab` draws a new-tab button after the last tab, and `draggable` makes
 a button down on a tab a grab. All three are off by default, and none of them
 decides what the gesture *means*: the strip answers with

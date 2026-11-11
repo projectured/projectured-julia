@@ -725,6 +725,12 @@ end
 
 _tab_names(group) = [get_pane_tab_title_string(tab) for tab in group.tabs]
 
+# `operation` without the moves of the selection in it.
+_without_selection_moves(operation::CompoundOperation) =
+    CompoundOperation(Any[_without_selection_moves(member) for member in operation.operations
+                          if !(member isa ReplaceSelectionOperation)])
+_without_selection_moves(operation) = operation
+
 # The operation of item `label` in the menu of tab `index` of the group of `f`.
 function _menu_operation(f, index, label)
     title = get_pane_tab_title_string(f.group.tabs[index])
@@ -734,13 +740,17 @@ end
 
 @testset "Close others and Close to the right close the tabs around the tab of the menu" begin
     # The focus is on a tab that closes, so it goes to the tab of the menu. One
-    # undo opens the tabs again, and gives the focus back.
+    # undo opens the tabs again, and gives the focus back. An undo runs the way
+    # back of the edits without the moves of the selection, and then puts back the
+    # selection from before the step.
     f = _close_fixture(["a", "b", "c", "d"], 4)
     tabs = collect(f.group.tabs)
+    before = copy_reference(get_selection(f.tree))
     inverse = evaluate_invertible_operation!(f.editor, _menu_operation(f, 2, "Close to the right"))
     @test _tab_names(f.group) == ["a", "b"]
     @test get_pane_focus(f.tree) == (f.group, 2)
-    evaluate_operation(f.editor, inverse)
+    evaluate_operation(f.editor, _without_selection_moves(inverse))
+    _apply!(f.editor, ReplaceSelectionOperation(before))
     @test all(f.group.tabs .=== tabs)
     @test get_pane_focus(f.tree) == (f.group, 4)
     f = _close_fixture(["a", "b", "c", "d"], 1)
@@ -817,6 +827,30 @@ end
     @test _right_click_menu(proj, driver, (x, bottom), "a") !== nothing
 end
 
+# The first strip of tabs that closes its tabs, in the IO maps that `node` holds:
+# a walk of the fields of each IO map, its cells and its lists.
+function _find_closable_strip(node, seen = Base.IdSet{Any}())
+    node = unwrap_cell(node)
+    (node === nothing || node in seen) && return nothing
+    if node isa IoMap
+        push!(seen, node)
+        input = unwrap_cell(get_iomap_input(node))
+        input isa WidgetTabbedPane && input.closable === true && return input
+        for name in fieldnames(typeof(node))
+            name in (:projection, :input) && continue
+            found = _find_closable_strip(getfield(node, name), seen)
+            found === nothing || return found
+        end
+    elseif node isa Union{AbstractVector, Tuple, CellVector}
+        push!(seen, node)
+        for element in node
+            found = _find_closable_strip(element, seen)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
 @testset "in an editor: the x under the pointer, Close in the menu, and a middle click" begin
     backend = HeadlessBackend()
     editor = build_editor(PrimitiveString("start"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
@@ -835,11 +869,32 @@ end
                 (entry[2] + 2, entry[3] + 2))
     close_glyph = string(Char(Dict(WidgetModule.LUCIDE_ICON_GLYPHS)[:close]))
     closes() = count(entry -> entry[1] == close_glyph, _nav_texts(backend))
+    # A point on the x that is furthest to the left.
+    leftmost_close() = (entry = first(sort([e for e in _nav_texts(backend) if e[1] == close_glyph]; by = e -> e[2]));
+                        (entry[2] + 2, entry[3] + 2))
     # The open tab shows its x; the first tab shows its x only under the pointer.
     @test closes() == 1
     (x, y) = header()
     _nav_press!(editor, backend, MouseMove(x, y; time = 0.0))
     @test closes() == 2
+    # The pointer on the x of the first tab, the x on the left: the x is the part
+    # under the pointer, its button holds the mouse target, and the x stays.
+    strip = _find_closable_strip(editor.iomap)
+    @test strip !== nothing
+    button = strip.selector_element_pairs[1].close
+    @test get_mouse_target(button) === nothing
+    (bx, by) = leftmost_close()
+    _nav_press!(editor, backend, MouseMove(bx, by; time = 0.0))
+    @test get_mouse_target(button) !== nothing
+    @test closes() == 2
+    @test PaneModule._find_pointed_tab_header(tree) == (group, 1)
+    # A right click on the x opens the menu of its tab.
+    answer = read_intent(editor.projection, nothing,
+                         Intent(MouseClick(:right, bx, by, 1, ModifierKeys(); time = 0.0)), editor.iomap).operation
+    opened = answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
+    @test opened isa OpenContextMenuOperation && any(layer[1] == title for layer in opened.layers)
+    _nav_press!(editor, backend, MouseMove(x, y; time = 0.0))
+    @test get_mouse_target(button) === nothing
     # The menu of the first tab, and its Close, as the menu window lifts it.
     answer = read_intent(editor.projection, nothing,
                          Intent(MouseClick(:right, x, y, 1, ModifierKeys(); time = 0.0)), editor.iomap).operation
@@ -856,6 +911,17 @@ end
     _nav_press!(editor, backend, MouseMove(x, y; time = 0.0), MouseClick(:middle, x, y, 1, ModifierKeys(); time = 0.0))
     frame!()
     @test length(group.tabs) == 1 && group.tabs[1] !== second_tab
+    # A left click on the x of a tab that is not open closes that tab.
+    third_tab = group.tabs[1]
+    open_tab!("fourth")
+    @test length(group.tabs) == 2 && group.tabs[1] === third_tab
+    title = get_pane_tab_title_string(third_tab)
+    (x, y) = header()
+    _nav_press!(editor, backend, MouseMove(x, y; time = 0.0))
+    (bx, by) = leftmost_close()
+    _nav_press!(editor, backend, MouseMove(bx, by; time = 0.0), MouseClick(:left, bx, by, 1, ModifierKeys(); time = 0.0))
+    frame!()
+    @test length(group.tabs) == 1 && group.tabs[1] !== third_tab
 end
 
 end # testset

@@ -1,5 +1,6 @@
 # The three things a tab strip reports beside a tab click: a close button, a
 # new-tab button, and the grab that may become a drag. Each is opt-in on the pane.
+# The close button is a toolbar button of the page of the tab.
 #
 # The tests never hardcode a pixel: they sweep the strip and assert on *which*
 # operations appear and in what order along the x axis. So they check the seam
@@ -108,9 +109,10 @@ end
     grab1 = _first_x(found, op -> op isa DragTabOperation && op.tab_index == 1)
     grab2 = _first_x(found, op -> op isa DragTabOperation && op.tab_index == 2)
     @test grab1 < grab2
-    presses = _sweep(proj, iomap, _press)
-    close1 = _first_x(presses, op -> op isa CloseTabOperation && op.tab_index == 1)
-    @test !any(x == close1 && op isa DragTabOperation for (x, op) in found)
+    on_button = [(x, y) for y in 0:2:40, x in 0:2:400
+                 if read_intent(proj, iomap, _press(x, y)) isa CloseTabOperation]
+    @test !isempty(on_button)
+    @test !any(read_intent(proj, iomap, _down(x, y)) isa DragTabOperation for (x, y) in on_button)
 end
 
 @testset "the reports are inert when nobody claims them" begin
@@ -132,21 +134,23 @@ function _sweep_points(proj, iomap, event_of)
     found
 end
 
-@testset "a press anywhere in the close column of a tab closes it" begin
+@testset "a press on the close button closes the tab, and a press above or below it opens the tab" begin
     pane = _pane(closable = true, draggable = true)
     proj = _proj()
     iomap = print_document(proj, pane)
     presses = _sweep_points(proj, iomap, _press)
-    column = Set(x for (x, _, op) in presses if op isa CloseTabOperation && op.tab_index == 1)
-    @test !isempty(column)
-    # Every press at an x of the column answers the close, at every height of the
-    # strip: the column holds one button.
-    @test all(op isa CloseTabOperation && op.tab_index == 1
-              for (x, _, op) in presses if x in column)
-    # A down on the close button is not a grab.
+    button = [(x, y) for (x, y, op) in presses if op isa CloseTabOperation && op.tab_index == 1]
+    @test !isempty(button)
+    # The presses that close the tab fill the box of the button.
+    xs, ys = first.(button), last.(button)
+    @test length(button) == (maximum(xs) - minimum(xs) + 1) * (maximum(ys) - minimum(ys) + 1)
+    # The strip is higher than the button, and a press above or below it opens the tab.
+    beside = [op for (x, y, op) in presses if x in xs && !(y in ys)]
+    @test !isempty(beside) && all(op -> _select_tab(op, 1), beside)
+    # A down on the close button is not a grab, and a down beside it is.
     downs = _sweep_points(proj, iomap, _down)
-    @test !any(x in column && op isa DragTabOperation for (x, _, op) in downs)
-    @test any(op -> op isa DragTabOperation && op.tab_index == 1, last.(downs))
+    @test !any((x, y) in button && op isa DragTabOperation for (x, y, op) in downs)
+    @test any(x in xs && !(y in ys) && op isa DragTabOperation && op.tab_index == 1 for (x, y, op) in downs)
 end
 
 # Every text of a printed strip, as (x, y, text, font), through its canvases and
@@ -246,6 +250,63 @@ _part_of(op) = op isa CloseTabOperation ? (:close, op.tab_index) :
     # The pointer off the window hides it again.
     _mtt_leave!(driver, 2.0)
     @test length(_drawn_closes(iomap)) == 1
+end
+
+# The IO map of the strip among the IO maps that `node` holds: a walk of the
+# fields of each IO map, its cells and its lists.
+function _find_strip_iomap(node, seen = Base.IdSet{Any}())
+    node = unwrap_cell(node)
+    (node === nothing || node in seen) && return nothing
+    node isa WidgetModule.WidgetTabbedPaneToGraphicsCanvasIoMap && return node
+    if node isa IoMap
+        push!(seen, node)
+        for name in fieldnames(typeof(node))
+            name in (:projection, :input) && continue
+            found = _find_strip_iomap(getfield(node, name), seen)
+            found === nothing || return found
+        end
+    elseif node isa Union{AbstractVector, Tuple, CellVector}
+        push!(seen, node)
+        for element in node
+            found = _find_strip_iomap(element, seen)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
+@testset "the close button is a toolbar button: a surface under the pointer, a darker one while held" begin
+    pane = _pane(closable = true)
+    proj = _proj()
+    driver = MttDriver(proj, pane)
+    iomap = driver.iomap
+    presses = _sweep_points(proj, iomap, _press)
+    bx, by = first((x, y) for (x, y, op) in presses if op isa CloseTabOperation && op.tab_index == 1)
+    tx, ty = first((x, y) for (x, y, op) in presses if _select_tab(op, 1))
+    button = pane.selector_element_pairs[1].close
+    @test button isa WidgetToolbarItem
+    cim = getfield(_find_strip_iomap(iomap), :close_iomaps)[][1]
+    hovered, held = cim.projection.layer_hovered_color, cim.projection.layer_pressed_color
+    layers() = [e.color for e in cim.output.elements
+                if e isa GraphicsRect && Int(e.w) > 0 && e.color in (hovered, held)]
+    # Flat at rest, and flat while the pointer is on the name of the tab.
+    @test isempty(layers())
+    _mtt_move!(driver, tx, ty, 1.0)
+    @test isempty(layers())
+    # The surface of a button while the pointer is on the button.
+    _mtt_move!(driver, bx, by, 2.0)
+    @test get_mouse_target(button) !== nothing
+    @test layers() == [hovered]
+    # A down on the button is the button's, and it holds the button down.
+    _mtt_apply!(driver, read_intent(proj, iomap, _down(bx, by)))
+    @test button.pressed === true
+    @test layers() == [held]
+    # A move off the button ends the press, and the surface goes.
+    _mtt_move!(driver, tx, ty, 3.0)
+    @test button.pressed === false
+    @test isempty(layers())
+    # The button says what it does.
+    @test string(button.action.label) == "Close"
 end
 
 _middle(x, y) = MouseClick(:middle, x, y, ModifierKeys(); time = 0.0)

@@ -4,8 +4,8 @@
 
 # The group and the index of the tab whose header the pointer is on, or `nothing`.
 # The header is the view of the title of the tab, so the mouse target of the tree
-# then goes into the title. A part of the page that its content does not claim
-# names the tab itself, and is no header.
+# then goes into the title, or to the close button in the header. A part of the
+# page that its content does not claim names the tab itself, and is no header.
 function _find_pointed_tab_header(tree::PaneTree)
     path = get_mouse_target(tree)
     path isa ConcreteReference || return nothing
@@ -13,7 +13,8 @@ function _find_pointed_tab_header(tree::PaneTree)
     node = tree
     for step in get_reference_steps(path)
         if node isa PaneTab
-            (step isa FieldReferenceStep && step.name == "title" && group !== nothing) || return nothing
+            ((step isa FieldReferenceStep && step.name == "title") || _is_close_button_step(step)) &&
+                group !== nothing || return nothing
             index = findfirst(tab -> tab === node, group.tabs)
             return index === nothing ? nothing : (group, index)
         end
