@@ -660,9 +660,27 @@ end
 @testset "Duplicate in the menu of a tab copies that tab" begin
     (; group, tree, editor, proj, driver) = _menu_fixture()
     menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
-    _apply!(editor, _menu_item(menu, "Duplicate").operation)
+    # The item holds the tab, and no copy of it.
+    duplicate = _menu_item(menu, "Duplicate").operation
+    @test duplicate isa PaneModule.DuplicatePaneTabOperation && duplicate.tab === group.tabs[2]
+    inverse = evaluate_invertible_operation!(editor, duplicate)
     @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["a", "b", "b (2)"]
     @test group.tabs[3].content !== group.tabs[2].content
+    @test get_pane_focus(tree) == (group, 3)
+    # An undo takes the copy away.
+    evaluate_operation(editor, inverse)
+    @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["a", "b"]
+    # The item finds its tab where a move put it, and does nothing once the tab
+    # closed.
+    menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
+    duplicate = _menu_item(menu, "Duplicate").operation
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 2, target = group, target_index = 1))
+    @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["b", "a"]
+    _apply!(editor, duplicate)
+    @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["b", "b (2)", "a"]
+    _apply!(editor, make_pane_close_tab_operation(tree, group, 1))
+    @test evaluate_invertible_operation!(editor, duplicate) isa DoNothingOperation
+    @test [get_pane_tab_title_string(tab) for tab in group.tabs] == ["b (2)", "a"]
 end
 
 @testset "Split right and Maximize group act on the group of the tab" begin
@@ -759,14 +777,27 @@ end
     @test get_pane_focus(tree) == (right, 1)
 end
 
-@testset "Duplicate is greyed for a content whose copy fails" begin
+@testset "Duplicate copies at the choice, so a copy that fails fails there" begin
+    # The copy of a text field with a validator fails. The right click makes no
+    # copy, so it logs nothing, and the choice logs the refusal and adds no tab.
     field = WidgetText("12"; validator = make_numeric_validator())
     group = PaneGroup(PaneTab[PaneTab("field", field)])
     tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
     proj = _chain()
     driver = MttDriver(proj, tree)
     point = _header_point(proj, driver.iomap, tree, group, 1)
-    menu = @test_logs (:warn, "The pane has no duplicate") match_mode = :any _right_click_menu(proj, driver, point, "field")
+    menu = @test_logs min_level = Base.CoreLogging.Warn _right_click_menu(proj, driver, point, "field")
+    @test _menu_item(menu, "Duplicate").enabled
+    @test_logs (:warn, "The pane has no duplicate") match_mode = :any _apply!(editor, _menu_item(menu, "Duplicate").operation)
+    @test length(group.tabs) == 1
+end
+
+@testset "Duplicate is greyed for a content of a kind with no duplicate" begin
+    group = PaneGroup(PaneTab[PaneTab("files", OpenFileList())])
+    tree = PaneTree(group)
+    @test !has_document_duplicate(group.tabs[1].content)
+    menu = PaneModule._make_tab_menu(tree, group, 1)
     @test !_menu_item(menu, "Duplicate").enabled
     @test _menu_item(menu, "Close").enabled
 end

@@ -24,6 +24,59 @@ function _find_pointed_tab_header(tree::PaneTree)
     nothing
 end
 
+"""
+    DuplicatePaneTabOperation(tree, group, tab)
+
+Put a duplicate of `tab` of `group` right after it, and focus it, when the
+operation runs. The copy of the content is made then, by
+[`make_pane_duplicate_tab_operation`](@ref), so an operation that is made and
+never runs, such as the item of a menu that a person does not choose, copies
+nothing. `tab` names the tab itself, so the operation finds the tab where it is
+when it runs. A tab that left `group`, and a content whose copy fails, give no
+duplicate, and the refusal of a copy is logged.
+
+The operation names the place of `tree`, so the readers carry it to the root of
+the editor as they carry an edit of the tree, and a history on the way records
+it. An undo takes the duplicate away again.
+"""
+struct DuplicatePaneTabOperation <: Operation
+    tree::PaneTree
+    group::PaneGroup
+    tab::PaneTab
+    place::Reference
+end
+
+DuplicatePaneTabOperation(tree::PaneTree, group::PaneGroup, tab::PaneTab) =
+    DuplicatePaneTabOperation(tree, group, tab, EmptyReference(PaneTree))
+
+OperationModule.operation_reference(operation::DuplicatePaneTabOperation) = operation.place
+OperationModule.retarget_operation(operation::DuplicatePaneTabOperation, reference::Reference) =
+    DuplicatePaneTabOperation(operation.tree, operation.group, operation.tab, reference)
+OperationModule.describe_operation(::DuplicatePaneTabOperation) = "Duplicate the tab"
+
+# The edit that puts the duplicate in the tree as the tree is now, with the paths
+# from the place of the tree, or `nothing`.
+function _make_placed_duplicate(operation::DuplicatePaneTabOperation)
+    index = findfirst(tab -> tab === operation.tab, operation.group.tabs)
+    index === nothing && return nothing
+    duplicate = make_pane_duplicate_tab_operation(operation.tree, operation.group, index)
+    duplicate === nothing && return nothing
+    reroot_operation(duplicate, Tuple(get_reference_steps(strip_reference_types(operation.place))))
+end
+
+function OperationModule.evaluate_operation(editor, operation::DuplicatePaneTabOperation)
+    duplicate = _make_placed_duplicate(operation)
+    duplicate === nothing || evaluate_operation(editor, duplicate)
+    nothing
+end
+
+# The way back is the way back of the edit that the operation makes when it runs.
+# An operation that makes no edit changes no document.
+function OperationModule.evaluate_invertible_operation!(editor, operation::DuplicatePaneTabOperation)
+    duplicate = _make_placed_duplicate(operation)
+    duplicate === nothing ? DoNothingOperation() : evaluate_invertible_operation!(editor, duplicate)
+end
+
 # The menu of tab `index` of `group`. Each item acts on that tab, also when another
 # tab has the focus, and shows the keys of the table of the tree that do the same
 # to the focused tab. An item that can not act now is greyed.
@@ -32,8 +85,10 @@ function _make_tab_menu(tree::PaneTree, group::PaneGroup, index::Integer)
     item(label, operation, command = nothing) =
         WidgetMenuItem(label; operation, enabled = operation !== nothing,
                        keys = command === nothing ? GesturePattern[] : find_bound_keys(PaneTree, command))
-    duplicate = has_document_duplicate(tab.content) ?
-                make_pane_duplicate_tab_operation(tree, group, index) : nothing
+    # The copy waits for the choice of the item. A content of a kind with a
+    # duplicate whose tree holds something that a copy can not own shows the item,
+    # and its choice logs the refusal, as the key does.
+    duplicate = has_document_duplicate(tab.content) ? DuplicatePaneTabOperation(tree, group, tab) : nothing
     maximized = find_pane_maximized_group(tree) !== nothing
     # A window of one group has nothing to maximize, also when a split holds it.
     maximize = maximized ? make_pane_restore_operation(tree) :
