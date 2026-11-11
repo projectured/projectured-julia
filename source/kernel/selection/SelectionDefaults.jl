@@ -13,8 +13,11 @@ has_dormant_selection(::Any) = false
 # they are abandoning is exactly what a dormant node still holds.
 _get_stored_path(value) = value
 _get_stored_path(value::SelectionDocument) = value.primary
-is_live_selection(document) = _is_live_value(hasfield(typeof(document), :selection) ?
-                                            getfield(document, :selection)[] : nothing)
+# A document of the cell layout holds its selection in a cell, and a document of the
+# native layout holds it as a plain value.
+_get_selection_value(document) =
+    hasfield(typeof(document), :selection) ? unwrap_cell(getfield(document, :selection)) : nothing
+is_live_selection(document) = _is_live_value(_get_selection_value(document))
 _is_live_value(value) = true
 _is_live_value(value::SelectionDocument) = value.live
 
@@ -35,9 +38,7 @@ function map_selection_forward(source, map; map_missing::Bool = false)
     is_live_selection(source) ? image : SelectionDocument(; primary = image, live = false)
 end
 
-get_stored_selection(document) =
-    hasfield(typeof(document), :selection) ?
-        _get_stored_path(getfield(document, :selection)[]) : nothing
+get_stored_selection(document) = _get_stored_path(_get_selection_value(document))
 
 function clear_selection!(document)
     hasfield(typeof(document), :selection) || return
