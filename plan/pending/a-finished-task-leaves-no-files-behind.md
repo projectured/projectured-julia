@@ -1,6 +1,7 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11, not started · **Covers:** the agent
+> **Kind:** maintenance · **Status:** a plan, 2026-11-11; step 1 done on the branch
+> `no-files-behind` of projectured-julia and omnet-team · **Covers:** the agent
 > rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory notes;
 > `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; julia-reactive-compiler;
 > projectured-julia · **Not in this plan:** opp_repl, which another agent changes.
@@ -11,8 +12,8 @@ most, so that the files go away without a person. It does not cover every source
 
 ## 1. The goal
 
-1. When a plan is done, its worktree, its private depot and its merged branch go away in the same
-   step.
+1. When the work of a plan lands on `main`, its worktree, its private depot and its merged branch
+   go away in the same step.
 2. A copy of a project for a repro run, and a task folder in `/var/tmp`, go away at the end of the
    task. If a task keeps one, its final report names the folder and the reason.
 3. `bounded-run` removes old job folders by itself.
@@ -62,16 +63,33 @@ These are my proposals. They are approved with the plan.
 Each step names its repository. A step in a folder that has no git repository gets no commit.
 Instead, its change is recorded here.
 
-1. [ ] **The rules for the end of a task** (no git: `~/.claude/CLAUDE.md`, memory; git: omnet-team).
-   - In `~/.claude/CLAUDE.md`, after "Move the plan to `plan/done/`", add this rule: in the same
-     step, remove the worktree, its depot (D1) and its branch if it is merged. Add the report rule
-     of D2.
-   - Add one rule for task folders: at the end of a task, delete the `/var/tmp` folder that the task
-     made, or name the folder and the reason in the final report.
-   - Make the same change in `omnet-team/workflow.md` §4 and §6.
-   - In the memory note of the depot, use the D1 name. In the repro note, copy without `results/`,
-     `tests/*/work`, `out/` and `.git/worktrees`, and delete the copy at the end of the task.
-   - Check: read the changed lines once more against D1 and D2.
+1. [x] **The rules for the end of a task** (no git: `~/.claude/CLAUDE.md`, memory; git: omnet-team).
+   **Done 2026-11-11.**
+   - `~/.claude/CLAUDE.md`, section "Plans": when the work lands on `main`, remove in the same step
+     its worktree, its depot (D1) and its merged branch. The final report lists each worktree that
+     has no commit for 7 days, and does not remove it (D2). A new section "Files a task makes":
+     at the end of a task, delete each folder that it made in `/var/tmp` and each copy of a
+     project, or name it and the reason in the final report.
+   - omnet-team `workflow.md` §4 names the depot (D1) and adds the same rule for task files and
+     the report of D2. §6 step 3 removes the depot with the worktree and the branch. Commit
+     `571e4f6` on the branch `no-files-behind` of omnet-team.
+   - Memory: `worktrees-share-compile-cache-use-private-depot.md` uses the D1 name and its
+     reason. `repro-never-runs-tasks-in-real-project.md` puts a large copy in
+     `/var/tmp/<task>-<project>` and gives the copy command below. The wrong note
+     `var-tmp-holds-main-repo-of-tsnspec.md` is replaced by `copied-repo-shows-original-worktrees.md`.
+   - Check: the changed lines agree with D1 and D2. The `rsync` patterns were tested on a small
+     tree in the scratchpad: the copy had no `results/`, no `tests/*/work` and no
+     `.git/worktrees`, and kept `src/work/`.
+
+   Found in the work:
+   - **The removal follows the landing, not the move of the plan to `plan/done/`.** A plan moves to
+     `plan/done/` on its branch, before the human lands it. A removal at that time would take the
+     worktree away from the fixes that the human can still ask for. omnet-team §6 already removes
+     the worktree at the landing.
+   - **The copy keeps `out/`.** The copy then runs the build of the original and needs no new
+     build. `inet-cpp/src/libINET_dbg.so` (0.9 GB) is a hard link to the file in `out/`, so the
+     command is `rsync -aH --exclude=results/ --exclude='/tests/*/work/' --exclude=/.git/worktrees/`.
+     A copy without `-H` would hold the library twice.
 2. [ ] **`bounded-run` removes old jobs** (no git: `workspace/bin/bounded-run`).
    - At the start of `command_start`, call the code of `command_clean` with `older` set to 7 days (D3).
    - In `bounded-run-tool.md`, write that `start` does this.
