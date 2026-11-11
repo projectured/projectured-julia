@@ -291,6 +291,10 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   a caret there, and Ctrl+Return opened no row. Rejected (B of Q4): the caret goes
   into the text of a header too, and a click on its padding selects the line;
   then the selection of a row or a column needs a click on a small place.
+- **D8 (owner, 2026-11-11). The Alt+click on the half of a quote waits.** The
+  owner answered the question of the quote cause of step 6: "Not important for
+  now, should be done eventually, but defer this". The change that names the
+  character under the pointer goes to §7.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -1140,8 +1144,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     mark of the selection, not that the mark holds the point
     (`_pc_is_blank_text`).
   - **The inner half of a quote gives the value** (152 points, and the quotes of
-    JSON and of the other syntax views). Not fixed: it needs a change in four
-    slices, which waits for the owner. A plain click puts the caret at the edge
+    JSON and of the other syntax views). Deferred by the owner (D8), in §7: it
+    needs a change in four slices. A plain click puts the caret at the edge
     nearest the point, which is right. The Alt+click and the move take their
     part from that caret, and a caret on the edge of two parts belongs to one
     of them by the backward map of the syntax text, which takes the left part
@@ -1218,3 +1222,11 @@ are done too.
   selection; the fix needs a sealed kernel file (`pane.md:290`).
 - An edge of a graph is a decoration by design (`graph.md:88`); the test
   reports it, and the owner decides.
+- The Alt+click and the move on the half of a character beside the edge of a
+  part, such as the inner half of a quote, name the part of the caret and not
+  the character under the pointer (D8: deferred, to be done eventually). The
+  work, which step 6 found: the text view answers the range of the character
+  under the point; the syntax text maps a range in a delimiter of a leaf or a
+  node of its own back to that field; `find_whole_part` reads a range of one
+  character of a text in the output path of a view as a place; the click test
+  reads such a range as a place.
