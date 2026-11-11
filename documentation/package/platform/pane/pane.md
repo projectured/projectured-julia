@@ -38,6 +38,7 @@ A new tab takes the focus when its opener asks for it with `focus = true`, as a 
 | `make_pane_open_tab_operation` | `make_insert_elements_operation` and, with `focus`, the focus move; without it, the moves of the selections that the insert passes |
 | `make_pane_duplicate_tab_operation` | the open of the duplicate, after the original |
 | `make_pane_close_tab_operation` | `make_delete_elements_operation`, or a collapse write, and the focus move; then `ReleaseDocumentOperation` of the document of the tab |
+| `make_pane_close_other_tabs_operation`, `make_pane_close_tabs_to_the_right_operation` | `make_delete_elements_operation` of the run after the tab, then of the run before it, and the focus move or the write of the shown tab; then `ReleaseDocumentOperation` of each closed tab |
 | `make_pane_split_operation` | `ReplaceReferencedValueOperation` of a new `PaneSplit` at the slot of the group |
 | `make_pane_move_tab_operation` | `MoveRangeOperation` and the focus move |
 | `make_pane_drop_split_operation` | the split write, the move, and the focus move |
@@ -115,9 +116,17 @@ The command "Add the tab to the explorer" is a rule with no key. It adds the doc
 
 Every chord has a modifier, because a plain key belongs to the content of the focused tab. Plain Alt and an arrow walk the structure of a document, so the moves between groups take Ctrl+Alt. Ctrl+Tab is an `override`, because the widget split pane answers every Tab with its own focus traversal.
 
-With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and so does a middle click on the tab. The open tab of each group always shows its `x`, and another tab shows it only while the pointer is on the tab. The button after the last tab opens a tab.
+With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and so does a middle click on the tab. The open tab of each group always shows its `x`, and another tab shows it only while the pointer is on the tab. The `x` is a toolbar button: it shows the surface of a button while the pointer is on it, and a press beside it in the tab opens the tab. The button after the last tab opens a tab.
 
-**The menu of a tab.** A right click on the header of a tab opens its menu: Duplicate, Rename, Split right, Split down, Maximize group (Restore layout while a group is maximized), Add to explorer and Close. Each item acts on the tab under the pointer, also when another tab has the focus, and the right click does not focus the tab. Each item shows the keys that do the same to the focused tab, which it reads from the table of the tree with `find_bound_keys`. An item that can not act is greyed: Duplicate when the content has no duplicate or its copy fails, and Maximize group when the window has one group. The rule is in the table of `PaneTree` (`PaneTabMenu.jl`), because Close and Split need the group of the tab and the focus of the tree. It applies only when the mouse target of the tree goes into the title of a tab, so a right click in the page opens the menu of the content, and not this menu. The items make their operations when the menu opens, so Duplicate makes its copy then. A drag of a divider writes the weights of that split, at any depth. A drag of a tab onto a strip or a middle moves it, and onto an edge band splits the group.
+**The `x` in the tree.** The `x` is the `close` field of the tab page in the strip, and it has no place in the group. So the backward map of the group gives a path to it as `tabs[i]` and a `ProjectionReferenceStep` of the group projection whose output path is `close`, and the forward map gives that path back. The routing of the mouse target of a group keeps such a path whole, as it keeps a path into a title. The strip is the output of the group projection, so `_make_tab_page` wires the paths of each button from the paths of the strip with `set_output_path_computations!`: the button reads its own mouse target to show its surface.
+
+**The menu of a tab.** A right click on the header of a tab opens its menu: Duplicate, Rename, Split right, Split down, Maximize group (Restore layout while a group is maximized), Add to explorer, Close, Close others and Close to the right. Each item acts on the tab under the pointer, also when another tab has the focus, and the right click does not focus the tab. Each item shows the keys that do the same to the focused tab, which it reads from the table of the tree with `find_bound_keys`; Close others and Close to the right have no keys. An item that can not act is greyed: Duplicate when the kind of the content has no duplicate, Maximize group when the window has one group, Close others when the group has one tab, and Close to the right on the last tab of a group. The rule is in the table of `PaneTree` (`PaneTabMenu.jl`), because Close and Split need the group of the tab and the focus of the tree. It applies only when the mouse target of the tree goes into the title of a tab or to its `x`, so a right click in the page opens the menu of the content, and not this menu.
+
+The items make their operations when the menu opens, except Duplicate. Its item holds a `DuplicatePaneTabOperation`, which names the tab itself and the place of the tree, so the readers carry it to the root. When it runs, it finds the tab where it is, makes the copy with `make_pane_duplicate_tab_operation`, and gives the undo the way back of that edit. A tab that closed while the menu was open gives no copy, and a copy that fails logs the reason, as Ctrl+Shift+D does.
+
+Close others and Close to the right close their tabs in one step, which one undo takes back. The focus moves to the tab of the menu only when a closed tab has the focus, and a group with no focus that showed a closed tab then shows the tab of the menu.
+
+A drag of a divider writes the weights of that split, at any depth. A drag of a tab onto a strip or a middle moves it, and onto an edge band splits the group.
 
 ### Maximize a group
 
@@ -161,7 +170,7 @@ A duplicate of a tab is a second pane that the person controls alone. `make_docu
 2. The duplicate shares what the pane reads: the project, the result files, the model backend.
 3. The duplicate does not copy a process. A run or a stream stays with the original, and the duplicate starts idle.
 
-A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its name gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". It keeps the icon that the title shows, and it has no badges and no tooltip, because those say what the original content does. [document.md](../../kernel/document.md#the-duplicate) describes the copy.
+The menu of a tab whose content has no duplicate greys Duplicate, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its name gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". It keeps the icon that the title shows, and it has no badges and no tooltip, because those say what the original content does. [document.md](../../kernel/document.md#the-duplicate) describes the copy.
 
 A duplicate is not a mirror. Each node stores its own `selection`, so two panes that hold one document share one caret.
 
