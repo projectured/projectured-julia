@@ -1,8 +1,8 @@
 # The x of a tab is a button, and its menu closes others and copies on choice
 
 **Status (2026-11-11): approved, in work.** The owner asked for this plan on 2026-11-11 and approved it on 2026-11-11.
-The decisions D1 to D9 are proposals of the assistant. The owner approves them
-with the plan. No question is open.
+The decisions D1 to D9 are proposals of the assistant, approved with the plan.
+No question is open.
 
 **Goal:** three changes to a tab of a group in the window:
 
