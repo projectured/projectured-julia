@@ -880,6 +880,40 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     - **Found:** the note of a tooltip threw a `FieldError` (`second`) on a
       fact that is a condition of a decoration, since the D6 wiring of
       212901ac9 (efda41c32).
+    - ~~The fact.~~ `WidgetFactGroupToGraphicsCanvas` records the line of a
+      title that is a `String` (`.title`), the line of each label that is a
+      `String` (`facts[i].label`), and each line of a value that is a `String`
+      (`facts[i].value`), in its IO map (`drawn`). A plain single click on such
+      a text puts the caret there, and a move names that caret. A value that is
+      no `String`, such as a number, records no line, as for the label. A
+      double click, and a plain click on the rest of a row, go on to the widget
+      around the group, as before: the rest of a row chooses the row as today
+      (D4). The label of a fact takes the caret as any text: a fact is a row of
+      data, and its label is a field of the fact, so D7, which is for the
+      header of a table, does not apply (my reading).
+    - **An Alt+click on a drawn text selects its field** (P8: the value in the
+      leaf is the innermost part). The label and the fact group answer the
+      caret on an Alt+click too, as the card does, and the container makes the
+      field as a whole (`convert_to_whole_selection`). Before, the label
+      answered nothing, and the click walk showed that an Alt+click on the text
+      of a label selected nothing. An Alt+click on the rest of a row of facts
+      selects the fact. `WidgetSelectionTest` now expects the text of a label
+      for an Alt+click on it, as it already expected the text of a text box;
+      the label as a whole, which a path names, keeps the ring of its
+      container.
+    - Click walk on the app variant: `widget/fact_group` 20 failures before,
+      0 after; `widget/label` 2 before, 0 after; `widget/card` 3 before, 2
+      after (the two texts in the content of the card, which another widget
+      draws, wait for step 6).
+    - **A band marks a drawn text selected as a whole.**
+      `make_drawn_selection_elements(elements, drawn, selection, measure,
+      band_color)` takes the place of `make_drawn_caret_elements`: it puts a
+      band in the colour of a selected part behind each line of the part that
+      the selection names as a whole, before the first element that holds a
+      line, and the caret on top. The label, the card and the fact group use
+      it, so the separate band of the card title (`_make_title_band`) goes, and
+      the description of a card has its band too. The node of a row of facts
+      draws the same band while its fact is selected as a whole.
   - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
     output that its projection drew, and evaluates to the drawn part.
     `OutputReferenceStep` goes, and its users make the introduced step. Each

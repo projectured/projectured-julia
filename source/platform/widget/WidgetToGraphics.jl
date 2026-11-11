@@ -451,10 +451,10 @@ end
     drawn::Any            # the lines of the title and the description (`DrawnTextLine`)
 end
 
-# The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, and
-# for each fact the transparent node that covers its row and the `(top, bottom)`
-# of the row in the frame of the group. The printer derives both in the build
-# that draws the rows. PAR-STABLE-IOMAP-IDENTITY.
+# The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, for
+# each fact the node that covers its row and the `(top, bottom)` of the row in the
+# frame of the group, and the lines of its texts. The printer derives them in the
+# build that draws the rows. PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetFactGroupToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -463,6 +463,7 @@ end
     row_nodes::Any
     row_bounds::Any
     box::Any
+    drawn::Any            # the lines of the title, the labels and the values (`DrawnTextLine`)
 end
 
 # The IO map of a tabbed pane: the fields of a `WidgetChildrenIoMap`, one entry
@@ -548,16 +549,18 @@ _is_under_pointer(w) = get_mouse_target(w) !== nothing
     content_color::StyleColor
     label_text::StyleText
     placeholder_color::StyleColor          # an image that is not decoded yet
+    selected_color::StyleColor             # the band of the text selected as a whole
 end
 
-WidgetLabelToGraphicsCanvas(theme; measure,
+WidgetLabelToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default, border = inset_default, padding = inset_default,
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = color_transparent, content_color = color_transparent,
                             label_text = _themed(StyleText, theme, _get_body_text),
-                            placeholder_color = _themed(StyleColor, theme, t -> t.muted)) =
+                            placeholder_color = _themed(StyleColor, theme, t -> t.muted),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetLabelToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                padding_color, content_color, label_text, placeholder_color)
+                                padding_color, content_color, label_text, placeholder_color, selected_color)
 
 @projection UntrackedCell struct WidgetTextToGraphicsCanvas
     measure::TextMeasure
@@ -1908,13 +1911,14 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     build = Cell(Computation(() -> _build_label(p, w, geometry[], ctx)))
     x, y = _origin(position)
-    # The caret in the text, which a plain click puts there.
+    # The caret in the text, which a plain click puts there, and the band of the text
+    # selected as a whole, which an Alt+click selects.
     canvas = GraphicsCanvas(Int32(x), Int32(y),
                             Cell(@computation Int32(build[].width)),
                             Cell(@computation Int32(build[].height)),
-                            CellVector(@computation vcat(build[].elements,
-                                                         make_drawn_caret_elements(build[].drawn, w.selection,
-                                                                                   p.measure))),
+                            CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
+                                                                                  w.selection, p.measure,
+                                                                                  p.selected_color)),
                             layout_none, true, Cell(nothing))
     WidgetBoxIoMap(p, w, canvas, geometry, Cell(@computation build[].drawn))
 end
@@ -2048,19 +2052,22 @@ end
 
 # A label takes the gestures that it is given, such as a press on a chip. Else a
 # plain single click on its text puts the caret at the character under the pointer,
-# and a move names that caret as the part under the pointer. A double click is left
-# to the widget around the label, such as the row that it opens.
+# an Alt+click answers that caret too, which the container makes the text as a
+# whole (`convert_to_whole_selection`), and a move names that caret as the part
+# under the pointer. A double click is left to the widget around the label, such as
+# the row that it opens.
 function read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
     bound = read_bound_gesture(w, evt)
     bound === nothing || return bound
-    plain = evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
-    (plain || evt isa MouseMove) || return nothing
+    press = evt isa MouseClick && evt.count == 1 &&
+            (evt.button === :left && evt.modifiers == ModifierKeys() || is_whole_selection_press(evt))
+    (press || evt isa MouseMove) || return nothing
     caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
     caret === nothing && return nothing
-    plain ? ReplaceSelectionOperation(caret) : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
+    press ? ReplaceSelectionOperation(caret) : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
@@ -8852,7 +8859,7 @@ end
     row_padding_color::StyleColor
     row_content_color::StyleColor
     row_hovered_color::StyleColor      # the band of a :row card under the pointer
-    row_selected_color::StyleColor     # the band of a :row card that holds the selection
+    row_selected_color::StyleColor     # the band of a :row card that holds the selection, and of a text selected as a whole
     chevron_color::StyleColor          # the fold mark of a collapsible card
     graphics_style::NamedTuple         # the ring over the slot selected as a whole
     corner_radius::Int
@@ -8989,13 +8996,11 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
             y += p.title_gap
         end
     elseif w.title !== nothing
-        band_index = length(header_elements) + 1
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
                                                       string(w.title), padding, y, text_bound;
                                                       part = _card_title_reference(),
                                                       drawn = w.title isa AbstractString ? drawn : nothing)
         title_box = (padding, y, title_width, title_height)
-        insert!(header_elements, band_index, _make_title_band(p, w, title_box))
         header_h = title_height
         max_content_width = max(max_content_width, title_width); y += title_height + p.title_gap
     end
@@ -9107,18 +9112,6 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
      header = (height = header_h, title_box = title_box), drawn = drawn)
 end
 
-# The band of a title that is a `String` while the selection names the title
-# of the card as a part, `title`, over the box of the title; no colour else. The
-# colour is a cell of its own, so a move of the selection builds no card.
-function _make_title_band(p, w::WidgetCard, title_box)
-    x, y, width, height = title_box
-    band = GraphicsRect(x, y, width, height; color = color_transparent, radius = p.corner_radius)
-    selected = p.row_selected_color
-    set_cell_computation!(getfield(band, :color), () ->
-        is_whole_selected_field(w.selection, "title"; document = w) ? selected : color_transparent)
-    band
-end
-
 # The reference of the title of a card as a part: the field `title`.
 _card_title_reference() = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
 
@@ -9209,9 +9202,11 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(@computation Int32(build[].w)),
                            Cell(@computation Int32(build[].h)),
-                           CellVector(@computation vcat(build[].elements, Any[ring],
-                                                        make_drawn_caret_elements(build[].drawn, w.selection,
-                                                                                  p.measure))),
+                           CellVector(@computation vcat(make_drawn_selection_elements(build[].elements,
+                                                                                      build[].drawn, w.selection,
+                                                                                      p.measure,
+                                                                                      p.row_selected_color),
+                                                        Any[ring])),
                            layout_none, true, Cell(nothing))
     WidgetCardToGraphicsCanvasIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry,
                                     Cell(@computation build[].header), Cell(@computation build[].drawn))
@@ -12087,9 +12082,10 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     title_gap::Int                # gap between the title and the first row
     column_gap::Int               # gap between the label column and the value column
     row_gap::Int
+    selected_color::StyleColor    # the band of a text selected as a whole
 end
 
-WidgetFactGroupToGraphicsCanvas(theme; measure,
+WidgetFactGroupToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
@@ -12098,10 +12094,11 @@ WidgetFactGroupToGraphicsCanvas(theme; measure,
                                 value_text = _themed(StyleText, theme, _get_body_text),
                                 title_gap = _themed(Int, theme, t -> t.title_gap),
                                 column_gap = _themed(Int, theme, t -> t.form_column_gap),
-                                row_gap = _themed(Int, theme, t -> t.form_row_gap)) =
+                                row_gap = _themed(Int, theme, t -> t.form_row_gap),
+                                selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetFactGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, title_text, label_text, value_text,
-                                    title_gap, column_gap, row_gap)
+                                    title_gap, column_gap, row_gap, selected_color)
 
 # The fact `value` drawn as a string; a document is drawn through the recursion.
 _format_fact_value(value) = value === nothing ? "" : string(value)
@@ -12139,12 +12136,14 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
         elements = Any[]
         child_iomaps = Any[]
         row_bounds = Tuple{Int, Int}[]
+        drawn = DrawnTextLine[]
         content_width = 0
         y = content_y
         if w.title !== nothing
             title_string = string(w.title)
             title_width, title_height = _text_size(p.measure, title.font, title_string)
             _push_text!(elements, p.measure, title.font, title_string, content_x, y, title.color)
+            w.title isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _FACT_GROUP_TITLE, 0))
             content_width = title_width; y += title_height + p.title_gap
         end
         value_width = 0
@@ -12155,10 +12154,14 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
             label_string = string(fact.label)
             _, label_height = _text_size(p.measure, label.font, label_string)
             _push_text!(elements, p.measure, label.font, label_string, content_x, y, label.color)
+            fact.label isa AbstractString &&
+                push!(drawn, DrawnTextLine(last(elements), _make_fact_part(i, "label"), 0))
             row_height = label_height
             if documents[i] === nothing
                 text_width, text_height = _push_text_block!(elements, p.measure, value,
-                                                            _format_fact_value(fact.value), value_x, y, bound)
+                                                            _format_fact_value(fact.value), value_x, y, bound;
+                                                            part = _make_fact_part(i, "value"),
+                                                            drawn = fact.value isa AbstractString ? drawn : nothing)
                 value_width = max(value_width, text_width); row_height = max(row_height, text_height)
             else
                 canvas = documents[i].output
@@ -12174,25 +12177,62 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
         group_height = _resolve_height(ctx, 0, y + _get_sides_outside(box, :content)[4])
         surface = Any[]
         _push_box_parts!(surface, box, colors, group_width - inset_width, group_height - inset_height)
-        row_nodes = Any[GraphicsRect(content_x, top, group_width - inset_width, bottom - top;
-                                     color = color_transparent, radius = 0)
-                        for (top, bottom) in row_bounds]
+        row_nodes = Any[_make_fact_row_node(p, w, i, content_x, top, group_width - inset_width, bottom - top)
+                        for (i, (top, bottom)) in enumerate(row_bounds)]
         append!(surface, row_nodes)
         append!(surface, elements)
         (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps,
-         row_nodes = row_nodes, row_bounds = row_bounds)
+         row_nodes = row_nodes, row_bounds = row_bounds, drawn = drawn)
     end)
-    WidgetFactGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+    x, y = _origin(position)
+    # The caret in a text of the group, which a plain click puts there, and the band
+    # of a text selected as a whole, which an Alt+click selects.
+    canvas = GraphicsCanvas(Int32(x), Int32(y),
+                            Cell(@computation Int32(build[].width)),
+                            Cell(@computation Int32(build[].height)),
+                            CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
+                                                                                  w.selection, p.measure,
+                                                                                  p.selected_color)),
+                            layout_none, true, Cell(nothing))
+    WidgetFactGroupToGraphicsCanvasIoMap(p, w, canvas,
                                          Cell(@computation build[].child_iomaps),
                                          Cell(@computation build[].row_nodes),
-                                         Cell(@computation build[].row_bounds), geometry)
+                                         Cell(@computation build[].row_bounds), geometry,
+                                         Cell(@computation build[].drawn))
 end
 
-# `facts[i]` is the node that covers the row of fact `i`; a part inside the value
-# of a fact is found through the child that draws it.
+const _FACT_GROUP_TITLE = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+
+# The path of the fact `i`, `facts[i]`.
+_make_fact_reference(i::Int) =
+    ConcreteReference(FieldReferenceStep("facts"), ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+
+# The path of the field `name`, `label` or `value`, of the fact `i`: `facts[i].name`.
+_make_fact_part(i::Int, name::AbstractString) =
+    concat_references(_make_fact_reference(i), ConcreteReference(FieldReferenceStep(name), EmptyReference()))
+
+# The node that covers the row of the fact `i`: the band of a selected part while the
+# selection names the fact as a whole, and no colour else. The colour is a cell of
+# its own, so a move of the selection builds no group.
+function _make_fact_row_node(p::WidgetFactGroupToGraphicsCanvas, w::WidgetFactGroup, i::Int, x, y, width, height)
+    node = GraphicsRect(x, y, width, height; color = color_transparent, radius = 0)
+    fact = _make_fact_reference(i)
+    selected = p.selected_color
+    set_cell_computation!(getfield(node, :color), () -> begin
+        selection = w.selection
+        selection isa Reference && strip_reference_types(selection) == fact ? selected : color_transparent
+    end)
+    node
+end
+
+# `facts[i]` is the node that covers the row of fact `i`; a caret or a range in a
+# text of the group is drawn on its line; a part inside the value of a fact is
+# found through the child that draws it.
 function map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetFactGroupToGraphicsCanvasIoMap,
                                reference)
     reference isa Reference || return nothing
+    place = map_drawn_caret_forward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
     stripped = strip_reference_types(reference)
     if stripped isa ConcreteReference && stripped.head isa FieldReferenceStep && stripped.head.name == "facts"
         rest = stripped.tail
@@ -12207,27 +12247,42 @@ function map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetF
 end
 map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
-# A point on the value of a fact that is a document maps into the document; any
-# other point of a row maps to the fact, `facts[i]`.
-function map_reference_backward(::WidgetFactGroupToGraphicsCanvas, iomap, reference)
+# A place of characters of a text of the group is the caret or the range in its
+# field. A point on the value of a fact that is a document maps into the document,
+# a point on a text is the caret there, and any other point of a row maps to the
+# fact, `facts[i]`.
+function map_reference_backward(p::WidgetFactGroupToGraphicsCanvas, iomap, reference)
+    iomap isa WidgetFactGroupToGraphicsCanvasIoMap || return nothing
+    place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa WidgetFactGroupToGraphicsCanvasIoMap)) && return nothing
+    point === nothing && return nothing
     _is_point_on_canvas(iomap.output, point) || return nothing
     inside = _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
     inside === nothing || return inside
-    fact = _find_row_index(unwrap_cell(iomap.row_bounds), point.y)
-    fact === nothing && return nothing
-    annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("facts"),
-                                          ConcreteReference(RangeReferenceStep(fact - 1, fact))))
+    caret = find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+    caret === nothing || return annotate_reference_types(iomap.input, caret)
+    fact = _find_fact_group_row(iomap, point.y)
+    fact === nothing ? nothing : annotate_reference_types(iomap.input, fact)
 end
 
 # A press, a dwell, a turn of the wheel and a move go to the value under the pointer,
 # and the answer is rooted at `facts[i].value`. A dwell and a right click then
-# read the stretch of the group (`_read_children_outward`).
-function read_intent(::WidgetFactGroupToGraphicsCanvas,
+# read the stretch of the group (`_read_children_outward`). Else a plain single
+# click on a text of the group, the title, a label or a value that is a string,
+# puts the caret at the character under the pointer, and a move names that caret.
+# An Alt+click answers that caret too, which the container makes the text as a
+# whole, and an Alt+click on the rest of a row selects its fact. A double click,
+# and a plain click on the rest of a row, are left to the widget around the group.
+function read_intent(p::WidgetFactGroupToGraphicsCanvas,
                      iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, evt)
-    evt isa MouseMove && return _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
-                                                    !_outside_widget(iomap, evt))
+    if evt isa MouseMove
+        answer = _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
+                                     !_outside_widget(iomap, evt))
+        caret = _outside_widget(iomap, evt) ? nothing : _find_fact_group_caret(p, iomap, evt)
+        caret === nothing && return answer
+        return join_move_answers(answer, ReplaceMouseTargetOperation(annotate_reference_types(iomap.input, caret)))
+    end
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
     is_outward_gesture(evt) && return _read_children_outward(iomap.input, entries, evt)
@@ -12238,10 +12293,31 @@ function read_intent(::WidgetFactGroupToGraphicsCanvas,
                  evt isa MouseScroll ? (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y) : nothing
     make_event === nothing && return nothing
     hit = _find_child_hit(entries, evt, make_event)
-    hit === nothing && return nothing
+    if hit === nothing
+        whole = is_whole_selection_press(evt)
+        plain = evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
+        (plain || whole) || return nothing
+        caret = _find_fact_group_caret(p, iomap, evt)
+        caret === nothing || return ReplaceSelectionOperation(caret)
+        whole || return nothing
+        fact = _find_fact_group_row(iomap, evt.y)
+        return fact === nothing ? nothing : ReplaceSelectionOperation(fact)
+    end
     steps = _find_child_steps(iomap.input, get_iomap_input(hit[2]))
     steps === nothing ? hit[1] : reroot_operation(hit[1], Tuple(steps))
 end
+
+# The fact of the row that holds `y`, `facts[i]`, or `nothing`.
+function _find_fact_group_row(iomap::WidgetFactGroupToGraphicsCanvasIoMap, y)
+    fact = _find_row_index(unwrap_cell(iomap.row_bounds), y)
+    fact === nothing ? nothing : _make_fact_reference(fact)
+end
+_find_fact_group_row(iomap, y) = nothing
+
+# The caret under the point of `evt` in a text that the group drew, or `nothing`.
+_find_fact_group_caret(p::WidgetFactGroupToGraphicsCanvas, iomap::WidgetFactGroupToGraphicsCanvasIoMap, evt) =
+    find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
+_find_fact_group_caret(p::WidgetFactGroupToGraphicsCanvas, iomap, evt) = nothing
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
@@ -14748,7 +14824,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
                           text_theme = nothing)
     widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
-        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
+        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetText       => WidgetTextToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
         WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
@@ -14791,7 +14867,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measure),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measure),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measure),
-        WidgetFactGroup   => WidgetFactGroupToGraphicsCanvas(theme; measure = measure),
+        WidgetFactGroup   => WidgetFactGroupToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetTable       => WidgetTableToGraphicsCanvas(theme; graphics_theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(theme; graphics_theme, measure = measure),
     )

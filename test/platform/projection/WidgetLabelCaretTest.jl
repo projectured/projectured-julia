@@ -4,10 +4,12 @@ that the label records (`DrawnTextLine`).
 
 Covers:
 - a plain click on the text puts the caret at the character under the pointer,
-  and an Alt+click, a right click and a double click do not,
+  an Alt+click answers the same caret, which the container makes the text as a
+  whole, and a right click and a double click answer nothing,
 - a point there maps back to the same caret, and the caret maps forward to its
   place on the line, which has a box,
 - the label draws the caret once its selection is that caret, and no caret before,
+  and a band behind its text while the selection is the text as a whole,
 - a move names the caret as the part under the pointer,
 - a label that shows no `String` records no line, and a click on it answers nothing.
 """
@@ -32,7 +34,8 @@ function test_widget_label_caret()
         x, y = _label_caret_point(iomap, 32)
         answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
-        @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0)) === nothing
+        whole = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0))
+        @test whole isa ReplaceSelectionOperation && strip_reference_types(whole.path) == caret
         @test read_intent(p, iomap, MouseClick(:right, x, y, ModifierKeys(); time = 0.0)) === nothing
         # A double click is left to the widget around the label.
         @test read_intent(p, iomap, MouseClick(:left, x, y, 2, ModifierKeys(); time = 0.0)) === nothing
@@ -48,6 +51,15 @@ function test_widget_label_caret()
         @test isempty(mark())
         evaluate_operation((document = label,), answer)
         @test length(mark()) == 1 && Int(only(mark()).x) == x - 2
+
+        # The text selected as a whole draws a band behind its line, and no caret.
+        bands() = [e for e in iomap.output.elements if e isa GraphicsRect && is_color_equal(e.color, p.selected_color)]
+        @test isempty(bands())
+        evaluate_operation((document = label,), ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("content"), EmptyReference())))
+        @test length(bands()) == 1 && isempty(mark())
+        set_selection!(label, nothing)
+        @test isempty(bands())
 
         # A move names the caret as the part under the pointer.
         moved = read_intent(p, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0))

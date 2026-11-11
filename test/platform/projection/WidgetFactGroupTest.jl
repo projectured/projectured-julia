@@ -23,6 +23,15 @@ end
 
 _fact_find(texts, text) = only(entry for entry in texts if entry[1] == text)
 
+# The caret before the character `c` of the field `name` of the fact `i`: `facts[i].name{c}`.
+_fact_place(i, name, c) =
+    ConcreteReference(FieldReferenceStep("facts"), ConcreteReference(RangeReferenceStep(i - 1, i),
+        ConcreteReference(FieldReferenceStep(name), ConcreteReference(RangeReferenceStep(c, c), EmptyReference()))))
+
+# The thin rectangles of a caret under the canvas of a group.
+_fact_carets(canvas) = [element for element in (element isa Cell ? element[] : element for element in canvas.elements)
+                        if element isa GraphicsRect && Int(element.w) == 2]
+
 function _fact_print(group, ctx = PrinterContext())
     proj = _fact_proj()
     (proj, print_document(proj, nothing, group, ctx))
@@ -98,9 +107,11 @@ function test_widget_fact_group()
             operation = read_intent(proj, iomap, MouseClick(:left, go[2] + 2, go[3] + 2, ModifierKeys(); time = 0.0))
             @test operation isa InvokeActionOperation
             @test operation.action === button.action
-            # A press on a label is no press on a value.
+            # A press on a label is no press on a value: it puts the caret into the label.
             label = _fact_find(texts, "action")
-            @test read_intent(proj, iomap, MouseClick(:left, label[2] + 2, label[3] + 2, ModifierKeys(); time = 0.0)) === nothing
+            caret = read_intent(proj, iomap, MouseClick(:left, label[2] + 2, label[3] + 2, ModifierKeys(); time = 0.0))
+            @test caret isa ReplaceSelectionOperation
+            @test strip_reference_types(caret.path) == _fact_place(2, "label", 0)
             # The value sits in the value column, on the row of its label.
             @test go[2] > _fact_find(texts, "ok")[2]
             @test abs(go[3] - _fact_find(texts, "action")[3]) <= 2 * _fact_line
@@ -122,6 +133,87 @@ function test_widget_fact_group()
             steps = get_reference_steps(strip_reference_types(back))
             @test steps[1] == FieldReferenceStep("facts")
             @test any(step -> step == FieldReferenceStep("value"), steps)
+        end
+
+        @testset "a plain click on a text puts the caret there, and the group draws it" begin
+            group = WidgetFactGroup(["run" => "#0", "exit code" => 0]; title = "Run")
+            proj, iomap = _fact_print(group)
+            texts = _fact_texts(iomap.output)
+            click(x, y; count = 1, modifiers = ModifierKeys()) =
+                read_intent(proj, iomap, MouseClick(:left, x, y, count, modifiers; time = 0.0))
+            run = _fact_find(texts, "run")
+            value = _fact_find(texts, "#0")
+            title = _fact_find(texts, "Run")
+            # The caret goes before the character nearest the point: 10 per character.
+            @test strip_reference_types(click(run[2] + 12, run[3] + 2).path) == _fact_place(1, "label", 1)
+            @test strip_reference_types(click(value[2] + 18, value[3] + 2).path) == _fact_place(1, "value", 2)
+            title_caret = strip_reference_types(click(title[2] + 22, title[3] + 2).path)
+            @test title_caret == ConcreteReference(FieldReferenceStep("title"),
+                                                   ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
+            # An Alt+click answers the caret too, which the container makes the label as a
+            # whole. A value that is no string has no caret of its own, and a double click
+            # is left to the widget around the group.
+            @test strip_reference_types(click(run[2] + 12, run[3] + 2; modifiers = ModifierKeys(alt = true)).path) ==
+                  _fact_place(1, "label", 1)
+            @test click(_fact_find(texts, "0")[2] + 2, _fact_find(texts, "0")[3] + 2) === nothing
+            @test click(run[2] + 12, run[3] + 2; count = 2) === nothing
+            # A move names the caret under the pointer.
+            move = read_intent(proj, iomap, MouseMove(run[2] + 12, run[3] + 2; time = 0.0))
+            @test move isa ReplaceMouseTargetOperation
+            @test strip_reference_types(move.path) == _fact_place(1, "label", 1)
+            # The caret maps to its line and back, and a point on the text maps to the caret.
+            caret = annotate_reference_types(group, _fact_place(1, "value", 1))
+            place = map_reference_forward(proj, iomap, caret)
+            @test place !== nothing
+            @test strip_reference_types(map_reference_backward(proj, iomap, place)) == _fact_place(1, "value", 1)
+            @test strip_reference_types(map_reference_backward(proj, iomap, PointReferenceStep(value[2] + 8, value[3] + 2))) ==
+                  _fact_place(1, "value", 1)
+            # A point on the rest of a row maps to the fact, and an Alt+click there selects
+            # the fact; a plain click there is left to the widget around the group. The
+            # label column is as wide as "exit code", so it is empty right of "run".
+            fact = ConcreteReference(FieldReferenceStep("facts"),
+                                     ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+            @test strip_reference_types(map_reference_backward(proj, iomap, PointReferenceStep(run[2] + 60, run[3] + 2))) ==
+                  fact
+            @test strip_reference_types(click(run[2] + 60, run[3] + 2; modifiers = ModifierKeys(alt = true)).path) ==
+                  fact
+            @test click(run[2] + 60, run[3] + 2) === nothing
+            # The group draws the caret that the selection holds, at its character.
+            @test isempty(_fact_carets(iomap.output))
+            evaluate_operation((document = group,), ReplaceSelectionOperation(_fact_place(1, "value", 1)))
+            drawn = _fact_carets(iomap.output)
+            @test length(drawn) == 1
+            @test Int(only(drawn).x) == value[2] + 10
+            # A label selected as a whole draws a band behind its line, in the colour of a
+            # selected part, and no caret.
+            band = iomap.projection.selected_color
+            bands() = [element for element in (element isa Cell ? element[] : element for element in iomap.output.elements)
+                       if element isa GraphicsRect && is_color_equal(element.color, band)]
+            label = ConcreteReference(FieldReferenceStep("facts"), ConcreteReference(RangeReferenceStep(0, 1),
+                                      ConcreteReference(FieldReferenceStep("label"), EmptyReference())))
+            evaluate_operation((document = group,), ReplaceSelectionOperation(label))
+            @test isempty(_fact_carets(iomap.output))
+            @test length(bands()) == 1
+            @test (Int(only(bands()).x), Int(only(bands()).w)) == (run[2], 10 * length("run"))
+            # A fact selected as a whole draws the band over its row.
+            evaluate_operation((document = group,), ReplaceSelectionOperation(fact))
+            @test length(bands()) == 1
+            @test (Int(only(bands()).x), Int(only(bands()).h)) == (run[2], _fact_line)
+            set_selection!(group, nothing)
+            @test isempty(_fact_carets(iomap.output))
+            @test isempty(bands())
+        end
+
+        @testset "each line of a wrapped value starts at its character" begin
+            group = WidgetFactGroup(["note" => "alpha beta gamma delta"])
+            offer = with_bounded_size(PrinterContext(); width = Cell(Int32(150)))
+            proj, iomap = _fact_print(group, offer)
+            lines = sort([entry for entry in _fact_texts(iomap.output) if entry[1] != "note"]; by = entry -> entry[3])
+            second = lines[2]
+            start = length(lines[1][1]) + 1
+            operation = read_intent(proj, iomap, MouseClick(:left, second[2] + 2, second[3] + 2, 1, ModifierKeys();
+                                                            time = 0.0))
+            @test strip_reference_types(operation.path) == _fact_place(1, "value", start)
         end
 
         @testset "an invisible group draws nothing" begin

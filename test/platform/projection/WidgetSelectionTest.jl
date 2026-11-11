@@ -223,11 +223,11 @@ function test_widget_selection()
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
 
         # An Alt+press names the innermost part, whole, and nothing acts: in a text
-        # box, the `String` that it holds. The point (1, 1) is in the padding of the
-        # card, before its title.
+        # box and in a label, the `String` that it holds. The point (1, 1) is in the
+        # padding of the card, before its title.
         @test tx > 1 && ty > 1
         for ((x, y), wanted) in (((bx + 2, by + 2), t.button),
-                                 ((lx + 2, ly + 2), t.label),
+                                 ((lx + 2, ly + 2), t.label.content),
                                  ((fx + 2, fy + 2), t.field.content),
                                  ((1, 1), t.card))
             op = read_intent(projection, iomap, _press(x, y, _ALT))
@@ -283,10 +283,18 @@ function test_widget_selection()
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
-        # The label is not a control: its container draws the ring on its box.
+        # The text of a label, which an Alt+press selects, draws the band of a
+        # selected part behind it, so no container draws a ring.
         (lx, ly) = _selection_text_at(out, "hello")
         op = read_intent(projection, iomap, _press(lx + 2, ly + 2, _ALT))
         evaluate_operation((document = t.root,), op)
+        @test isempty(_selection_rings(out))
+
+        # The label as a whole is not a control: its container draws the ring on its box.
+        steps = collect(get_reference_steps(strip_reference_types(op.path)))
+        @test last(steps) == FieldReferenceStep("content")
+        evaluate_operation((document = t.root,),
+                           ReplaceSelectionOperation(foldr(ConcreteReference, steps[1:(end - 1)]; init = EmptyReference())))
         drawn = _selection_rings(out)
         @test length(drawn) == 1
         (x, y, w, h) = only(drawn)

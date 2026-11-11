@@ -1,7 +1,8 @@
 # Fragment of `WidgetModule` — a line of text that a widget drew, with the part of
 # the input of the widget that the line shows. A widget that keeps these records
 # puts the caret at the character under the pointer on a plain click, draws a caret
-# that lies in the part on its line, and names the part under the pointer on a move.
+# that lies in the part on its line and a band behind a part selected as a whole,
+# and names the part under the pointer on a move.
 
 """
     DrawnTextLine(text, part, start)
@@ -149,15 +150,44 @@ function map_drawn_place_backward(drawn, canvas, reference)
 end
 
 """
-    make_drawn_caret_elements(drawn, selection, measure) -> Vector{Any}
+    make_drawn_selection_elements(elements, drawn, selection, measure, band_color) -> Vector{Any}
 
-The caret of a widget that keeps the records `drawn`: one thin rectangle in the
-colour of the line, at the place of `selection`, the stored selection of the
-widget, while it is a caret in a part that a line shows, and no element else. The
-widget appends it to the elements of the canvas that holds the lines, so a widget
-that holds no caret has no element and no cell for it.
+The `elements` of the canvas of a widget that keeps the records `drawn`, with the
+mark of `selection`, the stored selection of the widget, in its text: a band in
+`band_color` behind each line of a part that `selection` names as a whole, and a
+thin rectangle on top, in the colour of the line, while `selection` is a caret in
+a part that a line shows. With no such mark, the answer is `elements` itself, so
+a widget that holds no selection in its text has no element for it.
 """
-function make_drawn_caret_elements(drawn, selection, measure)
+function make_drawn_selection_elements(elements, drawn, selection, measure, band_color)
+    bands = _make_drawn_bands(drawn, selection, measure, band_color)
+    caret = _make_drawn_caret_elements(drawn, selection, measure)
+    isempty(bands) && isempty(caret) && return elements
+    # The bands go before the first element that holds a line, over the box of the widget.
+    at = something(findfirst(element -> any(line -> _find_element_path(element, line.text) !== nothing, drawn),
+                             elements),
+                   length(elements) + 1)
+    vcat(elements[1:(at - 1)], bands, elements[at:end], caret)
+end
+
+# A band in `color` over the box of each line of the part that `selection` names as
+# a whole, in the frame of the canvas of the lines.
+function _make_drawn_bands(drawn, selection, measure, color)
+    selection isa ConcreteReference || return Any[]
+    part = strip_reference_types(selection)
+    bands = Any[]
+    for line in drawn
+        strip_reference_types(line.part) == part || continue
+        box = compute_line_box(measure, _get_drawn_string(line), unwrap_cell(getfield(line.text, :font)))
+        x = round(Int, unwrap_cell(getfield(line.text, :x)))
+        y = round(Int, unwrap_cell(getfield(line.text, :y))) - box.text_y
+        push!(bands, GraphicsRect(x, y, box.width, box.height; color, radius = 0))
+    end
+    bands
+end
+
+# The caret of `selection` on its line, as one element, or no element.
+function _make_drawn_caret_elements(drawn, selection, measure)
     place = _find_drawn_caret_place(drawn, selection, measure)
     place === nothing && return Any[]
     Any[GraphicsRect(place.x, place.y, 2, place.height; color = place.color)]
