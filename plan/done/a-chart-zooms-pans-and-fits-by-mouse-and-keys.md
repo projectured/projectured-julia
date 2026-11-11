@@ -1,6 +1,7 @@
 # A chart zooms, pans and fits by the mouse and the keys
 
-**Status (2026-11-10): in progress.** The owner approved the plan for
+**Status (2026-11-11): done on the branch `chart-navigation`, not landed, not
+pushed.** The owner approved the plan for
 implementation on 2026-11-10 ("Let's go"). The owner decided D12, and D9 in its
 second form. The assistant proposed the other decisions of §4, and they are
 approved with the plan. No question is open.
@@ -356,7 +357,7 @@ and makes one commit.
      them while they show.
    Results: `test_sequencechart()` 467/467, `test_chart()` 552/552, naming guard
    clean.
-7. [ ] **The editor, the documents and a live check.** Editor-level tests in
+7. [x] **The editor, the documents and a live check.** Editor-level tests in
    the headless application window, with the chart in a tab: each gesture of
    both charts as window input, at the pixels of the plot, as the probe did,
    and a move onto the chart, a press on each button and a move off it.
@@ -369,6 +370,27 @@ and makes one commit.
    A live check in the SDL window: `run_example("chart")` and a sequence chart
    example, each gesture and each button by hand. Run `test_chart()`, `test_sequencechart()`,
    `test_pivot()`. Move the plan to `plan/done/`.
+
+   *As built (2026-11-11):* `test_chart_view_gestures()` sends each gesture to a
+   chart in a tab of the application window, and `test_sequencechart_view_gestures()`
+   to a sequence chart in a window scene with the context menu window
+   (`wrap_context_menu_window`), as a host makes one: the sequence chart has no
+   natural row, so the application window does not draw it as a chart. A click on a
+   data point, on an event and on an axis still selects, though a press there
+   starts a drag. The check by hand in the SDL window needs a person; in its place
+   two pictures rendered headless with the pointer over a zoomed chart showed the
+   buttons in the corner and the bars along the plot, and showed the range readout
+   of the sequence chart under the buttons, which the readout now leaves. The
+   workload list of `ProjecturedChart` is recorded again (`record_package_calls!`),
+   and a load after it warns of no call that does not resolve. Results:
+   `test_chart()` 552/552 with `test_chart_view_gestures()` 17/17,
+   `test_sequencechart()` 476/476 with `test_sequencechart_view_gestures()` 9/9,
+   `test_pivot()` 334 pass, 1 fail, 1 error: the error at
+   `PivotZoneEditTest.jl:84` is a failure of `main`, and the failure at
+   `PivotModuleTest.jl:21`, a search of the assistant API, fails the same way on
+   `main` `b14502b56` in a clean worktree.
+   `test_platform_layering()` fails at `CheckLayering.jl:880` and `:889` on files
+   that the branch does not change, as on `main`.
 
 **Not in this plan:** a history of views (back to the last view); a zoomed
 chart that follows the newest data; a pinch on a touchpad (SDL2 gives no pinch
