@@ -73,7 +73,7 @@ function print_document(p::TooltipNoteToVerticalLayout, recursion, note::Tooltip
     # The documents that the note puts into its layout hold their own selection.
     embedded = Base.IdSet{Any}(document for document in
         Any[note.title, note.code, note.text, note.hint,
-            (fact isa Tuple ? fact[2] : fact.second for fact in note.facts)...] if document isa Document)
+            (_find_fact_document(fact) for fact in note.facts)...] if document isa Document)
     follow_widget_output!(root, note, path -> map_reference_forward(p, iomap, path);
                           is_followed = node -> is_widget_or_layout(node) && !(node in embedded))
     iomap
@@ -165,6 +165,12 @@ _make_fact_cells(p::TooltipNoteToVerticalLayout, fact::Pair) =
     Any[WidgetLabel(string(fact.first); text_style = unwrap_cell(p.muted_text)),
         fact.second isa Document ? fact.second :
                                    WidgetLabel(string(fact.second); text_style = unwrap_cell(p.value_text))]
+
+# The value of a fact that the note puts into its layout as it is, a document; a
+# condition of a decoration has no such value.
+_find_fact_document(fact::Pair) = fact.second isa Document ? fact.second : nothing
+_find_fact_document(fact::Tuple{Any,Any}) = _find_fact_document(fact[1] => fact[2])
+_find_fact_document(fact) = nothing
 
 # A condition of a decoration as a fact: the glyph of its look in the color of its
 # role, a dot for a look with no glyph, its words, and its count when it has one.
