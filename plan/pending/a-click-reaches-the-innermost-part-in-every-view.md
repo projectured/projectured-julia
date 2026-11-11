@@ -898,7 +898,35 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       `SimulationWorkflowToWidget`, `SimulationEmbedToWidget` and
       `SimulationOptimizationToWidget` (the best row of its table). A walk would
       overwrite those cells, and the click test shows no failure from them: their
-      catalog examples show the reflected object. They stay as they are.
+      catalog examples show the reflected object. They stay as they are. The
+      click walk after b72a25adb, run 3 → after: the project page 74 → 2, the
+      run entry 18 → 0, the part pages of a test kind, an INI file, a
+      configuration, the INI files of a project, an INI folder, the NED files of
+      a project, a NED package, a test folder, a statistical baseline and a chart
+      baseline each from 23–41 to at most 3; no count grows and no example
+      throws. The view tests fail only as on the base of the branch:
+      `test_topology_card` 14/2, `test_sim_control_panel` and
+      `test_sim_dashboard_panel` 1 error each (`get_future_event_set` has no
+      method for `ACSequentialEngine`), `test_batch_widget_layout` 4/2/1, and
+      `test_parallel_sim_dashboard_panel` hangs.
+    - **The last two omnet views of the probe** (181066b6e): the list of
+      simulation tasks writes the paths of its layout, and the plot view of a
+      result gives its widgets their part. The combined simulation widget
+      107 → 99, the result plot view 29 → 22. The rest have other causes:
+      - The tabs of the selector of the combined widget
+        (`.selector_element_pairs[k]`) draw no ring.
+      - A part inside a run card: the backward map of the task list answers its
+        own introduced path (`‹SimulationTaskListToWidget .children[1].title…›`)
+        and not the path of the task through the card, so the card, which
+        follows the selection of its task, never gets the part. The backward map
+        must delegate to the IO map of the child.
+      - The axes of a chart (`‹LegacySimulationPlotToChart .y_axis›`): the model
+        class.
+    - **A native document keeps its selection as a plain value** (9ff929585).
+      The topology card of omnet-julia takes a native `MSimulationInstance`, and
+      `get_stored_selection` and `is_live_selection` read the `selection` field
+      as a cell, so the walk of the card threw. They read it with `unwrap_cell`
+      now; for a document of the cell layout nothing changes.
     - **Points that stay unmarked**, for 5.3 and step 6: the content of a scroll
       pane (MCP log, help, task, explorer search, task list), the background of a
       header cell of a table (folder, pivot part table), the navigator of the
