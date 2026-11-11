@@ -708,17 +708,103 @@ function test_external_agent_turn()
             @test !is_permission_request_open(duplicate)
         end
 
-        @testset "the duplicate starts a new session" begin
-            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
+        @testset "the duplicate forks the session of the agent when its tab opens" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]];
+                                                 can_fork = true, options = make_scripted_agent_options())
             a = _make_agent_assistant(connection)
             _submit_to_agent!(a, "First")
+            evaluate_operation((document = a,), SetAgentOptionOperation(a, "effort", "max"))
+            @test timedwait(() -> a.agent_options[2].current_value == "max", 10.0; pollint = 0.01) === :ok
             fork = copy_document(DuplicatePolicy(), a)
             @test fork.agent_session === nothing
             @test fork.agent_session_id == "" && fork.agent_session_directory == ""
             @test fork.agent_command == a.agent_command
-            note = collect(fork.conversation.turns)[end]
-            @test note.role === :assistant
-            @test AssistantModule._part_text(only(note.parts)) == AssistantModule.FORK_AGENT_NOTE
+            source = fork.agent_fork
+            @test (source.session_id, source.directory, source.turn_count) == ("scripted-session-1", pwd(), 1)
+            @test [option.current_value for option in source.options] == ["opus", "max", "default"]
+            # The agent of the copy gets the history, so no note says otherwise.
+            @test !any(turn -> occursin("does not have the history",
+                                        join(AssistantModule._part_text.(collect(turn.parts)))),
+                       collect(fork.conversation.turns))
+            # The acquire, as the open of its tab makes it, forks the session at
+            # once. A new session of the agent starts with the default options,
+            # and the fork takes the effort of its source; the mode follows
+            # `agent_mode`, which this agent does not offer.
+            connection.options = make_scripted_agent_options()
+            fork.agent_session = ExternalAgentSession(connection)
+            evaluate_operation((document = fork,), AcquireDocumentOperation(fork))
+            @test timedwait(() -> fork.agent_session.session_id == "scripted-fork-2", 10.0; pollint = 0.01) === :ok
+            @test connection.sessions[2].fork_session_id == "scripted-session-1"
+            @test connection.sessions[2].directory == pwd()
+            @test timedwait(() -> length(connection.option_sets) == 2, 10.0; pollint = 0.01) === :ok
+            @test connection.option_sets == ["effort" => "max", "effort" => "max"]
+            @test length(connection.prompts) == 1
+            # The undo of the duplicate releases the copy and stops its agent.
+            # Before its first answer, the agent keeps no session of the fork, so
+            # the redo forks the source again.
+            evaluate_operation((document = fork,), ReleaseDocumentOperation(fork))
+            @test fork.agent_session === nothing
+            @test fork.agent_session_id == "" && fork.agent_fork === source
+            fork.agent_session = ExternalAgentSession(connection)
+            evaluate_operation((document = fork,), AcquireDocumentOperation(fork))
+            @test timedwait(() -> fork.agent_session.session_id == "scripted-fork-3", 10.0; pollint = 0.01) === :ok
+            @test connection.sessions[3].fork_session_id == "scripted-session-1"
+            # The next prompt of the copy sends only the new message, and the
+            # answer makes the fork a session of its own.
+            _submit_to_agent!(fork, "Second")
+            @test connection.prompts[end] == [LlmText("Second")]
+            @test (fork.agent_session_id, fork.agent_session_turn_count) == ("scripted-fork-3", 3)
+            @test fork.agent_fork === nothing
+            # The original keeps its session, and its copy of a copy forks the fork.
+            @test a.agent_session_id == "scripted-session-1"
+            @test copy_document(DuplicatePolicy(), fork).agent_fork.session_id == "scripted-fork-3"
+        end
+
+        @testset "a duplicate whose agent can not fork starts a new session with a note" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            has_note(assistant) = any(turn -> any(part -> AssistantModule._part_text(part) ==
+                                                          AssistantModule.FORK_AGENT_NOTE, collect(turn.parts)),
+                                      collect(assistant.conversation.turns))
+            # A copy that is not acquired forks at its first message.
+            fork = copy_document(DuplicatePolicy(), a)
+            fork.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(fork, "Second")
+            @test connection.sessions[2].fork_session_id == "" && connection.sessions[2].session_id == ""
+            @test connection.prompts[end] == [LlmText("Second")]
+            @test timedwait(() -> has_note(fork), 10.0; pollint = 0.01) === :ok
+            @test fork.agent_fork === nothing
+            # A source whose folder is gone gives a new session with the note too.
+            lost = copy_document(DuplicatePolicy(), a)
+            lost.agent_fork = AssistantModule.AgentSessionFork("scripted-session-1", joinpath(pwd(), "no-such-folder"),
+                                                               1, AgentOption[])
+            lost.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(lost, "Third")
+            @test connection.sessions[3].directory == pwd()
+            @test timedwait(() -> has_note(lost), 10.0; pollint = 0.01) === :ok
+            @test !has_note(a)
+        end
+
+        @testset "a duplicate of an assistant that answers starts a new session with a note" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]];
+                                                 can_fork = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            # The answer that streams stays with the original.
+            push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("Go on")]))
+            push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart("Half an answer")]))
+            a.status = :streaming
+            fork = copy_document(DuplicatePolicy(), a)
+            a.status = :idle
+            @test fork.agent_fork === nothing
+            turns = collect(fork.conversation.turns)
+            @test length(turns) == 4
+            @test AssistantModule._part_text(only(turns[3].parts)) == "Go on"
+            @test AssistantModule._part_text(only(turns[4].parts)) == AssistantModule.FORK_DURING_ANSWER_NOTE
         end
 
         @testset "a release, as the close of its tab makes, stops the agent" begin

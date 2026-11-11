@@ -78,7 +78,7 @@ using ..WorkPlanModule
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
 import ..PaneModule: avoids_new_panes
-import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
+import ..DomainModule: accepts_pasted_document, accepts_opened_file, acquire_document!, release_document!,
                        get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..FeedModule: drain_changes!, compute_wake_deadline

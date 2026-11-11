@@ -66,6 +66,21 @@ const DEFAULT_AGENT_INSTRUCTIONS =
     ASSISTANT_ANSWER_INSTRUCTIONS
 
 """
+    AgentSessionFork(session_id, directory, turn_count, options)
+
+The session of an external agent that the duplicate of an assistant forks: the
+id and the folder of the session that the original keeps, how many turns of the
+conversation that session saw, and the options of the session of the original,
+such as its model and its effort.
+"""
+struct AgentSessionFork
+    session_id::String
+    directory::String
+    turn_count::Int
+    options::Vector{AgentOption}
+end
+
+"""
     Assistant(; conversation, input, backend, model, system, api_key, context, status, llm)
 
 The assistant panel. Holds the full chat history (`conversation`), the
@@ -122,6 +137,13 @@ data either. `agent_work` is the work of the session of the agent, an
 and its processes. It is the live state of the session, so it is no data either:
 a file does not keep it, and a duplicate and a new session start with an empty
 one.
+
+`agent_fork` is the session that the duplicate of an assistant forks, an
+[`AgentSessionFork`](@ref), or `nothing`. The duplicate of an assistant whose
+external agent keeps a session gets it, and its acquire opens its session as a
+fork of that session, so the agent of the duplicate has the history that the
+duplicate shows. The first answer of the agent in the fork, or a fork that the
+agent can not make, clears it. It is live state, so a file does not keep it.
 
 `workflow` is the node of a workflow that the conversation records its work in,
 or `nothing`. It is data that the person chose, so a `.pred` file keeps it; the
@@ -194,6 +216,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_usage::Union{Nothing,AgentUsageUpdate}
     agent_commands::Vector{AgentCommand}
     agent_work::AgentWork
+    agent_fork::Union{Nothing,AgentSessionFork}
     workflow::Any
     description::PrimitiveString
     comment::PrimitiveString
@@ -243,10 +266,18 @@ which tool calls need a question to the person. An agent that offers no mode
 """
 const DEFAULT_AGENT_MODE = "auto"
 
-# What the fork of an assistant with an external agent says under the history it
-# copied.
+# What the duplicate of an assistant with an external agent says under the
+# history that it copied, when the agent could not fork the session of the
+# original.
 const FORK_AGENT_NOTE =
-    "This copy talks to the agent in a new session. The agent does not have the history above."
+    "This copy talks to the agent in a new session, because the agent could not copy the session " *
+    "of the original. The agent does not have the history above."
+
+# What the duplicate of an assistant whose external agent answered at the copy
+# says under the history that it copied.
+const FORK_DURING_ANSWER_NOTE =
+    "The original answered when this copy was made, so this copy talks to the agent in a new " *
+    "session. The agent does not have the history above."
 
 # What the transcript says when the agent opened a new session in place of the
 # session that the assistant kept.
@@ -278,6 +309,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               agent_title::AbstractString = "",
                               agent_usage::Union{Nothing,AgentUsageUpdate} = nothing,
                               agent_commands::AbstractVector = AgentCommand[],
+                              agent_fork::Union{Nothing,AgentSessionFork} = nothing,
                               workflow = nothing,
                               description::Union{AbstractString,PrimitiveString} = "",
                               comment::Union{AbstractString,PrimitiveString} = "",
@@ -299,7 +331,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(CellVector{AgentOption}(collect(AgentOption, agent_options))),
                            Cell(String(agent_title)), Cell(agent_usage),
                            Cell(CellVector{AgentCommand}(collect(AgentCommand, agent_commands))),
-                           Cell(AgentWork("")), Cell(workflow),
+                           Cell(AgentWork("")), Cell(agent_fork), Cell(workflow),
                            Cell(_make_primitive_string(description)),
                            Cell(_make_primitive_string(comment)), Cell(work_state),
                            Cell(Int(max_rounds)), Cell(0), Cell(Int(number)),
@@ -406,11 +438,15 @@ get_document_title(a::Assistant) = compute_assistant_overview_title(a)
 #
 # The session of an external agent stays with the assistant that opened it, also
 # when the agent stopped and the assistant keeps the id of the session. The fork
-# starts a new session at its first turn, and a note in its transcript says that
-# the agent of the fork does not have the history above it.
+# keeps that session in `agent_fork`, and its acquire asks the agent for a copy
+# of it, so the agent of the fork has the history above. The original of a fork
+# that answers now is in the middle of a turn that the fork leaves out, so the
+# fork starts a new session, and a note in its transcript says that its agent
+# does not have the history above.
 has_document_duplicate(::Assistant) = true
 
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
+    is_answering = assistant.status === :streaming
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
     fork = copy_document_fields(policy, assistant; draft = draft, status = :idle, turn_control = nothing,
                                 agent_session = nothing, agent_session_id = "",
@@ -418,18 +454,29 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
                                 agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
                                 agent_commands = AgentCommand[],
-                                agent_work = AgentWork(""), wakes_left = 0,
+                                agent_work = AgentWork(""),
+                                agent_fork = is_answering ? nothing : _make_agent_session_fork(assistant),
+                                wakes_left = 0,
                                 number = _compute_assistant_number(find_evaluation_editor()),
                                 identifier = _make_assistant_identifier())
     draft.assistant = fork
     turns = fork.conversation.turns
-    if assistant.status === :streaming && !isempty(turns) &&
-       turns[length(turns)].role === :assistant
+    if is_answering && !isempty(turns) && turns[length(turns)].role === :assistant
         deleteat!(turns, length(turns))
     end
-    (assistant.agent_session === nothing && isempty(assistant.agent_session_id)) ||
-        push!(turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(FORK_AGENT_NOTE))]))
+    is_answering && (assistant.agent_session !== nothing || !isempty(assistant.agent_session_id)) &&
+        push!(turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(FORK_DURING_ANSWER_NOTE))]))
     fork
+end
+
+# The session that the duplicate of `assistant` forks: the session that its
+# external agent keeps, with the options of that session. An assistant that is
+# a fork whose agent did not answer yet gives the session that it forks itself.
+function _make_agent_session_fork(assistant::Assistant)
+    assistant.backend === :acp || return nothing
+    isempty(assistant.agent_session_id) && return assistant.agent_fork
+    AgentSessionFork(assistant.agent_session_id, assistant.agent_session_directory,
+                     assistant.agent_session_turn_count, collect(AgentOption, assistant.agent_options))
 end
 
 # The assistant is a tool pane: its conversation is a record, and its draft

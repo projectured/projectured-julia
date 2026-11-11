@@ -258,48 +258,65 @@ end
 # The agent started, with the MCP server of the editor when its package is
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
-# that the transcript shows. The options of the session reach `agent_options`.
-# The session starts in the mode of `agent_mode` before its first prompt. The
-# session gets a queue of its own for its events, which the feed of the
-# window drains, and a session that is not the one of the work of the assistant
-# starts an empty work.
+# that the transcript shows. A duplicate with no kept session forks the session
+# of `agent_fork` in its folder, with the count of the turns that that session
+# saw, and a fork that the agent can not make opens a new session with a note.
+# The options of the session reach `agent_options`. The session starts in the
+# mode of `agent_mode` before its first prompt, and a fork sets the other
+# options of its source. The session gets a queue of its own for its events,
+# which the feed of the window drains, and a session that is not the one of the
+# work of the assistant starts an empty work.
 #
 # The lock of the start holds no wait for the editor: the kept session is read
 # through the door before it, and the editor forgets a kept session after it.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
-    conversation, kept_id, kept_directory, kept_count, system, mode = run_on_editor_task!(editor) do
+    conversation, kept_id, kept_directory, kept_count, fork, system, mode = run_on_editor_task!(editor) do
         a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count,
-        a.system, a.agent_mode
+        a.agent_fork, a.system, a.agent_mode
     end
     is_kept_session_lost = false
+    is_fork_lost = false
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
             server = _start_agent_tool_server!(editor, a, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
             is_resumable = !isempty(kept_id) && isdir(kept_directory)
-            session.directory = is_resumable ? kept_directory : pwd()
+            is_forkable = !is_resumable && fork !== nothing && isdir(fork.directory)
             session.is_resumed = false
             session.has_answered = false
             queue = _make_agent_event_queue!(editor, a, session)
             opened_options = Ref(AgentOption[])
-            session_id = Base.invokelatest(open_agent_session!, session.connection;
-                directory = session.directory, mcp_servers = servers,
-                instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system,
-                session_id = is_resumable ? kept_id : "",
-                on_event = event -> begin
-                    event isa AgentOptionsUpdate && (opened_options[] = event.options)
-                    _post_agent_options!(editor, a, event)
-                end,
-                events = queue)
+            instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system
+            on_event = event -> begin
+                event isa AgentOptionsUpdate && (opened_options[] = event.options)
+                _post_agent_options!(editor, a, event)
+            end
+            session_id = is_forkable ?
+                Base.invokelatest(fork_agent_session!, session.connection; session_id = fork.session_id,
+                                  directory = fork.directory, mcp_servers = servers, instructions, on_event,
+                                  events = queue) : nothing
+            is_forked = session_id !== nothing
+            if is_forked
+                session.directory = fork.directory
+            else
+                session.directory = is_resumable ? kept_directory : pwd()
+                session_id = Base.invokelatest(open_agent_session!, session.connection;
+                    directory = session.directory, mcp_servers = servers, instructions,
+                    session_id = is_resumable ? kept_id : "", on_event, events = queue)
+                is_fork_lost = !is_resumable && fork !== nothing
+            end
             session.session_id = session_id
             _set_agent_mode!(editor, a, session, opened_options[], mode)
+            is_forked && _set_fork_options!(editor, a, session, opened_options[], fork.options)
             run_on_editor_task!(editor; wait = false) do
                 _start_agent_work!(a, session, session_id)
             end
             session.is_resumed = is_resumable && session_id == kept_id
             if session.is_resumed
                 session.sent_turn_count = kept_count
+            elseif is_forked
+                session.sent_turn_count = fork.turn_count
             elseif !isempty(kept_id)
                 is_kept_session_lost = true
             end
@@ -307,17 +324,31 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
     end
     is_kept_session_lost &&
         run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
+    is_fork_lost &&
+        run_on_editor_task!(() -> _forget_agent_session_fork!(a, conversation), editor; wait = false)
     session
 end
 
 # The assistant keeps the session in which the agent answered, and how many turns
-# that session saw. A write for a conversation that a reset replaced does nothing.
+# that session saw. A fork is then a session of its own: before its first answer,
+# the agent can keep no file of it, so a start again forks its source again. A
+# write for a conversation that a reset replaced does nothing.
 function _keep_agent_session!(a::Assistant, conversation::ConversationConversation,
                               session::ExternalAgentSession)
     a.conversation === conversation || return nothing
     a.agent_session_id = session.session_id
     a.agent_session_directory = session.directory
     a.agent_session_turn_count = session.sent_turn_count
+    a.agent_fork = nothing
+    nothing
+end
+
+# A fork that the agent could not make is a new session with none of the
+# history: the assistant forgets the source, and a note says so.
+function _forget_agent_session_fork!(a::Assistant, conversation::ConversationConversation)
+    a.conversation === conversation || return nothing
+    a.agent_fork = nothing
+    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(FORK_AGENT_NOTE))]))
     nothing
 end
 
@@ -362,6 +393,29 @@ function _set_agent_mode!(editor, a::Assistant, session::ExternalAgentSession,
     nothing
 end
 
+# The fork that opened with `options` takes the value of each option of its
+# source, `source_options`, that the agent offers and that differs, such as the
+# model and the effort. The mode follows `agent_mode`, as in every session. A set
+# that fails leaves the value that the agent chose.
+function _set_fork_options!(editor, a::Assistant, session::ExternalAgentSession,
+                            options::Vector{AgentOption}, source_options::Vector{AgentOption})
+    for source in source_options
+        source.category === :mode && continue
+        index = findfirst(option -> option.id == source.id, options)
+        index === nothing && continue
+        option = options[index]
+        option.current_value != source.current_value &&
+            any(value -> value.value == source.current_value, option.values) || continue
+        try
+            Base.invokelatest(set_agent_option!, session.connection, session.session_id, option.id,
+                              source.current_value; on_event = event -> _post_agent_options!(editor, a, event))
+        catch exception
+            @warn "The fork did not take an option of its source." option = option.id exception
+        end
+    end
+    nothing
+end
+
 # The option of the category `:mode` of `options` when it offers `mode` and holds
 # another value, or `nothing`.
 function _find_agent_mode_option(options::Vector{AgentOption}, mode::String)
@@ -376,7 +430,9 @@ end
     StartExternalAgentOperation(assistant)
 
 Start the external agent of `assistant` and open its session, with no prompt,
-so its options show before the first message. A failure shows in the
+so its options show before the first message. The acquire of the duplicate of
+an assistant posts it, so the duplicate forks the session of its original at
+once. A failure shows in the
 conversation, as the failure of a turn does. It does nothing for an assistant
 whose backend is not `:acp`, or whose session is open.
 """
@@ -676,6 +732,14 @@ end
 # agent, no MCP server and no program of a sign-in outlive the tab. An undo of the close brings the assistant back, and
 # its next turn starts the agent again and resumes the session.
 release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); stop_external_agent!(a))
+
+# The duplicate of an assistant forks the session of its original when its tab
+# opens, so a later answer of the original does not reach its agent. The fork
+# opens as `StartExternalAgentOperation` opens a session, on a task.
+function acquire_document!(editor, a::Assistant)
+    a.agent_fork === nothing || evaluate_operation(editor, StartExternalAgentOperation(a))
+    nothing
+end
 
 # What the MCP server of an agent says about itself. The system prompt of the
 # session holds the text of the window, so the server does not send it a second

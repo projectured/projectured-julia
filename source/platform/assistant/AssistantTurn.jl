@@ -285,6 +285,7 @@ function evaluate_operation(editor, op::ResetConversationOperation)
     a.agent_session_id = ""
     a.agent_session_directory = ""
     a.agent_session_turn_count = 0
+    a.agent_fork = nothing
     a.agent_title = ""
     nothing
 end
