@@ -215,9 +215,44 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     payload = op === nothing ? gesture : op
     answer = read_intent(p, iomap, payload)
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
-        (answer = convert_to_whole_selection(answer, iomap.input))
+        (answer = _lift_blank_delimiter(iomap.input, convert_to_whole_selection(answer, iomap.input)))
     Intent(gesture, answer)
 end
+
+# The answer of an Alt+click in `document`, a leaf or a compound of the syntax, with
+# a delimiter of only whitespace, such as the space around an operator, replaced by
+# the leaf or the compound that holds it: such a delimiter draws nothing, so its
+# band would show nothing. A value of only whitespace is data, and it stays.
+function _lift_blank_delimiter(document, answer)
+    answer isa ReplaceSelectionOperation && answer.path isa ConcreteReference || return answer
+    path = answer.path
+    last_step = last(collect(get_reference_steps(path)))
+    last_step isa FieldReferenceStep || return answer
+    holder_path = _drop_last_step(path)
+    holder = try_evaluate_reference(document, holder_path)
+    _is_delimiter_field(holder, last_step.name) || return answer
+    text = _get_delimiter_text(try_evaluate_reference(document, path))
+    (text === nothing || isempty(text) || !all(isspace, text)) && return answer
+    ReplaceSelectionOperation(holder_path)
+end
+
+# `path` without its last step; the node where that step started keeps its type.
+_drop_last_step(path::ConcreteReference) =
+    path.tail isa ConcreteReference ? ConcreteReference(path.type, path.head, _drop_last_step(path.tail)) :
+                                      EmptyReference(path.type)
+
+# Whether the field `name` of `holder` is one of its delimiters: the opening or the
+# closing text of a leaf, or a delimiter or the separator of a compound.
+_is_delimiter_field(holder::SyntaxLeaf, name::AbstractString) = name == "open" || name == "close"
+_is_delimiter_field(holder::SyntaxCompound, name::AbstractString) =
+    any(delimiter -> delimiter !== nothing && String(delimiter.first) == name,
+        (get_opening_delimiter(holder), get_closing_delimiter(holder), get_separator(holder)))
+_is_delimiter_field(holder, name::AbstractString) = false
+
+# The text of a delimiter, or `nothing` for a value that is no text.
+_get_delimiter_text(text::TextString) = String(text.content)
+_get_delimiter_text(text::TextBlock) = get_flat_string(text)
+_get_delimiter_text(value) = nothing
 
 # Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
 # `.elements[i].elements[k].content[s:e]`, characters of span `k` of line `i`) back
@@ -1277,7 +1312,7 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     payload = op === nothing ? gesture : op
     result = read_intent(p, iomap, payload)
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
-        return Intent(gesture, convert_to_whole_selection(result, iomap.input))
+        return Intent(gesture, _lift_blank_delimiter(iomap.input, convert_to_whole_selection(result, iomap.input)))
 
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
     # already filled the operation slot via its own `read_gesture` delegation, so

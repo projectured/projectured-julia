@@ -1159,6 +1159,19 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       as a place;
     - the click test reads such a range as a place, and accepts a caret at an
       edge of the mark of the part that the Alt+click selects.
+  - ~~**A delimiter of only whitespace has no band**~~ (288 of the 312 points of
+    the formula and the Julia operations). The Alt+click on the space before an
+    operator selected the delimiter `.open` of the leaf of the operator, which
+    is a space, and a band of only whitespace draws nothing. Such a delimiter
+    draws nothing, so the Alt+click selects the leaf or the node that holds it
+    (`_lift_blank_delimiter` in the two Alt+click readers of `SyntaxToText`); a
+    value of only whitespace is data, and it stays. The click test lets the
+    part of an Alt+click on a blank text hold the part of the caret and of the
+    move (`_pc_is_part_within`). `examples/formula` 67 lines before, 9 after;
+    `examples/fsm` 2 → 0; `julia/assignment` and `julia/toplevel` 2 → 0. The 9
+    that are left: a caret on `42` that goes to the empty delimiter at the
+    start of the number (5 lines, 3 before), and the math leaves that map their
+    value to a step of the view (P8, 4 lines).
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

@@ -14,8 +14,10 @@
 # An Alt+click at the same point selects the part that holds that caret as a
 # whole, a ring or a band of the selection is drawn at the point, and the mouse
 # target of a move there names the same part. A text of only whitespace draws
-# nothing, so it is an empty area: a band hugs the characters that draw, and the
-# mark of the part that the Alt+click selects there can lie beside the point.
+# nothing, so it is an empty area: a band hugs the characters that draw, so the
+# mark of the part that the Alt+click selects there can lie beside the point, and
+# that part can hold the part of the caret and of the move, as a leaf holds the
+# space around its operator.
 
 import ProjecturedKernelExample: HeadlessBackend, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
@@ -172,6 +174,22 @@ end
 # Whether two paths name the same part, whatever node types they carry.
 _pc_is_same_part(a, b) = _pc_normalize(a) == _pc_normalize(b)
 
+# Whether the part `outer` holds the part `inner` or is it, whatever node types they
+# carry, also inside a step that a projection introduced at the same place.
+function _pc_is_part_within(outer, inner)
+    (outer isa Reference && inner isa Reference) || return false
+    a = collect(get_reference_steps(_pc_normalize(outer)))
+    b = collect(get_reference_steps(_pc_normalize(inner)))
+    length(a) <= length(b) || return false
+    for i in eachindex(a)
+        a[i] == b[i] && continue
+        (i == length(a) && a[i] isa ProjectionReferenceStep && b[i] isa ProjectionReferenceStep &&
+         a[i].projection == b[i].projection) || return false
+        return _pc_is_part_within(a[i].output_path, b[i].output_path)
+    end
+    true
+end
+
 _pc_format_step(step::ProjectionReferenceStep) =
     string("‹", nameof(typeof(_pc_read_value(step.projection))), " ", _pc_format_path(step.output_path), "›")
 _pc_format_step(step) = string(extend_reference(EmptyReference(), step))
@@ -299,6 +317,7 @@ function _pc_check_point!(session, element)
     deepest = isempty(drawing) ? base : drawing[argmax(length.(get_reference_steps.(drawing)))]
     what = top.node isa GraphicsText ? repr(String(_pc_read_value(top.node.text))) : string(nameof(typeof(top.node)))
     at = "$(session.label) ($x, $y) on $what"
+    blank = _pc_is_blank_text(top.node)
     format(path) = _pc_format_relative(path, base)
     _pc_count!(session, :points)
     # A plain click puts the caret on the character under the point. A control
@@ -343,9 +362,9 @@ function _pc_check_point!(session, element)
         _pc_is_within(deepest, whole) ||
             push!(session.failures, "$at: an Alt+click selects $(format(whole)), outside $(format(deepest))")
         caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
+            blank && _pc_is_part_within(whole, _pc_cut_place(caret)) ||
             push!(session.failures, "$at: an Alt+click selects $(format(whole)), not $(format(_pc_cut_place(caret))), " *
                                     "the part of the caret")
-        blank = _pc_is_blank_text(top.node)
         _pc_is_selection_drawn(session, x, y; anywhere = blank) ||
             push!(session.failures, blank ? "$at: an Alt+click selects $(format(whole)), and no ring or band is drawn" :
                                             "$at: an Alt+click selects $(format(whole)), and no ring or band holds the point")
@@ -355,7 +374,8 @@ function _pc_check_point!(session, element)
     _pc_count!(session, :moves)
     if target === nothing
         push!(session.failures, "$at: a move names no part under the pointer")
-    elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole)
+    elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole) &&
+           !(blank && _pc_is_part_within(whole, _pc_cut_place(target)))
         push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), the part of the Alt+click")
     end
     nothing

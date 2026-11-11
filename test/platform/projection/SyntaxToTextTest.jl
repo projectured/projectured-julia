@@ -99,6 +99,23 @@ end
     @test band(@reference(outer, close)) == "\n]"
 end
 
+@testset "an Alt+click on a delimiter of only whitespace selects the leaf or the node that holds it" begin
+    operator = SyntaxLeaf("=="; open = "  ", close = "  ")
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), operator, SyntaxLeaf("y")]; open = "(", close = ")")
+    iomap = print_document(pipe, node)
+    @test get_flat_string(iomap.output) == "(x  ==  y)"
+    alt = MouseClick(:left, 0, 0, ModifierKeys(alt = true); time = 0.0)
+    whole(k) = strip_reference_types(read_intent(iomap.projection, pipe,
+        Intent(alt, ReplaceSelectionOperation(_S2T._flat_text_path(k))), iomap).operation.path)
+    # Between the two spaces before `==`: the space draws nothing, so the leaf of the
+    # operator is the part.
+    @test whole(3) == strip_reference_types(@reference(node, children[2]))
+    # A delimiter that draws a character stays the part.
+    @test whole(0) == strip_reference_types(@reference(node, open))
+    # Inside the value of the operator, the value stays the part.
+    @test whole(5) == strip_reference_types(@reference(node, children[2].value))
+end
+
 @testset "a value with a break is lines, which follow the code around them" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
     @test leaf.value isa TextBlock
