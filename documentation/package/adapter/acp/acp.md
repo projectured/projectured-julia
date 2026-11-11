@@ -25,7 +25,7 @@ The kernel declares the generics of a connection in `source/kernel/agent/AgentCo
 
 `command` is the program of the agent and its arguments, such as `["claude-agent-acp"]`. An empty `command` starts the built-in agent: `ClaudeCodeACP.serve_agent` on a task of this process, on two `Base.BufferStream`s, so the connection talks to it as to any other agent. The close of the connection ends the input of the built-in agent, which then ends each of its sessions and their `claude`. `environment` adds variables to the environment of the agent. `session_meta` is the `_meta` object that `session/new` sends, for an agent that reads options there: a dictionary, or its JSON text. `streams` is a pair of `IO` objects that replaces the process; a test uses it for an agent in the same process.
 
-The capabilities of `initialize` give the agent no file access and no terminal: `fs.readTextFile`, `fs.writeTextFile` and `terminal` are `false`. A request for one of them gets the error "method not found". They take the work of an agent: `subagents: {}`, `plan: {}` and `session: {notices: {}, compaction: {}}`, which are unstable types of the schema, and `_meta.backgroundTasks: {}` for the extension notification `_session/background_task`. An agent sends these updates only to a client that advertises them. The client names itself `projectured` and sends its package version. When the agent answers with another protocol version, `start_agent_connection!` stops the agent and throws an error.
+The capabilities of `initialize` give the agent no file access: `fs.readTextFile` and `fs.writeTextFile` are `false`, and a request for one of them gets the error "method not found". They give it terminals, `terminal: true`: the editor runs each command of the agent ("The terminals", below). They take the work of an agent: `subagents: {}`, `plan: {}` and `session: {notices: {}, compaction: {}}`, which are unstable types of the schema, and `_meta.backgroundTasks: {}` for the extension notification `_session/background_task`. An agent sends these updates only to a client that advertises them. The client names itself `projectured` and sends its package version. When the agent answers with another protocol version, `start_agent_connection!` stops the agent and throws an error.
 
 **The registration is a method.** The package adds `make_agent_connection(::Val{:acp}; …)` and has no `__init__`. `get_agent_connection_names()` reads the loaded connections from the method table, so `:acp` exists exactly while the package is loaded. Without the package, `make_agent_connection(:acp)` throws an error that lists the loaded kinds and says to load the package.
 
@@ -35,7 +35,7 @@ The package [`AgentClientProtocol`](https://github.com/projectured/AgentClientPr
 
 - **The reader task** of the connection reads the lines and hands each message to its place. A response goes to the request that waits for it. `send_request!` throws a `ProtocolException` for an error answer.
 - **A notification of the agent** runs on the reader task, in order, so the chunks of an answer keep their order. The handler must not wait.
-- **A request of the agent** runs on a task of its own, so it can wait for a person. A request that the handler does not serve, such as a file or a terminal request, gets the error "method not found".
+- **A request of the agent** runs on a task of its own, so it can wait for a person or for the end of a command. A request that the handler does not serve, such as a file request, gets the error "method not found".
 - **The standard error of the agent** goes to the debug log. The connection logs no message content, because an agent can send account data.
 
 The connection starts the agent in a process group of its own. `close_connection!` closes the input of the agent first, because an agent ends when its input ends. A process that still runs after 5 seconds gets `SIGTERM`, sent to the whole group. After 2 more seconds it gets `SIGKILL`. At the end the group gets `SIGTERM` in any case, because a child of the agent can outlive an agent that ended at the end of its input. So no child of the agent lives on. Each request that waits for an answer throws.
@@ -77,7 +77,7 @@ ACP sends text with no frame around it, and the events of the kernel frame a blo
 
 **The options of a session.** The connection reads the `configOptions` of `session/new`, of the answer to `session/set_config_option` and of a `config_option_update`, and keeps the last ones of each session, also outside a prompt. A group of values shows as values. A `current_mode_update` names only the new mode, so the connection answers it as the kept options with the option of the category `mode` set to it. Each of these updates reaches the prompt that runs as an `AgentOptionsUpdate`. The connection keeps no `on_event` of `open_agent_session!` or `set_agent_option!` after the call.
 
-An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` and `claude-code-acp` put it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`. When the content is one `resource` block, the `output` is its `text`, and `output_mime_type` and `output_uri` are its `mimeType` and its `uri`. `claude-code-acp` gives the clean text of a file that `Read` read so, with the media type of its extension.
+A `terminal` item of the content of a call gives its `terminalId` to `terminal_ids` of the event, in order; content with no terminal gives an empty vector, and an update with no content `nothing`. An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` and `claude-code-acp` put it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`. When the content is one `resource` block, the `output` is its `text`, and `output_mime_type` and `output_uri` are its `mimeType` and its `uri`. `claude-code-acp` gives the clean text of a file that `Read` read so, with the media type of its extension.
 
 ### Where an event goes
 
@@ -140,6 +140,21 @@ A `session/request_permission` request of the agent waits on a task of its own. 
 The wait has a bound. `cancel_agent_prompt!`, the end of the prompt, `close_agent_session!` and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. A request that waits in the queue waits on in the next prompt, so the end of that prompt ends its wait. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the handler gives `reply(nothing)` to `add_cancel_callback!` of the request, and the agent gets the valid answer `cancelled`. A request that the agent withdrew before the handler shows it does not reach the person.
 
 A worked example: the agent asks to run `execute_julia_code` with the options `allow_once` and `reject_once`. The assistant draws a card with two buttons. The person clicks the first one, `reply("allow_once")` runs, and the agent gets `{"outcome": {"outcome": "selected", "optionId": "allow_once"}}`. If the person presses Escape before the click, the turn is cancelled, `reply(nothing)` runs, and the agent gets `{"outcome": {"outcome": "cancelled"}}`.
+
+### The terminals
+
+With `terminal: true` in `initialize`, an agent can ask the editor to run a command: the adapter of Claude Code runs each command of its Bash tool so. Each of the five requests, `terminal/create`, `terminal/output`, `terminal/wait_for_exit`, `terminal/kill` and `terminal/release`, becomes an `AgentTerminalRequest` of the kernel with its `method`, its session and its parameters: the command, its arguments, its folder, its added variables and its `outputByteLimit` for a create, and the id of the terminal for the others. It goes where a permission request goes, the prompt that runs or else the queue of its session, and the task of the request waits for its `reply`. The editor runs the command and answers ([assistant.md](../../platform/assistant/assistant.md)).
+
+| Reply | Answer |
+| --- | --- |
+| a `String`, for a create | `{terminalId}` |
+| `(output, truncated, exit_code, signal)` | `{output, truncated, exitStatus?}`, with `exitStatus` only for a command that ended |
+| `(exit_code, signal)`, for a wait | `{exitCode?, signal?}` |
+| `true`, for a kill and a release | `{}` |
+| an exception | the error `INVALID_PARAMS` with the message of the exception |
+| `nothing`, a cancel | the error `REQUEST_CANCELLED` |
+
+A request of a session with no prompt and no queue gets the error `INTERNAL_ERROR`. A cancel of the prompt, its end and the stop of the agent answer a request that waits as cancelled, as for a permission request, and so does a withdrawal with `$/cancel_request`.
 
 ### A sign-in that is missing
 

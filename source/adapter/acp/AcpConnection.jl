@@ -135,7 +135,7 @@ function start_agent_connection!(connection::AcpConnection)
             # extension notification `_session/background_task` carries.
             client_capabilities = ACP.ClientCapabilities(
                 fs = ACP.FileSystemCapabilities(read_text_file = false, write_text_file = false),
-                terminal = false, auth = ACP.AuthCapabilities(terminal = true),
+                terminal = true, auth = ACP.AuthCapabilities(terminal = true),
                 elicitation = ACP.ElicitationCapabilities(form = ACP.ElicitationFormCapabilities()),
                 session = ACP.ClientSessionCapabilities(notices = ACP.NoticeCapabilities(),
                                                         compaction = ACP.CompactionCapabilities()),
@@ -957,8 +957,8 @@ end
 # each child on the way. A request that waits in the queue waits until the end
 # of the next prompt. A request of a session with no prompt and no queue is
 # cancelled, and so is a request that the agent withdraws with
-# `$/cancel_request`. A request for a file or a terminal gets "method not found"
-# from `AgentClientProtocol`, because the client offers neither in `initialize`.
+# `$/cancel_request`. A request for a file gets "method not found" from
+# `AgentClientProtocol`, because the client offers none in `initialize`.
 function ACP.answer_request(handler::AcpClientHandler, request::ACP.RequestPermissionRequest, context)
     connection = handler.connection
     json = ACP.get_json(request)
@@ -1031,6 +1031,70 @@ function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateElicit
     value === :decline && return ACP.CreateElicitationResponseDecline()
     ACP.CreateElicitationResponseAccept(content = Dict{String,Any}(
         name => answered for (name, answered) in value if any(field -> field.name == name, fields)))
+end
+
+# ── The terminals ────────────────────────────────────────────────────────────
+
+# A terminal request of the agent goes to the editor as an `AgentTerminalRequest`,
+# where a permission request goes, and the task of the request waits for the
+# reply. The editor runs the command as a task and answers on a task of its own. A
+# request of a session with no prompt and no queue, an exception that the reply
+# gives, and a cancel are error answers.
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateTerminalRequest, context)
+    environment = Pair{String,String}[variable.name => variable.value
+                                      for variable in something(request.env, ACP.EnvVariable[])]
+    terminal_id = _ask_terminal_request(handler.connection, request.session_id, :create, "", context;
+                                        command = request.command, arguments = something(request.args, String[]),
+                                        directory = request.cwd, environment,
+                                        output_byte_limit = request.output_byte_limit)
+    ACP.CreateTerminalResponse(terminal_id = terminal_id)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.TerminalOutputRequest, context)
+    answer = _ask_terminal_request(handler.connection, request.session_id, :output, request.terminal_id, context)
+    status = answer.exit_code === nothing && answer.signal === nothing ? nothing :
+             ACP.TerminalExitStatus(exit_code = answer.exit_code, signal = answer.signal)
+    ACP.TerminalOutputResponse(output = answer.output, truncated = answer.truncated, exit_status = status)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.WaitForTerminalExitRequest, context)
+    answer = _ask_terminal_request(handler.connection, request.session_id, :wait_for_exit, request.terminal_id,
+                                   context)
+    ACP.WaitForTerminalExitResponse(exit_code = answer.exit_code, signal = answer.signal)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.KillTerminalRequest, context)
+    _ask_terminal_request(handler.connection, request.session_id, :kill, request.terminal_id, context)
+    ACP.KillTerminalResponse()
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.ReleaseTerminalRequest, context)
+    _ask_terminal_request(handler.connection, request.session_id, :release, request.terminal_id, context)
+    ACP.ReleaseTerminalResponse()
+end
+
+# The answer of the editor to one terminal request, which waits on the task of the
+# request. A withdrawal of the request by the agent cancels it.
+function _ask_terminal_request(connection::AcpConnection, session_id::AbstractString, method::Symbol,
+                               terminal_id::AbstractString, context; options...)
+    answer = Channel{Any}(1)
+    is_answered = Threads.Atomic{Bool}(false)
+    reply = function (value)
+        Threads.atomic_xchg!(is_answered, true) && return false
+        put!(answer, value)
+        true
+    end
+    ACP.add_cancel_callback!(() -> reply(nothing), context)
+    event = AgentTerminalRequest(session_id, method, terminal_id, reply; options...)
+    turn = lock(() -> _deliver_session_request!(connection, String(session_id), event, reply, answer),
+                connection.turns_lock)
+    turn === nothing &&
+        throw(ACP.ProtocolException(ACP.INTERNAL_ERROR, "The session `$(session_id)` takes no terminal request now."))
+    value = take!(answer)
+    lock(() -> filter!(waiting -> waiting !== reply, turn.waiting_replies), connection.turns_lock)
+    value === nothing && throw(ACP.ProtocolException(ACP.REQUEST_CANCELLED, "The terminal request was cancelled."))
+    value isa Exception && throw(ACP.ProtocolException(ACP.INVALID_PARAMS, sprint(showerror, value)))
+    value
 end
 
 # The fields of a form, one for each property of its schema. The protocol library

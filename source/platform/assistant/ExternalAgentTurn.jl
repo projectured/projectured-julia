@@ -49,7 +49,11 @@ The live link of an assistant to its external agent:
 - `prompt_end_time` — when the last prompt ended, in seconds of `time()`;
 - `stop_task`   — the task that stops the agent and its MCP server after
                   `stop_external_agent!`, which the end of the window waits for;
-                  `nothing` before a stop.
+                  `nothing` before a stop;
+- `terminals`   — the terminals that the agent asked the editor to run, by
+                  their ids: the identifier of the row of each task alone. A
+                  release takes one out, and the end of the connection stops and
+                  forgets them all; the rows stay.
 
 It is no data: a save does not write it, a duplicate of the assistant does not
 share it, and a walk of the documents does not enter it.
@@ -73,12 +77,13 @@ mutable struct ExternalAgentSession
     subagent_turns::IdDict{Any,Any}
     prompt_end_time::Float64
     stop_task::Union{Nothing,Task}
+    terminals::Dict{String,Any}
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
                          false, ReentrantLock(), nothing, nothing, nothing, Any[],
-                         IdDict{Any,Any}(), -Inf, nothing)
+                         IdDict{Any,Any}(), -Inf, nothing, Dict{String,Any}())
 
 is_walk_opaque(::ExternalAgentSession) = true
 
@@ -752,6 +757,7 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         _handle_agent_event!(event, a, turn, state, nothing)
     elseif event isa AgentToolCallUpdate
         _apply_tool_call_update!(turn, state, event, tools)
+        event.terminal_ids === nothing || isempty(event.terminal_ids) || _show_agent_terminals!(a, state, event)
     elseif event isa AgentPlanUpdate
         _apply_plan_update!(turn, state, event)
     elseif event isa Union{AgentPermissionRequest,AgentQuestionRequest}

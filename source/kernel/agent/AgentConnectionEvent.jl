@@ -5,7 +5,8 @@
 # sees the protocol.
 
 """
-    AgentToolCallUpdate(id; name, title, kind, status, input, output, output_mime_type, output_uri)
+    AgentToolCallUpdate(id; name, title, kind, status, input, output, output_mime_type, output_uri,
+                        terminal_ids)
 
 A tool call of an external agent, new or changed. The agent runs the tool
 itself, and the event only reports it. `id` names the call across its updates,
@@ -23,6 +24,9 @@ and a field that is `nothing` keeps the value of the last update of the same
   the agent says it, as it does for the text of a file that the tool read.
 - `output_uri` — the uri of what `output` holds, such as `file:///a.md`, when the
   agent says it.
+- `terminal_ids` — the ids of the terminals that the content of the call shows, in
+  their order: terminals that the agent asked the client to run with an
+  `AgentTerminalRequest`. An empty vector for content with no terminal.
 
 `output_mime_type` and `output_uri` go with the `output` of the same update.
 """
@@ -36,12 +40,14 @@ struct AgentToolCallUpdate <: AgentEvent
     output::Union{Nothing,String}
     output_mime_type::Union{Nothing,String}
     output_uri::Union{Nothing,String}
+    terminal_ids::Union{Nothing,Vector{String}}
 end
 
 AgentToolCallUpdate(id::AbstractString; name = nothing, title = nothing, kind = nothing,
                     status = nothing, input = nothing, output = nothing, output_mime_type = nothing,
-                    output_uri = nothing) =
-    AgentToolCallUpdate(String(id), name, title, kind, status, input, output, output_mime_type, output_uri)
+                    output_uri = nothing, terminal_ids = nothing) =
+    AgentToolCallUpdate(String(id), name, title, kind, status, input, output, output_mime_type, output_uri,
+                        terminal_ids === nothing ? nothing : String[String(id) for id in terminal_ids])
 
 """
     AgentPlanEntry(content, priority, status; id = "", description = "", active_title = "", blocked_by = String[])
@@ -136,6 +142,65 @@ struct AgentPermissionRequest <: AgentEvent
     reply::Function
 end
 
+
+"""
+    AgentTerminalRequest(session_id, method, terminal_id, reply; command = "", arguments = String[],
+                         directory = nothing, environment = Pair{String,String}[],
+                         output_byte_limit = nothing)
+
+An external agent asks the client to run a command in a terminal, or asks about a
+terminal that it started, and waits for the answer. `session_id` is the session
+that asks, and `method` says what it asks:
+
+| `method` | The request | `reply` takes |
+| --- | --- | --- |
+| `:create` | run `command` with `arguments` in `directory` (`nothing` for the folder of the session), with `environment` added, and keep at most `output_byte_limit` bytes of its output | the id of the new terminal, a `String` |
+| `:output` | the output of `terminal_id` so far | `(output, truncated, exit_code, signal)`: the text, whether its start was cut, and the exit code or the name of the signal of a command that ended, else `nothing` for both |
+| `:wait_for_exit` | wait until the command of `terminal_id` ends | `(exit_code, signal)` |
+| `:kill` | stop the command of `terminal_id`, and keep the terminal | `true` |
+| `:release` | stop the command when it runs, and forget the terminal | `true` |
+
+`reply` takes an exception when the client can not do what the agent asks, such
+as for a terminal that it does not know, and `nothing` when the request is
+cancelled. The first call answers the agent and answers `true`; a later call does
+nothing and answers `false`. A cancel of the turn answers the request as
+cancelled. The client answers the request on a task of its own: a wait for the end
+of a command must not hold the editor.
+"""
+struct AgentTerminalRequest <: AgentEvent
+    session_id::String
+    method::Symbol
+    terminal_id::String
+    command::String
+    arguments::Vector{String}
+    directory::Union{Nothing,String}
+    environment::Vector{Pair{String,String}}
+    output_byte_limit::Union{Nothing,Int}
+    reply::Function
+end
+
+"""
+    AGENT_TERMINAL_METHODS
+
+The methods of an `AgentTerminalRequest`: `:create`, `:output`, `:wait_for_exit`,
+`:kill` and `:release`.
+"""
+const AGENT_TERMINAL_METHODS = (:create, :output, :wait_for_exit, :kill, :release)
+
+function AgentTerminalRequest(session_id::AbstractString, method::Symbol, terminal_id::AbstractString,
+                              reply::Function; command::AbstractString = "",
+                              arguments::AbstractVector = String[], directory = nothing,
+                              environment::AbstractVector = Pair{String,String}[],
+                              output_byte_limit::Union{Nothing,Integer} = nothing)
+    method in AGENT_TERMINAL_METHODS ||
+        throw(ArgumentError(string("the method of a terminal request is one of ", AGENT_TERMINAL_METHODS,
+                                   ", not ", repr(method))))
+    AgentTerminalRequest(String(session_id), method, String(terminal_id), String(command),
+                         String[String(argument) for argument in arguments],
+                         directory === nothing ? nothing : String(directory),
+                         Pair{String,String}[String(first(pair)) => String(last(pair)) for pair in environment],
+                         output_byte_limit === nothing ? nothing : Int(output_byte_limit), reply)
+end
 
 """
     AgentOptionValue(value, name, description)

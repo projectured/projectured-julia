@@ -55,6 +55,8 @@ function apply_agent_event!(editor, a::Assistant, event)
             _set_agent_work_process!(a.agent_work, event.process_id)
     elseif event isa _AgentWorkUpdate
         _apply_agent_work_update!(editor, a, a.agent_work, event)
+    elseif event isa AgentTerminalRequest
+        _apply_agent_terminal_request!(editor, a, event)
     else
         state = session isa ExternalAgentSession ?
                 _find_session_turn!(a, session, event) : nothing
@@ -346,7 +348,10 @@ end
 # transcript. The options, the usage, the title and the commands of the session of
 # a subagent are in the fields of its update.
 function _apply_subagent_event!(editor, a::Assistant, child::AgentWork, event)
-    if event isa _AgentWorkUpdate
+    if event isa AgentTerminalRequest
+        # A terminal of a subagent is a terminal of the session.
+        _apply_agent_terminal_request!(editor, a, event)
+    elseif event isa _AgentWorkUpdate
         _apply_agent_work_update!(editor, a, child, event)
     elseif event isa LlmMessage
         event.role === :user && _add_subagent_prompt!(a, child, event)
@@ -570,9 +575,11 @@ end
 # or stopped, the agent starts again, or the assistant was reset. The agent may
 # send nothing more, as when its process died, so the work that ran ends here: a
 # turn that the agent started by itself ends, a question that waits is
-# cancelled, and the work of the assistant ends (`_end_running_agent_work!`).
+# cancelled, the commands of its terminals stop, and the work of the assistant
+# ends (`_end_running_agent_work!`).
 function _end_agent_work!(a::Assistant, session::ExternalAgentSession)
     _end_agent_turn!(a, session)
+    _release_agent_terminals!(session)
     foreach(_cancel_agent_request!, session.waiting_requests)
     empty!(session.waiting_requests)
     _end_running_agent_work!(a, a.agent_work)
