@@ -320,9 +320,14 @@ makes one commit.
      - The address named the appearance by the place of its node,
        `entries[10]`: an `Appearance` had no title. It now has the title
        "Appearance", and a test checks the address of the page of a theme.
-     - The page of one part has no margin, so its summary touches the frame of
-       the page. A page of the explorer gets no margin from the navigator, but a
-       tab gives its content `slot_padding`; the owner decides who gives it.
+     - After a double click, the ring of the whole selection touches the first
+       line of the page at its top. The explorer gives the navigator the
+       `slot_padding` of its split pane, 8 px, as a tab gives its content. The
+       first box in the slot takes that space, so the page takes it on the left,
+       on the right and at the bottom, and the bar of the address takes it at
+       the top. The ring lies on the edge of the box of the page, so it has
+       8 px to the content on three sides and none at the top. With no ring,
+       the page stands 8 px from the bar, as `section_gap` gives.
 
 ## Not in this plan
 
