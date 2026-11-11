@@ -115,7 +115,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "undo" => ["collection", "fileformat", "graphics", "natural", "projection", "settings", "style",
                "syntax", "text"],
     "explorer" => ["collection", "domain", "fileformat", "focus", "gesturehelp", "layout", "navigator", "pane",
-                   "projection", "serialization", "style", "task", "tooltip", "tree", "widget"],
+                   "projection", "roster", "serialization", "style", "task", "tooltip", "tree", "widget"],
     "navigator" => ["collection", "domain", "filesystem", "layout", "link", "natural", "pane", "primitive", "projection",
                     "screen", "serialization", "style", "syntax", "text", "tooltip", "widget"],
     "gesturetracking" => ["settings"],
