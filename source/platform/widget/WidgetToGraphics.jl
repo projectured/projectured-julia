@@ -411,7 +411,7 @@ end
 
 # The IO map of a widget that holds no child: the fields of a `SimpleIoMap`, the
 # shape of the box, and the lines of text that the widget drew with the part of its
-# input that each shows (`DrawnText`).
+# input that each shows (`DrawnTextLine`).
 @iomap struct WidgetBoxIoMap
     projection::Any
     input::Any
@@ -422,9 +422,9 @@ end
 
 # The IO map of a widget that records no line of text.
 WidgetBoxIoMap(projection, input, output, box) =
-    WidgetBoxIoMap(projection, input, output, box, _NO_DRAWN_TEXT)
+    WidgetBoxIoMap(projection, input, output, box, _NO_DRAWN_TEXT_LINES)
 
-const _NO_DRAWN_TEXT = DrawnText[]
+const _NO_DRAWN_TEXT_LINES = DrawnTextLine[]
 
 # The IO map of a widget that holds children: the fields of a `ChildrenIoMap`,
 # whose `child_iomaps` holds an `(x, y, child_iomap)` entry for each child, and
@@ -448,7 +448,7 @@ end
     child_iomaps::Any
     box::Any
     header::Any
-    drawn::Any            # the lines of the title and the description (`DrawnText`)
+    drawn::Any            # the lines of the title and the description (`DrawnTextLine`)
 end
 
 # The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, and
@@ -1256,7 +1256,7 @@ end
 # A `LineSpacing` in `spacing` sets the height of each line, with the half of its
 # leading above the text; `nothing` keeps the lines of the font.
 #
-# With `drawn`, a vector of `DrawnText`, and `part`, the path of the part of the
+# With `drawn`, a vector of `DrawnTextLine`, and `part`, the path of the part of the
 # input that `text` shows, each line that the block draws is recorded with the
 # character of `text` where it starts.
 function _push_text_block!(elements::Vector, measure, style::StyleText,
@@ -1276,7 +1276,7 @@ function _push_text_block!(elements::Vector, measure, style::StyleText,
             drawn_width, step, lift = box.width, box.height, box.text_y
         end
         _push_text!(elements, measure, style.font, line, x, y + height + Int(lift), style.color)
-        drawn === nothing || push!(drawn, DrawnText(last(elements), part, starts[index]))
+        drawn === nothing || push!(drawn, DrawnTextLine(last(elements), part, starts[index]))
         width = max(width, Int(drawn_width))
         height += Int(step)
     end
@@ -1923,7 +1923,7 @@ end
 # A label whose content is a `String` records each line that it draws, as the part
 # `.content` from the character where the line starts.
 function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGeometry, ctx)
-    drawn = DrawnText[]
+    drawn = DrawnTextLine[]
     part = w.content isa AbstractString ? _LABEL_CONTENT : nothing
     content = get_shown_picture(w.content)
     # A label may carry its own font+color (e.g. a chat card's title) that
@@ -1973,7 +1973,7 @@ function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGe
     _push_box_parts!(elements, box, colors, content_width, content_height; radius)
     _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
                    content_height; placeholder_color = p.placeholder_color)
-    part === nothing || push!(drawn, DrawnText(last(elements), part, 0))
+    part === nothing || push!(drawn, DrawnTextLine(last(elements), part, 0))
     (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
 end
 
@@ -8946,7 +8946,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     content_x, content_y = _get_content_offset(box)
     inset_width, inset_height = _get_inset_total(box)
     header_elements = Any[]
-    drawn = DrawnText[]
+    drawn = DrawnTextLine[]
     body_elements = Any[]
     footer_elements = Any[]
     child_iomaps = Any[]
@@ -9151,7 +9151,7 @@ end
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false &&
         return WidgetCardToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY,
-                                               Cell((height = 0, title_box = nothing)), Cell(DrawnText[]))
+                                               Cell((height = 0, title_box = nothing)), Cell(DrawnTextLine[]))
     position = w.position::Point2D
     ox, oy = _origin(position)
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
@@ -9399,7 +9399,7 @@ map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = _map_chi
 # text, is the caret or the range in that field.
 function map_reference_backward(p::WidgetCardToGraphicsCanvas, iomap, reference)
     reference === nothing && return nothing
-    drawn = iomap isa WidgetCardToGraphicsCanvasIoMap ? iomap.drawn : DrawnText[]
+    drawn = iomap isa WidgetCardToGraphicsCanvasIoMap ? iomap.drawn : DrawnTextLine[]
     place = map_drawn_place_backward(drawn, iomap.output, reference)
     place === nothing || return place
     point = find_reference_point(reference)

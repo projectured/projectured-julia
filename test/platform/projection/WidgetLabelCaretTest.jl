@@ -1,6 +1,6 @@
 """
 `WidgetLabelToGraphicsCanvas` — the caret in the text of a label, from the lines
-that the label records (`DrawnText`).
+that the label records (`DrawnTextLine`).
 
 Covers:
 - a plain click on the text puts the caret at the character under the pointer,

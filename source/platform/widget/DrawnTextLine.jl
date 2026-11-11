@@ -4,7 +4,7 @@
 # that lies in the part on its line, and names the part under the pointer on a move.
 
 """
-    DrawnText(text, part, start)
+    DrawnTextLine(text, part, start)
 
 A line of text that a widget drew: the `GraphicsText` element `text`, the path
 `part` from the widget to the part of its input that the line shows, such as
@@ -12,7 +12,7 @@ A line of text that a widget drew: the `GraphicsText` element `text`, the path
 record holds the element itself, because a printer can put other elements before
 it after it drew it.
 """
-struct DrawnText
+struct DrawnTextLine
     text::Any
     part::Reference
     start::Int
@@ -33,7 +33,7 @@ function _find_line_starts(text::AbstractString, lines)
     starts
 end
 
-_get_drawn_string(line::DrawnText) = String(unwrap_cell(getfield(line.text, :text)))
+_get_drawn_string(line::DrawnTextLine) = String(unwrap_cell(getfield(line.text, :text)))
 
 # The path from `node` to `element`, an element of a canvas or of a viewport below
 # `node`, found by identity; `nothing` when `node` does not hold it.

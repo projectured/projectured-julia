@@ -791,7 +791,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     answered by D5).
 
     The design by D5:
-    - `DrawnText(text, part, start)`: one drawn line, the `GraphicsText`
+    - `DrawnTextLine(text, part, start)`: one drawn line, the `GraphicsText`
       object, the path of the part that it shows from the widget (`.title`, or
       an introduced path of a computed value), and the character of the part
       where the line starts. The record holds the object, not its index, because
