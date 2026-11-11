@@ -424,9 +424,9 @@ const EDITOR_SYSTEM =
     "editor. Start a program as a task with `run_tasks!`, so that the person sees it and " *
     "can stop it.\n" *
     "- Do the work without a tab. Open a tab with `open_pane!` only when the person asks " *
-    "for one, or when the conversation shows that the person wants to see it now. Never " *
-    "move the focus: never call `focus_pane!`. Only `select_part!` moves the selection " *
-    "of the person.\n" *
+    "for one, or when the conversation shows that the person wants to see it now, and " *
+    "then bring it to the front with `show_pane!`. Never move the focus: never call " *
+    "`focus_pane!`. Only `select_part!` moves the selection of the person.\n" *
     "- Keep each object in its own numbered variable, such as items_1 and rows_1, " *
     "and use it again in a later call. The person edits the window between your turns, " *
     "so read a document again before you say what it holds.\n" *
