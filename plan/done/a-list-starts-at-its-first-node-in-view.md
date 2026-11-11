@@ -154,7 +154,8 @@ on `main` before the owner approves.
    change. Promote the assertions of step 1 that pass, and write the counts in
    this plan. Run `test_sdl()`, `test_scroll_work()` and `test_video()` with the
    offscreen driver, and `test_dataframes()`, because a table is a list. Commit.
-3. [ ] **The measurement, the guide and the end.** On the word of the owner, time
+3. [x] **The measurement, the guide and the end.** Done; see [As built](#as-built).
+   On the word of the owner, time
    the three scenes in real windows on `main` and on the branch, in the blocks of
    the last timing, and profile the walk of the data frame again. Describe the
    rule of the skipped nodes and the steps from the head in
@@ -261,5 +262,52 @@ node that waits for the start of the node after it, the guard that reads where
 each node between the head and the view starts, the reflow of a changed link over
 the bounds that the list drew in the last paint, the random scenes of lazy lists
 and the data frame 60 notches down. A decision bullet names this plan with a
-link. The timing waits for the word of the owner.
+link.
+
+### Step 3: the timing, 2026-11-11
+
+- **Method.** The owner chose a test that alternates A and B over a wait for an
+  idle machine. A is a checkout at the base of the branch, `cfb077e2d`, so that
+  only this change is different. B is the branch at `909ee7dd8`. The runs went
+  in the order A1, B1, A2, B2, A3, each in its own process, in real SDL windows
+  of 1600 × 1000 pixels with the `opengl` renderer, Julia 1.13.1, the lane
+  `taskset -c 28,30,31`, through `bounded-run`. Each process ran the blocks of
+  the last timing: 24 notches that are not timed, then 6 blocks of 15 notches,
+  with the moves on in blocks 1, 3 and 5. Each run took 39 to 41 s.
+- **Load.** The load average was 1.78 to 2.07 at the start and the end of each
+  run. Each lane core was 0 to 3% busy, read over 2 s at the start and the end
+  of each run.
+- **The runs agree.** The three runs of A agree with each other, and the two
+  runs of B agree with each other, so the load did not change the result.
+- **Data frame, moves on.** Medians of 15 notches, in milliseconds:
+
+  | Notches | Walk, A1 A2 A3 | Walk, B1 B2 | Frame, A1 A2 A3 | Frame, B1 B2 | Kept graphics, A | Kept graphics, B |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | 25 to 39 | 5.36, 6.40, 6.15 | 3.58, 4.03 | 8.43, 9.69, 9.50 | 6.64, 6.94 | 1323 | 42 |
+  | 55 to 69 | 8.08, 8.51, 8.90 | 4.45, 4.67 | 12.17, 12.41, 13.26 | 7.92, 8.44 | 2532 | 42 |
+  | 85 to 99 | 11.20, 10.48, 12.21 | 5.09, 5.19 | 16.06, 14.93, 17.36 | 8.88, 9.34 | 3738 | 33 |
+
+  The kept graphics of A are the same as in the timing of the plan before this
+  one. At notch 85 a frame of B takes 9 ms, and a frame of A 16 ms.
+- **The walk of B still grows a little with the depth**: about 0.75 ms for each
+  30 notches. This is the step from the head (D1), which reads where each node
+  between the head and the view starts. My estimate of 3 to 4 ms of walk at
+  every depth holds at the top only.
+- **Data frame, moves off.** In blocks 2 and 4 the walk of A takes 17.5 to 19.6
+  ms and 24.9 to 26.5 ms, and the walk of B 7.8 to 8.5 ms and 8.4 to 8.7 ms. In
+  block 6 the records of A fall from 7629 to 2792 in one walk of 95 ms at notch
+  105, and after that A costs what B costs. I did not look for the cause, because
+  it is in A.
+- **Julia file and Files pane.** The counts of A and B are the same in each
+  block. B1 is within 3% of the runs of A in each block. B2 is slower than the
+  runs of A by up to 19% in some blocks, and B1 is not, so that is noise.
+- **Profile of the walk of B**, notches 70 to 159, a sample each 0.2 ms, 4451
+  samples in the walk:
+  - 73% compute the cells that the walk reads, mostly the layout of the rows that
+    come into view (`GridList`). 31% of the samples are self samples in the
+    allocation of arrays.
+  - 13% are in `_render_elem_y` under `_collect_drawn_nodes`: the step from the
+    head. This part grows with the depth.
+  - The functions of the move of the kept graphics have few self samples of
+    their own. In the profile of the plan before this one, the move took 46%.
 
