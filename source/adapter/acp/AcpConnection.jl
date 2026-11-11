@@ -217,46 +217,74 @@ _log_agent_line(line) = @debug "agent" line
 # has `sessionCapabilities.resume`. When the answer to the resume is an error of
 # the protocol, as for a session that the agent does not have any more, a new
 # session opens, and the caller sees its new id. A needed sign-in, a timeout and
-# a closed connection go to the caller. An agent can send an update of the
-# session just after its answer, before this call has the id, so the updates of
-# a session with no queue and no parent wait while an open runs, and the open
-# puts them into the queue of its session.
+# a closed connection go to the caller.
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
                              mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
                              session_id::AbstractString = "", on_event = nothing,
                              events::Union{Nothing,AgentEventQueue} = nothing)
+    _run_session_open!(connection, mcp_servers, instructions, on_event, events) do send, meta, servers
+        if !isempty(session_id) && _has_session_capability(connection, "resume")
+            result = try
+                send(ACP.ResumeSessionRequest(session_id = String(session_id), cwd = String(directory),
+                                              mcp_servers = servers, meta = meta))
+            catch exception
+                exception isa ACP.ProtocolException || rethrow()
+                @debug "The agent did not resume the session, so a new session opens." exception
+                nothing
+            end
+            result === nothing || return (String(session_id), _get_config_options(result))
+        end
+        result = send(ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
+        (result.session_id, _get_config_options(result))
+    end
+end
+
+# A fork is the request `session/fork`, for an agent whose answer to
+# `initialize` has `sessionCapabilities.fork`. An error of the protocol, as for
+# a session that the agent does not keep, answers `nothing`, as an agent that
+# can not fork does. A needed sign-in, a timeout and a closed connection go to
+# the caller.
+function fork_agent_session!(connection::AcpConnection; session_id::AbstractString,
+                             directory::AbstractString = connection.directory,
+                             mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                             on_event = nothing, events::Union{Nothing,AgentEventQueue} = nothing)
+    _run_session_open!(connection, mcp_servers, instructions, on_event, events) do send, meta, servers
+        _has_session_capability(connection, "fork") || return nothing
+        result = try
+            send(ACP.ForkSessionRequest(session_id = String(session_id), cwd = String(directory),
+                                        mcp_servers = servers, meta = meta))
+        catch exception
+            exception isa ACP.ProtocolException || rethrow()
+            @debug "The agent did not fork the session." exception
+            return nothing
+        end
+        (result.session_id, _get_config_options(result))
+    end
+end
+
+# The open of a session: `open(send, meta, servers)` sends the request of the
+# open with `send` and answers the id of the session that opened and the JSON of
+# its options, or `nothing` for no session. `meta` holds the instructions for
+# an agent that does not advertise `sessionCapabilities.systemPrompt`, and
+# `send` adds them as the field `systemPrompt` for one that does. An agent can
+# send an update of the session just after its answer, before this call has the
+# id, so the updates of a session with no queue and no parent wait while an
+# open runs, and the open puts them into the queue of its session.
+function _run_session_open!(open::Function, connection::AcpConnection, mcp_servers::AbstractVector,
+                            instructions::AbstractString, on_event, events::Union{Nothing,AgentEventQueue})
     transport = _get_started_transport(connection)
     has_system_prompt = _has_session_capability(connection, "systemPrompt")
     meta = has_system_prompt ? connection.session_meta : _add_instructions(connection.session_meta, instructions)
     meta = isempty(meta) ? nothing : meta
     system_prompt = has_system_prompt ? String(instructions) : ""
     servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
+    send = request -> _send_session_request!(connection, transport, _add_system_prompt!(request, system_prompt))
     lock(() -> connection.opening_count += 1, connection.turns_lock)
     try
-        opened_id = nothing
-        if !isempty(session_id) && _has_session_capability(connection, "resume")
-            result = try
-                _send_session_request!(connection, transport, _add_system_prompt!(ACP.ResumeSessionRequest(
-                    session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta),
-                    system_prompt))
-            catch exception
-                exception isa ACP.ProtocolException || rethrow()
-                @debug "The agent did not resume the session, so a new session opens." exception
-                nothing
-            end
-            if result !== nothing
-                opened_id = String(session_id)
-                _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
-                                        on_event)
-            end
-        end
-        if opened_id === nothing
-            result = _send_session_request!(connection, transport, _add_system_prompt!(
-                ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta), system_prompt))
-            opened_id = result.session_id
-            _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
-                                    on_event)
-        end
+        opened = open(send, meta, servers)
+        opened === nothing && return nothing
+        opened_id, options = opened
+        _store_session_options!(connection, opened_id, options, on_event)
         _register_session!(connection, opened_id, events)
         opened_id
     finally
@@ -270,6 +298,7 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
     end
 end
 
+_get_config_options(result) = get(ACP.get_json(result), "configOptions", Any[])
 # The queue of a session that opened, and the frame and the events that came
 # for it before the open had its id. A frame of an earlier open of the same id
 # ends first, in its own queue. An agent in a child process gives the id of that

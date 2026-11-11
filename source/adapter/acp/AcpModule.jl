@@ -7,7 +7,7 @@ adapter `claude-agent-acp`. Depends on `ProjecturedKernel` plus
 `AgentClientProtocol`, and implements the external-agent seam of the kernel's
 `AgentModule`:
 `AcpConnection` and its methods of `make_agent_connection`,
-`start_agent_connection!`, `open_agent_session!`, `set_agent_option!`,
+`start_agent_connection!`, `open_agent_session!`, `fork_agent_session!`, `set_agent_option!`,
 `send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`,
 `stop_agent_background_task!`, `close_agent_session!` and
 `stop_agent_connection!`.
@@ -43,7 +43,7 @@ import ClaudeCodeACP
 
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent_session!,
-                      set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
+                      fork_agent_session!, set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
                       cancel_agent_subagent!, stop_agent_background_task!,
                       close_agent_session!, stop_agent_connection!, sign_in_agent!,
                       has_agent_sign_out, sign_out_agent!, has_agent_steering,

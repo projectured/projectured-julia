@@ -63,6 +63,24 @@ Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
 function open_agent_session! end
 
 """
+    fork_agent_session!(connection; session_id, directory, mcp_servers = [], instructions = "",
+                        on_event = nothing, events = nothing) -> Union{String,Nothing}
+
+Open a new session of the agent that starts with the history of the session
+`session_id`, as the agent keeps it at this call, and answer its id. The session
+`session_id` goes on as before, and a later answer of it does not reach the new
+one. `directory` must be the folder of the session `session_id`. The other
+keywords are those of [`open_agent_session!`](@ref).
+
+Answers `nothing` when the agent can not fork that session: it can not fork a
+session at all, or it does not keep that one. The caller then opens a new
+session with `open_agent_session!`, which has none of the history.
+
+Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
+"""
+function fork_agent_session! end
+
+"""
     set_agent_option!(connection, session_id, option_id, value; on_event = nothing)
 
 Set the option `option_id` of the session to `value`, the `value` of one of the

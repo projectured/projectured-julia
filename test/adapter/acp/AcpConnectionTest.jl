@@ -201,6 +201,52 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "a fork asks the agent for a copy of a session, and an agent that can not fork answers nothing" begin
+            forking = Dict("agentCapabilities" => Dict("sessionCapabilities" => Dict(
+                "resume" => Dict(), "fork" => Dict())))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> Dict("sessionId" => "fork-1", "configOptions" => FAKE_CONFIG_OPTIONS)))
+            connection = make_fake_connection(agent)
+            events = Any[]
+            queue = AgentEventQueue()
+            @test fork_agent_session!(connection; session_id = "session-9", directory = "/work", instructions = "Host.",
+                                      on_event = event -> push!(events, event), events = queue) == "fork-1"
+            params = only(get_received(agent, "session/fork"))["params"]
+            @test (params["sessionId"], params["cwd"]) == ("session-9", "/work")
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            @test isempty(get_received(agent, "session/new"))
+            @test only(events) isa AgentOptionsUpdate
+            # The fork is a session of the connection: its events between two
+            # prompts reach its queue.
+            send_fake_update(agent, "fork-1", Dict("sessionUpdate" => "session_info_update", "title" => "Fork"))
+            @test only(_take_queue_events(queue, 1)) == AgentSessionInfoUpdate("Fork")
+            stop_agent_connection!(connection)
+            # An agent that refuses the fork, as of a session that it does not
+            # keep, answers nothing and opens no session.
+            refusing = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> throw(ProtocolException(-32002, "No such session"))))
+            connection = make_fake_connection(refusing)
+            @test fork_agent_session!(connection; session_id = "session-9") === nothing
+            @test length(get_received(refusing, "session/fork")) == 1
+            @test isempty(get_received(refusing, "session/new"))
+            stop_agent_connection!(connection)
+            # An agent that offers no fork gets no request for one.
+            plain = _make_fake_agent()
+            connection = make_fake_connection(plain)
+            @test fork_agent_session!(connection; session_id = "session-9") === nothing
+            @test isempty(get_received(plain, "session/fork"))
+            stop_agent_connection!(connection)
+            # A sign-in that the fork needs goes to the caller.
+            signed_out = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            connection = make_fake_connection(signed_out)
+            @test_throws AgentSignInException fork_agent_session!(connection; session_id = "session-9")
+            stop_agent_connection!(connection)
+        end
+
         @testset "the options of a session at the open, at a set, and in an update" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/set_config_option" => function (agent, params)
