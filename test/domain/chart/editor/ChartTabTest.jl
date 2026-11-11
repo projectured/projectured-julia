@@ -8,7 +8,7 @@ using Test
 
 The title of a chart names the tab that shows it, and a chart with no title names
 none. A chart says how many series it holds. The duplicate of a chart is a copy: a
-change of the copy leaves the chart as it was.
+change of the copy leaves the chart as it was. A function series is shared.
 """
 function test_chart_tab()
 @testset "a chart on a tab has its title and a duplicate" begin
@@ -30,5 +30,12 @@ function test_chart_tab()
     copy.title = "Costs"
     copy.series[1].label = "b"
     @test chart.title == "Sales" && chart.series[1].label == "a"
+
+    # A function series holds a function, which a copy can not own: the duplicate
+    # shares it.
+    curve = ChartFunctionSeries("curve", x -> 2x)
+    curved = Chart("Curve", Any[ChartLineSeries("a", 1:3, [1.0, 2.0, 3.0]), curve])
+    curved_copy = make_document_duplicate(curved)
+    @test curved_copy.series[1] !== curved.series[1] && curved_copy.series[2] === curve
 end
 end

@@ -570,9 +570,13 @@ function Chart(title::AbstractString, series::AbstractVector;
 end
 
 # A chart is data that a person reads and changes, so its duplicate is a copy of
-# it: a chart of its own, with its axes, its legend, its style and its series. The
-# plot that draws a chart is no data, and has no duplicate.
-has_document_duplicate(::Union{Chart, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartSeries}) = true
+# it: a chart of its own, with its axes, its legend, its style and its series. A
+# function series holds a function, which a copy can not own, so a duplicate shares
+# the series and draws the same function. The plot that draws a chart is no data,
+# and has no duplicate.
+has_document_duplicate(::Union{Chart, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
+                               ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartPieSeries,
+                               ChartHistogramSeries, ChartStripSeries}) = true
 
 # The title of a chart is its name, so a tab that shows the chart has that name.
 get_document_title(chart::Chart) = isempty(chart.title) ? nothing : chart.title
