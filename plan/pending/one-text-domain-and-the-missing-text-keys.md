@@ -420,7 +420,8 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
    Test: `test_versioning_to_any()`. It gives 62: the 61 of the baseline and a
    check that Ctrl+Delete no longer deletes a version. `versioning.md` names
    Alt+Delete and the reason.
-10. ⬜ **Through an editor, and the documents.** A new umbrella test,
+10. ✅ **Through an editor, and the documents.** Done 2026-11-11, but Page Down
+    and the query of a choice list wait for step 3. A new umbrella test,
     `test_text_keys()`, presses each key of this plan through an editor on a plain
     text, a string of `json_example`, the chat draft and a tab name. It checks the
     document and the caret that renders, and that one undo takes back one
@@ -430,7 +431,33 @@ failure: `test_versioning_to_any()`, `test_text_to_graphics()`,
     [versioning.md](../../documentation/package/platform/versioning/versioning.md),
     and the documents of the pane, the primitive and the widget slices where they
     name the private tables. Test: `test_text_keys()`, and
-    `test_documentation()`.
+    `test_documentation()`. Facts of the step:
+    - `test_text_keys()` (`test/projectured/projection/TextKeysTest.jl`, in
+      `test_projections()`) gives 23 pass. A plain text in a history takes
+      Ctrl+Backspace, one Ctrl+Z, Ctrl+Delete, Home twice, Shift+Tab, Tab and
+      Ctrl+A, and each check reads the text and the column and line of the caret
+      that the frame draws. Page Down in a `WidgetScrollPane` moves the caret
+      and keeps its row on the screen, and Page Up brings it back. A string of a
+      JSON document and the draft of the chat take Ctrl+Backspace, the draft
+      also Ctrl+A, and the name of a tab Ctrl+Backspace and Ctrl+A.
+    - The documents: the key table, the two halves of the reader, the flat edit
+      and the limits of `text.md`, the rows of the keyboard guide, where the row
+      "Ctrl + Delete: remove the selected part" was wrong and is now Alt+Delete,
+      the composer in `conversation.md` and `transcript.md`, and
+      `KeepPointOperation` in `layout.md`. The documents of the pane, the
+      primitive and the widget slices changed in step 2.
+    - `test_documentation()` gives 2 failures, both for
+      `documentation/package/platform/task/task.md:502`, a file that the branch
+      does not change.
+    - The whole branch against the baseline: `test_repls()` 31988 pass, 206
+      fail, 8 broken and `test_typeins()` 5148 pass, 20 broken, the counts of the
+      branch point.
+    - The removed exports (`insert_insertion_text_operation`,
+      `delete_insertion_text_operation`, `find_deletion_range`,
+      `make_pane_retarget_title_operation`, `ComposerBackspaceOperation`,
+      `ComposerNewlineOperation`) give `ProjecturedPlatform` a minor step at its
+      next release. `changes_lines` is a new export, and `KeepPointOperation`
+      keeps its name in the platform.
 
 ## 6. Limits after the plan
 

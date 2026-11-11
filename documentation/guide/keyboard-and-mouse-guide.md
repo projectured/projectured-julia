@@ -14,6 +14,10 @@ A key press goes to the view under the selection, and each view says which keys 
 | --- | --- |
 | arrow keys | move the selection by one position |
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
+| Home, End | in a text, the start and the end of the line; Home goes first to the first character that is not a space, and a second press goes to the start of the line |
+| Page Up, Page Down | in a text, move the caret by the height that shows; the view scrolls as far, so the caret keeps its place on the screen |
+| Shift + a key that moves the caret | select from the caret to where the key moves it |
+| Ctrl + A | in a text, select the whole text; in code, select the whole document |
 | Alt + arrow keys | move the selection over whole parts, not positions |
 | Alt + click | select the part under the pointer as a whole |
 | right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
@@ -35,7 +39,9 @@ The part under the pointer is lit. When the view changes under a pointer that do
 | --- | --- |
 | a character key | type into the selected string, number or name |
 | Backspace, Delete | remove the character before or after the caret |
-| Ctrl + Delete | remove the selected part |
+| Ctrl + Backspace, Ctrl + Delete | remove the word before or after the caret, in its line |
+| Tab, Shift + Tab | in a text of many lines, such as a text file or the chat draft, indent the line or the selected lines, or take one step of indentation away; in a field or in code, Tab keeps the meaning of the place, such as the next field |
+| Alt + Delete | remove the selected part, where a domain takes it, such as a part of a chart or a version |
 | Insert | insert a new element beside the selected one |
 | Enter | finish the part you are typing |
 | Escape | leave what you are typing; in an example window of the REPL it also closes the window |
