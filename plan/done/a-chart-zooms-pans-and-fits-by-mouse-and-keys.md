@@ -1,7 +1,7 @@
 # A chart zooms, pans and fits by the mouse and the keys
 
-**Status (2026-11-11): done on the branch `chart-navigation`, not landed, not
-pushed.** The owner approved the plan for
+**Status (2026-11-11): done, landed on `main` by a rebase and a fast-forward
+at `fce7122fe` on the owner's approval ("Land"), not pushed.** The owner approved the plan for
 implementation on 2026-11-10 ("Let's go"). The owner decided D12, and D9 in its
 second form. The assistant proposed the other decisions of §4, and they are
 approved with the plan. No question is open.
