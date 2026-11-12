@@ -333,9 +333,12 @@ function _pc_check_point!(session, element)
     # A plain click puts the caret on the character under the point. A control
     # acts on the click, which is the release, and takes no caret.
     _pc_select!(session, base)
+    layout = _pc_get_text_layout(session)
     plain = _pc_press!(session, x, y, ModifierKeys())
+    # A press that moves what is drawn, as an option of a toggle group does, acted.
+    acted = _pc_is_action(plain.up) || _pc_get_text_layout(session) != layout
     caret = nothing
-    if top.node isa GraphicsText && !_pc_is_icon_glyph(top.node) && !_pc_is_action(plain.up)
+    if top.node isa GraphicsText && !_pc_is_icon_glyph(top.node) && !acted
         if !_pc_is_place(plain.selection)
             push!(session.failures, "$at: a plain click gives no caret: $(format(plain.selection))")
         else
@@ -393,7 +396,7 @@ end
 
 """
     walk_part_clicks(document, projection; width = 1200, height = 800, limit = 200,
-                     label = "", counts = Dict{Symbol,Int}()) -> Vector{String}
+                     label = "", counts = Dict{Symbol,Int}(), remake = nothing) -> Vector{String}
 
 Build an editor on `document` and `projection` as the app builds it, and press a
 plain click, an Alt+click and a move at the centre of each element that it draws
@@ -406,16 +409,63 @@ The elements of `document` are those below the node of its forward image. A
 document with no forward image gets one line and no press: the walk can not tell
 its elements from those of the window, such as the close button of a tab. A press
 that removes `document` from the editor stops the walk with one line.
+
+A press can change what is drawn, as an option of a toggle group that orders a
+view does, and the points after it would press places that moved. So when a
+point moves a text, the walk builds the editor again from `remake()`, which
+answers a new `(document, projection)` that draws as the first one did, and goes
+on with the next point; with no `remake`, it stops with one line.
 """
 function walk_part_clicks(document, projection; width = 1200, height = 800, limit = 200, label = "",
-                          counts = Dict{Symbol,Int}())
+                          counts = Dict{Symbol,Int}(), remake = nothing)
+    failures = String[]
+    opened = _pc_open_session(document, projection, width, height, label, counts, failures)
+    opened isa String && return [opened]
+    session, shown = opened
+    counts[:elements] = length(shown)
+    k = 0
+    while k < min(length(shown), limit)
+        k += 1
+        element = shown[k]
+        x, y = _pc_get_center(element.box)
+        layout = _pc_get_text_layout(session)
+        try
+            _pc_check_point!(session, element)
+        catch exception
+            push!(failures, "$label ($x, $y): throws " * first(sprint(showerror, exception), 300) *
+                            _pc_format_origin(catch_backtrace()))
+            _pc_count!(session, :throws)
+        end
+        if find_document_path(session.root, session.document) === nothing
+            push!(failures, "$label ($x, $y): a press removes the document from the editor, so the walk stops")
+            break
+        end
+        # The pointer leaves, so a light that shows a text under it is gone.
+        session.clock[] += 10.0
+        _pc_send!(session, MouseMove(-1, -1; time = session.clock[]))
+        _pc_get_text_layout(session) == layout && continue
+        if remake === nothing
+            push!(failures, "$label ($x, $y): a press moves what is drawn, so the walk stops")
+            break
+        end
+        opened = _pc_open_session(remake()..., width, height, label, counts, failures)
+        opened isa String && (push!(failures, opened); break)
+        session, shown = opened
+    end
+    failures
+end
+
+# An editor on `document` and `projection`, with the elements that it draws for
+# `document`: `(session, shown)`, or the line of a failure when the walk can not
+# press it.
+function _pc_open_session(document, projection, width, height, label, counts, failures)
     editor = build_editor(document, projection; backend = HeadlessBackend(),
                           devices = Device[Keyboard(), Mouse(), Display()],
                           window = (; title = "ProjecturEd", width, height))
     run_frame!(editor)
     root = editor.document
     base = find_document_path(root, document)
-    base === nothing && return ["$label: the document is not in the editor"]
+    base === nothing && return "$label: the document is not in the editor"
     base = _pc_strip_types(base)
     # No ring and no caret is drawn while the elements are collected.
     replace_selection!(root, nothing)
@@ -428,33 +478,26 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
     elements = _pc_collect_elements!(_PcElement[], output, window_box, _pc_read_value(window.content),
                                      window_reference, Any[])
     parts = _pc_collect_parts(editor, document, base, output)
-    failures = String[]
     index = findfirst(part -> part.path == base, parts)
     if index === nothing
         counts[:elements] = 0
-        return ["$label: the document has no forward image, so no element is pressed"]
+        return "$label: the document has no forward image, so no element is pressed"
     end
     node = parts[index].node
     shown = filter(element -> element.node === node || any(above -> above === node, element.above), elements)
-    counts[:elements] = length(shown)
-    session = (; editor, root, base, output, window_id = _pc_read_value(window.id), window_box, window_reference,
-               elements, parts, failures, counts, label, clock = Ref(time() - 1.0e6))
-    for element in shown[1:min(end, limit)]
-        try
-            _pc_check_point!(session, element)
-        catch exception
-            x, y = _pc_get_center(element.box)
-            push!(failures, "$label ($x, $y): throws " * first(sprint(showerror, exception), 300) *
-                            _pc_format_origin(catch_backtrace()))
-            _pc_count!(session, :throws)
-        end
-        if find_document_path(root, document) === nothing
-            x, y = _pc_get_center(element.box)
-            push!(failures, "$label ($x, $y): a press removes the document from the editor, so the walk stops")
-            break
-        end
-    end
-    failures
+    session = (; editor, root, document, base, output, window_id = _pc_read_value(window.id), window_box,
+               window_reference, elements, parts, failures, counts, label, clock = Ref(time() - 1.0e6))
+    (session, shown)
+end
+
+# Each text that the window draws now, with its box: two of them differ when a press
+# moved what is drawn. A light or a mark of the selection moves no text.
+function _pc_get_text_layout(session)
+    output = _pc_read_value(get_iomap_output(session.editor.iomap))
+    window = _pc_read_value(_pc_read_value(output.windows)[1])
+    texts = _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
+                                  session.window_reference, Any[]; keep = node -> node isa GraphicsText)
+    [(String(_pc_read_value(text.node.text)), text.box) for text in texts]
 end
 
 """
@@ -469,7 +512,8 @@ function test_part_click(example; limit = 200, broken = nothing)
     @testset "a click reaches the innermost part: $(example.name)" begin
         counts = Dict{Symbol,Int}()
         failures = walk_part_clicks(example.make_document(), example.make_projection();
-                                    label = example.name, limit, counts)
+                                    label = example.name, limit, counts,
+                                    remake = () -> (example.make_document(), example.make_projection()))
         known = broken === nothing ? String[] : filter(broken, failures)
         foreach(line -> println("  ", line), setdiff(failures, known))
         @test get(counts, :points, 0) > 0

@@ -1257,6 +1257,25 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       views an Alt+click on the id of an item, such as "Q1", selects the root of
       the pane: that is the cause of the press that falls out to the pane, and
       it comes next.
+  - ~~**The press that falls out to the pane is a fault of the test**~~ (most of
+    the 1110 lines in 15 examples). The walk collected the drawn elements once.
+    A plain click on a control that changes what is drawn, such as the option
+    "By kind" of the toggle group that orders a research view, moved the
+    layout, and each later point pressed a place that had moved; most of them
+    hit the pane around the view. The test did not see the action, because each
+    press writes the state of the gesture tracker, so a write of view state
+    tells nothing. Now:
+    - a plain click that moves a drawn text acted, so the test expects no
+      caret there (`_pc_get_text_layout` before and after the press);
+    - when a point moves a drawn text, with the pointer off the window so that
+      a light shows nothing, the walk builds the editor again from `remake()`
+      and goes on with the next point (`_pc_open_session`); with no `remake`
+      it stops with one line. `test_part_click` passes `remake`.
+    The walk: `examples/research_contested` 303 → 114, `examples/research`
+    295 → 103, `task/group` 83 → 53, `examples/filesystem` 42 → 15;
+    `examples/json` stays at 12. What is left in the research views: a plain
+    click on the id of an item selects the item (the row rule of the view), and
+    the caret in a statement is set but not drawn.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
