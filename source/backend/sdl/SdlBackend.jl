@@ -18,13 +18,35 @@ function _set_x11_locale_directory!()
     nothing
 end
 
-# Each process probes its own machine, and Xlib finds its locale data. The
-# methods of AppKit that the backend replaces belong to one process too, so a
-# package image keeps none of them.
+# The Xcursor library of `Xorg_libXcursor_jll` searches for cursor themes in the
+# home folder and in the folders that its build named, which exist only on the
+# machine that built it. Without a theme, SDL and Xlib show the cursors of the
+# core cursor font of the X server, which do not follow the scale of the screen.
+# So the search path names the icon folders of the system, in the order of the
+# XDG specifications. A value that the user set wins. The library reads the path
+# once, at its first search, so it is set before SDL makes a cursor.
+function _set_x11_cursor_path!()
+    haskey(ENV, "XCURSOR_PATH") && return nothing
+    Xorg_libX11_jll.is_available() || return nothing
+    data_home = get(ENV, "XDG_DATA_HOME", "")
+    isempty(data_home) && (data_home = joinpath(homedir(), ".local", "share"))
+    data_directories = filter(!isempty, split(get(ENV, "XDG_DATA_DIRS", ""), ':'))
+    isempty(data_directories) && (data_directories = ["/usr/local/share", "/usr/share"])
+    folders = [joinpath(data_home, "icons"); joinpath(homedir(), ".icons");
+               [joinpath(directory, "icons") for directory in data_directories];
+               "/usr/share/pixmaps"]
+    ENV["XCURSOR_PATH"] = join(folders, ':')
+    nothing
+end
+
+# Each process probes its own machine, and Xlib finds its locale data and its
+# cursor themes. The methods of AppKit that the backend replaces belong to one
+# process too, so a package image keeps none of them.
 function __init__()
     _reset_machine_probes!()
     empty!(_REPLACED_KEY_WINDOW_METHODS)
     _set_x11_locale_directory!()
+    _set_x11_cursor_path!()
     nothing
 end
 

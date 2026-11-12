@@ -83,5 +83,38 @@ function test_sdl_pointer_shape()
     @test isempty(backend.cursors)
     @test backend.pointer_shape === :default
 
+    @testset "the cursor library searches the icon folders of the system" begin
+        set_cursor_path! = ProjecturedSDL.SdlModule._set_x11_cursor_path!
+        if ProjecturedSDL.SdlModule.Xorg_libX11_jll.is_available()
+            home = homedir()
+            withenv("XCURSOR_PATH" => nothing, "XDG_DATA_HOME" => "/data/home",
+                    "XDG_DATA_DIRS" => "/data/one::/data/two") do
+                set_cursor_path!()
+                @test ENV["XCURSOR_PATH"] ==
+                      "/data/home/icons:$home/.icons:/data/one/icons:/data/two/icons:/usr/share/pixmaps"
+            end
+            # A variable that is not set or is empty takes the default of the XDG
+            # base directory specification.
+            withenv("XCURSOR_PATH" => nothing, "XDG_DATA_HOME" => nothing,
+                    "XDG_DATA_DIRS" => "") do
+                set_cursor_path!()
+                @test ENV["XCURSOR_PATH"] ==
+                      "$home/.local/share/icons:$home/.icons:/usr/local/share/icons:" *
+                      "/usr/share/icons:/usr/share/pixmaps"
+            end
+            withenv("XCURSOR_PATH" => "/the/folder/of/the/user") do
+                set_cursor_path!()
+                @test ENV["XCURSOR_PATH"] == "/the/folder/of/the/user"
+            end
+            # The package sets the path before the first search of the library, so
+            # the library searches the path of the process.
+            library = Base.Libc.Libdl.dlopen("libXcursor.so.1"; throw_error = false)
+            if library !== nothing
+                search_path = ccall(Base.Libc.Libdl.dlsym(library, :XcursorLibraryPath), Cstring, ())
+                @test unsafe_string(search_path) == ENV["XCURSOR_PATH"]
+            end
+        end
+    end
+
 end
 end
