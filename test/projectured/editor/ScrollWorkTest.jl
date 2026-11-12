@@ -56,18 +56,10 @@ end
 _sw_enters_as_few(frames, reference) =
     10 * sum(f.work[4] for f in frames) <= 11 * sum(r.work[4] for r in reference)
 
-# The count of the nodes of a lazy list from `head` on that a walk built: a link
-# that is a computation that did not run ends the count, and reads nothing.
-function _sw_count_built_rows(head)
-    count, node = 1, head
-    while true
-        link = getfield(node, :next)
-        is_computed_cell(link) && !is_cell_valid(link) && return count
-        node = link[]
-        node === nothing && return count
-        count += 1
-    end
-end
+# The count of the nodes of a lazy list from `head` on, `head` too, that a walk
+# built: the links after it that `count_computed_nodes` counts, which computes no
+# link and depends on none.
+_sw_count_built_rows(head) = 1 + ProjecturedPlatform.CollectionModule._count_computed_links(head, :next)
 
 # The canvases of `canvas` that the paint of `res` draws with more than `limit`
 # elements and no layout, or with overlap, as their counts of elements. A walk and

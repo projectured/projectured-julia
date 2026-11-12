@@ -225,7 +225,7 @@ on `main` before the owner approves.
   their rows from there. `_get_head_place`, `_find_frame_row`, `_find_view_path`,
   `_find_cell_view_path` and `_convert_cell_operation` take the head place, with
   the head of the view as the default, so every other caller is as it was.
-- The five assertions of steps 1 in `DataFrameFilterTest.jl` and
+- The five assertions of step 1 in `DataFrameFilterTest.jl` and
   `DataFrameViewTest.jl` pass, and the catch of the exception is gone from both
   tests.
 - `test_dataframes()`: 621 Pass, where `main` gives 616 and the branch adds 5.
@@ -234,3 +234,45 @@ on `main` before the owner approves.
 - A probe of a drag across the text of a filter field: the press, the move with
   the button held and the release each run, and the caret stays at 4. See "Not
   in this plan".
+
+### Step 3, first try: D3 is wrong, 2026-11-13
+
+Not committed. `start_kept_list_head!(keep, head)` took the new head, read the
+count at which the head before linked the element of `head` (`linked` of its
+kept print), and moved the old extent by that count minus 1. The three layouts
+(`GridList`, `GridColumnList`, `LayoutList`) passed their new head.
+
+- `test_collection()` passed, with a new test of a head two rows further on.
+- `test_layout_list()` failed 2 of its tests: "a row in the list two times
+  prints at both places, each with the path of its place", and the same for a
+  child in a column. The list changes from `[r1, r2, r1, r3]` to
+  `[r2, r1, r3, r1]`, and the view shows the whole list. The new head `r2` was at
+  count 2, so the walk moved its reach back by one and ended at count 3. It did
+  not reach the second `r1` at count 4, did not find `r1` at two places, and the
+  grid kept the old print of `r1` at count 2. The paths stay right, because a
+  later walk under the same head reaches every link, but the rule "an element at
+  two places is kept at neither" breaks.
+- **The general fault of D3.** The shift is right only when the content moves
+  under a view that stays: the move of the head of a table keeps the same rows at
+  the same place on the screen. A sort or a filter makes a new list, and the view
+  stays at its top. When the new head is a row that the head before showed, D3
+  moves the reach although no row moved on the screen, so the rows in view print
+  again instead of keeping their prints. The element of the new head can not tell
+  the two cases apart. Only the producer of the move knows it.
+- The code is undone. The guard of step 1 stays `@test_broken`.
+  `_sw_count_built_rows` now counts with `_count_computed_links` of the
+  collection package, which reads by `peek` and computes no link.
+
+**A way that keeps what the producer knew (my proposal, not decided).** Two
+parts:
+
+1. The view of a data frame moves its head inside the list that it has, when
+   only its anchor changes: the same frame, version, kept rows and columns. The
+   new head is the node of the old list at the new anchor, so the nodes, the rows
+   and their links stay. This is the other way of D3. It also keeps the records
+   of the paint, which are about 95 ms of the 395 ms.
+2. The kept prints shift their reach only when the new head is a node that the
+   head before linked: the same node, not only the same element. A node of the
+   same list keeps its neighbours, so each count moves by the same amount. A
+   sort or a filter makes new nodes, so its reach stays as it is now. For that,
+   `note_kept_list_link!` also notes the node of each link.
