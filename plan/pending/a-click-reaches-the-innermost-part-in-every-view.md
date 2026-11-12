@@ -1327,6 +1327,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `examples/research_planned` 104 → 5, `mcplog/log` 10 → 5. Left: the names
     of `examples/formula_report` (20) and the object view of
     `examples/nested_object_to_widget` (8).
+  - ~~**The forward map of a text of Markdown and RST throws**~~. The leaf of a
+    text spliced the rest of the input path into a typed literal
+    (`@reference ::SyntaxLeaf.value::TextString.^(rest)`), and a caller can give
+    the path with no types, so the map threw "under-typed @reference": the walk
+    of `assistant/work` and `examples/assistant_work` stopped in run 2, and the
+    caret in a heading of `examples/formula_report` had no image. The two leaves
+    build the range again in the types of the output, as the primitive leaves
+    do. The leaves of an image and of a book read their own stored selection,
+    which is typed, and stay. The walk: `examples/formula_report` 20 → 8,
+    `assistant/work` and `examples/assistant_work` walk again (29 and 30 lines,
+    47 and 57 in run 1); `test_markdown` 289 and `test_rst` 130 pass.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

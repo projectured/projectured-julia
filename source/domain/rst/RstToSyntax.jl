@@ -875,7 +875,13 @@ end
 function map_reference_forward(p::RstStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         proj(^(p), inner) => inner
-        ::RstText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+        # A caret or a range is built again in the types of the output, because a
+        # caller can give the path with no types.
+        ::RstText.content => @reference ::SyntaxLeaf.value::TextString
+        ::RstText.content{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 

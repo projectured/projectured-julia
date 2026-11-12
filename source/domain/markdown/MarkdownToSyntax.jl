@@ -274,7 +274,13 @@ end
 function map_reference_forward(p::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         proj(^(p), inner) => inner
-        ::MarkdownText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+        # A caret or a range is built again in the types of the output, because a
+        # caller can give the path with no types.
+        ::MarkdownText.content => @reference ::SyntaxLeaf.value::TextString
+        ::MarkdownText.content{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
