@@ -11,7 +11,9 @@ Covers:
 - the label draws the caret once its selection is that caret, and no caret before,
   and a band behind its text while the selection is the text as a whole,
 - a move names the caret as the part under the pointer,
-- a label that shows no `String` records no line, and a click on it answers nothing.
+- a label that shows no `String` records no line, and a click on it answers nothing,
+- a badge takes the caret, the band and the move as a label does,
+- a press that is bound to a label, as to a chip, acts before the caret.
 """
 
 _label_caret_measure = FixedMeasure(10, 18, 6, 0)
@@ -72,5 +74,44 @@ function test_widget_label_caret()
         @test isempty(iomap.drawn)
         answer = read_intent(p, iomap, MouseClick(:left, 4, Int(iomap.output.h) ÷ 2, ModifierKeys(); time = 0.0))
         @test answer === nothing
+    end
+
+    @testset "a badge takes the caret as a label does" begin
+        p = WidgetBadgeToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        badge = WidgetBadge("running")
+        iomap = print_document(p, nothing, badge, PrinterContext())
+        caret = ConcreteReference(FieldReferenceStep("content"),
+                    ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+        x, y = _label_caret_point(iomap, 32)
+        answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
+        whole = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0))
+        @test whole isa ReplaceSelectionOperation && strip_reference_types(whole.path) == caret
+        @test read_intent(p, iomap, MouseClick(:left, x, y, 2, ModifierKeys(); time = 0.0)) === nothing
+        moved = read_intent(p, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0))
+        @test moved isa ReplaceMouseTargetOperation && strip_reference_types(moved.path) == caret
+        @test strip_reference_types(map_reference_backward(p, iomap, PointReferenceStep(x, y))) == caret
+        # The badge draws the caret, and the band of its text selected as a whole.
+        mark() = [e for e in iomap.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+        bands() = [e for e in iomap.output.elements if e isa GraphicsRect && is_color_equal(e.color, p.selected_color)]
+        @test isempty(mark()) && isempty(bands())
+        evaluate_operation((document = badge,), answer)
+        @test length(mark()) == 1 && Int(only(mark()).x) == x - 2
+        evaluate_operation((document = badge,), ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("content"), EmptyReference())))
+        @test length(bands()) == 1 && isempty(mark())
+        set_selection!(badge, nothing)
+        @test isempty(mark()) && isempty(bands())
+    end
+
+    @testset "a press that is bound to a label acts before the caret, as for a chip" begin
+        p = _label_caret_printer()
+        chosen = ReplaceSelectionOperation(EmptyReference())
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> chosen;
+                                 description = "Choose the chip", domain = "test")
+        label = WidgetLabel("open"; gestures = GestureBinding[binding])
+        iomap = print_document(p, nothing, label, PrinterContext())
+        x, y = _label_caret_point(iomap, 12)
+        @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) === chosen
     end
 end

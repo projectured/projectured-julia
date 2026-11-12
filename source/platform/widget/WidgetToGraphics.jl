@@ -1910,25 +1910,30 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     build = Cell(Computation(() -> _build_label(p, w, geometry[], ctx)))
-    x, y = _origin(position)
-    # The caret in the text, which a plain click puts there, and the band of the text
-    # selected as a whole, which an Alt+click selects.
-    canvas = GraphicsCanvas(Int32(x), Int32(y),
-                            Cell(@computation Int32(build[].width)),
-                            Cell(@computation Int32(build[].height)),
-                            CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
-                                                                                  w.selection, p.measure,
-                                                                                  p.selected_color)),
-                            layout_none, true, Cell(nothing))
-    WidgetBoxIoMap(p, w, canvas, geometry, Cell(@computation build[].drawn))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
+
+# The canvas of a widget that records the lines of its text, from `build`, a cell
+# of `(; width, height, elements, drawn)`: its elements, with the caret that a
+# plain click puts into the text and the band of a text selected as a whole, which
+# an Alt+click selects (`make_drawn_selection_elements`). The marks read the
+# selection of `w` in a cell of their own, so a move of the selection builds no
+# widget.
+_make_drawn_text_canvas(x::Int, y::Int, build::Cell, w, measure, band_color) =
+    GraphicsCanvas(Int32(x), Int32(y),
+                   Cell(@computation Int32(build[].width)),
+                   Cell(@computation Int32(build[].height)),
+                   CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
+                                                                         w.selection, measure, band_color)),
+                   layout_none, true, Cell(nothing))
 
 # The box, the text and the lines of a label: `(; width, height, elements, drawn)`.
 # A label whose content is a `String` records each line that it draws, as the part
 # `.content` from the character where the line starts.
 function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGeometry, ctx)
     drawn = DrawnTextLine[]
-    part = w.content isa AbstractString ? _LABEL_CONTENT : nothing
+    part = w.content isa AbstractString ? _CONTENT_PART : nothing
     content = get_shown_picture(w.content)
     # A label may carry its own font+color (e.g. a chat card's title) that
     # overrides the theme's default label style — or a bare COLOUR, which
@@ -1981,16 +1986,23 @@ function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGe
     (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
 end
 
-const _LABEL_CONTENT = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+# The part `.content` of a widget that shows its content as a text.
+const _CONTENT_PART = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 
-# A caret or a range in the text of a label is drawn on its line.
-map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) =
+# A widget that shows its `content` as a text that it draws and records, the label
+# and the badge, maps and reads a click on the text by the three functions below.
+
+# A caret or a range in the text is drawn on its line.
+_map_content_text_forward(iomap, reference) =
     something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
               Some(_map_child_forward(iomap, reference)))
+map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_content_text_forward(iomap, reference)
 
 # A place of characters of the text, and a point on it, is the caret or the range in
 # the content; any other place names nothing.
-function map_reference_backward(p::WidgetLabelToGraphicsCanvas, iomap, reference)
+map_reference_backward(p::WidgetLabelToGraphicsCanvas, iomap, reference) =
+    _map_content_text_backward(p, iomap, reference)
+function _map_content_text_backward(p, iomap, reference)
     reference === nothing && return nothing
     place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     place === nothing || return place
@@ -2050,13 +2062,14 @@ function _find_row_index(bounds, y::Real)
     nothing
 end
 
-# A label takes the gestures that it is given, such as a press on a chip. Else a
-# plain single click on its text puts the caret at the character under the pointer,
-# an Alt+click answers that caret too, which the container makes the text as a
-# whole (`convert_to_whole_selection`), and a move names that caret as the part
-# under the pointer. A double click is left to the widget around the label, such as
-# the row that it opens.
-function read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+# A label or a badge takes the gestures that it is given, such as a press on a
+# chip. Else a plain single click on its text puts the caret at the character under
+# the pointer, an Alt+click answers that caret too, which the container makes the
+# text as a whole (`convert_to_whole_selection`), and a move names that caret as
+# the part under the pointer. A double click is left to the widget around it, such
+# as the row that it opens.
+read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_content_text(p, iomap, evt)
+function _read_content_text(p, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
@@ -8648,12 +8661,13 @@ end
     info_label_text::StyleText
     accent_surface_color::StyleColor
     accent_label_text::StyleText
+    selected_color::StyleColor                 # the band of the text selected as a whole
 end
 
 # The border inset is the theme's width in every variant, so a badge keeps its
 # size when its variant changes; only the outline variant shows a visible
 # border color. A role has a surface and a text of its own, and no border.
-WidgetBadgeToGraphicsCanvas(theme; measure,
+WidgetBadgeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default,
                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                             padding = _themed(Inset, theme, t -> t.compact_padding),
@@ -8690,7 +8704,8 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                                 _themed(StyleText, theme, t -> StyleText(t.badge_font, t.info_foreground)),
                             accent_surface_color = _themed(StyleColor, theme, t -> t.accent),
                             accent_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.accent_foreground))) =
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.accent_foreground)),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, label_text,
                                 secondary_padding_color, secondary_content_color, secondary_border_color,
@@ -8703,7 +8718,7 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                                 warning_surface_color, warning_label_text,
                                 error_surface_color, error_label_text,
                                 info_surface_color, info_label_text,
-                                accent_surface_color, accent_label_text)
+                                accent_surface_color, accent_label_text, selected_color)
 
 # The roles a badge takes, each with a surface and a text in the badge printer.
 const _BADGE_ROLES = (:success, :warning, :error, :info, :accent)
@@ -8736,9 +8751,11 @@ function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::Box
 end
 
 # The graphics of badge `w` of shape `box`, `width` by `height`, with its top left
-# corner at the origin: the pill and its text.
+# corner at the origin: the pill and its text. With `drawn`, a vector of
+# `DrawnTextLine`, a content that is a `String` records its line as the part
+# `.content`.
 function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry,
-                               width::Int, height::Int)
+                               width::Int, height::Int; drawn = nothing)
     style = _get_badge_style(p, w)
     text = string(w.content)
     _, content_height = _text_size(p.measure, style.label.font, text)
@@ -8749,6 +8766,7 @@ function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, b
     _push_box_parts!(elements, box, style.colors, width - inset_width, height - inset_height;
                      radius = border_box_height ÷ 2)
     _push_text!(elements, p.measure, style.label.font, text, content_x, content_y, style.label.color)
+    drawn === nothing || w.content isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _CONTENT_PART, 0))
     elements
 end
 
@@ -8756,16 +8774,24 @@ function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadg
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = Cell(Computation(() -> begin
         box = geometry[]
         natural_width, natural_height = _measure_badge(p, w, box)
         badge_width  = _resolve_width(ctx, 0, natural_width)
         badge_height = _resolve_height(ctx, 0, natural_height)
+        drawn = DrawnTextLine[]
         (width = badge_width, height = badge_height,
-         elements = _build_badge_elements(p, w, box, badge_width, badge_height))
-    end), geometry)
+         elements = _build_badge_elements(p, w, box, badge_width, badge_height; drawn), drawn = drawn)
+    end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetBadgeToGraphicsCanvas
+
+# A badge maps and reads a click on its text as a label does.
+map_reference_forward(::WidgetBadgeToGraphicsCanvas, iomap, reference) = _map_content_text_forward(iomap, reference)
+map_reference_backward(p::WidgetBadgeToGraphicsCanvas, iomap, reference) =
+    _map_content_text_backward(p, iomap, reference)
+read_intent(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_content_text(p, iomap, evt)
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -13207,6 +13233,7 @@ end
 # selects text to read or to copy, and edits nothing.
 _is_read_only_text(node) = false
 _is_read_only_text(::WidgetLabel) = true
+_is_read_only_text(::WidgetBadge) = true
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
@@ -14845,7 +14872,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measure),
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measure),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
-        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measure),
+        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetIcon       => WidgetIconToGraphicsCanvas(theme; measure = measure),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; graphics_theme, measure = measure),

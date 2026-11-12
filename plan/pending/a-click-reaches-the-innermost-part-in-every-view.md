@@ -940,7 +940,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       chooses its row by a rule of its own (D4 for a row), and the statement of a
       question already takes the caret since 2bebb39d7.
     - So the order waits for the owner again: the widgets that record no line
-      and the rows of the views first, or 5.4 first.
+      and the rows of the views first, or 5.4 first. The owner chose the widgets
+      and the rows first (2026-11-12, "yes"), and asked whether a widget whose
+      click is its operation keeps it. It does, by P4: a button, a link, a menu
+      item, a toolbar item, a checkbox, a toggle, a radio option, a select, a tab
+      and a header (D7) act on a plain click and take no caret. Only a text that
+      a widget shows takes the caret: a label, a badge, an avatar, an alert, a
+      status text. A gesture bound to the widget comes first, as for a label.
+      The rows of a table, a list and a tree follow D4.
     `OutputReferenceStep` goes, and its users make the introduced step. Each
     place of the list above is checked; a paste and a cut refuse a target in a
     drawn part.
@@ -1225,6 +1232,20 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       badge, the avatar, the alert, the status bar, the tree, the list, the
       tooltip, the dialog, the accordion, and the controls (a button, a link, a
       menu item), whose plain click acts. They follow one widget at a time.
+    - ~~The badge~~ (2026-11-12). The badge records the line of a content that
+      is a `String`, as the part `.content` (`_build_badge_elements` takes
+      `drawn`; a tab strip that draws badges passes none), and it maps and reads
+      a click on its text by the functions of the label
+      (`_map_content_text_forward`, `_map_content_text_backward`,
+      `_read_content_text`): a plain single click puts the caret, an Alt+click
+      selects the text, a move names the caret, a double click goes on. Both use
+      one canvas with the marks of the selection (`_make_drawn_text_canvas`). A
+      badge in a header takes no caret (`_is_read_only_text`, D7). The walk:
+      `examples/widget_badge` 16 → 0, `widget/badge` 3 → 0, `task/group` 95 →
+      83, `task/group_list` 39 → 26. What is left in the task group is the
+      rows of its roster (D4) and the buttons that the example disables: a
+      disabled button is a control too, and the click test can tell it only when
+      a path reaches a drawn part (5.4).
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
