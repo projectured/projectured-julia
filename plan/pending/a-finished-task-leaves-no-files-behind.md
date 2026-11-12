@@ -1,9 +1,9 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–4 done on the branch
-> `no-files-behind` of projectured-julia, omnet-team and omnet-julia · **Covers:** the agent
-> rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory notes;
-> `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; julia-reactive-compiler;
+> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–5 done on the branch
+> `no-files-behind` of projectured-julia, omnet-team, omnet-julia and PackageCompiler.jl ·
+> **Covers:** the agent rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory
+> notes; `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; PackageCompiler.jl;
 > projectured-julia · **Not in this plan:** opp_repl, which another agent changes.
 
 On 2026-11-11 the disk was full: 115 MB free of 1.8 TB. A search found the files that tasks,
@@ -33,7 +33,7 @@ most, so that the files go away without a person. It does not cover every source
 | `perf record` copies each binary that it profiles into `~/.debug` (7.4 GB). No `~/.perfconfig` exists. | `~/.debug` |
 | Julia keeps up to 10 cache files for each package and each Julia version. `~/.julia/compiled` is 46 GB; `ProjecturedPlatform` alone has 9 files, 3 GB. `bounded-run` passes every `JULIA_*` variable to a job. | `~/.julia/compiled/v1.13`; `bounded-run:78` |
 | `campaign_test_project` makes a stub project in a new `mktempdir()` for each call. The tests call it at 30 places, directly or through `campaign_test_session`. Julia removes such a folder only at a normal exit of the process, so a killed test process keeps every folder it made. Of the 290 `/tmp/jl_*` folders of 2026-11-11, about 72 are these stub projects; 78 more come from `test/ide/AssistantSessionTest.jl` and 18 from a third writer. | omnet-julia `example/ide/CampaignFixture.jl:92`, `:121`; `test/ide/Campaign*Test.jl`, `TestVerbsTest.jl:13`, `LegacyPartPageTest.jl:140`, `:184` |
-| The reactive compiler server precompiles the trace whose path its caller sends. It writes the statements that did not resolve to `<trace>.unresolved` beside the trace. The caller removes the trace, but not the listing: `/tmp` holds 30 listings and 2 traces, up to 460 KB each. The code that names the trace `jl_*-trace.jl` was not found in the first search. | julia-reactive-compiler `stdlib/ReactiveCompiler/src/server.jl:184`, `child.jl:941-945` |
+| The reactive compiler server precompiles the trace whose path its caller sends. It writes the statements that did not resolve to `<trace>.unresolved` beside the trace. The founding of a reactive app names its trace `jl_*-trace.jl` and moves the trace into the store, but not the listing: `/tmp` holds 30 listings and 2 traces, up to 460 KB each (step 5 found the founding). | julia-reactive-compiler `stdlib/ReactiveCompiler/src/child.jl:941-945`; PackageCompiler.jl `src/reactive.jl:218`, `:249` |
 | The assistant writes a new PNG to `~/.cache/projectured/pictures` for each picture, and nothing deletes old ones. There are 160 files. | projectured-julia `source/platform/assistant/AssistantPicture.jl:97-110` |
 
 ## 3. Decisions
@@ -46,7 +46,9 @@ These are my proposals. They are approved with the plan.
   packages into the first depot, so the worktree would then hold `.jl` files that are not its own.
   The tools that walk the source tree, such as `julia-rename.jl` and the naming guard, would read them.
 - **D2. A worktree of work that never lands is reported, not removed.** The final report of a task
-  lists each worktree that has no commit for 7 days. Only the human decides that work is abandoned.
+  lists each worktree that the task made or worked in and that has no commit for 7 days, and no
+  other worktree (the owner narrowed the rule in `~/.claude/CLAUDE.md` on 2026-11-12). Only the
+  human decides that work is abandoned.
 - **D3. `bounded-run start` removes the jobs that ended more than 7 days ago.** It removes no
   running job and no job that ended in the last 7 days, so the jobs of another session stay.
 - **D4. `JULIA_MAX_NUM_PRECOMPILE_FILES=4`, set in `~/.profile`.** This keeps main and three
@@ -151,10 +153,26 @@ Instead, its change is recorded here.
      namespace under `kernel.apparmor_restrict_unprivileged_userns = 1`. A scope of
      `systemd-run --user --scope` keeps the AppArmor label of its caller and can. The memory note of
      `bounded-run` says this.
-5. [ ] **julia-reactive-compiler: the caller of the server removes the listing with the trace.**
-   - Find the code that makes the `jl_*-trace.jl` path and sends it to `server.jl:184`. In that
-     code, remove `<trace>.unresolved` where it removes the trace.
-   - Check: one reactive rebuild leaves no new `*.unresolved` file in `/tmp`.
+5. [x] **PackageCompiler.jl: the founding takes the listing with the trace.** **Done 2026-11-12**,
+   commit `dd96ca2f` on the branch `no-files-behind` of PackageCompiler.jl, from `reactive`.
+   - The writer is not julia-reactive-compiler. `materialize_app` in `src/reactive.jl` names the
+     founding trace `tempname() * "-trace.jl"`. Its harness runs `rc_precompile_trace` on it, which
+     writes `<trace>.unresolved` beside it, and the founding moved only the trace into the store. A
+     rebuild already reads the trace of the store (`{store}/trace.jl`), so it leaks nothing.
+   - The founding makes one `mktempdir()` folder for the trace, the object archive and the harness
+     script, and a `try … finally` removes it. The listing moves with the trace into the store; a
+     founding with no listing removes an old listing of the store.
+   - The omnet-team workflow has the narrower report rule of D2 too (omnet-team `a8b6d7a`).
+   - Check: a founding of a copy of HazardApp (`m6_hazard`) with one statement that does not
+     resolve, with the reactive Julia, a private `TMPDIR`, through `bounded-run` with an 8 GB cap.
+     Branch `reactive`: the store holds `trace.jl`, and `jl_…-trace.jl.unresolved` stays in the
+     temporary folder after the exit. The change: the store holds `trace.jl` and
+     `trace.jl.unresolved`, and no listing stays. Each founding took about 70 s, peak 6.6–6.9 GB.
+
+   Found in the work:
+   - **A founding that fails left its trace and harness script in `/tmp`** (two of each on
+     2026-11-11 and 2026-11-12). The `finally` now removes them, and the object archive too.
+   - **A HazardApp founding needs about 7 GB**, so a cap of 8 GB fits and 6 GB does not.
 6. [ ] **projectured-julia: old assistant pictures go away.**
    - In `_make_picture_filename`, delete `picture-*.png` files older than 30 days (D6).
    - Add a test that writes two pictures, one 31 days old and one new. After a new picture is
@@ -173,3 +191,6 @@ Instead, its change is recorded here.
 - 214 coverage files `*.cov` (10 MB) of 2026-11-01 in the source tree of `julia-merged-next`.
 - The stub folders of `test/ide/AssistantSessionTest.jl` (78 on 2026-11-11) and of the third
   writer (18), and the 4 other plain `mktempdir()` folders of the campaign suites (step 4).
+- The folder `jl_packagecompiler_*` of each build, from `mktempdir(; cleanup=false)` at
+  PackageCompiler.jl `src/PackageCompiler.jl:717`, which is upstream code: 133 empty folders in
+  `/tmp` on 2026-11-12 (step 5).
