@@ -1338,6 +1338,12 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     which is typed, and stay. The walk: `examples/formula_report` 20 → 8,
     `assistant/work` and `examples/assistant_work` walk again (29 and 30 lines,
     47 and 57 in run 1); `test_markdown` 289 and `test_rst` 130 pass.
+  - ~~**The reflected object of a `Dict` throws**~~ (`explorer/explorer`). The
+    view left out a slot that holds nothing yet only in an `Array`, and a
+    `Memory`, such as the keys of a `Dict`, is an array that is no `Array`, so
+    the view read an unfilled slot and threw `UndefRefError` after a press in
+    the explorer. It asks `isassigned` of every `AbstractArray` now. The walk
+    of `explorer/explorer` presses all its 43 points with no throw.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

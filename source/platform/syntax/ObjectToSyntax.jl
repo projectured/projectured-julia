@@ -243,9 +243,9 @@ _visible_elements(p::ObjectNodeToSyntaxNode, obj) = begin
     p.filter === nothing ? els : Any[x for x in els if p.filter(_unwrap_cell(x))]
 end
 
-# Only an array has a slot with nothing in it yet; every other collection
-# answers each index it has.
-_is_slot_assigned(obj::Array, i::Integer) = isassigned(obj, i)
+# Only an array has a slot with nothing in it yet, also a `Memory`, such as the
+# keys of a `Dict`; every other collection answers each index it has.
+_is_slot_assigned(obj::AbstractArray, i::Integer) = isassigned(obj, i)
 _is_slot_assigned(obj, i::Integer) = true
 
 # PAR-NO-NESTED-CELL exception: this projection prints any value, and a cell that

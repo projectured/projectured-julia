@@ -114,4 +114,11 @@ end # @testset
 
 end # @testset
 
+@testset "a reflected object with a slot that holds nothing yet, such as the keys of a Dict, prints" begin
+    # A `Memory` is an array that is no `Array`; its unfilled slots are left out.
+    text = string(print_object((; keys = Memory{String}(undef, 2), name = "x")))
+    @test occursin("keys", text) && occursin("\"x\"", text)
+    @test occursin("\"a\"", string(print_object(Dict("a" => 1))))
+end # @testset
+
 end # test_object_field_to_syntax
