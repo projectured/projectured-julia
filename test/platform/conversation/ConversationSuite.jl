@@ -15,6 +15,7 @@ function test_conversation()
         test_agent_terminal()
         test_assistant_rounds()
         test_assistant_wake()
+        test_assistant_picture()
         test_conversation_tree()
         test_draft_press()
     end
@@ -31,5 +32,6 @@ export test_assistant_work
 export test_agent_terminal
 export test_assistant_rounds
 export test_assistant_wake
+export test_assistant_picture
 export test_conversation_tree
 export test_draft_press

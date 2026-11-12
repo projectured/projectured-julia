@@ -92,12 +92,17 @@ function _write_document_picture(document, filename::AbstractString)
     end
 end
 
+# The days that a picture stays in the folder of pictures after it is written.
+const PICTURE_KEEP_DAYS = 30
+
 # A new name for the file of a picture, in the folder of pictures of the user:
 # `$XDG_CACHE_HOME/projectured/pictures`, by default `~/.cache/projectured/pictures`.
+# The pictures of the folder that are older than `PICTURE_KEEP_DAYS` go away first.
 function _make_picture_filename()
     cache = get(ENV, "XDG_CACHE_HOME", "")
     isempty(cache) && (cache = joinpath(homedir(), ".cache"))
     directory = mkpath(joinpath(cache, "projectured", "pictures"))
+    _remove_old_pictures!(directory)
     stem = "picture-" * Libc.strftime("%Y%m%d-%H%M%S", time())
     filename = joinpath(directory, stem * ".png")
     count = 1
@@ -106,4 +111,16 @@ function _make_picture_filename()
         filename = joinpath(directory, stem * "-$(count).png")
     end
     filename
+end
+
+# Remove each picture file `picture-*.png` of `directory` that was written more
+# than `days` days ago. Other files of the folder stay.
+function _remove_old_pictures!(directory::AbstractString; days::Real = PICTURE_KEEP_DAYS)
+    oldest = time() - days * 86400
+    for name in readdir(directory)
+        startswith(name, "picture-") && endswith(name, ".png") || continue
+        path = joinpath(directory, name)
+        isfile(path) && mtime(path) < oldest && rm(path; force = true)
+    end
+    nothing
 end

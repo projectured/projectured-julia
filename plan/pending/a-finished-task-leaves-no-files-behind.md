@@ -1,6 +1,6 @@
 # A finished task leaves no files behind
 
-> **Kind:** maintenance · **Status:** a plan, 2026-11-11; steps 1–5 done on the branch
+> **Kind:** maintenance · **Status:** done, 2026-11-12; steps 1–6 done on the branch
 > `no-files-behind` of projectured-julia, omnet-team, omnet-julia and PackageCompiler.jl ·
 > **Covers:** the agent rules in `~/.claude/CLAUDE.md`, the omnet-team workflow and the memory
 > notes; `workspace/bin/bounded-run`; two settings of the machine; omnet-julia; PackageCompiler.jl;
@@ -173,11 +173,23 @@ Instead, its change is recorded here.
    - **A founding that fails left its trace and harness script in `/tmp`** (two of each on
      2026-11-11 and 2026-11-12). The `finally` now removes them, and the object archive too.
    - **A HazardApp founding needs about 7 GB**, so a cap of 8 GB fits and 6 GB does not.
-6. [ ] **projectured-julia: old assistant pictures go away.**
-   - In `_make_picture_filename`, delete `picture-*.png` files older than 30 days (D6).
-   - Add a test that writes two pictures, one 31 days old and one new. After a new picture is
-     written, only the new files remain.
-   - Check: the new test, and the test file of the assistant picture.
+6. [x] **projectured-julia: old assistant pictures go away.** **Done 2026-11-12.**
+   - `_make_picture_filename` calls `_remove_old_pictures!(directory)` after it makes the folder.
+     The function removes each `picture-*.png` file that was written more than `PICTURE_KEEP_DAYS`
+     (30) days ago, and leaves the other files of the folder (D6). The guide
+     `documentation/package/platform/assistant/assistant.md` says this in its section "Pictures".
+   - `test_assistant_picture()` in `test/platform/conversation/AssistantPictureTest.jl`, run by
+     `test_conversation()`: a private `XDG_CACHE_HOME` holds a picture of 31 days, a picture of 29
+     days and another file of 31 days; after `_make_picture_filename()` the folder holds exactly
+     the other file and the picture of 29 days.
+   - Check: `test_assistant_picture()` passes 4 of 4 on Julia 1.13.1 with the depot
+     `/var/tmp/projectured-julia-no-files-behind-depot` (D1); the load took 189 s, peak 7.2 GB.
+     `test/suite/naming.jl` passes. No test of the assistant picture existed before; the tests that
+     write pictures (`test/backend/sdl/projection/PartPictureTest.jl`) need SDL and were not run.
+
+   Found in the work: `write_conversation` writes a text transcript, and no code saves a
+   conversation to open it again. So a removed picture can affect only an editor process that
+   runs for more than 30 days.
 
 ## 5. Not in this plan
 
