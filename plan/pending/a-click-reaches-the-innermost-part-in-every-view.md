@@ -1246,6 +1246,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       rows of its roster (D4) and the buttons that the example disables: a
       disabled button is a control too, and the click test can tell it only when
       a path reaches a drawn part (5.4).
+    - ~~The avatar and the alert~~ (2026-11-12). The avatar records its initials
+      as the part `.initials` when they are a `String` (an icon records nothing),
+      and the alert records its title and each line of its description, as
+      `.title` and `.description` (the description is drawn by
+      `_push_text_block!`, which breaks it as before). The shared functions are
+      named by what they read: `_map_drawn_text_forward`,
+      `_map_drawn_text_backward`, `_read_drawn_text`. The walk: `widget/avatar`
+      2 → 0, `widget/alert` 5 → 0, `workflow/workflow` 37 → 30. In the research
+      views an Alt+click on the id of an item, such as "Q1", selects the root of
+      the pane: that is the cause of the press that falls out to the pane, and
+      it comes next.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

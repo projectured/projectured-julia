@@ -1989,20 +1989,20 @@ end
 # The part `.content` of a widget that shows its content as a text.
 const _CONTENT_PART = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 
-# A widget that shows its `content` as a text that it draws and records, the label
-# and the badge, maps and reads a click on the text by the three functions below.
+# A widget that shows a text that it draws and records, such as the label, the badge
+# and the avatar, maps and reads a click on the text by the three functions below.
 
 # A caret or a range in the text is drawn on its line.
-_map_content_text_forward(iomap, reference) =
+_map_drawn_text_forward(iomap, reference) =
     something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
               Some(_map_child_forward(iomap, reference)))
-map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_content_text_forward(iomap, reference)
+map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 
 # A place of characters of the text, and a point on it, is the caret or the range in
 # the content; any other place names nothing.
 map_reference_backward(p::WidgetLabelToGraphicsCanvas, iomap, reference) =
-    _map_content_text_backward(p, iomap, reference)
-function _map_content_text_backward(p, iomap, reference)
+    _map_drawn_text_backward(p, iomap, reference)
+function _map_drawn_text_backward(p, iomap, reference)
     reference === nothing && return nothing
     place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     place === nothing || return place
@@ -2068,8 +2068,8 @@ end
 # text as a whole (`convert_to_whole_selection`), and a move names that caret as
 # the part under the pointer. A double click is left to the widget around it, such
 # as the row that it opens.
-read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_content_text(p, iomap, evt)
-function _read_content_text(p, iomap::WidgetBoxIoMap, evt)
+read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
@@ -8788,10 +8788,10 @@ function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadg
 end
 
 # A badge maps and reads a click on its text as a label does.
-map_reference_forward(::WidgetBadgeToGraphicsCanvas, iomap, reference) = _map_content_text_forward(iomap, reference)
+map_reference_forward(::WidgetBadgeToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 map_reference_backward(p::WidgetBadgeToGraphicsCanvas, iomap, reference) =
-    _map_content_text_backward(p, iomap, reference)
-read_intent(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_content_text(p, iomap, evt)
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -10100,28 +10100,32 @@ end
     padding_color::StyleColor
     content_color::StyleColor      # circle fill
     label_text::StyleText          # font + color of the initials
+    selected_color::StyleColor     # the band of the initials selected as a whole
 end
 
-WidgetAvatarToGraphicsCanvas(theme; measure,
+WidgetAvatarToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
                              padding_color = color_transparent,
                              content_color = _themed(StyleColor, theme, t -> t.muted),
-                             label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground))) =
+                             label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetAvatarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                 content_color, label_text)
+                                 content_color, label_text, selected_color)
 
 # The share of the size of an avatar that its text takes, and that its icon takes.
 const _AVATAR_TEXT_SHARE = 0.42
 const _AVATAR_ICON_SHARE = 0.7
 
 # The margin, the border and the padding are rectangular bands; the content is a
-# circle, so it is excluded from the box's own fill and drawn on top of it.
+# circle, so it is excluded from the box's own fill and drawn on top of it. Initials
+# that are a `String` record their line as the part `.initials`, so they take the
+# caret as the text of a label does.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = Cell(Computation(() -> begin
         size = _sc(Int(w.size))
         radius = size ÷ 2
         box = geometry[]
@@ -10130,6 +10134,7 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
         content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         elements = Any[]
+        drawn = DrawnTextLine[]
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
         push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius; color = colors.content))
         icon = w.initials isa Symbol ? icon_width(w.initials, max(1, round(Int, size * _AVATAR_ICON_SHARE))) : 0
@@ -10142,11 +10147,21 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
             initials_width, initials_height = _text_size(p.measure, font, initials)
             _push_text!(elements, p.measure, font, initials, content_x + radius - initials_width ÷ 2,
                         content_y + radius - initials_height ÷ 2, label.color)
+            w.initials isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _INITIALS_PART, 0))
         end
-        (width=size + inset_width, height=size + inset_height, elements=elements)
-    end), geometry)
+        (width=size + inset_width, height=size + inset_height, elements=elements, drawn = drawn)
+    end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetAvatarToGraphicsCanvas
+
+const _INITIALS_PART = ConcreteReference(FieldReferenceStep("initials"), EmptyReference())
+
+# An avatar maps and reads a click on its initials as a label does on its text.
+map_reference_forward(::WidgetAvatarToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(p::WidgetAvatarToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetAvatarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
@@ -10168,9 +10183,10 @@ end
     label_gap::Int                     # gap between the icon and the title
     icon_size::Float64                # times the box of the icon, one line of the title
     badge::Any                        # the colors of the role of a decorated icon and of its marks
+    selected_color::StyleColor        # the band of a text selected as a whole
 end
 
-WidgetAlertToGraphicsCanvas(theme; measure,
+WidgetAlertToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default,
                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                             padding = _themed(Inset, theme, t -> _make_uniform_inset(t.container_padding)),
@@ -10187,17 +10203,20 @@ WidgetAlertToGraphicsCanvas(theme; measure,
                             corner_radius = _themed(Int, theme, t -> t.radius),
                             label_gap = _themed(Int, theme, t -> t.label_gap),
                             icon_size = _themed(Float64, theme, t -> t.icon_size),
-                            badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+                            badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetAlertToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, title_text, description_text, destructive_border_color,
                                 destructive_title_text, title_gap, corner_radius, label_gap,
-                                icon_size, badge)
+                                icon_size, badge, selected_color)
 
+# A title and a description that are a `String` record their lines as the parts
+# `.title` and `.description`, so they take the caret as the text of a label does.
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = Cell(Computation(() -> begin
         variant = w.variant === :default ? nothing : w.variant
         box = geometry[]
         colors = _get_box_colors(p, w; variant)
@@ -10206,6 +10225,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         title = _get_state_text(p, w, :title; variant)
         description = _get_state_text(p, w, :description; variant)
         elements = Any[]
+        drawn = DrawnTextLine[]
         max_content_width = 0
         y = content_y
         title_string = string(w.title)
@@ -10222,6 +10242,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
                                                colors.content)
         _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap,
                     y + (row_height - title_height) ÷ 2, title.color)
+        w.title isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _ALERT_TITLE, 0))
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
             y += p.title_gap
@@ -10231,11 +10252,11 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
             edge = ctx === nothing ? nothing : ctx.maximum_width
             bound = authored_width > 0 ? max(0, authored_width - inset_width) :
                     edge !== nothing ? max(0, Int(edge[]) - inset_width) : 0
-            for line in _text_lines(p.measure, description.font, string(w.description), bound)
-                line_width, line_height = _text_size(p.measure, description.font, line)
-                _push_text!(elements, p.measure, description.font, line, content_x, y, description.color)
-                max_content_width = max(max_content_width, line_width); y += line_height
-            end
+            description_width, description_height =
+                _push_text_block!(elements, p.measure, description, string(w.description), content_x, y, bound;
+                                  part = _ALERT_DESCRIPTION,
+                                  drawn = w.description isa AbstractString ? drawn : nothing)
+            max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
         bottom_inset = _get_sides_outside(box, :content)[4]
@@ -10244,10 +10265,21 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
                          radius = p.corner_radius)
         append!(surface, elements)
-        (width=alert_width, height=alert_height, elements=surface)
-    end), geometry)
+        (width=alert_width, height=alert_height, elements=surface, drawn = drawn)
+    end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetAlertToGraphicsCanvas
+
+const _ALERT_TITLE = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+const _ALERT_DESCRIPTION = ConcreteReference(FieldReferenceStep("description"), EmptyReference())
+
+# An alert maps and reads a click on its title and its description as a label does
+# on its text.
+map_reference_forward(::WidgetAlertToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(p::WidgetAlertToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetAlertToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
@@ -13234,6 +13266,8 @@ end
 _is_read_only_text(node) = false
 _is_read_only_text(::WidgetLabel) = true
 _is_read_only_text(::WidgetBadge) = true
+_is_read_only_text(::WidgetAvatar) = true
+_is_read_only_text(::WidgetAlert) = true
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
@@ -14881,8 +14915,8 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetProgressRing => WidgetProgressRingToGraphicsCanvas(theme; measure = measure),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),
-        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),
-        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measure),
+        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; graphics_theme, measure = measure),
+        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
         WidgetSwatch     => WidgetSwatchToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),

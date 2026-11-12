@@ -12,7 +12,8 @@ Covers:
   and a band behind its text while the selection is the text as a whole,
 - a move names the caret as the part under the pointer,
 - a label that shows no `String` records no line, and a click on it answers nothing,
-- a badge takes the caret, the band and the move as a label does,
+- a badge takes the caret, the band and the move as a label does, and so do the
+  initials of an avatar and the title and the description of an alert,
 - a press that is bound to a label, as to a chip, acts before the caret.
 """
 
@@ -102,6 +103,37 @@ function test_widget_label_caret()
         @test length(bands()) == 1 && isempty(mark())
         set_selection!(badge, nothing)
         @test isempty(mark()) && isempty(bands())
+    end
+
+    @testset "the initials of an avatar take the caret as a label does" begin
+        p = WidgetAvatarToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        avatar = WidgetAvatar("Q1")
+        iomap = print_document(p, nothing, avatar, PrinterContext())
+        x, y = _label_caret_point(iomap, 6)
+        caret = ConcreteReference(FieldReferenceStep("initials"),
+                    ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
+        answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
+        # An avatar that shows an icon has no text, and a click on it answers nothing.
+        icon = print_document(p, nothing, WidgetAvatar(:user), PrinterContext())
+        @test isempty(icon.drawn)
+    end
+
+    @testset "the title and the description of an alert take the caret" begin
+        p = WidgetAlertToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        alert = WidgetAlert("Saved"; description = "All files are written")
+        iomap = print_document(p, nothing, alert, PrinterContext())
+        @test [strip_reference_types(line.part) for line in iomap.drawn] ==
+              [ConcreteReference(FieldReferenceStep("title"), EmptyReference()),
+               ConcreteReference(FieldReferenceStep("description"), EmptyReference())]
+        for (line, field) in zip(iomap.drawn, ("title", "description"))
+            x = Int(unwrap_cell(getfield(line.text, :x))) + 22
+            y = Int(unwrap_cell(getfield(line.text, :y))) + 4
+            answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+            @test answer isa ReplaceSelectionOperation
+            @test strip_reference_types(answer.path) ==
+                  ConcreteReference(FieldReferenceStep(field), ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
+        end
     end
 
     @testset "a press that is bound to a label acts before the caret, as for a chip" begin
