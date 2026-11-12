@@ -68,14 +68,91 @@ function map_outline_forward(slots, reference)
 end
 
 """
-    map_outline_backward(slots, reference) -> Reference or nothing
+    map_outline_backward(slots, reference; introduce = nothing) -> Reference or nothing
 
 The path in the input of the place that `reference`, a path in the output, names,
 through the first of `slots` that holds it, or `nothing` for a part that the view
 drew.
+
+A text that the view drew inside the row of a whole slot, such as the id or the
+time of a record, is a part of the output of the view. With `introduce`, a
+function of the path of the record in the input and of `reference`, a place in
+the row maps to the record and the step of the view that `introduce` answers, so
+a plain click puts the caret into that text and an Alt+click selects it. When
+`introduce` answers `nothing`, as for the mark of the row or a gap, the place maps
+to the record.
 """
-map_outline_backward(slots, reference) =
-    _map_outline_steps(slots, collect(get_reference_steps(strip_reference_types(reference))), :output, :input)
+function map_outline_backward(slots, reference; introduce = nothing)
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    if introduce !== nothing
+        slot = _find_outline_slot(slots, steps, :output)
+        if slot !== nothing && slot.whole && length(steps) > length(slot.output)
+            record = _make_outline_reference(slot.input)
+            drawn = introduce(record, reference)
+            drawn === nothing || return concat_references(record, drawn)
+        end
+    end
+    _map_outline_steps(slots, steps, :output, :input)
+end
+
+# The first slot whose side `from` holds the place that `steps` names, or `nothing`.
+function _find_outline_slot(slots, steps, from::Symbol)
+    for slot in slots
+        _has_outline_prefix(steps, getfield(slot, from)) && return slot
+    end
+    nothing
+end
+
+# Whether `steps` end in a caret, a place between two characters of a text.
+_is_outline_caret(steps) = !isempty(steps) && last(steps) isa RangeReferenceStep && last(steps).start == last(steps).stop
+
+"""
+    map_outline_view_forward(projection, slots, reference) -> Reference or nothing
+
+The forward map of a view that builds an outline with `slots`: a part that
+`projection` drew maps to its place in the output, both one that a reference names
+whole and a caret in a text of the row of a record (`find_outline_introduced_path`),
+and any other path maps through the slots (`map_outline_forward`).
+"""
+map_outline_view_forward(projection, slots, reference) =
+    something(find_introduced_path(projection, reference), find_outline_introduced_path(projection, reference),
+              Some(map_outline_forward(slots, reference)))
+
+"""
+    make_outline_row_text_reference(projection, iomap, record, reference) -> Reference or nothing
+
+The step of `projection` at `record`, a path in the input of `iomap`, for
+`reference`, a place in a text that the view drew in the row of the record: a
+caret in it, or the text as a whole, a `String` of the output of `iomap`. Any
+other place answers `nothing`. A view of an outline passes it to
+[`map_outline_backward`](@ref) as `introduce`.
+"""
+function make_outline_row_text_reference(projection, iomap, record, reference)
+    _is_outline_caret(collect(get_reference_steps(strip_reference_types(reference)))) ||
+        try_evaluate_reference(iomap.output, strip_reference_types(reference)) isa AbstractString ||
+        return nothing
+    document = try_evaluate_reference(iomap.input, record)
+    make_introduced_reference(projection, document === nothing ? iomap.input : document,
+                              annotate_reference_types(iomap.output, strip_reference_types(reference)))
+end
+
+"""
+    find_outline_introduced_path(projection, reference) -> Reference or nothing
+
+The path in the output of `projection` that `reference` names when it ends in a
+step that `projection` introduced, as [`map_outline_backward`](@ref) makes for a
+caret in a text that the view drew in a row: the path of the record in the input,
+then the step, which holds the path of the place from the root of the output. The
+path of the step is the answer; any other reference answers `nothing`.
+"""
+function find_outline_introduced_path(projection, reference)
+    reference isa ConcreteReference || return nothing
+    while reference.tail isa ConcreteReference
+        reference = reference.tail
+    end
+    step = reference.head
+    step isa ProjectionReferenceStep && step.projection === projection ? step.output_path : nothing
+end
 
 """
     route_outline_paths!(input, output, image; embedded = ()) -> output

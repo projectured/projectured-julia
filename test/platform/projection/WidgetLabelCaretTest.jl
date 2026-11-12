@@ -145,5 +145,10 @@ function test_widget_label_caret()
         iomap = print_document(p, nothing, label, PrinterContext())
         x, y = _label_caret_point(iomap, 12)
         @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) === chosen
+        # The chip is a control: a move and an Alt+click name it as a whole, so its
+        # text gives them no caret.
+        @test read_intent(p, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0)) === nothing
+        @test map_reference_backward(p, iomap, PointReferenceStep(x, y)) === nothing
     end
 end

@@ -2007,8 +2007,14 @@ function _map_drawn_text_backward(p, iomap, reference)
     place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     place === nothing || return place
     point = find_reference_point(reference)
-    point === nothing ? nothing : find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+    (point === nothing || _is_bound_control(iomap.input)) && return nothing
+    find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
 end
+
+# Whether `w` acts on a press by bindings of its own, as a chip that selects the
+# item it names does: such a widget is a control, so its text takes no caret, and a
+# move and an Alt+click name the widget as a whole.
+_is_bound_control(w) = !isempty(get_instance_gesture_bindings(w))
 
 
 # ── Every widget checks its own bounds ────────────────────────────────────────
@@ -2075,6 +2081,7 @@ function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     w.visible == false && return nothing
     bound = read_bound_gesture(w, evt)
     bound === nothing || return bound
+    _is_bound_control(w) && return nothing
     press = evt isa MouseClick && evt.count == 1 &&
             (evt.button === :left && evt.modifiers == ModifierKeys() || is_whole_selection_press(evt))
     (press || evt isa MouseMove) || return nothing

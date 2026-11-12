@@ -1276,6 +1276,43 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `examples/json` stays at 12. What is left in the research views: a plain
     click on the id of an item selects the item (the row rule of the view), and
     the caret in a statement is set but not drawn.
+
+  **Run 2 of step 6** (2026-11-12, at 9147be27a, the same 546 examples as run
+  1): 3209 lines in 300 examples, against 6164 lines in 343. By kind:
+  `plain:no-caret` 1182, `alt:not-drawn` 598, `plain:caret-not-drawn` 427,
+  `move:differs` 391, `alt:outside` 283, `alt:not-caret-part` 236, `throws` 43,
+  `no-image` 37. The largest causes left: a plain click on a text gives a part,
+  not a caret (65 examples, 820 lines); a plain click does nothing (82, 277);
+  the caret is set but not drawn (48, 427); the reflected object (49, 152);
+  the Alt+click outside the deepest part (44, 248). Three examples threw out of
+  the walk in run 2 (`assistant/work`, `examples/assistant_work`,
+  `explorer/explorer`): a read of the layout or the second build threw, outside
+  the check of a point. The walk now records such a throw as one line and stops.
+
+  - ~~**A text in the row of a record in an outline gives the record**~~ (the
+    research and workflow views). The outline kit maps a place inside a whole
+    row that no slot holds to the record, so a press on a mark or a gap names
+    the record, as the kit says. A plain click on a text that the view drew in
+    the row, such as the time of an item, then named the record, not a caret.
+    `map_outline_backward(slots, reference; introduce)` now asks `introduce`
+    first: `make_outline_row_text_reference` answers the step of the view at
+    the record for a caret in a text that the view drew, or for that text as a
+    whole, a `String` of the output, which an Alt+click gives after the
+    container made the caret whole; for any other place it answers `nothing`,
+    and the place maps to the record as before. The view maps such a step
+    forward to its place in the output (`find_outline_introduced_path`,
+    `map_outline_view_forward`), also for the routing of the selection, so the
+    caret is drawn. The research view and the workflow view use them.
+  - ~~**A chip is a control**~~. A label with bindings of its own, such as the
+    chip of a link that selects the item it names, acts on a plain click, and
+    its text takes no caret from a move, an Alt+click or a point
+    (`_is_bound_control`), so the move and the Alt+click name the chip as a
+    whole, which the outline maps to the record. The click test takes a press
+    that selects a document and shows it (`ShowSelectionOperation`) as an
+    action.
+    The walk: `examples/research_contested` 114 → 19, `examples/research`
+    103 → 12, `workflow/workflow` 24 → 19, `examples/workflow_recorded` 53 →
+    47; `test_research` 386, `test_workflow` 314, `test_outline` 34 pass.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

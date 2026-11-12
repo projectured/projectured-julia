@@ -106,15 +106,16 @@ _get_child_steps(index::Integer) = Any[_make_field_step("children"), _make_eleme
 
 const _ResearchProjection = Union{ResearchItemToWidget, ResearchStudyToWidget}
 
-function map_reference_forward(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, reference)
-    introduced = find_introduced_path(p, reference)
-    introduced === nothing || return introduced
-    map_outline_forward(iomap.slots, reference)
-end
+map_reference_forward(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, reference) =
+    map_outline_view_forward(p, iomap.slots, reference)
 
+# A caret in a text that the view drew in the row of a record, such as its id, is
+# the step of the view at the record; any other part that the view drew is the
+# record, or the part of the view.
 function map_reference_backward(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, reference)
     reference isa Reference || return nothing
-    found = map_outline_backward(iomap.slots, reference)
+    found = map_outline_backward(iomap.slots, reference;
+                                 introduce = (record, path) -> make_outline_row_text_reference(p, iomap, record, path))
     found === nothing &&
         return invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
     try
@@ -127,10 +128,7 @@ end
 # Every document that one build made holds its part of the image of the selection
 # and of the part under the pointer of the input, by the slots of the same build.
 _route_research_paths!(p, input, slots, output, embedded) =
-    route_outline_paths!(input, output,
-                         path -> something(find_introduced_path(p, path), map_outline_forward(slots, path),
-                                           Some(nothing));
-                         embedded)
+    route_outline_paths!(input, output, path -> map_outline_view_forward(p, slots, path); embedded)
 
 # The IO map of a view whose output and slots one computation builds: a change of
 # what the build reads builds a new output, and the stage after this one prints it

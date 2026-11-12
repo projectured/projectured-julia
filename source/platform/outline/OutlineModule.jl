@@ -30,7 +30,8 @@ import ..EditorModule: make_change
 
 export OutlineTheme, ScaledOutlineTheme, make_outline_values_field
 export compute_shown_dates
-export OutlineSlot, map_outline_forward, map_outline_backward, route_outline_paths!
+export OutlineSlot, map_outline_forward, map_outline_backward, find_outline_introduced_path, route_outline_paths!,
+       map_outline_view_forward, make_outline_row_text_reference
 export make_outline_label, make_outline_text, make_outline_chip, make_outline_mark, make_outline_control,
        make_outline_spacer, make_outline_avatar, make_outline_facts, make_outline_field, make_outline_relations,
        make_outline_section, make_outline_menu_operation, make_outline_row, make_outline_card,

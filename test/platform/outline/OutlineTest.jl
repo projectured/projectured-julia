@@ -66,5 +66,29 @@ function test_outline()
               [true, false, false, true]
         @test compute_shown_dates([nothing, "2026-10-22"]) == [false, true]
     end
+
+    @testset "a caret in a text that the view drew in a row is a step of the view at the record" begin
+        steps(path) = collect(get_reference_steps(strip_reference_types(path)))
+        reference(step_list...) = foldr(ConcreteReference, collect(Any, step_list); init = EmptyReference())
+        record = Any[FieldReferenceStep("items"), RangeReferenceStep(0, 1)]
+        row = Any[FieldReferenceStep("children"), RangeReferenceStep(2, 3)]
+        slots = Any[OutlineSlot(record, row; whole = true)]
+        caret = reference(row..., FieldReferenceStep("content"), RangeReferenceStep(1, 1))
+        mark = reference(row..., FieldReferenceStep("mark"))
+        drawn = (record_path, path) -> ConcreteReference(ProjectionReferenceStep(:view, path), EmptyReference())
+        # A caret in a text of the row: the record, then the step that `introduce` gives.
+        found = map_outline_backward(slots, caret; introduce = drawn)
+        @test steps(found)[1:2] == record
+        @test steps(found)[3] == ProjectionReferenceStep(:view, caret)
+        @test find_outline_introduced_path(:view, found) == caret
+        @test find_outline_introduced_path(:other, found) === nothing
+        # A place for which `introduce` answers nothing, and a caret with no
+        # `introduce`, is the record.
+        @test steps(map_outline_backward(slots, mark; introduce = (_, _) -> nothing)) == record
+        @test steps(map_outline_backward(slots, caret)) == record
+        # The forward map of the view takes the step back to its place.
+        @test map_outline_view_forward(:view, slots, found) == caret
+        @test steps(map_outline_view_forward(:view, slots, reference(record...))) == row
+    end
 end
 end
