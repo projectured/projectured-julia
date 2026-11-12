@@ -57,15 +57,28 @@ function _make_repeated_file_card(file::FileDocument)
     card
 end
 
-# Whether `iomap` is the map of a repeat: its inner map is the one of the card that
-# stands for the file, and not the one of the content of the file.
-_is_repeated_file(iomap::ContentIoMap) = iomap.inner_iomap.input !== get_file_content(iomap.input)
+# The map of a repeat: the file draws as the closed card that `inner_iomap` maps. The
+# card reads the gestures of its place, and the map gives a parent no path inside it.
+@iomap struct RepeatedFileIoMap
+    projection::Any
+    input::Any          # the file
+    output::Any         # the output of the card
+    inner_iomap::Any    # the map of the card
+end
+
+get_child_iomaps(iomap::RepeatedFileIoMap) = Any[iomap.inner_iomap]
+
+# The baseline of the card, so a row aligns a repeat as it aligns the card.
+function find_first_baseline(iomap::RepeatedFileIoMap)
+    card = iomap.inner_iomap
+    card.output === iomap.output ? find_first_baseline(card) : nothing
+end
 
 function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     path_files = _get_path_files(ctx)
     if any(on_path -> on_path === file, path_files)
         card = print_child(recursion, _make_repeated_file_card(file), ctx)
-        return ContentIoMap(p, file, Cell(card.output), Cell(card))
+        return RepeatedFileIoMap(p, file, Cell(card.output), Cell(card))
     end
     ctx = with_property(ctx, _PATH_FILES_PROPERTY, (path_files..., file))
     step = @reference_step(content)
@@ -92,11 +105,15 @@ end
 # with a route follows it through `content`.
 const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 
+# The card of a repeat reads the gesture itself, by its coordinates, so a click on its
+# chevron folds it.
+function read_intent(p::FileToContent, recursion, change::Intent, iomap::RepeatedFileIoMap)
+    card = iomap.inner_iomap
+    read_intent(get_iomap_projection(card), recursion, change, card)
+end
+
 function read_intent(p::FileToContent, recursion, change::Intent, iomap::ContentIoMap)
     child = iomap.inner_iomap
-    # The card of a repeat reads the gesture itself, by its coordinates, so a click on
-    # its chevron folds it.
-    _is_repeated_file(iomap) && return read_intent(get_iomap_projection(child), recursion, change, child)
     file = iomap.input
     recursion = _get_content_recursion(p, recursion, child.input)
     if change.gesture isa CollectIntents
@@ -125,15 +142,18 @@ function read_intent(p::FileToContent, recursion, change::Intent, iomap::Content
     Intent(change.gesture, answer)
 end
 
-read_intent(p::FileToContent, iomap::ContentIoMap, payload) =
+read_intent(p::FileToContent, iomap::Union{ContentIoMap, RepeatedFileIoMap}, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Only a real collection merges; anything else a reader answered is not one.
 _get_collected_intents(operation::CollectedIntentsOperation) = operation
 _get_collected_intents(::Any) = nothing
 
+# The paths of the file are not mapped into a repeat, so a selection does not go into it.
+map_reference_forward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing
+map_reference_backward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing
+
 function map_reference_forward(::FileToContent, iomap::ContentIoMap, reference)
-    _is_repeated_file(iomap) && return nothing
     @reference_case reference begin
         ::FileDocument.content.rest... => begin
             inner = iomap.inner_iomap
@@ -149,7 +169,6 @@ end
 # selection whose checkpoints moved matches no document (see the identical
 # comment above `PaneToWidget.jl`'s own use of `concat_references`).
 function map_reference_backward(::FileToContent, iomap::ContentIoMap, reference)
-    _is_repeated_file(iomap) && return nothing
     inner = iomap.inner_iomap
     inner_path = map_reference_backward(get_iomap_projection(inner), inner, reference)
     inner_path === nothing && return nothing

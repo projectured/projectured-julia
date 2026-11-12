@@ -852,6 +852,18 @@ owner later).
   - One test (`ExplorerTest.jl`, a dashboard of a `.pred` file) still calls the private
     `_make_opened_file`, because it needs the file read at once; no public call opens and reads a
     file without a tab.
+- **The map of a repeat** (the owner, 2026-11-12: option A, the print keeps the fact). The print of
+  a repeat answers a `RepeatedFileIoMap` (`FileToContent.jl`), and `read_intent`,
+  `map_reference_forward` and `map_reference_backward` take a repeat by that type;
+  `_is_repeated_file` is gone. The type has its own `get_child_iomaps` and `find_first_baseline`,
+  which `ContentIoMap` had, so the file-format slice imports `find_first_baseline` from the graphics
+  slice (a new row entry in `PLATFORM_SLICE_EDGES`). A closed card has no baseline today, so a
+  repeat answers `nothing`, as on main. The owner rejected a second way, a fixed projection
+  `RepeatedFileToCard()` in the map of the repeat: no projection enters the tree or the recursion
+  that the composition did not make.
+  - The test of a repeat finds the map in the window. The lazy grid list of a dashboard keeps the
+    maps of its children in a dictionary (`GridListState`), so the walk `_at_collect_iomaps` has a
+    keyword `is_dict_walked` (off by default) to enter one.
 
 ## 7. Risks
 

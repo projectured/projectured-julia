@@ -1635,6 +1635,11 @@ function test_explorer()
                 closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
                 @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
                 @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
+                # The map of the repeat says that it is one, and answers the baseline of its card.
+                repeats = _at_collect_iomaps(editor.iomap, ProjecturedPlatform.FileFormatModule.RepeatedFileIoMap;
+                                             depth = 1000, is_dict_walked = true)
+                @test length(repeats) == 1 && only(repeats).input === tab_file
+                @test find_first_baseline(only(repeats)) === find_first_baseline(only(repeats).inner_iomap)
             finally
                 foreach(step -> step(editor), editor.stop_steps)
             end

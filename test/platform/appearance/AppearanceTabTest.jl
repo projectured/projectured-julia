@@ -55,21 +55,24 @@ function _at_find_iomap(iomap, ::Type{T}; depth = 12) where {T}
 end
 
 # Each IO map of type `T` in the IO map tree under `iomap`, by its fields and the
-# vectors and tuples that hold them, each once.
-function _at_collect_iomaps(iomap, ::Type{T}, found = Any[], seen = Base.IdSet{Any}(); depth = 40) where {T}
+# vectors and tuples that hold them, each once. With `is_dict_walked`, also by the
+# values of a dictionary, where a lazy list keeps the maps of its children.
+function _at_collect_iomaps(iomap, ::Type{T}, found = Any[], seen = Base.IdSet{Any}(); depth = 40,
+                            is_dict_walked::Bool = false) where {T}
     (depth == 0 || iomap in seen) && return found
     push!(seen, iomap)
     iomap isa T && push!(found, iomap)
     for name in fieldnames(typeof(iomap))
         value = getfield(iomap, name)
         value isa Cell && (value = value[])
-        candidates = value isa AbstractVector ? value : (value,)
+        candidates = value isa AbstractVector ? value :
+                     is_dict_walked && value isa AbstractDict ? collect(values(value)) : (value,)
         for candidate in candidates
             candidate isa Cell && (candidate = candidate[])
             (candidate isa Document || candidate isa Projection || candidate === nothing ||
              candidate isa Number || candidate isa AbstractString || candidate isa AbstractDict ||
              candidate isa Function || candidate isa Module || candidate isa Type || candidate isa Symbol) && continue
-            _at_collect_iomaps(candidate, T, found, seen; depth = depth - 1)
+            _at_collect_iomaps(candidate, T, found, seen; depth = depth - 1, is_dict_walked)
         end
     end
     found
