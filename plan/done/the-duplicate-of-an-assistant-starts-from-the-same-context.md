@@ -1,6 +1,9 @@
 # The duplicate of an assistant starts from the same context
 
-> **Status (2026-11-12): steps 1 to 5 are done; the landing waits for the owner.** The owner asked for this plan
+> **Status (2026-11-12): done and landed.** The owner approved the landing on
+> 2026-11-12 ("Land first, test is necessary and cleanup if done"). ClaudeCodeACP.jl
+> `main` is at `29ebe0a` (0.1.11); projectured-julia `main` has the branch
+> `assistant-fork`, with `ProjecturedACP` asking for 0.1.11. Neither is pushed. The owner asked for this plan
 > on 2026-11-11 and approved it for implementation the same day ("Implement the
 > plan"). The decisions in §5 were proposed by the assistant and approved with
 > the plan on 2026-11-11.
@@ -220,7 +223,7 @@ The work is in two repositories, each in its own worktree:
    the agent advertises it, with the instructions and the MCP servers as
    `open_agent_session!` sends them, and registers the session the same way. An
    error of the protocol answers `nothing`. `ScriptedAgentConnection` forks a
-   session when a test asks for it. Test: `test_acp_connection()`.~~ **Done 2026-11-11** (`7ab53f05a`).
+   session when a test asks for it. Test: `test_acp_connection()`.~~ **Done 2026-11-11** (`fa1d1bdda`).
    - `open_agent_session!` and `fork_agent_session!` of `AcpConnection` share
      one helper, `_run_session_open!`, which holds the instructions, the MCP
      servers, the count of the opens that run, the options and the queue of the
@@ -244,7 +247,7 @@ The work is in two repositories, each in its own worktree:
    session of the original and has no note; the next prompt of the copy sends
    only the new message; a fork that gives `nothing` gives the note of P5; a copy
    of an assistant that answers gives the note of P4; the undo of the duplicate
-   stops the agent of the copy. Then `test_assistant_duplicate()`.~~ **Done 2026-11-11** (`94e390d2e`).
+   stops the agent of the copy. Then `test_assistant_duplicate()`.~~ **Done 2026-11-11** (`a4ea1129d`).
    - The source is an `AgentSessionFork(session_id, directory, turn_count,
      options)` in the new field `agent_fork` of `Assistant`.
    - **The copy keeps `agent_fork` until the first answer of its agent.** Fact
@@ -274,7 +277,7 @@ The work is in two repositories, each in its own worktree:
    and `duplicate_pane!`, and the README of `ClaudeCodeACP`. Then, in the editor
    with the built-in agent: ask the original a question, duplicate the tab, and
    ask the copy "What did I ask you first?". The copy must answer with the first
-   question. This check costs three short prompts.~~ **Done 2026-11-12** (`29ca99c6c` guides, `7087755cb` fix).
+   question. This check costs three short prompts.~~ **Done 2026-11-12** (`84f25a4f1` guides, `513426395` fix).
    - The guides: assistant.md ("A duplicate forks the session of its agent"),
      agent.md and acp.md. The docstring of `duplicate_pane!` already said
      "another assistant that knows this conversation", which is now true. The
@@ -331,6 +334,7 @@ The work is in two repositories, each in its own worktree:
 
 - 2026-11-11: step 1 done (facts in step 1).
 - 2026-11-11: step 2 done (ClaudeCodeACP.jl `29ebe0a`).
-- 2026-11-11: step 3 done (`7ab53f05a`).
-- 2026-11-11: step 4 done (`94e390d2e`).
-- 2026-11-12: step 5 done (`29ca99c6c`, `7087755cb`); the check in the real editor passes.
+- 2026-11-11: step 3 done (`fa1d1bdda`).
+- 2026-11-11: step 4 done (`a4ea1129d`).
+- 2026-11-12: step 5 done (`84f25a4f1`, `513426395`); the check in the real editor passes.
+- 2026-11-12: landed; `ProjecturedACP` asks for ClaudeCodeACP 0.1.11.
