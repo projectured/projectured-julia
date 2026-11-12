@@ -463,7 +463,7 @@ function get_document_decoration(file::FileDocument)
     end
     folder = dirname(name)
     DocumentDecoration(; icon = get_file_icon(name), conditions,
-                       detail = folder in ("", ".") ? "" : replace(folder, homedir() => "~"),
+                       detail = folder in ("", ".") ? "" : format_home_path(folder),
                        tooltip = () -> make_file_note(name; lines = _count_file_lines(file)))
 end
 
@@ -485,7 +485,7 @@ reads no disk.
 """
 function make_file_note(path::AbstractString; lines::Union{Integer,Nothing} = nothing)
     extension = uppercase(lstrip(splitext(path)[2], '.'))
-    facts = Pair{String,Any}["Path" => replace(String(path), homedir() => "~")]
+    facts = Pair{String,Any}["Path" => format_home_path(String(path))]
     isempty(extension) || push!(facts, "Format" => extension)
     lines === nothing || push!(facts, "Lines" => string(lines))
     TooltipNote(; title = basename(path), facts)
@@ -576,7 +576,7 @@ ReloadFileOperation(file::FileDocument; content = nothing, file_hash = nothing) 
 function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
     content = op.content === nothing ? _read_file_again(file) : op.content
-    content = _splice_open_files(editor, file, content)
+    content = _splice_open_files!(editor, file, content)
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file), content)
@@ -604,7 +604,7 @@ _compute_loaded_file_hash(file::FileDocument, path::AbstractString) =
 # that `editor` holds for that file, else a new one that reads nothing
 # ([`open_file_document!`](@ref)). The names of the files are against the folder of
 # `file`, as a save writes them. With no editor, or no name, each reference stays.
-function _splice_open_files(editor, file::FileDocument, content)
+function _splice_open_files!(editor, file::FileDocument, content)
     (editor isa Editor && !isempty(get_filename(file))) || return content
     splice_held_files!(content, dirname(abspath(get_filename(file))),
                        path -> open_file_document!(editor, path))

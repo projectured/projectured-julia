@@ -163,10 +163,17 @@ function _collect_references!(names::Vector{String}, node, visited::IdDict)
     names
 end
 
+# The path `p` when `expression` is a whole `file("p")`, or `nothing`.
+function _find_file_expression_path(expression)
+    (expression isa Expr && expression.head === :call && expression.args[1] === :file &&
+     length(expression.args) == 2 && expression.args[2] isa AbstractString) || return nothing
+    String(expression.args[2])
+end
+
 function _collect_file_names!(names::Vector{String}, e::Expr)
-    if e.head === :call && e.args[1] === :file && length(e.args) == 2 &&
-       e.args[2] isa AbstractString
-        push!(names, String(e.args[2]))
+    path = _find_file_expression_path(e)
+    if path !== nothing
+        push!(names, path)
         return names
     end
     for argument in e.args
@@ -223,15 +230,13 @@ function _splice_walk!(resolve, node, visited::IdDict)
         elseif value isa Union{Tuple,NamedTuple}
             target = _splice_tuple(resolve, value, visited)
             if target !== nothing
-                raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
-                                              name, " of ", typeof(node), ", which cannot be spliced")
+                raw isa AbstractCell || _throw_unspliceable_field(name, node)
                 raw[] = target
             end
         elseif value isa Document
             target = resolve(value)
             if target !== nothing
-                raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
-                                              name, " of ", typeof(node), ", which cannot be spliced")
+                raw isa AbstractCell || _throw_unspliceable_field(name, node)
                 raw[] = target
             else
                 _splice_walk!(resolve, value, visited)
@@ -239,6 +244,11 @@ function _splice_walk!(resolve, node, visited::IdDict)
         end
     end
 end
+
+# A reference leaf in a plain field, which holds no cell to take the node that it names.
+_throw_unspliceable_field(name, node) =
+    error("a reference sits in a plain field, ", name, " of ", typeof(node),
+          ", which cannot be spliced")
 
 # A tuple or a named tuple built again with each reference leaf in it, at any
 # depth, replaced by the node that it names, or `nothing` when no leaf in it
@@ -285,7 +295,8 @@ answer the content: `content` itself, or the file that it is when the whole cont
 is such a leaf. `find_file` is asked once for each path, so two slots of one file
 get one answer. An answer `nothing` keeps the leaf. A `node(…)`, a `section(…)` and
 any other verb stay leaves. The walk goes into a tuple and a named tuple. It reads
-no disk, and it changes nothing outside `content`.
+no disk and changes nothing outside `content`; a `find_file` can change state, as the
+one of each caller does when it adds a file to the open files of an editor.
 
 Use it where a file enters an editor, to give each file that it names the file
 document that the editor holds for it.
@@ -312,9 +323,9 @@ function _find_held_file_answer!(answers::Dict{String,Any}, leaf, base_dir::Abst
     marker = find_reference_marker(leaf)
     marker === nothing && return nothing
     expression = _parse_marker_expression(marker)
-    (expression isa Expr && expression.head === :call && expression.args[1] === :file &&
-     length(expression.args) == 2 && expression.args[2] isa AbstractString) || return nothing
-    path = abspath(joinpath(base_dir, String(expression.args[2])))
+    relative = _find_file_expression_path(expression)
+    relative === nothing && return nothing
+    path = abspath(joinpath(base_dir, relative))
     haskey(answers, path) || (answers[path] = find_file(path))
     answers[path]
 end

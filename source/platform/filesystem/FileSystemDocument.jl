@@ -706,7 +706,7 @@ end
 # entries once it is read, or that it is not.
 function _make_folder_note(folder::FileSystemDirectory; text = nothing)
     path = String(folder.pathname)
-    facts = Pair{String,Any}["Path" => replace(path, homedir() => "~")]
+    facts = Pair{String,Any}["Path" => format_home_path(path)]
     folder.state === :read && push!(facts, "Entries" => string(length(folder.elements)))
     text === nothing && folder.state !== :read && (text = "Not read yet.")
     TooltipNote(; title = basename(rstrip(path, '/')), text, facts)

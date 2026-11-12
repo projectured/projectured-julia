@@ -94,6 +94,31 @@ underlying reactive cell — works for any type that has one (both
 get_filename(f) = unwrap_cell(getfield(f, :filename))
 
 """
+    format_home_path(path) -> String
+
+`path` with the home folder of the user written as `~`: `"~"` for the home folder
+itself, `"~/rest"` for a path inside it (the home folder followed by a separator of
+paths), and `path` unchanged otherwise. A folder whose name only begins like the home folder, such as
+`/home/ann2` for the home folder `/home/ann`, is outside it.
+
+Use it to show a path to a person, as the heading of a card or a fact of a document.
+
+# Example
+
+    format_home_path(joinpath(homedir(), "notes", "a.txt"))  # "~/notes/a.txt"
+    format_home_path("/etc/hosts")                           # "/etc/hosts"
+
+See also `get_filename`.
+"""
+function format_home_path(path::AbstractString)
+    separators = unique(('/', only(Base.Filesystem.path_separator)))
+    home = rstrip(homedir(), separators)
+    path == home && return "~"
+    inside = any(separator -> startswith(path, home * separator), separators)
+    inside ? "~" * path[ncodeunits(home)+1:end] : String(path)
+end
+
+"""
     get_file_content(file) -> Any
 
 The value of the `content` field of `file`: what the file holds, as its format

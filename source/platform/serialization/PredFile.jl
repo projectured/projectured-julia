@@ -96,7 +96,8 @@ function make_inline_leaf(file::PredFile, node, path::Reference)
     extension = _find_inline_extension(node)
     filename = _INLINE_FILENAME * extension
     text = try
-        cut_file_text(get_file_document_type(filename)(filename, node))
+        # A held file inside an inline value is named against the current working folder.
+        cut_file_text(get_file_document_type(filename)(filename, node), ".")
     catch e
         e isa FileCutException || rethrow()
         throw(FileCutException(repr(get_filename(file)) * " writes the " * string(nameof(typeof(node))) *

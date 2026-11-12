@@ -65,17 +65,23 @@ function print_document(p::FileViewToWidget, recursion, view::FileView, ctx)
     iomap
 end
 
-# The children of the layout: the row of the band above the scroll pane, or the
-# scroll pane. Drawing the view asks for the text of its file when a change is unread.
+# The children of the layout: the row of the band or the reading row above the scroll
+# pane, or the scroll pane. Drawing the view asks for the text of its file when a
+# change is unread.
 function _arrange_file_view(p::FileViewToWidget, view::FileView)
     # A file whose changes are not all read reads its text after this frame.
     demand_file_text(view.file)
     state = get_file_disk_state(view.file)
-    band = state.band
-    band !== nothing && return Any[_make_file_band_row(p, band), view.scroll]
-    state.loaded_count < 0 && return Any[_make_file_reading_row(view), view.scroll]
+    state.band !== nothing && return Any[_make_file_band_row(p, state.band), view.scroll]
+    _is_file_unread(state) && return Any[_make_file_reading_row(view), view.scroll]
     Any[view.scroll]
 end
+
+# Whether the file has not read its text yet, so the view shows the reading row.
+_is_file_unread(state) = state.loaded_count < 0
+
+# Whether a row stands above the scroll pane: the row of the band, or the reading row.
+_has_file_row(state) = state.band !== nothing || _is_file_unread(state)
 
 # The row of a file that is not read yet: its name and that it reads, in the words of
 # the heading of a folder that reads. The row takes the height of its content.
@@ -101,7 +107,7 @@ end
 # first read, and first otherwise.
 function _get_file_view_scroll_steps(view::FileView)
     state = get_file_disk_state(view.file)
-    state.band === nothing && state.loaded_count >= 0 ? _FILE_VIEW_FIRST_STEPS : _FILE_VIEW_SECOND_STEPS
+    _has_file_row(state) ? _FILE_VIEW_SECOND_STEPS : _FILE_VIEW_FIRST_STEPS
 end
 
 # `file.<rest>` ↔ `<scroll pane>.content.<rest>` in the layout: the file is the

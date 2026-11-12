@@ -47,7 +47,7 @@ _get_path_files(ctx) = get_property(ctx, _PATH_FILES_PROPERTY, ())
 # again.
 function _make_repeated_file_card(file::FileDocument)
     card = WidgetCard(; title = get_document_title(file),
-                      description = replace(String(get_filename(file)), homedir() => "~"),
+                      description = format_home_path(String(get_filename(file))),
                       collapsible = true, collapsed = true)
     # A card prints its content once. The layout holds the content in a list that
     # follows the state of the card, so the content is printed when the card opens.
@@ -56,6 +56,10 @@ function _make_repeated_file_card(file::FileDocument)
     set_cell_value!(getfield(card, :content), body)
     card
 end
+
+# Whether `iomap` is the map of a repeat: its inner map is the one of the card that
+# stands for the file, and not the one of the content of the file.
+_is_repeated_file(iomap::ContentIoMap) = iomap.inner_iomap.input !== get_file_content(iomap.input)
 
 function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     path_files = _get_path_files(ctx)
@@ -87,10 +91,6 @@ end
 # answer: Ctrl+S and F5. A collection takes both, merged, and an operation
 # with a route follows it through `content`.
 const _CONTENT_STEPS = (FieldReferenceStep("content"),)
-
-# Whether `iomap` is the map of a repeat: its inner map is the one of the card that
-# stands for the file, and not the one of the content of the file.
-_is_repeated_file(iomap::ContentIoMap) = iomap.inner_iomap.input !== get_file_content(iomap.input)
 
 function read_intent(p::FileToContent, recursion, change::Intent, iomap::ContentIoMap)
     child = iomap.inner_iomap

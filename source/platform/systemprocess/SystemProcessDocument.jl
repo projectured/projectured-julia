@@ -159,7 +159,7 @@ get_document_decoration(process::SystemProcess) =
 # code, and its folder, state, threads and start.
 function _make_process_note(process::SystemProcess)
     facts = Pair{String,Any}["Process id" => string(process.process_id)]
-    isempty(process.folder) || push!(facts, "Folder" => replace(process.folder, homedir() => "~"))
+    isempty(process.folder) || push!(facts, "Folder" => format_home_path(process.folder))
     push!(facts, "State" => string(process.state), "Threads" => string(process.thread_count),
           "Started" => Libc.strftime("%H:%M:%S", process.start_time))
     TooltipNote(; title = _shorten_command(process.command; limit = 40),

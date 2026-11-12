@@ -36,7 +36,7 @@ import ..OperationModule: evaluate_operation, make_inverse_operation
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
        FileDiskState, FileBand, get_file_disk_state,
-       get_filename, get_file_content, emit_text,
+       get_filename, format_home_path, get_file_content, emit_text,
        save_project!, load_project,
        register_file_document_type!, get_file_document_type, has_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,

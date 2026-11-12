@@ -838,6 +838,20 @@ owner later).
   drain it answers the document of the card, and only the count shows the defect. The same steps
   with the load before the drain give a card that does not hold the document of the tab, and two
   entries of `notes.txt`.
+- **The 14 small points in the code of steps 1 to 5** (the owner, 2026-11-11: fix them now, on one
+  branch). Names, docstrings, repeated code and test helpers, and one bug: five places wrote a path
+  with `replace(path, homedir() => "~")`, which also replaced inside a path (`/home/ann2/x` showed as
+  `~2/x`). `format_home_path(path)` (`FileProject.jl`, exported) replaces only the home folder at
+  the start of a path and is used at the five places. Two points changed from the review:
+  - `_is_repeated_file` only moved beside `_make_repeated_file_card`. To carry the fact of a repeat
+    in its map, the repeat needs an IO map type of its own, with the methods that `ContentIoMap`
+    gets in the kernel and in the graphics slice; that is a question for the owner.
+  - `cut_file_text` keeps its default `base_dir = "."`, because the package is released as 0.1.0
+    and its one-argument form is public. Its one caller in the code, `make_inline_leaf` of
+    `PredFile.jl`, passes `"."` with a comment on the limit.
+  - One test (`ExplorerTest.jl`, a dashboard of a `.pred` file) still calls the private
+    `_make_opened_file`, because it needs the file read at once; no public call opens and reads a
+    file without a tab.
 
 ## 7. Risks
 

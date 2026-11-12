@@ -123,7 +123,7 @@ function make_inline_leaf end
 The file document that `node` stands for when another document holds it, or
 `nothing`. A save writes `file("…")` there and walks no further into `node`. The
 default answers `node` for a file document. A document that shows a file and
-keeps the state of that showing, such as the page of a file, answers that file,
+keeps the state of that showing, such as the view of a file, answers that file,
 so a holder saves it as the file and writes none of that state.
 """
 find_held_file(node) = is_file_document(node) ? node : nothing
@@ -404,7 +404,6 @@ function _compute_marker_file_name(cut::_FileCut, file)
     cut.strict || return name
     base = abspath(cut.base_dir)
     path = abspath(base, name)
-    first(splitdrive(path)) == first(splitdrive(base)) || return path
     relpath(path, base)
 end
 

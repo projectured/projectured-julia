@@ -714,5 +714,15 @@ function test_file_project()
         end
     end
 
+    @testset "a path is shown with the home folder as ~, only at a folder boundary" begin
+        withenv("HOME" => "/home/ann") do
+            @test format_home_path("/home/ann") == "~"
+            @test format_home_path("/home/ann/x.txt") == "~/x.txt"
+            @test format_home_path("/home/ann/") == "~/"
+            @test format_home_path("/home/ann2/x") == "/home/ann2/x"
+            @test format_home_path("/data/home/ann/x") == "/data/home/ann/x"
+        end
+    end
+
 end # testset
 end # test_file_project

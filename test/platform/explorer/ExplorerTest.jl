@@ -1059,7 +1059,7 @@ function test_explorer()
                 @test read(notes_path, String) == "notes on disk\n" && read(far_path, String) == "far on disk\n"
                 @test sort(readdir(work)) == ["notes.txt"] && readdir(outside) == ["far.txt"]
                 # The next editor has a tab of notes.txt and none of far.txt.
-                tab_file = ProjecturedPlatform.FileSystemModule._make_opened_file(next_editor, OpenFileOperation(notes_path))
+                tab_file = open_file_document!(notes_path; editor = next_editor)
                 tab_view = make_file_view(tab_file)
                 evaluate_operation(next_editor, AcquireDocumentOperation(tab_view))
                 @test find_open_file_document(notes_path; editor = next_editor) === tab_file
@@ -1555,22 +1555,6 @@ function test_explorer()
             try
                 store = get_session_file_change_store(; editor)
                 open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
-                # Frames until `done()` holds, and a draw of a view as the frame of a window draws it: the
-                # print of a view demands the text of its file in the evaluation of the editor.
-                function run_until(done; seconds = 30)
-                    deadline = time() + seconds
-                    while time() < deadline
-                        drain_operations!(editor)
-                        run_frame!(editor)
-                        done() && return true
-                        sleep(0.02)
-                    end
-                    false
-                end
-                draw(view) = run_with_evaluation_editor(editor) do
-                    length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
-                end
-                is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
                 # A tab shows notes.txt.
                 tab_file = open_file(notes_path)
                 tab_view = make_file_view(tab_file)
@@ -1587,14 +1571,14 @@ function test_explorer()
                 state = get_file_disk_state(later)
                 @test state.loaded_count < 0 && state.read_count == 0 && state.file_hash === nothing
                 @test get_file_content(later) isa UndoBuffer
-                run_until(() -> false; seconds = 0.5)
+                _explorer_run_frames_until(editor, () -> false; seconds = 0.5)
                 @test isempty(get_background_work_store(editor).records)
                 # A second open of the path gives the same file document.
                 @test open_file_document!(later_path; editor) === later
                 # Before the read, the view says that it reads, and the file refuses a save.
                 later_view = make_file_view(later)
                 evaluate_operation(editor, AcquireDocumentOperation(later_view))
-                @test draw(later_view) == 2
+                @test _explorer_draw_file_view(editor, later_view) == 2
                 reading = print_document(FileViewToWidget(), nothing, later_view, nothing).output.children[1]
                 @test reading.child.content == "later.txt \u00b7 reading"
                 @test evaluate_operation(nothing, SaveFileOperation(later)) === false
@@ -1604,11 +1588,11 @@ function test_explorer()
                 @test occursin("file(\"notes.txt\")", text) && occursin("file(\"later.txt\")", text)
                 @test !occursin("later on disk", text) && !occursin("FileDiskState", text)
                 # The read comes after the frame, once, and the view stops saying that it reads.
-                @test run_until(() -> is_read(later))
+                @test _explorer_run_frames_until(editor, () -> _explorer_is_file_read(later))
                 reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
                 @test reads == 1 && state.loaded_count >= 0
                 @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
-                @test draw(later_view) == 1
+                @test _explorer_draw_file_view(editor, later_view) == 1
                 evaluate_operation(editor, ReleaseDocumentOperation(later_view))
                 evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
             finally
@@ -1638,19 +1622,10 @@ function test_explorer()
                 held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
                 second_view = make_file_view(held_second)
                 evaluate_operation(editor, AcquireDocumentOperation(second_view))
-                run_with_evaluation_editor(editor) do
-                    length(print_document(FileViewToWidget(), nothing, second_view, nothing).output.children)
-                end
-                is_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
-                deadline = time() + 60
-                while time() < deadline && !is_read(held_second)
-                    drain_operations!(editor)
-                    run_frame!(editor)
-                    sleep(0.02)
-                end
+                _explorer_draw_file_view(editor, second_view)
+                @test _explorer_run_frames_until(editor, () -> _explorer_is_file_read(held_second); seconds = 60)
                 # The frames end: the slot of the first file in the second holds the tab, and the frame
                 # draws the first file once more as a closed card with its title and its path.
-                @test is_read(held_second)
                 @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
                 for _ in 1:3
                     drain_operations!(editor)
@@ -1822,6 +1797,29 @@ function test_explorer()
     end
 end
 end
+
+# Run frames of `editor` until `done()` holds, at most `seconds`.
+function _explorer_run_frames_until(editor, done; seconds::Real = 30)
+    deadline = time() + seconds
+    while time() < deadline
+        drain_operations!(editor)
+        run_frame!(editor)
+        done() && return true
+        sleep(0.02)
+    end
+    false
+end
+
+# Draw the view as the frame of a window draws it: the print of a view demands the text
+# of its file, in the evaluation of the editor.
+_explorer_draw_file_view(editor, view) =
+    run_with_evaluation_editor(editor) do
+        length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
+    end
+
+# Whether `file` holds the text of every change that was reported.
+_explorer_is_file_read(file) =
+    get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
 
 # Run frames of `editor` until `test()` holds, while the editor has work that can
 # change what a frame shows: a work of a background cell that runs or whose answers

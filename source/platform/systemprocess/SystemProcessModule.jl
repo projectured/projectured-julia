@@ -38,6 +38,7 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..RosterModule
+using ..SerializationModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule

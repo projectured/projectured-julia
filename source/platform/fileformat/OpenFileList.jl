@@ -126,6 +126,10 @@ content. A new one is in the open files of the editor at once. It is not shown: 
 view of a file draws it, and the call places it in no tab. `nothing` when no editor
 opens it, so a load with no editor keeps each reference to a file as it is.
 
+`open_file_document!(editor, path)` is the method that a load calls with the editor
+that loads, and that a slice extends (the file-system slice does); the default method
+opens nothing and answers `nothing`.
+
 Use it to get the editor's one document of a file, to hold it in a card or a record
 and to show it without a tab.
 
@@ -144,7 +148,7 @@ function open_file_document! end
 
 open_file_document!(path::AbstractString; editor = find_evaluation_editor()) = open_file_document!(editor, path)
 
-# A load calls it with the editor that loads; the default opens nothing.
+# The default opens nothing; a slice that opens files adds a method.
 open_file_document!(editor, path::AbstractString) = nothing
 
 """
