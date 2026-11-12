@@ -256,6 +256,8 @@ function _pc_is_action(operation)
     operation === nothing && return false
     operation isa CompoundOperation && return any(_pc_is_action, operation.operations)
     operation isa ReplaceViewStateOperation && return false
+    # A press that selects a document and shows it, as a link does, acted.
+    operation isa ShowSelectionOperation && return true
     occursin("Timer", string(nameof(typeof(operation)))) && return false
     operation isa WrappingOperation && return _pc_is_action(get_wrapped_operation(operation))
     !(operation isa ReplacePathOperation || operation isa DoNothingOperation)
@@ -428,27 +430,44 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
         k += 1
         element = shown[k]
         x, y = _pc_get_center(element.box)
-        layout = _pc_get_text_layout(session)
+        throws(exception) = "$label ($x, $y): throws " * first(sprint(showerror, exception), 300) *
+                            _pc_format_origin(catch_backtrace())
+        layout = try
+            _pc_get_text_layout(session)
+        catch exception
+            push!(failures, throws(exception) * ", so the walk stops")
+            break
+        end
         try
             _pc_check_point!(session, element)
         catch exception
-            push!(failures, "$label ($x, $y): throws " * first(sprint(showerror, exception), 300) *
-                            _pc_format_origin(catch_backtrace()))
+            push!(failures, throws(exception))
             _pc_count!(session, :throws)
         end
         if find_document_path(session.root, session.document) === nothing
             push!(failures, "$label ($x, $y): a press removes the document from the editor, so the walk stops")
             break
         end
-        # The pointer leaves, so a light that shows a text under it is gone.
-        session.clock[] += 10.0
-        _pc_send!(session, MouseMove(-1, -1; time = session.clock[]))
-        _pc_get_text_layout(session) == layout && continue
+        # The pointer leaves, so a light that shows a text under it is gone. A press
+        # that moved what is drawn needs a new editor for the next point.
+        moved = try
+            session.clock[] += 10.0
+            _pc_send!(session, MouseMove(-1, -1; time = session.clock[]))
+            _pc_get_text_layout(session) != layout
+        catch exception
+            push!(failures, throws(exception) * ", so the walk stops")
+            break
+        end
+        moved || continue
         if remake === nothing
             push!(failures, "$label ($x, $y): a press moves what is drawn, so the walk stops")
             break
         end
-        opened = _pc_open_session(remake()..., width, height, label, counts, failures)
+        opened = try
+            _pc_open_session(remake()..., width, height, label, counts, failures)
+        catch exception
+            "$label ($x, $y): the editor does not build again: " * first(sprint(showerror, exception), 300)
+        end
         opened isa String && (push!(failures, opened); break)
         session, shown = opened
     end
