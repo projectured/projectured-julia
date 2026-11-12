@@ -6,6 +6,13 @@ end
 ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_code}, text::AbstractString, appearance) =
     isempty(text) ? Tuple{Int,Any}[(0, nothing)] : Tuple{Int,Any}[(1, color_red), (length(text) - 1, nothing)]
 
+# `place`, a path in the output that ends in a range of the text of a
+# `GraphicsText`, without the range and the field `text`: the path of the text.
+function _drop_steps_after_text(place)
+    steps = collect(get_reference_steps(strip_reference_types(place)))
+    foldr(ConcreteReference, steps[1:(end - 2)]; init = EmptyReference())
+end
+
 function test_widget_text_editing()
 
 _font = StyleFont("Ubuntu Mono", 20)
@@ -274,6 +281,21 @@ end
     one_y = first(y for (text, y) in lines if occursin("one", text))
     two_y = first(y for (text, y) in lines if occursin("two", text))
     @test two_y > one_y
+end
+
+@testset "a caret in a plain value maps forward to its character, and the value as a whole to its text" begin
+    proj = _proj()
+    field = WidgetText("Survey")
+    iomap = print_document(proj, proj, field, PrinterContext())
+    content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+    caret = ConcreteReference(FieldReferenceStep("content"), ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+    place = map_reference_forward(iomap.projection, iomap, annotate_reference_types(field, caret))
+    @test place !== nothing
+    # The place is the caret before the fourth character of the line of the text.
+    @test last(get_reference_steps(strip_reference_types(place))) == RangeReferenceStep(3, 3)
+    @test evaluate_reference(iomap.output, _drop_steps_after_text(place)) isa GraphicsText
+    whole = map_reference_forward(iomap.projection, iomap, annotate_reference_types(field, content))
+    @test whole !== nothing && find_reference_box(iomap.output, whole; measure = _stub) !== nothing
 end
 
 end # test_widget_text_editing

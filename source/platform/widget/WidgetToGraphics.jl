@@ -2425,6 +2425,33 @@ _is_value_child(document_iomap) =
 
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
+# A caret or a range in a plain value is a range of the text of its view, and the
+# value as a whole is that text as a whole; both map through the IO map of the view
+# to their place in its output. A document in `content` maps through its child.
+map_reference_forward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference) =
+    something(_map_plain_text_forward(iomap, reference), Some(_map_child_forward(iomap, reference)))
+
+# The place in the output of `reference`, `.content` or `.content{s:e}` of a text
+# widget that shows a plain value, or `nothing` for any other reference.
+function _map_plain_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, reference)
+    (iomap.value_iomap === nothing && !(iomap.input.content isa Document) && reference isa Reference) ||
+        return nothing
+    view = iomap.content_iomap
+    view === nothing && return nothing
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    (!isempty(steps) && steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
+    text = length(steps) == 1 ? EmptyReference() :
+           length(steps) == 2 && steps[2] isa RangeReferenceStep ?
+               make_flat_range_reference(steps[2].start, steps[2].stop) : nothing
+    text === nothing && return nothing
+    inner = ConcreteReference(FieldReferenceStep("content"), text)
+    image = map_reference_forward(get_iomap_projection(view), view,
+                                  annotate_reference_types(get_iomap_input(view), inner))
+    image === nothing && return nothing
+    outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(view)); depth = 6)
+    outer === nothing ? nothing : concat_references(outer, image)
+end
+
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
     return nothing
 end

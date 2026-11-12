@@ -1313,6 +1313,20 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     The walk: `examples/research_contested` 114 → 19, `examples/research`
     103 → 12, `workflow/workflow` 24 → 19, `examples/workflow_recorded` 53 →
     47; `test_research` 386, `test_workflow` 314, `test_outline` 34 pass.
+  - ~~**The caret in a text field of a plain value maps forward to nothing**~~
+    (most of the 427 lines of `plain:caret-not-drawn` in run 2: the titles and
+    the fields of the workflow and research items). The caret was drawn, by the
+    routing of the selection into the text view of the field, but the forward
+    map of a `WidgetText` that shows a `String` went only into a document of
+    `content`, so the forward map of the editor answered `nothing` for the
+    caret, and a scroll to the selection or the click test could not find it.
+    The field maps `.content{s:e}` to the flat range of the text of its view,
+    and `.content` to that text as a whole, through the IO map of the view
+    (`_map_plain_text_forward`), the inverse of `_map_plain_text_reference`.
+    The walk: `workflow/workflow` 24 → 0, `examples/workflow_recorded` 53 → 4,
+    `examples/research_planned` 104 → 5, `mcplog/log` 10 → 5. Left: the names
+    of `examples/formula_report` (20) and the object view of
+    `examples/nested_object_to_widget` (8).
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
