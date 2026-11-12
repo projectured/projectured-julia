@@ -225,6 +225,39 @@ function test_data_frame_view()
             @test reads[] < 1000
         end
 
+        @testset "through a real editor, a selected cell stays selected when a far turn moves the anchor" begin
+            view = DataFrameView(DataFrame(id = 1:1000, name = ["row $k" for k in 1:1000]))
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  tabs = false, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "row 1")
+            send!(MouseDown(:left, x + 2, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 2, y + 2, ModifierKeys(); time = 1.05))
+            selected = get_reference_steps(strip_reference_types(view.selection))
+            @test selected[1:3] == [FieldReferenceStep("rows"), RangeReferenceStep(0, 1), RangeReferenceStep(1, 2)]
+            # Each turn comes a second after the last, so no two make a fast run. The
+            # turn that takes the row at the top more than 200 rows from the head
+            # moves the anchor.
+            turned = try
+                for n in 1:400
+                    send!(MouseScroll(0, -1, x, y + 40, ModifierKeys(); time = 2.0 + n))
+                    view.anchor == 1 || break
+                end
+                true
+            catch exception
+                occursin("SelectionMismatchException", sprint(showerror, exception)) || rethrow()
+                false
+            end
+            # @broken: the table counts the selection that it shifts from its new head, and the data frame counts it from the anchor before the turn, finds no row and passes it on in the paths of the table; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
+            @test_broken turned
+            @test view.anchor > 1
+            # @broken: the turn fails at the move of the anchor; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
+            @test_broken turned && get_reference_steps(strip_reference_types(view.selection)) == selected
+        end
+
         @testset "a frame of many columns draws them as a list, and a far turn moves the column anchor" begin
             # Three rows, and a value in each cell that no other cell has.
             frame = DataFrame([Symbol("c", j) => collect(1:3) .+ 1000 * j for j in 1:1000])

@@ -5,8 +5,9 @@
 # frame: the boxes that it copies, the leaves that it draws, and the elements,
 # records and guards of its walk, and the graphics that stay in view and that a
 # move enters, which a window twice as tall does not double, and which a notch
-# deep in a table does not raise. The counts hold on a busy machine, where a time
-# does not.
+# deep in a table does not raise. When the table moves the head of its rows, its
+# list is built no further than at its top. The counts hold on a busy machine,
+# where a time does not.
 
 using Test
 
@@ -54,6 +55,19 @@ end
 # cut, and those differ from notch to notch.
 _sw_enters_as_few(frames, reference) =
     10 * sum(f.work[4] for f in frames) <= 11 * sum(r.work[4] for r in reference)
+
+# The count of the nodes of a lazy list from `head` on that a walk built: a link
+# that is a computation that did not run ends the count, and reads nothing.
+function _sw_count_built_rows(head)
+    count, node = 1, head
+    while true
+        link = getfield(node, :next)
+        is_computed_cell(link) && !is_cell_valid(link) && return count
+        node = link[]
+        node === nothing && return count
+        count += 1
+    end
+end
 
 # The canvases of `canvas` that the paint of `res` draws with more than `limit`
 # elements and no layout, or with overlap, as their counts of elements. A walk and
@@ -147,7 +161,8 @@ A scroll of a Julia file in a focused tab, of the Files pane and of a data frame
 paints the pixels of a full paint, copies the boxes whose content only moved,
 draws a small part of what the window shows, and does work that does not grow
 with the length of the file, with the height of the window or with the depth of
-the scroll.
+the scroll. The notch that moves the head of the table of a data frame builds
+its list of rows no further than a table at its top builds it.
 """
 function test_scroll_work()
 @testset "a scroll costs what comes into view" begin
@@ -214,6 +229,33 @@ function test_scroll_work()
                                     depth = 60)
         @test all(f -> f.same, deep_frames)
         @test _sw_enters_as_few(deep_frames, frames)
+    end
+    @testset "a data frame at the move of the head of its table" begin
+        # The SDL backend paints only the rows in view, as the application does; the
+        # headless backend reads every row of the drawing, so it links each row.
+        backend = SdlBackend()
+        try
+            editor = _sw_make_data_frame_editor(backend)
+            window = get_iomap_output(editor.iomap).windows[1]
+            foreach(_ -> run_frame!(editor), 1:5)
+            table = ProjecturedDataFramesTest._find_iomap_of(
+                editor.iomap, ProjecturedDataFrames.DataFramesModule.DataFrameViewToWidgetIoMap)
+            view = table.input
+            at_top = _sw_count_built_rows(table.table.cells)
+            for n in 1:300
+                push!(backend.pending_inputs,
+                      WindowInput(window.id, MouseScroll(0, -1, 700, 500, ModifierKeys(); time = 1000.0 + n)))
+                run_frame!(editor)
+                view.anchor == 1 || break
+            end
+            @test view.anchor > 1
+            # The new head is the row at the top, so the list is built as far as at
+            # the top of the frame: to the first row past the view.
+            # @broken: the kept prints of the grid walk from the new head as far as the old head linked, about 200 rows past the view; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 3
+            @test_broken _sw_count_built_rows(table.table.cells) <= at_top + 2
+        finally
+            quit_backend!(backend)
+        end
     end
 end
 end
