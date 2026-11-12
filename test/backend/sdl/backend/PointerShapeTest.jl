@@ -66,6 +66,18 @@ function test_sdl_pointer_shape()
             end
         end
 
+        @testset "a hand cursor is white at its hot spot, in the middle of the hand" begin
+            for glyph in values(ProjecturedSDL.SdlModule._GLYPH_OF_SHAPE)
+                image = ProjecturedSDL.SdlModule._make_glyph_cursor_image(glyph, 2.0)
+                @test image !== nothing
+                image === nothing && continue
+                info = unsafe_load(image)
+                middle_row = Ptr{UInt32}(info.pixels) + (Int(info.h) ÷ 2) * Int(info.pitch)
+                @test unsafe_load(middle_row, Int(info.w) ÷ 2 + 1) == 0xffffffff
+                _SDL.SDL_FreeSurface(image)
+            end
+        end
+
         @testset "a motion off every region and a shape that changes in place" begin
             _push_window_motion!(resource, 10, 10, ratio)
             _read_waiting_input!(backend)
@@ -82,6 +94,33 @@ function test_sdl_pointer_shape()
     end
     @test isempty(backend.cursors)
     @test backend.pointer_shape === :default
+
+    @testset "a glyph cursor is white where its outline closes in" begin
+        fill_enclosed! = ProjecturedSDL.SdlModule._fill_enclosed_pixels!
+        clear, line, white = 0x00000000, 0xff000000, 0xffffffff
+        # A square ring with a half transparent pixel inside.
+        ring = fill(clear, 5, 5)
+        ring[2:4, [2, 4]] .= line
+        ring[[2, 4], 3] .= line
+        ring[3, 3] = 0x80ffffff
+        expected = copy(ring)
+        expected[3, 3] = white
+        @test fill_enclosed!(copy(ring)) == expected
+        # A ring with a gap closes in nothing.
+        open_ring = copy(ring)
+        open_ring[2, 3] = clear
+        @test fill_enclosed!(copy(open_ring)) == open_ring
+        # A diamond of diagonal steps closes in the five pixels in its middle.
+        diamond = fill(clear, 7, 7)
+        for index in ((2, 4), (3, 3), (3, 5), (4, 2), (4, 6), (5, 3), (5, 5), (6, 4))
+            diamond[index...] = line
+        end
+        expected = copy(diamond)
+        for index in ((3, 4), (4, 3), (4, 4), (4, 5), (5, 4))
+            expected[index...] = white
+        end
+        @test fill_enclosed!(copy(diamond)) == expected
+    end
 
     @testset "the cursor library searches the icon folders of the system" begin
         set_cursor_path! = ProjecturedSDL.SdlModule._set_x11_cursor_path!

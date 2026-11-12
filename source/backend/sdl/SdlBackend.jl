@@ -6085,42 +6085,94 @@ _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
             _make_glyph_cursor(glyph, _get_window_unit_ratio(backend.display.density))
     end
 
-# A cursor that shows `glyph` of the Lucide font in black with a white outline, so
-# that it shows on any background, with its hot spot in the middle. The arrow of
-# the system when the glyph does not draw.
+# A cursor that shows the image of `glyph` (`_make_glyph_cursor_image`), with its
+# hot spot in the middle. The arrow of the system when the glyph does not draw.
 function _make_glyph_cursor(glyph::Char, ratio::Float64)
+    image = _make_glyph_cursor_image(glyph, ratio)
+    image === nothing && return SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW)
+    info = unsafe_load(image)
+    cursor = SDL_CreateColorCursor(image, Cint(info.w ÷ 2), Cint(info.h ÷ 2))
+    SDL_FreeSurface(image)
+    cursor == C_NULL ? SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW) : cursor
+end
+
+# The image of the cursor of `glyph` of the Lucide font, in ARGB8888: the glyph in
+# black with a white outline, so that it shows on any background, and white where
+# the outline closes in, as a cursor of a theme is. Lucide draws a glyph with lines
+# only, so without the fill the background shows through the middle of a hand.
+# `nothing` when the glyph does not draw. The caller frees the image.
+function _make_glyph_cursor_image(glyph::Char, ratio::Float64)
     handle = _get_font(with_font_size(StyleFont("Lucide", 20), _GLYPH_CURSOR_SIZE), ratio)  # @style: the cursor of the system, not the look of the editor
     black = _render_glyph(handle, glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
     white = _render_glyph(handle, glyph, SDL_Color(0xff, 0xff, 0xff, 0xff))
-    if black === nothing || white === nothing
-        black === nothing || SDL_FreeSurface(black[1])
-        white === nothing || SDL_FreeSurface(white[1])
-        return SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW)
-    end
-    info = unsafe_load(black[1])
-    outline = max(1, round(Int, ratio))
-    width, height = Int(info.w) + 2 * outline, Int(info.h) + 2 * outline
-    image = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(width), Cint(height),
-                                           Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
-    cursor = Ptr{SDL_Cursor}(C_NULL)
-    if image != C_NULL
-        SDL_FillRect(image, C_NULL, SDL_MapRGBA(unsafe_load(image).format, 0x00, 0x00, 0x00, 0x00))
-        for surface in (white[1], black[1])
-            SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND)
+    image = nothing
+    if black !== nothing && white !== nothing
+        info = unsafe_load(black[1])
+        outline = max(1, round(Int, ratio))
+        width, height = Int(info.w) + 2 * outline, Int(info.h) + 2 * outline
+        surface = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(width), Cint(height),
+                                                 Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
+        if surface != C_NULL
+            SDL_FillRect(surface, C_NULL, SDL_MapRGBA(unsafe_load(surface).format, 0x00, 0x00, 0x00, 0x00))
+            for glyph_surface in (white[1], black[1])
+                SDL_SetSurfaceBlendMode(glyph_surface, SDL_BLENDMODE_BLEND)
+            end
+            for dx in -outline:outline, dy in -outline:outline
+                (dx == 0 && dy == 0) && continue
+                SDL_BlitSurface(white[1], C_NULL, surface,
+                                Ref(SDL_Rect(Cint(outline + dx), Cint(outline + dy), info.w, info.h)))
+            end
+            SDL_BlitSurface(black[1], C_NULL, surface,
+                            Ref(SDL_Rect(Cint(outline), Cint(outline), info.w, info.h)))
+            _fill_enclosed_pixels!(surface)
+            image = surface
         end
-        for dx in -outline:outline, dy in -outline:outline
-            (dx == 0 && dy == 0) && continue
-            SDL_BlitSurface(white[1], C_NULL, image,
-                            Ref(SDL_Rect(Cint(outline + dx), Cint(outline + dy), info.w, info.h)))
-        end
-        SDL_BlitSurface(black[1], C_NULL, image,
-                        Ref(SDL_Rect(Cint(outline), Cint(outline), info.w, info.h)))
-        cursor = SDL_CreateColorCursor(image, Cint(width ÷ 2), Cint(height ÷ 2))
-        SDL_FreeSurface(image)
     end
-    SDL_FreeSurface(black[1])
-    SDL_FreeSurface(white[1])
-    cursor == C_NULL ? SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW) : cursor
+    black === nothing || SDL_FreeSurface(black[1])
+    white === nothing || SDL_FreeSurface(white[1])
+    image
+end
+
+# Paint opaque white each pixel of the ARGB8888 `surface` that its opaque pixels
+# close in (`_fill_enclosed_pixels!` of a matrix).
+function _fill_enclosed_pixels!(surface::Ptr{SDL_Surface})
+    info = unsafe_load(surface)
+    pitch = Int(info.pitch)
+    first_pixel = Ptr{UInt32}(info.pixels)
+    get_row(row) = first_pixel + (row - 1) * pitch
+    pixels = [unsafe_load(get_row(row), column) for row in 1:Int(info.h), column in 1:Int(info.w)]
+    _fill_enclosed_pixels!(pixels)
+    for row in 1:Int(info.h), column in 1:Int(info.w)
+        unsafe_store!(get_row(row), pixels[row, column], column)
+    end
+    surface
+end
+
+# Paint opaque white each pixel of the ARGB `pixels`, a matrix of rows, that its
+# opaque pixels close in. A pixel is outside when a path of pixels that are not
+# opaque, each one above, below, left or right of the one before, joins it to the
+# edge of the matrix. Each pixel that is not outside and not opaque becomes white.
+# A path never goes from one pixel to a diagonal one, so a diagonal line of opaque
+# pixels closes in what it surrounds.
+function _fill_enclosed_pixels!(pixels::AbstractMatrix{UInt32})
+    is_opaque(pixel) = pixel >> 24 == 0xff
+    outside = falses(size(pixels))
+    rows, columns = axes(pixels)
+    pending = [index for index in CartesianIndices(pixels)
+               if index[1] in (first(rows), last(rows)) || index[2] in (first(columns), last(columns))]
+    steps = (CartesianIndex(1, 0), CartesianIndex(-1, 0), CartesianIndex(0, 1), CartesianIndex(0, -1))
+    while !isempty(pending)
+        index = pop!(pending)
+        checkbounds(Bool, pixels, index) && !outside[index] && !is_opaque(pixels[index]) || continue
+        outside[index] = true
+        for step in steps
+            push!(pending, index + step)
+        end
+    end
+    for index in CartesianIndices(pixels)
+        outside[index] || is_opaque(pixels[index]) || (pixels[index] = 0xffffffff)
+    end
+    pixels
 end
 
 # Free every cursor that the backend made, and show the arrow of the system again.

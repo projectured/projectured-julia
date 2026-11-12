@@ -82,3 +82,16 @@ a call into libXcursor, so it is not part of this fix.
    - The glyph hands get the decision under "The glyph hands": 19 logical
      pixels, at the density only. `test_sdl_pointer_shape` passes 21 of 21 with
      that change too.
+3. [x] Make the glyph hands white inside. The owner saw the background through
+   the middle of the hand: Lucide draws a glyph with lines only, so the image
+   was transparent between the lines, where a hand of a cursor theme is white.
+   `_make_glyph_cursor_image` makes the image, and `_fill_enclosed_pixels!`
+   paints opaque white each pixel that the opaque pixels close in: a pixel is
+   outside when a path of pixels that are not opaque, in four directions, joins
+   it to the edge of the image. A preview in Python of both hands showed that
+   the outline of each glyph is closed, so the palm and the fingers fill, and
+   the pixel at the hot spot becomes white. Done: `test_sdl_pointer_shape`
+   passes 28 of 28, with 3 assertions on small matrices (a ring, a ring with
+   a gap, a diamond of diagonal steps) and 2 for each hand (the image draws, and
+   its hot spot pixel is `0xffffffff`). The images that the backend made at a
+   density of 2, saved as BMP, are 42×42 and white inside both hands.
