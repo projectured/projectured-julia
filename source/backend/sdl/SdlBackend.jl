@@ -6039,8 +6039,9 @@ const _SYSTEM_CURSOR_OF_SHAPE = Dict{Symbol,SDL_SystemCursor}(
 # the glyph of the Lucide font that shows it: `hand` and `grab`.
 const _GLYPH_OF_SHAPE = Dict{Symbol,Char}(:open_hand => Char(0xe1d7), :closed_hand => Char(0xe1e6))
 
-# The size of the glyph of a cursor, in logical pixels.
-const _GLYPH_CURSOR_SIZE = 22
+# The size of the glyph of a cursor, in logical pixels. At 19 the hand is about as
+# large as the hand of a cursor theme at its usual size of 24 logical pixels.
+const _GLYPH_CURSOR_SIZE = 19
 
 # Set the cursor of the system to the shape at the point `(x, y)` of the window
 # `id`, in the canvas that the window drew last. A window that drew nothing yet
@@ -6073,13 +6074,15 @@ function _set_pointer_shape!(backend::SdlBackend, shape::Symbol)
 end
 
 # The cursor of `shape`, made the first time that the backend shows it. SDL sizes
-# a cursor in window units, so its glyph is drawn at the window unit ratio.
+# a cursor in window units, so its glyph is drawn at the window unit ratio of the
+# density. The cursors of the system do not follow the zoom of the editor, so the
+# glyph does not either.
 _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
     get!(backend.cursors, shape) do
         glyph = get(_GLYPH_OF_SHAPE, shape, nothing)
         glyph === nothing ?
             SDL_CreateSystemCursor(get(_SYSTEM_CURSOR_OF_SHAPE, shape, SDL_SYSTEM_CURSOR_ARROW)) :
-            _make_glyph_cursor(glyph, _get_window_unit_ratio(get_device_pixel_ratio(backend.display)))
+            _make_glyph_cursor(glyph, _get_window_unit_ratio(backend.display.density))
     end
 
 # A cursor that shows `glyph` of the Lucide font in black with a white outline, so

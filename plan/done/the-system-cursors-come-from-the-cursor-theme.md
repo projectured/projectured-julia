@@ -67,5 +67,18 @@ a call into libXcursor, so it is not part of this fix.
    17 assertions before, and 4 new ones, which include the check that
    `XcursorLibraryPath()` of the library in the process equals
    `ENV["XCURSOR_PATH"]`.
-2. [ ] Check the cursors in the live editor, and compare the size of the glyph
-   hands with the themed cursors.
+2. [x] Check the cursors in the live editor, and compare the size of the glyph
+   hands with the themed cursors. Done:
+   - A script on the real display (`DISPLAY=:0`, no window) loads
+     `ProjecturedSDL` and asks the library of the process with
+     `XcursorLibraryLoadCursor` for `default`, `text`, `pointer`, `ew-resize`,
+     `not-allowed` and `wait`, which are the names that SDL asks for. Each one is
+     a themed cursor of Yaru. Before the fix, a probe of the same library found
+     none of them.
+   - The size of the themed cursors follows the X resources, which GNOME
+     changes with the monitor: `Xcursor.size: 48` and `Xft.dpi: 192` with the
+     monitor at 200% on, `Xcursor.size: 24` and `Xft.dpi: 96` when the X server
+     has no monitor. The backend sets no size.
+   - The glyph hands get the decision under "The glyph hands": 19 logical
+     pixels, at the density only. `test_sdl_pointer_shape` passes 21 of 21 with
+     that change too.
