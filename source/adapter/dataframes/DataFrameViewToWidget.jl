@@ -335,8 +335,9 @@ end
 # the top as it scrolls, and a sort can put a row anywhere among the kept rows.
 const _ROW_SEARCH_REACH = 10_000
 
-# The place of the kept row at the head of the list of rows.
-_get_head_place(view::DataFrameView) = clamp(view.anchor, 1, max(1, length(view.kept_rows)))
+# The place of the kept row at the head of the list of rows, for the anchor
+# `anchor` of the view.
+_get_head_place(view::DataFrameView, anchor::Int = view.anchor) = clamp(anchor, 1, max(1, length(view.kept_rows)))
 
 # The place in the table of row `r` of the frame, counted from the head of the
 # list, or `nothing` when no kept row near the head is `r`.
@@ -351,9 +352,9 @@ function _find_table_row(view::DataFrameView, r::Int)
 end
 
 # The row of the frame of row `k` of the table, counted from the head of the
-# list, or `nothing` past the kept rows.
-function _find_frame_row(view::DataFrameView, k::Int)
-    p = _get_head_place(view) + k - 1
+# list at the place `head` among the kept rows, or `nothing` past the kept rows.
+function _find_frame_row(view::DataFrameView, k::Int, head::Int = _get_head_place(view))
+    p = head + k - 1
     1 <= p <= length(view.kept_rows) ? view.kept_rows[p] : nothing
 end
 
@@ -460,14 +461,21 @@ read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
 # a cell their place in the frame, and the corner or the whole table the view. A
 # caret in a cell that is not open opens it first: the selection goes into the
 # document of its new entry, so its path is typed when the entry is there.
-function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-                     operation::ReplaceSelectionOperation)
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation) =
+    _read_table_selection(iomap, operation, _get_head_place(iomap.input))
+
+# A selection of the table in the view, with the rows of the table counted from
+# the head at the place `head` among the kept rows; `nothing` for a place that
+# has no place in the view. Each selection of the table comes here, alone and as
+# a part of a compound.
+function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation,
+                               head::Int)
     expression = _find_expression_path(operation.path)
     expression === nothing ||
         return ReplaceSelectionOperation(annotate_reference_types(iomap.input, expression))
     path = _find_table_path(operation.path)
     path === nothing && return nothing
-    target = _find_view_path(iomap, path)
+    target = _find_view_path(iomap, path, head)
     target === nothing && return nothing
     view = iomap.input
     target = _find_whole_read_only_cell(view, target)
@@ -583,8 +591,9 @@ end
 # rest of its corner, `columns[c]` of the frame for a column and for its header,
 # `rows[r]` for a row and for its header, which hold no state of their own in the
 # view, `rows[r][c]` for a cell with the rest of the path in it, and `nothing`
-# for any other place.
-function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+# for any other place. The rows of the table count from the head at the place
+# `head` among the kept rows.
+function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _get_head_place(iomap.input))
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
     view = iomap.input
@@ -599,7 +608,7 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
         return _find_frame_column_path(iomap, tail.head.stop, EmptyReference())
     end
     name in ("rows", "cells", "row_headers") || return nothing
-    r = _find_frame_row(view, tail.head.stop)
+    r = _find_frame_row(view, tail.head.stop, head)
     r === nothing && return nothing
     rest = tail.tail
     rest isa EmptyReference && name != "cells" && return _make_element_reference("rows", r, rest)
@@ -687,30 +696,52 @@ function _find_written_field(document, operation)
 end
 
 # `operation` with the writes of the lists of the table turned into writes of
-# the anchors of the view.
+# the anchors of the view. A part of a compound counts the rows of the table from
+# the head that the parts before it leave: after a write of `cells`, from the
+# anchor that the write moves the view to, as the table counts them.
 function _convert_table_writes(iomap::DataFrameViewToWidgetIoMap, operation)
-    operation isa CompoundOperation || return _convert_table_write(iomap, operation, false)
+    head = _get_head_place(iomap.input)
+    operation isa CompoundOperation || return _convert_table_write(iomap, operation, false, head)
     columns = any(o -> something(_find_written_field(iomap.table, o), ("",))[1] == "column_headers",
                   operation.operations)
-    CompoundOperation(Any[o for o in (_convert_table_write(iomap, o, columns) for o in operation.operations)
-                          if o !== nothing])
+    converted = Any[]
+    for part in operation.operations
+        written = _convert_table_write(iomap, part, columns, head)
+        written === nothing || push!(converted, written)
+        anchor = columns ? nothing : _find_written_anchor(iomap, part)
+        anchor === nothing || (head = _get_head_place(iomap.input, anchor))
+    end
+    CompoundOperation(converted)
+end
+
+# The anchor that `operation`, a write of `cells` of the table, moves the view
+# to, or `nothing` for any other operation.
+function _find_written_anchor(iomap::DataFrameViewToWidgetIoMap, operation)
+    written = _find_written_field(iomap.table, operation)
+    (written === nothing || written[1] != "cells") && return nothing
+    k = find_list_index(iomap.table.cells, written[2])
+    k === nothing ? nothing : iomap.input.anchor + k - 1
 end
 
 # One write of a compound: the value of the scroll bar to a jump, `cells` to an
 # anchor, `column_headers` to a column anchor, and, when the compound moves the
 # columns, no write of `cells` or of `columns`, which the view builds again from
-# its anchors. The width of a
+# its anchors. A selection goes to its place in the view, or to no operation, as
+# a selection alone does, with the rows of the table counted from the head at
+# the place `head`; so a press on a cell that is not open opens it first. The
+# width of a
 # column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table. The drag of the
 # thumb of the bar of the view comes back to the view the same way.
-function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
+function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool, head::Int)
     bar = _find_written_field(iomap.bar, operation)
     if bar !== nothing && bar[1] == "value"
         count = length(iomap.input.kept_rows)
         return jump_to_row(iomap.input, compute_scroll_bar_top_row(bar[2], count, Int(iomap.visible)))
     end
-    cell = _convert_cell_operation(iomap, operation)
+    operation isa ReplaceSelectionOperation && return _read_table_selection(iomap, operation, head)
+    cell = _convert_cell_operation(iomap, operation, head)
     cell === nothing || return cell
     operation isa DropTableCellOperation && operation.table === iomap.table &&
         return _convert_cell_drop(iomap, operation)
@@ -737,37 +768,32 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     # again from its anchor.
     field == "row_headers" && return nothing
     field == "cells" || return operation
-    k = find_list_index(iomap.table.cells, value)
-    k === nothing && return nothing
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
+    anchor = _find_written_anchor(iomap, operation)
+    anchor === nothing ? nothing : ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", anchor))
 end
 
 # An operation of the document of a cell, in the paths of the view: a key that
 # edits its text, the write of the whole cell that replaces its document, such as
-# a number that becomes a type-in, the selection that goes with it, and the start
-# of a drag of its text. The paths go from `cells[k][j]…` of the table to
-# `rows[r][c]…` of the view, which reach the document of the entry. A selection in
-# a cell is the selection that the view reads alone, so a caret in a cell that is
-# not open opens the cell first, also as a part of a compound, as a press on the
-# text of a cell gives it. `nothing` for any other operation.
-function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
+# a number that becomes a type-in, and the start of a drag of its text. The paths
+# go from `cells[k][j]…` of the table, with `k` counted from the head at the place
+# `head` among the kept rows, to `rows[r][c]…` of the view, which reach the
+# document of the entry. `nothing` for any other operation.
+function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation,
+                                 head::Int = _get_head_place(iomap.input))
     if operation isa ReplaceRangeOperation
-        target = _find_cell_view_path(iomap, operation_reference(operation))
+        target = _find_cell_view_path(iomap, operation_reference(operation), head)
         return target === nothing ? nothing : retarget_operation(operation, target)
     elseif operation isa ReplaceReferencedValueOperation && operation.document === nothing
         # A key of a whole cell that is not open, such as Space on a Bool, opens
         # the cell first, so the write goes into the document of its entry.
-        target = _find_cell_view_path(iomap, operation.reference)
+        target = _find_cell_view_path(iomap, operation.reference, head)
         target === nothing && return nothing
         _find_whole_read_only_cell(iomap.input, target) === target || return nothing
         write = ReplaceReferencedValueOperation(nothing, target, operation.value)
         open = _make_open_cell_operation(iomap.input, target)
         return open === nothing ? write : _make_cell_step(Any[open, write], true)
-    elseif operation isa ReplaceSelectionOperation
-        _find_cell_view_path(iomap, operation.path) === nothing && return nothing
-        return read_intent(iomap.projection, iomap, operation)
     elseif operation isa StartDragOperation
-        target = _find_cell_view_path(iomap, get_operation_path(operation))
+        target = _find_cell_view_path(iomap, get_operation_path(operation), head)
         return target === nothing ? nothing : make_path_operation(operation, target)
     end
     nothing
@@ -816,16 +842,17 @@ function _find_frame_cell(view::DataFrameView, path)
 end
 
 # The path of the view of `path`, a path of the output of the view, when it
-# reaches a cell of the table, `cells[k][j]` with or without a rest; `nothing`
-# for any other path.
-function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+# reaches a cell of the table, `cells[k][j]` with or without a rest, with `k`
+# counted from the head at the place `head` among the kept rows; `nothing` for
+# any other path.
+function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _get_head_place(iomap.input))
     path isa Reference || return nothing
     table_path = _find_table_path(path)
     (table_path isa ConcreteReference && table_path.head == FieldReferenceStep("cells")) || return nothing
     tail = table_path.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep &&
      tail.tail isa ConcreteReference && tail.tail.head isa RangeReferenceStep) || return nothing
-    _find_view_path(iomap, table_path)
+    _find_view_path(iomap, table_path, head)
 end
 
 # The parts of the drag of the edge of a column come to the view by its path, and

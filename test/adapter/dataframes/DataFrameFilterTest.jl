@@ -137,22 +137,12 @@ function test_data_frame_filter()
                           if t[3] == "item")
             # A press past the end of the text puts the caret at its end. The table
             # answers a press with the selection and the start of a drag of the text.
-            pressed = try
-                send!(MouseDown(:left, x + 40, y + 2, ModifierKeys(); time = 1.0))
-                send!(MouseUp(:left, x + 40, y + 2, ModifierKeys(); time = 1.05))
-                true
-            catch exception
-                occursin("SelectionMismatchException", sprint(showerror, exception)) || rethrow()
-                false
-            end
-            # @broken: a selection inside a compound answer of the table goes on in the paths of the table unless it names a cell; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
-            @test_broken pressed
-            # @broken: the press fails, so the caret is not in the filter; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
-            @test_broken pressed && get_reference_steps(strip_reference_types(view.selection)) ==
-                                    [filter_steps(2)..., RangeReferenceStep(4, 4)]
-            pressed && send!(KeyPress('5'; time = 1.2))
-            # @broken: the press fails, so the key edits no filter; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
-            @test_broken module_._find_column_filter(view.query, "name").text == "item5"
+            send!(MouseDown(:left, x + 40, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 40, y + 2, ModifierKeys(); time = 1.05))
+            @test get_reference_steps(strip_reference_types(view.selection)) ==
+                  [filter_steps(2)..., RangeReferenceStep(4, 4)]
+            send!(KeyPress('5'; time = 1.2))
+            @test module_._find_column_filter(view.query, "name").text == "item5"
         end
 
         @testset "a key in a field edits the filter, and the view shows the result from its start" begin

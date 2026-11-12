@@ -241,21 +241,14 @@ function test_data_frame_view()
             # Each turn comes a second after the last, so no two make a fast run. The
             # turn that takes the row at the top more than 200 rows from the head
             # moves the anchor.
-            turned = try
-                for n in 1:400
-                    send!(MouseScroll(0, -1, x, y + 40, ModifierKeys(); time = 2.0 + n))
-                    view.anchor == 1 || break
-                end
-                true
-            catch exception
-                occursin("SelectionMismatchException", sprint(showerror, exception)) || rethrow()
-                false
+            for n in 1:400
+                send!(MouseScroll(0, -1, x, y + 40, ModifierKeys(); time = 2.0 + n))
+                view.anchor == 1 || break
             end
-            # @broken: the table counts the selection that it shifts from its new head, and the data frame counts it from the anchor before the turn, finds no row and passes it on in the paths of the table; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
-            @test_broken turned
             @test view.anchor > 1
-            # @broken: the turn fails at the move of the anchor; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 2
-            @test_broken turned && get_reference_steps(strip_reference_types(view.selection)) == selected
+            # The table counts the selection from its new head, and the view keeps
+            # the same cell of the frame.
+            @test get_reference_steps(strip_reference_types(view.selection)) == selected
         end
 
         @testset "a frame of many columns draws them as a list, and a far turn moves the column anchor" begin

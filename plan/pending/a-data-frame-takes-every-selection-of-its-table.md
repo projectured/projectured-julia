@@ -153,7 +153,7 @@ on `main` before the owner approves.
 
    Mark each assertion that `main` fails with `@test_broken` and its reason.
    Commit.
-2. [ ] **Every selection of the table reaches the view.** Points 1 and 2 of the
+2. [x] **Every selection of the table reaches the view.** Done; see [As built](#as-built). Points 1 and 2 of the
    way of the change. Promote the assertions of step 1 that pass. Run
    `test_dataframes()` and the table tests of `test_platform()`. Commit.
 3. [ ] **The move of the head makes only the rows that a link needs.** Point 3.
@@ -175,6 +175,10 @@ on `main` before the owner approves.
   starts before the point, before it tests it, so a point inside a row before
   the head hits only on the top line of that row. The table finds its rows with
   its own lookup, so a click in a table is right.
+- A drag across the text of a field of the filter row selects no range. The
+  press puts the caret in the filter, but the start of the drag goes on in the
+  paths of the table, so the move with the button held does not reach the field.
+  It does not fail.
 - The search for the shape of the pointer, which reads where each row starts
   from the head after each frame: 67 starts at the top of the table and 292 at
   60 notches down.
@@ -206,3 +210,27 @@ on `main` before the owner approves.
 - Results, Julia 1.13.1: the filters of a view 81 Pass and 3 Broken, a data
   frame drawn as a table 63 Pass and 2 Broken, a scroll costs what comes into
   view 25 Pass and 1 Broken.
+
+### Step 2: every selection of the table reaches the view, 2026-11-12
+
+- `read_intent` of a selection alone calls `_read_table_selection(iomap,
+  operation, head)` with the head of the view now. `_convert_table_write` gives
+  every `ReplaceSelectionOperation` of a compound to the same function, before
+  the operations of a cell, so a selection that has no place in the view gives no
+  operation. The branch of a selection in `_convert_cell_operation` is gone.
+- `_convert_table_writes` walks the parts of a compound in order and keeps the
+  place of the head. After a write of `cells` that does not come with a move of
+  the columns, the head is `_get_head_place(view, anchor)` for the anchor that the
+  write moves the view to (`_find_written_anchor`), and the parts after it count
+  their rows from there. `_get_head_place`, `_find_frame_row`, `_find_view_path`,
+  `_find_cell_view_path` and `_convert_cell_operation` take the head place, with
+  the head of the view as the default, so every other caller is as it was.
+- The five assertions of steps 1 in `DataFrameFilterTest.jl` and
+  `DataFrameViewTest.jl` pass, and the catch of the exception is gone from both
+  tests.
+- `test_dataframes()`: 621 Pass, where `main` gives 616 and the branch adds 5.
+  Step 2 changes no file of the platform, so the table tests of
+  `test_platform()` do not cover it, and they did not run.
+- A probe of a drag across the text of a filter field: the press, the move with
+  the button held and the release each run, and the caret stays at 4. See "Not
+  in this plan".
