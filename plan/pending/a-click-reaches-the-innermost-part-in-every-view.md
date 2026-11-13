@@ -1354,6 +1354,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `examples/nested_object_to_widget` 21 → 13, `examples/object_to_widget`
     3 → 2, `examples/chart_inspector` 42 → 39, and no caret that is not drawn
     is left in them.
+
+  **Run 3 of step 6** (2026-11-13, at 34ce4b933, the same 546 examples): 2396
+  lines in 281 examples (run 2: 3209 in 300; run 1: 6164 in 343). By kind:
+  `plain:no-caret` 723 (1182 in run 2), `alt:not-drawn` 619, `move:differs`
+  406, `alt:outside` 295, `alt:not-caret-part` 236, `throws` 39, `no-image` 37,
+  `plain:caret-not-drawn` 29 (427). The largest causes left: a plain click on
+  a text gives a part (62 examples, 404 lines: chart axes, the cells of the
+  frame statistics, the columns of a table, the dimensions of a pivot); a plain
+  click does nothing (67, 232); the Alt+click outside the deepest part (45,
+  260); the reflected object (50, 153: the half of a quote, D8); the leaf of a
+  view (37, 152); the value in a leaf (14, 188).
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
