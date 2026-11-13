@@ -1424,7 +1424,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
-- [ ] 6a. **The gestures of D10.** One commit for each part, in this order:
+- [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
      each reader that makes an Alt+click whole today makes an Alt+double click
@@ -1533,6 +1533,23 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
      predicates, `read_child_event` and the key rules; 14 more package guides
      name the Alt+double click where they mean a whole selection.
      `selection.md` describes no click, so it stays.
+
+  Run 4 of the click test of D10 over the catalog (2026-11-13, scratchpad
+  `step6/run4`): 3194 lines in 301 of 546 examples. The kinds changed with
+  the test, so they compare with run 3 only in part:
+
+  | Kind | Lines | Where most |
+  | --- | --- | --- |
+  | An Alt+click gives no caret | 968 | the text of a control: a button, a menu name, a toolbar item, a segment, the + and − of a stepper, a tab title; and the math views |
+  | An Alt+double click selects a part that no ring or band draws | 612 | widgets, panes, the explorer, versions, state machines |
+  | The move names another part than the Alt+double click | 611 | |
+  | The Alt+click caret is not in the part of the point | 351 | |
+  | The Alt+double click selects outside the innermost part | 295 | |
+  | A plain click on a text does nothing | 232 | tasks, math, widgets, research |
+  | A throw, no image, a caret not drawn or off | 119 | |
+
+  The next cause is the first row: each control records the line of its
+  text, as a label does, so an Alt+click finds the character (D10).
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
