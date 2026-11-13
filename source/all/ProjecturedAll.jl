@@ -3,7 +3,7 @@ const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole,
                   ProjecturedMarkdown, ProjecturedRST, ProjecturedBook, ProjecturedMath,
                   ProjecturedJulia, ProjecturedSQL, ProjecturedDatabase, ProjecturedGraph,
                   ProjecturedChart, ProjecturedSequenceChart, ProjecturedDBCatalog,
-                  ProjecturedFormula, ProjecturedFSM, ProjecturedProcess, ProjecturedPivot,
+                  ProjecturedFormula, ProjecturedFSM, ProjecturedProcess, ProjecturedGit, ProjecturedPivot,
                   ProjecturedWorkflow, ProjecturedResearch)
 
 # A binding is re-exported when it is a submodule this source defines, or a

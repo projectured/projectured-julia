@@ -38,6 +38,7 @@ import ProjecturedDBCatalog
 import ProjecturedFormula
 import ProjecturedFSM
 import ProjecturedProcess
+import ProjecturedGit
 import ProjecturedPivot
 import ProjecturedWorkflow
 import ProjecturedResearch

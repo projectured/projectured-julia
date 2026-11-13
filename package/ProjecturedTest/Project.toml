@@ -21,6 +21,7 @@ ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedFSMTest = "01095f28-dae7-4131-b352-cd496415c16e"
 ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedGitTest = "dcef5d19-7c0f-4b29-b074-9ab4a028bfd1"
 ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJSONTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
@@ -76,6 +77,7 @@ ProjecturedDatabaseTest = {path = "../ProjecturedDatabaseTest"}
 ProjecturedFSMTest = {path = "../ProjecturedFSMTest"}
 ProjecturedFormulaTest = {path = "../ProjecturedFormulaTest"}
 ProjecturedGraphTest = {path = "../ProjecturedGraphTest"}
+ProjecturedGitTest = {path = "../ProjecturedGitTest"}
 ProjecturedJSON = {path = "../ProjecturedJSON"}
 ProjecturedJSONTest = {path = "../ProjecturedJSONTest"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}

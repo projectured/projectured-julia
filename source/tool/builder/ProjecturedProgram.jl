@@ -281,7 +281,7 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedRST", "ProjecturedBook", "ProjecturedMath", "ProjecturedJulia",
     "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
     "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
-    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
+    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedGit", "ProjecturedPivot",
     "ProjecturedWorkflow", "ProjecturedResearch"]
 
 """
@@ -564,6 +564,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedGraph" =>
         (summary = "Node-and-edge diagrams in which each vertex holds a document of any kind.",
          document = "documentation/package/domain/graph/graph.md"),
+    "ProjecturedGit" =>
+        (summary = "A commit, the change of a file and a file at a revision, read from a repository by the git program.",
+         document = "documentation/package/domain/git/git.md"),
     "ProjecturedJSON" =>
         (summary = "JSON data as a tree of documents that you edit in the JSON notation.",
          document = "documentation/package/domain/json/json.md"),

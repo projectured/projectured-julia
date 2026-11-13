@@ -232,7 +232,7 @@ Each step runs in a worktree and ends with one commit. `workspace/bin/bounded-ru
 test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/platform/` in
 `package/ProjecturedPlatformTest`, one under `test/projectured/` in `environment/all`.
 
-1. **The package and the parse.** The three packages, `GitModule` and the five document types. The
+1. **The package and the parse.** **Done on 2026-11-13.** The three packages, `GitModule` and the five document types. The
    pure functions `parse_git_commit_text`, `parse_git_diff_text` and `parse_git_log_text`, and the
    value `GitDiffFile` (§3.2), which the package exports with the hunk and the line. The new
    `documentation/package/domain/git/git.md`, whose header says `**For:** developer` (the documentation
@@ -244,6 +244,30 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    binary file, the line `\ No newline at end of file`, and a path with a space and a letter outside
    ASCII. A patch of three files from `git diff`, with no commit header, gives three `GitDiffFile`.
    Then `test_git_layering()`, `test_package_graph()`, `test_repository()` and `test_builder()`.
+   What the implementation found:
+   - Step 1 makes two packages, `ProjecturedGit` and `ProjecturedGitTest`. The example package comes
+     in step 2 with `make_git_example_repository`, its first function. The document types also come
+     in step 2, because each field of a document is the cell of its read (D8).
+   - Step 1 gives five plain immutable values, not documents: `GitCommitHeader`, `GitFileSummary`
+     (one changed file of a commit, from `--raw` and `--numstat`), `GitDiffFile`, `GitDiffHunk` and
+     `GitDiffLine` (with `has_line_end`). The package exports them and the three parse functions.
+     `parse_git_commit_text` answers `(header, files)` and checks that the two lists of git name
+     the same files.
+   - The forms of git 2.53: `git log -z` ends each field and each commit with a NUL byte.
+     `git show -z --raw --numstat` puts a line end between the header and the raw entries. A path
+     with a space ends with a tab on the lines `---` and `+++`. The default `core.quotePath` quotes
+     a byte outside ASCII as three octal digits. A change of the mode only, a binary file and an
+     empty file have no lines `---` and `+++`, so the parse takes the path from the length of the
+     line `diff --git`.
+   - The parse needs the prefixes `a/` and `b/`. So the reads of step 2 pass `--src-prefix=a/` and
+     `--dst-prefix=b/`, and the settings `diff.noprefix` and `diff.mnemonicPrefix` of a person
+     change nothing.
+   - `ProjecturedBuild` also imports the package, because `test_builder()` asserts that
+     `PROJECTURED_APPLICATION_IMPORTS` equals the domains of `ProjecturedAll`.
+   - Results: `test_git()` 45 pass; the naming guard passes; `test_package_graph()` 559 pass;
+     `test_repository()` 616 pass; `test_builder()` 613 pass and 1 error, which main has since
+     `2f118e96c` (the release copy of `CellStruct.jl:39`); `test_documentation()` fails the same 4
+     checks as main (private names in other documents).
 2. **The reads.** The background cells as the store of each read (D8), and `pred_arguments`.
    `make_git_example_repository(folder)` in the example package makes a repository with fixed names
    and dates, so each hash is known. Test: the new `test_git_reading()` (`GitReadTest.jl`), with

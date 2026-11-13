@@ -16,6 +16,7 @@ ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+ProjecturedGit = "4564198f-2aa6-477c-a349-d8cc5a909f6a"
 ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
@@ -42,6 +43,7 @@ ProjecturedDatabase = {path = "../ProjecturedDatabase"}
 ProjecturedFSM = {path = "../ProjecturedFSM"}
 ProjecturedFormula = {path = "../ProjecturedFormula"}
 ProjecturedGraph = {path = "../ProjecturedGraph"}
+ProjecturedGit = {path = "../ProjecturedGit"}
 ProjecturedJSON = {path = "../ProjecturedJSON"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}

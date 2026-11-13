@@ -29,6 +29,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | Sequence chart | [sequencechart.md](../package/domain/sequencechart/sequencechart.md) |
 | State machine | [fsm.md](../package/domain/fsm/fsm.md) |
 | Process | [process.md](../package/domain/process/process.md) |
+| Git | [git.md](../package/domain/git/git.md) |
 | Pivot | [pivot.md](../package/domain/pivot/pivot.md) |
 | Conversation | [conversation.md](../package/platform/conversation/conversation.md), with [transcript.md](../package/platform/conversation/transcript.md) for the widget view |
 | Assistant | [assistant.md](../package/platform/assistant/assistant.md) |
@@ -46,7 +47,7 @@ Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `packa
 
 ## The dependency table
 
-Fourteen domains depend on no other domain. Five build on one layer of domains, and one, Research, builds on Formula, which builds on Julia and Math.
+Fifteen domains depend on no other domain. Five build on one layer of domains, and one, Research, builds on Formula, which builds on Julia and Math.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -68,6 +69,7 @@ Fourteen domains depend on no other domain. Five build on one layer of domains, 
 | `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
 | `ProjecturedFSM` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
+| `ProjecturedGit` | `source/domain/git/` | — |
 | `ProjecturedPivot` | `source/domain/pivot/` | Chart |
 | `ProjecturedResearch` | `source/domain/research/` | Formula, Graph, Markdown, Math |
 

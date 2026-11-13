@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "367b6765e13b730ae972b40f3245e6a3943f2434"
+project_hash = "c2c36662b3c0ce0d2b23dbe3360954350a9b1db1"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -967,7 +967,7 @@ uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
 version = "0.1.0"
 
 [[deps.ProjecturedAll]]
-deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedProcess", "ProjecturedRST", "ProjecturedResearch", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedWorkflow", "ProjecturedXML", "ProjecturedYAML"]
+deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGit", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedProcess", "ProjecturedRST", "ProjecturedResearch", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedWorkflow", "ProjecturedXML", "ProjecturedYAML"]
 path = "../../package/ProjecturedAll"
 uuid = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 version = "0.1.0"
@@ -1009,7 +1009,7 @@ uuid = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 version = "0.1.0"
 
 [[deps.ProjecturedBuild]]
-deps = ["ProjecturedACP", "ProjecturedAnthropic", "ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedLanguageServer", "ProjecturedMCP", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedOllama", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedPrecompile", "ProjecturedProcess", "ProjecturedRST", "ProjecturedResearch", "ProjecturedSDL", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedWeb", "ProjecturedWorkflow", "ProjecturedXML", "ProjecturedYAML"]
+deps = ["ProjecturedACP", "ProjecturedAnthropic", "ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGit", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedLanguageServer", "ProjecturedMCP", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedOllama", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedPrecompile", "ProjecturedProcess", "ProjecturedRST", "ProjecturedResearch", "ProjecturedSDL", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedWeb", "ProjecturedWorkflow", "ProjecturedXML", "ProjecturedYAML"]
 path = "../../package/ProjecturedBuild"
 uuid = "0d12d704-e35e-4db7-ba28-9ff6e8d6dafd"
 version = "0.1.0"
@@ -1162,6 +1162,18 @@ version = "0.1.0"
 deps = ["ProjecturedConsole", "ProjecturedFormula", "ProjecturedFormulaExample", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedMath", "ProjecturedMathExample", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
 path = "../../package/ProjecturedFormulaTest"
 uuid = "0bc32d86-cd04-4a16-a675-273d503f220c"
+version = "0.1.0"
+
+[[deps.ProjecturedGit]]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
+path = "../../package/ProjecturedGit"
+uuid = "4564198f-2aa6-477c-a349-d8cc5a909f6a"
+version = "0.1.0"
+
+[[deps.ProjecturedGitTest]]
+deps = ["ProjecturedConsole", "ProjecturedGit", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
+path = "../../package/ProjecturedGitTest"
+uuid = "dcef5d19-7c0f-4b29-b074-9ab4a028bfd1"
 version = "0.1.0"
 
 [[deps.ProjecturedGraph]]
@@ -1528,7 +1540,7 @@ uuid = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["DataFrames", "HTTP", "ProjecturedACPTest", "ProjecturedAll", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFrames", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLanguageServerTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPivotTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedResearchTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedWorkflowTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "TOML", "Test"]
+deps = ["DataFrames", "HTTP", "ProjecturedACPTest", "ProjecturedAll", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFrames", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGitTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLanguageServerTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPivotTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedResearchTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedWorkflowTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "TOML", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

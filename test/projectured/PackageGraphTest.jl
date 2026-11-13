@@ -36,6 +36,7 @@ const DOMAIN_EDGES = Dict(
     "ProjecturedFormula"       => ["ProjecturedJulia", "ProjecturedMath"],
     "ProjecturedFSM"           => ["ProjecturedGraph", "ProjecturedJulia"],
     "ProjecturedProcess"       => ["ProjecturedGraph", "ProjecturedJulia"],
+    "ProjecturedGit"           => String[],
     "ProjecturedPivot"         => ["ProjecturedChart"],
     "ProjecturedWorkflow"      => String[],
     "ProjecturedResearch"      => ["ProjecturedFormula", "ProjecturedGraph", "ProjecturedMarkdown", "ProjecturedMath"],
