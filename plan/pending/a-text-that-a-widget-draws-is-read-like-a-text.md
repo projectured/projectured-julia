@@ -219,7 +219,23 @@ copy changes.
   can not protect them without refusing a paste into the card's content; step 5
   records how they stay read-only. `test_clipboard` fails only at its known
   `ClipboardTest.jl:502` to `:504`; the new checks of a label pass.
-- [ ] 5. **The card and the group of facts (P1).** Their readers call the
+- [x] 5. **The card and the group of facts (P1).** Their readers call the
   helper for a key and a drag.
+
+  Done (2026-11-13): the readers of the card and of the group of facts call
+  `read_drawn_text_key`, `read_drawn_text_pointer` and a new shared helper of a
+  click, `find_drawn_click_selection` (the caret, or with Shift the range from
+  the anchor), which the label uses too, so the rule of a click with Shift is
+  written once. A card with bindings of its own starts the drag of a range only
+  with Alt. A paste: the card, the group of facts and a fact hold other
+  documents, such as a form, so the document rule of step 4 would refuse a
+  paste into them too. The clipboard reads a field form of the same hook,
+  `accepts_pasted_text(document, field)`, for the document that holds the text
+  (default: the document rule); the card answers `false` for `title` and
+  `description`, the group for `title`, and a fact for `label` and `value`.
+  `test_widget_card_fold` 83, `test_widget_fact_group` 62,
+  `test_widget_label_caret` 73, `test_dataframes` 622 and 9 widget, pane and
+  task sets pass; `test_clipboard` and `test_application` fail only at their
+  known lines; the naming guard passes.
 - [ ] 6. **The controls (P7).** One commit for each group of controls.
 - [ ] 7. **The guides (P8)** and a run of the click test over the catalog.

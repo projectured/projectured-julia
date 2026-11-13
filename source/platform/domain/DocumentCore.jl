@@ -112,6 +112,16 @@ takes text in its fields, because a person types there.
 accepts_pasted_text(::Any) = true
 
 """
+    accepts_pasted_text(document, field::Symbol) -> Bool
+
+Whether a paste may put text into the string that `field` of `document` holds.
+`accepts_pasted_text(document)` by default. A document answers `false` for a field
+whose text a paste must leave alone while its other fields hold documents that take
+pasted text, such as the title of a card whose content is a form.
+"""
+accepts_pasted_text(document, ::Symbol) = accepts_pasted_text(document)
+
+"""
     make_pasted_document_operation(document, path, value) -> Operation | Nothing
 
 How `document` takes a pasted document `value` that is no plain text, while the

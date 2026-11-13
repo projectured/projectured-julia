@@ -205,6 +205,31 @@ function test_widget_fact_group()
             @test isempty(bands())
         end
 
+        @testset "a press, a drag and a key select in a text of the group, which a paste leaves" begin
+            group = WidgetFactGroup(["store" => "5763 entries"]; title = "Stores")
+            proj, iomap = _fact_print(group)
+            value = _fact_find(_fact_texts(iomap.output), "5763 entries")
+            selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+            range(a, b; direction = :forward) = ConcreteReference(FieldReferenceStep("facts"),
+                ConcreteReference(RangeReferenceStep(0, 1), ConcreteReference(FieldReferenceStep("value"),
+                    ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))))
+            # A press puts the caret and starts a drag, and a move of the drag selects a range.
+            down = read_intent(proj, iomap, MouseDown(:left, value[2] + 22, value[3] + 2, ModifierKeys(); time = 0.0))
+            @test down isa CompoundOperation && selected(down.operations[1]) == _fact_place(1, "value", 2)
+            set_selection!(group, _fact_place(1, "value", 2))
+            @test selected(read_intent(proj, iomap, DragMove(value[2] + 42, value[3] + 2; time = 0.0))) == range(2, 4)
+            # A key moves the caret, and with Shift and Ctrl makes a range of a word.
+            @test selected(read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 0.0))) == _fact_place(1, "value", 1)
+            @test selected(read_intent(proj, iomap, KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == range(2, 12)
+            # A click with Shift moves the moving end there.
+            @test selected(read_intent(proj, iomap, MouseClick(:left, value[2] + 2, value[3] + 2, 1,
+                                                               ModifierKeys(shift = true); time = 0.0))) ==
+                  range(0, 2; direction = :backward)
+            # A paste leaves the title of the group and the label and the value of a fact.
+            @test !accepts_pasted_text(group, :title)
+            @test !accepts_pasted_text(group.facts[1], :label) && !accepts_pasted_text(group.facts[1], :value)
+        end
+
         @testset "each line of a wrapped value starts at its character" begin
             group = WidgetFactGroup(["note" => "alpha beta gamma delta"])
             offer = with_bounded_size(PrinterContext(); width = Cell(Int32(150)))

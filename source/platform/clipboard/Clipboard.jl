@@ -438,6 +438,7 @@ function _find_text_target(input, sel; writes::Bool)
     document isa Document || return nothing
     name = Symbol(field.name)
     hasfield(typeof(document), name) || return nothing
+    (writes && !accepts_pasted_text(document, name)) && return nothing
     value = getproperty(document, name)
     kind = _find_text_kind(document, name, value)
     kind === nothing && return nothing

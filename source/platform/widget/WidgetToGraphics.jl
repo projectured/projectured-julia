@@ -2111,10 +2111,12 @@ function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     press = selecting ||
             evt isa MouseClick && evt.button === :left && evt.count == 1 && (evt.modifiers == ModifierKeys() || shift)
     (press || evt isa MouseMove) || return nothing
+    if press
+        path = find_drawn_click_selection(iomap.drawn, iomap.output, w, evt, p.measure)
+        return path === nothing ? nothing : ReplaceSelectionOperation(path)
+    end
     caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
-    caret === nothing && return nothing
-    press || return ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
-    ReplaceSelectionOperation(shift ? _extend_drawn_selection(w.selection, caret) : caret)
+    caret === nothing ? nothing : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
@@ -9398,7 +9400,8 @@ end
 # uses ends there, so it does not reach a document that a stack draws under the
 # card, such as the text under the bar of a find bar view. The bindings of the
 # card answer such a click first; a click on the text of the title or of the
-# description then puts the caret at the character under the pointer. An Alt+click
+# description then puts the caret at the character under the pointer, and a click
+# with Shift moves the moving end of the selection there. An Alt+click
 # puts it there too, and an Alt+double click answers it, which the container makes
 # the field as a whole (`convert_to_whole_selection`). Any other click goes on, to the menus of the
 # parts around the card and to a whole selection.
@@ -9407,13 +9410,14 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsC
     answer === nothing || return answer
     _outside_widget(iomap, evt) && return nothing
     plain = evt.button === :left && evt.modifiers == ModifierKeys()
-    (plain || is_selection_press(evt)) || return nothing
+    shift = evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys(shift = true)
+    (plain || shift || is_selection_press(evt)) || return nothing
     if plain
         bound = read_bound_gesture(iomap.input, evt)
         bound === nothing || return bound
     end
-    caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
-    caret === nothing ? (plain ? DoNothingOperation() : nothing) : ReplaceSelectionOperation(caret)
+    path = find_drawn_click_selection(iomap.drawn, iomap.output, iomap.input, evt, p.measure)
+    path === nothing ? (plain ? DoNothingOperation() : nothing) : ReplaceSelectionOperation(path)
 end
 
 function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
@@ -9447,10 +9451,16 @@ end
 # card's CONTENT selection-directed: forwarded only when the card's `selection`
 # actually points inside it, so a card onto which nothing projects (every card in
 # a plain display, where `selection === nothing`) routes no key into its content.
+#
+# The title and the description that the card draws as a text are read as the text
+# of a label is: a left press on them puts the caret and starts the drag of a range,
+# only with Alt on a card with bindings of its own, and a key moves the caret or the
+# range in them, read-only.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
     # A move that is off the card still goes to the slot the pointer leaves.
     _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
-    w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
     evt isa MouseMove && return _read_card_move(w, entries, evt,
         _outside_widget(iomap, evt) ? nothing : find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure))
@@ -9461,6 +9471,10 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsC
         return _card_route(w, entries, evt,
                            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers;
                                                time = evt.time))
+    if evt isa MouseDown
+        own = read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure; control = _is_bound_control(w))
+        own === nothing || return own
+    end
     (evt isa MouseDown || evt isa MouseUp) &&
         return _card_route(w, entries, evt,
                            (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
@@ -9469,6 +9483,8 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsC
                                                                  time = evt.time))
     evt isa MouseScroll &&
         return _card_route(w, entries, evt, (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
+    key = read_drawn_text_key(iomap.drawn, w, evt, p.measure)
+    key === nothing || return key
     getfield(w, :selection)[] === nothing && return nothing
     for entry in entries
         entry === nothing && continue
@@ -12407,16 +12423,24 @@ end
 # which the container makes the text as a whole; an Alt+double click on the rest of
 # a row selects its fact. A plain double click,
 # and a plain click on the rest of a row, are left to the widget around the group.
+# A press on such a text starts the drag of a range, a click with Shift moves the
+# moving end there, and a key moves the caret or the range, read-only, as in the
+# text of a label.
 function read_intent(p::WidgetFactGroupToGraphicsCanvas,
                      iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, evt)
+    w = iomap.input
+    drawn = _get_fact_group_lines(iomap)
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(drawn, iomap.output, w, evt, p.measure)
     if evt isa MouseMove
-        answer = _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
+        answer = _read_children_move(w, getfield(iomap, :child_iomaps)[]::Vector, evt,
                                      !_outside_widget(iomap, evt))
-        caret = _outside_widget(iomap, evt) ? nothing : _find_fact_group_caret(p, iomap, evt)
+        caret = _outside_widget(iomap, evt) ? nothing : find_drawn_caret(drawn, iomap.output, evt.x, evt.y, p.measure)
         caret === nothing && return answer
-        return join_move_answers(answer, ReplaceMouseTargetOperation(annotate_reference_types(iomap.input, caret)))
+        return join_move_answers(answer, ReplaceMouseTargetOperation(annotate_reference_types(w, caret)))
     end
     _outside_widget(iomap, evt) && return nothing
+    key = read_drawn_text_key(drawn, w, evt, p.measure)
+    key === nothing || return key
     entries = getfield(iomap, :child_iomaps)[]::Vector
     is_outward_gesture(evt) && return _read_children_outward(iomap.input, entries, evt)
     make_event = evt isa MouseClick ? (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
@@ -12427,11 +12451,13 @@ function read_intent(p::WidgetFactGroupToGraphicsCanvas,
     make_event === nothing && return nothing
     hit = _find_child_hit(entries, evt, make_event)
     if hit === nothing
+        evt isa MouseDown && return read_drawn_text_pointer(drawn, iomap.output, w, evt, p.measure)
         whole = is_whole_selection_press(evt)
-        plain = evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
+        plain = evt isa MouseClick && evt.button === :left && evt.count == 1 &&
+                (evt.modifiers == ModifierKeys() || evt.modifiers == ModifierKeys(shift = true))
         (plain || is_selection_press(evt)) || return nothing
-        caret = _find_fact_group_caret(p, iomap, evt)
-        caret === nothing || return ReplaceSelectionOperation(caret)
+        path = find_drawn_click_selection(drawn, iomap.output, w, evt, p.measure)
+        path === nothing || return ReplaceSelectionOperation(path)
         whole || return nothing
         fact = _find_fact_group_row(iomap, evt.y)
         return fact === nothing ? nothing : ReplaceSelectionOperation(fact)
@@ -12447,10 +12473,10 @@ function _find_fact_group_row(iomap::WidgetFactGroupToGraphicsCanvasIoMap, y)
 end
 _find_fact_group_row(iomap, y) = nothing
 
-# The caret under the point of `evt` in a text that the group drew, or `nothing`.
-_find_fact_group_caret(p::WidgetFactGroupToGraphicsCanvas, iomap::WidgetFactGroupToGraphicsCanvasIoMap, evt) =
-    find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
-_find_fact_group_caret(p::WidgetFactGroupToGraphicsCanvas, iomap, evt) = nothing
+# The lines of the texts that the group drew; none for a group that a projection
+# prints as plain children.
+_get_fact_group_lines(iomap::WidgetFactGroupToGraphicsCanvasIoMap) = iomap.drawn
+_get_fact_group_lines(iomap) = _NO_DRAWN_TEXT_LINES
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
@@ -13349,6 +13375,12 @@ _is_read_only_text(::_ReadOnlyTextWidget) = true
 
 # A paste and a cut leave a read-only text as it is; a copy takes its characters.
 accepts_pasted_text(::_ReadOnlyTextWidget) = false
+
+# A card, a group of facts and a fact draw read-only texts too, but they hold other
+# documents, such as a form, so a paste leaves only the fields of those texts.
+accepts_pasted_text(::WidgetCard, field::Symbol) = field ∉ (:title, :description)
+accepts_pasted_text(::WidgetFactGroup, field::Symbol) = field !== :title
+accepts_pasted_text(::WidgetFact, field::Symbol) = field ∉ (:label, :value)
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)

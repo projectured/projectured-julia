@@ -133,6 +133,20 @@ function _extend_drawn_selection(selection, caret)
 end
 
 """
+    find_drawn_click_selection(drawn, canvas, widget, event, measure) -> Reference | Nothing
+
+The selection that the click `event` makes in a text that `widget` draws in
+`canvas`, where `drawn` holds the lines of the text: the caret at the character
+under the pointer, or, for a click with Shift, the range from the anchor of the
+selection of `widget` to that character. `nothing` off the text.
+"""
+function find_drawn_click_selection(drawn, canvas, widget, event::MouseClick, measure)
+    caret = find_drawn_caret(drawn, canvas, event.x, event.y, measure)
+    caret === nothing && return nothing
+    event.modifiers == ModifierKeys(shift = true) ? _extend_drawn_selection(widget.selection, caret) : caret
+end
+
+"""
     read_drawn_text_pointer(drawn, canvas, widget, event, measure; control = false) -> Operation | Nothing
 
 The answer to a left press, and to the move and the end of a drag, on a text that

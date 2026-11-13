@@ -354,6 +354,30 @@ function test_widget_card_fold()
         @test length(mark()) == 1 && Int(only(mark()).x) == x0 + 30
     end
 
+    @testset "a press, a drag, a key and a click with Shift select in a String title, which a paste leaves" begin
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "the body")
+        iomap = print_document(proj, proj, card, PrinterContext())
+        x0, y0, _, height = iomap.header.title_box
+        y = y0 + height ÷ 2
+        place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("title"),
+            ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))
+        selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+        # A press puts the caret and starts a drag, and a move of the drag selects a range.
+        down = read_intent(proj, iomap, MouseDown(:left, x0 + 32, y, ModifierKeys(); time = 0.0))
+        @test down isa CompoundOperation && selected(down.operations[1]) == place(3)
+        set_selection!(card, place(3))
+        @test selected(read_intent(proj, iomap, DragMove(x0 + 62, y; time = 0.0))) == place(3, 6)
+        # A key moves the caret, and with Shift makes a range.
+        @test selected(read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0))) == place(4)
+        @test selected(read_intent(proj, iomap, KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == place(3, 7)
+        # A click with Shift moves the moving end there.
+        @test selected(read_intent(proj, iomap, MouseClick(:left, x0 + 12, y, 1, ModifierKeys(shift = true);
+                                                           time = 0.0))) == place(1, 3; direction = :backward)
+        # A paste leaves the title and takes the content.
+        @test !accepts_pasted_text(card, :title) && accepts_pasted_text(card, :content)
+    end
+
     @testset "a PrimitiveString title draws in the title style, and its Alt+double click selects it" begin
         title_font = _title_printer().title_text.font
         proj = _title_proj()
