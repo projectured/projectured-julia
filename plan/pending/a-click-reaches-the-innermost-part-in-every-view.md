@@ -321,6 +321,22 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (the part as a whole), a double and a triple click (a word and a line of
   text), a right click (the menu). Free: Ctrl+Alt+click, Alt+Shift+click,
   Ctrl+Shift+click. The first question is the caret; the whole part follows.
+- **D10 (owner, 2026-11-13). Alt means "select, do not act".** The owner answered
+  Q6 with a question of its own (a logical set of gestures that is easy to
+  remember) and chose the scheme that the assistant proposed ("I like this
+  scheme"), with Alt+Left and Alt+Right on the siblings, as today:
+  - a click does what the part does; where the part does nothing, it puts the
+    caret on a text, and selects the part as a whole where there is no text (P4);
+  - Alt+click always puts the caret at the character under the pointer,
+    whatever the part does;
+  - Alt+double click always selects the innermost part as a whole, the part
+    that holds the caret of the first click;
+  - Alt+Up and Alt+Down widen the selection to the part around it and narrow it
+    back, and Alt+Left and Alt+Right move it to a sibling.
+  The guides follow ("we also need to document this in the guides"). Open: a
+  plain Left or Right on a part selected as a whole; the assistant recommends
+  the rule of a text editor, the caret at the start or the end of the part, so
+  that a plain arrow always means text.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -1407,6 +1423,19 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
+- [ ] 6a. **The gestures of D10.** One commit for each part, in this order:
+  1. The gesture rules in the focus slice: an Alt+click is a caret press, an
+     Alt+double click a whole selection press (`is_whole_selection_press`), and
+     each reader that makes an Alt+click whole today makes an Alt+double click
+     whole; an Alt+click answers the caret at the character, also on a control.
+  2. The click test of step 1: a plain click acts or puts the caret; an
+     Alt+click puts the caret on every text; an Alt+double click selects the
+     innermost part; a move names the part of the Alt+double click.
+  3. A plain Left or Right on a part selected as a whole, once the owner
+     answers the open point of D10.
+  4. The guides: `keyboard-and-mouse-guide.md` (the lines of Alt and the
+     arrows, Alt+click), `gestures-guide.md`, and the package guides of the
+     widget, the text, the selection and the focus.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
