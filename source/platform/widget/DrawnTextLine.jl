@@ -150,6 +150,94 @@ function map_drawn_place_backward(drawn, canvas, reference)
 end
 
 """
+    read_drawn_text_key(drawn, widget, event, measure) -> ReplaceSelectionOperation | Nothing
+
+The answer to the key `event` while the selection of `widget` is a caret or a range
+in a part that a line of `drawn` shows, or that part as a whole, which is the range
+of all its characters: the new caret or range of that part, as `part{a:b}`. The key
+table of the text domain answers the key on a short-lived text block of the string
+of the part, which nothing draws or keeps; Home, End, Up and Down read the lines of
+`drawn`. An answer that edits is dropped, so the text stays read-only. `nothing` for
+any other key or selection, and for Up on the first line and Down on the last, so
+the key goes on to the container.
+"""
+function read_drawn_text_key(drawn, widget, event, measure)
+    event isa Union{KeyDown, KeyPress} || return nothing
+    selection = widget.selection
+    selection isa ConcreteReference || return nothing
+    found = _split_part_range(selection)
+    part, range = found === nothing ? (strip_reference_types(selection), nothing) : found
+    # On a part as a whole, Up and Down go on to the container, as on a whole element.
+    range === nothing && event isa KeyDown && event.key in (:up, :down) && return nothing
+    lines = [line for line in drawn if strip_reference_types(line.part) == part]
+    isempty(lines) && return nothing
+    value = try_evaluate_reference(widget, part, nothing)
+    value === nothing && return nothing
+    text = string(value)
+    anchor, moving = range === nothing ? (0, length(text)) :
+                     range.direction === :backward ? (range.stop, range.start) : (range.start, range.stop)
+    answer = event isa KeyDown ? _read_drawn_line_key(lines, event, anchor, moving, measure) : nothing
+    answer === nothing && (answer = _read_text_table_key(text, event, anchor, moving))
+    answer === nothing && return nothing
+    (a, b) = answer
+    ReplaceSelectionOperation(concat_references(part, ConcreteReference(
+        RangeReferenceStep(min(a, b), max(a, b), b < a ? :backward : :forward), EmptyReference())))
+end
+
+# The new anchor and moving end that the key table of the text domain answers on a
+# block of `text` with that selection, or `nothing` for an answer that is no move of
+# the selection.
+function _read_text_table_key(text, event, anchor, moving)
+    block = TextBlock((TextLine(TextString(String(line))) for line in split(text, '\n'))...)
+    set_selection!(block, make_flat_range_reference(min(anchor, moving), max(anchor, moving);
+                                                    direction = moving < anchor ? :backward : :forward))
+    answer = read_gesture(block, event)
+    answer isa ReplaceSelectionOperation || return nothing
+    path = strip_reference_types(answer.path)
+    (path isa ConcreteReference && path.head isa TextRangeReferenceStep && path.tail isa EmptyReference) ||
+        return nothing
+    step = path.head
+    step.direction === :backward ? (step.stop, step.start) : (step.start, step.stop)
+end
+
+# Home and End on the drawn line of the moving end, and Up and Down to the nearest
+# character of the line above or below; Shift keeps the anchor. `nothing` for any
+# other key, and where no line is above or below.
+function _read_drawn_line_key(lines, event::KeyDown, anchor, moving, measure)
+    event.key in (:home, :end, :up, :down) || return nothing
+    modifiers = event.modifiers
+    (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
+    index = findfirst(line -> line.start <= moving <= line.start + length(_get_drawn_string(line)), lines)
+    index === nothing && return nothing
+    line = lines[index]
+    target = if event.key === :home
+        line.start
+    elseif event.key === :end
+        line.start + length(_get_drawn_string(line))
+    else
+        other = event.key === :up ? index - 1 : index + 1
+        1 <= other <= length(lines) || return nothing
+        x = _get_drawn_line_x(line, moving - line.start, measure)
+        _find_nearest_drawn_character(lines[other], x, measure)
+    end
+    (modifiers.shift ? anchor : target, target)
+end
+
+# The x of the place before the character `k` of `line`, in the frame of its canvas.
+function _get_drawn_line_x(line::DrawnTextLine, k::Int, measure)
+    offsets = compute_caret_offsets(measure, _get_drawn_string(line), unwrap_cell(getfield(line.text, :font)))
+    unwrap_cell(getfield(line.text, :x)) + offsets[k + 1]
+end
+
+# The character of the part where the place of `line` nearest to `x` is.
+function _find_nearest_drawn_character(line::DrawnTextLine, x, measure)
+    text = _get_drawn_string(line)
+    offsets = compute_caret_offsets(measure, text, unwrap_cell(getfield(line.text, :font)))
+    left = unwrap_cell(getfield(line.text, :x))
+    line.start + argmin(k -> abs(left + offsets[k + 1] - x), 0:length(text))
+end
+
+"""
     make_drawn_selection_elements(elements, drawn, selection, measure, band_color) -> Vector{Any}
 
 The `elements` of the canvas of a widget that keeps the records `drawn`, with the

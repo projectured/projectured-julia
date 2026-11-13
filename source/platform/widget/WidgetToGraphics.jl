@@ -2081,7 +2081,9 @@ end
 # caret there whatever the widget does, also on a chip, and an Alt+double click
 # answers it too, which the container makes the text as a whole
 # (`convert_to_whole_selection`). A plain double click is left to the widget around
-# it, such as the row that it opens.
+# it, such as the row that it opens. A key that no binding takes moves the caret or
+# the range in the text, read-only, by the key table of the text domain
+# (`read_drawn_text_key`), also on a chip that an Alt+click gave the caret.
 read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -2092,6 +2094,8 @@ function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     if !selecting
         bound = read_bound_gesture(w, evt)
         bound === nothing || return bound
+        key = read_drawn_text_key(iomap.drawn, w, evt, p.measure)
+        key === nothing || return key
         _is_bound_control(w) && return nothing
     end
     press = selecting ||

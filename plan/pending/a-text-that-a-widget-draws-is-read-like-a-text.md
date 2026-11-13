@@ -1,8 +1,8 @@
 # A text that a widget draws is read like a text
 
-**Status (2026-11-13): proposed, waiting for approval.** The owner decided E1
-and E2. The assistant proposed P1 to P8; they count as approved when the owner
-approves the plan.
+**Status (2026-11-13): in progress.** The owner decided E1 and E2, and approved
+the plan for implementation ("good, go", 2026-11-13), so P1 to P8 are approved
+with the plan.
 
 **Goal:** a person can select in a text that a widget draws, such as the path
 "/home/projectured/workspace/inet-cpp" of a project card: put the caret with the
@@ -94,14 +94,14 @@ The owner, on the caret that a click puts into the text of a label (2026-11-13):
   range. The owner: "yes, keep the meaning of existing drags, so option A, I
   agree". Rejected: only an Alt+drag makes a range (a drag over a paragraph of a
   card would select nothing).
-- **P1 (proposed by the assistant). One place.** The keys, the drag and the
+- **P1 (proposed by the assistant; approved with the plan, 2026-11-13). One place.** The keys, the drag and the
   drawing of a range go into the shared helpers of the widget slice:
   `_read_drawn_text` reads a key and a drag as well as a press, and
   `make_drawn_selection_elements` draws a range. Each widget that records its
   lines gets the behavior from them, and a widget with a reader of its own (the
   card, the group of facts) calls the same helper for a key and a drag. No widget
   holds a rule of its own for a key. Rejected: a rule in each widget.
-- **P2 (proposed by the assistant). The string of a part.** The block holds the
+- **P2 (proposed by the assistant; approved with the plan, 2026-11-13). The string of a part.** The block holds the
   string that the part shows, one line for each line of the string, so the flat
   place of a character in the block is its place in the string (a break counts
   one in both). A caret or a range of the part is `part{a:b}`, the form that a
@@ -110,7 +110,7 @@ The owner, on the caret that a click puts into the text of a label (2026-11-13):
   of an alert to its description. Rejected: one block of every line that the
   widget draws (the parts are different fields, and a range across them has no
   path).
-- **P3 (proposed by the assistant). The keys that need the places of the
+- **P3 (proposed by the assistant; approved with the plan, 2026-11-13). The keys that need the places of the
   lines.** Home and End go to the start and the end of the drawn line of the
   caret, and Shift with them extends the range. Up and Down move the caret to
   the nearest character of the drawn line above or below, by the records of the
@@ -119,28 +119,28 @@ The owner, on the caret that a click puts into the text of a label (2026-11-13):
   no answer. Rejected: no Home and End (a person expects them); the geometry
   half of `TextToGraphics` (it reads the places of a printed text block, which a
   widget text does not have).
-- **P4 (proposed by the assistant). The drawing of a range.** A range draws a
+- **P4 (proposed by the assistant; approved with the plan, 2026-11-13). The drawing of a range.** A range draws a
   band behind its characters on each line, in the color of the band of a whole
   part, and draws no caret. Rejected: a caret at the moving end as well (the text
   view draws none on a range).
-- **P5 (proposed by the assistant). The drag.** A plain press on the text puts
+- **P5 (proposed by the assistant; approved with the plan, 2026-11-13). The drag.** A plain press on the text puts
   the caret and starts a drag, as the text view does, unless the widget is a
   control (it has bindings of its own) or a container around it claims the
   press for a drag of its own. An Alt press always starts the drag of a range.
   `DragMove` and `DragEnd` move the moving end to the nearest character of the
   part. How a container claims its drag before the text is the first finding of
   step 3, recorded here then.
-- **P6 (proposed by the assistant). The copy.** Ctrl+C on a range copies its
+- **P6 (proposed by the assistant; approved with the plan, 2026-11-13). The copy.** Ctrl+C on a range copies its
   characters through the text target of the clipboard. Where the clipboard does
   not do it for a widget, the fix goes into the clipboard rule, not into the
   widgets. Ctrl+X and Ctrl+V do nothing on a read-only text.
-- **P7 (proposed by the assistant). The controls.** After the behavior works in
+- **P7 (proposed by the assistant; approved with the plan, 2026-11-13). The controls.** After the behavior works in
   the widgets that record their lines, the controls record the line of their
   text too: the button (stash `3f8923c5d` holds its start), the toolbar item,
   the segment of a toggle group, the name of a menu, the link and the title of a
   tab. On a control a plain click acts (D9), so only an Alt+click puts the caret
   and only an Alt+drag selects a range.
-- **P8 (proposed by the assistant). The guides.** The keyboard and mouse guide,
+- **P8 (proposed by the assistant; approved with the plan, 2026-11-13). The guides.** The keyboard and mouse guide,
   the gestures guide and the guides of the widget and the text describe the
   selection in a widget text.
 
@@ -151,11 +151,24 @@ changes: `test_widget_label_caret()`, the widget sets of the changed widgets,
 `test_text()` where the text table is read, and the clipboard sets where the
 copy changes.
 
-- [ ] 1. **The keys (E1, P1, P2, P3).** `_read_drawn_text` answers a key on the
+- [x] 1. **The keys (E1, P1, P2, P3).** `_read_drawn_text` answers a key on the
   part that holds the selection through the short-lived block and the table, and
   the line records for Home, End, Up and Down. Tests: Left, Right, Shift with
   them, Ctrl with them, Home, End, Ctrl+A and Up and Down in a label of two
   lines, and a typed letter that changes nothing.
+
+  Done (2026-11-13): `read_drawn_text_key(drawn, widget, event, measure)` in
+  `DrawnTextLine.jl`, exported with the other helpers of the drawn lines, and
+  `_read_drawn_text` calls it after the bindings, so the label, the badge, the
+  avatar and the alert take the keys. It reads the string of the part from the
+  widget (`try_evaluate_reference`), because a drawn line can be cut with "…".
+  The kernel range step keeps the moving end (`direction`), so Shift extends
+  from the anchor. A part selected as a whole is the range of all its
+  characters, so Left and Right give the caret at its start and its end (as D10
+  in a code view), and Up and Down on it go on to the container. A key that the
+  table answers with an edit gives `nothing`, so it goes on: Return reaches the
+  list around a label. `test_widget_label_caret` 61, and 11 widget, table, tab
+  and menu sets and `test_dataframes` 622 pass.
 - [ ] 2. **The drawing of a range (P4).** `make_drawn_selection_elements` draws
   the band of a range. Test: the band covers the characters of the range on
   each line.

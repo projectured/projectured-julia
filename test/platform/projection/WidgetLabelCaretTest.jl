@@ -162,4 +162,60 @@ function test_widget_label_caret()
         end
         @test map_reference_backward(p, iomap, PointReferenceStep(x, y)) === nothing
     end
+
+    @testset "a key moves the caret or the range in the text of a label, which stays read-only" begin
+        p = _label_caret_printer()
+        label = WidgetLabel("alpha beta")
+        iomap = print_document(p, nothing, label, PrinterContext())
+        place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))
+        # The answer to `key` from the selection `at`: the path that it selects, or what it answers.
+        function press(widget, io, at, key; modifiers...)
+            set_selection!(widget, at)
+            answer = read_intent(p, io, KeyDown(key, ModifierKeys(; modifiers...); time = 0.0))
+            answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+        end
+        press(at, key; modifiers...) = press(label, iomap, at, key; modifiers...)
+        @test press(place(2), :right) == place(3)
+        @test press(place(2), :left) == place(1)
+        @test press(place(2), :right; ctrl = true) == place(6)
+        @test press(place(2), :right; shift = true) == place(2, 3)
+        @test press(place(2), :left; shift = true) == place(1, 2; direction = :backward)
+        @test press(place(1, 2; direction = :backward), :left; shift = true) == place(0, 2; direction = :backward)
+        @test press(place(2, 4), :left) == place(2)
+        @test press(place(2), :home) == place(0)
+        @test press(place(2), :end) == place(10)
+        @test press(place(2), :end; shift = true) == place(2, 10)
+        @test press(place(2), :a; ctrl = true) == place(0, 10)
+        # The text as a whole: Left and Right give the caret at its start and its end,
+        # and Down goes on to the container.
+        whole = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+        @test press(whole, :left) == place(0)
+        @test press(whole, :right) == place(10)
+        @test press(whole, :down) === nothing
+        # A typed letter and a removal change nothing, and go on to the container.
+        set_selection!(label, place(2))
+        @test read_intent(p, iomap, KeyPress('x'; time = 0.0)) === nothing
+        @test press(place(2), :backspace) === nothing
+        @test label.content == "alpha beta"
+
+        # Up and Down go to the nearest character of the line above or below, and past
+        # the first or the last line the key goes on to the container.
+        two = WidgetLabel("alpha\nbeta")
+        lines = print_document(p, nothing, two, PrinterContext())
+        @test length(lines.drawn) == 2
+        @test press(two, lines, place(8), :up) == place(2)
+        @test press(two, lines, place(2), :down) == place(8)
+        @test press(two, lines, place(2), :down; shift = true) == place(2, 8)
+        @test press(two, lines, place(8), :down) === nothing
+        @test press(two, lines, place(2), :up) === nothing
+
+        # A badge takes the keys from the same helper.
+        badge_printer = WidgetBadgeToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        badge = WidgetBadge("running")
+        badge_io = print_document(badge_printer, nothing, badge, PrinterContext())
+        set_selection!(badge, place(1))
+        answer = read_intent(badge_printer, badge_io, KeyDown(:right, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == place(2)
+    end
 end
