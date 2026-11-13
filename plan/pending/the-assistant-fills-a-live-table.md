@@ -1,6 +1,6 @@
 # The assistant fills a live table
 
-> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 and 2 are done. · **Stands on:**
+> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 to 3 are done. · **Stands on:**
 > [roster.md](../../documentation/package/platform/roster/roster.md),
 > [operation.md](../../documentation/package/kernel/operation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md),
@@ -204,12 +204,22 @@ Each step is one commit in a worktree of projectured-julia, on main.
    `test_roster_program` pass. The field write of the test is a `ReplaceReferencedValueOperation`
    evaluated on the table; the write through `replace_referenced_value!` in an editor is the test of
    step 3.
-3. **The view `RecordTableToWidget`.** A line that counts the records, and the table under it, which
+3. ✅ **The view `RecordTableToWidget`.** A line that counts the records, and the table under it, which
    fills the height. Its maps pass `table.<rest>`. Its reader calls `keep_held_arrangement` and
    `retarget_held_row_open`. `_make_roster_graphics_entries` registers it. Test: `test_record_table()`
    in a headless window. The header shows the labels of the columns, and an `ImageFile` value shows
    a picture cell. A click on the first cell opens `records[k]`.
    `filter_collection!(ledger, "state" => ==("event"))` keeps the rows of the events.
+   **Done on 2026-11-13**: `source/platform/roster/RecordTableToWidget.jl`, the shape of the view of the
+   open files. The natural row of the roster registers it chained with `GridLayoutToGraphicsCanvas()`,
+   as the rows of a roster are, because the view answers a `GridLayout`. The testset "the page of a
+   table in an editor" asserts the line "3 records", the labels of the columns, the open of
+   `records[2]` from a click on its first cell, the write of one field through
+   `replace_referenced_value!` with one entry of undo and the undo that puts the record back (the
+   case that step 1 left here), and a filter that keeps the rows of the events while the line still
+   counts every record. The picture cell is not asserted again: the roster tests cover it.
+   `test_record_table()` 30 of 30; `test_roster`, `test_roster_table`, `test_roster_program` pass; the
+   layering guard of the platform fails the 10 entries that main fails, none in a file of this plan.
 4. **The surface and the documents.** The docstring of `RecordTable` gets the full form, the example
    of §4 and the mark. `roster.md` gets a section on a table of records that a file keeps, and its
    layer structure lists the two files. Tests: `test_assistant_documentation()`,

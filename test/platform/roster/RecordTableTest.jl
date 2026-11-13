@@ -56,6 +56,54 @@ function test_record_table()
             ledger.table.document.rows
     end
 
+    @testset "the page of a table in an editor" begin
+        ledger = RecordTable("Ledger"; columns = ["number", "state"],
+                             records = [(number = 1, state = "waiting"), (number = 2, state = "event"),
+                                        (number = 3, state = "event")])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(ledger, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        # The line counts the records, and the header names the columns.
+        texts = _arrangement_texts(backend)
+        @test "3 records" in texts
+        @test all(text -> text in texts, ["number", "state", "1", "2", "3", "waiting", "event"])
+
+        # A click on the first cell of a row opens the record at its place in the table.
+        (x, y) = _arrangement_place(backend, "2")
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0))
+        click = MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)
+        opened = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+        opened isa WrappingOperation && (opened = get_wrapped_operation(opened))
+        @test opened isa OpenPageOperation
+        steps = get_reference_steps(strip_reference_types(opened.reference))
+        @test steps[end - 1:end] == [FieldReferenceStep("records"), ElementReferenceStep(2)]
+
+        # The write of one field of a record replaces the record in its slot, the row
+        # shows it, and one undo puts it back.
+        buffer = find_undo_buffer(editor.document)
+        part = get_edited_document(ReferencedDocument(editor.document, EmptyReference()))
+        @test get_document(part) === ledger
+        before = length(buffer.undo_entries)
+        replace_referenced_value!(part.records[2], :state, "equal"; editor)
+        frame!()
+        @test ledger.records[2] == (number = 2, state = "equal")
+        @test "equal" in _arrangement_texts(backend)
+        @test length(buffer.undo_entries) == before + 1
+        evaluate_operation(editor, UndoOperation(buffer))
+        frame!()
+        @test ledger.records[2] == (number = 2, state = "event")
+
+        # A filter keeps the rows of the events, and the line still counts every record.
+        filter_collection!(part, "state" => ==("event"); editor)
+        frame!()
+        texts = _arrangement_texts(backend)
+        @test !("waiting" in texts) && "event" in texts
+        @test "3 records" in texts
+    end
+
     @testset "two equal records are one row" begin
         ledger = RecordTable("Ledger"; columns = ["state"],
                              records = [(state = "waiting",), (state = "waiting",)])

@@ -55,7 +55,7 @@ export RosterItem, RosterRow, make_roster_row, compute_roster_value, collect_ite
 export CollectionItems, ItemsWithin, register_roster_source!, get_roster_source_names, StoreRecords
 export RosterToGraphics, RosterToGraphicsIoMap, RosterRowsToWidget, RosterRowsToWidgetIoMap, make_roster_value_cell
 export show_roster!, describe_roster, describe_roster_sources, describe_item_facets, edit_shown_items!
-export RecordTable
+export RecordTable, RecordTableToWidget
 
 include("RosterInterface.jl")
 include("RosterDefaults.jl")
@@ -64,6 +64,7 @@ include("RosterSource.jl")
 include("RosterToGraphics.jl")
 include("RosterProgram.jl")
 include("RecordTable.jl")
+include("RecordTableToWidget.jl")
 
 function __init__()
     register_natural_graphics!(:roster, _make_roster_graphics_entries)

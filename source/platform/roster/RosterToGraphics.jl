@@ -681,6 +681,9 @@ end
 # layout of widgets, which the renderer draws.
 function _make_roster_graphics_entries(; measure = nothing, appearance)
     Pair{Type,Any}[Roster => RosterToGraphics(),
+                   RecordTable => ChainingProjection(
+                       RecordTableToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
+                       GridLayoutToGraphicsCanvas()),
                    CellVector{RosterRow} => ChainingProjection(RosterRowsToWidget(get_scaled_theme!(appearance, WidgetTheme)),
                                                                GridLayoutToGraphicsCanvas())]
 end
