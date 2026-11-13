@@ -25,8 +25,9 @@ function test_git()
         test_git_layering()
         test_git_parse()
         test_git_reading()
+        test_git_range()
         test_git_views()
     end
 end
 
-export test_git, test_git_layering, test_git_parse, test_git_reading, test_git_views
+export test_git, test_git_layering, test_git_parse, test_git_reading, test_git_range, test_git_views

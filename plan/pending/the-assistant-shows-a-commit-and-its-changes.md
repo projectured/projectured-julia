@@ -302,7 +302,7 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    - Results: `test_git()` 86 pass (the read test 41); the naming guard passes;
      `test_package_graph()` 562 pass and `test_repository()` 619 pass with the example package; the
      documentation report is the same as on main.
-2a. **The commits of a range (D9).** `GitCommitRange` and `ApplyGitCommitRangeOperation`. The read
+2a. **The commits of a range (D9).** **Done on 2026-11-13.** `GitCommitRange` and `ApplyGitCommitRangeOperation`. The read
    is a background cell of the repository, the revisions, the paths and `read_count`. It answers
    the commits in the order of `git log`, with no cap, and the folders that hold the refs of the
    range: the folder of each loose ref that the revisions name, such as `refs/remotes/origin` for
@@ -316,6 +316,26 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    branch, moves a remote ref with `git update-ref`, and moves it again after `git pack-refs --all`.
    After each change the range reads again, the new hash comes first, and each `GitCommit` that
    stays is the same document. An unknown revision makes a read of the cell throw the words of git.
+   What the implementation found:
+   - The owner chose to build step 3 before step 2a, so 2a came after the views.
+   - `GitCommitRange` holds `repository`, `revisions`, `paths`, `commits`, `folders`, `read_count`,
+     `reading` and `listing`, the background cell of the read. `commits` is a computation that reads
+     `listing` and answers the vector that the apply writes, so any part that shows the commits
+     records a demand for the read, and the commits stay while a new read runs or after a read
+     failed. The read of `listing` throws the words of git. A walk reads neither field.
+   - One read runs `git log -z` of the revisions and the paths, `git rev-parse --path-format=absolute
+     --git-dir --git-common-dir`, and `git rev-parse --symbolic-full-name` of the revisions, which
+     names the refs. A ref of a worktree (`refs/bisect`, `refs/worktree`) is in the git folder of the
+     worktree, every other ref in the common folder. A ref that `packed-refs` holds takes the nearest
+     folder above its own that exists. `rev-parse` takes no `--end-of-options`, so a revision that
+     starts with `-` does not go to it; the log reads it after `--end-of-options` and refuses it.
+   - `ApplyGitCommitRangeOperation` merges as `_merge_range_commits!`: the commits that stay at the
+     start and at the end keep their documents, and the rest is one `ReplaceReferencedValueOperation`
+     of the vector. It moves the watch to the new folders while `is_document_held`.
+   - Results: `test_git()` 141 pass (the range test 22, in an editor with a `FileChangeFeed`: a
+     remote ref moves, the refs are packed and the ref moves again, a commit lands on the branch);
+     `test_repository()` 619 and `test_package_graph()` 562 pass; the naming guard passes; the
+     documentation report is the same as on main.
 3. **The views.** **Done on 2026-11-13.** `GitCommitToWidget`, `GitFileChangeToWidget`, `GitFileRevisionToWidget`, `GitTheme`,
    the natural rows and the tab titles. An example in `example/projectured/DomainExamples.jl`. Test:
    the new `test_git_views()` (`GitViewTest.jl`) in an editor with the console backend. It asserts the

@@ -50,6 +50,7 @@ function _read_git_input(input::Tuple)
     read === :commit && return _read_git_commit(input[2], input[3])
     read === :patch && return _read_git_patch(input[2], input[3], input[4], input[5])
     read === :file && return _read_git_file(input[2], input[3], input[4])
+    read === :range && return _read_git_range(input[2], input[3], input[4])
     throw(ArgumentError("a git document demands the read $read, which does not exist"))
 end
 

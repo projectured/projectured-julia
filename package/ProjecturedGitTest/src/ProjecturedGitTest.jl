@@ -44,6 +44,7 @@ end
 
 include("../../../test/domain/git/GitParseTest.jl")
 include("../../../test/domain/git/GitReadTest.jl")
+include("../../../test/domain/git/GitRangeTest.jl")
 include("../../../test/domain/git/GitViewTest.jl")
 
 include("../../../test/domain/git/GitSuite.jl")

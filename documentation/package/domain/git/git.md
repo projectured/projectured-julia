@@ -6,7 +6,7 @@ The git domain, `ProjecturedGit`, reads what the `git` program writes about a re
 
 ## How it works
 
-The package holds three documents, which read what they show by the `git` program; the texts and the pages that show them, which the text domain draws; and plain values, which functions make from the output of git.
+The package holds four documents, which read what they show by the `git` program; the texts and the pages that show them, which the text domain draws; and plain values, which functions make from the output of git.
 
 ### The documents and their reads
 
@@ -15,6 +15,7 @@ The package holds three documents, which read what they show by the `git` progra
 | `GitCommit(repository, revision)` | `header`, a `GitCommitHeader`, and `changes`, a `GitFileChange` for each changed file | `git show -z --raw --numstat -M --diff-merges=first-parent` of `<revision>^{commit}` |
 | `GitFileChange` | the facts of the read of its commit: the kind, the old and the new path, the counts, whether the file is binary, the first parent as `old_revision` and the commit as `new_revision`; and `hunks` | `git show --patch` of the commit, limited to the old and the new path |
 | `GitFileRevision(repository, revision, path; line)` | `text`, and the `line` to show | `git cat-file blob <revision>:<path>` |
+| `GitCommitRange(repository, revisions; paths)` | `commits`, a `GitCommit` with the header of the log for each commit of the range, and `folders`, the folders of its refs | `git log -z` of the revisions and the paths, and `git rev-parse` of the git folders and of the refs |
 
 Each document holds the absolute path of its repository. Each read is a background cell (see [editor.md](../../kernel/editor.md)), and the cell is the store of the answer: a print that reads a field records a demand for the read, and a task runs `git` after the frame. While the answer is still to come, the cell is provisional, and the field `reading` is `true` while git runs. A read that failed makes each read of the field throw a `GitException` with the words of git, such as `bad revision` or `not a git repository`. A document has no read state of its own and no operation that stores an answer.
 
@@ -23,6 +24,17 @@ A background work reads no document, so the read of a commit answers values: the
 Each run of git is the same with any configuration of a person: `git -C <repository> --no-pager` with `core.quotePath=false`, `color.ui=false` and `log.showSignature=false`, the C locale, no optional lock and no prompt. A revision comes after `--end-of-options`, so a revision that starts with `-` is no option. The read of a patch takes literal paths and the prefixes `a/` and `b/`.
 
 A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, and a file at a revision with its repository, its revision, its path and its line.
+
+### The commits of a range
+
+`GitCommitRange(repository, revisions; paths)` holds the commits that `git log <revisions> -- <paths>` answers, in the order of the log, with no limit, as `GitCommit` documents with the header of the log. A range names refs, and a ref moves, so a range reads as a folder reads its entries:
+
+- `listing` is a background cell of the repository, the revisions, the paths and `read_count`. A read of `commits` reads it, so a part that shows the commits records a demand for the read. The read of `listing` throws the words of git when the read failed.
+- One read runs `git log` and `git rev-parse`. It answers the headers and the folders that hold the refs of the range: the folder of each loose ref that the revisions name, the common git folder for `packed-refs`, and the git folder of the worktree for `HEAD`. A ref that `packed-refs` holds takes the nearest folder above its folder.
+- The apply, `ApplyGitCommitRangeOperation`, merges the answer by hash: a commit that stays keeps its document, and the commits that come and go between the commits that stay at the start and at the end are one splice of `commits`. It stores the folders.
+- A holder of the range watches the folders with `watch_folder!`, and the first read of a held range starts the watch. A change of a folder, such as a commit, a `git fetch` or `git pack-refs`, raises `read_count`, so the range reads again. The release stops the watch and keeps the commits.
+
+The paths go to git after `--` as they are, so `":(exclude)*.rst"` works as in a terminal. A view that needs two lists, such as every commit of a range and the commits that touch some paths, holds two ranges and compares the hashes.
 
 ### The texts and the pages
 
