@@ -361,8 +361,10 @@ change, and D3:
   feed 178, table selection 25, table navigation 67, table cell editing 14.
 - **Open: the list keeps every row that the wheel passed.** A frame of 100,000
   rows, 3000 notches down: with point 3 the list holds 5645 built nodes behind its
-  head, and the live memory after a full GC grows from 199 MB to 338 MB, about 10
-  to 25 KB for each row passed. With point 3 switched off it holds 1 node behind
-  its head and stays between 256 and 330 MB. A sort, a filter, an edit of the
+  head, and the live memory after a full GC grows from 199 MB to 338 MB. With
+  point 3 switched off it holds 1 node behind its head and stays between 256 and
+  330 MB. The difference of the two runs at the same notch is 9.8 MB for each
+  1000 rows at notch 1000, 10.1 at notch 2000 and 10.5 at notch 3000: about 10 KB
+  for each row passed, in a frame of 3 columns. A sort, a filter, an edit of the
   frame or a jump to a place that the list did not build makes a new list and
   frees it. A table over a plain lazy list keeps its nodes in the same way.
