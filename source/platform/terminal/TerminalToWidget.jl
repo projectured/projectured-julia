@@ -131,6 +131,29 @@ function read_intent(p::TerminalToWidget, iomap::SimpleIoMap, operation::Replace
     make_path_operation(operation, inner === nothing ? EmptyReference() : inner)
 end
 
+# A plain click on a text of the terminal outside its input line, such as a line
+# that the program wrote, gives the keys to the input line, as a click in a
+# terminal does, although the label of the line answers it with a caret in its
+# text. An Alt+click keeps that caret, so a person can copy a line.
+function read_intent(p::TerminalToWidget, recursion, change::Intent, iomap::SimpleIoMap)
+    if _is_plain_click(change.gesture) && change.operation isa ReplaceSelectionOperation &&
+       iomap.input isa TerminalDocument && !_is_terminal_input_place(change.operation.path)
+        caret = ReplaceSelectionOperation(_make_terminal_input_caret(iomap.input))
+        return Intent(change.gesture, caret, change.description, change.domain)
+    end
+    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+end
+
+_is_plain_click(event) =
+    event isa MouseClick && event.button === :left && event.count == 1 && event.modifiers == ModifierKeys()
+
+# Whether `path`, in the output of the terminal, is in the pane of its input line.
+function _is_terminal_input_place(path)
+    path isa Reference || return false
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) >= 2 && steps[1:2] == _TERMINAL_INPUT_PREFIX[1:2]
+end
+
 # A press that nothing in the terminal took, on its lines or beside its input
 # line, puts the caret at the end of the input line, as a press in a terminal
 # gives it the keys.

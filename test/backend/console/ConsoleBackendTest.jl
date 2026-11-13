@@ -258,33 +258,34 @@ function test_console_backend()
 
     # ── structural navigation through the editor loop ─────────────────────
     @testset "navigation" begin
-        # Home (ESC[H), Down (ESC[B), Down, Right (ESC[C).
-        bytes = UInt8[0x1b,0x5b,0x48, 0x1b,0x5b,0x42, 0x1b,0x5b,0x42, 0x1b,0x5b,0x43]
+        # Home (ESC[H), Down (ESC[B), Down, Alt+Right (ESC[1;3C).
+        bytes = UInt8[0x1b,0x5b,0x48, 0x1b,0x5b,0x42, 0x1b,0x5b,0x42, 0x1b,0x5b,0x31,0x3b,0x33,0x43]
         sels = _drive_console(bytes, 4)
         @test sels[1] == "∅"                                              # Home → root ∅
         @test sels[2] == ".entries[1]"                                   # Down → first child
         @test sels[3] == ".entries[1].key"                               # Down → descend
-        @test sels[4] == ".entries[1].value"                             # Right → sibling
+        @test sels[4] == ".entries[1].value"                             # Alt+Right → sibling
     end
 
     # ── character-level text editing through the console pipeline ──────────
-    # This is the payoff of moving the geometry-free Text-domain gesture mapping
-    # onto the document (`read_gesture(::TextBlock, …)`): the console pipeline,
-    # which omits `TextToGraphics`, now gets character cursor movement and
-    # insert/delete via `SyntaxToText`'s fallback to `read_gesture(iomap.output,
-    # gesture)`. None of these gestures need pixel geometry.
+    # The console pipeline, which omits `TextToGraphics`, gets character cursor
+    # movement and insert/delete from the geometry-free gesture table of the text
+    # (`read_gesture(::TextBlock, …)`), through the fallback of `SyntaxToText` to
+    # `read_gesture(iomap.output, gesture)`. None of these gestures need pixel
+    # geometry.
     @testset "character editing" begin
         ESC = 0x1b; LB = 0x5b
         HOME  = UInt8[ESC, LB, UInt8('H')]   # Ctrl+Alt+Home → root
         DOWN  = UInt8[ESC, LB, UInt8('B')]
         RIGHT = UInt8[ESC, LB, UInt8('C')]
         LEFT  = UInt8[ESC, LB, UInt8('D')]
+        ALT_RIGHT = UInt8[ESC, LB, UInt8('1'), UInt8(';'), UInt8('3'), UInt8('C')]
         CTRL_SPACE = UInt8[0x00]
         BACKSPACE  = UInt8[0x7f]
 
-        # Navigate Home → Down → Down → Right to land on entry 1's value
+        # Navigate Home → Down → Down → Alt+Right to land on entry 1's value
         # (the JSON string "Alice"), then Ctrl+Space to enter text-cursor mode.
-        nav = vcat(HOME, DOWN, DOWN, RIGHT, CTRL_SPACE)
+        nav = vcat(HOME, DOWN, DOWN, ALT_RIGHT, CTRL_SPACE)
 
         # Cross-span / character cursor movement (Right then Left) drives the
         # text-domain `read_gesture` left/right arms through the fallback.

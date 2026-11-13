@@ -498,26 +498,42 @@ root   = EmptyReference()
 child1 = @reference(node, children[1])            # .children[1]∅
 child2 = @reference(node, children[2])            # .children[2]∅
 
-@testset "plain arrows drive the tree once a whole element is selected" begin
+@testset "plain Up and Down drive the tree once a whole element is selected" begin
     @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
-    @test is_reference_equal(op_path(child1, :right), child2)   # next sibling
-    @test is_reference_equal(op_path(child2, :left),  child1)   # previous sibling
     @test is_reference_equal(op_path(child1, :up),    root)     # child → parent
 end
 
-@testset "plain arrows match their Alt counterparts in structural mode" begin
+@testset "plain Up and Down match their Alt counterparts in structural mode" begin
     alt = ModifierKeys(alt=true)
-    for (sel, key) in ((root, :down), (child1, :right), (child2, :left), (child1, :up))
+    for (sel, key) in ((root, :down), (child1, :up))
         @test is_reference_equal(op_path(sel, key), op_path(sel, key, alt))
     end
 end
 
+@testset "a plain Left or Right puts the caret at the start or the end of a whole element" begin
+    # Before the opening quote of the first leaf, and after the closing quote of
+    # the second, as on a range of their characters. The end of the last leaf is
+    # the start of the closing delimiter of the node, which the backward map names.
+    @test is_reference_equal(op_path(child1, :left),  @reference(node, children[1].open{0}))
+    @test is_reference_equal(op_path(child2, :right), @reference(node, close{0}))
+end
+
+@testset "a plain Left or Right on a whole element with no character moves to its sibling" begin
+    bare = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf(""), SyntaxLeaf("b")]; sep=",")
+    clear_selection!(bare)
+    set_selection!(bare, @reference(bare, children[2]))
+    op = read_intent(s2st, print_document(s2st, bare), KeyDown(:right, ModifierKeys(); time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    @test is_reference_equal(op.path, @reference(bare, children[3]))
+end
+
 @testset "edges no-op" begin
+    alt = ModifierKeys(alt=true)
     # :up at the root has no parent → the reader declines (nothing).
     @test read_key(root, :up) === nothing
-    # :left at the first sibling / :right at the last stay put (same path).
-    @test is_reference_equal(op_path(child1, :left),  child1)
-    @test is_reference_equal(op_path(child2, :right), child2)
+    # Alt+Left at the first sibling / Alt+Right at the last stay put (same path).
+    @test is_reference_equal(op_path(child1, :left, alt),  child1)
+    @test is_reference_equal(op_path(child2, :right, alt), child2)
 end
 
 @testset "plain arrows with a character cursor are not tree navigation" begin
@@ -670,11 +686,12 @@ end
     concat = @reference(node, children[2])                 # the concatenation
     inner1 = @reference(node, children[2].children[1])     # the leaf "a" inside it
 
-    @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
-    @test is_reference_equal(op_path(child1, :right), concat)   # step onto the concatenation
-    @test is_reference_equal(op_path(concat, :down),  inner1)   # descend INTO it
-    @test is_reference_equal(op_path(inner1, :up),    concat)   # and back out
-    @test is_reference_equal(op_path(concat, :left),  child1)   # step back off it
+    alt = ModifierKeys(alt=true)
+    @test is_reference_equal(op_path(root,   :down),  child1)        # root → first child
+    @test is_reference_equal(op_path(child1, :right, alt), concat)   # step onto the concatenation
+    @test is_reference_equal(op_path(concat, :down),  inner1)        # descend INTO it
+    @test is_reference_equal(op_path(inner1, :up),    concat)        # and back out
+    @test is_reference_equal(op_path(concat, :left, alt),  child1)   # step back off it
 end
 end # let
 

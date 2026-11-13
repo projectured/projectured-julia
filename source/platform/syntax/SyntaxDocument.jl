@@ -653,7 +653,10 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 #                   text that the text table answers, so the key comes here
 # - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
 # - Alt+arrow     → tree-navigate from any selection (enter structural)
-# - plain arrow   → tree-navigate, but only once a whole element is selected
+# - plain arrow   → tree-navigate, but only once a whole element is selected; a
+#                   plain Left or Right declines on an element that has a
+#                   character, and the text puts the caret at its start or its
+#                   end, so they move to a sibling only from an element with none
 #
 # Gestures match modifiers *exactly*: each rule names its exact modifier set, so a
 # bare arrow (`KeyDown(k;)` — note the `;`: no modifiers held) and an `Alt+arrow`
@@ -684,10 +687,29 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
     when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
         sel = doc.selection
         _is_tree_selection(sel) || return nothing
+        # The text takes a plain Left or Right on an element that has a character
+        # and puts the caret at its start or its end.
+        k in (:left, :right) && _has_rendered_text(_find_selected_node(doc, sel)) && return nothing
         new_path = _tree_navigate(doc, sel, k)
         new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
     end
 end
+
+# The node that the tree selection `sel` names inside `node`, or `nothing`.
+function _find_selected_node(node::SyntaxDocument, sel)
+    sel = _unwrap_projection_ref(sel)
+    sel isa EmptyReference && return node
+    node isa SyntaxCompound || return nothing
+    step = peel_child_step(sel)
+    step === nothing && return nothing
+    (index, rest) = step
+    children = get_syntax_children(node)
+    (children !== nothing && 1 <= index <= length(children)) || return nothing
+    _find_selected_node(children[index], rest)
+end
+
+_has_rendered_text(node::SyntaxDocument) = !isempty(render(node))
+_has_rendered_text(::Nothing) = false
 
 # A whole-element selection of a projection-introduced sub-node (e.g. Julia's
 # `function name(params)` header) is carried as `ProjectionReferenceStep(_, .children[i]…)`

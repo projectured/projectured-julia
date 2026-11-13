@@ -867,9 +867,10 @@ _span_at(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path
 # typed text takes printable text only, so Ctrl+Return, which types `'\n'` with
 # Ctrl, also propagates. Tab and Shift+Tab change the indentation of the lines, an
 # edit of the lines that a producer of one line declines, as it declines a break,
-# so there they keep the meaning of the bindings around the text. A plain arrow
-# while a whole element is selected is declined inside the motion of the caret,
-# which reads `text.selection`.
+# so there they keep the meaning of the bindings around the text. A plain Left or
+# Right while a part is selected as a whole puts the caret at its start or its
+# end, and declines for a part with no character; the motion of the caret reads
+# `text.selection` for it.
 @gestures TextBlock begin
     when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => _text_insert(doc, t)
     KeyPress('\n';)        => "Break the line"       => _text_break(doc)
@@ -1379,9 +1380,16 @@ function _text_word_motion(text::TextBlock, direction::Symbol)
 end
 
 # Left / Right: per-character cursor motion, `± 1` clamped in the flat stream. A
-# range collapses to its near end. Declines when a whole element is selected (no
-# character cursor to move) so the syntax layer can tree-navigate.
+# range collapses to its near end, and so does a part selected as a whole: the
+# caret goes to its start or its end. A whole part with no character declines, so
+# the syntax layer moves to the part beside it.
 function _text_char_motion(text::TextBlock, direction::Symbol)
+    whole = _find_whole_flat_range(text.selection, text)
+    if whole !== nothing
+        (s, e) = whole
+        s == e && return nothing
+        return ReplaceSelectionOperation(make_flat_caret_reference(direction === :left ? s : e))
+    end
     is_structural_selection(text.selection) && return nothing
     sel = _text_flat_selection(text)
     sel === nothing && return nothing
@@ -1393,6 +1401,15 @@ function _text_char_motion(text::TextBlock, direction::Symbol)
     end
     ReplaceSelectionOperation(make_flat_caret_reference(newf))
 end
+
+# The flat range of a part of `text` that `selection` names as a whole: the whole
+# block (`∅`) or an element (`TextSpanReferenceStep(a, b)`); `nothing` for any
+# other selection.
+_find_whole_flat_range(::EmptyReference, text::TextBlock) = (0, _text_flat_total(text))
+_find_whole_flat_range(selection::ConcreteReference, ::TextBlock) =
+    selection.head isa TextSpanReferenceStep && selection.tail isa EmptyReference ?
+    (selection.head.start, selection.head.stop) : nothing
+_find_whole_flat_range(_, ::TextBlock) = nothing
 
 # Shift and a motion key: move the moving end of the selection and keep its
 # anchor. When the moving end passes the anchor, the direction of the range turns.
