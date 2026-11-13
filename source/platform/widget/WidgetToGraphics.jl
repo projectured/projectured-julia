@@ -732,9 +732,10 @@ WidgetButtonToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     corner_radius::Int
     label_gap::Int                         # between the icon and the text
     icon_size::Float64                     # times the height of the line of the text
+    selected_color::StyleColor             # the band of the text selected as a whole
 end
 
-WidgetLinkToGraphicsCanvas(theme; measure,
+WidgetLinkToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            margin = inset_default, border = inset_default, padding = inset_default,
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
@@ -745,10 +746,11 @@ WidgetLinkToGraphicsCanvas(theme; measure,
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                            corner_radius = _themed(Int, theme, t -> t.radius),
                            label_gap = _themed(Int, theme, t -> t.label_gap),
-                           icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                           icon_size = _themed(Float64, theme, t -> t.icon_size),
+                           selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetLinkToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, link_text, link_disabled_text, underline_width,
-                               focus_ring_stroke, corner_radius, label_gap, icon_size)
+                               focus_ring_stroke, corner_radius, label_gap, icon_size, selected_color)
 
 @projection UntrackedCell struct WidgetTooltipToGraphicsCanvas
     measure::TextMeasure
@@ -2973,56 +2975,64 @@ function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink,
     # The child is made only for a face that is a document.
     face = make_reconciled_child_iomap_cell(() -> w.content,
                                             c -> print_child(recursion, c, _get_inner_content_context(geometry, ctx)))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        box = geometry[]
-        inset_width, inset_height = _get_inset_total(box)
-        content_x, content_y = _get_content_offset(box)
-        thickness = max(1, p.underline_width)
-        elements = Any[]
-        body = Any[]
-        if w.content isa Document
-            style = _get_link_style(p, w)
-            inner = face[].output
-            face_width, face_height = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
-            icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, "", style.font).height)
-            height = max(icon_extent, face_height)
-            face_x = content_x + icon_extent + icon_gap
-            face_top = content_y + (height - face_height) ÷ 2
-            icon_extent > 0 && _push_icon!(body, w.icon, content_x, content_y + (height - icon_extent) ÷ 2,
-                                           icon_extent, style.color)
-            push!(body, _make_canvas(face_x, face_top, Any[inner]))
-            _push_link_underline!(body, w, face_x, face_top + max(0, face_height - thickness), face_width,
-                                  thickness, style.color)
-            width = icon_extent + icon_gap + face_width
-        else
-            edge = ctx === nothing ? nothing : ctx.maximum_width
-            measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
-            style = measured.style
-            if measured.icon_extent > 0
-                _push_icon!(body, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
-                            measured.icon_extent, style.color)
-            end
-            text_x = content_x + measured.icon_extent + measured.icon_gap
-            top = content_y + measured.text_top
-            for (text, line) in zip(measured.texts, measured.boxes)
-                _push_text!(body, p.measure, style.font, text, text_x, top, style.color)
-                _push_link_underline!(body, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
-                                      line.width, thickness, style.color)
-                top += line.height
-            end
-            width, height = measured.width, measured.height
+    build = Cell(Computation(() -> _build_link(p, w, geometry[], face, ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
+end
+
+# The box, the icon and the face of a link: `(; width, height, elements, drawn)`.
+# A text face records each line that it draws, as the part `.content`.
+function _build_link(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, box::BoxGeometry, face::Cell, ctx)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    thickness = max(1, p.underline_width)
+    elements = Any[]
+    body = Any[]
+    lines = DrawnTextLine[]
+    if w.content isa Document
+        style = _get_link_style(p, w)
+        inner = face[].output
+        face_width, face_height = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
+        icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, "", style.font).height)
+        height = max(icon_extent, face_height)
+        face_x = content_x + icon_extent + icon_gap
+        face_top = content_y + (height - face_height) ÷ 2
+        icon_extent > 0 && _push_icon!(body, w.icon, content_x, content_y + (height - icon_extent) ÷ 2,
+                                       icon_extent, style.color)
+        push!(body, _make_canvas(face_x, face_top, Any[inner]))
+        _push_link_underline!(body, w, face_x, face_top + max(0, face_height - thickness), face_width,
+                              thickness, style.color)
+        width = icon_extent + icon_gap + face_width
+    else
+        edge = ctx === nothing ? nothing : ctx.maximum_width
+        measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
+        style = measured.style
+        if measured.icon_extent > 0
+            _push_icon!(body, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
+                        measured.icon_extent, style.color)
         end
-        outer_width = _resolve_width(ctx, 0, width + inset_width)
-        outer_height = _resolve_height(ctx, 0, height + inset_height)
-        _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
-                         outer_height - inset_height)
-        append!(elements, body)
-        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
-        _is_link_enabled(w) &&
-            push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, outer_width, outer_height)...,
-                                                 :pointing_hand))
-        (width = outer_width, height = outer_height, elements = elements)
-    end), geometry)
+        text_x = content_x + measured.icon_extent + measured.icon_gap
+        top = content_y + measured.text_top
+        starts = _find_line_starts(string(w.content), measured.texts)
+        for (text, line, start) in zip(measured.texts, measured.boxes, starts)
+            _push_text!(body, p.measure, style.font, text, text_x, top, style.color)
+            isempty(text) || push!(lines, DrawnTextLine(last(body), _CONTENT_PART, start))
+            _push_link_underline!(body, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
+                                  line.width, thickness, style.color)
+            top += line.height
+        end
+        width, height = measured.width, measured.height
+    end
+    outer_width = _resolve_width(ctx, 0, width + inset_width)
+    outer_height = _resolve_height(ctx, 0, height + inset_height)
+    _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
+                     outer_height - inset_height)
+    append!(elements, body)
+    _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
+    _is_link_enabled(w) &&
+        push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, outer_width, outer_height)...,
+                                             :pointing_hand))
+    (width = outer_width, height = outer_height, elements = elements, drawn = lines)
 end
 
 # The line under the face of a link, while the pointer is on the link and the
@@ -3037,17 +3047,27 @@ function _push_link_underline!(elements::Vector, w::WidgetLink, x::Int, y::Int, 
     push!(elements, line)
 end
 
-map_reference_forward(::WidgetLinkToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# A caret or a range in the text of a link is drawn on its line.
+map_reference_forward(::WidgetLinkToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 
-map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) = nothing
+# A place of characters of the text is the caret or the range in it; a point names the
+# link as a whole.
+map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # A link answers the gestures of its type and of every widget: the opens of
 # `make_open_page_gestures` with its own target, and the tooltip. A key reaches it
 # while it has the focus. A link acts on the click, so it answers the press before
 # the click itself, as a button does, and the press selects nothing: no focus moves
 # to the link. A link that is not enabled answers nothing, as a disabled button.
-function read_intent(::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
+function read_intent(p::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    # A press with Alt never opens, also on a link that is not enabled, and a key moves
+    # in the text while the selection is there: they reach the text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     _is_link_enabled(iomap.input) || return nothing
     is_focusing_press(evt) && return DoNothingOperation()
     read_bound_gesture(iomap.input, evt)
@@ -13466,6 +13486,9 @@ accepts_pasted_text(::WidgetCard, field::Symbol) = field ∉ (:title, :descripti
 accepts_pasted_text(::WidgetFactGroup, field::Symbol) = field !== :title
 accepts_pasted_text(::WidgetFact, field::Symbol) = field ∉ (:label, :value)
 
+# A link draws its content as a read-only text and holds the field `target`.
+accepts_pasted_text(::WidgetLink, field::Symbol) = field !== :content
+
 # A toggle group draws its options as read-only texts, and holds the field `values`.
 accepts_pasted_text(::WidgetToggleGroup, field::Symbol) = field !== :options
 
@@ -15093,7 +15116,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetText       => WidgetTextToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
         WidgetButton     => WidgetButtonToGraphicsCanvas(theme; graphics_theme, measure = measure),
-        WidgetLink       => WidgetLinkToGraphicsCanvas(theme; measure = measure),
+        WidgetLink       => WidgetLinkToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),

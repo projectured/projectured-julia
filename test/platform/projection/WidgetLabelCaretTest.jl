@@ -392,4 +392,15 @@ function test_widget_label_caret()
         step_iomap = print_document(p, nothing, stepper, PrinterContext())
         @test length(step_iomap.drawn) == 1 && strip_reference_types(only(step_iomap.drawn).part) == option(2)
     end
+    @testset "an Alt+click puts the caret in the text of a link, and a plain click opens it" begin
+        p = WidgetLinkToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        link = WidgetLink("notes.txt", EmptyReference())
+        iomap = print_document(p, nothing, link, PrinterContext())
+        content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+        caret_at(k) = ConcreteReference(FieldReferenceStep("content"),
+                          ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
+        x, y = _label_caret_point(iomap, 22)
+        @test !isnothing(read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)))
+        _check_control_text(p, iomap, link, caret_at, content, !accepts_pasted_text(link, :content))
+    end
 end
