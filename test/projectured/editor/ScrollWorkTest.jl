@@ -224,7 +224,8 @@ function test_scroll_work()
     end
     @testset "a data frame at the move of the head of its table" begin
         # The SDL backend paints only the rows in view, as the application does; the
-        # headless backend reads every row of the drawing, so it links each row.
+        # headless backend reads 200 rows of the drawing from its head, more than the
+        # view shows.
         backend = SdlBackend()
         try
             editor = _sw_make_data_frame_editor(backend)

@@ -690,9 +690,13 @@ fields `windows`, `content`, `canvas`, `elements`, `children` and `items` of a
 part, and the elements of a vector. It reads a cell. It skips a part whose read
 throws a fault.
 
-A lazy list is a chain of links with the fields `value` and `next`. The paint
-reads the links that a computation made already, and at most 200 new links in one
-paint (`_FRESH_LINKS_PER_PAINT`).
+A lazy list is a chain of links with the fields `value` and `next`. As a real
+backend paints only the rows in its viewport, the paint reads a list from the link
+where it reaches it as far as 200 links along the computed links, the cells that
+make the next link (`_PAINTED_LINKS`). It follows no computed link past them, also
+one that an earlier paint or another computation made, so each paint reaches as far
+as the one before it, and a frame with no input makes no link. A link that holds a
+written value makes nothing, so the paint follows it past that place.
 
 A cell that a part shows computes in the frame, with the editor of the frame. So a
 background cell records its demand as it does with a real backend.
