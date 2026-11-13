@@ -12,7 +12,8 @@ revisions of the log, apart by spaces, such as `"9ccb5c8e59..origin/master"`.
 such as `":(exclude)*.rst"`.
 
 `commits` holds a [`GitCommit`](@ref) for each commit, with the header of the log,
-so a commit reads only its changes. A part that reads `commits` records a demand for
+so a commit reads only its changes. `text` is the text of its page, a
+[`GitLogText`](@ref). A part that reads `commits` records a demand for
 the read.
 The read of the field `listing` throws a [`GitException`](@ref) with the words of
 git when the read failed, and `reading` is `true` while git runs. A new read keeps
@@ -30,6 +31,7 @@ worktree for `HEAD`. A move of a ref, such as a commit or a `git fetch`, raises
     revisions::String
     paths::Any
     commits::Any
+    text::Any
     folders::Any
     read_count::Int
     reading::Bool
@@ -52,14 +54,15 @@ function GitCommitRange(repository::AbstractString, revisions::AbstractString;
     # A read of the commits records a demand for the read, and the commits stay what
     # the last read found while a new read runs or after a read failed.
     commits = Cell(@computation (_read_git_answer(listing); stored))
-    range = GitCommitRange(folder, names, Cell(pathspecs), commits, Cell(String[]), read_count, reading, listing)
+    text = _make_git_text(GitLogText, () -> _make_range_lines(names, pathspecs, listing, stored))
+    range = GitCommitRange(folder, names, Cell(pathspecs), commits, text, Cell(String[]), read_count, reading, listing)
     holder[] = range
     range
 end
 
 # A walk of the documents does not read the commits: the read runs git, and a range
 # can hold thousands of commits.
-is_field_walked(::GitCommitRange, name::Symbol) = !(name in (:commits, :listing))
+is_field_walked(::GitCommitRange, name::Symbol) = !(name in (:commits, :text, :listing))
 
 pred_arguments(range::GitCommitRange) =
     ((range.repository, range.revisions), isempty(range.paths) ? Pair{Symbol,Any}[] : Pair{Symbol,Any}[:paths => range.paths])

@@ -79,6 +79,14 @@ function test_git_views()
                 @test "line 3" in first.(_git_view_texts(backend))
             end
 
+            @testset "the page of a range lists its commits" begin
+                editor, backend = _git_view_editor(GitCommitRange(repository, "v1"))
+                texts() = first.(_git_view_texts(backend))
+                @test _git_view_run_frames_until(editor, () -> "v1 · 2 commits" in texts())
+                @test any(text -> startswith(text, "fd72243  second subject continues here  Ann Author"), texts())
+                @test any(text -> startswith(text, "73521a2  first") && endswith(text, "2026-01-02 03:04:05"), texts())
+            end
+
             @testset "a read that failed shows the words of git" begin
                 editor, backend = _git_view_editor(GitCommit(repository, "no-such-revision"))
                 @test _git_view_run_frames_until(editor,

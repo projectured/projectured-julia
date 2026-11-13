@@ -7,8 +7,8 @@
 The colors and the fonts of the texts of the git domain, one for each kind of line
 of a [`GitTextLine`](@ref): the subject, the facts and the message of a commit, the
 heading and the rows of the list of the changed files, the path of a changed file,
-the lines of a diff and of a file at a revision, and the notes. Also the gap
-between the parts of a page.
+the lines of a diff and of a file at a revision, the rows of the commits of a range,
+and the notes. Also the gap between the parts of a page.
 
 `@theme` declares it, so `ScaledGitTheme` holds each value times its scale, and
 `GitTheme()` is the default theme. A page takes its styles with `get_git_style`,
@@ -37,6 +37,8 @@ from a theme scaled or not.
     added_text::ThemeText = TextRole(:success_text; font_role = :code)
     "The line of a file at a revision that the open of the file names."
     marked_text::ThemeText = TextRole(:accent_text; font_role = :code, weight = 700)
+    "A row of the commits of a range: the short hash, the subject, the author and the date, in columns."
+    commit_text::ThemeText = TextRole(:text; font_role = :code)
     "A note, such as a diff that git still reads, and an empty line between two parts."
     note_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "The words of git for a read that failed."

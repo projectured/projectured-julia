@@ -332,7 +332,14 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    - `ApplyGitCommitRangeOperation` merges as `_merge_range_commits!`: the commits that stay at the
      start and at the end keep their documents, and the rest is one `ReplaceReferencedValueOperation`
      of the vector. It moves the watch to the new folders while `is_document_held`.
-   - Results: `test_git()` 141 pass (the range test 22, in an editor with a `FileChangeFeed`: a
+   - A range has a page too, which the plan did not name: the owner asked for a picture of a range,
+     and the natural renderer, with no page for the range, fell back to its generic printer and did
+     not end in 9 minutes. The owner approved a page in the form of the others on 2026-11-13, "but
+     the order of fields per row should follow gitk", then "the hash should be added", then "hash
+     before commit message but shortened". So `GitCommitRange` holds `text`, a `GitLogText`, whose
+     rows of the kind `:commit` hold the short hash, the subject, the author with the e-mail address
+     and the date of the author, in columns; `GitCommitRangeToWidget` shows it in a pane.
+   - Results: `test_git()` 147 pass with the page of a range (before it: 141, the range test 22, in an editor with a `FileChangeFeed`: a
      remote ref moves, the refs are packed and the ref moves again, a commit lands on the branch);
      `test_repository()` 619 and `test_package_graph()` 562 pass; the naming guard passes; the
      documentation report is the same as on main.
