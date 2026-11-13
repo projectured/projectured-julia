@@ -16,7 +16,7 @@ of the text domain.
 
 **Branch:** `innermost-click`, in the worktree
 `../projectured-julia-innermost-click`, after the pause of step 6 of
-[a-click-reaches-the-innermost-part-in-every-view.md](a-click-reaches-the-innermost-part-in-every-view.md).
+[a-click-reaches-the-innermost-part-in-every-view.md](../pending/a-click-reaches-the-innermost-part-in-every-view.md).
 
 ## 1. The request
 
