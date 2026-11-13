@@ -277,7 +277,8 @@ copy changes.
   in a cell apart from the cell that draws, and draws the text of a shortcut;
   it needs its own design of where the records live. The guides say that these
   take no caret. The owner (2026-11-13): "Skip the menu items and land the changes",
-  so the items of a menu and the names of a menu bar are not in this plan.
+  then "Menu items should not be done": the items of a menu and the names of a
+  menu bar take no caret and no range, also on an Alt+click.
 - [x] 7. **The guides (P8)** and a run of the click test over the catalog.
 
   The guides, done (2026-11-13): `widget.md` describes the shared helpers, the

@@ -1591,6 +1591,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   the list of step 4 lose the whole document in maps of their own.
 - [ ] 8. **The test in the suites (P6).** Each failure that is left is
   `@test_broken`, with its cause.
+
+  Two rules of the owner that the click test must take first (2026-11-13): on a
+  control the move names the control as a whole while the Alt+double click
+  selects the text in it (P7 of
+  [a-text-that-a-widget-draws-is-read-like-a-text.md](../done/a-text-that-a-widget-draws-is-read-like-a-text.md));
+  and the items of a menu and the names of a menu bar take no caret, also on an
+  Alt+click ("Menu items should not be done"), so an Alt+click there that gives
+  no caret is no failure. They are an exception to D10.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
