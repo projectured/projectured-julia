@@ -80,7 +80,7 @@ get_selected_sample(chart)                 # (1, 5), or nothing for a coarser se
 
 ### Links
 
-A line, scatter, strip or matrix series can hold `links`: one text or `nothing` for each sample, and for a matrix one row of them for each row, as its `values`. A link is the target of a Markdown link: an absolute address, such as `file:///home/me/report.pred` or `git+file:///home/me/inet#3fa2c1d`, or a path that the page resolves. `find_chart_sample_link(series, index)` reads it.
+A line, scatter, strip or matrix series can hold `links`: one text or `nothing` for each sample, and for a matrix one row of them for each row, as its `values`. A link is the target of a Markdown link: an absolute address, such as `file:///home/me/report.pred` or `git+file:///home/me/project#3fa2c1d`, or a path that the page resolves. `find_chart_sample_link(series, index)` reads it.
 
 A plain click selects a sample, as a press in the source view of a Markdown page places the caret, so the gestures are the ones of a link there: Ctrl and a click follow the link, and Ctrl+Shift and a click open it in a new tab. The chart answers the open of a Markdown link, `OpenPageOperation(nothing, EmptyReference(), place; target = link)`, and the nearest navigator, or the editor, resolves the target. A sample with no link selects on Ctrl and a click too. The readout names the link of the sample under the pointer.
 

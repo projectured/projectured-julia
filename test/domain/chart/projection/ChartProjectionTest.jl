@@ -977,7 +977,7 @@ function test_chart_projection()
         @testset "links" begin
             x = [1.0, 2.0, 3.0]
             y = [20.0, 30.0, 10.0]
-            links = Any["file:///tmp/one.pred", "git+file:///tmp/inet#3fa2c1d", nothing]
+            links = Any["file:///tmp/one.pred", "git+file:///tmp/project#3fa2c1d", nothing]
             chart = Chart("s", [ChartScatterSeries("p", x, y; links)])
             # A sample has the link of its place, and no link past the end or in a
             # series with none.
@@ -985,7 +985,7 @@ function test_chart_projection()
             @test find_chart_sample_link(chart.series[1], 3) === nothing
             @test find_chart_sample_link(chart.series[1], 4) === nothing
             @test find_chart_sample_link(ChartScatterSeries("p", x, y), 1) === nothing
-            @test find_chart_sample_link(ChartLineSeries("l", x, y; links), 2) == "git+file:///tmp/inet#3fa2c1d"
+            @test find_chart_sample_link(ChartLineSeries("l", x, y; links), 2) == "git+file:///tmp/project#3fa2c1d"
             @test find_chart_sample_link(ChartStripSeries("s", x, [1, 2, 1]; links), 1) == "file:///tmp/one.pred"
             # The links of a matrix are rows, as its values are; a cell counts down
             # the rows first.

@@ -811,7 +811,7 @@ The link of the `index`-th sample of a series, or `nothing` when it has none. Th
 `links` of a line, scatter or strip series hold one text or `nothing` for each
 sample; the `links` of a matrix series hold one row of them for each row, as its
 `values` do. A link is the target of a Markdown link: an absolute address such as
-`file:///home/me/report.pred` or `git+file:///home/me/inet#3fa2c1d`, or a path
+`file:///home/me/report.pred` or `git+file:///home/me/project#3fa2c1d`, or a path
 that the page resolves. Ctrl+click on the sample follows it, and Ctrl+Shift+click
 opens it in a new tab.
 
