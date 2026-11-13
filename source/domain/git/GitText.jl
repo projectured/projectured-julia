@@ -8,8 +8,7 @@
 One line of a git text: its `kind`, which a page draws in the style of that kind,
 its `text`, and the `label` of its gutter: the old and the new number of a line of
 a diff, or `""`. The kinds are `:subject`, `:fact`, `:message`, `:section`, `:file`,
-`:path`, `:hunk`, `:kept`, `:removed`, `:added`, `:marked`, `:commit`, `:note` and
-`:failure`.
+`:path`, `:hunk`, `:kept`, `:removed`, `:added`, `:marked`, `:note` and `:failure`.
 """
 struct GitTextLine
     kind::Symbol
@@ -37,18 +36,6 @@ header and the changed files of a commit, then the path and the hunks of each
 changed file. The gutter of each line of a diff holds its old and its new number.
 """
 @document struct GitDiffText <: GitText
-    lines::Any
-    text::Any
-end
-
-"""
-    GitLogText
-
-The text of the commits of a range: a heading with the revisions, the count and the
-paths, then a line for each commit: the short hash, then the columns of the list of
-gitk, the subject, the author and the date of the author.
-"""
-@document struct GitLogText <: GitText
     lines::Any
     text::Any
 end
@@ -203,40 +190,6 @@ _format_hunk_side(start::Int, count::Int) = count == 1 ? string(start) : string(
 _format_line_label(line::GitDiffLine, width::Int) =
     string(line.old_number === nothing ? " "^width : lpad(line.old_number, width), " ",
            line.new_number === nothing ? " "^width : lpad(line.new_number, width))
-
-# ── The lines of a range ────────────────────────────────────────────────────
-
-# The widest column of the subject and of the author; a longer one keeps its text
-# and moves the columns after it on its own row.
-const _LOG_SUBJECT_WIDTH = 72
-const _LOG_AUTHOR_WIDTH = 40
-
-# The lines of a range: the heading, then a row for each commit: the short hash, then
-# the columns of the list of gitk. The commits that a read found stay while a new read runs; with none,
-# a note while the read is to come, and the words of git for a read that failed.
-function _make_range_lines(revisions::String, paths::Vector{String}, listing_cell, commits::CellVector)
-    answer = _read_git_answer(listing_cell)
-    headers = [commit.header for commit in commits]
-    heading = join(filter(!isempty, [revisions, _format_commit_count(length(headers)), join(paths, " ")]), " · ")
-    lines = [GitTextLine(:section, heading)]
-    answer isa GitException && return push!(lines, GitTextLine(:failure, sprint(showerror, answer)))
-    isempty(headers) && answer === nothing && return push!(lines, GitTextLine(:note, "Reading the log…"))
-    subject_width = min(maximum(header -> length(header.subject), headers; init = 0), _LOG_SUBJECT_WIDTH)
-    authors = [string(header.author_name, " <", header.author_email, ">") for header in headers]
-    author_width = min(maximum(length, authors; init = 0), _LOG_AUTHOR_WIDTH)
-    for (header, author) in zip(headers, authors)
-        row = string(_format_short_hash(header.hash), "  ", rpad(header.subject, subject_width), "  ",
-                     rpad(author, author_width), "  ", _format_log_date(header.author_date))
-        push!(lines, GitTextLine(:commit, row))
-    end
-    lines
-end
-
-_format_commit_count(count::Int) = string(count, count == 1 ? " commit" : " commits")
-
-# The date of a commit as gitk writes it in its list: the day and the time of the
-# author, with no zone.
-_format_log_date(date::AbstractString) = replace(first(date, 19), 'T' => ' ')
 
 # ── The lines of a file at a revision ───────────────────────────────────────
 

@@ -79,12 +79,20 @@ function test_git_views()
                 @test "line 3" in first.(_git_view_texts(backend))
             end
 
-            @testset "the page of a range lists its commits" begin
+            @testset "the page of a range shows its commits in a table" begin
                 editor, backend = _git_view_editor(GitCommitRange(repository, "v1"))
                 texts() = first.(_git_view_texts(backend))
                 @test _git_view_run_frames_until(editor, () -> "v1 · 2 commits" in texts())
-                @test any(text -> startswith(text, "fd72243  second subject continues here  Ann Author"), texts())
-                @test any(text -> startswith(text, "73521a2  first") && endswith(text, "2026-01-02 03:04:05"), texts())
+                @test _git_view_run_frames_until(editor, () -> "fd72243" in texts())
+                @test all(text -> text in texts(), ("hash", "subject", "author", "date"))
+                @test all(text -> text in texts(), ("second subject continues here", "first",
+                                                    "Ann Author <ann@example.org>", "2026-01-02 03:04:05", "73521a2"))
+                # The cells of a row stand on one row of the table, from left to right.
+                drawn = _git_view_texts(backend)
+                place(text) = only((entry[2], entry[3]) for entry in drawn if first(entry) == text)
+                (hash_x, hash_y) = place("fd72243")
+                (subject_x, subject_y) = place("second subject continues here")
+                @test abs(subject_y - hash_y) <= 4 && hash_x < subject_x
             end
 
             @testset "a read that failed shows the words of git" begin

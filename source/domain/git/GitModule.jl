@@ -19,12 +19,13 @@ import ..WidgetModule: make_graphics_projection
 import ..OperationModule: evaluate_operation
 import ..DomainModule: acquire_document!, release_document!
 import ..FileChangeModule: receive_folder_change!
+import ..RosterModule: get_item_facets, compute_item_facet
 
 export GitCommitHeader, GitFileSummary, GitDiffFile, GitDiffHunk, GitDiffLine
 export parse_git_log_text, parse_git_commit_text, parse_git_diff_text
 export GitException
 export GitDocument, GitCommit, GitFileChange, GitFileRevision
-export GitText, GitTextLine, GitDiffText, GitFileText, GitLogText
+export GitText, GitTextLine, GitDiffText, GitFileText
 export GitCommitRange, ApplyGitCommitRangeOperation
 export GitTheme, ScaledGitTheme, GitTextToText, GitCommitToWidget, GitFileChangeToWidget, GitFileRevisionToWidget,
        GitCommitRangeToWidget

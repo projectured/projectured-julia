@@ -34,7 +34,7 @@ A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, and a file 
 - The apply, `ApplyGitCommitRangeOperation`, merges the answer by hash: a commit that stays keeps its document, and the commits that come and go between the commits that stay at the start and at the end are one splice of `commits`. It stores the folders.
 - A holder of the range watches the folders with `watch_folder!`, and the first read of a held range starts the watch. A change of a folder, such as a commit, a `git fetch` or `git pack-refs`, raises `read_count`, so the range reads again. The release stops the watch and keeps the commits.
 
-Its page shows `text`, a `GitLogText`: a heading with the revisions, the count of the commits and the paths, then a row for each commit with the short hash, then the columns of the list of gitk: the subject, the author with the e-mail address, and the date of the author as `YYYY-MM-DD HH:MM:SS`. The columns align in the font of code: the subject column is as wide as the longest subject, up to 72 characters, and a longer subject moves only its own row. The commits that a read found stay on the page while a new read runs.
+Its page is a line with the revisions, the count of the commits, the paths and the state of the read, and under it the table of the commits: `table`, the arrangement of a roster whose source is the collection `commits` of the range ([roster.md](../../platform/roster/roster.md)). The columns are facets of `GitCommit`: `hash`, the short hash, then the columns of the list of gitk, `subject`, `author` with the e-mail address, and `date`, the date of the author as `YYYY-MM-DD HH:MM:SS`. The table builds only the rows that it shows, a person filters and sorts it in its bar, and the hash of a row is a link that opens the commit as a page in the navigator, or in a new tab with Ctrl. The commits that a read found stay in the table while a new read runs.
 
 The paths go to git after `--` as they are, so `":(exclude)*.rst"` works as in a terminal. A view that needs two lists, such as every commit of a range and the commits that touch some paths, holds two ranges and compares the hashes.
 
@@ -47,7 +47,6 @@ Each document holds the text of its page: `diff`, a `GitDiffText`, for a commit 
 | of a commit | the subject, the facts and the parents, the rest of the message, the list of the changed files, then the path and the diff of each file, as `git show` writes it |
 | of a change | the path, a line with the kind, the counts and the two revisions, then the diff |
 | of a file at a revision | the lines of the file; the line that the file names has the kind `:marked` |
-| of a range | the heading, then a row of the kind `:commit` for each commit |
 
 The text of a commit holds the diff of each changed file, so its first draw reads them all: one task of each frame reads the patches that the frame demanded.
 

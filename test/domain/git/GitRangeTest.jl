@@ -28,18 +28,15 @@ function test_git_range()
                 @test read_hashes(GitCommitRange(repository, "main"; paths = ["b.txt"])) == [second_hash]
                 @test read_hashes(GitCommitRange(repository, "main"; paths = [":(exclude)*.txt"])) ==
                       [second_hash, root_hash]
-                # The text of its page: the short hash, then the columns of gitk.
-                row(hash, subject, date) = string(first(hash, 7), "  ", rpad(subject, 29), "  Ann Author <ann@example.org>  ", date)
-                @test [line.text for line in range.text.lines] ==
-                      ["main · 4 commits",
-                       row(merge_hash, "merge side", "2026-01-05 06:07:08"),
-                       row(side_hash, "side change", "2026-01-04 05:06:07"),
-                       row(second_hash, "second subject continues here", "2026-01-03 04:05:06"),
-                       row(root_hash, "first", "2026-01-02 03:04:05")]
-                @test all(line -> line.kind === :commit, range.text.lines[2:end])
-                paths_range = GitCommitRange(repository, "main"; paths = ["b.txt"])
-                read_hashes(paths_range)
-                @test first(paths_range.text.lines).text == "main · 1 commit · b.txt"
+                # The table of its page: the short hash, then the columns of gitk.
+                rows = range.table.document.rows
+                @test [[row.values[k] for k in 1:4] for row in rows] ==
+                      [[first(merge_hash, 7), "merge side", "Ann Author <ann@example.org>", "2026-01-05 06:07:08"],
+                       [first(side_hash, 7), "side change", "Ann Author <ann@example.org>", "2026-01-04 05:06:07"],
+                       [first(second_hash, 7), "second subject continues here", "Ann Author <ann@example.org>",
+                        "2026-01-03 04:05:06"],
+                       [first(root_hash, 7), "first", "Ann Author <ann@example.org>", "2026-01-02 03:04:05"]]
+                @test [row.item for row in rows] == collect(range.commits)
                 @test joinpath(repository, ".git") in range.folders
                 @test joinpath(repository, ".git", "refs", "heads") in range.folders
                 text = print_pred_text(GitCommitRange(repository, "main"; paths = ["b.txt"]))

@@ -5,7 +5,7 @@
 #
 #     a commit or a change   diff.<rest>      children[1].content.<rest>   the text, in the pane
 #     a file at a revision   content.<rest>   children[2].content.<rest>   the text, in the pane
-#     a range of commits     text.<rest>      children[1].content.<rest>   the text, in the pane
+#     a range of commits     table.<rest>     children[2].<rest>           the table, below its line
 
 # The styles of the kinds of the lines of a git text, from a `GitTheme` scaled or not.
 _make_git_text_styles(theme) =
@@ -14,8 +14,7 @@ _make_git_text_styles(theme) =
      file = get_git_style(theme, :file_text), path = get_git_style(theme, :path_text),
      hunk = get_git_style(theme, :hunk_text), kept = get_git_style(theme, :kept_text),
      removed = get_git_style(theme, :removed_text), added = get_git_style(theme, :added_text),
-     marked = get_git_style(theme, :marked_text), commit = get_git_style(theme, :commit_text),
-     note = get_git_style(theme, :note_text),
+     marked = get_git_style(theme, :marked_text), note = get_git_style(theme, :note_text),
      failure = get_git_style(theme, :failure_text))
 
 # ── The text ────────────────────────────────────────────────────────────────
@@ -83,11 +82,9 @@ end
 
 _make_git_text_caret(::GitDiffText, s::Int) = @reference ::GitDiffText.text::String{s}::Position
 _make_git_text_caret(::GitFileText, s::Int) = @reference ::GitFileText.text::String{s}::Position
-_make_git_text_caret(::GitLogText, s::Int) = @reference ::GitLogText.text::String{s}::Position
 
 _get_git_text_type(::GitDiffText) = GitDiffText
 _get_git_text_type(::GitFileText) = GitFileText
-_get_git_text_type(::GitLogText) = GitLogText
 
 map_reference_forward(::GitTextToText, ::SimpleIoMap, reference) = _forward_git_text(reference)
 
@@ -140,26 +137,14 @@ below the title. The text numbers its lines and marks the line that the file nam
     gap::Int = get_git_style(nothing, :gap)
 end
 
-"""
-    GitCommitRangeToWidget()
-
-Draw a [`GitCommitRange`](@ref) as a page: its text, a [`GitLogText`](@ref), in a
-pane that scrolls. The text holds the revisions, the count of the commits and the
-paths, then a row for each commit: the short hash, then the columns of the list of
-gitk, the subject, the author and the date.
-"""
-struct GitCommitRangeToWidget <: Projection end
-
-const _GitPageToWidget =
-    Union{GitCommitToWidget, GitFileChangeToWidget, GitFileRevisionToWidget, GitCommitRangeToWidget}
+const _GitPageToWidget = Union{GitCommitToWidget, GitFileChangeToWidget, GitFileRevisionToWidget}
 
 # The field of the document that holds the text of a page, and the steps of the
 # place of the pane that shows it, below the root of the page.
 _get_page_text_step(::Union{GitCommitToWidget, GitFileChangeToWidget}) = FieldReferenceStep("diff")
 _get_page_text_step(::GitFileRevisionToWidget) = FieldReferenceStep("content")
-_get_page_text_step(::GitCommitRangeToWidget) = FieldReferenceStep("text")
 
-_get_page_pane_steps(::Union{GitCommitToWidget, GitFileChangeToWidget, GitCommitRangeToWidget}) =
+_get_page_pane_steps(::Union{GitCommitToWidget, GitFileChangeToWidget}) =
     (FieldReferenceStep("children"), RangeReferenceStep(0, 1), FieldReferenceStep("content"))
 _get_page_pane_steps(::GitFileRevisionToWidget) =
     (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("content"))
@@ -168,9 +153,6 @@ print_document(p::GitCommitToWidget, recursion, commit::GitCommit, ctx) = _print
 
 print_document(p::GitFileChangeToWidget, recursion, change::GitFileChange, ctx) =
     _print_git_page(p, change, Any[], 0)
-
-print_document(p::GitCommitRangeToWidget, recursion, range::GitCommitRange, ctx) =
-    _print_git_page(p, range, Any[], 0)
 
 function print_document(p::GitFileRevisionToWidget, recursion, file::GitFileRevision, ctx)
     title = LayoutConstraint(WidgetLabel(string(file.path, " at ", file.revision); text_style = unwrap_cell(p.title));
@@ -220,6 +202,82 @@ function map_reference_backward(p::_GitPageToWidget, iomap::SimpleIoMap, referen
     rest === nothing ? nothing : ConcreteReference(_get_page_text_step(p), rest)
 end
 
+# ── The page of a range ─────────────────────────────────────────────────────
+
+"""
+    GitCommitRangeToWidget(; gap)
+
+Draw a [`GitCommitRange`](@ref) as a page: a line with its revisions, the count of
+its commits and its paths, and the state of its read, and under it the table of its
+commits, which fills the rest of the height. A row shows the short hash of a commit,
+then the columns of the list of gitk: the subject, the author and the date. A person
+filters and sorts the table in its bar, and the hash of a row opens the commit.
+"""
+@projection UntrackedCell struct GitCommitRangeToWidget <: Projection
+    gap::Int = get_widget_style(nothing, :section_gap)
+end
+
+const _RANGE_LINE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
+const _RANGE_TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
+const _RANGE_TABLE_STEP = FieldReferenceStep("table")
+
+# The line above the table: the revisions, the count of the commits, the paths, and
+# a read that is still to come or failed.
+function _format_range_line(range::GitCommitRange)
+    answer = _read_git_answer(getfield(range, :listing))
+    count = length(range.commits)
+    parts = String[range.revisions, string(count, count == 1 ? " commit" : " commits")]
+    isempty(range.paths) || push!(parts, join(range.paths, " "))
+    answer isa GitException && push!(parts, sprint(showerror, answer))
+    answer === nothing && count == 0 && push!(parts, "reading")
+    join(parts, " · ")
+end
+
+function print_document(p::GitCommitRangeToWidget, recursion, range::GitCommitRange, ctx)
+    line = WidgetLabel("")
+    set_cell_computation!(line, () -> _format_range_line(range))
+    output = GridLayout(Any[line, getfield(range, :table)[]], 1; vertical_gap = p.gap, column_policy = Fill,
+                        row_policies = Any[Content, Fill])
+    iomap = SimpleIoMap(p, range, output)
+    # The grid passes a key by its own selection, so it carries the path of the range
+    # below it. The table is a document of the range, which holds its own.
+    set_output_path_computations!(output, range, path -> map_reference_forward(p, iomap, path); dormant = false)
+    iomap
+end
+
+# `table.<rest>` ↔ the table in the grid.
+function map_reference_forward(::GitCommitRangeToWidget, iomap::SimpleIoMap, reference)
+    output = iomap.output
+    reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    rest = _find_git_path_below(reference, (_RANGE_TABLE_STEP,))
+    rest === nothing && return nothing
+    is_fully_typed_reference(rest) ||
+        (rest = annotate_reference_types(getfield(iomap.input, :table)[], strip_reference_types(rest)))
+    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _RANGE_TABLE_PLACE_STEPS...)),
+                      rest)
+end
+
+# A path into the line names nothing, so a press on it leaves the selection where
+# it is; a path into the grid itself names the whole range.
+function map_reference_backward(::GitCommitRangeToWidget, iomap::SimpleIoMap, reference)
+    _find_git_path_below(reference, _RANGE_LINE_STEPS) === nothing || return nothing
+    rest = _find_git_path_below(reference, _RANGE_TABLE_PLACE_STEPS)
+    rest === nothing ? EmptyReference() : ConcreteReference(_RANGE_TABLE_STEP, rest)
+end
+
+# The generic bridge maps the answer of the grid back. The page keeps the
+# arrangement of the table when its last entry goes, so the next filter or sort has
+# an arrangement to go to, and it opens the commit of a row at its place in the
+# range, `commits[j]`.
+function read_intent(p::GitCommitRangeToWidget, recursion, change::Intent, iomap::SimpleIoMap)
+    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    answer isa Intent || return answer
+    range = iomap.input
+    operation = keep_held_arrangement(answer.operation, getfield(range, :table)[], _RANGE_TABLE_STEP)
+    operation = retarget_held_row_open(operation, range, _RANGE_TABLE_STEP)
+    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+end
+
 # ── The titles and the projections ──────────────────────────────────────────
 
 # The title of the tab of a commit: its short hash and its subject, or its revision
@@ -246,7 +304,9 @@ make_graphics_projection(::Type{<:GitFileChange}; measure, appearance) =
     ChainingProjection(GitFileChangeToWidget(), VerticalLayoutToGraphicsCanvas())
 
 make_graphics_projection(::Type{<:GitCommitRange}; measure, appearance) =
-    ChainingProjection(GitCommitRangeToWidget(), VerticalLayoutToGraphicsCanvas())
+    ChainingProjection(
+        GitCommitRangeToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
+        GridLayoutToGraphicsCanvas())
 
 function make_graphics_projection(::Type{<:GitFileRevision}; measure, appearance)
     theme = get_scaled_theme!(appearance, GitTheme)
@@ -258,16 +318,12 @@ end
 # A text draws as the code of a file does: its lines and their gutters in a
 # `ScrollLayout`, which the pane of the page takes apart, so the gutter stays at the
 # left edge while the lines scroll. A text of a file numbers its lines with
-# `TextLineNumbering`; a text of a diff has the labels of its lines, and a text of a
-# range has none.
+# `TextLineNumbering`; a text of a diff has the labels of its lines.
 make_graphics_projection(::Type{<:GitDiffText}; measure, appearance) =
     _make_git_text_projection(GitDiffText, measure, appearance)
 
 make_graphics_projection(::Type{<:GitFileText}; measure, appearance) =
     _make_git_text_projection(GitFileText, measure, appearance)
-
-make_graphics_projection(::Type{<:GitLogText}; measure, appearance) =
-    _make_git_text_projection(GitLogText, measure, appearance)
 
 function _make_git_text_projection(type::Type, measure, appearance)
     text_theme = get_scaled_theme!(appearance, TextTheme)

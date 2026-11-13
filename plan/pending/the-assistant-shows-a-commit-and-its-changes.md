@@ -336,10 +336,15 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      and the natural renderer, with no page for the range, fell back to its generic printer and did
      not end in 9 minutes. The owner approved a page in the form of the others on 2026-11-13, "but
      the order of fields per row should follow gitk", then "the hash should be added", then "hash
-     before commit message but shortened". So `GitCommitRange` holds `text`, a `GitLogText`, whose
-     rows of the kind `:commit` hold the short hash, the subject, the author with the e-mail address
-     and the date of the author, in columns; `GitCommitRangeToWidget` shows it in a pane.
-   - Results: `test_git()` 147 pass with the page of a range (before it: 141, the range test 22, in an editor with a `FileChangeFeed`: a
+     before commit message but shortened". A first version made the rows a git text with columns in
+     spaces; the owner asked "why is it not a table widget or a grid layout?", and approved a roster.
+     So `GitCommitRange` holds `table`, the arrangement of a roster whose source is
+     `CollectionItems` of its `commits`, in the form of the background work log. The columns are the
+     facets `hash` (short), `subject`, `author` (with the e-mail address) and `date` of `GitCommit`.
+     `GitCommitRangeToWidget` draws a line and the table, and its reader keeps the arrangement and
+     opens a row at its place (`keep_held_arrangement`, `retarget_held_row_open`). The table builds
+     only its shown rows, filters and sorts in its bar, and the hash of a row opens the commit.
+   - Results: `test_git()` 148 pass with the table of a range (before it: 141, the range test 22, in an editor with a `FileChangeFeed`: a
      remote ref moves, the refs are packed and the ref moves again, a commit lands on the branch);
      `test_repository()` 619 and `test_package_graph()` 562 pass; the naming guard passes; the
      documentation report is the same as on main.

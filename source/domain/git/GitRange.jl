@@ -12,8 +12,10 @@ revisions of the log, apart by spaces, such as `"9ccb5c8e59..origin/master"`.
 such as `":(exclude)*.rst"`.
 
 `commits` holds a [`GitCommit`](@ref) for each commit, with the header of the log,
-so a commit reads only its changes. `text` is the text of its page, a
-[`GitLogText`](@ref). A part that reads `commits` records a demand for
+so a commit reads only its changes. `table` is the arrangement of a roster of the
+commits, which the page draws and a person filters and sorts: its columns are the
+short hash, then the columns of the list of gitk, the subject, the author and the
+date (the facets of a `GitCommit`). A part that reads `commits` records a demand for
 the read.
 The read of the field `listing` throws a [`GitException`](@ref) with the words of
 git when the read failed, and `reading` is `true` while git runs. A new read keeps
@@ -31,7 +33,7 @@ worktree for `HEAD`. A move of a ref, such as a commit or a `git fetch`, raises
     revisions::String
     paths::Any
     commits::Any
-    text::Any
+    table::Any
     folders::Any
     read_count::Int
     reading::Bool
@@ -54,15 +56,45 @@ function GitCommitRange(repository::AbstractString, revisions::AbstractString;
     # A read of the commits records a demand for the read, and the commits stay what
     # the last read found while a new read runs or after a read failed.
     commits = Cell(@computation (_read_git_answer(listing); stored))
-    text = _make_git_text(GitLogText, () -> _make_range_lines(names, pathspecs, listing, stored))
-    range = GitCommitRange(folder, names, Cell(pathspecs), commits, text, Cell(String[]), read_count, reading, listing)
+    range = GitCommitRange(folder, names, Cell(pathspecs), commits, Cell(nothing), Cell(String[]), read_count, reading,
+                           listing)
     holder[] = range
+    roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("commits")));
+                    columns = _RANGE_COLUMNS, title = names)
+    link_roster!(roster, range)
+    range.table = ArrangementDocument(roster, ArrangementEntry[])
     range
 end
 
+# The columns of the table of a range: the short hash, then the columns of the list
+# of gitk.
+const _RANGE_COLUMNS = ["hash", "subject", "author", "date"]
+
+# The facets of a commit, which the columns of a range show and a person filters
+# and sorts by. A commit whose header is still to come has empty facets.
+get_item_facets(::Type{GitCommit}) = [
+    "hash" => "the first 7 characters of the hash of the commit",
+    "subject" => "the first line of the message of the commit",
+    "author" => "the name and the e-mail address of the author",
+    "date" => "the date of the author, as YYYY-MM-DD HH:MM:SS in the zone of the author"]
+compute_item_facet(commit::GitCommit, ::Val{:hash}) = _get_commit_facet(header -> _format_short_hash(header.hash), commit)
+compute_item_facet(commit::GitCommit, ::Val{:subject}) = _get_commit_facet(header -> header.subject, commit)
+compute_item_facet(commit::GitCommit, ::Val{:author}) =
+    _get_commit_facet(header -> string(header.author_name, " <", header.author_email, ">"), commit)
+compute_item_facet(commit::GitCommit, ::Val{:date}) = _get_commit_facet(header -> _format_log_date(header.author_date), commit)
+
+function _get_commit_facet(read_facet::Function, commit::GitCommit)
+    header = _read_git_answer(getfield(commit, :header))
+    header isa GitCommitHeader ? read_facet(header) : ""
+end
+
+# The date of a commit as gitk writes it in its list: the day and the time of the
+# author, with no zone.
+_format_log_date(date::AbstractString) = replace(first(date, 19), 'T' => ' ')
+
 # A walk of the documents does not read the commits: the read runs git, and a range
 # can hold thousands of commits.
-is_field_walked(::GitCommitRange, name::Symbol) = !(name in (:commits, :text, :listing))
+is_field_walked(::GitCommitRange, name::Symbol) = !(name in (:commits, :table, :listing))
 
 pred_arguments(range::GitCommitRange) =
     ((range.repository, range.revisions), isempty(range.paths) ? Pair{Symbol,Any}[] : Pair{Symbol,Any}[:paths => range.paths])
