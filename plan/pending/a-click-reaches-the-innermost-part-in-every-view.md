@@ -295,6 +295,32 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   owner answered the question of the quote cause of step 6: "Not important for
   now, should be done eventually, but defer this". The change that names the
   character under the pointer goes to §7.
+- **D9 (owner, 2026-11-13). The most useful click stays, and a fallback gives
+  the caret.** The owner answered the question of a text that a view computes
+  to label a part, such as the tick of an axis: "if there's already some
+  behavior assigned to a click which does something useful, we should not
+  replace that with putting the caret", and then: "if some other behavior is
+  more useful for that part, we should use that and we can still have a
+  fallback operation which always puts a caret there. The selecting the whole
+  part is the same". So:
+  - a part keeps the plain click that is most useful for it: an action, a link,
+    the choice of the part, such as an axis or a field of a pivot; the caret on
+    its text is the plain click only where nothing more useful exists;
+  - a fallback gesture always puts the caret at the character under the
+    pointer, on any text, so that the text can be copied;
+  - the Alt+click selects the part as a whole only where it has no more
+    important use there, and another gesture selects the part where it has;
+  - a container gets no rule before its parts: "the user can always click at a
+    place which talks to the container because usually not everything is
+    covered by parts". The rule that the assistant proposed, the action of a
+    container before a caret inside it, is rejected.
+  The gestures of the two fallbacks are open (Q6).
+- **Q6. The gestures of the fallbacks of D9** (asked 2026-11-13). The clicks in
+  use: a plain click, Shift+click (extends a range of text, adds a column to the
+  sort of a table), Ctrl+click (opens a link or a row in a new tab), Alt+click
+  (the part as a whole), a double and a triple click (a word and a line of
+  text), a right click (the menu). Free: Ctrl+Alt+click, Alt+Shift+click,
+  Ctrl+Shift+click. The first question is the caret; the whole part follows.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
