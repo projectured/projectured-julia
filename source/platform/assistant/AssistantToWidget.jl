@@ -432,7 +432,7 @@ end
 
 The button that puts a picture into the draft of `assistant`, with
 `AddDraftPictureOperation`: a picture of the part that the person selected with
-Alt+click, or else of the window. It shows the camera icon and no word; its
+Alt+double click, or else of the window. It shows the camera icon and no word; its
 tooltip says what it does.
 """
 make_assistant_picture_button(a::Assistant) =

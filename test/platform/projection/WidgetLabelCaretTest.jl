@@ -37,8 +37,10 @@ function test_widget_label_caret()
         x, y = _label_caret_point(iomap, 32)
         answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
-        whole = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0))
-        @test whole isa ReplaceSelectionOperation && strip_reference_types(whole.path) == caret
+        for count in (1, 2)
+            alt_answer = read_intent(p, iomap, MouseClick(:left, x, y, count, ModifierKeys(alt = true); time = 0.0))
+            @test alt_answer isa ReplaceSelectionOperation && strip_reference_types(alt_answer.path) == caret
+        end
         @test read_intent(p, iomap, MouseClick(:right, x, y, ModifierKeys(); time = 0.0)) === nothing
         # A double click is left to the widget around the label.
         @test read_intent(p, iomap, MouseClick(:left, x, y, 2, ModifierKeys(); time = 0.0)) === nothing
@@ -88,8 +90,10 @@ function test_widget_label_caret()
         x, y = _label_caret_point(iomap, 32)
         answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
-        whole = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0))
-        @test whole isa ReplaceSelectionOperation && strip_reference_types(whole.path) == caret
+        for count in (1, 2)
+            alt_answer = read_intent(p, iomap, MouseClick(:left, x, y, count, ModifierKeys(alt = true); time = 0.0))
+            @test alt_answer isa ReplaceSelectionOperation && strip_reference_types(alt_answer.path) == caret
+        end
         @test read_intent(p, iomap, MouseClick(:left, x, y, 2, ModifierKeys(); time = 0.0)) === nothing
         moved = read_intent(p, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0))
         @test moved isa ReplaceMouseTargetOperation && strip_reference_types(moved.path) == caret
@@ -147,10 +151,15 @@ function test_widget_label_caret()
         iomap = print_document(p, nothing, label, PrinterContext())
         x, y = _label_caret_point(iomap, 12)
         @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) === chosen
-        # The chip is a control: a move and an Alt+click name it as a whole, so its
-        # text gives them no caret.
+        # The chip is a control: a move names it as a whole, so its text gives no caret.
+        # An Alt+click and an Alt+double click read no binding and answer the caret.
         @test read_intent(p, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
-        @test read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0)) === nothing
+        caret = ConcreteReference(FieldReferenceStep("content"),
+                    ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
+        for count in (1, 2)
+            alt_answer = read_intent(p, iomap, MouseClick(:left, x, y, count, ModifierKeys(alt = true); time = 0.0))
+            @test alt_answer isa ReplaceSelectionOperation && strip_reference_types(alt_answer.path) == caret
+        end
         @test map_reference_backward(p, iomap, PointReferenceStep(x, y)) === nothing
     end
 end

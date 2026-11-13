@@ -39,8 +39,8 @@ function get_application_greeting_text(backend::Symbol)
         focus, and `F5` reads it again from disk. `F1` lists the keys that work where the \
         focus is, and `Ctrl+Shift+P` runs a command by its name.
 
-        `Alt+click` anything in a tab to select it, and `Alt` with an arrow to move \
-        the selection. `Ctrl+C` copies what is selected, `Ctrl+X` cuts it, `Ctrl+N` \
+        `Alt+double click` anything in a tab to select it, `Alt+click` to put the caret into any text, \
+        and `Alt` with an arrow to move the selection. `Ctrl+C` copies what is selected, `Ctrl+X` cuts it, `Ctrl+N` \
         notes it, and `Ctrl+V` pastes it into a new tab from `Ctrl+T`.
 
         Ask me to read or change an open file, to explain its structure, or to \

@@ -10,7 +10,7 @@
 # `.value{s:e}` of the primitive is the flat range `{s:e}` of the block, in the same
 # direction. The block has one line, which holds the one run of the value, so a flat
 # offset is a character offset of the value; a caret is the empty range, and the
-# value as a whole, the innermost part that an Alt+click on it selects, is the range
+# value as a whole, the innermost part that an Alt+double click on it selects, is the range
 # of all of `text()`.
 function _forward_value(reference, text::Function)
     @reference_case reference begin

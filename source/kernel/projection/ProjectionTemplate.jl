@@ -894,7 +894,7 @@ function _map_backward(w::AtomicWiring, iomap, reference; projection)
             rest = core.tail
             # A place in the value of the leaf is the same place in the bound field,
             # and the value as a whole is the value of the bound field, the innermost
-            # part that an Alt+click on it selects.
+            # part that an Alt+double click on it selects.
             if (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || rest isa EmptyReference
                 return _prepend(rest, TypeReferenceStep(w.intype),
                                 FieldReferenceStep(String(w.bound_field)),

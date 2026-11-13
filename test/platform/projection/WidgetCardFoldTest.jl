@@ -255,7 +255,7 @@ function test_widget_card_fold()
 
     # A card is a solid surface, so a plain left click on it that nothing inside it
     # uses ends at the card. A right click and an Alt+click go on, to the menus of
-    # the parts around the card and to a whole selection.
+    # the parts around the card and to a caret.
     @testset "a card takes a plain left click on its own area" begin
         proj = _fold_proj()
         iomap = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain), PrinterContext())
@@ -298,25 +298,25 @@ function test_widget_card_fold()
         @test _find_text_font(iomap.output, "the body") != title_font
 
         # The chevron folds the card, as it does for a document title.
-        press(x, y; modifiers = ModifierKeys(), button = :left) =
-            read_intent(proj, iomap, MouseClick(button, x, y, modifiers; time = 0.0))
+        press(x, y; modifiers = ModifierKeys(), button = :left, count = 1) =
+            read_intent(proj, iomap, MouseClick(button, x, y, count, modifiers; time = 0.0))
         title_x = iomap.header.title_box[1]
         on_chevron = press(_fold_pad + 8, _fold_pad + 8)
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
         @test !(press(title_x + 2, _fold_pad + 8) isa ToggleCollapseOperation)
         @test iomap.header.height > 0
 
-        # An Alt+press on the title selects its field, a plain press puts the caret
+        # An Alt+double click on the title selects its field, a plain press puts the caret
         # in it, and a right press selects neither.
         title = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
-        selected = press(title_x + 2, _fold_pad + 8; modifiers = ModifierKeys(alt = true))
+        selected = press(title_x + 2, _fold_pad + 8; modifiers = ModifierKeys(alt = true), count = 2)
         @test selected isa ReplaceSelectionOperation && strip_reference_types(selected.path) == title
         @test strip_reference_types(press(title_x + 2, _fold_pad + 8).path) ==
               ConcreteReference(FieldReferenceStep("title"), ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
         @test !(press(title_x + 2, _fold_pad + 8; button = :right,
-                      modifiers = ModifierKeys(alt = true)) isa ReplaceSelectionOperation &&
+                      modifiers = ModifierKeys(alt = true), count = 2) isa ReplaceSelectionOperation &&
                 strip_reference_types(press(title_x + 2, _fold_pad + 8; button = :right,
-                                            modifiers = ModifierKeys(alt = true)).path) == title)
+                                            modifiers = ModifierKeys(alt = true), count = 2).path) == title)
 
         # The selected title draws the band of a selected part over its box, and no band before.
         band = printer.row_selected_color
@@ -354,7 +354,7 @@ function test_widget_card_fold()
         @test length(mark()) == 1 && Int(only(mark()).x) == x0 + 30
     end
 
-    @testset "a PrimitiveString title draws in the title style, and its Alt+press selects it" begin
+    @testset "a PrimitiveString title draws in the title style, and its Alt+double click selects it" begin
         title_font = _title_printer().title_text.font
         proj = _title_proj()
         text = PrimitiveString("Details")
@@ -368,9 +368,9 @@ function test_widget_card_fold()
         folds = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0))
         @test folds isa ToggleCollapseOperation
         @test iomap.header.height == Int(iomap.child_iomaps[1][3].output.h)
-        # Its own printer reads a press with Alt: the answer names the innermost
+        # Its own printer reads a double click with Alt: the answer names the innermost
         # part, the `String` that the title holds.
-        selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8,
+        selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8, 2,
                                                        ModifierKeys(alt = true); time = 0.0))
         @test selected isa ReplaceSelectionOperation
         @test evaluate_reference(card, selected.path) === text.value
@@ -384,25 +384,25 @@ function test_widget_card_fold()
         @test _find_text_font(print_document(proj, proj, card, PrinterContext()).output, "Details") == alone
     end
 
-    @testset "an Alt+press on a PrimitiveString title inside a container selects the string" begin
+    @testset "an Alt+double click on a PrimitiveString title inside a container selects the string" begin
         proj = _title_proj()
         text = PrimitiveString("Details")
         card = WidgetCard(; title = text, content = "x")
         composite = WidgetComposite(Any[card])
         iomap = print_document(proj, proj, composite, PrinterContext())
-        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8,
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
                                                      ModifierKeys(alt = true); time = 0.0))
         @test answer isa ReplaceSelectionOperation
         @test evaluate_reference(composite, answer.path) === text.value
     end
 
-    @testset "an Alt+press on a String title inside a container selects the title of the card" begin
+    @testset "an Alt+double click on a String title inside a container selects the title of the card" begin
         printer = _title_printer()
         proj = _title_proj()
         card = WidgetCard(; title = "Details", content = "x")
         composite = WidgetComposite(Any[card])
         iomap = print_document(proj, proj, composite, PrinterContext())
-        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8,
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
                                                      ModifierKeys(alt = true); time = 0.0))
         @test answer isa ReplaceSelectionOperation
         @test strip_reference_types(answer.path) ==

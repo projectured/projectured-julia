@@ -195,7 +195,7 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplacePathOpe
 end
 
 # Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
-# node. An Alt+click selects the innermost whole part under the pointer
+# node. An Alt+double click selects the innermost whole part under the pointer
 # (`convert_to_whole_selection`): the field of the leaf that the caret of the
 # click is in, its value or one of its delimiters, and the leaf when the click
 # names no caret.
@@ -219,7 +219,7 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     Intent(gesture, answer)
 end
 
-# The answer of an Alt+click in `document`, a leaf or a compound of the syntax, with
+# The answer of an Alt+double click in `document`, a leaf or a compound of the syntax, with
 # a delimiter of only whitespace, such as the space around an operator, replaced by
 # the leaf or the compound that holds it: such a delimiter draws nothing, so its
 # band would show nothing. A value of only whitespace is data, and it stays.
@@ -1293,7 +1293,7 @@ end
 #      is a fold gesture → toggle that specific node. `_resolve_click` finds it: it
 #      classifies the click's element into a zone and delegates a child-zone click
 #      to that child's own click resolution, never re-walking the input subtree.
-#   2. An Alt+click selects the innermost whole part under the pointer
+#   2. An Alt+double click selects the innermost whole part under the pointer
 #      (`convert_to_whole_selection`) — the mouse half of tree navigation: the
 #      field that the caret of the click is in, such as the value of a leaf or a
 #      delimiter of a node, and this node when the click names no caret.
@@ -1344,7 +1344,7 @@ end
 #     `ToggleCollapseOperation` (object target) propagates up unchanged, a returned
 #     tree `ReplaceSelectionOperation` gets `.children[i]` prepended;
 #   - a leaf child zone, and own delimiters and decoration → the cursor
-#     (`nothing`), which an Alt+click then makes the whole part it is in.
+#     (`nothing`), which an Alt+double click then makes the whole part it is in.
 function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, gesture, path)
     elements = iomap.flat_elements
     # Locate the clicked entry through the flat offset, which the marker
@@ -1408,7 +1408,7 @@ end
 # `SyntaxModule`). Delegate to it; the operation it returns (a
 # `ReplaceSelectionOperation` on the syntax tree) is mapped backward to the source
 # domain by the rest of the chain, exactly as before. The mouse hit-testing for
-# collapse glyphs / Alt+click stays in the 4-arg `Intent` reader above (geometry).
+# collapse glyphs / Alt+double click stays in the 4-arg `Intent` reader above (geometry).
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, evt::KeyDown)
     return read_gesture(iomap.input, evt)
 end

@@ -1,6 +1,13 @@
-# Fragment of `FocusModule` — the whole-element selection: the gesture that
-# makes one, the test that tells one from a caret, and the answer a container
-# gives for the child a press hit.
+# Fragment of `FocusModule` — the selection presses and the whole-element
+# selection: the gestures that select and never act, the test that tells a whole
+# selection from a caret, and the answer a container gives for the child a press
+# hit.
+#
+# Alt means "select, do not act". A plain click does what the part under the
+# pointer does, and puts the caret where the part does nothing. An Alt+click puts
+# the caret at the character under the pointer, whatever the part does. An
+# Alt+double click selects the innermost part as a whole: the part that holds the
+# caret of its first click.
 #
 # A whole-element selection is a path that names a part of the document as a
 # whole: a document, or a value that a field or one element of a collection
@@ -10,13 +17,42 @@
 """
     is_whole_selection_press(event) -> Bool
 
-Whether `event` selects the object under the pointer as a whole: a left press
-with Alt held and no other modifier. A plain press keeps its own meaning, so a
-button still fires and a caret still lands.
+Whether `event` selects the object under the pointer as a whole: the second left
+click of a double click with Alt held and no other modifier. Its first click put
+the caret, and this one selects the part that holds the caret. A plain press keeps
+its own meaning, so a button still fires and a caret still lands.
 """
 is_whole_selection_press(event) =
-    event isa MouseClick && event.button === :left &&
+    event isa MouseClick && event.button === :left && event.count >= 2 &&
     event.modifiers == ModifierKeys(alt = true)
+
+"""
+    is_caret_press(event) -> Bool
+
+Whether `event` puts the caret at the character under the pointer, whatever the
+part there does: a single left click with Alt held and no other modifier. A part
+that acts on a plain click, such as a button or a chip, does not act on it.
+"""
+is_caret_press(event) =
+    event isa MouseClick && event.button === :left && event.count == 1 &&
+    event.modifiers == ModifierKeys(alt = true)
+
+"""
+    is_selection_press(event) -> Bool
+
+Whether `event` selects and never acts: a caret press or a whole selection press.
+"""
+is_selection_press(event) = is_caret_press(event) || is_whole_selection_press(event)
+
+"""
+    convert_to_caret_selection(operation) -> ReplaceSelectionOperation or nothing
+
+The answer a container gives for a caret press that hit a child, where
+`operation` is what the child answered: the selection that the child answered,
+such as the caret in its text, and nothing for any other answer. A caret press
+therefore never acts, because the action that a control answered is dropped here.
+"""
+convert_to_caret_selection(operation) = operation isa ReplaceSelectionOperation ? operation : nothing
 
 """
     is_whole_selection(document, reference) -> Bool
@@ -118,14 +154,14 @@ _replace_last_step(path::ConcreteReference, step) =
 """
     convert_to_whole_selection(operation, child) -> ReplaceSelectionOperation
 
-The answer a container gives for an Alt+press that hit `child`, where
+The answer a container gives for an Alt+double click that hit `child`, where
 `operation` is what `child` itself answered.
 
 A selection inside `child` becomes the innermost whole part that it reaches
 (`find_whole_part`), so the innermost part under the pointer wins: a document, a
 value that a field or one element of a collection holds, or a part that a
 projection drew. Any other answer becomes the selection of `child` as a whole:
-nothing, and a control's action. An Alt+press therefore never acts, because the
+nothing, and a control's action. An Alt+double click therefore never acts, because the
 action a button answered is dropped here, and a reader has no side effect of its
 own.
 """

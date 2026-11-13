@@ -56,10 +56,10 @@ cell_path(outer, inner) = ConcreteReference(FieldReferenceStep("cells"),
         ConcreteReference(RangeReferenceStep(inner - 1, inner), EmptyReference())))
 outer_of(path) = path.tail.head.start + 1
 inner_of(path) = path.tail.tail.head.start + 1
-# The cell that an Alt press on the text of a cell selects.
+# The cell that an Alt+double click on the text of a cell selects.
 function press(io, text)
     (x, y) = text_at(io, text)
-    read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0)).path
+    read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0)).path
 end
 # Where the forward map puts a path, in the graphics of the table.
 function place(io, path)

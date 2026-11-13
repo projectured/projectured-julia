@@ -1,4 +1,4 @@
-# An Alt+click selects the widget under the pointer as a whole, and the widget
+# An Alt+double click selects the widget under the pointer as a whole, and the widget
 # that is selected draws a ring. A plain click keeps its meaning.
 #
 # Every press lands on a coordinate found in the drawn tree, by the text a
@@ -82,6 +82,8 @@ function _selection_all_rings(root)
 end
 
 _press(x, y, modifiers = ModifierKeys()) = MouseClick(:left, x, y, modifiers; time = 0.0)
+_press_whole(x, y) = MouseClick(:left, x, y, 2, _ALT; time = 0.0)
+_press_caret(x, y) = MouseClick(:left, x, y, 1, _ALT; time = 0.0)
 
 # The first point, row by row, where a press writes the value of `control`. The
 # reader says where the control is, so the test repeats no layout arithmetic.
@@ -201,14 +203,21 @@ function test_widget_selection()
         @test is_whole_selected_field(ConcreteReference(FieldReferenceStep("content"), EmptyReference()), "content")
         @test !is_whole_selected_field(deeper, "children")
 
-        # Only a left press with Alt alone is the gesture.
-        @test is_whole_selection_press(_press(1, 1, _ALT))
+        # Only a left double click with Alt alone is the gesture; an Alt click of
+        # count 1 is the caret press.
+        @test is_whole_selection_press(_press_whole(1, 1))
+        @test !is_whole_selection_press(_press_caret(1, 1))
+        @test is_caret_press(_press_caret(1, 1))
+        @test !is_caret_press(_press_whole(1, 1))
+        @test !is_caret_press(_press(1, 1))
+        @test !is_caret_press(_press(1, 1, ModifierKeys(alt = true, ctrl = true)))
+        @test !is_caret_press(MouseClick(:right, 1, 1, 1, _ALT; time = 0.0))
         @test !is_whole_selection_press(_press(1, 1))
         @test !is_whole_selection_press(_press(1, 1, ModifierKeys(alt = true, ctrl = true)))
-        @test !is_whole_selection_press(MouseClick(:right, 1, 1, _ALT; time = 0.0))
+        @test !is_whole_selection_press(MouseClick(:right, 1, 1, 2, _ALT; time = 0.0))
     end
 
-    @testset "an Alt+click selects the widget under the pointer" begin
+    @testset "an Alt+double click selects the widget under the pointer" begin
         t = _selection_tree()
         projection = _selection_projection()
         iomap = print_document(projection, projection, t.root, PrinterContext())
@@ -222,7 +231,7 @@ function test_widget_selection()
         # A plain press on the button still answers its action.
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
 
-        # An Alt+press names the innermost part, whole, and nothing acts: in a text
+        # An Alt+double click names the innermost part, whole, and nothing acts: in a text
         # box and in a label, the `String` that it holds. The point (1, 1) is in the
         # padding of the card, before its title.
         @test tx > 1 && ty > 1
@@ -230,12 +239,12 @@ function test_widget_selection()
                                  ((lx + 2, ly + 2), t.label.content),
                                  ((fx + 2, fy + 2), t.field.content),
                                  ((1, 1), t.card))
-            op = read_intent(projection, iomap, _press(x, y, _ALT))
+            op = read_intent(projection, iomap, _press_whole(x, y))
             @test op isa ReplaceSelectionOperation
             @test evaluate_reference(t.root, op.path) === wanted
         end
         # The title of the card is a `String`, and a part of the card.
-        title = read_intent(projection, iomap, _press(tx + 2, ty + 2, _ALT))
+        title = read_intent(projection, iomap, _press_whole(tx + 2, ty + 2))
         @test title isa ReplaceSelectionOperation
         @test strip_reference_types(title.path) ==
               ConcreteReference(FieldReferenceStep("elements"),
@@ -243,11 +252,11 @@ function test_widget_selection()
                       ConcreteReference(FieldReferenceStep("title"), EmptyReference())))
         @test t.count[] == 0
 
-        # Outside every widget, an Alt+press names nothing.
-        @test read_intent(projection, iomap, _press(900, 900, _ALT)) === nothing
+        # Outside every widget, an Alt+double click names nothing.
+        @test read_intent(projection, iomap, _press_whole(900, 900)) === nothing
     end
 
-    @testset "an Alt+click selects a shape that a layout holds bare" begin
+    @testset "an Alt+double click selects a shape that a layout holds bare" begin
         # A layout sizes a bare shape by its own size, and routes a press to it by
         # the same box.
         circle = GraphicsCircle(10, 10, 10)
@@ -259,7 +268,7 @@ function test_widget_selection()
         _selection_walk(iomap.output) do node, x, y
             node isa GraphicsCircle && (centre = (x + Int(node.cx), y + Int(node.cy)))
         end
-        op = read_intent(projection, iomap, _press(centre..., _ALT))
+        op = read_intent(projection, iomap, _press_whole(centre...))
         @test op isa ReplaceSelectionOperation
         @test evaluate_reference(layout, op.path) === circle
     end
@@ -279,14 +288,14 @@ function test_widget_selection()
         # A control that takes the focus draws its own focus ring when it is
         # selected, so the container adds none.
         (bx, by) = _selection_text_at(out, "Go")
-        op = read_intent(projection, iomap, _press(bx + 2, by + 2, _ALT))
+        op = read_intent(projection, iomap, _press_whole(bx + 2, by + 2))
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
-        # The text of a label, which an Alt+press selects, draws the band of a
+        # The text of a label, which an Alt+double click selects, draws the band of a
         # selected part behind it, so no container draws a ring.
         (lx, ly) = _selection_text_at(out, "hello")
-        op = read_intent(projection, iomap, _press(lx + 2, ly + 2, _ALT))
+        op = read_intent(projection, iomap, _press_whole(lx + 2, ly + 2))
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
@@ -304,7 +313,7 @@ function test_widget_selection()
         # The card as a whole, by a press on its padding: the composite draws
         # the ring around it.
         (tx, ty) = _selection_text_at(out, "Title")
-        op = read_intent(projection, iomap, _press(1, 1, _ALT))
+        op = read_intent(projection, iomap, _press_whole(1, 1))
         evaluate_operation((document = t.root,), op)
         drawn = _selection_rings(out)
         @test length(drawn) == 1
@@ -314,7 +323,7 @@ function test_widget_selection()
 
         # The title of the card is no document, so no container draws a ring
         # for it: the card draws the band of a selected part on it.
-        op = read_intent(projection, iomap, _press(tx + 2, ty + 2, _ALT))
+        op = read_intent(projection, iomap, _press_whole(tx + 2, ty + 2))
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
@@ -327,7 +336,7 @@ function test_widget_selection()
         projection = _selection_projection()
         iomap = print_document(projection, projection, t.root, PrinterContext())
         (bx, by) = _selection_text_at(iomap.output, "Go")
-        op = read_intent(projection, iomap, _press(bx + 2, by + 2, _ALT))
+        op = read_intent(projection, iomap, _press_whole(bx + 2, by + 2))
         evaluate_operation((document = t.root,), op)
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
     end
@@ -368,7 +377,7 @@ function test_widget_selection()
         @test length(rings) == 1
         (rx, ry, rw, rh) = only(rings)
         @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
-        # Its text as a whole, which an Alt+click on it selects, rings the same.
+        # Its text as a whole, which an Alt+double click on it selects, rings the same.
         t.field.selection = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
         @test length(_selection_rings(iomap.output)) == 1
         # A caret in it is the focus, and its ring keeps the theme's colour.

@@ -374,7 +374,7 @@ end
 
 # ── A whole page ─────────────────────────────────────────────────────────
 
-_alt_press(x, y) = MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0)
+_alt_double_press(x, y) = MouseClick(:left, x, y, 2, ModifierKeys(alt = true); time = 0.0)
 _page_context() = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
 
 # Where a text is drawn, and the drawn box of every selection ring.
@@ -430,7 +430,7 @@ function _page_bands(root)
 end
 _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= y < by + bh, boxes)
 
-@testset "an Alt+click on a page selects what the tab holds, as a whole" begin
+@testset "an Alt+double click on a page selects what the tab holds, as a whole" begin
     for content in (WidgetLabel("label"), DocumentNothing())
         group = PaneGroup(PaneTab[PaneTab("t", content)])
         tree = PaneTree(group)
@@ -440,18 +440,18 @@ _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= 
         iomap = print_document(proj, nothing, tree, _page_context())
         at = _page_text_at(iomap.output, content isa DocumentNothing ? "Nothing" : "label")
         @test at !== nothing
-        op = read_intent(proj, iomap, _alt_press(at[1] + 2, at[2] + 2))
+        op = read_intent(proj, iomap, _alt_double_press(at[1] + 2, at[2] + 2))
         @test op isa ReplaceSelectionOperation
         _apply!(editor, op)
         if content isa DocumentNothing
             # The page draws `DocumentNothing` as a reflected object, whose type name
-            # is a text that the view prints. An Alt+click selects that text, a part
+            # is a text that the view prints. An Alt+double click selects that text, a part
             # of the view below the content of the tab, and the view draws a band over it.
             @test _is_below_content(tree, group, 1)
             @test has_introduced_step(get_selection(tree))
             @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)
         else
-            # An Alt+click on the text of the label selects that text, the `String`
+            # An Alt+double click on the text of the label selects that text, the `String`
             # that the label holds (P8), below the content of the tab, and the label
             # draws the band of a selected part over it, so the page draws no ring.
             @test _is_below_content(tree, group, 1)
@@ -474,7 +474,7 @@ _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= 
     end
 end
 
-@testset "an Alt+click inside a widget page selects a part of the widget, not the page" begin
+@testset "an Alt+double click inside a widget page selects a part of the widget, not the page" begin
     label = WidgetLabel("inner")
     view = WidgetCard(; title = "a view",
                       content = HorizontalLayout(Any[label, WidgetLabel("other")]))
@@ -486,10 +486,10 @@ end
     iomap = print_document(proj, nothing, tree, _page_context())
     at = _page_text_at(iomap.output, "inner")
     @test at !== nothing
-    op = read_intent(proj, iomap, _alt_press(at[1] + 2, at[2] + 2))
+    op = read_intent(proj, iomap, _alt_double_press(at[1] + 2, at[2] + 2))
     @test op isa ReplaceSelectionOperation
     _apply!(editor, op)
-    # The Alt+click selects the text of the label (P8), and the label draws the band
+    # The Alt+double click selects the text of the label (P8), and the label draws the band
     # of a selected part over it, not the page.
     @test evaluate_reference(tree, get_selection(tree)) == "inner"
     @test _is_in_any(_page_bands(iomap.output), at[1] + 2, at[2] + 2)

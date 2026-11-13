@@ -24,7 +24,7 @@
 #
 # **A part.** `column_headers[c][l]` names the label of level `l` of column `c`,
 # and the run that holds it; `row_headers[k][l]` the same for row `k`. An
-# Alt+press on a run of an outer level selects the label of the first column or
+# Alt+double click on a run of an outer level selects the label of the first column or
 # row of the run, and the table lights the whole run. A plain press goes to the
 # label under the pointer first, as on any header.
 

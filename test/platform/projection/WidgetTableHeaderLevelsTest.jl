@@ -39,8 +39,8 @@ function texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String}[])
 end
 labels_of(io) = [t[3] for t in texts(io.output)]
 place_of(io, label) = only(t for t in texts(io.output) if t[3] == label)
-press(io, x, y; modifiers = mods) = begin
-    change = read_intent(rec, nothing, Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing), io)
+press(io, x, y; modifiers = mods, count = 1) = begin
+    change = read_intent(rec, nothing, Intent(MouseClick(:left, x, y, count, modifiers; time = 0.0), nothing), io)
     change isa Intent ? change.operation : change
 end
 level_path(field, index, l) = ConcreteReference(FieldReferenceStep(field),
@@ -103,24 +103,24 @@ rule_at(x) = [r for r in header_graphics if r isa GraphicsRect && Int(r.x) == x 
 
 # ── A press ──────────────────────────────────────────────────────────────────
 
-# An Alt+press on the label of an outer level selects the label of its run. A
+# An Alt+double click on the label of an outer level selects the label of its run. A
 # plain press goes to the label, and the header keeps no caret in the text of a
 # label, so the press selects the column or the row under the pointer.
 alt = ModifierKeys(alt = true)
-op = press(io, year_2025[1] + 2, year_2025[2] + 2; modifiers = alt)
+op = press(io, year_2025[1] + 2, year_2025[2] + 2; modifiers = alt, count = 2)
 @test op isa ReplaceSelectionOperation && op.path == level_path("column_headers", 3, 1)
 op = press(io, year_2025[1] + 2, year_2025[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 op = press(io, quarters[3][1] + 2, quarters[3][2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 us = place_of(io, "US")
-op = press(io, us[1] + 2, us[2] + 2; modifiers = alt)
+op = press(io, us[1] + 2, us[2] + 2; modifiers = alt, count = 2)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
 op = press(io, us[1] + 2, us[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 3)
 # The empty cell of the outer level of the last row is in the run of US.
 ny = place_of(io, "NY")
-op = press(io, us[1] + 2, ny[2] + 2; modifiers = alt)
+op = press(io, us[1] + 2, ny[2] + 2; modifiers = alt, count = 2)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
 op = press(io, us[1] + 2, ny[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 4)
@@ -159,7 +159,7 @@ wide_edges = wide_io.state.edges[]
 # ── A plain press goes to the label of a level ──────────────────────────────
 
 # A label of an outer level that takes a press gets it, in a run of more than one
-# column too, and an Alt+press on it selects the run.
+# column too, and an Alt+double click on it selects the run.
 year_check, region_check = WidgetCheckbox("x"), WidgetCheckbox("x")
 checked = make_table(; column_headers = Any[CellVector(Any["2024", "Q1"]), CellVector(Any["2024", "Q2"]),
                                              CellVector(Any[year_check, "Q1"]), CellVector(Any[year_check, "Q2"])],
@@ -170,7 +170,7 @@ for (path, check) in ((level_path("column_headers", 3, 1), year_check), (level_p
     @test b !== nothing
     toggle = press(checked_io, b.x + 4, b.y + 4)
     @test toggle isa ReplaceReferencedValueOperation && toggle.document === check
-    selected = press(checked_io, b.x + 4, b.y + 4; modifiers = ModifierKeys(alt = true))
+    selected = press(checked_io, b.x + 4, b.y + 4; modifiers = ModifierKeys(alt = true), count = 2)
     @test selected isa ReplaceSelectionOperation && selected.path == path
 end
 

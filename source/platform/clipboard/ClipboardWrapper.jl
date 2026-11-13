@@ -58,7 +58,7 @@ end
     clipboard = true | (; gestures, collection, to_text)
 
 The wrapper of `build_editor` that gives a window the clipboard and the walk of
-its objects. Alt and an arrow walk the objects of the window, an Alt+click
+its objects. Alt and an arrow walk the objects of the window, an Alt+double click
 selects one, and the clipboard copies, cuts and pastes the object that is
 selected. `gestures` says which of [`CLIPBOARD_GESTURES`](@ref) the window
 offers, all of them by default; a window whose documents must not be cut leaves

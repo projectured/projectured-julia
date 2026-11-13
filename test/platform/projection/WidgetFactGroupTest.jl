@@ -169,14 +169,14 @@ function test_widget_fact_group()
             @test strip_reference_types(map_reference_backward(proj, iomap, place)) == _fact_place(1, "value", 1)
             @test strip_reference_types(map_reference_backward(proj, iomap, PointReferenceStep(value[2] + 8, value[3] + 2))) ==
                   _fact_place(1, "value", 1)
-            # A point on the rest of a row maps to the fact, and an Alt+click there selects
+            # A point on the rest of a row maps to the fact, and an Alt+double click there selects
             # the fact; a plain click there is left to the widget around the group. The
             # label column is as wide as "exit code", so it is empty right of "run".
             fact = ConcreteReference(FieldReferenceStep("facts"),
                                      ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
             @test strip_reference_types(map_reference_backward(proj, iomap, PointReferenceStep(run[2] + 60, run[3] + 2))) ==
                   fact
-            @test strip_reference_types(click(run[2] + 60, run[3] + 2; modifiers = ModifierKeys(alt = true)).path) ==
+            @test strip_reference_types(click(run[2] + 60, run[3] + 2; count = 2, modifiers = ModifierKeys(alt = true)).path) ==
                   fact
             @test click(run[2] + 60, run[3] + 2) === nothing
             # The group draws the caret that the selection holds, at its character.

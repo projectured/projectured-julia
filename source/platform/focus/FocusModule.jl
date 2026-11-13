@@ -15,8 +15,8 @@ document domain adds a method to: `WidgetModule` marks its enabled interactive
 leaves as the Tab stops. Both `LayoutToGraphics` and `WidgetToGraphics` share
 the walk for Tab traversal.
 
-The module also holds the whole-element selection that an Alt+click makes: the
-gesture test, the test that tells a whole selection from a caret, and the answer
+The module also holds the whole-element selection that an Alt+double click makes,
+and the caret that an Alt+click puts: the gesture tests, the test that tells a whole selection from a caret, and the answer
 a container gives for the child a press hit, and the walk of such a selection
 with the four Alt + arrow keys (`SelectionWalkingProjection`). Tab starts over
 at the ends of a document in `FocusCyclingProjection`. A selection can also name
@@ -49,7 +49,8 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document, is_focusing_press, convert_to_focus_selection
-export is_whole_selection_press, is_whole_selection, find_whole_part, convert_to_whole_selection,
+export is_whole_selection_press, is_caret_press, is_selection_press, convert_to_caret_selection,
+       is_whole_selection, find_whole_part, convert_to_whole_selection,
        find_whole_selected_index, is_whole_selected_field
 export FocusCyclingProjection, FocusCyclingIoMap
 export SelectionWalkingProjection, SelectionWalkingIoMap,

@@ -637,7 +637,7 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 # fires it, so the table that *fires* is exactly the one gesture-help enumerates.
 # Any projection whose input is a compound (e.g. `SyntaxToText`) reaches it through
 # that interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs
-# and Alt+click stays in `SyntaxToText`'s 4-arg reader.
+# and the Alt+double click stays in `SyntaxToText`'s 4-arg reader.
 #
 # The table is registered on `SyntaxCompound`, not on `SyntaxNode`: the registry
 # collects a type's own bindings plus every supertype's, so one declaration covers

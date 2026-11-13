@@ -590,8 +590,9 @@ function test_data_frame_cells()
             (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
                           if t[3] == "102")
             alt = ModifierKeys(alt = true)
-            send!(MouseDown(:left, x + 2, y + 2, alt; time = 1.0))
-            send!(MouseUp(:left, x + 2, y + 2, alt; time = 1.05))
+            # The Alt+double click arrives as one click of count 2: as two presses, the
+            # first would put the caret in the cell, which opens it.
+            send!(MouseClick(:left, x + 2, y + 2, 2, alt; time = 1.05))
             @test strip_reference_types(get_selection(view)) == whole(2, 1) && isempty(view.edits)
             send!(KeyPress('5'; time = 1.2))
             send!(KeyPress('7'; time = 1.3))

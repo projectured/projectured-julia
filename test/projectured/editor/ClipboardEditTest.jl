@@ -1,6 +1,6 @@
 # The keys of the clipboard in the window of the application, through the loop of
 # an editor with the gesture tracker, as a person presses them: a click, Shift and
-# an arrow, a drag, an Alt+click, Ctrl+C, Ctrl+X, Ctrl+V, Delete and Ctrl+Z. Each
+# an arrow, a drag, an Alt+double click, Ctrl+C, Ctrl+X, Ctrl+V, Delete and Ctrl+Z. Each
 # case reads what the window draws and what the file holds. The system clipboard
 # is an in-memory stand-in.
 
@@ -60,6 +60,15 @@ function _ce_click!(w, (_, x, y); dx = 2, dy = 8, modifiers = _CE_NONE)
     _ce_press!(w, MouseUp(:left, x + dx, y + dy, modifiers; time = time + 0.02))
 end
 
+# Two presses at the same point, the second 0.1 s after the first: a double click.
+function _ce_double_click!(w, (_, x, y); dx = 2, dy = 8, modifiers = _CE_NONE)
+    time = (_CE_TIME[] += 1.0)
+    for start in (time, time + 0.1)
+        _ce_press!(w, MouseDown(:left, x + dx, y + dy, modifiers; time = start))
+        _ce_press!(w, MouseUp(:left, x + dx, y + dy, modifiers; time = start + 0.02))
+    end
+end
+
 # A press at `x`, a move with the button held to `x + width`, and the release.
 function _ce_drag!(w, (_, x, y), width)
     time = (_CE_TIME[] += 1.0)
@@ -106,7 +115,12 @@ function _ce_select!(w, word; count = 2)
     foreach(_ -> _ce_key!(w, :right, _CE_SHIFT), 1:count)
 end
 
-_ce_select_whole!(w, found) = _ce_click!(w, _ce_find(w, found); dx = 3, dy = 6, modifiers = _CE_ALT)
+# The Alt+double click selects the value under the pointer; Alt+Up widens the
+# selection to the object that holds the value.
+function _ce_select_whole!(w, found)
+    _ce_double_click!(w, _ce_find(w, found); dx = 3, dy = 6, modifiers = _CE_ALT)
+    _ce_key!(w, :up, _CE_ALT)
+end
 
 function test_clipboard_edits()
 @testset "the keys of the clipboard in the window of the application" begin

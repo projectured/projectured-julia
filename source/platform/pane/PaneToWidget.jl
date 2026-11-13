@@ -598,7 +598,7 @@ function map_reference_backward(p::PaneGroupToWidgetTabbedPane,
                 ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
             inside = _after_element_step(rest)
             # `.element` and nothing after it names the tab's CONTENT, whole — not
-            # the tab. An Alt+click on a pane answers this, and so does a
+            # the tab. An Alt+double click on a pane answers this, and so does a
             # document-replace that swaps the whole content, such as the one the
             # Insert key makes on an empty tab. Answering the tab there would write
             # the new document over the `PaneTab` itself and take the layout with
@@ -639,7 +639,7 @@ end
 # re-targets through `map_reference_backward`: its bare
 # `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`.
 #
-# An Alt+click inside a page names a part of the tab's document: the innermost
+# An Alt+double click inside a page names a part of the tab's document: the innermost
 # whole part that the answer of the content reaches (`find_whole_part`), a
 # document, a value that a field or one element holds, or a part that the
 # content's projection drew. An answer that reaches no such part names the

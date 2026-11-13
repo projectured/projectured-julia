@@ -1536,7 +1536,7 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
 end
 
 # Backward: a point maps to the corner, the row header, the column header or
-# the cell at it, the reference that an Alt+click there selects. A path into the
+# the cell at it, the reference that an Alt+double click there selects. A path into the
 # canvas of a list names a row by no fixed index, so it maps to no path into the
 # table.
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
@@ -1599,14 +1599,15 @@ function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y:
     cim, left, top = found
     op = _find_control_answer(get_iomap_input(cim),
                               read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                          g.modifiers; time = g.time)))
+                                                                          g.modifiers; time = g.time)), g)
     op === nothing && return nothing
     reroot_operation(op, steps)
 end
 
-# A left press. An Alt+press selects the part itself: the corner, a header or a
-# cell, and in a header with levels the label of the level under the pointer. A
-# plain press goes to the part first: the corner, a header or a cell, and in a
+# A left press. An Alt+double click selects the part itself: the corner, a header
+# or a cell, and in a header with levels the label of the level under the pointer.
+# An Alt+click gives the caret in the text of the part and no action, also in a
+# header. A plain press goes to the part first: the corner, a header or a cell, and in a
 # header with levels the label of that level. The corner and a header are
 # controls of their line, so they keep every answer but a caret in a label
 # (`_find_control_answer`), and a cell keeps the caret in its text too. A press
@@ -1620,7 +1621,7 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     found === nothing && return nothing
     part, x, y = found
     if part === :corner
-        g.modifiers.alt && st.corner !== nothing &&
+        is_whole_selection_press(g) && st.corner !== nothing &&
             return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("corner"), EmptyReference()))
         op = _read_table_corner_press(st, MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time))
         return op === nothing ? ReplaceSelectionOperation(EmptyReference()) : op
@@ -1628,7 +1629,7 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     if part === :row_header
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
-        if g.modifiers.alt
+        if is_whole_selection_press(g)
             level = _find_level_row_header_reference(iomap.input, st, k, x)
             return ReplaceSelectionOperation(level === nothing ? _wt_row_header_ref(k) : level)
         end
@@ -1638,7 +1639,7 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     if part === :header
-        if g.modifiers.alt
+        if is_whole_selection_press(g)
             level = _find_level_column_header_reference(st, c, y)
             return ReplaceSelectionOperation(level === nothing ? _wt_column_header_ref(c) : level)
         end
@@ -1647,8 +1648,9 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     end
     k = _find_table_row_at(st, y)
     k === nothing && return nothing
-    g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c))
+    is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c))
     op = _read_table_cell_press(iomap.input, st, k, c, g, x, y)
+    is_caret_press(g) && (op = convert_to_caret_selection(op))
     op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
 end
 
@@ -2027,7 +2029,7 @@ end
 function _read_table_corner_press(st::WidgetTablePartsState, press::MouseClick)
     cim = st.corner
     cim === nothing && return nothing
-    op = _find_control_answer(get_iomap_input(cim), read_intent(cim.projection, cim, press))
+    op = _find_control_answer(get_iomap_input(cim), read_intent(cim.projection, cim, press), press)
     op === nothing ? nothing : reroot_operation(op, (FieldReferenceStep("corner"),))
 end
 

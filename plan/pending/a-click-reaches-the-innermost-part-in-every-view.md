@@ -333,10 +333,11 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     that holds the caret of the first click;
   - Alt+Up and Alt+Down widen the selection to the part around it and narrow it
     back, and Alt+Left and Alt+Right move it to a sibling.
-  The guides follow ("we also need to document this in the guides"). Open: a
-  plain Left or Right on a part selected as a whole; the assistant recommends
-  the rule of a text editor, the caret at the start or the end of the part, so
-  that a plain arrow always means text.
+  The guides follow ("we also need to document this in the guides"). A plain
+  Left or Right on a part selected as a whole puts the caret at the start or the
+  end of the part, as a text editor does with a range, "but if there's no
+  meaningful caret selection on that part, then I would move to siblings, like a
+  selected column in a table, or a selected image in a list".
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -1428,11 +1429,52 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
      Alt+double click a whole selection press (`is_whole_selection_press`), and
      each reader that makes an Alt+click whole today makes an Alt+double click
      whole; an Alt+click answers the caret at the character, also on a control.
+
+     Done in the work (2026-11-13): `is_caret_press` (an Alt+click, count 1),
+     `is_whole_selection_press` (an Alt+click of count 2 or more),
+     `is_selection_press`, and `convert_to_caret_selection`, which keeps the
+     selection that a child answered and drops an action, so a caret press
+     never acts. `read_child_event`, which every container passes a press
+     through, answers a caret press by it. The label, the badge, the avatar and
+     the alert read no binding on a selection press, so a chip takes the caret
+     on an Alt+click; the card and the fact group answer the caret to both
+     presses; the toolbar item declines both. The tables: an Alt+double click
+     selects a cell, a header or the corner whole, and an Alt+click gives the
+     caret in the text of the part, also in the label of a header
+     (`_find_control_answer` keeps the caret on a caret press) and drops an
+     action. The comments, the welcome text of the application and the texts
+     of the picture of the assistant name the new gestures. A plain arrow on a
+     part selected as a whole navigates the tree of a code view today, as an
+     Alt+arrow does; part 3 changes it.
+
+     A tree reads no binding on a press that selects, and the chevron of its row
+     opens or closes nothing then: a binding pattern with no modifiers matches
+     every modifier, so the double click that opens the file of a row of the
+     Files pane answered the Alt+double click, and the container made the whole
+     explorer of the answer. The controls (checkbox, button, link, menu item,
+     switch) still answer their action, which the container drops.
+
+     The tests follow: 25 files press an Alt+double click where they selected a
+     part whole. Where a test selected a JSON string or a code name whole, it
+     now presses Alt+Up after the Alt+double click, because the double click
+     selects the value in the leaf (P8), as the Alt+click did before. The
+     transcript test accepts the turn for a plain click in the padding of the
+     card of a turn (D4); it failed so before this part too.
+
+     Results: 16 platform sets pass (`test_widget_tree` 103, `test_document_tree`
+     135, `test_pane_reader` 155, `test_syntax_to_text` 346,
+     `test_widget_table_list` 258 and 11 more); `test_clipboard_edits` 34,
+     `test_table_navigation` 67, `test_text_range_selection` 41,
+     `test_data_frame_paths` 19, `test_data_frame_cells` 176,
+     `test_pivot_table_projection` 43 and `test_part_picture` 13 pass;
+     `test_application` fails only at `ApplicationTest.jl:1013` (the usage text
+     of the agent bar) and `test_history_sweep` only at `HistorySweepTest.jl:111`
+     (the palette step), both known failures.
   2. The click test of step 1: a plain click acts or puts the caret; an
      Alt+click puts the caret on every text; an Alt+double click selects the
      innermost part; a move names the part of the Alt+double click.
-  3. A plain Left or Right on a part selected as a whole, once the owner
-     answers the open point of D10.
+  3. A plain Left or Right on a part selected as a whole: the caret at its start
+     or its end, or, on a part with no meaningful caret, the sibling.
   4. The guides: `keyboard-and-mouse-guide.md` (the lines of Alt and the
      arrows, Alt+click), `gestures-guide.md`, and the package guides of the
      widget, the text, the selection and the focus.

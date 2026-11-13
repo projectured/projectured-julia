@@ -152,7 +152,7 @@ wants something else in a fresh tab.
 
 The content is a [`DocumentNothing`](@ref), not an empty string, because a fresh
 tab has no domain yet. The placeholder is a document any other document can
-replace: Alt+click selects it whole, a paste puts the clipboard in its place, and
+replace: an Alt+double click selects it whole, a paste puts the clipboard in its place, and
 a printable key turns it into an insertion. An empty string offers none of that —
 it renders nothing, so a click in the tab body answers nothing and the selection
 stays on the tab.

@@ -838,7 +838,7 @@ _text_is_empty(_) = false
 # able to point at a message and take a copy of it, or a piece of its text. So a
 # plain click in a text part names the place in its text, and a drag a range of
 # it; a plain click in any other part names the PART it landed in —
-# `turns[i].parts[j]`. An Alt+click names the innermost object under the
+# `turns[i].parts[j]`. An Alt+double click names the innermost object under the
 # pointer: a message, a part, or the form or the result of an evaluation. The
 # reader below declines every operation that would change what a turn says.
 #
@@ -1170,7 +1170,7 @@ end
 #
 # A plain click names a place in the text of a text part, and at most a part
 # anywhere else, so a click in a result selects the part that holds it. An
-# Alt+click selects the innermost whole part under the pointer
+# Alt+double click selects the innermost whole part under the pointer
 # (`convert_to_whole_selection`): in a text part, the text that the caret is in.
 # And Alt with an arrow walks the objects: a message, its parts, and the form and
 # the result of an evaluation. The transcript is read, so no widget inside it has

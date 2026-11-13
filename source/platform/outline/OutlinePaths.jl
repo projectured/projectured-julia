@@ -78,7 +78,7 @@ A text that the view drew inside the row of a whole slot, such as the id or the
 time of a record, is a part of the output of the view. With `introduce`, a
 function of the path of the record in the input and of `reference`, a place in
 the row maps to the record and the step of the view that `introduce` answers, so
-a plain click puts the caret into that text and an Alt+click selects it. When
+a plain click puts the caret into that text and an Alt+double click selects it. When
 `introduce` answers `nothing`, as for the mark of the row or a gap, the place maps
 to the record.
 """

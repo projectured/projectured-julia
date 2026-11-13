@@ -220,7 +220,7 @@ end
     @test startswith(nav(KeyPress('\n'; time = 0.0), _wt_cell(2, 2)), ".cells[2][2]")
 end
 
-@testset "Alt+click promotes a data cell to a whole-cell pick" begin
+@testset "Alt+double click promotes a data cell to a whole-cell pick" begin
     m = _table_measure()
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
@@ -233,7 +233,7 @@ end
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
 
-    alt_op   = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(alt=true); time = 0.0))
+    alt_op   = read_intent(proj, io, MouseClick(:left, cx, cy, 2, ModifierKeys(alt=true); time = 0.0))
     plain_op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
 
     @test alt_op isa ReplaceSelectionOperation
@@ -254,17 +254,17 @@ end
     gc = 3 + geom.col_offset
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     # The header is a string, so a plain click puts the caret in it, and an
-    # Alt+click selects the header itself; a header of labels, which declines a
+    # Alt+double click selects the header itself; a header of labels, which declines a
     # click, selects its column (`test_widget_table`).
     col_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test col_op isa ReplaceSelectionOperation
     steps = get_reference_steps(strip_reference_types(col_op.path))
     @test steps[1:2] == [FieldReferenceStep("column_headers"), RangeReferenceStep(2, 3)] && length(steps) > 2
-    alt_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(alt = true); time = 0.0))
+    alt_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), 2, ModifierKeys(alt = true); time = 0.0))
     @test string(alt_op.path) == ".column_headers[3]"
 
     # Row header strip (grid column 1) over data row 2. The header is a string
-    # too, so a plain click puts the caret in it and an Alt+click selects the
+    # too, so a plain click puts the caret in it and an Alt+double click selects the
     # header itself, as in the header of a column; a header of labels selects
     # its row (`test_widget_table_part_selection`).
     gr = 2 + geom.row_offset
@@ -273,7 +273,7 @@ end
     @test row_op isa ReplaceSelectionOperation
     steps = get_reference_steps(strip_reference_types(row_op.path))
     @test steps[1:2] == [FieldReferenceStep("row_headers"), RangeReferenceStep(1, 2)] && length(steps) > 2
-    alt_row = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(alt = true); time = 0.0))
+    alt_row = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, 2, ModifierKeys(alt = true); time = 0.0))
     @test string(alt_row.path) == ".row_headers[2]"
 
     # Top-left corner (header intersection) selects the whole table.

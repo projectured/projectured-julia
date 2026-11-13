@@ -234,8 +234,9 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
 end
 
 # The labels of a key, one for each level. Each label is a `WidgetLabel`, a
-# document: a layout keeps the answer of an Alt+press of its child only when the
-# answer names a document, so an Alt+press selects a label of the table, and its run.
+# document: a layout keeps the answer of an Alt+double click of its child only when
+# the answer names a document, so an Alt+double click selects a label of the table,
+# and its run.
 _make_pivot_key_labels(p, key::Tuple) =
     CellVector(Any[_make_pivot_header_label(p, format_pivot_value(value)) for value in key])
 

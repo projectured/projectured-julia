@@ -143,7 +143,7 @@ end
                             scroll_position = Point2D(0, -60))
     io = print_document(rec, nothing, pane, context())
     (x, y) = place(io, "child 9")
-    op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     step = op.path.tail.tail.head               # .content.children[k]
     @test step isa RangeReferenceStep
@@ -208,7 +208,7 @@ end
                             scroll_position = Point2D(0, -40))
     io = print_document(rec, nothing, pane, context())
     (x, y) = place(io, "r9 c2")
-    op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     rows_step = op.path.tail.tail.head          # .content.children[k][c]
     column_step = op.path.tail.tail.tail.head
@@ -420,7 +420,7 @@ end
     @test wheel(io, -1, 0) === nothing                           # right: nothing
     @test wheel(io, 1, 0) !== nothing                            # left: at once
     (x, y) = place(io, "r2 c$(columns - 1)")
-    op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     rows_step = op.path.tail.tail.head          # .content.children[k][c]
     column_step = op.path.tail.tail.tail.head

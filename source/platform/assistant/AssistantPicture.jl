@@ -5,7 +5,7 @@
     AddDraftPictureOperation(assistant)
 
 The "Picture" button of the composer: a picture of the part that the person
-selected as a whole, with Alt+click, or else of the window, goes into the draft
+selected as a whole, with Alt+double click, or else of the window, goes into the draft
 of `assistant` as a part before the text that the person types
 (`write_part_picture`, `write_window_picture`). With no window, or no backend
 that writes an image, it does nothing.
@@ -39,7 +39,7 @@ end
 Add the tool `take_picture` to `set`: a picture of what the editor shows, as a
 PNG file in the folder of pictures, which the tool answers as an `LlmImage`. Its
 `part` is `"window"`, the window, or `"selection"`, the part that the person
-selected as a whole with Alt+click, or the window when the person selected no
+selected as a whole with Alt+double click, or the window when the person selected no
 whole part. The MCP server gives the picture to an agent as an image.
 """
 function register_picture_tools!(set)
@@ -50,7 +50,7 @@ function register_picture_tools!(set)
             "selected. Use it to see what has no text, such as a plot, a layout or a widget.",
         parameters = [(name = "part", type = "string", required = false,
                        description = "\"window\" (the default), or \"selection\": the part that the " *
-                                     "person selected with Alt+click, or the window when there is none")],
+                                     "person selected with Alt+double click, or the window when there is none")],
         handler = (editor, args) -> _take_picture(editor, get(args, "part", "window"))))
     set
 end

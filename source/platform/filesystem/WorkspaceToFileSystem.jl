@@ -115,7 +115,7 @@ function read_intent(p::WorkspaceToFileSystemDirectory, iomap, op)
 end
 
 # The view reads the operation that the stage below answered, or else the gesture.
-# An Alt+press on a row selects the row that the view drew, by the rule of the
+# An Alt+double click on a row selects the row that the view drew, by the rule of the
 # container above (`convert_to_whole_selection`).
 function read_intent(p::WorkspaceToFileSystemDirectory, recursion, change::Intent, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation

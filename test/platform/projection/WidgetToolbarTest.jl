@@ -114,8 +114,8 @@ end
 _items(io) = sort!([c for c in map(_unwrap, io.output.elements) if c isa GraphicsCanvas],
                    by = c -> Int(c.x))
 _centre(c) = (Int(c.x) + Int(c.w[]) ÷ 2, Int(c.y) + Int(c.h[]) ÷ 2)
-_press(io, (x, y); modifiers = _mods) = begin
-    answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing), io)
+_press(io, (x, y); modifiers = _mods, count = 1) = begin
+    answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, count, modifiers; time = 0.0), nothing), io)
     answer isa Intent ? answer.operation : answer
 end
 
@@ -184,12 +184,14 @@ end
     @test _press(io, _centre(io.output)) === nothing
 end
 
-@testset "Alt and a press select a toolbar item, and run nothing" begin
-    # The layers above turn a declined Alt press into a selection of the item,
-    # and the tooltip probe finds the item with the same press.
+@testset "Alt and a double click select a toolbar item, and run nothing" begin
+    # The layers above turn a declined Alt+double click into a selection of the
+    # item, and the tooltip probe finds the item with the same press.
     io = print_document(proj, WidgetToolbarItem("Log"; icon = :list))
     @test _press(io, _centre(io.output)) isa InvokeActionOperation
     @test !(_press(io, _centre(io.output); modifiers = ModifierKeys(alt = true)) isa
+            InvokeActionOperation)
+    @test !(_press(io, _centre(io.output); modifiers = ModifierKeys(alt = true), count = 2) isa
             InvokeActionOperation)
 
     # In a toolbar the selection names the item under the pointer, not the
@@ -197,7 +199,7 @@ end
     tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
                            WidgetToolbarItem("Log"; icon = :list)])
     io = print_document(proj, tb)
-    op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true))
+    op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true), count = 2)
     @test op isa ReplaceSelectionOperation
     @test try_evaluate_reference(tb, op.path, missing) === tb.elements[2]
 end

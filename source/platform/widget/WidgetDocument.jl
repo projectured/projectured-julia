@@ -3119,7 +3119,8 @@ row, each a part of its own, `column_headers` the header row, `row_headers` the
 header column, and `corner` the corner. A plain press goes to the content of a
 part first; one that the content declines selects its row or its column: a
 cell its row, a row header its row, a column header its column, and the corner
-the table. An Alt+press selects the part itself.
+the table. An Alt+double click selects the part itself, and an Alt+click puts the caret
+into its text.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
   padding inside a cell is the projection's `cell_padding`, from the theme.
 - `column_policy`, `row_policy` — the `SizePolicy` of a column and of a row

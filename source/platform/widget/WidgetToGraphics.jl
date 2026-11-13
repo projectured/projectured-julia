@@ -1917,7 +1917,7 @@ end
 # The canvas of a widget that records the lines of its text, from `build`, a cell
 # of `(; width, height, elements, drawn)`: its elements, with the caret that a
 # plain click puts into the text and the band of a text selected as a whole, which
-# an Alt+click selects (`make_drawn_selection_elements`). The marks read the
+# an Alt+double click selects (`make_drawn_selection_elements`). The marks read the
 # selection of `w` in a cell of their own, so a move of the selection builds no
 # widget.
 _make_drawn_text_canvas(x::Int, y::Int, build::Cell, w, measure, band_color) =
@@ -2017,8 +2017,9 @@ function _map_drawn_text_backward(p, iomap, reference)
 end
 
 # Whether `w` acts on a press by bindings of its own, as a chip that selects the
-# item it names does: such a widget is a control, so its text takes no caret, and a
-# move and an Alt+click name the widget as a whole.
+# item it names does: such a widget is a control, so a plain click and a move give
+# its text no caret, and the move names the widget as a whole; an Alt+click still
+# puts the caret there.
 _is_bound_control(w) = !isempty(get_instance_gesture_bindings(w))
 
 
@@ -2074,21 +2075,27 @@ function _find_row_index(bounds, y::Real)
 end
 
 # A label or a badge takes the gestures that it is given, such as a press on a
-# chip. Else a plain single click on its text puts the caret at the character under
-# the pointer, an Alt+click answers that caret too, which the container makes the
-# text as a whole (`convert_to_whole_selection`), and a move names that caret as
-# the part under the pointer. A double click is left to the widget around it, such
-# as the row that it opens.
+# chip, which then acts on a plain click and gives no caret to it. Else a plain
+# single click on its text puts the caret at the character under the pointer, and
+# a move names that caret as the part under the pointer. An Alt+click puts the
+# caret there whatever the widget does, also on a chip, and an Alt+double click
+# answers it too, which the container makes the text as a whole
+# (`convert_to_whole_selection`). A plain double click is left to the widget around
+# it, such as the row that it opens.
 read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.visible == false && return nothing
-    bound = read_bound_gesture(w, evt)
-    bound === nothing || return bound
-    _is_bound_control(w) && return nothing
-    press = evt isa MouseClick && evt.count == 1 &&
-            (evt.button === :left && evt.modifiers == ModifierKeys() || is_whole_selection_press(evt))
+    # A press that selects never acts, so it reads no binding.
+    selecting = is_selection_press(evt)
+    if !selecting
+        bound = read_bound_gesture(w, evt)
+        bound === nothing || return bound
+        _is_bound_control(w) && return nothing
+    end
+    press = selecting ||
+            evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
     (press || evt isa MouseMove) || return nothing
     caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
     caret === nothing && return nothing
@@ -3672,8 +3679,9 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 # A left down and up on an enabled item write its transient `pressed`, as on a
 # button. The down is the answer of the item, so it does not move the focus.
 #
-# Alt and a left press select the item as a whole, as they select any widget, so
-# the item declines that press and the layers above select it.
+# An Alt+click and an Alt+double click select and never act, so the item declines
+# them: an Alt+double click selects the item as a whole in the layers above, as it
+# selects any widget.
 function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
@@ -3683,7 +3691,7 @@ function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap,
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
     _outside_widget(iomap, evt) && return nothing
-    is_whole_selection_press(evt) && return nothing
+    is_selection_press(evt) && return nothing
     enabled = _toolbar_item_enabled(w)
     enabled || return nothing
     operation = read_bound_gesture(w, evt)
@@ -4457,9 +4465,9 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::WidgetChildrenIoMap,
     _retarget_op(p, iomap, op)
 end
 
-# An Alt+press over a band selects in that band, and the path names the band's
+# An Alt+double click over a band selects in that band, and the path names the band's
 # own field. Every other answer is re-rooted into `content`, and a band is not
-# the content, so an Alt+press on a toolbar button selects the button and not the
+# the content, so an Alt+double click on a toolbar button selects the button and not the
 # whole window. Only the bands are hit-tested here, so a press over the content
 # reads the content once, on the ordinary route.
 function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MouseClick)
@@ -8182,8 +8190,9 @@ function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::WidgetChildrenIoMap
 end
 
 # A press, a down, an up or a dwell goes to the item under the pointer, and its
-# answer is re-rooted into `elements[i]`, as a composite re-roots: an Alt+press then
-# selects that item rather than the whole toolbar, and an action travels unchanged.
+# answer is re-rooted into `elements[i]`, as a composite re-roots: an Alt+double
+# click then selects that item rather than the whole toolbar, and an action travels
+# unchanged.
 # An item answers a down with its pressed look, so the down leaves the focus where
 # it is. The toolbar lays out only its widget elements, so a laid-out index is
 # mapped back to the element it came from. For a dwell and a right click the
@@ -9374,16 +9383,16 @@ end
 # uses ends there, so it does not reach a document that a stack draws under the
 # card, such as the text under the bar of a find bar view. The bindings of the
 # card answer such a click first; a click on the text of the title or of the
-# description then puts the caret at the character under the pointer, and an
-# Alt+click answers that caret too, which the container makes the field as a whole
-# (`convert_to_whole_selection`). Any other click goes on, to the menus of the
+# description then puts the caret at the character under the pointer. An Alt+click
+# puts it there too, and an Alt+double click answers it, which the container makes
+# the field as a whole (`convert_to_whole_selection`). Any other click goes on, to the menus of the
 # parts around the card and to a whole selection.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     answer = _read_card_click(p, iomap, evt)
     answer === nothing || return answer
     _outside_widget(iomap, evt) && return nothing
     plain = evt.button === :left && evt.modifiers == ModifierKeys()
-    (plain || is_whole_selection_press(evt)) || return nothing
+    (plain || is_selection_press(evt)) || return nothing
     if plain
         bound = read_bound_gesture(iomap.input, evt)
         bound === nothing || return bound
@@ -12294,7 +12303,7 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
     end)
     x, y = _origin(position)
     # The caret in a text of the group, which a plain click puts there, and the band
-    # of a text selected as a whole, which an Alt+click selects.
+    # of a text selected as a whole, which an Alt+double click selects.
     canvas = GraphicsCanvas(Int32(x), Int32(y),
                             Cell(@computation Int32(build[].width)),
                             Cell(@computation Int32(build[].height)),
@@ -12379,8 +12388,9 @@ end
 # read the stretch of the group (`_read_children_outward`). Else a plain single
 # click on a text of the group, the title, a label or a value that is a string,
 # puts the caret at the character under the pointer, and a move names that caret.
-# An Alt+click answers that caret too, which the container makes the text as a
-# whole, and an Alt+click on the rest of a row selects its fact. A double click,
+# An Alt+click puts that caret there too, and an Alt+double click answers it,
+# which the container makes the text as a whole; an Alt+double click on the rest of
+# a row selects its fact. A plain double click,
 # and a plain click on the rest of a row, are left to the widget around the group.
 function read_intent(p::WidgetFactGroupToGraphicsCanvas,
                      iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, evt)
@@ -12404,7 +12414,7 @@ function read_intent(p::WidgetFactGroupToGraphicsCanvas,
     if hit === nothing
         whole = is_whole_selection_press(evt)
         plain = evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
-        (plain || whole) || return nothing
+        (plain || is_selection_press(evt)) || return nothing
         caret = _find_fact_group_caret(p, iomap, evt)
         caret === nothing || return ReplaceSelectionOperation(caret)
         whole || return nothing
@@ -13179,7 +13189,7 @@ function _find_wt_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphi
 end
 
 # A point maps to the cell, the row header, the column header or the corner at
-# it: the reference that an Alt+click there selects.
+# it: the reference that an Alt+double click there selects.
 function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, point)
     _is_point_on_canvas(iomap.output, point) || return nothing
     hit = _find_wt_hit(p, iomap, point.x, point.y)
@@ -13207,8 +13217,8 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 # content of a cell or a header first. A header keeps every answer but a caret
 # in a label (`_find_control_answer`); a click that the header does not keep
 # selects its row or its column, and a click that a cell declines selects its
-# row. The corner selects the table; an Alt+click selects the cell or the
-# header itself. Keyboard grid navigation (the arrows,
+# row. The corner selects the table; an Alt+double click selects the cell or the
+# header itself, and an Alt+click gives the caret in its text. Keyboard grid navigation (the arrows,
 # Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
 # against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
 # cell (`_wt_route_event`). An operation from below finds no cell to go to.
@@ -13252,16 +13262,17 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
         return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
         r = hit[2]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(r))
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_row_header_ref(r))
         return _wt_route_header_click(iomap, _wt_row_header_ref(r), _wt_row_ref(r), g, x, y)
     elseif kind === :col
         c = hit[2]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_column_header_ref(c))
         return _wt_route_header_click(iomap, _wt_column_header_ref(c), _wt_col_ref(c), g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
-        return _wt_route_cell_click(iomap, r, c, g, x, y)
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
+        op = _wt_route_cell_click(iomap, r, c, g, x, y)
+        return is_caret_press(g) ? convert_to_caret_selection(op) : op
     end
     return nothing
 end
@@ -13281,7 +13292,7 @@ function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header:
     cim, left, top = cell
     op = _find_control_answer(get_iomap_input(cim),
                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                         g.modifiers; time = g.time)))
+                                                                         g.modifiers; time = g.time)), g)
     op === nothing ? declined : reroot_operation(op, steps)
 end
 
@@ -13291,9 +13302,11 @@ end
 # a text that takes no key, such as the caret in the text of a label. So a click
 # on the label of a header acts on what the header controls, as a click on a tab
 # switches its page, and an action, such as the toggle of a checkbox, and the
-# caret in a text that takes keys, such as a text field, stay. `nothing` when
-# nothing is kept.
-function _find_control_answer(content, operation)
+# caret in a text that takes keys, such as a text field, stay. An Alt+click,
+# `press`, keeps the caret in any text and no action, because it always puts the
+# caret. `nothing` when nothing is kept.
+function _find_control_answer(content, operation, press)
+    is_caret_press(press) && return convert_to_caret_selection(operation)
     operation isa ReplaceSelectionOperation || return operation
     _is_path_in_read_only_text(content, strip_reference_types(operation.path)) ? nothing : operation
 end
@@ -14534,14 +14547,18 @@ map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, 
 #
 # Per-instance gestures are consulted first — tree-level, then per-node — so a
 # binding can add / override (shadow) / suppress; the built-in select / collapse /
-# nav below is the fallback.
+# nav below is the fallback. A press that selects never acts, so it reads no
+# binding, such as the double click that opens the file of a row, and opens or
+# closes no row: the row under it is the answer.
 function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    op = read_bound_gesture(w, evt)
-    op === nothing || return op
-    nop = _wtree_node_gesture(p, iomap, evt)
-    nop === nothing || return nop
+    if !is_selection_press(evt)
+        op = read_bound_gesture(w, evt)
+        op === nothing || return op
+        nop = _wtree_node_gesture(p, iomap, evt)
+        nop === nothing || return nop
+    end
     evt isa MouseDwell && return _read_wtree_row_dwell(p, iomap, evt)
     if evt isa MouseClick && evt.button === :left
         return _wtree_mouse_press(p, iomap, evt)
@@ -14681,7 +14698,7 @@ function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGr
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
     node = _find_wtree_node(iomap.geometry, w, row.path)
-    if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(node)
+    if !is_selection_press(g) && row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(node)
         return _wtree_toggle_expanded(iomap, row.path)
     end
     ReplaceSelectionOperation(_wtree_path_ref(row.path))

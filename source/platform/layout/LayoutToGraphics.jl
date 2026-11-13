@@ -227,9 +227,11 @@ end
 Hand a pointer `event`, already in the child's frame, to the child's reader.
 Every container routes a press and a button down to a child through this.
 
-An Alt+press answers with `convert_to_whole_selection`: the child is selected
+An Alt+click answers with `convert_to_caret_selection`: the caret that the
+child answered, and nothing else, so a control under it does not act. An
+Alt+double click answers with `convert_to_whole_selection`: the child is selected
 as a whole unless it selected a whole object inside itself. So the innermost
-object under the pointer wins, and a control under it does not act.
+object under the pointer wins.
 
 A left button down with no modifier on a drawn part of the child answers with
 `convert_to_focus_selection`: a focusable child that answers nothing is selected
@@ -256,6 +258,7 @@ function read_child_event(child_iomap, event)
     child = get_iomap_input(child_iomap)
     is_focusing_press(event) && _is_event_on_child(child_iomap, event) &&
         return convert_to_focus_selection(answer, child)
+    is_caret_press(event) && return convert_to_caret_selection(answer)
     is_whole_selection_press(event) || return answer
     convert_to_whole_selection(answer, child)
 end

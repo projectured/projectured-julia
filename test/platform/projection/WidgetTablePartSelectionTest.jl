@@ -1,6 +1,6 @@
 # A table selects each part the same way, in its eager form and in the form that
 # scrolls its own parts: a plain press goes to the content of a part first and
-# one that the content declines selects its row or its column, an Alt+press
+# one that the content declines selects its row or its column, an Alt+double click
 # selects the part itself, the header row and the header column are parts too,
 # and the keys move along a strip of headers and step into the cells.
 
@@ -58,8 +58,8 @@ function drawn(node, ox = 0, oy = 0, found = Any[]; limit = 50)
     found
 end
 text_at(io, text) = only((t[2], t[3]) for t in drawn(io.output) if t[1] === :text && t[6] == text)
-press_text(io, text, modifiers) = ((x, y) = text_at(io, text);
-                                   read(io, MouseClick(:left, x + 2, y + 2, modifiers; time = 0.0)))
+press_text(io, text, modifiers, count = 1) = ((x, y) = text_at(io, text);
+                                   read(io, MouseClick(:left, x + 2, y + 2, count, modifiers; time = 0.0)))
 # A press on the padding left of the text `text`, where no text is drawn.
 press_padding(io, text, modifiers) = ((x, y) = text_at(io, text);
                                       read(io, MouseClick(:left, x - 1, y + 2, modifiers; time = 0.0)))
@@ -103,7 +103,7 @@ listed(check, field) = WidgetTable(; column_headers = Any["a", "b", "c"],
                                    row_policy = Fixed(24))
 
 for (form, make) in (("eager", eager), ("list", listed))
-    @testset "$(form): a plain press goes to the part first, and an Alt+press selects the part" begin
+    @testset "$(form): a plain press goes to the part first, and an Alt+double click selects the part" begin
         check, field = WidgetCheckbox("x"), WidgetText("abc")
         table = make(check, field)
         io = print_document(rec, nothing, table, context())
@@ -128,10 +128,10 @@ for (form, make) in (("eager", eager), ("list", listed))
         @test get_reference_steps(strip_reference_types(typed.reference))[1:2] ==
               [FieldReferenceStep("row_headers"), RangeReferenceStep(1, 2)]
         getfield(table, :selection)[] = nothing
-        # An Alt+press selects the header itself, of a row as of a column, and the cell.
-        @test path_of(press_text(io, "#3", alt)) == part("row_headers", 3)
-        @test path_of(press_text(io, "b", alt)) == part("column_headers", 2)
-        @test path_of(press_text(io, name(2, 3), alt)) == cell(2, 3)
+        # An Alt+double click selects the header itself, of a row as of a column, and the cell.
+        @test path_of(press_text(io, "#3", alt, 2)) == part("row_headers", 3)
+        @test path_of(press_text(io, "b", alt, 2)) == part("column_headers", 2)
+        @test path_of(press_text(io, name(2, 3), alt, 2)) == cell(2, 3)
         @test path_of(press_padding(io, name(2, 3), mods)) == part("rows", 2)
         @test path_of(press_text(io, name(2, 3), mods)) ==
               concat_references(cell(2, 3), extend_reference(EmptyReference(), FieldReferenceStep("content"),
@@ -139,9 +139,9 @@ for (form, make) in (("eager", eager), ("list", listed))
         if form == "list"
             # The corner takes a press first, and one that it does not keep, such
             # as the caret in the text of its label, selects the table; an
-            # Alt+press selects the corner, which shows its band.
+            # Alt+double click selects the corner, which shows its band.
             @test path_of(press_text(io, "corner", mods)) == EmptyReference()
-            @test path_of(press_text(io, "corner", alt)) == whole("corner")
+            @test path_of(press_text(io, "corner", alt, 2)) == whole("corner")
             corner_box = box(io, whole("corner"))
             band = band_of(table, io, whole("corner"))
             @test !isempty(band) && all(r -> covers_x(r, corner_box) && covers_y(r, corner_box), band)

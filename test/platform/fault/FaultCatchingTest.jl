@@ -174,10 +174,10 @@ function test_fault_catching()
         iomap = print_document(barrier, barrier, leaf, context)
         _read_with_marks(() -> _force_cell(iomap.output), context)
 
-        # An Alt+press names the mark, as it names anything else on the screen.
+        # An Alt+double click names the mark, as it names anything else on the screen.
         # The report is no child of the node that failed, so the path is a
         # drawn-object step from it.
-        press = MouseClick(:left, 0, 0, 1, ModifierKeys(alt = true); time = 0.0)
+        press = MouseClick(:left, 0, 0, 2, ModifierKeys(alt = true); time = 0.0)
         operation = read_intent(barrier, iomap, press)
         @test operation isa ReplaceSelectionOperation
         report = evaluate_reference(leaf, operation.path)

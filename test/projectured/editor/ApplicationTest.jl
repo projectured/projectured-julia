@@ -1351,12 +1351,13 @@ function test_application()
                 type!(text) = foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 at(word) = [(x, y) for (text, x, y) in drawn() if text == word]
-                # Alt+click on the JSON of the file tab selects the string under the
-                # pointer, Alt+Up walks out to the file, and Ctrl+N notes it: the
-                # clipboard holds the file itself.
+                # Alt+double click on the JSON of the file tab selects the text under the
+                # pointer, Alt+Up widens it to the JSON string and walks out to the file,
+                # and Ctrl+N notes it: the clipboard holds the file itself.
                 selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                 (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, ax + 5, ay + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                 @test selected() isa JsonString
                 for _ in 1:8
                     selected() isa JsonFile && break
@@ -1378,10 +1379,11 @@ function test_application()
                 type!("x.content.content.entries[1].value.value = \"Bob\"")
                 # Tab commits the hole into a tree of the code.
                 press!(KeyPress('\t'; time = 0.0))
-                # Alt+click on `x` selects it whole, and Ctrl+V puts the noted file
+                # Alt+double click on `x` selects it whole, and Ctrl+V puts the noted file
                 # there, which the code draws as its label.
                 (xx, xy) = only(at("x"))
-                press!(MouseClick(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, xx + 3, xy + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                 press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
                 @test "⟨a.json⟩" in [text for (text, _, _) in drawn()]
                 @test _app_plain(press!(KeyPress('\n'; time = 0.0))) isa
@@ -1415,9 +1417,11 @@ function test_application()
                     selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                     copy_reference!() = _app_plain(press!(KeyDown(:c, ModifierKeys(ctrl = true, shift = true); time = 0.0)))
                     (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                    # Alt+click selects the string under the pointer, Alt+Up walks out
+                    # Alt+double click selects the text under the pointer, Alt+Up widens it to
+                    # the JSON string and walks out
                     # to the file, and Ctrl+Shift+C copies its reference as code.
-                    press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                    press!(MouseClick(:left, ax + 5, ay + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                    press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                     @test selected() isa JsonString
                     for _ in 1:8
                         selected() isa JsonFile && break
@@ -1467,11 +1471,11 @@ function test_application()
                 end
                 # A click as the editor gets it: the button down, the button up, and
                 # the press that the gesture recognizer makes of the two.
-                function click!(x, y; alt = false)
+                function click!(x, y; alt = false, count = 1)
                     modifiers = ModifierKeys(alt = alt)
                     fire!(MouseDown(:left, x, y, modifiers; time = 0.0))
                     fire!(MouseUp(:left, x, y, modifiers; time = 0.0))
-                    fire!(MouseClick(:left, x, y, 1, modifiers; time = 0.0))
+                    fire!(MouseClick(:left, x, y, count, modifiers; time = 0.0))
                 end
                 key!(name; modifiers...) = fire!(_app_key_event(name, ModifierKeys(; modifiers...)))
                 type!(text) = foreach(character -> fire!(KeyPress(character; time = 0.0)), text)
@@ -1509,8 +1513,8 @@ function test_application()
                 @test circle isa GraphicsCircle
                 (cx, cy, radius) = only(circles(content()))
                 @test radius == 10
-                # Note the circle: Alt+click on it selects the result itself.
-                click!(cx, cy; alt = true)
+                # Note the circle: Alt+double click on it selects the result itself.
+                click!(cx, cy; alt = true, count = 2)
                 key!(:n; ctrl = true)
                 @test only(search_documents(document, node -> node isa ClipboardSlice)).slice === circle
                 # A click on the empty space below the forms puts the caret back in
@@ -1523,7 +1527,8 @@ function test_application()
                 type!("x.radius = 30")
                 key!(:tab)
                 (xx, xy) = only((x, y) for (text, x, y) in drawn() if text == "x")
-                click!(xx + 3, xy + 5; alt = true)
+                click!(xx + 3, xy + 5; alt = true, count = 2)
+                key!(:up; alt = true)
                 key!(:v; ctrl = true)
                 @test "⟨GraphicsCircle⟩" in [text for (text, _, _) in drawn()]
                 key!(:return)
@@ -1900,7 +1905,7 @@ function test_application()
 
             # The ring shows a selection that ends at the Files pane. A row the
             # person selects is inside it, so the ring is off.
-            @testset "a click and an Alt+click select a row inside the Files pane" begin
+            @testset "a click and an Alt+double click select a row inside the Files pane" begin
                 document, scene, composed, iomap = _app_make_scene(String[], dir; files = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
@@ -1934,14 +1939,14 @@ function test_application()
                 opened = _app_fire(composed, editor.iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
-                # An Alt+click on the row selects the file of the row as a whole, the
+                # An Alt+double click on the row selects the file of the row as a whole, the
                 # innermost part under the pointer, so the ring is off.
-                @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+                @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test selected_file() == joinpath(dir, "a.json")
                 @test isempty(ring())
-                # An Alt+click below the rows selects the Files pane as a whole.
-                @test press!(MouseClick(:left, x + 3, y + 400, 1, ModifierKeys(alt = true); time = 0.0)) isa
+                # An Alt+double click below the rows selects the Files pane as a whole.
+                @test press!(MouseClick(:left, x + 3, y + 400, 2, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test endswith(path(), ".tabs[1].content")
                 @test length(ring()) == 1
@@ -2087,7 +2092,7 @@ function test_application()
             end
         end
 
-        # A file opened from the explorer takes a click, a key and an Alt+click in
+        # A file opened from the explorer takes a click, a key and an Alt+double click in
         # its document, as the document alone takes them.
         @testset "a click in a file opened from the explorer reaches its document" begin
             document, scene, composed, iomap = _app_make_scene(paths[2:2], dir; files = true)
@@ -2115,8 +2120,9 @@ function test_application()
             @test occursin("x", name()) && length(name()) == length("Alice") + 1
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("lice", text))
-            @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+            @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
                   ReplaceSelectionOperation
+            press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
             @test evaluate_reference(scene, get_selection(scene)) isa JsonString
         end
 

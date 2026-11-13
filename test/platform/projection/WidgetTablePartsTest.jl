@@ -196,9 +196,9 @@ end
     box_canvas = found[2][1][3].output
     @test box_canvas isa GraphicsCanvas
     @test Int(box_canvas.w) > 0 && Int(box_canvas.h) > 0
-    # An Alt+press selects the cell.
+    # An Alt+double click selects the cell.
     (x, y) = place(io, 2, 1)
-    op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     @test op.path.head.name == "cells"
     @test row_of(op.path) == 2
@@ -245,12 +245,12 @@ end
     # row two; a press past the rule under it names row three.
     (x, top) = place(io, 2, 2)
     for y in (top + Int(second.h) - 2, top + Int(second.h) + io.state.pad_y - 1)
-        op = read(io, MouseClick(:left, x + 2, y, alt; time = 0.0))
+        op = read(io, MouseClick(:left, x + 2, y, 2, alt; time = 0.0))
         @test op isa ReplaceSelectionOperation
         @test row_of(op.path) == 2
         @test column_of(op.path) == 2
     end
-    below = read(io, MouseClick(:left, x + 2, top + Int(second.h) + gap + 1, alt; time = 0.0))
+    below = read(io, MouseClick(:left, x + 2, top + Int(second.h) + gap + 1, 2, alt; time = 0.0))
     @test row_of(below.path) == 3
 end
 
@@ -620,12 +620,12 @@ text_x(io, label) = only(t[1] for t in texts(io.output) if t[3] == label)
     @test text_x(io, "r1 c4") - text_x(io, "r1 c3") ==
           8 * length("a longer header") + 2 * io.state.pad_x + io.state.bw
     @test text_x(io, "r1 c3") - text_x(io, "r1 c2") == 60 + 2 * io.state.pad_x + io.state.bw
-    # A press on a header selects its column, and an Alt+press on a cell the cell.
+    # A press on a header selects its column, and an Alt+double click on a cell the cell.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
     column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
     @test column.path.head.name == "columns" && column.path.tail.head.start + 1 == 2
     (x, y) = place(io, 2, 4)
-    cell = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    cell = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test (row_of(cell.path), column_of(cell.path)) == (2, 4)
     # The band of a selected column: its span in the header row and in a row.
     getfield(table, :selection)[] = column.path
@@ -883,12 +883,12 @@ end
     @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
           [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
     # A press on a label in a header, which is no control, selects its column,
-    # and an Alt+press selects the header itself.
+    # and an Alt+double click selects the header itself.
     (x, y) = text_at(io, "name")
     path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("columns"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
-    path = read(io, MouseClick(:left, x + 2, y + 2, ModifierKeys(alt = true); time = 0.0)).path
+    path = read(io, MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(alt = true); time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("column_headers"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
 end

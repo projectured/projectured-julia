@@ -99,12 +99,12 @@ end
     @test band(@reference(outer, close)) == "\n]"
 end
 
-@testset "an Alt+click on a delimiter of only whitespace selects the leaf or the node that holds it" begin
+@testset "an Alt+double click on a delimiter of only whitespace selects the leaf or the node that holds it" begin
     operator = SyntaxLeaf("=="; open = "  ", close = "  ")
     node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), operator, SyntaxLeaf("y")]; open = "(", close = ")")
     iomap = print_document(pipe, node)
     @test get_flat_string(iomap.output) == "(x  ==  y)"
-    alt = MouseClick(:left, 0, 0, ModifierKeys(alt = true); time = 0.0)
+    alt = MouseClick(:left, 0, 0, 2, ModifierKeys(alt = true); time = 0.0)
     whole(k) = strip_reference_types(read_intent(iomap.projection, pipe,
         Intent(alt, ReplaceSelectionOperation(_S2T._flat_text_path(k))), iomap).operation.path)
     # Between the two spaces before `==`: the space draws nothing, so the leaf of the

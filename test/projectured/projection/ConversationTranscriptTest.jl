@@ -89,13 +89,13 @@ end
 
 const _TRANSCRIPT_ALT = ModifierKeys(alt = true)
 
-# Every distinct selection an Alt+press scan produces, with one press point for
+# Every distinct selection an Alt+double click scan produces, with one press point for
 # each.
 function _scan_whole_selections(proj, io)
     found = Dict{String,Any}()
     for y in 2:2:900, x in 10:10:150
         op = try
-            read_intent(proj, io, MouseClick(:left, x, y, _TRANSCRIPT_ALT; time = 0.0))
+            read_intent(proj, io, MouseClick(:left, x, y, 2, _TRANSCRIPT_ALT; time = 0.0))
         catch
             nothing
         end
@@ -408,10 +408,12 @@ function test_conversation_transcript()
         @test any(f -> _is_text_place(f, 2, 1) &&
                        get_reference_steps(strip_reference_types(f))[6:7] ==
                        [FieldReferenceStep("text"), FieldReferenceStep("value")], found)
-        # And nothing else. A click that lands in the padding between parts says
-        # `EmptyReference` (the conversation itself), which the scan skips.
+        # And nothing else. A click in the padding of the card of a turn selects
+        # the turn, and a click between the turns says `EmptyReference` (the
+        # conversation itself), which the scan skips.
         @test all(f -> any(w -> string(f) == string(w), wanted) ||
-                       any(((i, j),) -> _is_text_place(f, i, j) || _is_same_path(f, _part_path(i, j)), texts),
+                       any(((i, j),) -> _is_text_place(f, i, j) || _is_same_path(f, _part_path(i, j)), texts) ||
+                       any(i -> _is_same_path(f, _turn_path(i)), 1:3),
                   found)
     end
 
@@ -456,7 +458,7 @@ function test_conversation_transcript()
         end
     end
 
-    @testset "a press in a plain text names a place in it, and an Alt+press the part" begin
+    @testset "a press in a plain text names a place in it, and an Alt+double click the part" begin
         conversation = _plain_text_conversation()
         proj = ProjecturedConversationExample.make_conversation_widget_projection_example(
             measure = _transcript_measure)
@@ -467,7 +469,9 @@ function test_conversation_transcript()
         # text names a place in its value.
         @test length(places) >= 2
         @test all(p -> get_reference_steps(strip_reference_types(p))[6] == FieldReferenceStep("value"), places)
-        @test all(p -> _is_text_place(p, 1, 1) || _is_same_path(p, _part_path(1, 1)), found)
+        # A press in the padding of the card of the turn selects the turn.
+        @test all(p -> _is_text_place(p, 1, 1) || _is_same_path(p, _part_path(1, 1)) ||
+                       _is_same_path(p, _turn_path(1)), found)
         wholes = [v[1] for v in values(_scan_whole_selections(proj, io))]
         @test any(p -> _is_same_path(p, _part_path(1, 1)), wholes)
         @test !any(p -> _is_text_place(p, 1, 1), wholes)
@@ -494,7 +498,7 @@ function test_conversation_transcript()
               ReplaceSelectionOperation
     end
 
-    @testset "an Alt+click names the innermost object" begin
+    @testset "an Alt+double click names the innermost object" begin
         (doc, proj, io) = _transcript_render()
         doc.turns[2].work_fold = :open
         doc.turns[2].parts[1].fold = :open

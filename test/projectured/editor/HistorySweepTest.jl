@@ -57,9 +57,9 @@ function test_history_sweep()
                 place(text, band) = first((x, y) for (t, x, y) in drawn() if t == text && x in band)
                 none = ModifierKeys()
                 alt = ModifierKeys(alt = true)
-                click((x, y); modifiers = none) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
+                click((x, y); modifiers = none, count = 1) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
                                                    MouseUp(:left, x + 3, y + 3, modifiers; time = 0.0),
-                                                   MouseClick(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
+                                                   MouseClick(:left, x + 3, y + 3, count, modifiers; time = 0.0)]
                 key_downs(names...; modifiers = none) = [KeyDown(name, modifiers; time = 0.0) for name in names]
                 left, middle, right = 0:300, 300:1090, 1090:1600
 
@@ -76,14 +76,14 @@ function test_history_sweep()
                         () -> [MouseMove(x, y; time = 0.0) for x in 20:120:1580 for y in 20:120:980],
                     "a click on a row of the Files pane" => () -> click(place("alpha", left)),
                     "Down and Up in the Files pane" => () -> key_downs(:down, :up),
-                    "Alt+click on a row" => () -> click(place("beta", left); modifiers = alt),
+                    "Alt+double click on a row" => () -> click(place("beta", left); modifiers = alt, count = 2),
                     "a folder closes and opens" => fold_twice,
                     "the wheel over the Files pane" => () -> [MouseScroll(0, -1, 100, 300; time = 0.0), MouseScroll(0, 1, 100, 300; time = 0.0)],
                     "a click in the file" => () -> click(place("Alice", middle)),
                     "arrow keys in the file" => () -> key_downs(:right, :left, :end, :home),
                     "Shift+Right in the file" => () -> key_downs(:right; modifiers = ModifierKeys(shift = true)),
                     "Alt+Up and Alt+Down in the file" => () -> key_downs(:up, :down; modifiers = alt),
-                    "Alt+click in the file" => () -> click(place("Alice", middle); modifiers = alt),
+                    "Alt+double click in the file" => () -> click(place("Alice", middle); modifiers = alt, count = 2),
                     "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300; time = 0.0), MouseScroll(0, 1, 700, 300; time = 0.0)],
                     "a click on the tab title of the Files pane" => () -> click(place("Files", left)),
                     "a click on the tab title of the file" => () -> click(place("a.json", 290:1100)),

@@ -402,8 +402,8 @@ _is_live_selection(value::SelectionDocument) = value.live
 # step above us). A single click is the caret at its point, as the press before it
 # put it; with Shift, the moving end of the selection goes to the point, as the
 # press moved it. A double click selects the word at the point, and a triple click
-# the line. Whole-element promotion (Alt+click) is decided in SyntaxToText, where
-# the tree is in hand.
+# the line. An Alt+click is the caret at the point too. Whole-element promotion
+# (Alt+double click) is decided in SyntaxToText, where the tree is in hand.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
     evt.button === :left || return nothing
     evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)

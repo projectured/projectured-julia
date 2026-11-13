@@ -233,7 +233,7 @@ function test_text_range_selection()
         @test repr(editor.document.selection) == before
     end
 
-    @testset "the mouse selects in a JSON string, and Alt and a click still select the whole string" begin
+    @testset "the mouse selects in a JSON string, and Alt and a double click still select the whole string" begin
         (editor, backend) = _tr_tracking_editor(make_json_document_example(), make_json_projection_example())
         texts = _tr_texts(_tr_window(backend))
         (x, y, _) = texts[findfirst(t -> t[3] == "Alice", texts)]
@@ -243,7 +243,7 @@ function test_text_range_selection()
         _tr_drag!(editor, backend, x + first(compute_text_extent("Al", font)), y + 8,
                   [(x + 1, y + 8), (x - 40, y + 8)])
         @test _tr_root_range(editor) == (0, 2, :backward)
-        _tr_clicks!(editor, backend, x + 1, y + 8, 1; modifiers = ModifierKeys(alt = true))
+        _tr_clicks!(editor, backend, x + 1, y + 8, 2; modifiers = ModifierKeys(alt = true))
         @test last(get_reference_steps(strip_reference_types(editor.document.selection))) isa FieldReferenceStep
     end
 

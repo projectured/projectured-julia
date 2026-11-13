@@ -24,7 +24,7 @@ function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
         # The value as a whole is the text of the leaf as a whole, both ways, so an
-        # Alt+click on the text selects the value in its field (P8).
+        # Alt+double click on the text selects the value in its field (P8).
         ::PrimitiveBool.value => @reference ::SyntaxLeaf.value::TextString
         ::PrimitiveBool.value{s:e} => begin
             (a, m) = get_range_ends(reference)
@@ -88,7 +88,7 @@ function map_reference_forward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
         # The value as a whole is the text of the leaf as a whole, both ways, so an
-        # Alt+click on the text selects the value in its field (P8).
+        # Alt+double click on the text selects the value in its field (P8).
         ::PrimitiveNumber.value => @reference ::SyntaxLeaf.value::TextString
         ::PrimitiveNumber.value{s:e} => begin
             (a, m) = get_range_ends(reference)
@@ -153,7 +153,7 @@ function map_reference_forward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMa
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
         # The value as a whole is the text of the leaf as a whole, both ways, so an
-        # Alt+click on the text selects the value in its field (P8).
+        # Alt+double click on the text selects the value in its field (P8).
         ::PrimitiveString.value => @reference ::SyntaxLeaf.value::TextString
         ::PrimitiveString.value{s:e} => begin
             (a, m) = get_range_ends(reference)
