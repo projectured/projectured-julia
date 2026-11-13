@@ -1550,6 +1550,24 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
   The next cause is the first row: each control records the line of its
   text, as a label does, so an Alt+click finds the character (D10).
+
+  **Paused (owner, 2026-11-13):** "just having the caret is not very good,
+  can't navigate with cursor, cannot select a range, cannot copy-paste. We
+  should reconsider the plans. This would be desirable to have but we should
+  not reinvent the text domain everywhere." The caret in a widget text takes
+  no key of the text domain. The work on the controls stops; stash
+  `3f8923c5d` holds the caret in the label of a button (`_build_button`,
+  `_read_control_caret`, its test). The assistant recommends (asked, not yet
+  answered): one plan in which a widget text that holds the selection draws
+  through a text view, as the name of a tab does while it is renamed
+  (`_print_tab_name_view`), so the keys, a range and a copy come from the one
+  text domain; the records of the drawn lines only find the character under
+  a press. The other way: no caret in a widget text, and an Alt+double click
+  selects the text as a whole.
+
+  The landing of 2026-11-13 (main 55e3de361, not pushed) holds steps 6a and
+  the causes before it. The omnet follow-up of the Alt+double click is on the
+  omnet branch `innermost-click` (b8a8d2c21), not landed.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
