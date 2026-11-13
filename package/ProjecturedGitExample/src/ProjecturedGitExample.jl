@@ -44,6 +44,6 @@ end
 
 include("../../../example/domain/git/GitRepositoryExample.jl")
 
-export make_git_example_repository
+export make_git_example_repository, make_git_commit_document_example, make_git_projection_example
 
 end # module ProjecturedGitExample

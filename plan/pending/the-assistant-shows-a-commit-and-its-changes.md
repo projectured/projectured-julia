@@ -316,13 +316,56 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    branch, moves a remote ref with `git update-ref`, and moves it again after `git pack-refs --all`.
    After each change the range reads again, the new hash comes first, and each `GitCommit` that
    stays is the same document. An unknown revision makes a read of the cell throw the words of git.
-3. **The views.** `GitCommitToWidget`, `GitFileChangeToWidget`, `GitFileRevisionToWidget`, `GitTheme`,
+3. **The views.** **Done on 2026-11-13.** `GitCommitToWidget`, `GitFileChangeToWidget`, `GitFileRevisionToWidget`, `GitTheme`,
    the natural rows and the tab titles. An example in `example/projectured/DomainExamples.jl`. Test:
    the new `test_git_views()` (`GitViewTest.jl`) in an editor with the console backend. It asserts the
    text of the header row, a file row, a hunk row, and a removed and an added line with their
    numbers. A diff of 5000 lines builds no more than the rows that show and a margin. A file at a
    revision shows its marked line in its first rows. A failed read shows its reason. Then
    `test_domain_examples()`.
+   What the implementation found:
+   - The owner reviewed a first version, whose pages built their own rows of labels in a lazy list,
+     and decided on 2026-11-13: "use existing views, documents, projections; projectured can already
+     display and navigate text and add line numbers; keep the git specific coloring, structure". The
+     owner also asked for the text domain itself (`TextBlock`, `TextLine`, `TextString`) in place of
+     `MarkedText`. So the text domain draws each page, and the first version is gone.
+   - New: `GitTextLine` (a plain value: a kind, a text, the label of its gutter), the abstract
+     `GitText` with `GitDiffText` and `GitFileText` (fields `lines` and `text`), and the projection
+     `GitTextToText`. A commit and a change hold their `diff`, a file at a revision its `content`.
+   - `GitTextToText` makes a `TextLine` for each line, with one `TextString` in the style of its kind
+     from `GitTheme`, and puts the label of a line of a diff, its old and its new number, into the
+     `number` lane of its `TextGutter`. The hunks hold the numbers, so nothing counts them again, and
+     no platform projection changes. A text of a file has no labels: `TextLineNumbering` numbers it.
+   - The chain of a text is the chain of the code of a file (`make_source_file_code_projection` of the
+     language server adapter, `make_julia_file_code_projection`): the git stage, then
+     `TextLineNumbering` for a file, then `TextBlockToScrollLayout`, in a recursion with the rows of
+     `TextGutter`, `TextBlock` and `GraphicsCanvas`. `make_graphics_projection` of each text type
+     gives it.
+   - A page is the form of the view of an open file: a `VerticalLayout` with a `WidgetScrollPane` of
+     the text (and a title above it for a file at a revision), chained with
+     `VerticalLayoutToGraphicsCanvas`. The recursion of the renderer draws the pane and the text, and
+     the pane takes apart the `ScrollLayout`, so the gutter stays at the left edge.
+   - The reader of `GitTextToText` keeps a selection, the part under the pointer and a drag, and
+     answers nothing for a `ReplaceRangeOperation`, a `ReplaceReferencedValueOperation` and a key
+     (the owner: "your git projection can ignore the editing operations in the reader coming from the
+     text domain"). The test clicks into a text, moves the caret with Right, types, and the text stays.
+   - The text of a commit holds every diff, as `git show` writes it, so its first draw reads all the
+     patches of the commit, in one task for each frame. "A file reads its diff only when its rows
+     show" no longer holds. Step 7 measures a large commit.
+   - The pane scrolls to a part only for an answer that shows it (`ShowSelectionOperation`). So the
+     page of a file at a revision starts at its first line, and step 4, the open of a file at a
+     line, brings the line into view. The named line has the kind `:marked` and its style.
+   - A walk of the documents reads no `hunks`, `diff` or `content` (`is_field_walked`).
+   - The package graph asks a package with natural rows to compile them: `ProjecturedGit` ends with
+     `@compile_ahead run_natural_rows_workload(GitModule)` now, not in step 7.
+   - The test uses the headless backend, as the explorer and the navigator tests do, not the console
+     backend, which draws a text and no widget page. `test_printer(git_example)` runs in place of the
+     whole `test_domain_examples()`. `ProjecturedExample` holds `ProjecturedGitExample`.
+   - The PDF backend draws no element of a canvas whose elements are a `ListNode`, so a page with a
+     lazy list prints blank in a PDF. `write_image` of the SDL backend draws it.
+   - Results: `test_git()` 119 pass; `test_printer(git_example)`, `test_package_graph()` 562 and
+     `test_repository()` 619 pass; the naming guard passes; the documentation report is the same as
+     on main; the style guard fails one line, `BookModule.jl:34`, as on main.
 4. **The gestures.** The rules of §3.4 and their descriptions, which the command palette lists. Test:
    the new `test_git_gestures()` (`GitGestureTest.jl`) in a real `Editor` with a navigator on a
    commit. Ctrl+click on a removed line visits the file at the parent at its old line, and Back

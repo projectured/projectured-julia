@@ -34,9 +34,11 @@ for _n in names(GitModule)
     _n === :GitModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
-# This package has no workload of its own. It compiles the calls that an
-# application records for it, as its preferences say.
+# The workload of this package: the natural rows of this domain, which every
+# first window of the display builds.
 using ProjecturedPrecompile: @compile_ahead
-@compile_ahead
+@compile_ahead begin
+    run_natural_rows_workload(GitModule)
+end
 
 end # module ProjecturedGit

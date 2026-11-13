@@ -26,6 +26,7 @@ using ProjecturedDBCatalogExample
 using ProjecturedFormulaExample
 using ProjecturedFSMExample
 using ProjecturedProcessExample
+using ProjecturedGitExample
 using ProjecturedPivotExample
 using ProjecturedConversationExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
@@ -39,7 +40,7 @@ import ProjecturedPlatformExample: print_example, write_example_pdf
 for _src in (ProjecturedKernelExample, ProjecturedPlatformExample,
              ProjecturedJSONExample, ProjecturedYAMLExample, ProjecturedXMLExample, ProjecturedMarkdownExample, ProjecturedRSTExample, ProjecturedBookExample,
              ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSQLExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
-             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedPivotExample, ProjecturedConversationExample, ProjecturedWorkflowExample, ProjecturedResearchExample)
+             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedGitExample, ProjecturedPivotExample, ProjecturedConversationExample, ProjecturedWorkflowExample, ProjecturedResearchExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue

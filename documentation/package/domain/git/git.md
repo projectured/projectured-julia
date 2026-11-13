@@ -6,23 +6,41 @@ The git domain, `ProjecturedGit`, reads what the `git` program writes about a re
 
 ## How it works
 
-The package holds three documents, which read what they show by the `git` program, and plain values, which functions make from the output of git.
+The package holds three documents, which read what they show by the `git` program; the texts and the pages that show them, which the text domain draws; and plain values, which functions make from the output of git.
 
 ### The documents and their reads
 
 | Document | It holds | Its read |
 | --- | --- | --- |
 | `GitCommit(repository, revision)` | `header`, a `GitCommitHeader`, and `changes`, a `GitFileChange` for each changed file | `git show -z --raw --numstat -M --diff-merges=first-parent` of `<revision>^{commit}` |
-| `GitFileChange` | what the read of its commit knew: the kind, the old and the new path, the counts, whether the file is binary, the first parent as `old_revision` and the commit as `new_revision`; and `hunks` | `git show --patch` of the commit, limited to the old and the new path |
+| `GitFileChange` | the facts of the read of its commit: the kind, the old and the new path, the counts, whether the file is binary, the first parent as `old_revision` and the commit as `new_revision`; and `hunks` | `git show --patch` of the commit, limited to the old and the new path |
 | `GitFileRevision(repository, revision, path; line)` | `text`, and the `line` to show | `git cat-file blob <revision>:<path>` |
 
-Each document holds the absolute path of its repository. Each read is a background cell (see [editor.md](../../kernel/editor.md)), and the cell is the store of the answer: a print that reads a field asks for the read, and a task runs `git` after the frame. While the answer is still to come, the cell is provisional, and the field `reading` is `true` while git runs. A read that failed makes each read of the field throw a `GitException` with the words of git, such as `bad revision` or `not a git repository`. A document has no read state of its own and no operation that stores an answer.
+Each document holds the absolute path of its repository. Each read is a background cell (see [editor.md](../../kernel/editor.md)), and the cell is the store of the answer: a print that reads a field records a demand for the read, and a task runs `git` after the frame. While the answer is still to come, the cell is provisional, and the field `reading` is `true` while git runs. A read that failed makes each read of the field throw a `GitException` with the words of git, such as `bad revision` or `not a git repository`. A document has no read state of its own and no operation that stores an answer.
 
 A background work reads no document, so the read of a commit answers values: the header, and a `GitFileSummary` for each file. `changes` is a computation that makes a `GitFileChange` from each summary. A commit never changes, so its answer is final, the computation runs one time, and each change keeps its document. A commit and its changes share one background source, so one task reads the patches of all the files that one frame shows. A commit made with the header of a log, `GitCommit(repository, hash; header)`, holds that header, and its read gives only the changes.
 
 Each run of git is the same with any configuration of a person: `git -C <repository> --no-pager` with `core.quotePath=false`, `color.ui=false` and `log.showSignature=false`, the C locale, no optional lock and no prompt. A revision comes after `--end-of-options`, so a revision that starts with `-` is no option. The read of a patch takes literal paths and the prefixes `a/` and `b/`.
 
 A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, and a file at a revision with its repository, its revision, its path and its line.
+
+### The texts and the pages
+
+Each document holds the text of its page: `diff`, a `GitDiffText`, for a commit and for a change, and `content`, a `GitFileText`, for a file at a revision. A text holds `lines`, a vector of `GitTextLine`, and `text`, the lines with one line end between two. A `GitTextLine` is a plain value: a kind, a text, and the label of its gutter. A computation makes the lines from the reads of the document, so a text shows a note while a read is still to come and the words of git for a read that failed.
+
+| Text | Its lines |
+| --- | --- |
+| of a commit | the subject, the facts and the parents, the rest of the message, the list of the changed files, then the path and the diff of each file, as `git show` writes it |
+| of a change | the path, a line with the kind, the counts and the two revisions, then the diff |
+| of a file at a revision | the lines of the file; the line that the file names has the kind `:marked` |
+
+The text of a commit holds the diff of each changed file, so its first draw reads them all: one task of each frame reads the patches that the frame demanded.
+
+`GitTextToText` draws a git text as a block of the text domain: a `TextLine` for each line, with one `TextString` in the style of its kind from the `GitTheme`. For a line of a diff it puts the label of the line, its old and its new number, into the `number` lane of the `TextGutter` of the line. The hunks hold the numbers, so no stage counts them. A text of a file has no labels, and `TextLineNumbering` after the stage numbers its lines. Then `TextBlockToScrollLayout` lays the lines and their gutters out. This is the chain of the code of a file, so the caret, the motion keys, a selection with the mouse, copy and the gutter all come from the text domain.
+
+The flat string of the block is the `text` of the document, so the place `text{s:e}` of the document is the flat range `{s:e}` of the block, in both directions. The reader of the stage keeps a selection, the part under the pointer and a drag, and answers no edit: a range edit, an element write and a key that the stages after it give back answer nothing. So a person reads, selects and copies, and the text of a page never changes.
+
+A page is a `VerticalLayout` that holds a `WidgetScrollPane` of its text, and a title above it for a file at a revision, as the view of an open file is. The chain of a page ends with `VerticalLayoutToGraphicsCanvas`, and the recursion of the renderer draws the pane and the text by their own rows: `make_graphics_projection` of `GitDiffText` and `GitFileText` gives the text chain, and the pane takes apart its `ScrollLayout`, so the gutter stays at the left edge while the lines scroll. A walk of the documents reads no `hunks`, `diff` or `content`.
 
 ### The values of the output of git
 
@@ -71,6 +89,7 @@ Another domain can read a patch of its own with `parse_git_diff_text` and compar
 - **git computes the diff.** The line numbers then equal the lines of the file at each revision, and the diff in the editor equals the diff in a terminal. A diff in Julia can differ from git, for example in the heuristic of the indent and in `diff.algorithm`.
 - **The output of the program, not LibGit2.** LibGit2 is a new dependency, and its API has no patch text and no lines of a hunk. The `git` program needs no Julia dependency.
 - **Plain values.** A hunk and a line are immutable values and not documents, so a walk of the documents does not enter the lines of a large diff.
+- **The text domain draws the pages.** A page is a text with a gutter in a pane, as the code of a file is, so the caret, the selection, the motion keys and copy come from the text domain. The git stage gives each line its style and the label of its gutter, and takes no edit.
 - **The NUL forms.** `-z` and `%x00` separate the fields of the log and the paths of the lists, so no name and no message needs quotes there.
 
 ## Usage
@@ -89,3 +108,6 @@ end
 - A patch must use the prefixes `a/` and `b/`. A patch of `git diff --no-prefix`, or with `diff.mnemonicPrefix`, gives an `ArgumentError`.
 - The combined diff of a merge (`@@@`) is not read. A merge shows its change against its first parent.
 - A patch with Windows line ends keeps the carriage return in the text of each line.
+- The text of a commit reads the diff of every changed file at its first draw, so a commit of thousands of files starts one read of git for each file.
+- A page of a file at a revision shows the file from its first line. The open of a file at a line brings that line into view.
+- A file at a revision draws in the style of code, with no colors of the domain of its extension.

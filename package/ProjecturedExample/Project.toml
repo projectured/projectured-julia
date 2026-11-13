@@ -27,6 +27,7 @@ ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
+ProjecturedGitExample = "854ecef7-4965-450c-adfe-b250a3163d4e"
 ProjecturedRSTExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 ProjecturedResearchExample = "bab7c980-c37e-4728-8721-418e90de58f8"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
@@ -57,6 +58,7 @@ ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedProcessExample = {path = "../ProjecturedProcessExample"}
+ProjecturedGitExample = {path = "../ProjecturedGitExample"}
 ProjecturedRSTExample = {path = "../ProjecturedRSTExample"}
 ProjecturedResearchExample = {path = "../ProjecturedResearchExample"}
 ProjecturedSQLExample = {path = "../ProjecturedSQLExample"}

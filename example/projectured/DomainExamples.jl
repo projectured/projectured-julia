@@ -71,6 +71,7 @@ const pivot_example          = Example("pivot",          make_pivot_pane_documen
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const process_diagram_example = Example("process_diagram", make_process_diagram_document_example, make_process_diagram_projection_example)
+const git_example            = Example("git",            make_git_commit_document_example,     make_git_projection_example)
 # The visual tier's `pane_example` with real domain documents in its tabs: the
 # focused tab holds the json example document, and the renderer is the natural
 # projection, so any other domain works in a tab too.
@@ -233,6 +234,7 @@ const domain_examples = Example[
     process_example,
     process_drain_example,
     process_diagram_example,
+    git_example,
     fsm_toggle_example,
     fsm_crossing_example,
     fsm_alternating_bit_example,

@@ -23,7 +23,7 @@ const _GIT_SETTINGS = ["--no-pager", "-c", "core.quotePath=false", "-c", "color.
 # The output of `git` with `arguments` in the folder `repository`, or a
 # `GitException` with the words of git. The C locale gives the words of git in
 # English. A read takes no optional lock, so it runs while another program writes
-# in the repository, and git never asks for a password.
+# in the repository, and git shows no prompt for a password.
 function _run_git(repository::AbstractString, arguments::Vector{String})
     command = addenv(`git -C $repository $_GIT_SETTINGS $arguments`,
                      "LC_ALL" => "C", "GIT_OPTIONAL_LOCKS" => "0", "GIT_TERMINAL_PROMPT" => "0")
@@ -40,7 +40,7 @@ function _run_git(repository::AbstractString, arguments::Vector{String})
 end
 
 # The source of the reads of one document, and of the documents that it makes: one
-# task reads each input that one frame asked for. An input is a tuple whose first
+# task reads each input that one frame demanded. An input is a tuple whose first
 # element names the read.
 _make_git_source() =
     BackgroundSource(inputs -> Any[_read_git_input(input) for input in inputs]; description = "the reads of git")
@@ -50,7 +50,7 @@ function _read_git_input(input::Tuple)
     read === :commit && return _read_git_commit(input[2], input[3])
     read === :patch && return _read_git_patch(input[2], input[3], input[4], input[5])
     read === :file && return _read_git_file(input[2], input[3], input[4])
-    throw(ArgumentError("a git document asks for the read $read, which does not exist"))
+    throw(ArgumentError("a git document demands the read $read, which does not exist"))
 end
 
 # The header and the changed files of the commit that `revision` names, against

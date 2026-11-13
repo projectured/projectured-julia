@@ -4,9 +4,10 @@
 """
     GitDocument
 
-A document of the git domain. Each document holds the absolute path of its
-repository, and reads what it shows by the `git` program, off the loop: a print
-that reads a field asks for the read, and a task runs `git` after the frame. The
+A document of the git domain. A commit, a change and a file at a revision hold
+the absolute path of their repository, and read what they show by the `git`
+program, off the loop: a print that reads a field records a demand for the read, and a task
+runs `git` after the frame. The
 cell of the field holds the answer. While the answer is still to come, the cell is
 provisional (`is_cell_provisional`), and `reading` is `true` while git runs. A read
 of the field of a read that failed throws a [`GitException`](@ref) with the words
@@ -21,14 +22,16 @@ The commit that `revision` names in the repository in the folder `repository`. A
 revision is a hash, a branch, a tag, or another name that git reads, such as
 `HEAD~2`. The read gives the `header`, a [`GitCommitHeader`](@ref), and the
 `changes`, a [`GitFileChange`](@ref) for each changed file against the first
-parent. A commit never changes, so its read runs one time. A `header` that a log
-gave already is the header of the commit, and the read then gives only the changes.
+parent. `diff` is the text of its page, a [`GitDiffText`](@ref). A commit never
+changes, so its read runs one time. A `header` that a log gave already is the
+header of the commit, and the read then gives only the changes.
 """
 @document struct GitCommit <: GitDocument
     repository::String
     revision::String
     header::Any
     changes::Any
+    diff::Any
     reading::Bool
 end
 
@@ -41,7 +44,8 @@ function GitCommit(repository::AbstractString, revision::AbstractString;
     read = make_background_cell(source, () -> (:commit, folder, name); working = reading)
     header_cell = header === nothing ? Cell(@computation _get_read_header(read[])) : Cell(header)
     changes = Cell(@computation _make_file_changes(source, folder, read[]))
-    GitCommit(folder, name, header_cell, changes, reading)
+    diff = _make_git_text(GitDiffText, () -> _make_commit_lines(name, header_cell, changes))
+    GitCommit(folder, name, header_cell, changes, diff, reading)
 end
 
 _get_read_header(answer) = answer === nothing ? nothing : answer.header
@@ -59,12 +63,12 @@ end
     GitFileChange
 
 The change of one file in a commit, which the read of its [`GitCommit`](@ref)
-makes. It holds what that read knew: the `kind` of the change, the old and the new
+makes. It holds the facts of that read: the `kind` of the change, the old and the new
 path, the counts of the added and the removed lines, and whether the file is
 binary. `old_revision` is the first parent of the commit, or `nothing` for a root
 commit, and `new_revision` is the hash of the commit. An added file has no old
 path, and a deleted file has no new path. Its read gives the `hunks`, a vector of
-[`GitDiffHunk`](@ref).
+[`GitDiffHunk`](@ref). `diff` is the text of its page, a [`GitDiffText`](@ref).
 """
 @document struct GitFileChange <: GitDocument
     repository::String
@@ -77,8 +81,15 @@ path, and a deleted file has no new path. Its read gives the `hunks`, a vector o
     removed_count::Int
     is_binary::Bool
     hunks::Any
+    diff::Any
     reading::Bool
 end
+
+# A walk of the documents does not read a diff or a text: the read runs git, and a
+# diff can hold thousands of lines that no walk needs. A page reads them when it
+# shows them.
+is_field_walked(::GitCommit, name::Symbol) = name !== :diff
+is_field_walked(::GitFileChange, name::Symbol) = !(name in (:hunks, :diff))
 
 function _make_file_change(source::BackgroundSource, repository::String, hash::String, parent, file::GitFileSummary)
     reading = Cell(false)
@@ -86,8 +97,11 @@ function _make_file_change(source::BackgroundSource, repository::String, hash::S
     new_path = file.new_path
     hunks = make_background_cell(source, () -> (:patch, repository, hash, old_path, new_path);
                                  default = GitDiffHunk[], working = reading)
-    GitFileChange(repository, parent, hash, file.kind, old_path, new_path, file.added_count, file.removed_count,
-                  file.is_binary, hunks, reading)
+    kind, added_count, removed_count, is_binary = file.kind, file.added_count, file.removed_count, file.is_binary
+    diff = _make_git_text(GitDiffText, () -> _make_change_lines(kind, old_path, new_path, added_count, removed_count,
+                                                                is_binary, parent, hash, hunks))
+    GitFileChange(repository, parent, hash, kind, old_path, new_path, added_count, removed_count, is_binary, hunks,
+                  diff, reading)
 end
 
 """
@@ -95,7 +109,8 @@ end
 
 The file at `path` in the commit that `revision` names, in the repository in the
 folder `repository`. `path` starts at the top folder of the repository. Its read
-gives the `text`. `line` is the line to show, or `nothing`.
+gives the `text`. `line` is the line to show, or `nothing`. `content` is the text of
+its page, a [`GitFileText`](@ref).
 """
 @document struct GitFileRevision <: GitDocument
     repository::String
@@ -103,6 +118,7 @@ gives the `text`. `line` is the line to show, or `nothing`.
     path::String
     line::Union{Int,Nothing}
     text::Any
+    content::Any
     reading::Bool
 end
 
@@ -114,8 +130,12 @@ function GitFileRevision(repository::AbstractString, revision::AbstractString, p
     reading = Cell(false)
     text = make_background_cell(_make_git_source(), () -> (:file, folder, name, file_path);
                                 default = "", working = reading)
-    GitFileRevision(folder, name, file_path, line === nothing ? nothing : Int(line), text, reading)
+    named = line === nothing ? nothing : Int(line)
+    content = _make_git_text(GitFileText, () -> _make_file_lines(text, named))
+    GitFileRevision(folder, name, file_path, named, text, content, reading)
 end
+
+is_field_walked(::GitFileRevision, name::Symbol) = name !== :content
 
 # A `.pred` file names a commit by its repository and its hash, once the read gave
 # the hash, and else by the revision that it was made with.

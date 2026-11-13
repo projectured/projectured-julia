@@ -60,3 +60,21 @@ function _run_example_git(path::String, date::String, arguments::Vector{String})
                "GIT_COMMITTER_DATE" => date))
     nothing
 end
+
+"""
+    make_git_commit_document_example() -> GitCommit
+
+The commit `v1` of a new example repository (`make_git_example_repository`) in a
+folder of its own, which Julia removes when the process ends: a rename with two
+hunks, a binary file, a deleted file, a change of the mode, and two names that git
+quotes.
+"""
+make_git_commit_document_example() = GitCommit(make_git_example_repository(joinpath(mktempdir(), "repository")), "v1")
+
+"""
+    make_git_projection_example(; measure = FontFileMeasure()) -> Projection
+
+The renderer that draws any document, which draws a git document as its page: the
+rows that the git domain gives with `make_graphics_projection`.
+"""
+make_git_projection_example(; measure = FontFileMeasure()) = NaturalToGraphics(; measure)
