@@ -974,6 +974,64 @@ function test_chart_projection()
             @test (loaded.labels, loaded.log) == ([["1", ""], ["", "2"]], true)
         end
 
+        @testset "links" begin
+            x = [1.0, 2.0, 3.0]
+            y = [20.0, 30.0, 10.0]
+            links = Any["file:///tmp/one.pred", "git+file:///tmp/inet#3fa2c1d", nothing]
+            chart = Chart("s", [ChartScatterSeries("p", x, y; links)])
+            # A sample has the link of its place, and no link past the end or in a
+            # series with none.
+            @test find_chart_sample_link(chart.series[1], 1) == "file:///tmp/one.pred"
+            @test find_chart_sample_link(chart.series[1], 3) === nothing
+            @test find_chart_sample_link(chart.series[1], 4) === nothing
+            @test find_chart_sample_link(ChartScatterSeries("p", x, y), 1) === nothing
+            @test find_chart_sample_link(ChartLineSeries("l", x, y; links), 2) == "git+file:///tmp/inet#3fa2c1d"
+            @test find_chart_sample_link(ChartStripSeries("s", x, [1, 2, 1]; links), 1) == "file:///tmp/one.pred"
+            # The links of a matrix are rows, as its values are; a cell counts down
+            # the rows first.
+            matrix = ChartMatrixSeries("m", ["a", "b"], Any[Any[1, 2], Any[3, 4]];
+                                       links = Any[Any["file:///a", nothing], Any[nothing, "file:///b"]])
+            @test find_chart_sample_link(matrix, 1) == "file:///a"
+            @test find_chart_sample_link(matrix, 4) == "file:///b"
+            @test find_chart_sample_link(matrix, 3) === nothing
+
+            # Ctrl and a click on a point with a link follow it here, and Ctrl+Shift
+            # opens it in a new tab, with the open of a Markdown link. A plain click
+            # selects the point, and so does Ctrl and a click on a point with no link.
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            g = iomap.step_iomaps[2][].geometry
+            at(k) = (round(Int, ChartModule.to_pixel(g.xs, x[k])), round(Int, ChartModule.to_pixel(g.ys, y[k])))
+            click(k, modifiers) = read_intent(proj, iomap, MouseClick(:left, at(k)..., modifiers; time = 0.0))
+            op = click(1, ModifierKeys(; ctrl = true))
+            @test op isa OpenPageOperation
+            @test (op.document, op.target, op.place) == (nothing, "file:///tmp/one.pred", :here)
+            @test click(1, ModifierKeys(; ctrl = true, shift = true)).place === :new_tab
+            @test click(1, no_modifier) isa ReplaceSelectionOperation
+            @test click(3, ModifierKeys(; ctrl = true)) isa ReplaceSelectionOperation
+
+            # A cell of a matrix follows its link too, and the readout names it.
+            cells = Chart("m", [matrix]; x_axis = ChartCategoryAxis(categories = ["w", "x"]))
+            mproj = _chart_projection()
+            miomap = print_document(mproj, _chart_widgets(), cells, PrinterContext())
+            gm = miomap.step_iomaps[2][].geometry
+            cell(column, row) = (round(Int, ChartModule.to_pixel(gm.xs, Float64(column))),
+                                 round(Int, ChartModule.to_pixel(gm.ys, Float64(3 - row))))
+            mop = read_intent(mproj, miomap, MouseClick(:left, cell(2, 2)..., ModifierKeys(; ctrl = true); time = 0.0))
+            @test mop isa OpenPageOperation && mop.target == "file:///b"
+            @test occursin("link: file:///b", ChartModule._format_matrix_readout(gm, cell(2, 2)...))
+            # A strip names the link of the segment under the pointer.
+            strip = Chart("s", [ChartStripSeries("s", x, [1, 2, 1]; links, x_end = 4.0)])
+            gs = _chart_layout(strip)
+            band = ChartModule._strip_band(gs, 1)
+            @test occursin("link: file:///tmp/one.pred", ChartModule._strip_readout(gs, 1.5, (band[1] + band[2]) ÷ 2))
+
+            # A chart file keeps the links.
+            loaded = parse_pred_text(print_pred_text(chart.series[1]))
+            @test loaded.links == links
+            @test parse_pred_text(print_pred_text(matrix)).links == matrix.links
+        end
+
         @testset "line style" begin
             x = collect(0.0:1.0:10.0)
             mk(style) = Chart("s", [ChartLineSeries("a", x, x; line_style=style)])

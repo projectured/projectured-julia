@@ -189,6 +189,7 @@ For the assistant.
     lower::Any = nothing
     upper::Any = nothing
     interval_style::Symbol = :whisker
+    links::Any = nothing
 end
 
 """
@@ -208,12 +209,13 @@ function ChartLineSeries(label::AbstractString, x::AbstractVector, y::AbstractVe
                          line_style::Symbol=:solid, line_width::Integer=1,
                          symbol::Symbol=:none, symbol_size::Integer=4,
                          color=nothing, visible::Bool=true,
-                         lower=nothing, upper=nothing, interval_style::Symbol=:whisker)
+                         lower=nothing, upper=nothing, interval_style::Symbol=:whisker,
+                         links=nothing)
     interval_style in CHART_INTERVAL_STYLES ||
         throw(ArgumentError("an interval draws as one of $(CHART_INTERVAL_STYLES), not $(repr(interval_style))"))
     ChartLineSeries(String(label), x, y, sorted, draw_style, line_style,
                     Int(line_width), symbol, Int(symbol_size), color, visible,
-                    lower, upper, interval_style, nothing)
+                    lower, upper, interval_style, links, nothing)
 end
 
 """
@@ -245,12 +247,15 @@ For the assistant.
     visible::Bool = true
     lower::Any = nothing
     upper::Any = nothing
+    links::Any = nothing
 end
 
 function ChartScatterSeries(label::AbstractString, x::AbstractVector, y::AbstractVector;
                             symbol::Symbol=:circle, symbol_size::Integer=4,
-                            color=nothing, visible::Bool=true, lower=nothing, upper=nothing)
-    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, lower, upper, nothing)
+                            color=nothing, visible::Bool=true, lower=nothing, upper=nothing,
+                            links=nothing)
+    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, lower, upper,
+                       links, nothing)
 end
 
 """
@@ -453,6 +458,7 @@ generated all-positional form is the caller's responsibility.
     draw_edges::Bool = false
     color::Any = nothing
     visible::Bool = true
+    links::Any = nothing
 end
 
 """
@@ -466,7 +472,7 @@ raw samples.
 function ChartStripSeries(label::AbstractString, x::AbstractVector, values::AbstractVector;
                           states=nothing, x_end=nothing, state_colors=nothing,
                           show_labels::Bool=true, draw_edges::Bool=false,
-                          color=nothing, visible::Bool=true)
+                          color=nothing, visible::Bool=true, links=nothing)
     issorted(x) || throw(ArgumentError("ChartStripSeries needs an ascending x column"))
     if x_end !== nothing && !isempty(x) && x_end < last(x)
         throw(ArgumentError("ChartStripSeries x_end must not precede the last sample"))
@@ -475,7 +481,7 @@ function ChartStripSeries(label::AbstractString, x::AbstractVector, values::Abst
     ChartStripSeries(String(label), x, codes,
                      states === nothing ? pooled : states,
                      x_end, state_colors, show_labels, draw_edges,
-                     color, visible, nothing)
+                     color, visible, links, nothing)
 end
 
 # A named column pools; a code column is handed through untouched, so a
@@ -537,8 +543,9 @@ of the value.
 `values` holds one vector for each row, with one value for each column. A value
 that is `nothing`, `missing` or not finite is an empty cell: it draws nothing and
 a click there selects no cell. `labels`, when given, holds a text for each cell in
-the same shape, which the cell shows when it fits. A matrix can also be given as
-an `AbstractMatrix`, which the constructor turns into rows.
+the same shape, which the cell shows when it fits, and `links` a link for each
+cell (see `find_chart_sample_link`). A matrix can also be given as an
+`AbstractMatrix`, which the constructor turns into rows.
 
 The first row is on top, and the y axis names the rows. A chart draws its first
 visible matrix series.
@@ -553,7 +560,7 @@ test and each group of results.
                     x_axis = ChartCategoryAxis(categories = ["nav", "queueLength"]))
     open_pane!(chart_1; title = "Moved values")
 
-See also `Chart`, `ChartCategoryAxis` and `ChartStripSeries`.
+See also `Chart`, `ChartCategoryAxis` and `ChartBarSeries`.
 
 For the assistant.
 """
@@ -568,14 +575,17 @@ For the assistant.
     show_labels::Bool = true
     color::Any = nothing
     visible::Bool = true
+    links::Any = nothing
 end
 
 function ChartMatrixSeries(label::AbstractString, rows::AbstractVector, values;
                            labels = nothing, min = nothing, max = nothing, log::Bool = false,
-                           show_labels::Bool = true, color = nothing, visible::Bool = true)
+                           show_labels::Bool = true, color = nothing, visible::Bool = true,
+                           links = nothing)
     ChartMatrixSeries(String(label), rows, _get_matrix_rows(values),
                       labels === nothing ? nothing : _get_matrix_rows(labels),
-                      min, max, log, show_labels, color, visible, nothing)
+                      min, max, log, show_labels, color, visible,
+                      links === nothing ? nothing : _get_matrix_rows(links), nothing)
 end
 
 # The rows of a matrix: a vector of rows as it is, and an `AbstractMatrix` as one
@@ -792,6 +802,51 @@ function get_chart_sample(s::ChartMatrixSeries, index::Integer)
     cell === nothing && return nothing
     value = _find_matrix_value(s, cell...)
     value === nothing ? nothing : (cell[1], cell[2], value)
+end
+
+"""
+    find_chart_sample_link(series, index) -> String | nothing
+
+The link of the `index`-th sample of a series, or `nothing` when it has none. The
+`links` of a line, scatter or strip series hold one text or `nothing` for each
+sample; the `links` of a matrix series hold one row of them for each row, as its
+`values` do. A link is the target of a Markdown link: an absolute address such as
+`file:///home/me/report.pred` or `git+file:///home/me/inet#3fa2c1d`, or a path
+that the page resolves. Ctrl+click on the sample follows it, and Ctrl+Shift+click
+opens it in a new tab.
+
+Use it to read where a sample of a chart leads.
+
+# Example
+
+    chart_1 = Chart("Steps", [ChartScatterSeries("step", [1, 2], [31, 1];
+                                                 links = ["file:///tmp/step-1.pred", nothing])])
+    find_chart_sample_link(chart_1.series[1], 1)   # "file:///tmp/step-1.pred"
+
+See also `Chart`, `ChartScatterSeries` and `ChartMatrixSeries`.
+
+For the assistant.
+"""
+function find_chart_sample_link end
+
+find_chart_sample_link(::Any, ::Integer) = nothing
+
+function find_chart_sample_link(s::Union{ChartLineSeries,ChartScatterSeries,ChartStripSeries},
+                                index::Integer)
+    _find_link_text(s.links, index)
+end
+
+function find_chart_sample_link(s::ChartMatrixSeries, index::Integer)
+    cell = _get_matrix_cell(s, index)
+    (cell === nothing || s.links === nothing || !(1 <= cell[1] <= length(s.links))) && return nothing
+    _find_link_text(s.links[cell[1]], cell[2])
+end
+
+# The text at `index` of `links` when it is a text that is not empty.
+function _find_link_text(links, index::Integer)
+    (links isa AbstractVector && 1 <= index <= length(links)) || return nothing
+    link = links[index]
+    (link isa AbstractString && !isempty(link)) ? String(link) : nothing
 end
 
 # The step type is domain-agnostic; what a sample *is* depends on the series

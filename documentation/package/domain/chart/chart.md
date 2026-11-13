@@ -25,6 +25,8 @@
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
 | `ChartMatrixSeries` | `rows`, the names of the rows; `values`, one vector for each row with one value for each category; `labels` in the same shape; the shade range `min` and `max`; `log` |
 
+A line, scatter, strip and matrix series also hold `links`, the link of each sample (see Links).
+
 **An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
 
 The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
@@ -76,6 +78,12 @@ get_selected_sample(chart)                 # (1, 5), or nothing for a coarser se
 
 `make_chart_sample_reference` builds the path from steps and calls `annotate_reference_types`. The `@reference` macro can not build it, because it reads a lowercase `::t` as a type at run time and can not continue into an extension step. The selection still ends at a real document, the series, so no sample needs a cell. `SequenceChartRowReferenceStep` of the sequence chart is the same idiom for a row of a table; see [sequencechart.md](../sequencechart/sequencechart.md).
 
+### Links
+
+A line, scatter, strip or matrix series can hold `links`: one text or `nothing` for each sample, and for a matrix one row of them for each row, as its `values`. A link is the target of a Markdown link: an absolute address, such as `file:///home/me/report.pred` or `git+file:///home/me/inet#3fa2c1d`, or a path that the page resolves. `find_chart_sample_link(series, index)` reads it.
+
+A plain click selects a sample, as a press in the source view of a Markdown page places the caret, so the gestures are the ones of a link there: Ctrl and a click follow the link, and Ctrl+Shift and a click open it in a new tab. The chart answers the open of a Markdown link, `OpenPageOperation(nothing, EmptyReference(), place; target = link)`, and the nearest navigator, or the editor, resolves the target. A sample with no link selects on Ctrl and a click too. The readout names the link of the sample under the pointer.
+
 ### Selection and gestures
 
 `collect_chart_parts(chart)` lists the parts in reading order: the title, the x axis, the y axis, the legend, and one part for each series. Each part is selected as a whole. `style` is not a part, because nothing on the chart would show that it is selected; the property inspector edits it.
@@ -90,6 +98,7 @@ A click on a part selects it. A click on a data point or on a strip segment sele
 | Ctrl+Shift+Up, Ctrl+Shift+Down | move the selected series in the list |
 | Alt+Delete | remove the selected series |
 | click on a legend item; hover on it | hide or show that series; veil the other series |
+| Ctrl+click on a point, a segment or a cell with a link; Ctrl+Shift+click | follow the link; open it in a new tab |
 | Ctrl+wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
 | wheel; Shift+wheel | scroll up and down; scroll across |
 | drag in the plot | band zoom; a band thin across one axis zooms the other axis alone |

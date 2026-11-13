@@ -1651,8 +1651,12 @@ function _format_matrix_readout(g, x::Integer, y::Integer)
     name = column <= length(categories) ? string(categories[column]) : string(column)
     text = string(_series_label(s), "  ", string(s.rows[row]), ", ", name, ": ", format_tick(value))
     label = _get_matrix_label(s, row, column)
-    isempty(label) ? text : string(text, " (", label, ")")
+    isempty(label) || (text = string(text, " (", label, ")"))
+    _add_link_readout(text, find_chart_sample_link(s, _get_matrix_sample_index(s, row, column)))
 end
+
+# A readout names the link of its sample, which Ctrl and a click follow.
+_add_link_readout(text::AbstractString, link) = link === nothing ? text : string(text, "  link: ", link)
 
 # ── Overlay ──────────────────────────────────────────────────────────────
 #
@@ -1739,6 +1743,12 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     interval = _find_interval_at(g, g.chart.series[index], px)
     interval === nothing ||
         (label *= string("  [", format_tick(interval[1]), ", ", format_tick(interval[2]), "]"))
+    # A series with links names the link of the sample under the point.
+    if hasproperty(g.chart.series[index], :links) && g.chart.series[index].links !== nothing
+        hit = _sample_hit(g, px + g.plot_x, py + g.plot_y)
+        hit === nothing || hit[1] != index ||
+            (label = _add_link_readout(label, find_chart_sample_link(g.chart.series[index], hit[2])))
+    end
     # Flip the readout to the other side of the cursor near the right edge so it
     # is never clipped away by the viewport.
     line = g.measure_label(label)
@@ -1783,8 +1793,9 @@ function _strip_readout(g, at::Real, y::Integer)
         (band[1] <= y <= band[2]) || continue
         k = _strip_sample_at(g, s, at)
         k === nothing && continue
-        return string(_series_label(s), "  ", strip_state_name(s, s.values[k]),
-                      " @ ", format_tick(Float64(at)))
+        return _add_link_readout(string(_series_label(s), "  ", strip_state_name(s, s.values[k]),
+                                        " @ ", format_tick(Float64(at))),
+                                 find_chart_sample_link(s, k))
     end
     nothing
 end
@@ -2156,8 +2167,16 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         part = _part_hit(g, event.x, event.y)
         part === nothing || return ReplaceSelectionOperation(get_chart_part_reference(part, plot))
         # A click on a data point selects the point; anywhere else on a series'
-        # geometry selects the series.
+        # geometry selects the series. Ctrl and a click on a point with a link
+        # follow the link, and Ctrl+Shift opens it in a new tab, as on a link of
+        # the source view of a Markdown page, where a plain click places the caret.
         hit = _sample_hit(g, event.x, event.y)
+        if hit !== nothing && event.modifiers.ctrl
+            link = find_chart_sample_link(g.chart.series[hit[1]], hit[2])
+            link === nothing ||
+                return OpenPageOperation(nothing, EmptyReference(), event.modifiers.shift ? :new_tab : :here;
+                                         target = link)
+        end
         hit === nothing ||
             return ReplaceSelectionOperation(chart_plot_sample_reference(plot, hit[1], hit[2]))
         index = _series_hit(g, event.x, event.y)

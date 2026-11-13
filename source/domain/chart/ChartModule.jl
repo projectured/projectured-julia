@@ -43,7 +43,7 @@ export ChartTheme, ScaledChartTheme
 export ChartSeries, get_chart_series_family, get_chart_axis_family,
        get_selected_series_index, move_series, remove_series, move_series!, remove_series!,
        collect_chart_parts, get_chart_part_index,
-       get_chart_sample, make_chart_sample_reference, get_selected_sample
+       get_chart_sample, make_chart_sample_reference, get_selected_sample, find_chart_sample_link
 export ChartView, get_chart_view, is_point_in_chart_view
 export ChartToChartPlot, ChartToChartPlotIoMap
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
