@@ -219,6 +219,32 @@ function find_list_node(head::ListNode, index::Integer)
 end
 
 """
+    find_computed_list_node(head::ListNode, index::Integer) -> ListNode | Nothing
+
+The node at `index` counted from `head`, as `find_list_node` counts, when each
+link on the way exists now. `nothing` when a link on the way does not exist yet,
+or when the chain ends first. It reads each link with `peek`, so it builds no
+node and depends on no cell of the chain.
+
+Use it to find a node that a walk built before, such as the node of a list at a
+new place of its head, when the list is reused only if the node exists.
+
+See also `find_list_node` and `count_computed_nodes`.
+"""
+function find_computed_list_node(head::ListNode, index::Integer)
+    node = head
+    link = index >= 1 ? :next : :prev
+    for _ in 1:abs(index - 1)
+        cell = getfield(node, link)
+        is_computed_cell(cell) && !is_cell_valid(cell) && return nothing
+        linked = peek(cell)
+        linked isa ListNode || return nothing
+        node = linked
+    end
+    node
+end
+
+"""
     find_list_index(head, node; limit = 10_000) -> Int | Nothing
 
 The index of `node` counted from `head`, as `find_list_node` counts: 1 is `head`,

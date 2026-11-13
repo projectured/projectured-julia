@@ -422,39 +422,89 @@ end
     list_of(values) = make_index_list(length(values), 1, i -> values[i])
     head = Cell(list_of([a, b, c, d]))
     keep = make_kept_list_prints(() -> head[])
-    # The first head: each element prints, with the count of its link.
-    function link!(element, k)
+    # The link of the node `k - 1` links after the head, as a view links it: the
+    # kept print of its element, or a new print with the count of its link.
+    function link!(k)
+        node = head[]
+        foreach(_ -> (node = node.next), 2:k)
+        element = node.value
         kept = take_kept_list_print!(keep, element, k, _ -> true)
         fresh = kept === nothing
         if fresh
             count, linked = make_kept_list_count(keep, element, k)
             kept = record_kept_list_print!(keep, element, KeptListPrint("print of $(element[1])", count, linked))
         end
-        note_kept_list_link!(keep, k)
+        note_kept_list_link!(keep, k, node)
         (kept, fresh)
     end
-    start_kept_list_head!(keep)
-    first = Dict(element => link!(element, k)[1] for (k, element) in enumerate([a, b, c, d]))
+    # The first head: each element prints, with the count of its link.
+    start_kept_list_head!(keep, head[])
+    first = Dict(element => link!(k)[1] for (k, element) in enumerate([a, b, c, d]))
     @test all(p -> p.count[] == findfirst(==(p.value), ["print of a", "print of b", "print of c", "print of d"]),
               values(first))
     # A new head without b: a, c and d keep their prints, at their new counts.
     head[] = list_of([a, c, d])
-    start_kept_list_head!(keep)
-    taken = [link!(element, k) for (k, element) in enumerate([a, c, d])]
+    start_kept_list_head!(keep, head[])
+    taken = [link!(k) for k in 1:3]
     @test all(t -> !t[2], taken)
     @test [t[1] for t in taken] == [first[a], first[c], first[d]]
     @test [first[x].count[] for x in (a, c, d)] == [1, 2, 3]
     @test haskey(keep.before, b)
     # b waits for one head and then goes.
     head[] = list_of([a, c, d])
-    start_kept_list_head!(keep)
-    foreach(((k, element),) -> link!(element, k), enumerate([a, c, d]))
+    start_kept_list_head!(keep, head[])
+    foreach(link!, 1:3)
     @test !haskey(keep.before, b) && !haskey(keep.current, b)
     # An element at two places is kept at neither, and each print takes its link.
     head[] = list_of([a, c, a])
-    start_kept_list_head!(keep)
-    @test link!(a, 1)[2] && link!(a, 3)[2]
+    start_kept_list_head!(keep, head[])
+    @test link!(1)[2] && link!(3)[2]
     @test !haskey(keep.current, a)
+end
+
+@testset "the kept prints of a list follow a head that moves inside the list" begin
+    elements = [Any[k] for k in 1:40]
+    old_head = make_index_list(40, 1, i -> elements[i])
+    head = Cell(old_head)
+    keep = make_kept_list_prints(() -> head[])
+    function link!(k)
+        node = head[]
+        foreach(_ -> (node = node.next), 2:k)
+        kept = take_kept_list_print!(keep, node.value, k, _ -> true)
+        fresh = kept === nothing
+        if fresh
+            count, linked = make_kept_list_count(keep, node.value, k)
+            kept = record_kept_list_print!(keep, node.value, KeptListPrint(node.value[1], count, linked))
+        end
+        note_kept_list_link!(keep, k, node)
+        (kept, fresh)
+    end
+    # The view shows the elements 11 to 15, counted from the head.
+    start_kept_list_head!(keep, old_head)
+    foreach(link!, 11:15)
+    @test ProjecturedPlatform.CollectionModule._count_computed_links(old_head, :next) == 14
+    # The head moves to the node of element 11, and the view shows the same elements
+    # at the counts 1 to 5 from it: each keeps its print, and the walk of the counts
+    # reaches the same nodes and builds none past them. The reach holds the head
+    # before, so it goes back over the nodes of the elements 1 to 10.
+    moved = old_head.next.next.next.next.next.next.next.next.next.next
+    head[] = moved
+    start_kept_list_head!(keep, moved)
+    @test keep.extent == (-9, 5)
+    taken = [link!(k) for k in 1:5]
+    @test all(t -> !t[2], taken)
+    @test [t[1].value for t in taken] == 11:15
+    @test ProjecturedPlatform.CollectionModule._count_computed_links(moved, :next) == 4
+    # A new list with its head at element 11, which the head before linked at the
+    # count 11, is another list: the counts linked under the head before stay as
+    # they are.
+    head[] = old_head
+    start_kept_list_head!(keep, old_head)
+    foreach(link!, 11:15)
+    other = make_index_list(40, 11, i -> elements[i])
+    head[] = other
+    start_kept_list_head!(keep, other)
+    @test keep.extent == (1, 15)
 end
 
 @testset "an index list builds a node when a walk reaches it, and stops at both ends" begin

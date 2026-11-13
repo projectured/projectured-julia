@@ -37,8 +37,8 @@ import ..OperationModule: child_reference_steps, get_slot_at
 import ..ProjectionModule: make_children_container, get_children_container_type
 
 export CollectionDocument, ListDocument, CellVector, CellMatrix, CellTable, ListNode,
-       get_left_tail, get_right_tail, find_list_node, find_list_index, make_index_list,
-       make_mapped_list, set_lazy_link!, get_cell_at, take_first,
+       get_left_tail, get_right_tail, find_list_node, find_computed_list_node, find_list_index,
+       make_index_list, make_mapped_list, set_lazy_link!, get_cell_at, take_first,
        KeptListPrints, KeptListPrint, make_kept_list_prints, start_kept_list_head!,
        note_kept_list_link!, make_kept_list_count, take_kept_list_print!,
        record_kept_list_print!,

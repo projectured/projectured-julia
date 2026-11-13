@@ -141,9 +141,9 @@ end
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::WidgetScrollBar)
     headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
-    made = _MadeRows()
+    made, list = _MadeRows(), _MadeList()
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
-                                            nothing, made))
+                                            nothing, made, list))
     row_headers, corner = _make_row_numbers(p, view)
     # The data of the shown columns. A column that a person gave a width has it,
     # and the others share the rest.
@@ -213,12 +213,23 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
 # in step with the rows, and the corner of the filter row. A frame with no rows
 # has neither. `p` carries the styles of the projection.
 function _make_row_numbers(p, view::DataFrameView)
-    headers = Cell(@computation (kept = view.kept_rows;
-                                 isempty(kept) ? CellVector() :
-                                     make_index_list(length(kept), view.anchor,
-                                                      k -> WidgetLabel(string(kept[k])))))
+    list = _MadeList()
+    headers = Cell(@computation _make_row_header_list(view.kept_rows, view.anchor, list))
     corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(p, view))
     (headers, corner)
+end
+
+# The header of each of the `kept` rows, its row number in the frame, as a list
+# with its head at the place `anchor`, or an empty vector for no rows. When only
+# the anchor is new, the head moves inside the list that `list` keeps, as the
+# head of the rows does (`_make_row_list`).
+function _make_row_header_list(kept::Vector{Int}, anchor::Int, list::_MadeList)
+    place = clamp(anchor, 1, max(1, length(kept)))
+    moved = _find_moved_list_head!(list, nothing, kept, place)
+    moved === nothing || return moved
+    headers = isempty(kept) ? CellVector() :
+        make_index_list(length(kept), place, k -> WidgetLabel(string(kept[k])))
+    _keep_made_list!(list, nothing, kept, place, headers)
 end
 
 # The table of a frame whose columns are a list: the headers, the data of the
@@ -229,9 +240,9 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, 
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
         make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
-    made = _MadeRows()
+    made, list = _MadeRows(), _MadeList()
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
-                                            view.column_anchor, made))
+                                            view.column_anchor, made, list))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
     column_of = _make_column_documents(view, nothing)
@@ -676,7 +687,8 @@ end
 # A scroll of the table writes the cell that the view shares with it, and
 # every other operation of the widgets carries its own subject: both pass on.
 # A table that moves the head of its rows far from the anchor writes its
-# `cells`; the view moves its anchor instead, and builds a new list from it. A
+# `cells`; the view moves its anchor instead, and the head of its list moves to
+# the node at the new anchor, which the table walked to. A
 # table that moves its head column writes its `column_headers`, its `columns`
 # and its `cells`; the view moves its column anchor instead, and builds the
 # three lists again from it. A write of the value of the scroll bar
@@ -764,8 +776,8 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
             view, "column_anchor", view.column_anchor + c - 1))
     end
     columns && field in ("cells", "columns") && return nothing
-    # The row headers move in step with the rows, and the view builds both
-    # again from its anchor.
+    # The row headers move in step with the rows, and the view moves the head
+    # of both from its anchor.
     field == "row_headers" && return nothing
     field == "cells" || return operation
     anchor = _find_written_anchor(iomap, operation)

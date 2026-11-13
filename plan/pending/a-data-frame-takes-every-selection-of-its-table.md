@@ -93,11 +93,17 @@ and it does not reach the rows before the new head, whose prints it could keep.
    conversion counts the rows of the parts after that write from the anchor that
    it writes, `view.anchor + k - 1`. So the shifted selection names the same row
    of the frame as before the move.
-3. **The walk of the counts measures the old extent from the new head.**
-   `start_kept_list_head!` keeps the extent of the head before, and the walk
-   moves it by the count that the head before gave to the element of the new
-   head, minus 1. If the head before did not link that element, the walk keeps
-   the extent as it is now.
+3. **The view moves its head inside the list that it has.** When only the anchor
+   of the view changes (the same frame, version, kept rows, columns and column
+   anchor), the new head of the rows and of the row headers is the node of the
+   list before at the new anchor, if a walk built it. So the nodes, their rows
+   and their links stay. Else the view makes a new list, as now.
+4. **The kept prints shift their reach only by a node that the head before
+   linked.** `note_kept_list_link!` also notes the node of each link. When the
+   new head is a node that the head before linked at the count `k`,
+   `start_kept_list_head!` measures the extent of the head before from the new
+   head: each count is `k - 1` less. A new head of another list, such as after a
+   sort or a filter, keeps the extent as it is now.
 
 ## Decisions (my proposal)
 
@@ -110,11 +116,14 @@ and it does not reach the rows before the new head, whose prints it could keep.
   the selection of the view names a row of the frame, and a move of the anchor
   does not change it. That is shorter, but it holds only while the shift is the
   sole selection in a compound that moves the head. D2 holds for any order.
-- **D3. The kept prints shift the old extent, and the view keeps its new list.**
-  The other way is a view that moves its head inside the list that it has, and
-  makes no new list. That keeps the nodes, so the paint would also keep their
-  records, but it changes how the view builds its rows, and the walk of the
-  counts must be right in any case.
+- **D3. The view moves its head inside its list, and the kept prints shift only
+  by a node that the head before linked.** Approved by the owner on 2026-11-13,
+  after the first try failed. The first way was to shift the old extent by the
+  count of the element of the new head, with a new list for each anchor. The
+  element can not tell a list that moved under a view that stays from a new list
+  under a view at its top, such as after a sort. Only the producer of the move
+  knows it, and the same node carries it: a node of the same list keeps its
+  neighbours, so each count moves by the same amount. See "Step 3, first try".
 - **D4. The new tests run through a real editor** with `MouseDown`, `MouseUp` and
   `MouseScroll`, as `DataFrameCellTest.jl` does, because the fault is in the
   answer to a press, which a `MouseClick` read from the projection does not
@@ -156,9 +165,9 @@ on `main` before the owner approves.
 2. [x] **Every selection of the table reaches the view.** Done; see [As built](#as-built). Points 1 and 2 of the
    way of the change. Promote the assertions of step 1 that pass. Run
    `test_dataframes()` and the table tests of `test_platform()`. Commit.
-3. [ ] **The move of the head makes only the rows that a link needs.** Point 3.
-   Promote the assertion of step 1, and write the counts of the move in this
-   plan. Run `test_dataframes()`, `test_scroll_work()` and the tests of the kept
+3. [ ] **The move of the head makes only the rows that a link needs.** Points 3
+   and 4. Promote the assertion of step 1, and write the counts of the move in
+   this plan. Run `test_dataframes()`, `test_scroll_work()` and the tests of the kept
    prints and of the grid of a list in `test_platform()`. On the word of the
    owner, time the move of the head in real windows, and write what is left of
    the 395 ms. Commit.
@@ -169,8 +178,11 @@ on `main` before the owner approves.
 ## Not in this plan
 
 - The records of a new list in the paint: about 95 ms of the move of the head
-  are the walk that records the nodes of the new list (875 guard reads). D3 of
-  this plan does not change them.
+  are the walk that records the nodes of the new list (875 guard reads). The grid
+  of a list makes a new canvas node for each row at each new head, also when the
+  head moves inside its list, so D3 does not change them. The proposal below
+  ("A way that keeps what the producer knew") said that part 1 keeps them: that
+  is wrong, as `_make_grid_list_node` in `GridList.jl` shows.
 - `hit_element_at` before the head of a list: it stops at the first element that
   starts before the point, before it tests it, so a point inside a row before
   the head hits only on the top line of that row. The table finds its rows with
@@ -263,8 +275,9 @@ kept print), and moved the old extent by that count minus 1. The three layouts
   `_sw_count_built_rows` now counts with `_count_computed_links` of the
   collection package, which reads by `peek` and computes no link.
 
-**A way that keeps what the producer knew (my proposal, not decided).** Two
-parts:
+**A way that keeps what the producer knew.** Proposed in two parts, and approved
+by the owner on 2026-11-13 ("Yes"); it is now points 3 and 4 of the way of the
+change, and D3:
 
 1. The view of a data frame moves its head inside the list that it has, when
    only its anchor changes: the same frame, version, kept rows and columns. The
@@ -276,3 +289,71 @@ parts:
    same list keeps its neighbours, so each count moves by the same amount. A
    sort or a filter makes new nodes, so its reach stays as it is now. For that,
    `note_kept_list_link!` also notes the node of each link.
+
+### Step 3: the head moves inside the list, 2026-11-13
+
+- **Point 4, the kept prints.** `KeptListPrints` has the field `nodes`, each node
+  linked under this head with the count of its link. `note_kept_list_link!(keep,
+  k, node)` notes it, and `start_kept_list_head!(keep, head)` takes the new head:
+  when `nodes` holds it at `k`, the extent of the head before is `k - 1` less.
+  `GridList`, `GridColumnList` and `LayoutList` pass their new head and the
+  document node of each link. The reach of the walk always holds the head,
+  because `lowest` starts at 1, so after a move of the head forward the walk
+  also goes back over the nodes that the head before reached. They exist, so it
+  builds none.
+- **Point 3, the data frame.** `_MadeList` keeps the last list of the rows and
+  of the row headers, with what it shows, the kept rows and the place of its
+  head. `_make_row_list` and `_make_row_header_list` take the node at the new
+  place with `find_computed_list_node`, a new function of the collection package
+  that reads each link with `peek` and builds no node. When a link on the way
+  does not exist, or the frame, its version, the kept rows, the columns or the
+  column anchor are new, the view makes a new list as before
+  (`_make_new_row_list`). `_MadeRows` starts a new set of rows only with a new
+  list.
+- The signatures of the exported `start_kept_list_head!` and
+  `note_kept_list_link!` change. No other repository calls them. The released
+  copy in `Projectured.jl` has them, so a release must take the change as a
+  change of the interface.
+- The recorded calls of the precompile workload that no longer resolve grow for
+  the data frame package from 67 to 84, and a little for the packages that use
+  the grid of a list. This is the known warning; the calls can be recorded again.
+- Tests:
+  - `CollectionDocumentTest.jl`: the present test passes the nodes, and a new
+    test moves the head to the node of element 11 of a list of 40. The five
+    elements in view keep their prints, the extent is `(-9, 5)`, and the walk
+    builds no node past the view. A new list with its head at the same element
+    keeps the extent `(1, 15)`.
+  - `WidgetTablePartsTest.jl`, "far from the head, the table moves the head to
+    the row at the top": the move builds no row, 401 before and after. Under the
+    old rule the walk went as far as the head before linked, from the new head.
+  - `DataFrameViewTest.jl`, "a scroll far from the anchor moves the anchor": the
+    new head of the table is the node of row 301 of the list before.
+  - `ScrollWorkTest.jl`: the guard of step 1 passes and is promoted.
+- Results, Julia 1.13.1: `test_collection()` 205 Pass, `test_layout_list()` 101
+  Pass, `test_widget_table_list()` 259 Pass, `test_scroll_work()` 26 Pass,
+  `test_dataframes()` 622 Pass.
+- **The counts of the move**, with the SDL backend on the offscreen driver, the
+  frame of 1000 rows of `test_scroll_work`, at notch 105:
+
+  | Notch | Rows made new | Cells computed |
+  | --- | --- | --- |
+  | A plain notch, before and after | 2 | about 491 |
+  | The move of the head, step 2 | 203 | 3818 |
+  | The move of the head, step 3 | 2 | 3018 |
+
+  At the move the grids take 73 kept prints, print 4 rows that come into view,
+  and print 1 row again whose count is off by 201. The computations that are left
+  are mostly the 875 guards that the paint records for the new canvas nodes and
+  589 lazy links of the new canvas lists.
+- **Open: the header column builds 200 headers past the view.** After the move
+  the list of rows has 37 built nodes and the list of row headers 236. The header
+  column of the table mirrors the row headers with new nodes for each new head
+  (`_make_header_row_node` in `WidgetTableParts.jl`), so its grid sees another
+  list and takes the extent unshifted.
+- **Open: the list keeps every row that the wheel passed.** A frame of 100,000
+  rows, 3000 notches down: with point 3 the list holds 5645 built nodes behind its
+  head, and the live memory after a full GC grows from 199 MB to 338 MB, about 10
+  to 25 KB for each row passed. With point 3 switched off it holds 1 node behind
+  its head and stays between 256 and 330 MB. A sort, a filter, an edit of the
+  frame or a jump to a place that the list did not build makes a new list and
+  frees it. A table over a plain lazy list keeps its nodes in the same way.

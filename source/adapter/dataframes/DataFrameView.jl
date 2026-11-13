@@ -399,6 +399,38 @@ function _start_made_rows!(made::_MadeRows, key)
     nothing
 end
 
+# The last list of rows or of row headers that a table of a view got, for what it
+# shows and for the kept rows of the view. A new anchor moves the head inside this
+# list when a walk built the node at the new place, so the nodes, their rows and
+# their links stay, and the grid of the table finds the new head among the nodes
+# that it linked.
+mutable struct _MadeList
+    key::Any          # what the list shows, or nothing
+    kept::Any         # the kept rows of the view when the list was made, or nothing
+    place::Int        # the place of the head among the kept rows
+    head::Any         # the head, a ListNode, or nothing
+end
+
+_MadeList() = _MadeList(nothing, nothing, 0, nothing)
+
+# The node at the place `place` of the list that `made` keeps, when that list
+# shows `key` for the same `kept` rows and a walk built the links to the node.
+# The node becomes the head that `made` keeps. `nothing` otherwise.
+function _find_moved_list_head!(made::_MadeList, key, kept::Vector{Int}, place::Int)
+    (made.head isa ListNode && made.kept === kept && isequal(made.key, key)) || return nothing
+    node = find_computed_list_node(made.head, place - made.place + 1)
+    node === nothing || (made.place = place; made.head = node)
+    node
+end
+
+# Keeps `head`, a new list that shows `key` for the `kept` rows, with its head at
+# the place `place`, in `made`, and answers it. A list of no rows is kept as none.
+function _keep_made_list!(made::_MadeList, key, kept::Vector{Int}, place::Int, head)
+    made.key, made.kept, made.place = key, kept, place
+    made.head = head isa ListNode ? head : nothing
+    head
+end
+
 # The row of number `i` in the frame for a link of this list: the row made under
 # this list or the list before it, or a new one that `make_row(i)` makes.
 function _take_made_row!(make_row, made::_MadeRows, i::Int)
@@ -413,11 +445,24 @@ end
 # vector as no rows. A row is a vector of its cells in the `columns` that the view
 # shows, or, when `column_anchor` is given, a list of them with its head at that
 # column. A cell shows the document of its value, or the document of its entry
-# while it is open. `made` gives a row that the list before made the same object.
+# while it is open. When only the anchor is new, the head moves inside the list
+# that `list` keeps, where a walk built it. Else `made` gives a row that the list
+# before made the same object.
 function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
-                        anchor::Int, column_anchor, made::_MadeRows)
+                        anchor::Int, column_anchor, made::_MadeRows, list::_MadeList)
+    key = (objectid(view.frame), view.frame_version, columns, column_anchor)
+    place = clamp(anchor, 1, max(1, length(kept)))
+    moved = _find_moved_list_head!(list, key, kept, place)
+    moved === nothing || return moved
+    _keep_made_list!(list, key, kept, place, _make_new_row_list(view, columns, kept, place, column_anchor, made, key))
+end
+
+# A new list of the `kept` rows with its head at the place `place`, for
+# `_make_row_list`; `key` names what it shows.
+function _make_new_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
+                            place::Int, column_anchor, made::_MadeRows, key)
     frame = view.frame
-    _start_made_rows!(made, (objectid(frame), view.frame_version, columns, column_anchor))
+    _start_made_rows!(made, key)
     isempty(kept) && return CellVector()
     # One type of the dictionary for every frame: the row closures capture it, so
     # the calls that the workload recorded fit a frame of any column types.
@@ -431,7 +476,7 @@ function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vect
         foreach(((cell, name),) -> set_cell_computation!(cell, shown(i, name)), zip(cells, columns))
         CellVector(cells)
     end
-    make_index_list(length(kept), anchor, k -> _take_made_row!(row_of, made, kept[k]))
+    make_index_list(length(kept), place, k -> _take_made_row!(row_of, made, kept[k]))
 end
 
 # The document that the cell in row `i` of the frame and column `name` shows: the

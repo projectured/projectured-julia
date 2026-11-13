@@ -219,8 +219,13 @@ function test_data_frame_view()
             # line, 16 pixels, past three hundred rows.
             getfield(view, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
             before = y_of("305"; limit = 400)       # 304 rows from the anchor
+            table = _data_frame_view_iomap(io).table
+            head = table.cells
             evaluate_operation(nothing, wheel(-1))
             @test view.anchor == 301
+            # The head moves inside the list: the new head is the node of row 301
+            # that the walk built, so its rows and their links stay.
+            @test table.cells === find_list_node(head, 301)
             @test y_of("305") == before - turn
             @test reads[] < 1000
         end

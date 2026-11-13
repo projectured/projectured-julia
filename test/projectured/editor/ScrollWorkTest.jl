@@ -243,8 +243,7 @@ function test_scroll_work()
             @test view.anchor > 1
             # The new head is the row at the top, so the list is built as far as at
             # the top of the frame: to the first row past the view.
-            # @broken: the kept prints of the grid walk from the new head as far as the old head linked, about 200 rows past the view; plan/pending/a-data-frame-takes-every-selection-of-its-table.md, step 3
-            @test_broken _sw_count_built_rows(table.table.cells) <= at_top + 2
+            @test _sw_count_built_rows(table.table.cells) <= at_top + 2
         finally
             quit_backend!(backend)
         end

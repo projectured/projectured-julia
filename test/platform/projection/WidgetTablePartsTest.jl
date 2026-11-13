@@ -484,6 +484,7 @@ end
     # The selection moves with its row: it names the same row from the new head.
     rebased = only(o for o in op.operations if o isa ReplaceSelectionOperation)
     @test row_of(rebased.path) == 305 - 300
+    built_before = built[]
     apply!(table, op)
     @test table.cells.value[1].content == "row 301"
     @test table.top_row == 1
@@ -491,6 +492,9 @@ end
     @test first(table.shown) == 1 && length(table.shown) > 1
     @test 0 <= Int(table.scroll_position.y[]) < step
     @test label_y(io, "row 305") == before - turn
+    # The new head is a node that the head before linked, so the walk of the kept
+    # prints of the grid reaches the same rows from it, and the move builds none.
+    @test built[] == built_before
     @test built[] < 1000
     # Up past the head as far, the head moves back.
     getfield(table, :scroll_position)[] = Point2D(0, -250 * step - 16 + turn)

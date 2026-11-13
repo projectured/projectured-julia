@@ -197,7 +197,7 @@ function _print_grid_column_list(p, recursion, doc, ctx)
     end)
     set_cell_computation!(state.head, () -> begin
         list = doc.children
-        start_kept_list_head!(state.prints)
+        start_kept_list_head!(state.prints, list)
         empty!(state.built)
         list isa ListNode ?
             _make_grid_list_node(recursion, doc, ctx, state, Cell[], Cell[], Cell(Int32(0)), 1, list,

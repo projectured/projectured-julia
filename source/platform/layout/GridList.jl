@@ -131,7 +131,7 @@ function _print_grid_list(p, recursion, doc, ctx)
     # list draws no rows.
     set_cell_computation!(state.head, () -> begin
         list = doc.children
-        start_kept_list_head!(state.prints)
+        start_kept_list_head!(state.prints, list)
         empty!(state.built)
         list isa ListNode ?
             _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w, 1, list,
@@ -269,7 +269,7 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
         _link_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
     end
     state.built[k] = (canvas, entries, row_h)
-    note_kept_list_link!(state.prints, k)
+    note_kept_list_link!(state.prints, k, document_node)
     vgap = make_layout_gap_cell(doc, :vertical_gap)
     if before !== nothing
         before_canvas = before.value
