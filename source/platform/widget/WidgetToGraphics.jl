@@ -13339,13 +13339,16 @@ function _is_path_in_read_only_text(document, path)
     end
 end
 
-# Whether `node` shows a text that takes no key, as a label does: a caret in it
-# selects text to read or to copy, and edits nothing.
+# The widgets that show a text that a person reads and does not edit, as a label:
+# a caret or a range in it selects text to read or to copy, and edits nothing.
+const _ReadOnlyTextWidget = Union{WidgetLabel, WidgetBadge, WidgetAvatar, WidgetAlert}
+
+# Whether `node` shows a read-only text.
 _is_read_only_text(node) = false
-_is_read_only_text(::WidgetLabel) = true
-_is_read_only_text(::WidgetBadge) = true
-_is_read_only_text(::WidgetAvatar) = true
-_is_read_only_text(::WidgetAlert) = true
+_is_read_only_text(::_ReadOnlyTextWidget) = true
+
+# A paste and a cut leave a read-only text as it is; a copy takes its characters.
+accepts_pasted_text(::_ReadOnlyTextWidget) = false
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)

@@ -205,8 +205,20 @@ copy changes.
   (`test_drag_tracking` 60, `test_pane_drag` 259, `test_split_pane_drag` 43
   with its 5 known broken), `test_dragging` 23, `test_dataframes` 622 and 11
   widget sets pass; `test_application` fails only at its known `:1013`.
-- [ ] 4. **The copy (P6).** Ctrl+C on a range of a label through the clipboard
+- [x] 4. **The copy (P6).** Ctrl+C on a range of a label through the clipboard
   of the window. Test: the clipboard holds the characters of the range.
+
+  Done (2026-11-13): the copy needed no code: the text target of the clipboard
+  takes a range of the field `content` of a label and copies its characters to
+  the slice and to the system clipboard. A paste and a cut wrote into the label
+  before, because a label accepted pasted text; the read-only widgets of
+  `_is_read_only_text` (the label, the badge, the avatar, the alert) now answer
+  `accepts_pasted_text` with `false`, the hook that the clipboard reads for a
+  document whose text a paste must leave alone. The title and the description
+  of a card are fields of a card, which holds other documents too, so this hook
+  can not protect them without refusing a paste into the card's content; step 5
+  records how they stay read-only. `test_clipboard` fails only at its known
+  `ClipboardTest.jl:502` to `:504`; the new checks of a label pass.
 - [ ] 5. **The card and the group of facts (P1).** Their readers call the
   helper for a key and a drag.
 - [ ] 6. **The controls (P7).** One commit for each group of controls.

@@ -540,6 +540,19 @@ end
         @test read_os_clipboard() == "ep"
         @test record.item.value == "kept"
 
+        # A range of the text of a label is copied as its characters; a paste and a
+        # cut leave the label as it is, because its text is read-only.
+        label = WidgetLabel("alpha beta")
+        buf[] = "no"
+        (slice, p, iomap) = text_slice(label, FieldReferenceStep("content"), RangeReferenceStep(2, 5))
+        @test !accepts_pasted_text(label)
+        @test !(_paste(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa ReplaceRangeOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
+        apply!(slice, read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)))
+        @test read_os_clipboard() == "pha"
+        @test slice.slice isa PrimitiveString && slice.slice.value == "pha"
+        @test label.content == "alpha beta"
+
         # With no system clipboard, the text the slice holds is pasted, and any
         # other slice is refused.
         set_os_clipboard_backend!(read = () -> nothing, write = t -> false)
