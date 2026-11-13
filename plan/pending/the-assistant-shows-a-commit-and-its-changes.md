@@ -1,6 +1,7 @@
 # The assistant shows a commit and its changes
 
-> **Kind:** plan · **Status:** a plan of 2026-11-05, at `main` `6b93bfcf3`. No step is done.
+> **Kind:** plan · **Status:** a plan of 2026-11-05, at `main` `6b93bfcf3`. Step 2a and the export of
+> the parse were added on 2026-11-13 (D9). No step is done.
 > · **Stands on:** [domain-inventory.md](../../documentation/design/domain-inventory.md),
 > [navigator.md](../../documentation/package/platform/navigator/navigator.md),
 > [link.md](../../documentation/package/platform/link/link.md),
@@ -20,6 +21,12 @@ explains each change from the code change. On the page of an event, the person c
 The person then sees its subject, message, author, date, changed files and the diff of each file.
 From a line of a diff, the person opens the file at that revision. A checkout is not in this plan:
 G1 runs `git checkout` and `git worktree add` as a program task, and the views here need no checkout.
+
+A second user is the baseline catch-up walk in omnet_ide (omnet-julia
+`plan/pending/the-ide-follows-the-baseline-catch-up.md` §5.3). Its walk map shows all the commits of a
+range and marks the commits that touch a list of paths. The map updates when `git fetch` moves
+`origin/master`. Its step view parses the patch of each experiment, which is the output of `git diff`
+and not a commit, and shows the hunks of a commit with marks of its own.
 
 ## 1. What exists
 
@@ -50,6 +57,7 @@ The assistant checked each row on 2026-11-05, on main `6b93bfcf3` of projectured
 2. No link names a commit, so the event page can not lead to the code.
 3. No verb answers the commits of a range or the text of a commit for a model.
 4. omnet_ide loads no package that reads git.
+5. No document holds the commits of a range, so no view can show a range that moves.
 
 ## 3. Design
 
@@ -72,8 +80,15 @@ The root type is `GitDocument`. Each document holds the absolute path of its rep
 | `GitDiffHunk` | the start and count on each side, the text after `@@`, and its lines | stored by the read of its change |
 | `GitDiffLine` | the kind (`:kept`, `:removed`, `:added`), the text, the old and the new line number | stored by the read of its change |
 | `GitFileRevision(repository, revision, path; line = nothing)` | the text of the file and the line to show | `git cat-file blob <revision>:<path>` |
+| `GitCommitRange(repository, revisions; paths = String[])` | `commits`, a `CellVector` of `GitCommit` with the header facts of the log, and the folders that hold the refs of the range | `git log` with a fixed `--format`, `-z`, the revisions and `--` with the paths (D9) |
 
 A hunk and a line are immutable values. The read stores them one time.
+
+`parse_git_diff_text(text) -> Vector{GitDiffFile}` reads the output of `git diff` as it is, so a
+patch needs no commit header. A `GitDiffFile` is an immutable value: the old and the new path, the
+kind, `is_binary` and its hunks. The read of a `GitFileChange` takes the one file of its patch. The
+package exports `parse_git_diff_text`, `GitDiffFile`, `GitDiffHunk` and `GitDiffLine`, so another
+domain can parse a patch of its own and compare its hunks with the hunks of a commit.
 
 ### 3.3 How a document reads git
 
@@ -86,6 +101,9 @@ printer or computation runs `git`.
 
 - **A commit reads one time.** Its hash names content that never changes. The read resolves a
   revision name, such as `v4.7.0`, to the full hash, and the document keeps the hash. No watch.
+- **A range reads again when a ref moves (D9).** A range is outside state that changes, so it
+  reads as a folder reads: its `apply` merges the answer by hash, and a holder watches the folders
+  of its refs. Each commit of a range is a `GitCommit` and reads its changes as any commit does.
 - **What a frame shows, a task reads.** A commit makes one `BackgroundSource`, and its changes share
   it. A scroll that shows three new files starts one task that reads the three diffs.
 - **Keep what the producer knew.** The read of the commit knows the paths, the kind, the counts
@@ -193,6 +211,15 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   and no hand-made read. An `apply` stays only for outside state that changes and whose answer must
   merge into documents that exist, as a folder does. Rejected: `ApplyGitReadOperation` and a read
   state field `:unread`, `:reading`, `:read`, `:failed` in each git document.
+- **D9. A range of commits is a document that reads like a folder.** The owner approved this on
+  2026-11-13 (open question 6). A range names refs, and a ref moves, so the commits of a range are
+  outside state that changes. D8 leaves that case to an `apply`. The merge by hash keeps the
+  document of each commit that stays, so a view keeps its marks and its selection. The paths go to
+  git after `--` as they are, so the rules of a pathspec are those of git, such as
+  `:(exclude)*.rst`. A view that needs two lists, such as all commits and the commits that touch
+  some paths, holds two ranges and compares the hashes. Rejected: `find_git_commits` with no limit
+  in the code of a view, which does not update. Rejected: a flag on each commit from the paths
+  that it changes, which needs a match of pathspecs in Julia that can differ from git.
 - **D6. A merge shows its change against its first parent.** The open of a file then has one old
   revision. Rejected: the combined diff of `git show`, whose lines have no single old number.
 - **D7. A model reads a commit with `describe_git_commit`.** The rule of the window on main is in
@@ -206,7 +233,8 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
 `package/ProjecturedPlatformTest`, one under `test/projectured/` in `environment/all`.
 
 1. **The package and the parse.** The three packages, `GitModule` and the five document types. The
-   pure functions `parse_git_commit_text`, `parse_git_diff_text` and `parse_git_log_text`. The new
+   pure functions `parse_git_commit_text`, `parse_git_diff_text` and `parse_git_log_text`, and the
+   value `GitDiffFile` (§3.2), which the package exports with the hunk and the line. The new
    `documentation/package/domain/git/git.md`, whose header says `**For:** developer` (the documentation
    check needs the field since `72a7debd3`), the tables of `domain-inventory.md` and
    `package-rules.md`, `ProjecturedAll`, `PROJECTURED_APPLICATION_IMPORTS`, `environment/all`,
@@ -214,7 +242,8 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    (`test/domain/git/GitParseTest.jl`) on fixed texts with no git process. It asserts each field and
    each line number of two hunks, a rename with a change, an add and a delete. It also covers a
    binary file, the line `\ No newline at end of file`, and a path with a space and a letter outside
-   ASCII. Then `test_git_layering()`, `test_package_graph()`, `test_repository()` and `test_builder()`.
+   ASCII. A patch of three files from `git diff`, with no commit header, gives three `GitDiffFile`.
+   Then `test_git_layering()`, `test_package_graph()`, `test_repository()` and `test_builder()`.
 2. **The reads.** The background cells as the store of each read (D8), and `pred_arguments`.
    `make_git_example_repository(folder)` in the example package makes a repository with fixed names
    and dates, so each hash is known. Test: the new `test_git_reading()` (`GitReadTest.jl`), with
@@ -223,6 +252,20 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    file. It covers the text of a file at a revision, a merge, and a root commit. An unknown
    revision and a folder with no repository make a read of the cell throw the words of git.
    `print_pred_text` of a commit gives `GitCommit("<folder>", "<hash>")`.
+2a. **The commits of a range (D9).** `GitCommitRange` and `ApplyGitCommitRangeOperation`. The read
+   is a background cell of the repository, the revisions, the paths and `read_count`. It answers
+   the commits in the order of `git log`, with no cap, and the folders that hold the refs of the
+   range: the folder of each loose ref that the revisions name, such as `refs/remotes/origin` for
+   `origin/master`, the common git folder for `packed-refs`, and the git folder of the worktree for
+   `HEAD`. The apply merges by hash and stores the folders. A holder acquires the range, and while
+   it holds the range, `watch_folder!` watches the folders that the last read stored. A change
+   raises `read_count`, so a part that shows the range asks again. The release stops the watch and
+   keeps the commits. Test: the new `test_git_range()` (`GitRangeTest.jl`) on the example
+   repository. It asserts the hashes of a range in order, and of the same range with a path and with
+   an `:(exclude)` pathspec. In an editor with a `FileChangeStore`, it makes a new commit on the
+   branch, moves a remote ref with `git update-ref`, and moves it again after `git pack-refs --all`.
+   After each change the range reads again, the new hash comes first, and each `GitCommit` that
+   stays is the same document. An unknown revision makes a read of the cell throw the words of git.
 3. **The views.** `GitCommitToWidget`, `GitFileChangeToWidget`, `GitFileRevisionToWidget`, `GitTheme`,
    the natural rows and the tab titles. An example in `example/projectured/DomainExamples.jl`. Test:
    the new `test_git_views()` (`GitViewTest.jl`) in an editor with the console backend. It asserts the
@@ -264,6 +307,9 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
   lines of a large diff. The hunks are plain values or opaque to a walk, and step 3 asserts it.
 - **A machine with no git.** Each view shows the failed read. The test packages need git, as a
   checkout of the repository already does.
+- **A watch for each held range.** A range watches up to three folders, and the store has a
+  `watch_limit`. When `watch_folder!` answers `false`, the range reads only at its acquire. Step 2a
+  asserts that the watch starts.
 - **The cost of a process.** Each demanded read starts one `git` process of a few milliseconds. One
   task reads all the files that one frame shows. Step 7 measures a scroll over a large commit.
 - **The rank of `search_api` can move**, because the new docstrings name commits and files. Step 6
@@ -306,3 +352,6 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
 5. **The order.** Answered: Steps 1 to 4 landed on main `2bbc18fb5` (omnet-julia `991a89b4f`) on 2026-11-05; both are in `origin/main`. The owner decided the order on 2026-11-05: steps 1 to 4 of `reflection-api` land on main first,
    after a rebase, its tests and the approval of the owner. Then this plan starts from main and
    uses only the mark `For the assistant.`; it adds no name to a hand-kept list.
+6. **The commits of a range (D9).** Answered by the owner on 2026-11-13: approved, as step 2a. The
+   question was: can a document `GitCommitRange` hold all the commits of a range, read as a folder
+   reads, with a watch of the folders of its refs? The baseline catch-up walk needs it.
