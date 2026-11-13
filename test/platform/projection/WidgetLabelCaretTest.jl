@@ -11,7 +11,7 @@ Covers:
 - the label draws the caret once its selection is that caret, and no caret before,
   and a band behind its text while the selection is the text as a whole,
 - a move names the caret as the part under the pointer,
-- a label that shows no `String` records no line, and a click on it answers nothing,
+- a label of a number records its line too, as every value that it draws as a text,
 - a badge takes the caret, the band and the move as a label does, and so do the
   initials of an avatar and the title and the description of an alert,
 - a press that is bound to a label, as to a chip, acts before the caret.
@@ -69,12 +69,14 @@ function test_widget_label_caret()
         @test moved isa ReplaceMouseTargetOperation && strip_reference_types(moved.path) == caret
     end
 
-    @testset "a label that shows no String records no line" begin
+    @testset "a label of a number records its line, as a label of a String does" begin
         p = _label_caret_printer()
         iomap = print_document(p, nothing, WidgetLabel(42), PrinterContext())
-        @test isempty(iomap.drawn)
-        answer = read_intent(p, iomap, MouseClick(:left, 4, Int(iomap.output.h) ÷ 2, ModifierKeys(); time = 0.0))
-        @test answer === nothing
+        @test length(iomap.drawn) == 1
+        x, y = _label_caret_point(iomap, 8)
+        answer = read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) ==
+              ConcreteReference(FieldReferenceStep("content"), ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
     end
 
     @testset "a badge takes the caret as a label does" begin

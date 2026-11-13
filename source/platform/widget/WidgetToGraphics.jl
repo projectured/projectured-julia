@@ -1929,12 +1929,12 @@ _make_drawn_text_canvas(x::Int, y::Int, build::Cell, w, measure, band_color) =
                    layout_none, true, Cell(nothing))
 
 # The box, the text and the lines of a label: `(; width, height, elements, drawn)`.
-# A label whose content is a `String` records each line that it draws, as the part
-# `.content` from the character where the line starts.
+# A label that draws its content as a text records each line that it draws, as the
+# part `.content` from the character where the line starts.
 function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGeometry, ctx)
     drawn = DrawnTextLine[]
-    part = w.content isa AbstractString ? _CONTENT_PART : nothing
     content = get_shown_picture(w.content)
+    part = _is_drawn_value(content) ? _CONTENT_PART : nothing
     # A label may carry its own font+color (e.g. a chat card's title) that
     # overrides the theme's default label style — or a bare COLOUR, which
     # takes the theme's font and only changes the ink, or a bare FONT, which
@@ -1988,6 +1988,11 @@ end
 
 # The part `.content` of a widget that shows its content as a text.
 const _CONTENT_PART = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+
+# Whether a widget draws `value` as a text that it records: a value that is no
+# document and no picture, such as a `String` or a number, which the widget draws as
+# its `string`. A caret in it is a place in the value, as in the text of a primitive.
+_is_drawn_value(value) = !(value isa Document) && !(value isa ImageDocument)
 
 # A widget that shows a text that it draws and records, such as the label, the badge
 # and the avatar, maps and reads a click on the text by the three functions below.
@@ -8797,7 +8802,7 @@ end
 
 # The graphics of badge `w` of shape `box`, `width` by `height`, with its top left
 # corner at the origin: the pill and its text. With `drawn`, a vector of
-# `DrawnTextLine`, a content that is a `String` records its line as the part
+# `DrawnTextLine`, a content that the badge draws as a text records its line as the part
 # `.content`.
 function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry,
                                width::Int, height::Int; drawn = nothing)
@@ -8811,7 +8816,7 @@ function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, b
     _push_box_parts!(elements, box, style.colors, width - inset_width, height - inset_height;
                      radius = border_box_height ÷ 2)
     _push_text!(elements, p.measure, style.label.font, text, content_x, content_y, style.label.color)
-    drawn === nothing || w.content isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _CONTENT_PART, 0))
+    drawn === nothing || _is_drawn_value(w.content) && push!(drawn, DrawnTextLine(last(elements), _CONTENT_PART, 0))
     elements
 end
 
@@ -9070,7 +9075,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
                                                       string(w.title), padding, y, text_bound;
                                                       part = _card_title_reference(),
-                                                      drawn = w.title isa AbstractString ? drawn : nothing)
+                                                      drawn = _is_drawn_value(w.title) ? drawn : nothing)
         title_box = (padding, y, title_width, title_height)
         header_h = title_height
         max_content_width = max(max_content_width, title_width); y += title_height + p.title_gap
@@ -9097,7 +9102,7 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
             _push_text_block!(header_elements, p.measure, description_text,
                               string(w.description), padding, y, text_bound;
                               part = ConcreteReference(FieldReferenceStep("description"), EmptyReference()),
-                              drawn = w.description isa AbstractString ? drawn : nothing)
+                              drawn = _is_drawn_value(w.description) ? drawn : nothing)
         max_content_width = max(max_content_width, description_width)
         y += description_height + p.section_gap
     end
@@ -10164,7 +10169,7 @@ const _AVATAR_ICON_SHARE = 0.7
 
 # The margin, the border and the padding are rectangular bands; the content is a
 # circle, so it is excluded from the box's own fill and drawn on top of it. Initials
-# that are a `String` record their line as the part `.initials`, so they take the
+# that the avatar draws as a text record their line as the part `.initials`, so they take the
 # caret as the text of a label does.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
@@ -10192,7 +10197,7 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
             initials_width, initials_height = _text_size(p.measure, font, initials)
             _push_text!(elements, p.measure, font, initials, content_x + radius - initials_width ÷ 2,
                         content_y + radius - initials_height ÷ 2, label.color)
-            w.initials isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _INITIALS_PART, 0))
+            _is_drawn_value(w.initials) && push!(drawn, DrawnTextLine(last(elements), _INITIALS_PART, 0))
         end
         (width=size + inset_width, height=size + inset_height, elements=elements, drawn = drawn)
     end))
@@ -10255,7 +10260,7 @@ WidgetAlertToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                 destructive_title_text, title_gap, corner_radius, label_gap,
                                 icon_size, badge, selected_color)
 
-# A title and a description that are a `String` record their lines as the parts
+# A title and a description that the alert draws as a text record their lines as the parts
 # `.title` and `.description`, so they take the caret as the text of a label does.
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
@@ -10287,7 +10292,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
                                                colors.content)
         _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap,
                     y + (row_height - title_height) ÷ 2, title.color)
-        w.title isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _ALERT_TITLE, 0))
+        _is_drawn_value(w.title) && push!(drawn, DrawnTextLine(last(elements), _ALERT_TITLE, 0))
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
             y += p.title_gap
@@ -10300,7 +10305,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
             description_width, description_height =
                 _push_text_block!(elements, p.measure, description, string(w.description), content_x, y, bound;
                                   part = _ALERT_DESCRIPTION,
-                                  drawn = w.description isa AbstractString ? drawn : nothing)
+                                  drawn = _is_drawn_value(w.description) ? drawn : nothing)
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
@@ -12246,7 +12251,7 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
             title_string = string(w.title)
             title_width, title_height = _text_size(p.measure, title.font, title_string)
             _push_text!(elements, p.measure, title.font, title_string, content_x, y, title.color)
-            w.title isa AbstractString && push!(drawn, DrawnTextLine(last(elements), _FACT_GROUP_TITLE, 0))
+            _is_drawn_value(w.title) && push!(drawn, DrawnTextLine(last(elements), _FACT_GROUP_TITLE, 0))
             content_width = title_width; y += title_height + p.title_gap
         end
         value_width = 0
@@ -12257,14 +12262,14 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
             label_string = string(fact.label)
             _, label_height = _text_size(p.measure, label.font, label_string)
             _push_text!(elements, p.measure, label.font, label_string, content_x, y, label.color)
-            fact.label isa AbstractString &&
+            _is_drawn_value(fact.label) &&
                 push!(drawn, DrawnTextLine(last(elements), _make_fact_part(i, "label"), 0))
             row_height = label_height
             if documents[i] === nothing
                 text_width, text_height = _push_text_block!(elements, p.measure, value,
                                                             _format_fact_value(fact.value), value_x, y, bound;
                                                             part = _make_fact_part(i, "value"),
-                                                            drawn = fact.value isa AbstractString ? drawn : nothing)
+                                                            drawn = _is_drawn_value(fact.value) ? drawn : nothing)
                 value_width = max(value_width, text_width); row_height = max(row_height, text_height)
             else
                 canvas = documents[i].output

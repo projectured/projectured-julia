@@ -1365,6 +1365,19 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   click does nothing (67, 232); the Alt+click outside the deepest part (45,
   260); the reflected object (50, 153: the half of a quote, D8); the leaf of a
   view (37, 152); the value in a leaf (14, 188).
+  - **A value that a widget draws as a text takes the caret** (my reading of
+    D1). The label, the badge, the avatar, the alert, the fact group and the
+    card recorded the line of a text only when the value was a `String`; a
+    label of a number gave no caret. They record the line of every value that
+    they draw as a text, which is no document and no picture
+    (`_is_drawn_value`); an image and the icon of an avatar record none. The
+    walk does not change on the examples with numbers that fail: there the
+    numbers are the tick labels of the axis of a sequence chart, which the
+    chart draws itself, and the field chips of a pivot, which choose their
+    field as the row of a list does; those are causes of the chart and the
+    pivot. `test_dataframes` 616 and 13 widget, table and task sets pass;
+    `test_pivot` fails at `PivotModuleTest.jl:21`, `:23` and
+    `PivotZoneEditTest.jl:84`, as main 31f04235c does.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

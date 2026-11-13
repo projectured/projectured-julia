@@ -151,11 +151,12 @@ function test_widget_fact_group()
             @test title_caret == ConcreteReference(FieldReferenceStep("title"),
                                                    ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
             # An Alt+click answers the caret too, which the container makes the label as a
-            # whole. A value that is no string has no caret of its own, and a double click
-            # is left to the widget around the group.
+            # whole. A value that is a number takes the caret as a string does, and a
+            # double click is left to the widget around the group.
             @test strip_reference_types(click(run[2] + 12, run[3] + 2; modifiers = ModifierKeys(alt = true)).path) ==
                   _fact_place(1, "label", 1)
-            @test click(_fact_find(texts, "0")[2] + 2, _fact_find(texts, "0")[3] + 2) === nothing
+            @test strip_reference_types(click(_fact_find(texts, "0")[2] + 2, _fact_find(texts, "0")[3] + 2).path) ==
+                  _fact_place(2, "value", 0)
             @test click(run[2] + 12, run[3] + 2; count = 2) === nothing
             # A move names the caret under the pointer.
             move = read_intent(proj, iomap, MouseMove(run[2] + 12, run[3] + 2; time = 0.0))
