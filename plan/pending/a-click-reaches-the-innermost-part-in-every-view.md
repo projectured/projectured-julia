@@ -1565,6 +1565,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   a press. The other way: no caret in a widget text, and an Alt+double click
   selects the text as a whole.
 
+  The owner answered (2026-11-13): "No, I don't necessarily want to allow
+  editing all strings, so don't replace them with a text view or whatever.
+  just selection with mouse, navigation with cursor, range selection with
+  both, copy with clipboard would be nice. But I don't want to repeat the all
+  of this behavior in every place." So a text that a widget draws needs a
+  read-only behavior: a selection with the mouse, the caret keys, a range by
+  the mouse and by the keys, and a copy; written once, not in each widget, and
+  with no edit. The design is open.
+
   The landing of 2026-11-13 (main 55e3de361, not pushed) holds steps 6a and
   the causes before it. The omnet follow-up of the Alt+double click is on the
   omnet branch `innermost-click` (b8a8d2c21), not landed.
