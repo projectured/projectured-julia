@@ -92,6 +92,75 @@ function find_drawn_caret(drawn, canvas, x, y, measure)
     nothing
 end
 
+# The caret of `part` nearest to `(x, y)`, in the frame of `canvas`, for a drag that
+# can leave the text: the line of the part whose height holds `y`, else the nearest
+# line above or below, and on it the place nearest to `x`. `nothing` when no line of
+# `drawn` shows `part`.
+function _find_nearest_drawn_caret(drawn, canvas, part::Reference, x, y, measure)
+    canvas isa GraphicsCanvas || return nothing
+    ox, oy = Int(unwrap_cell(getfield(canvas, :x))), Int(unwrap_cell(getfield(canvas, :y)))
+    best = nothing
+    for line in drawn
+        strip_reference_types(line.part) == part || continue
+        path = _find_element_path(canvas, line.text)
+        path === nothing && continue
+        box = find_reference_box(canvas, path; measure)
+        box === nothing && continue
+        top = box.y - oy
+        distance = y < top ? top - y : y >= top + box.height ? y - top - box.height + 1 : 0
+        (best === nothing || distance < best[1]) && (best = (distance, line, box.x - ox))
+    end
+    best === nothing && return nothing
+    _, line, left = best
+    text = _get_drawn_string(line)
+    offsets = compute_caret_offsets(measure, text, unwrap_cell(getfield(line.text, :font)))
+    _make_part_caret(line.part, line.start + argmin(k -> abs(offsets[k + 1] - (x - left)), 0:length(text)))
+end
+
+# The range from the anchor of `selection`, a caret or a range in the part of
+# `caret`, to `caret`, with the moving end at `caret`; `caret` itself when
+# `selection` is in no part or in another part.
+function _extend_drawn_selection(selection, caret)
+    found = _split_part_range(selection)
+    target = _split_part_range(caret)
+    (found === nothing || target === nothing || found[1] != target[1]) && return caret
+    range = found[2]
+    anchor = range.direction === :backward ? range.stop : range.start
+    moving = target[2].start
+    concat_references(target[1], ConcreteReference(
+        RangeReferenceStep(min(anchor, moving), max(anchor, moving), moving < anchor ? :backward : :forward),
+        EmptyReference()))
+end
+
+"""
+    read_drawn_text_pointer(drawn, canvas, widget, event, measure; control = false) -> Operation | Nothing
+
+The answer to a left press, and to the move and the end of a drag, on a text that
+`widget` draws in `canvas`, its output, where `drawn` holds the lines of the text.
+A press puts the caret at the character under the pointer, or with Shift moves the
+moving end of the selection there, and starts a drag. Each move of the drag moves
+the moving end to the character of its part nearest to the pointer, also off the
+text, and the anchor stays. A `control` starts the drag only with Alt, because its
+plain press acts. A press with Ctrl or Meta, and a press off the text, answer
+nothing.
+"""
+function read_drawn_text_pointer(drawn, canvas, widget, event, measure; control::Bool = false)
+    if event isa Union{DragMove, DragEnd}
+        found = _split_part_range(widget.selection)
+        found === nothing && return nothing
+        caret = _find_nearest_drawn_caret(drawn, canvas, found[1], event.x, event.y, measure)
+        caret === nothing && return nothing
+        return ReplaceSelectionOperation(_extend_drawn_selection(widget.selection, caret))
+    end
+    (event isa MouseDown && event.button === :left) || return nothing
+    modifiers = event.modifiers
+    (modifiers.ctrl || modifiers.meta || (control && !modifiers.alt)) && return nothing
+    caret = find_drawn_caret(drawn, canvas, event.x, event.y, measure)
+    caret === nothing && return nothing
+    path = modifiers.shift ? _extend_drawn_selection(widget.selection, caret) : caret
+    CompoundOperation(Any[ReplaceSelectionOperation(path), StartDragOperation(EmptyReference(), nothing)])
+end
+
 # The line of `drawn` that shows the characters `start:stop` of `part`, or `nothing`.
 function _find_drawn_line(drawn, part::Reference, start::Int, stop::Int)
     for line in drawn

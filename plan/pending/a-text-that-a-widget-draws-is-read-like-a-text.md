@@ -178,10 +178,33 @@ copy changes.
   band of a whole part as before; a range draws no caret.
   `test_widget_label_caret` 63, `test_widget_card_fold` 77 and
   `test_widget_fact_group` 55 pass.
-- [ ] 3. **The mouse (E2, P5).** A press and a drag, Shift with a click, and an
+- [x] 3. **The mouse (E2, P5).** A press and a drag, Shift with a click, and an
   Alt+drag. Tests: a drag over a label selects a range; a drag of a tab and of
   a movable list element keeps its meaning; an Alt+drag on a tab title selects
   a range.
+
+  Done (2026-11-13): `read_drawn_text_pointer(drawn, canvas, widget, event,
+  measure; control)` in `DrawnTextLine.jl`: a left press gives the caret, or
+  with Shift the moving end there, and `StartDragOperation`; `DragMove` and
+  `DragEnd` move the moving end to the nearest character of the part, also off
+  the text (`_find_nearest_drawn_caret`), and the anchor stays
+  (`_extend_drawn_selection`). A press with Alt reads no binding. A control (a
+  label with bindings of its own, as a chip) starts the drag only with Alt.
+  `_read_drawn_text` also takes a click with Shift.
+
+  Found: the drags of the containers keep their meaning with no extra code. A
+  list that moves its elements does it in `DraggingProjection`, a wrapper that
+  takes the left press before the content reads it, and a tab, a divider, a
+  slider and the right edge of a table header take a press on their own surface
+  before or beside a child. The test of the edge of a header expected no drag
+  at all from a press on the text of a header; it now expects no drag of the
+  width, and the drag of a range in the header text, as E2 says (a header uses
+  no drag away from its edge). A title of a tab is drawn by the tabbed pane, not
+  by a label, so the Alt+drag on it waits for the controls (step 6).
+  `test_widget_label_caret` 73, `test_widget_table_list` 263, the drag sets
+  (`test_drag_tracking` 60, `test_pane_drag` 259, `test_split_pane_drag` 43
+  with its 5 known broken), `test_dragging` 23, `test_dataframes` 622 and 11
+  widget sets pass; `test_application` fails only at its known `:1013`.
 - [ ] 4. **The copy (P6).** Ctrl+C on a range of a label through the clipboard
   of the window. Test: the clipboard holds the characters of the range.
 - [ ] 5. **The card and the group of facts (P1).** Their readers call the

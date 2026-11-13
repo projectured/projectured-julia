@@ -237,4 +237,45 @@ function test_widget_label_caret()
         set_selection!(two, place(3, 8))
         @test bands(lines) == [(x0(lines, 1) + 30, 20), (x0(lines, 2), 20)]
     end
+
+    @testset "a press and a drag over the text of a label select a range" begin
+        p = _label_caret_printer()
+        place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))
+        selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+        label = WidgetLabel("alpha beta")
+        iomap = print_document(p, nothing, label, PrinterContext())
+        x0 = Int(unwrap_cell(getfield(only(iomap.drawn).text, :x)))
+        y = Int(iomap.output.h) ÷ 2
+        none, shift, alt = ModifierKeys(), ModifierKeys(shift = true), ModifierKeys(alt = true)
+        # A press puts the caret at the character and starts a drag.
+        down = read_intent(p, iomap, MouseDown(:left, x0 + 22, y, none; time = 0.0))
+        @test down isa CompoundOperation && length(down.operations) == 2
+        @test selected(down.operations[1]) == place(2) && down.operations[2] isa StartDragOperation
+        set_selection!(label, place(2))
+        # Each move of the drag moves the moving end, also off the text, and the anchor stays.
+        @test selected(read_intent(p, iomap, DragMove(x0 + 52, y; time = 0.0))) == place(2, 5)
+        @test selected(read_intent(p, iomap, DragMove(x0 - 40, y + 100; time = 0.0))) ==
+              place(0, 2; direction = :backward)
+        @test selected(read_intent(p, iomap, DragEnd(x0 + 500, y; time = 0.0))) == place(2, 10)
+        # With Shift a press and a click move the moving end of the selection there.
+        set_selection!(label, place(2))
+        @test selected(read_intent(p, iomap, MouseDown(:left, x0 + 72, y, shift; time = 0.0)).operations[1]) ==
+              place(2, 7)
+        @test selected(read_intent(p, iomap, MouseClick(:left, x0 + 72, y, 1, shift; time = 0.0))) == place(2, 7)
+        # A press with Ctrl answers nothing.
+        @test read_intent(p, iomap, MouseDown(:left, x0 + 22, y, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+
+        # On a chip a plain press acts by its binding and starts no drag; a press with Alt does.
+        chosen = ReplaceSelectionOperation(EmptyReference())
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> chosen;
+                                 description = "Choose the chip", domain = "test")
+        chip = WidgetLabel("open"; gestures = GestureBinding[binding])
+        chip_io = print_document(p, nothing, chip, PrinterContext())
+        cx = Int(unwrap_cell(getfield(only(chip_io.drawn).text, :x)))
+        cy = Int(chip_io.output.h) ÷ 2
+        @test read_intent(p, chip_io, MouseDown(:left, cx + 12, cy, none; time = 0.0)) === nothing
+        alt_down = read_intent(p, chip_io, MouseDown(:left, cx + 12, cy, alt; time = 0.0))
+        @test alt_down isa CompoundOperation && selected(alt_down.operations[1]) == place(1)
+    end
 end

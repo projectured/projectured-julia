@@ -920,9 +920,13 @@ end
     @test table.columns[1].policy == Fixed(120)
     @test table.column_drag === nothing
     @test text_at(io, "age")[1] == x2
-    # A press on a header away from its edge starts no drag.
+    # A press on the text of a header away from its edge starts no drag of the width:
+    # it starts the drag of a range in the text of the header.
     away = read(io, MouseDown(:left, x1 + 10, y1 + 2; time = 0.4))
-    @test !(away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations))
+    @test away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations)
+    @test !any(op -> op isa ReplaceViewStateOperation, away.operations)
+    apply!(table, away)
+    @test table.column_drag === nothing
 end
 
 @testset "the right edge of a header lights under the pointer, and a rest there says what a drag does" begin

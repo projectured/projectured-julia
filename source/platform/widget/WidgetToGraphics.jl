@@ -2083,27 +2083,38 @@ end
 # (`convert_to_whole_selection`). A plain double click is left to the widget around
 # it, such as the row that it opens. A key that no binding takes moves the caret or
 # the range in the text, read-only, by the key table of the text domain
-# (`read_drawn_text_key`), also on a chip that an Alt+click gave the caret.
+# (`read_drawn_text_key`), also on a chip that an Alt+click gave the caret. A left
+# press puts the caret and starts a drag that selects a range, and with Shift a press
+# or a click moves the moving end of the selection to the point
+# (`read_drawn_text_pointer`); on a chip only a press with Alt does.
 read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
     w = iomap.input
+    # The moves and the end of a drag that a press on the text started reach the
+    # widget also off its text.
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
+    _outside_widget(iomap, evt) && return nothing
     w.visible == false && return nothing
-    # A press that selects never acts, so it reads no binding.
-    selecting = is_selection_press(evt)
+    # A press that selects never acts, so it reads no binding, and nor does a press
+    # with Alt.
+    selecting = is_selection_press(evt) || evt isa MouseDown && evt.modifiers.alt
     if !selecting
         bound = read_bound_gesture(w, evt)
         bound === nothing || return bound
         key = read_drawn_text_key(iomap.drawn, w, evt, p.measure)
         key === nothing || return key
-        _is_bound_control(w) && return nothing
     end
+    evt isa MouseDown && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure;
+                                                        control = _is_bound_control(w))
+    !selecting && _is_bound_control(w) && return nothing
+    shift = evt isa MouseClick && evt.modifiers == ModifierKeys(shift = true)
     press = selecting ||
-            evt isa MouseClick && evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys()
+            evt isa MouseClick && evt.button === :left && evt.count == 1 && (evt.modifiers == ModifierKeys() || shift)
     (press || evt isa MouseMove) || return nothing
     caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
     caret === nothing && return nothing
-    press ? ReplaceSelectionOperation(caret) : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
+    press || return ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
+    ReplaceSelectionOperation(shift ? _extend_drawn_selection(w.selection, caret) : caret)
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
