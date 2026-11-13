@@ -1,6 +1,6 @@
 # A data frame takes every selection of its table
 
-Status: pending. Written 2026-11-12.
+Status: done 2026-11-13. Written 2026-11-12.
 
 ## The ask
 
@@ -124,6 +124,11 @@ and it does not reach the rows before the new head, whose prints it could keep.
   under a view at its top, such as after a sort. Only the producer of the move
   knows it, and the same node carries it: a node of the same list keeps its
   neighbours, so each count moves by the same amount. See "Step 3, first try".
+- **D5. No local bound on the memory of the list.** The owner, 2026-11-13: "No
+  the memory issue is generic and should be dealt with everywhere." The view of
+  a data frame keeps its list as a table over a plain lazy list does. The bound
+  that I proposed, a new list after 2,000 rows, is not built. See "Not in this
+  plan".
 - **D4. The new tests run through a real editor** with `MouseDown`, `MouseUp` and
   `MouseScroll`, as `DataFrameCellTest.jl` does, because the fault is in the
   answer to a press, which a `MouseClick` read from the projection does not
@@ -165,18 +170,29 @@ on `main` before the owner approves.
 2. [x] **Every selection of the table reaches the view.** Done; see [As built](#as-built). Points 1 and 2 of the
    way of the change. Promote the assertions of step 1 that pass. Run
    `test_dataframes()` and the table tests of `test_platform()`. Commit.
-3. [ ] **The move of the head makes only the rows that a link needs.** Points 3
+3. [x] **The move of the head makes only the rows that a link needs.** Done; see
+   [As built](#as-built). The timing in real windows did not run: the owner gave
+   no word for it. Points 3
    and 4. Promote the assertion of step 1, and write the counts of the move in
    this plan. Run `test_dataframes()`, `test_scroll_work()` and the tests of the kept
    prints and of the grid of a list in `test_platform()`. On the word of the
    owner, time the move of the head in real windows, and write what is left of
    the 395 ms. Commit.
-4. [ ] **The guide and the end.** Describe the conversion of a compound and the
+4. [x] **The guide and the end.** Done; see [As built](#as-built). Describe the
+   conversion of a compound and the
    extent of the kept prints in the documents of the data frame and of the
    collection package. Move this plan to `plan/done/`. Commit.
 
 ## Not in this plan
 
+- **The memory of a lazy list.** A link of a `ListNode` keeps its neighbour once
+  a walk built it, so a list keeps each node that a walk reached, and a view that
+  moves its head inside its list keeps each row that the wheel passed: about
+  10 KB for each row of a data frame of 3 columns. A table over any lazy list does
+  the same. A computation can not cut a link, because a computation writes only a
+  cell that it made in the same run. The owner wants one solution for every
+  list, not a bound in each view, and named one idea: throw out the whole IO map
+  of the printer and print everything again. The solution is not decided.
 - The records of a new list in the paint: about 95 ms of the move of the head
   are the walk that records the nodes of the new list (875 guard reads). The grid
   of a list makes a new canvas node for each row at each new head, also when the
@@ -368,3 +384,16 @@ change, and D3:
   for each row passed, in a frame of 3 columns. A sort, a filter, an edit of the
   frame or a jump to a place that the list did not build makes a new list and
   frees it. A table over a plain lazy list keeps its nodes in the same way.
+
+### Step 4: the guides, 2026-11-13
+
+- `collection.md`: `find_computed_list_node`; `start_kept_list_head!(keep,
+  head)` and `note_kept_list_link!(keep, k, node)`; the rule that the reach
+  always holds the head, and the rule that a head inside the same list keeps the
+  reach on the same nodes, with the reason that a new list keeps the counts.
+- `widget.md`: the data frame view moves the head of its list to the node that
+  the table walked to, and the header column keeps its mirror when the head of
+  the row headers moves inside their list.
+- The data frame has no package document; the comments of
+  `DataFrameViewToWidget.jl` describe the conversion of a compound and the move
+  of the head (step 2 and step 3).
