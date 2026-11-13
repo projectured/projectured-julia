@@ -690,7 +690,7 @@ A reader that only maps the path of an operation takes `ReplacePathOperation`
 and answers `make_path_operation(operation, path)`. So one method maps every kind
 of path: the selection, the part under the pointer, and a kind that comes later.
 A reader that must treat one kind in a different way adds a method for that kind.
-A case that belongs to a press, such as the whole selection of an Alt+press,
+A case that belongs to a press, such as the whole selection of an Alt+double click,
 names `ReplaceSelectionOperation`, because a move of the pointer must not do it.
 
 ### PAR-NO-NEW-SYNTHETIC-EVENT

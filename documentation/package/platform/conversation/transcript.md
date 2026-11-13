@@ -7,8 +7,8 @@ chat a person reads in the assistant pane. It is printed by
 [`ConversationToWidget.jl`](../../../../source/platform/conversation/ConversationToWidget.jl)
 and it is read, not written. A click in the text of a text part names the place
 in that text, and a drag a range of it; a click in any other part names the part.
-An Alt+click names the object under the pointer, and the whole part in a text
-part. An edit that reaches the transcript is declined. In
+An Alt+double click names the object under the pointer, and the whole part in a text
+part. An Alt+click puts the caret in the text under the pointer. An edit that reaches the transcript is declined. In
 a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and
 note the selected object, and a paste over the transcript is refused.
 
@@ -198,7 +198,7 @@ A transcript is read as objects, not as characters. The objects are:
 | the result of an evaluation: a table, a plot, a form | the result | `turns[i].parts[j].content.result` |
 
 A plain click names at most a part: a click in a result selects the part that
-holds it. An Alt+click names the innermost object, and an Alt+click on a
+holds it. An Alt+double click names the innermost object, and an Alt+double click on a
 message's header names the message.
 
 Alt and an arrow walk the objects. Up is the enclosing object, and the

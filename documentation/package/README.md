@@ -31,7 +31,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `component` | [component.md](platform/component/component.md) | the master-detail component document |
 | `projection` | [projection.md](platform/projection/projection.md), with [generic-projections.md](platform/projection/generic-projections.md) and [higher-order-projections.md](platform/projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |
-| `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+press |
+| `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+double click |
 | `gesturetracking` | [gesturetracking.md](platform/gesturetracking/gesturetracking.md) | runs the recognitions of gestures over the inputs |
 | `versioning` | [versioning.md](platform/versioning/versioning.md) | the versions of a document |
 | `plot` | [plot.md](platform/plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |

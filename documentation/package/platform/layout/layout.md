@@ -90,7 +90,7 @@ Every layout reader goes through one router:
 - A mouse event goes to the child under the pointer. The router translates the point into the frame of the child, limits the hit to the box of the child, and confirms it with `hit_element_at`. The box matters: a `GraphicsText` has no width of its own, so without the box a text on the left of a row would take clicks meant for its right neighbour. Stack, constraint and anchored layouts try the topmost child first, because their children can overlap. A child that is a bare graphics document, such as a circle laid out directly, has no canvas to hit: it is hit anywhere in the box of its size, `get_graphics_size`, the same box that sizes it.
 - A key goes only to the child that the selection of the layout names. There is no broadcast.
 - Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of the focus slice.
-- An Alt+press selects the innermost part under the pointer as a whole, a document or a value in a field (`read_child_event`).
+- An Alt+click puts the caret at the character under the pointer, and an Alt+double click selects the innermost part under the pointer as a whole, a document or a value in a field. Neither acts (`read_child_event`).
 - A left button down with no modifier on a focusable child that answers nothing selects that child as a whole, so a key after the click goes to it (`read_child_event`).
 - A move with no button held goes first to the child that the mouse target of the layout names, when the point is not on that child, and then to the child under the pointer, which names the part under it (`read_child_event`, [graphics.md](../graphics/graphics.md#the-part-under-the-pointer)).
 

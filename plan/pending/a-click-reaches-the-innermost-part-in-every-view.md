@@ -1483,9 +1483,56 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
      run over the catalog follows part 3.
   3. A plain Left or Right on a part selected as a whole: the caret at its start
      or its end, or, on a part with no meaningful caret, the sibling.
+
+     Done in the work (2026-11-13): the rule is in the text, not in each
+     domain. A whole part in a text block is `∅` on the block or a
+     `TextSpanReferenceStep(a, b)`, a flat range of characters, so the motion
+     of the caret (`_text_char_motion`) collapses it to its start or its end as
+     it collapses a range (`_find_whole_flat_range`); a whole part with no
+     character declines. In the graphics pipeline the text reads the key first.
+     In the console pipeline the syntax table reads it first and the text is
+     its fallback, so the plain arrow rule of `SyntaxCompound` declines a Left
+     or a Right on an element that renders a character (`_find_selected_node`,
+     `_has_rendered_text`), and both pipelines follow one rule. Plain Up and
+     Down on a whole element still move in the tree. The tables keep their
+     grid keys (D9). Rejected: the caret at the first leaf of the element
+     (`_descend_to_text_cursor`), which puts it after the opening quote and
+     not at the start of the part. The probe on `json/object/natural`: a
+     whole quote, key, entry and root give `.open{0}` on Left and the end of
+     their text on Right, where the sibling and nothing were before. The
+     tests follow: `SyntaxToTextTest` expects the caret, an element with no
+     character moves to its sibling, and the tree walks press Alt+Left and
+     Alt+Right; `ConsoleBackendTest` presses Alt+Right (`ESC [ 1 ; 3 C`) to
+     step to the sibling.
+
+     **Found (D9):** a plain click on a line that the program of a terminal
+     wrote gave the caret in the label of the line since 8f7439489, which is on
+     main, so the keys went nowhere and `test_assistant_composer_panel` failed
+     at `ConversationPanelTest.jl:220`. The terminal has a more useful plain
+     click: the keys go to its input line. Its 4-arg reader keeps it: a plain
+     click that a text outside the input line answers with a selection gives
+     the caret at the end of the input line, and an Alt+click keeps the caret
+     in the line, so a person can copy it.
+
+     Results: `test_syntax_to_text` 346, `test_text` 170, `test_console_backend`
+     143, `test_terminal` 53, `test_json` 251, `test_sql` 671,
+     `test_assistant_composer_panel` 99, `test_text_range_selection` 41,
+     `test_table_navigation` 67, `test_xml_construct` 10, and the JSON and YAML
+     construct sets with their 2 known broken each pass; `test_julia` fails
+     only at `TooltipWindowTest.jl:179` and `test_platform_layering` only at the
+     10 entries that main has.
   4. The guides: `keyboard-and-mouse-guide.md` (the lines of Alt and the
      arrows, Alt+click), `gestures-guide.md`, and the package guides of the
      widget, the text, the selection and the focus.
+
+     Done in the work (2026-11-13): the user guides list the click, the
+     Alt+click, the Alt+double click, Alt+Up and Alt+Down, Alt+Left and
+     Alt+Right and the plain arrow on a whole part, with one paragraph of the
+     idea; `gestures-guide.md` has the section "Three clicks"; the guides of
+     the focus, the layout, the widget, the text and the syntax describe the
+     predicates, `read_child_event` and the key rules; 14 more package guides
+     name the Alt+double click where they mean a whole selection.
+     `selection.md` describes no click, so it stays.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
@@ -1514,7 +1561,7 @@ are done too.
 
 ## 7. Not in this plan
 
-- An Alt+click on a tab title of a group without the focus brings back an old
+- An Alt+double click on a tab title of a group without the focus brings back an old
   selection; the fix needs a sealed kernel file (`pane.md:290`).
 - An edge of a graph is a decoration by design (`graph.md:88`); the test
   reports it, and the owner decides.

@@ -76,7 +76,7 @@ The Files tab chain is `FileSystemToWidget`, then `RecursiveProjection(WidgetToG
 
 A row of an explorer is a document of the workspace: the folders and entries are stored. So a selection of a row is the path `workspace.folders[k].directory.elements[a]…` of the explorer, and a key goes where that path points. A plain click and the arrow keys move the row. The tree itself and a part that the view drew, such as a scroll bar, are named by an introduced reference.
 
-In the chain of a bare `Workspace`, the tree is the output of `WorkspaceToFileSystem`, so a row is a place that the projection introduces. A selection of that row is a `ProjectionReferenceStep` on the folder. An Alt+click selects the `Workspace` as a whole, so the pane that holds it draws its selection ring.
+In the chain of a bare `Workspace`, the tree is the output of `WorkspaceToFileSystem`, so a row is a place that the projection introduces. A selection of that row is a `ProjectionReferenceStep` on the folder. An Alt+double click selects the `Workspace` as a whole, so the pane that holds it draws its selection ring.
 
 ### Open a file
 
@@ -119,7 +119,7 @@ default values for `nothing`. The registration gives the scaled theme of the `Ap
 
 ## How it fits
 
-The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Files button of the toolbar.
+The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+double click that selects the workspace. The shell slice uses it for the dialogs and for the Files button of the toolbar.
 
 Its `__init__` registers:
 

@@ -315,7 +315,7 @@ A projection reader **delegates** to it and keeps only its geometry arms:
   up/down, plain Home/End, and mouse click.
 - `SyntaxToText` (`SyntaxCompoundToText`) calls `read_gesture(iomap.input, evt)` for
   tree navigation (Ctrl+Alt+Home, Ctrl+Space toggle, Alt/structural arrows), and
-  keeps the mouse hit-test for collapse glyphs and Alt+click.
+  keeps the mouse hit-test for collapse glyphs, Alt+click and Alt+double click.
 
 The payoff: any backend that renders a domain **directly** gets the
 geometry-free editing automatically. The console pipeline (`… → SyntaxToText →

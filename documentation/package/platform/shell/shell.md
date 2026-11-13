@@ -17,7 +17,7 @@ A window is a document and a projection built by `build_editor` with a keyword f
 | Ctrl+Z takes back a change that belongs to no file | `undo` | undo | `:container => 5` |
 | The menu bar, the toolbar and the status bar | `shell` | shell | `:container => 10` |
 | Tab and Shift+Tab start over at the ends of the window | `focus_cycling` | focus | `:container => 20` |
-| Alt+click, the Alt+arrow walk, and the clipboard | `clipboard` | clipboard | `:container => 30` |
+| Alt+double click, the Alt+arrow walk, and the clipboard | `clipboard` | clipboard | `:container => 30` |
 | F1 opens the list of the gestures that work here | `gesture_help` | gesturehelp | `:container => 40` |
 | Ctrl+Shift+P opens the command palette, a list at the top of the window | `command_palette` | gesturehelp | `:container => 50` |
 | Every gesture of the session, recorded | `gesture_log` | gesturelog | `:container => 90` |
@@ -112,7 +112,7 @@ The message log needs no feed from the caller: its wrapper installs the capture 
 
 A toolbar button and a menu item for a tool that shows what the window records appear only when the wrapper that fills that tool is also on; [the toolbar section above](#the-toolbar-opens-the-tools) says which. `shell` alone, with none of the four, builds a toolbar with the explorer, the evaluator, the selection, the appearance and the settings, and no button for any of the four. It has no assistant either, because an assistant needs a model, which the `assistant` option gives. The screen slice's `show_document!` looks through the shell exactly as it looks through the clipboard and the undo buffer, so a later document still opens in a tab and not in a window of its own; see [screen.md](../screen/screen.md#one-window-on-one-document). The display slice turns the wrapper on.
 
-**An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
+**An Alt+double click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+double click over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
 
 ### The pointer in a shell
 

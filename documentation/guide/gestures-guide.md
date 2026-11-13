@@ -12,6 +12,23 @@ are.
 A left click puts the selection where you click. Of the gestures in this guide,
 only the left click moves the selection.
 
+## Three clicks
+
+A click does what the part under the pointer does. A button presses, a tab
+opens its page, a checkbox toggles, a link opens its target, and the text of a
+table header selects its column or row. On a text with no such use, a click puts
+the caret where you click. On the padding of a row, a cell or a card, a click
+selects that row, cell or card.
+
+Alt + click always puts the caret at the character under the pointer, in any
+text, also the text of a button or a tab. It never acts, so a button does not
+press.
+
+Alt + double click always selects the innermost part under the pointer as a
+whole: a value, a cell, a header, a row or a file. It never acts either, so a
+double click on a file in the Files pane does not open it. Alt + Up, Alt + Down,
+Alt + Left and Alt + Right then move that selection.
+
 ## A double click opens
 
 In the Files pane, a double click on a file opens it. Where a part of the

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [selection.md](../../kernel/selection.md), [reference.md](../../kernel/reference.md)
 
-The focus slice of `ProjecturedPlatform` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the rule that gives the focus to a pressed control, the Alt+press rule that selects a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which slice applies it, and where the traps are.
+The focus slice of `ProjecturedPlatform` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the rule that gives the focus to a pressed control, the Alt+click and Alt+double click rules that put a caret or select a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which slice applies it, and where the traps are.
 
 ## How it works
 
@@ -23,19 +23,22 @@ The containers apply the walk. A layout, a `WidgetComposite` and a `WidgetSplitP
 - `is_focusing_press(event)` is `true` for a left `MouseDown` with no modifier.
 - `convert_to_focus_selection(operation, child)` is the answer of a container for such a down that hit `child`, where `operation` is the answer of `child`. A focusable `child` that answered `nothing` and holds no selection gets `ReplaceSelectionOperation` of itself as a whole, the selection that Tab gives it. Every other answer is kept.
 
-The focus moves on the down, and a control acts on the press that a gesture tracking projection makes after the up. So the move of the focus is an operation of its own, and a projection that can not map it drops only the move. A control that answers the down itself keeps its answer, so it does not take the focus from a press. The rule is applied in `read_child_event`, with the Alt+press rule below.
+The focus moves on the down, and a control acts on the press that a gesture tracking projection makes after the up. So the move of the focus is an operation of its own, and a projection that can not map it drops only the move. A control that answers the down itself keeps its answer, so it does not take the focus from a press. The rule is applied in `read_child_event`, with the Alt+click and Alt+double click rules below.
 
 ### The whole-element selection
 
 A whole-element selection is a path that names a part of the document as a whole: a document, or a value that a field or one element of a vector, a tuple or a collection document holds, such as the title of a card that is a `String`. A caret and a range of text name a place inside a value, so they are not whole. Any part can be selected whole, and no document declares that it can be.
 
-- `is_whole_selection_press(event)` is `true` for a left `MouseClick` with Alt and no other modifier. A plain press keeps its meaning, so a button still fires and a caret still lands.
+- `is_caret_press(event)` is `true` for a left `MouseClick` of count 1 with Alt and no other modifier. It puts the caret at the character under the pointer.
+- `is_whole_selection_press(event)` is `true` for a left `MouseClick` of count 2 or more with Alt and no other modifier. It selects a part as a whole.
+- `is_selection_press(event)` is `true` for either. Neither acts, so a plain press keeps its meaning: a button still fires and a caret still lands.
+- `convert_to_caret_selection(operation)` is the answer of a container for an Alt+click. It keeps a `ReplaceSelectionOperation`, such as the caret in a text, and drops any other answer. So an Alt+click never acts.
 - `is_whole_selection(document, reference)` is `true` when the reference evaluates inside `document` and names a part as a whole: its value is a `Document`, or its last step is a field, or one element of a vector, a tuple or a collection document.
-- `convert_to_whole_selection(operation, child)` is the answer of a container for an Alt+press that hit `child`, where `operation` is the answer of `child`.
+- `convert_to_whole_selection(operation, child)` is the answer of a container for an Alt+double click that hit `child`, where `operation` is the answer of `child`.
 
-`convert_to_whole_selection` keeps a `ReplaceSelectionOperation` whose path names a part inside `child` as a whole, so the innermost part under the pointer wins. It also keeps a path that does not evaluate in `child`, because a container can answer in its own terms, and the level above maps the path back. Every other answer becomes the whole selection of `child`: `nothing`, a caret, or the action of a control. So an Alt+press never acts. Before the test, the function cuts a path at its first `ProjectionReferenceStep`: a place that a projection introduced, such as a bracket, then selects the node that the bracket was printed for.
+`convert_to_whole_selection` keeps a `ReplaceSelectionOperation` whose path names a part inside `child` as a whole, so the innermost part under the pointer wins. It also keeps a path that does not evaluate in `child`, because a container can answer in its own terms, and the level above maps the path back. Every other answer becomes the whole selection of `child`: `nothing`, a caret, or the action of a control. So an Alt+double click never acts. Before the test, the function cuts a path at its first `ProjectionReferenceStep`: a place that a projection introduced, such as a bracket, then selects the node that the bracket was printed for.
 
-The rule is applied in one place: `read_child_event` in `source/platform/layout/LayoutToGraphics.jl`. Every layout and every widget container calls it to give a press or a down to a child, so this package only gives the functions. The pane package adds one more rule for a page; see [pane.md](../pane/pane.md#selecting-inside-a-page).
+The rule is applied in one place: `read_child_event` in `source/platform/layout/LayoutToGraphics.jl`. Every layout and every widget container calls it to give a press or a down to a child. On a caret press it answers `convert_to_caret_selection`, and on a whole selection press `convert_to_whole_selection`, so this package only gives the functions. The pane package adds one more rule for a page; see [pane.md](../pane/pane.md#selecting-inside-a-page).
 
 `find_whole_selected_index(selection, field)` and `is_whole_selected_field(selection, field)` read which child a selection names as a whole. A container uses them to draw its selection ring.
 
@@ -74,7 +77,7 @@ The five files of `source/platform/focus/` hold the parts above: `Focus.jl` the 
 - **Focus is the selection.** A second focus field would have to agree with the selection after every edit, and a key would have two places to go. See [plan/done/widget-focus-traversal.md](../../../../plan/done/widget-focus-traversal.md).
 - **The walk names no widget type.** A domain opts in with one method, so a layout and a widget container share one walk.
 - **The focus moves on the down, and the action on the press.** A focus that rode with the action in one `CompoundOperation` would fail as a whole where a projection maps the action and not the selection, and a press on a control of such a projection would stop acting.
-- **An Alt+press selects; a plain press acts.** A plain press already has a meaning in each widget. Alt+press is the whole-element gesture of the syntax domain, and it is free in every widget. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose steps for this are done.
+- **An Alt+click gives the caret, an Alt+double click selects the part, and a plain click acts.** A plain click already has a meaning in each widget. An Alt+click puts a caret in any text, also in the text of a control, so a person can always copy it. An Alt+double click selects the innermost part as a whole in every view, also where a plain double click acts, such as on a file in the Files pane. Neither acts, so a part keeps its most useful plain click and still has a caret and a whole selection. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose steps for this are done.
 - **The walk guards cycles by identity, not by depth.** A depth limit stops early on a deep tree and still walks a long cycle many times. The set of visited nodes stops exactly at the cycle.
 - **A drawn widget is named by a step that holds it.** A field of the domain for each drawn widget would put view state into the data. The step reaches the widget only from its owner, so a paste can not write through it.
 

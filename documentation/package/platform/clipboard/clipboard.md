@@ -89,7 +89,7 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 ### The `clipboard` wrapper of `build_editor`
 
-`clipboard = true | (; gestures, collection, to_text)` is the wrapper of `build_editor` that gives a window the clipboard and the walk of its objects: Alt and an arrow walk the objects of the window, an Alt+click selects one, and the clipboard copies, cuts and pastes the object that is selected. `gestures` says which of `CLIPBOARD_GESTURES` the window offers, all of them by default; `collection = true` keeps a collection of copies instead of one. It is off by default. It acts in the layer `:container` with the number 30, around the chrome of the `shell` wrapper and the cycle of the focus, so the walk and the clipboard reach into the bands too.
+`clipboard = true | (; gestures, collection, to_text)` is the wrapper of `build_editor` that gives a window the clipboard and the walk of its objects: Alt and an arrow walk the objects of the window, an Alt+double click selects one, and the clipboard copies, cuts and pastes the object that is selected. `gestures` says which of `CLIPBOARD_GESTURES` the window offers, all of them by default; `collection = true` keeps a collection of copies instead of one. It is off by default. It acts in the layer `:container` with the number 30, around the chrome of the `shell` wrapper and the cycle of the focus, so the walk and the clipboard reach into the bands too.
 
 ## How it fits
 

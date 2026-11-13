@@ -64,7 +64,7 @@ A parent speaks to a child in the language of the child output: a flat caret, a 
 
 **An edit of a break is a flat edit.** Enter in a text of lines is `ReplaceTextRangeOperation({k:k}, "\n")`, and Backspace at the start of a line or Delete at its end is a flat edit that covers the break. Such an edit stays flat up to `SyntaxToText`: a compound gives it to the child that holds its whole range, in the flat offsets of the child, and a leaf maps it to the flat range of the field that holds it, which is the range of the string of a bound value. A projection that gives a value of one line declines a break, so Enter there goes on to the keys around the text, such as the one that makes an insertion.
 
-The reader has the same shape. An edit in a span of child `i` goes to the reader of that child, and `.children[i]` goes in front of the result. An edit in a separator span changes the one separator field, so every gap changes. An edit on other spans of the node gives `nothing`. A click on the marker or on the ellipsis gives a `ToggleCollapseOperation` for the node, and an Alt+click selects the whole leaf or node under it. Ctrl+. arrives with no target, and the reader resolves it to the innermost compound that can fold and holds the caret.
+The reader has the same shape. An edit in a span of child `i` goes to the reader of that child, and `.children[i]` goes in front of the result. An edit in a separator span changes the one separator field, so every gap changes. An edit on other spans of the node gives `nothing`. A click on the marker or on the ellipsis gives a `ToggleCollapseOperation` for the node, and an Alt+double click selects the whole leaf or node under it. Ctrl+. arrives with no target, and the reader resolves it to the innermost compound that can fold and holds the caret.
 
 `SyntaxListToText` prints a lazy list of syntax as a lazy list of the lines of its elements, with no separator between two elements, because a line implies its break. Element `k` maps to the run of its lines, counted from the head, and a part of an element maps to the line, the span and the characters that hold it.
 
@@ -81,7 +81,8 @@ The keyboard half of the reader is two `@gestures` tables in `source/platform/sy
 | Ctrl+Alt+Home | a compound or a leaf | select the root node, or the whole leaf |
 | Ctrl+Space | a compound or a leaf | toggle between a whole-element selection and a text caret |
 | Alt+arrow | a compound | move in the tree from any selection |
-| an arrow | a compound | move in the tree, only when a whole element is selected |
+| Up, Down | a compound | move in the tree, only when a whole element is selected: Up to the parent, Down to the first child |
+| Left, Right | a compound | move in the tree, only when a whole element is selected and it renders no character; on an element that renders a character they return `nothing`, so the text puts the caret at its start or end |
 
 The table is on `SyntaxCompound`, so every wrapper type has tree navigation. `SyntaxCompoundToText` gives a `KeyDown` to this table and keeps only the mouse arms.
 

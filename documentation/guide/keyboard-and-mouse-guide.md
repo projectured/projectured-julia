@@ -12,20 +12,24 @@ A key press goes to the view under the selection, and each view says which keys 
 
 | Key | What it does |
 | --- | --- |
-| arrow keys | move the selection by one position |
+| arrow keys | move the selection by one position; Left and Right on a part that is selected as a whole put the caret at the start or at the end of its text, or move to the part before or after it where the part has no text; in a table, the arrow keys move the selection over its cells, rows, columns and headers |
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
 | Home, End | in a text, the start and the end of the line; Home goes first to the first character that is not a space, and a second press goes to the start of the line |
 | Page Up, Page Down | in a text, move the caret by the height that shows; the view scrolls as far, so the caret keeps its place on the screen |
 | Shift + a key that moves the caret | select from the caret to where the key moves it |
 | Ctrl + A | in a text, select the whole text; in code, select the whole document |
-| Alt + arrow keys | move the selection over whole parts, not positions |
-| Alt + click | select the part under the pointer as a whole |
+| Alt + Up, Alt + Down | widen the selection to the part that holds it, or narrow it to the first part inside |
+| Alt + Left, Alt + Right | move the selection to the part before or after it |
+| Alt + click | put the caret at the character under the pointer, in any text; it never acts, so a button does not press |
+| Alt + double click | select the innermost part under the pointer as a whole: a value, a cell, a header, a row, a file; it never acts; where the pointer is on no part, it selects the container around it |
 | right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
 | F2, while a menu is open | add the menu of the part around it |
 | Shift + F2, while a menu is open | show one menu fewer |
 | rest the pointer | a tooltip says what the thing under it is |
-| click | put the selection where you click |
+| click | do what the part under the pointer does: a button presses, a tab opens its page, a checkbox or a switch toggles, a link opens its target, a menu item runs, a chevron opens or closes its group, the text of a table header selects its column or row, a row of a list or a tree selects its row; on a text with no such use, put the caret where you click; on a part with no text and no use, select the part as a whole; on the padding of a row, a cell or a card, select that row, cell or card |
 | double click on a file in the Files pane | open that file |
+
+A click does what the part is for. Alt + click is always the caret, so you can put a caret into any text, for example to copy it. Alt + double click always selects the part as a whole. Alt with an arrow key then moves that selection: up to the part that holds it, down into it, or to the part beside it. For example, an Alt + double click on the text `Alice` in a JSON string selects the value. One Alt + Up selects the JSON string, and more Alt + Up go out to the object and the file.
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
