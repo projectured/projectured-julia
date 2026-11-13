@@ -1,6 +1,6 @@
 # A text that a widget draws is read like a text
 
-**Status (2026-11-13): in progress.** The owner decided E1 and E2, and approved
+**Status (2026-11-13): done.** The owner decided E1 and E2, and approved
 the plan for implementation ("good, go", 2026-11-13), so P1 to P8 are approved
 with the plan.
 
@@ -237,7 +237,7 @@ copy changes.
   `test_widget_label_caret` 73, `test_dataframes` 622 and 9 widget, pane and
   task sets pass; `test_clipboard` and `test_application` fail only at their
   known lines; the naming guard passes.
-- [ ] 6. **The controls (P7).** One commit for each group of controls.
+- [x] 6. **The controls (P7).** One commit for each group of controls.
 
   The button, done (2026-11-13): the button records the line of its label as
   the part `.action.label` (`_build_button`, from stash `3f8923c5d`), draws the
@@ -276,7 +276,8 @@ copy changes.
   IO map of its own with children (its label can be a widget), measures its size
   in a cell apart from the cell that draws, and draws the text of a shortcut;
   it needs its own design of where the records live. The guides say that these
-  take no caret.
+  take no caret. The owner (2026-11-13): "Skip the menu items and land the changes",
+  so the items of a menu and the names of a menu bar are not in this plan.
 - [x] 7. **The guides (P8)** and a run of the click test over the catalog.
 
   The guides, done (2026-11-13): `widget.md` describes the shared helpers, the
