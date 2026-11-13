@@ -232,10 +232,11 @@ function test_widget_selection()
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
 
         # An Alt+double click names the innermost part, whole, and nothing acts: in a text
-        # box and in a label, the `String` that it holds. The point (1, 1) is in the
-        # padding of the card, before its title.
+        # box and in a label, the `String` that it holds, and on the text of a button the
+        # label of its action. The point (1, 1) is in the padding of the card, before its
+        # title.
         @test tx > 1 && ty > 1
-        for ((x, y), wanted) in (((bx + 2, by + 2), t.button),
+        for ((x, y), wanted) in (((bx + 2, by + 2), t.button.action.label),
                                  ((lx + 2, ly + 2), t.label.content),
                                  ((fx + 2, fy + 2), t.field.content),
                                  ((1, 1), t.card))

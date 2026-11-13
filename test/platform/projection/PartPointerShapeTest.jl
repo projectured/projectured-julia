@@ -105,8 +105,11 @@ function test_part_pointer_shape()
             _, y = _find_pointer_part_text(iomap.output, label)
             xs = 0:500
             shapes = [find_pointer_shape(iomap.output, x, y + 2) for x in xs]
-            grabs = [_holds_pointer_part_operation(_read_pointer_part(tables, iomap, down(x, y + 2)),
-                                                   StartDragOperation) for x in xs]
+            # A press on the text of a header starts the drag of a range in it; only the
+            # drag of the width of a column writes the state of its drag.
+            grabs = [(op = _read_pointer_part(tables, iomap, down(x, y + 2));
+                      _holds_pointer_part_operation(op, StartDragOperation) &&
+                      _holds_pointer_part_operation(op, ReplaceViewStateOperation)) for x in xs]
             @test count(grabs) == 7 * edges
             @test (shapes .=== :double_arrow_horizontal) == grabs
             # The cells under the header are no edge.

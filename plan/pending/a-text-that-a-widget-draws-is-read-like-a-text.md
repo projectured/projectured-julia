@@ -238,4 +238,18 @@ copy changes.
   task sets pass; `test_clipboard` and `test_application` fail only at their
   known lines; the naming guard passes.
 - [ ] 6. **The controls (P7).** One commit for each group of controls.
+
+  The button, done (2026-11-13): the button records the line of its label as
+  the part `.action.label` (`_build_button`, from stash `3f8923c5d`), draws the
+  caret and the band (`_make_drawn_text_canvas`), and maps them both ways. Its
+  reader gives an event to `_read_control_text` first: an Alt+click gives the
+  caret, a press with Alt starts the drag of a range, a key moves in the label
+  while the selection is there, and a drag moves the range. A plain press acts
+  and does not look pressed with Alt. A command (`Action`) refuses a paste. Two
+  tests follow E2 and D10: an Alt+double click on the text of a button selects
+  the label of its action, the innermost part (Alt+Up reaches the button); the
+  pointer test counts only the drag of the width of a column, not the drag of a
+  range in the header text. `test_widget_label_caret` 86, `test_widget_selection`
+  119, `test_part_pointer_shape` 32 and 15 widget, button, toolbar, window and
+  pointer sets pass.
 - [ ] 7. **The guides (P8)** and a run of the click test over the catalog.

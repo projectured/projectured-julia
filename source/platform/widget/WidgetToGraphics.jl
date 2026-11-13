@@ -682,9 +682,10 @@ WidgetCheckboxToGraphicsCanvas(theme; measure,
     corner_radius::Int
     label_gap::Int                         # between the icon and the label
     icon_size::Float64                    # times the box of the icon, one line of the label
+    selected_color::StyleColor             # the band of the label selected as a whole
 end
 
-WidgetButtonToGraphicsCanvas(theme; measure,
+WidgetButtonToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                              margin = inset_default,
                              border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                              padding = _themed(Inset, theme, t -> t.control_padding),
@@ -706,13 +707,14 @@ WidgetButtonToGraphicsCanvas(theme; measure,
                                  _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                              corner_radius = _themed(Int, theme, t -> t.radius),
                              label_gap = _themed(Int, theme, t -> t.label_gap),
-                             icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                             icon_size = _themed(Float64, theme, t -> t.icon_size),
+                             selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetButtonToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, padding_disabled_color,
                                  content_disabled_color, label_text, label_disabled_text,
                                  layer_hovered_color, layer_pressed_color, shadow_color, shadow_offset,
                                  placeholder_color, focus_ring_stroke, corner_radius, label_gap,
-                                 icon_size)
+                                 icon_size, selected_color)
 
 @projection UntrackedCell struct WidgetLinkToGraphicsCanvas
     measure::TextMeasure
@@ -2742,96 +2744,134 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        authored_size = w.size::Point2D
-        label_content = _button_label_content(w)
-        content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
-        # A button that can show several labels is as wide as the widest, so the
-        # row it stands in does not move when the label changes.
-        for other in w.labels
-            content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
-        end
-        box = geometry[]
-        inset_width, inset_height = _get_inset_total(box)
-        content_x, content_y = _get_content_offset(box)
-        # An optional leading icon: a square of the height of the label times the icon
-        # scale, with a gap before the label. A button with no label has no gap, so
-        # its icon sits in the middle. The button is as tall as the larger of the
-        # icon and the label. An unknown icon name contributes nothing.
-        icon = _button_icon(w)
-        icon_sz = scale_length(content_height, p.icon_size)
-        icon_w  = icon_width(icon, icon_sz)
-        icon_gap = icon_w > 0 && content_width > 0 ? p.label_gap : 0
-        full_w = icon_w + icon_gap + content_width
-        full_h = max(icon_w, content_height)
-        button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
-        button_height = _resolve_height(ctx, Int(authored_size.y[]), full_h + inset_height)
-        inner_width, inner_height = button_width - inset_width, button_height - inset_height
-        corner_radius = p.corner_radius
-        # State-driven surface. The reader keeps the transient `pressed` cell
-        # current, and the mouse target says whether the pointer is on the button.
-        # A lit or a pressed button draws a translucent layer over its surface, so
-        # the state shows over any surface color; the layer reads the state in
-        # cells of its own. A press also drops the shadow, so it is read here. A
-        # disabled button (or one bound to a disabled command) ignores both: its
-        # own muted surface and label, no shadow, no layer (its reader also never
-        # sets `pressed`).
-        enabled = _button_enabled(w)
-        pressed = enabled && w.pressed === true
-        state = enabled ? nothing : :disabled
-        label = _get_state_text(p, w, :label; state)
-        # The rect of the border: the box without its margin.
-        border_x, border_y, border_box_width, border_box_height = _get_border_rect(box, button_width,
-                                                                                   button_height)
-        elements = Any[]
-        # Default button: light surface, subtle border, soft shadow, dark label —
-        # matching the shadcn default button. A faint offset rect approximates the
-        # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
-        # and while disabled (so it reads as inert/flat).
-        if enabled && !pressed
-            _push_panel!(elements, border_x, border_y + p.shadow_offset, border_box_width,
-                         border_box_height; fill = p.shadow_color, radius = corner_radius)
-        end
-        _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
-                         radius = corner_radius)
-        enabled && _push_hover_layer!(elements, w, border_x, border_y, border_box_width, border_box_height;
-                                      hovered_color = p.layer_hovered_color,
-                                      pressed_color = p.layer_pressed_color, radius = corner_radius)
-        # Lay out icon + label as one centered group; the icon tints to the label color
-        # (so it mutes with the button), the label sits to its right.
-        start_x = content_x + (inner_width - full_w) ÷ 2
-        cy = content_y + (inner_height - content_height) ÷ 2
-        if icon_w > 0
-            _push_icon!(elements, icon, start_x, content_y + (inner_height - icon_sz) ÷ 2, icon_sz, label.color)
-        end
-        _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
-                       content_height; placeholder_color = p.placeholder_color)
-        _push_focus_ring!(elements, w, box, button_width, button_height, p.focus_ring_stroke, corner_radius)
-        # A press on a button that acts runs its action.
-        enabled && push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, button_width, button_height)...,
-                                                        :pointing_hand))
-        (width=button_width, height=button_height, elements=elements)
-    end), geometry)
+    build = Cell(Computation(() -> _build_button(p, w, geometry[], ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# The part that the label of a button shows: the label of its action.
+const _BUTTON_LABEL_PART =
+    ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
 
-function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference)
-    return nothing
+# The box, the icon and the label of a button: `(; width, height, elements, drawn)`.
+# A label that the button draws as a text records its line, as the part
+# `.action.label`, so an Alt+click puts the caret at its character.
+function _build_button(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, box::BoxGeometry, ctx)
+    authored_size = w.size::Point2D
+    label_content = _button_label_content(w)
+    content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
+    # A button that can show several labels is as wide as the widest, so the
+    # row it stands in does not move when the label changes.
+    for other in w.labels
+        content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
+    end
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    # An optional leading icon: a square of the height of the label times the icon
+    # scale, with a gap before the label. A button with no label has no gap, so
+    # its icon sits in the middle. The button is as tall as the larger of the
+    # icon and the label. An unknown icon name contributes nothing.
+    icon = _button_icon(w)
+    icon_sz = scale_length(content_height, p.icon_size)
+    icon_w  = icon_width(icon, icon_sz)
+    icon_gap = icon_w > 0 && content_width > 0 ? p.label_gap : 0
+    full_w = icon_w + icon_gap + content_width
+    full_h = max(icon_w, content_height)
+    button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
+    button_height = _resolve_height(ctx, Int(authored_size.y[]), full_h + inset_height)
+    inner_width, inner_height = button_width - inset_width, button_height - inset_height
+    corner_radius = p.corner_radius
+    # State-driven surface. The reader keeps the transient `pressed` cell
+    # current, and the mouse target says whether the pointer is on the button.
+    # A lit or a pressed button draws a translucent layer over its surface, so
+    # the state shows over any surface color; the layer reads the state in
+    # cells of its own. A press also drops the shadow, so it is read here. A
+    # disabled button (or one bound to a disabled command) ignores both: its
+    # own muted surface and label, no shadow, no layer (its reader also never
+    # sets `pressed`).
+    enabled = _button_enabled(w)
+    pressed = enabled && w.pressed === true
+    state = enabled ? nothing : :disabled
+    label = _get_state_text(p, w, :label; state)
+    # The rect of the border: the box without its margin.
+    border_x, border_y, border_box_width, border_box_height = _get_border_rect(box, button_width,
+                                                                               button_height)
+    elements = Any[]
+    # Default button: light surface, subtle border, soft shadow, dark label —
+    # matching the shadcn default button. A faint offset rect approximates the
+    # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
+    # and while disabled (so it reads as inert/flat).
+    if enabled && !pressed
+        _push_panel!(elements, border_x, border_y + p.shadow_offset, border_box_width,
+                     border_box_height; fill = p.shadow_color, radius = corner_radius)
+    end
+    _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
+                     radius = corner_radius)
+    enabled && _push_hover_layer!(elements, w, border_x, border_y, border_box_width, border_box_height;
+                                  hovered_color = p.layer_hovered_color,
+                                  pressed_color = p.layer_pressed_color, radius = corner_radius)
+    # Lay out icon + label as one centered group; the icon tints to the label color
+    # (so it mutes with the button), the label sits to its right.
+    start_x = content_x + (inner_width - full_w) ÷ 2
+    cy = content_y + (inner_height - content_height) ÷ 2
+    if icon_w > 0
+        _push_icon!(elements, icon, start_x, content_y + (inner_height - icon_sz) ÷ 2, icon_sz, label.color)
+    end
+    _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
+                   content_height; placeholder_color = p.placeholder_color)
+    drawn = DrawnTextLine[]
+    _is_drawn_value(label_content) && !isempty(string(label_content)) &&
+        push!(drawn, DrawnTextLine(last(elements), _BUTTON_LABEL_PART, 0))
+    _push_focus_ring!(elements, w, box, button_width, button_height, p.focus_ring_stroke, corner_radius)
+    # A press on a button that acts runs its action.
+    enabled && push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, button_width, button_height)...,
+                                                    :pointing_hand))
+    (width = button_width, height = button_height, elements = elements, drawn = drawn)
+end
+
+# A caret or a range in the label is drawn on its line.
+map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the label is the caret or the range in it. A point on
+# the button names no caret, because a button is a control: a move names the button.
+map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+
+# The answer of a control to an event on the text that it records, which only a
+# press with Alt reaches, because its plain press acts: an Alt+click gives the caret,
+# which the container makes the text as a whole on an Alt+double click; a press with
+# Alt starts the drag of a range; a key moves the caret or the range, read-only.
+# `nothing` for any other event, which the control reads as its own.
+function _read_control_text(p, iomap, evt)
+    w = iomap.input
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
+    if is_selection_press(evt)
+        path = find_drawn_click_selection(iomap.drawn, iomap.output, w, evt, p.measure)
+        return path === nothing ? nothing : ReplaceSelectionOperation(path)
+    end
+    evt isa MouseDown && evt.modifiers.alt &&
+        return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure; control = true)
+    read_drawn_text_key(iomap.drawn, w, evt, p.measure)
 end
 
 # The button owns the transitions of its `pressed` state. A click invokes the
 # action; press/release drive the held-down look. A move of the pointer also reaches the button when the
 # pointer leaves it; every other pointer event reaches it only when the parent
 # hit-tested the pointer onto it.
-function read_intent(::WidgetButtonToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+function read_intent(p::WidgetButtonToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     # A move off the button reaches it only while it is the part under the pointer,
     # so the pointer left it: a press that was released off the button ends here.
     if evt isa MouseMove && _outside_widget(iomap, evt)
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
-    _outside_widget(iomap, evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    # A press with Alt never acts, also on a disabled button, and a key moves in the
+    # label while the selection is in it: they reach the label as a text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     # A disabled button (or one bound to a disabled command) is inert: no action,
     # and no hover/press state changes, so it can never show an interaction surface
     # (see the printer's enabled branch).
@@ -13376,6 +13416,9 @@ _is_read_only_text(::_ReadOnlyTextWidget) = true
 # A paste and a cut leave a read-only text as it is; a copy takes its characters.
 accepts_pasted_text(::_ReadOnlyTextWidget) = false
 
+# The label of a command, which a button and a toolbar item draw, is read-only too.
+accepts_pasted_text(::Action) = false
+
 # A card, a group of facts and a fact draw read-only texts too, but they hold other
 # documents, such as a form, so a paste leaves only the fields of those texts.
 accepts_pasted_text(::WidgetCard, field::Symbol) = field ∉ (:title, :description)
@@ -15005,7 +15048,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetText       => WidgetTextToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
-        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
+        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetLink       => WidgetLinkToGraphicsCanvas(theme; measure = measure),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),

@@ -278,4 +278,49 @@ function test_widget_label_caret()
         alt_down = read_intent(p, chip_io, MouseDown(:left, cx + 12, cy, alt; time = 0.0))
         @test alt_down isa CompoundOperation && selected(alt_down.operations[1]) == place(1)
     end
+
+    @testset "an Alt+click puts the caret in the label of a button, and a plain click acts" begin
+        p = WidgetButtonToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        pressed = Ref(0)
+        button = WidgetButton("Save"; action = _ -> (pressed[] += 1))
+        iomap = print_document(p, nothing, button, PrinterContext())
+        caret = ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"),
+                    ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
+        x, y = _label_caret_point(iomap, 22)
+        # A plain click acts, and a move names the button as a whole.
+        @test !(read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation)
+        @test map_reference_backward(p, iomap, PointReferenceStep(x, y)) === nothing
+        # An Alt+click and an Alt+double click answer the caret, and neither acts.
+        for count in (1, 2)
+            alt_answer = read_intent(p, iomap, MouseClick(:left, x, y, count, ModifierKeys(alt = true); time = 0.0))
+            @test alt_answer isa ReplaceSelectionOperation && strip_reference_types(alt_answer.path) == caret
+        end
+        # A plain press does not start a range, and a press with Alt does.
+        plain_down = read_intent(p, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+        @test !(plain_down isa CompoundOperation && any(op -> op isa StartDragOperation, plain_down.operations))
+        alt_down = read_intent(p, iomap, MouseDown(:left, x, y, ModifierKeys(alt = true); time = 0.0))
+        @test alt_down isa CompoundOperation && strip_reference_types(alt_down.operations[1].path) == caret
+        # A key moves the caret in the label, and a paste leaves the label.
+        set_selection!(button, caret)
+        moved = read_intent(p, iomap, KeyDown(:right, ModifierKeys(); time = 0.0))
+        @test moved isa ReplaceSelectionOperation && strip_reference_types(moved.path) ==
+              ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"),
+                  ConcreteReference(RangeReferenceStep(3, 3), EmptyReference())))
+        @test !accepts_pasted_text(button.action)
+        set_selection!(button, nothing)
+        # The caret maps forward to its line, and the button draws it, and the band
+        # of its label selected as a whole.
+        place = map_reference_forward(p, iomap, caret)
+        @test place !== nothing && find_reference_box(iomap.output, place; measure = _label_caret_measure) !== nothing
+        mark() = [e for e in iomap.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+        bands() = [e for e in iomap.output.elements if e isa GraphicsRect && is_color_equal(e.color, p.selected_color)]
+        @test isempty(mark()) && isempty(bands())
+        evaluate_operation((document = button,), ReplaceSelectionOperation(caret))
+        @test length(mark()) == 1 && Int(only(mark()).x) == x - 2
+        evaluate_operation((document = button,), ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))))
+        @test length(bands()) == 1 && isempty(mark())
+        # A button that shows only an icon records no line.
+        @test isempty(print_document(p, nothing, WidgetButton(""; icon = :plus), PrinterContext()).drawn)
+    end
 end
