@@ -349,6 +349,37 @@ function test_assistant_verbs()
         run_frame!(editor)
         @test any(text -> occursin("+LINE 19", text), _drawn_texts_of(editor))
     end
+
+    @testset "tell: a table of records grows, changes a value and keeps its rows in its file" begin
+        path = joinpath(directory, "ledger.pred")
+        answer = _run_assistant_code(editor, """
+            path_1 = "$path"
+            write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
+            tab_1 = open_file!(path_1)
+            show_pane!(tab_1)
+            ledger_1 = get_edited_document(tab_1)
+            insert_elements!(ledger_1.records, 1, [(number = 1, commit = "fd436d7", state = "waiting"),
+                                                   (number = 2, commit = "0f21330", state = "waiting"),
+                                                   (number = 3, commit = "9427234", state = "waiting")])
+            replace_referenced_value!(ledger_1.records[2], :state, "equal")
+            save_file_to_disk!(tab_1)
+            length(ledger_1.records)
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        @test occursin("3", answer)
+        texts = _drawn_texts_of(editor)
+        @test "3 records" in texts && "equal" in texts
+        # A second window opens the file and shows the three rows, with the changed state.
+        second = _make_assistant_verbs_application(mktempdir())
+        tab_2 = open_file!(path; editor = second)
+        show_pane!(tab_2; editor = second)
+        run_frame!(second)
+        ledger_2 = get_document(get_edited_document(tab_2))
+        @test ledger_2 isa RecordTable
+        @test [record.state for record in ledger_2.records] == ["waiting", "equal", "waiting"]
+        @test "3 records" in _drawn_texts_of(second) && "equal" in _drawn_texts_of(second)
+    end
 end
 end
 

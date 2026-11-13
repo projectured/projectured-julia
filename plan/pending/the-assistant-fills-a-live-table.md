@@ -1,6 +1,6 @@
 # The assistant fills a live table
 
-> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 to 4 are done. · **Stands on:**
+> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 to 4 and the test of step 5 are done; the check by hand of step 5 is open. · **Stands on:**
 > [roster.md](../../documentation/package/platform/roster/roster.md),
 > [operation.md](../../documentation/package/kernel/operation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md),
@@ -235,11 +235,18 @@ Each step is one commit in a worktree of projectured-julia, on main.
    link in `chart.md`, which a commit replaced; it refuses four lines of other files
    (`testing-guide.md` twice, `task.md`). The naming guard passes. `test_ide_documentation()` of
    omnet-julia runs with the omnet-julia steps, in the environment that points at both worktrees.
-5. **The flow in a window.** A new case of `test_assistant_verbs()` in
+5. **The flow in a window.** (the test is done; the check by hand is open) A new case of `test_assistant_verbs()` in
    `test/projectured/editor/AssistantVerbsTest.jl` runs the code of §4 through `execute_julia_code`:
    three records, one changed state and one save. A second window opens the file and shows three
    rows with the changed state. Then a check by hand in `omnet_ide` through the internal MCP
    connection, on a copy of a project, with `take_picture` of the table.
+   **The test is done on 2026-11-13**: the case "tell: a table of records grows, changes a value and
+   keeps its rows in its file" of `test_assistant_verbs()` runs the code of §4 through
+   `execute_julia_code`: three records, one changed state and one save; the tab draws "3 records" and
+   "equal". A second window opens the file and shows the three records with the changed state.
+   `test_assistant_verbs()` 95 of 95. The check by hand in `omnet_ide` needs `omnet_ide` on the code of
+   this branch, so it runs with the live check of the omnet-julia plan
+   `the-ide-follows-the-baseline-catch-up.md` (its step 11), and this plan moves to `plan/done/` after it.
 
 ## 7. Risks
 
