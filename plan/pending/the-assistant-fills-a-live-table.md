@@ -1,6 +1,6 @@
 # The assistant fills a live table
 
-> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 to 3 are done. · **Stands on:**
+> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 to 4 are done. · **Stands on:**
 > [roster.md](../../documentation/package/platform/roster/roster.md),
 > [operation.md](../../documentation/package/kernel/operation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md),
@@ -220,11 +220,21 @@ Each step is one commit in a worktree of projectured-julia, on main.
    counts every record. The picture cell is not asserted again: the roster tests cover it.
    `test_record_table()` 30 of 30; `test_roster`, `test_roster_table`, `test_roster_program` pass; the
    layering guard of the platform fails the 10 entries that main fails, none in a file of this plan.
-4. **The surface and the documents.** The docstring of `RecordTable` gets the full form, the example
+4. ✅ **The surface and the documents.** The docstring of `RecordTable` gets the full form, the example
    of §4 and the mark. `roster.md` gets a section on a table of records that a file keeps, and its
    layer structure lists the two files. Tests: `test_assistant_documentation()`,
    `test_referenced_document_editor()` for the rank of `search_api`, `test_documentation()` and
    `test_naming()`. In omnet-julia: `test_ide_documentation()`.
+   **Done on 2026-11-13**: the docstring of `RecordTable` has the full form, the example of §4 and the
+   mark since step 2. `roster.md` has the section "A table of records that a file keeps" and lists the
+   two files. `test_assistant_documentation()` passes for `RecordTable`, `ChartMatrixSeries` and
+   `find_chart_sample_link`; it refuses four names of other work on main (`get_range_direction`,
+   `get_range_ends` and `make_range_reference_step` of `1df4c59c8`, and `describe_task`, whose
+   example calls `get_task_document_result`). `test_referenced_document_editor()` 134 of 134.
+   `test_documentation()` refused one line of this work, a private project name in an example of a
+   link in `chart.md`, which a commit replaced; it refuses four lines of other files
+   (`testing-guide.md` twice, `task.md`). The naming guard passes. `test_ide_documentation()` of
+   omnet-julia runs with the omnet-julia steps, in the environment that points at both worktrees.
 5. **The flow in a window.** A new case of `test_assistant_verbs()` in
    `test/projectured/editor/AssistantVerbsTest.jl` runs the code of §4 through `execute_julia_code`:
    three records, one changed state and one save. A second window opens the file and shows three

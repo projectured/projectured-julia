@@ -119,6 +119,28 @@ edit_shown_items!(roster, "status" => "checked")
 
 The docstrings of these verbs, of `TabDocuments` and of the three other sources carry the mark `For the assistant.`, so `make_editor_api` offers them to the assistant of every window, and the index of the text of the window lists them.
 
+## A table of records that a file keeps
+
+A `RecordTable` is a document that holds its own records and shows them as a table. Its fields are `title`, `columns`, `records` and `table`. `records` is a `CellVector` with one plain cell for each record, and a record is a named tuple or any document. `table` is an arrangement around `Roster(CollectionItems(records); columns, title)`, whose link is the record table, so the table has every part of a roster: the bar, the filters under the headers, the sort, the group, the link of the first column, the open of a row and the picture cell.
+
+```julia
+path = joinpath(folder, "ledger.pred")
+write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path)
+tab = open_file!(path)
+ledger = get_edited_document(tab)
+insert_elements!(ledger.records, length(ledger.records) + 1,
+                 [(number = 1, commit = "fd436d7", state = "waiting")])
+replace_referenced_value!(ledger.records[1], :state, "equal")
+save_file_to_disk!(tab)
+sort_collection!(ledger, "number")
+```
+
+- A record is a part, as a tuple is: `ledger.records[1]` answers the part at `records[1]`, and the field form of `replace_referenced_value!` writes one field. The write copies the named tuple into its slot, and the roster makes a new row for that record only.
+- A row follows its record by its identity, so two equal records are one row. Each record needs a field that no other record has, such as `number`.
+- A file keeps the title, the columns and the records (`pred_arguments`), and the constructor makes the roster and the arrangement again. A file keeps no arrangement, so a sort is made again after a load.
+- `RecordTableToWidget` draws a line that counts the records, and under it the table, which fills the height. Its reader keeps the arrangement of the table (`keep_held_arrangement`) and opens the record of a row at its place, `records[j]` (`retarget_held_row_open`), as the page of the open files does.
+- The verbs of the arrangement take a record table for the rows of its roster, through `get_arranged_collection_steps(::RecordTable)`.
+
 ## The cost of a change
 
 The cell engine computes only what a change invalidated and what the screen reads. A change of one item computes the value cells of its row, and a part that changed walks its own item again, and no other part. Three things set the cost of a change that the table shows:
@@ -166,7 +188,9 @@ roster/RosterModule.jl      (RosterModule): the module, its exports and its incl
     ├─ RosterDocument.jl    : Roster, RosterRow, RosterItem, the value of a key, the facets, the save
     ├─ RosterSource.jl      : CollectionItems, ItemsWithin, StoreRecords and the stores
     ├─ RosterToGraphics.jl  : the print of a roster and of its rows as a table
-    └─ RosterProgram.jl     : the verbs of code and of the assistant
+    ├─ RosterProgram.jl     : the verbs of code and of the assistant
+    ├─ RecordTable.jl       : RecordTable, a table of records that a file keeps
+    └─ RecordTableToWidget.jl : the page of a record table: the count and the table
 ```
 
 ## Try it
