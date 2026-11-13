@@ -1610,6 +1610,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   of the menu bar, which the owner leaves alone: a plain click opens the menu
   as a popup window, which the test does not count as an action, and an
   Alt+double click selects the whole menu bar, not the menu under the pointer.
+
+  Run 6 over the catalog with these rules (2026-11-13, scratchpad
+  `step6/run6`): 2642 lines in 287 of 546 examples (run 5: 3166 in 301). An
+  Alt+click with no caret 622 (math 99, widget examples 50, research 28), an
+  Alt+double click that no ring draws 611, a move that names another part 435
+  (math 73, task 45), an Alt+click caret outside the part of the point 351, an
+  Alt+double click outside the innermost part 297, a plain click that does
+  nothing 200 (math 37, widget examples 36).
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
