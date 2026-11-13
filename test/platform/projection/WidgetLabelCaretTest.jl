@@ -370,4 +370,26 @@ function test_widget_label_caret()
         # An item that shows an icon records no line.
         @test isempty(print_document(p, nothing, WidgetToolbarItem(Action("Add"; icon = :plus)), PrinterContext()).drawn)
     end
+    @testset "an Alt+click puts the caret in the text of an option of a toggle group, and a plain click picks" begin
+        p = WidgetToggleGroupToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        group = WidgetToggleGroup(["By time", "By kind"])
+        iomap = print_document(p, nothing, group, PrinterContext())
+        @test length(iomap.drawn) == 2
+        option(i) = ConcreteReference(FieldReferenceStep("options"), ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+        caret_at(k) = ConcreteReference(FieldReferenceStep("options"), ConcreteReference(RangeReferenceStep(0, 1),
+                          ConcreteReference(RangeReferenceStep(k, k), EmptyReference())))
+        # The first option is the selected one, so a plain click on it picks nothing.
+        _check_control_text(p, iomap, group, caret_at, option(1), !accepts_pasted_text(group, :options); line = 1)
+        # The second option: a plain click picks it, and an Alt+click puts the caret in its text.
+        x2, y2 = Int(unwrap_cell(getfield(iomap.drawn[2].text, :x))) + 12, Int(iomap.output.h) ÷ 2
+        @test read_intent(p, iomap, MouseClick(:left, x2, y2, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
+        second = read_intent(p, iomap, MouseClick(:left, x2, y2, ModifierKeys(alt = true); time = 0.0))
+        @test second isa ReplaceSelectionOperation && strip_reference_types(second.path) ==
+              ConcreteReference(FieldReferenceStep("options"), ConcreteReference(RangeReferenceStep(1, 2),
+                  ConcreteReference(RangeReferenceStep(1, 1), EmptyReference())))
+        # The stepping look shows the selected option alone, and records it as that option.
+        stepper = WidgetToggleGroup(["a", "b", "c"]; selected = 2, look = :step)
+        step_iomap = print_document(p, nothing, stepper, PrinterContext())
+        @test length(step_iomap.drawn) == 1 && strip_reference_types(only(step_iomap.drawn).part) == option(2)
+    end
 end

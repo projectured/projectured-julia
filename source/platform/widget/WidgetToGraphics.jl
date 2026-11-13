@@ -10892,9 +10892,10 @@ end
     segment_padding::Inset             # a segment's own text padding
     focus_ring_stroke::StyleStroke
     corner_radius::Int
+    selected_color::StyleColor         # the band of an option selected as a whole
 end
 
-WidgetToggleGroupToGraphicsCanvas(theme; measure,
+WidgetToggleGroupToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                   margin = inset_default,
                                   border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                                   padding = _themed(Inset, theme, t -> _make_uniform_inset(t.toggle_group_padding)),
@@ -10913,12 +10914,13 @@ WidgetToggleGroupToGraphicsCanvas(theme; measure,
                                       _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                   segment_padding = _themed(Inset, theme, t -> t.control_padding),
                                   focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
-                                  corner_radius = _themed(Int, theme, t -> t.radius)) =
+                                  corner_radius = _themed(Int, theme, t -> t.radius),
+                                  selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetToggleGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, padding_disabled_color, content_disabled_color,
                                       segment_color, segment_selected_color, segment_disabled_color,
                                       label_text, label_selected_text, label_disabled_text,
-                                      segment_padding, focus_ring_stroke, corner_radius)
+                                      segment_padding, focus_ring_stroke, corner_radius, selected_color)
 
 # The segment widths, so a press can be answered by the segment it landed in.
 # They are derived from the same measurement the printer draws with, in the same
@@ -10932,87 +10934,102 @@ WidgetToggleGroupToGraphicsCanvas(theme; measure,
     output::Any
     segment_widths::Any
     box::Any
+    drawn::Any
 end
 
 function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    build = Cell(@computation begin
-        enabled = !(w.enabled === false)
-        state = enabled ? nothing : :disabled
-        selected = Int(w.selected)
-        box = geometry[]
-        colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _get_inset_total(box)
-        content_x, content_y = _get_content_offset(box)
-        segment_padding_x = Int(p.segment_padding.left[])
-        segment_padding_y = Int(p.segment_padding.top[])
-        labels = [string(o) for o in w.options]
-        _, text_height = _text_size(p.measure, p.label_text.font, "M")
-        # The segments divide what the control was given, and the control IS its
-        # segments.
-        #
-        # Their labels are the floor — a segment never shrinks under its own text
-        # — and every segment carries the same weight, so an offer is shared
-        # equally. That is what makes filling safe here: the reader hit-tests a
-        # press against these very widths, so segments that did not tile the
-        # control would put the picture and the press in different places.
-        #
-        # With no offer the sum is the content and `allocate_axis` has nothing to
-        # share, which is why every picture is unchanged.
-        label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
-        # The step look shows the selected option alone, in one segment as wide as
-        # the widest option.
-        stepping = w.look === :step
-        if stepping && !isempty(labels)
-            label_widths = Int[maximum(label_widths)]
-            labels = [labels[clamp(selected, 1, length(labels))]]
-        end
-        segment_count = length(label_widths)
-        offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
-        segment_widths = segment_count == 0 ? label_widths :
-            allocate_axis(offered_width; mins = copy(label_widths),
-                          maxs = fill(typemax(Int), segment_count),
-                          prefs = copy(label_widths), weights = fill(1.0, segment_count),
-                          gap = 0, n = segment_count)
-        content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
-        content_width  = sum(segment_widths; init=0)
-        corner_radius = p.corner_radius
-        # The content radius, less the border and the padding that lie between
-        # it and the rounded outline — the same rule `_push_box_parts!` applies
-        # to its own content part.
-        segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
-        elements = Any[]
-        _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
-        x = content_x
-        for i in eachindex(labels)
-            segment_width = segment_widths[i]
-            segment_state = (stepping || i == selected) ? (enabled ? :selected : :disabled) : nothing
-            segment_color = _get_state_color(p, w, :segment; state = segment_state)
-            _push_panel!(elements, x, content_y, segment_width, content_height;
-                        fill = segment_color, radius = segment_radius)
-            label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
-            label = _get_state_text(p, w, :label; state = label_state)
-            text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
-            _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
-                        content_y + (content_height - segment_text_height) ÷ 2, label.color)
-            x += segment_width
-        end
-        outer_width, outer_height = content_width + inset_width, content_height + inset_height
-        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
-        (width=outer_width, height=outer_height, elements=elements,
-         segment_widths=segment_widths)
-    end)
-    canvas = _reactive_canvas_cell(_origin(position)..., build)
-    WidgetToggleGroupToGraphicsCanvasIoMap(p, w, canvas,
-                                           Cell(@computation build[].segment_widths), geometry)
+    build = Cell(Computation(() -> _build_toggle_group(p, w, geometry[], ctx)))
+    WidgetToggleGroupToGraphicsCanvasIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure,
+                                                                         p.selected_color),
+                                           Cell(@computation build[].segment_widths), geometry,
+                                           Cell(@computation build[].drawn))
 end
 
-# A segmented control is a positioned leaf that nothing points into: it has one
-# value, and that value is a field rather than a place in a document.
-map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
+# The box and the segments of a toggle group: `(; width, height, elements, segment_widths, drawn)`.
+# The label of an option records its line, as the part `.options[i]`.
+function _build_toggle_group(p::WidgetToggleGroupToGraphicsCanvas, w::WidgetToggleGroup, box::BoxGeometry, ctx)
+    enabled = !(w.enabled === false)
+    state = enabled ? nothing : :disabled
+    selected = Int(w.selected)
+    colors = _get_box_colors(p, w; state)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    segment_padding_x = Int(p.segment_padding.left[])
+    segment_padding_y = Int(p.segment_padding.top[])
+    labels = [string(o) for o in w.options]
+    _, text_height = _text_size(p.measure, p.label_text.font, "M")
+    # The segments divide what the control was given, and the control IS its
+    # segments.
+    #
+    # Their labels are the floor — a segment never shrinks under its own text
+    # — and every segment carries the same weight, so an offer is shared
+    # equally. That is what makes filling safe here: the reader hit-tests a
+    # press against these very widths, so segments that did not tile the
+    # control would put the picture and the press in different places.
+    #
+    # With no offer the sum is the content and `allocate_axis` has nothing to
+    # share, which is why every picture is unchanged.
+    label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
+    # The step look shows the selected option alone, in one segment as wide as
+    # the widest option.
+    stepping = w.look === :step
+    if stepping && !isempty(labels)
+        label_widths = Int[maximum(label_widths)]
+        labels = [labels[clamp(selected, 1, length(labels))]]
+    end
+    # The option that each segment shows.
+    indices = stepping && !isempty(labels) ? [clamp(selected, 1, length(w.options))] : collect(eachindex(labels))
+    lines = DrawnTextLine[]
+    segment_count = length(label_widths)
+    offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
+    segment_widths = segment_count == 0 ? label_widths :
+        allocate_axis(offered_width; mins = copy(label_widths),
+                      maxs = fill(typemax(Int), segment_count),
+                      prefs = copy(label_widths), weights = fill(1.0, segment_count),
+                      gap = 0, n = segment_count)
+    content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
+    content_width  = sum(segment_widths; init=0)
+    corner_radius = p.corner_radius
+    # The content radius, less the border and the padding that lie between
+    # it and the rounded outline — the same rule `_push_box_parts!` applies
+    # to its own content part.
+    segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
+    elements = Any[]
+    _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
+    x = content_x
+    for i in eachindex(labels)
+        segment_width = segment_widths[i]
+        segment_state = (stepping || i == selected) ? (enabled ? :selected : :disabled) : nothing
+        segment_color = _get_state_color(p, w, :segment; state = segment_state)
+        _push_panel!(elements, x, content_y, segment_width, content_height;
+                    fill = segment_color, radius = segment_radius)
+        label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
+        label = _get_state_text(p, w, :label; state = label_state)
+        text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
+        _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
+                    content_y + (content_height - segment_text_height) ÷ 2, label.color)
+        _is_drawn_value(w.options[indices[i]]) && !isempty(labels[i]) &&
+            push!(lines, DrawnTextLine(last(elements), _make_option_part(indices[i]), 0))
+        x += segment_width
+    end
+    outer_width, outer_height = content_width + inset_width, content_height + inset_height
+    _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
+    (width = outer_width, height = outer_height, elements = elements,
+     segment_widths = segment_widths, drawn = lines)
+end
+
+# The part that an option of a toggle group shows: `.options[index]`.
+_make_option_part(index::Int) = ConcreteReference(FieldReferenceStep("options"),
+    ConcreteReference(RangeReferenceStep(index - 1, index), EmptyReference()))
+
+# A caret or a range in the text of an option is drawn on its line. A pick is a value
+# written to a field, so a place of characters is the only place that maps back.
+map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # Invisible group (the printer returned a bare empty canvas): inert.
 read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
@@ -11041,8 +11058,14 @@ end
 # out which control was pressed — see `resolve_toggle_group_write`.
 function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
                      iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
     w = iomap.input
+    # A press with Alt never picks, also on a disabled group, and a key moves in the
+    # text of an option while the selection is there: they reach the text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     w.enabled === false && return nothing
     w.look === :step && return _read_toggle_group_step(w, evt)
     content_x, _ = _get_content_offset(_get_box_geometry(iomap))
@@ -13443,6 +13466,9 @@ accepts_pasted_text(::WidgetCard, field::Symbol) = field ∉ (:title, :descripti
 accepts_pasted_text(::WidgetFactGroup, field::Symbol) = field !== :title
 accepts_pasted_text(::WidgetFact, field::Symbol) = field ∉ (:label, :value)
 
+# A toggle group draws its options as read-only texts, and holds the field `values`.
+accepts_pasted_text(::WidgetToggleGroup, field::Symbol) = field !== :options
+
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
     (0 <= x < geom.total_w && 0 <= y < geom.total_h) || return (:outside, 0, 0)
@@ -15099,7 +15125,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetSwatch     => WidgetSwatchToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measure),
-        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measure),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(theme; measure = measure),
         WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(theme; measure = measure),
         WidgetList        => WidgetListToGraphicsCanvas(theme; graphics_theme, measure = measure),
