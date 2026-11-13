@@ -26,6 +26,41 @@ function _label_caret_point(iomap, dx::Int)
     (Int(unwrap_cell(getfield(line.text, :x))) + dx, Int(iomap.output.h) ÷ 2)
 end
 
+# The checks that every control that draws a text as a read-only text passes:
+# `caret_at(k)` is the caret after `k` characters and `whole` the text as a whole. An
+# Alt+click and an Alt+double click give the caret and never act, a plain click acts,
+# a press with Alt starts the drag of a range, a key moves the caret, the caret has a
+# box and is drawn, the text selected as a whole is banded, and `refused` is true.
+function _check_control_text(p, iomap, document, caret_at, whole, refused; line = 1)
+    text = iomap.drawn[line]
+    x, y = Int(unwrap_cell(getfield(text.text, :x))) + 22, Int(iomap.output.h) ÷ 2
+    @test !(read_intent(p, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation)
+    @test map_reference_backward(p, iomap, PointReferenceStep(x, y)) === nothing
+    for count in (1, 2)
+        alt_answer = read_intent(p, iomap, MouseClick(:left, x, y, count, ModifierKeys(alt = true); time = 0.0))
+        @test alt_answer isa ReplaceSelectionOperation && strip_reference_types(alt_answer.path) == caret_at(2)
+    end
+    plain_down = read_intent(p, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+    @test !(plain_down isa CompoundOperation && any(op -> op isa StartDragOperation, plain_down.operations))
+    alt_down = read_intent(p, iomap, MouseDown(:left, x, y, ModifierKeys(alt = true); time = 0.0))
+    @test alt_down isa CompoundOperation && any(op -> op isa StartDragOperation, alt_down.operations) &&
+          strip_reference_types(alt_down.operations[1].path) == caret_at(2)
+    set_selection!(document, caret_at(2))
+    moved = read_intent(p, iomap, KeyDown(:right, ModifierKeys(); time = 0.0))
+    @test moved isa ReplaceSelectionOperation && strip_reference_types(moved.path) == caret_at(3)
+    set_selection!(document, nothing)
+    place = map_reference_forward(p, iomap, caret_at(2))
+    @test place !== nothing && find_reference_box(iomap.output, place; measure = _label_caret_measure) !== nothing
+    mark() = [e for e in iomap.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+    bands() = [e for e in iomap.output.elements if e isa GraphicsRect && is_color_equal(e.color, p.selected_color)]
+    @test isempty(mark()) && isempty(bands())
+    evaluate_operation((document = document,), ReplaceSelectionOperation(caret_at(2)))
+    @test length(mark()) == 1
+    evaluate_operation((document = document,), ReplaceSelectionOperation(whole))
+    @test length(bands()) == 1 && isempty(mark())
+    @test refused
+end
+
 function test_widget_label_caret()
     @testset "a plain click on the text of a label puts the caret at the character" begin
         p = _label_caret_printer()
@@ -322,5 +357,17 @@ function test_widget_label_caret()
         @test length(bands()) == 1 && isempty(mark())
         # A button that shows only an icon records no line.
         @test isempty(print_document(p, nothing, WidgetButton(""; icon = :plus), PrinterContext()).drawn)
+    end
+    @testset "an Alt+click puts the caret in the label of a toolbar item, and a plain click acts" begin
+        p = WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = _label_caret_measure)
+        item = WidgetToolbarItem(Action("Refresh"; callback = () -> nothing))
+        iomap = print_document(p, nothing, item, PrinterContext())
+        label = ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
+        caret_at(k) = ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"),
+                          ConcreteReference(RangeReferenceStep(k, k), EmptyReference())))
+        @test read_intent(p, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+        _check_control_text(p, iomap, item, caret_at, label, !accepts_pasted_text(item.action))
+        # An item that shows an icon records no line.
+        @test isempty(print_document(p, nothing, WidgetToolbarItem(Action("Add"; icon = :plus)), PrinterContext()).drawn)
     end
 end

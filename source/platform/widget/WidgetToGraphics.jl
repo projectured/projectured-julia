@@ -875,9 +875,10 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
     corner_radius::Int
     icon_size::Float64               # times the box of the icon, one line of the label
     badge::Any                       # the colors of the roles of a decorated icon and its marks
+    selected_color::StyleColor       # the band of the label selected as a whole
 end
 
-WidgetToolbarItemToGraphicsCanvas(theme; measure,
+WidgetToolbarItemToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                   margin = inset_default, border = inset_default,
                                   padding = _themed(Inset, theme, t -> t.toolbar_item_padding),
                                   margin_color = color_transparent, border_color = color_transparent,
@@ -891,11 +892,12 @@ WidgetToolbarItemToGraphicsCanvas(theme; measure,
                                       _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                   corner_radius = _themed(Int, theme, t -> t.radius),
                                   icon_size = _themed(Float64, theme, t -> t.icon_size),
-                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                                  selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
                                       layer_hovered_color, layer_pressed_color, layer_stroke,
-                                      corner_radius, icon_size, badge)
+                                      corner_radius, icon_size, badge, selected_color)
 
 @projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
@@ -2749,8 +2751,8 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
                    geometry, Cell(@computation build[].drawn))
 end
 
-# The part that the label of a button shows: the label of its action.
-const _BUTTON_LABEL_PART =
+# The part that the label of a button or a toolbar item shows: the label of its action.
+const _ACTION_LABEL_PART =
     ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
 
 # The box, the icon and the label of a button: `(; width, height, elements, drawn)`.
@@ -2821,7 +2823,7 @@ function _build_button(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, box::Bo
                    content_height; placeholder_color = p.placeholder_color)
     drawn = DrawnTextLine[]
     _is_drawn_value(label_content) && !isempty(string(label_content)) &&
-        push!(drawn, DrawnTextLine(last(elements), _BUTTON_LABEL_PART, 0))
+        push!(drawn, DrawnTextLine(last(elements), _ACTION_LABEL_PART, 0))
     _push_focus_ring!(elements, w, box, button_width, button_height, p.focus_ring_stroke, corner_radius)
     # A press on a button that acts runs its action.
     enabled && push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, button_width, button_height)...,
@@ -3684,51 +3686,64 @@ _toolbar_item_enabled(w::WidgetToolbarItem) =
 function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::WidgetToolbarItem, ctx)
     w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
-    WidgetBoxIoMap(p, w, _reactive_canvas(0, 0, () -> begin
-        box = geometry[]
-        cox, coy = _get_content_offset(box)
-        inset_width, inset_height = _get_inset_total(box)
-        command = _toolbar_item_command(w)
-        enabled = _toolbar_item_enabled(w)
-        state = enabled ? nothing : :disabled
-        label = _get_state_text(p, w, :label; state)
-        _, line = _text_size(p.measure, label.font, "M")
-        icon_size = icon_width(command.icon, _get_icon_size(command.icon, scale_length(line, p.icon_size)))
-        elements = Any[]
-        if icon_size > 0
-            # A decorated icon takes the color of its role and its corner marks, as
-            # in a row of a tree.
-            _push_decorated_icon!(elements, p.badge, command.icon, cox, coy, icon_size, label.color,
-                                  color_transparent)
-            content_width, content_height = icon_size, icon_size
-        else
-            text = string(command.label)
-            content_width, content_height = _text_size(p.measure, label.font, text)
-            _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
-        end
-        # What it shows, raised to the minimum of its range: a toolbar gives its
-        # items no minimum, so an item there is as large as what it shows.
-        width = _resolve_width(ctx, 0, content_width + inset_width)
-        height = _resolve_height(ctx, 0, content_height + inset_height)
-        # A clear surface over the whole button, inside the space around it: a
-        # press anywhere on it hits the item, and not only on the strokes of its
-        # picture.
-        surface = _get_part_rect(box, :margin, width, height)
-        drawn = Any[GraphicsRect(surface...; color = color_transparent, radius = 0)]
-        _push_box_parts!(drawn, box, _get_box_colors(p, w; state),
-                         width - inset_width, height - inset_height; radius = p.corner_radius)
-        # Flat at rest; under the pointer the layer draws the surface and the
-        # outline of a button, and a darker surface while it is held.
-        enabled && _push_hover_layer!(drawn, w, surface...; hovered_color = p.layer_hovered_color,
-                                      pressed_color = p.layer_pressed_color,
-                                      stroke = p.layer_stroke, radius = p.corner_radius)
-        append!(drawn, elements)
-        (width = width, height = height, elements = drawn)
-    end), geometry)
+    build = Cell(Computation(() -> _build_toolbar_item(p, w, geometry[], ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(0, 0, build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = nothing
+# The box, the icon or the label of a toolbar item: `(; width, height, elements, drawn)`.
+# A label that the item draws records its line, as the part `.action.label`.
+function _build_toolbar_item(p::WidgetToolbarItemToGraphicsCanvas, w::WidgetToolbarItem, box::BoxGeometry, ctx)
+    cox, coy = _get_content_offset(box)
+    inset_width, inset_height = _get_inset_total(box)
+    command = _toolbar_item_command(w)
+    enabled = _toolbar_item_enabled(w)
+    state = enabled ? nothing : :disabled
+    label = _get_state_text(p, w, :label; state)
+    _, line = _text_size(p.measure, label.font, "M")
+    icon_size = icon_width(command.icon, _get_icon_size(command.icon, scale_length(line, p.icon_size)))
+    elements = Any[]
+    lines = DrawnTextLine[]
+    if icon_size > 0
+        # A decorated icon takes the color of its role and its corner marks, as
+        # in a row of a tree.
+        _push_decorated_icon!(elements, p.badge, command.icon, cox, coy, icon_size, label.color,
+                              color_transparent)
+        content_width, content_height = icon_size, icon_size
+    else
+        text = string(command.label)
+        content_width, content_height = _text_size(p.measure, label.font, text)
+        _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
+        _is_drawn_value(command.label) && !isempty(text) &&
+            push!(lines, DrawnTextLine(last(elements), _ACTION_LABEL_PART, 0))
+    end
+    # What it shows, raised to the minimum of its range: a toolbar gives its
+    # items no minimum, so an item there is as large as what it shows.
+    width = _resolve_width(ctx, 0, content_width + inset_width)
+    height = _resolve_height(ctx, 0, content_height + inset_height)
+    # A clear surface over the whole button, inside the space around it: a
+    # press anywhere on it hits the item, and not only on the strokes of its
+    # picture.
+    surface = _get_part_rect(box, :margin, width, height)
+    drawn = Any[GraphicsRect(surface...; color = color_transparent, radius = 0)]
+    _push_box_parts!(drawn, box, _get_box_colors(p, w; state),
+                     width - inset_width, height - inset_height; radius = p.corner_radius)
+    # Flat at rest; under the pointer the layer draws the surface and the
+    # outline of a button, and a darker surface while it is held.
+    enabled && _push_hover_layer!(drawn, w, surface...; hovered_color = p.layer_hovered_color,
+                                  pressed_color = p.layer_pressed_color,
+                                  stroke = p.layer_stroke, radius = p.corner_radius)
+    append!(drawn, elements)
+    (width = width, height = height, elements = drawn, drawn = lines)
+end
+
+# A caret or a range in the label is drawn on its line.
+map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the label is the caret or the range in it; a point names
+# the item as a whole.
+map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # A left press on an enabled item invokes its action. The item's own gestures come
 # first, as on a button.
@@ -3736,10 +3751,10 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 # A left down and up on an enabled item write its transient `pressed`, as on a
 # button. The down is the answer of the item, so it does not move the focus.
 #
-# An Alt+click and an Alt+double click select and never act, so the item declines
-# them: an Alt+double click selects the item as a whole in the layers above, as it
-# selects any widget.
-function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+# An Alt+click puts the caret in the label and an Alt+double click selects it
+# whole; neither acts. A press with Alt starts the drag of a range, and a key moves
+# in the label while the selection is there.
+function read_intent(p::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
     # A move off the item reaches it only while it is the part under the pointer,
@@ -3747,8 +3762,11 @@ function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap,
     if evt isa MouseMove && _outside_widget(iomap, evt)
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
-    _outside_widget(iomap, evt) && return nothing
-    is_selection_press(evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     enabled = _toolbar_item_enabled(w)
     enabled || return nothing
     operation = read_bound_gesture(w, evt)
@@ -15055,7 +15073,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measure),
-        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measure),
+        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme; graphics_theme),
         WidgetShell      => WidgetShellToGraphicsCanvas(theme; measure = measure),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(theme; measure = measure),
