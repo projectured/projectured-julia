@@ -394,6 +394,9 @@ change, and D3:
 - `widget.md`: the data frame view moves the head of its list to the node that
   the table walked to, and the header column keeps its mirror when the head of
   the row headers moves inside their list.
+- Guards: the naming guard passes. `test_platform_layering()` passes 5 and
+  fails 2, with the same 10 entries as `main` of 2026-11-08, all in files that
+  this plan does not change.
 - The data frame has no package document; the comments of
   `DataFrameViewToWidget.jl` describe the conversion of a compound and the move
   of the head (step 2 and step 3).
