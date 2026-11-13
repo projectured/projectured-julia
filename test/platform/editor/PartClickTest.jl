@@ -314,6 +314,19 @@ function _pc_move!(session, x, y)
     _pc_strip_types(get_mouse_target(session.editor.document))
 end
 
+# Whether `path`, a part of the document of the editor, is a menu, an item of a
+# menu, or a part inside one.
+function _pc_is_in_menu(session, path)
+    path isa ConcreteReference || return false
+    steps = collect(get_reference_steps(_pc_strip_types(path)))
+    for k in length(steps):-1:1
+        node = try_evaluate_reference(session.editor.document,
+                                      foldr(ConcreteReference, steps[1:k]; init = EmptyReference()), nothing)
+        node isa Union{WidgetMenu, WidgetMenuItem} && return true
+    end
+    false
+end
+
 _pc_select!(session, path) =
     evaluate_operation(session.editor, ReplaceSelectionOperation(annotate_reference_types(session.editor.document, path)))
 
@@ -367,15 +380,17 @@ function _pc_check_point!(session, element)
         end
     end
     # An Alt+click puts the caret on the character under the point, whatever the
-    # part does, and the caret is drawn there.
+    # part does, and the caret is drawn there; a text of a menu takes no caret (the
+    # owner), which the Alt+double click below tells.
     caret = nothing
+    no_caret = nothing
     if text
         _pc_select!(session, base)
         alt = _pc_press!(session, x, y, ModifierKeys(alt = true))
         if _pc_is_action(alt.up)
             push!(session.failures, "$at: an Alt+click acts")
         elseif !_pc_is_place(alt.selection)
-            push!(session.failures, "$at: an Alt+click gives no caret: $(format(alt.selection))")
+            no_caret = "$at: an Alt+click gives no caret: $(format(alt.selection))"
         else
             caret = alt.selection
             _pc_count!(session, :carets)
@@ -405,6 +420,7 @@ function _pc_check_point!(session, element)
     _pc_select!(session, base)
     whole = _pc_double_press!(session, x, y, ModifierKeys(alt = true)).selection
     _pc_count!(session, :wholes)
+    no_caret === nothing || _pc_is_in_menu(session, whole) || push!(session.failures, no_caret)
     if whole === nothing || _pc_is_place(whole)
         push!(session.failures, "$at: an Alt+double click selects no part: $(format(whole))")
     else
@@ -419,13 +435,15 @@ function _pc_check_point!(session, element)
                   "$at: an Alt+double click selects $(format(whole)), and no ring or band is drawn" :
                   "$at: an Alt+double click selects $(format(whole)), and no ring or band holds the point")
     end
-    # A move names the part that the Alt+double click selects.
+    # A move names the part that the Alt+double click selects, and on a control,
+    # whose plain click acts, the control around it, which then lights.
     target = _pc_move!(session, x, y)
     _pc_count!(session, :moves)
     if target === nothing
         push!(session.failures, "$at: a move names no part under the pointer")
     elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole) &&
-           !(blank && _pc_is_part_within(whole, _pc_cut_place(target)))
+           !(blank && _pc_is_part_within(whole, _pc_cut_place(target))) &&
+           !(acted && _pc_is_part_within(_pc_cut_place(target), whole))
         push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), " *
                                 "the part of the Alt+double click")
     end

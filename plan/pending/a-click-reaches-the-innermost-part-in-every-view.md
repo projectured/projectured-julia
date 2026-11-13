@@ -1599,6 +1599,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   and the items of a menu and the names of a menu bar take no caret, also on an
   Alt+click ("Menu items should not be done"), so an Alt+click there that gives
   no caret is no failure. They are an exception to D10.
+
+  Done in the work (2026-11-13): the point check of the click test takes both.
+  A move may name the part around the Alt+double click when the plain click
+  acts, so a control lights as a whole; an Alt+click that gives no caret is no
+  failure where the Alt+double click selects a menu, an item of a menu or a part
+  inside one (`_pc_is_in_menu`). On three examples against run 5:
+  `appearance/appearance/natural` 109 lines to 4, `examples/widget_shell` 47 to
+  37, `json/object/natural` 1 to 1. The lines left on a name of a menu bar are
+  of the menu bar, which the owner leaves alone: a plain click opens the menu
+  as a popup window, which the test does not count as an action, and an
+  Alt+double click selects the whole menu bar, not the menu under the pointer.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
