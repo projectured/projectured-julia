@@ -9,6 +9,7 @@ authors = []
 [deps]
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedGit = "4564198f-2aa6-477c-a349-d8cc5a909f6a"
+ProjecturedGitExample = "854ecef7-4965-450c-adfe-b250a3163d4e"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
@@ -21,6 +22,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [sources]
 ProjecturedConsole = {path = "../ProjecturedConsole"}
 ProjecturedGit = {path = "../ProjecturedGit"}
+ProjecturedGitExample = {path = "../ProjecturedGitExample"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}

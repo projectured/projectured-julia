@@ -24,7 +24,8 @@ function test_git()
     @testset "ProjecturedGit" begin
         test_git_layering()
         test_git_parse()
+        test_git_reading()
     end
 end
 
-export test_git, test_git_layering, test_git_parse
+export test_git, test_git_layering, test_git_parse, test_git_reading

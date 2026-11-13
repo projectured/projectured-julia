@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "c2c36662b3c0ce0d2b23dbe3360954350a9b1db1"
+project_hash = "24e60badeae350add1163e69f60c4495fd4fb777"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1170,8 +1170,14 @@ path = "../../package/ProjecturedGit"
 uuid = "4564198f-2aa6-477c-a349-d8cc5a909f6a"
 version = "0.1.0"
 
+[[deps.ProjecturedGitExample]]
+deps = ["ProjecturedConsole", "ProjecturedGit", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample"]
+path = "../../package/ProjecturedGitExample"
+uuid = "854ecef7-4965-450c-adfe-b250a3163d4e"
+version = "0.1.0"
+
 [[deps.ProjecturedGitTest]]
-deps = ["ProjecturedConsole", "ProjecturedGit", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
+deps = ["ProjecturedConsole", "ProjecturedGit", "ProjecturedGitExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
 path = "../../package/ProjecturedGitTest"
 uuid = "dcef5d19-7c0f-4b29-b074-9ab4a028bfd1"
 version = "0.1.0"

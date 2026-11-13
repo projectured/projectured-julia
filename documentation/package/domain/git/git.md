@@ -6,7 +6,27 @@ The git domain, `ProjecturedGit`, reads what the `git` program writes about a re
 
 ## How it works
 
-The package holds plain values, and the functions that make them from the output of git. A function here reads a text and runs no program, so a test gives it a fixed text.
+The package holds three documents, which read what they show by the `git` program, and plain values, which functions make from the output of git.
+
+### The documents and their reads
+
+| Document | It holds | Its read |
+| --- | --- | --- |
+| `GitCommit(repository, revision)` | `header`, a `GitCommitHeader`, and `changes`, a `GitFileChange` for each changed file | `git show -z --raw --numstat -M --diff-merges=first-parent` of `<revision>^{commit}` |
+| `GitFileChange` | what the read of its commit knew: the kind, the old and the new path, the counts, whether the file is binary, the first parent as `old_revision` and the commit as `new_revision`; and `hunks` | `git show --patch` of the commit, limited to the old and the new path |
+| `GitFileRevision(repository, revision, path; line)` | `text`, and the `line` to show | `git cat-file blob <revision>:<path>` |
+
+Each document holds the absolute path of its repository. Each read is a background cell (see [editor.md](../../kernel/editor.md)), and the cell is the store of the answer: a print that reads a field asks for the read, and a task runs `git` after the frame. While the answer is still to come, the cell is provisional, and the field `reading` is `true` while git runs. A read that failed makes each read of the field throw a `GitException` with the words of git, such as `bad revision` or `not a git repository`. A document has no read state of its own and no operation that stores an answer.
+
+A background work reads no document, so the read of a commit answers values: the header, and a `GitFileSummary` for each file. `changes` is a computation that makes a `GitFileChange` from each summary. A commit never changes, so its answer is final, the computation runs one time, and each change keeps its document. A commit and its changes share one background source, so one task reads the patches of all the files that one frame shows. A commit made with the header of a log, `GitCommit(repository, hash; header)`, holds that header, and its read gives only the changes.
+
+Each run of git is the same with any configuration of a person: `git -C <repository> --no-pager` with `core.quotePath=false`, `color.ui=false` and `log.showSignature=false`, the C locale, no optional lock and no prompt. A revision comes after `--end-of-options`, so a revision that starts with `-` is no option. The read of a patch takes literal paths and the prefixes `a/` and `b/`.
+
+A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, and a file at a revision with its repository, its revision, its path and its line.
+
+### The values of the output of git
+
+A function here reads a text and runs no program, so a test gives it a fixed text.
 
 | Value | It holds | Made by |
 | --- | --- | --- |
@@ -42,7 +62,7 @@ The counts of the line `@@` say where a hunk ends. git leaves out a count of 1. 
 
 ## How it fits
 
-`ProjecturedGit` depends on the kernel and the platform, and on `ProjecturedPrecompile`. No other domain is below it. AutoIntegration loads it when `Projectured` is loaded, and `ProjecturedAll` holds it. Its suite is `test_git()` in `ProjecturedGitTest`.
+`ProjecturedGit` depends on the kernel and the platform, and on `ProjecturedPrecompile`. No other domain is below it. AutoIntegration loads it when `Projectured` is loaded, and `ProjecturedAll` holds it. Its suite is `test_git()` in `ProjecturedGitTest`. `ProjecturedGitExample` holds `make_git_example_repository(folder)`, which makes a repository of four commits with fixed names and dates, so each hash is known. It runs git with no global and no system configuration.
 
 Another domain can read a patch of its own with `parse_git_diff_text` and compare the hunks with the hunks of a commit. The four values of a patch are exported for that use.
 

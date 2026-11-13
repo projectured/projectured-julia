@@ -85,7 +85,9 @@ struct GitDiffFile
     hunks::Vector{GitDiffHunk}
 end
 
-# The count of the fields of one commit in the text of `parse_git_log_text`.
+# The format of the header of a commit that `parse_git_log_text` reads, and the
+# count of its fields.
+const _HEADER_FORMAT = "%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B"
 const _HEADER_FIELD_COUNT = 7
 
 """

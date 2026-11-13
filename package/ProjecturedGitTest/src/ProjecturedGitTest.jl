@@ -15,6 +15,7 @@ import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedGit
+using ProjecturedGitExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedPlatformExample
@@ -42,6 +43,7 @@ end
 
 
 include("../../../test/domain/git/GitParseTest.jl")
+include("../../../test/domain/git/GitReadTest.jl")
 
 include("../../../test/domain/git/GitSuite.jl")
 

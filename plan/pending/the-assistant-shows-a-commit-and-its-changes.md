@@ -268,7 +268,7 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      `test_repository()` 616 pass; `test_builder()` 613 pass and 1 error, which main has since
      `2f118e96c` (the release copy of `CellStruct.jl:39`); `test_documentation()` fails the same 4
      checks as main (private names in other documents).
-2. **The reads.** The background cells as the store of each read (D8), and `pred_arguments`.
+2. **The reads.** **Done on 2026-11-13.** The background cells as the store of each read (D8), and `pred_arguments`.
    `make_git_example_repository(folder)` in the example package makes a repository with fixed names
    and dates, so each hash is known. Test: the new `test_git_reading()` (`GitReadTest.jl`), with
    `wait_for_cell!(cell; editor = nothing)`. It asserts the exact hash, subject, message, author,
@@ -276,6 +276,32 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    file. It covers the text of a file at a revision, a merge, and a root commit. An unknown
    revision and a folder with no repository make a read of the cell throw the words of git.
    `print_pred_text` of a commit gives `GitCommit("<folder>", "<hash>")`.
+   What the implementation found:
+   - The documents: `GitDocument`, `GitCommit(repository, revision; header = nothing)`,
+     `GitFileChange` and `GitFileRevision(repository, revision, path; line = nothing)`, with
+     `GitException`, whose `message` holds the words of git. A field such as `header`, `changes`,
+     `hunks` or `text` is the cell of the read, and `reading` is the `working` cell of the read.
+   - A background work reads no document and answers values. So the read of a commit answers the
+     header and a `GitFileSummary` for each file, and `changes` is a computation that makes a
+     `GitFileChange` for each. The answer of a commit is final, so the computation runs one time,
+     and each change keeps its document. A `header` that a log gave is a plain cell, and then the
+     read gives only the changes.
+   - One `BackgroundSource` serves a commit and its changes: an input is a tuple whose first
+     element names the read (`:commit`, `:patch`, `:file`). A work that throws fails the reads of
+     its batch, as each background cell does.
+   - The read of a commit names `<revision>^{commit}`, so an annotated tag gives its commit. Each
+     read puts `--end-of-options` before a revision, so a revision that starts with `-` is no
+     option, and the read of a patch takes `--literal-pathspecs`, so a path that starts with `:`
+     names a file. Each run also sets `color.ui=false` and `log.showSignature=false`.
+   - `ProjecturedGitExample` holds `make_git_example_repository`. It runs git with no global and no
+     system configuration. Its first two commits have the hashes of the fixed texts of step 1.
+   - A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, one argument on each
+     line, and the revision while no read gave the hash. `GitFileChange` has no `pred_arguments`:
+     the read of its commit makes it, and step 4, which opens a change as a page, decides how such
+     a page is saved.
+   - Results: `test_git()` 86 pass (the read test 41); the naming guard passes;
+     `test_package_graph()` 562 pass and `test_repository()` 619 pass with the example package; the
+     documentation report is the same as on main.
 2a. **The commits of a range (D9).** `GitCommitRange` and `ApplyGitCommitRangeOperation`. The read
    is a background cell of the repository, the revisions, the paths and `read_count`. It answers
    the commits in the order of `git log`, with no cap, and the folders that hold the refs of the
