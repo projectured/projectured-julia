@@ -1,0 +1,171 @@
+# A text that a widget draws is read like a text
+
+**Status (2026-11-13): proposed, waiting for approval.** The owner decided E1
+and E2. The assistant proposed P1 to P8; they count as approved when the owner
+approves the plan.
+
+**Goal:** a person can select in a text that a widget draws, such as the path
+"/home/projectured/workspace/inet-cpp" of a project card: put the caret with the
+mouse, move it with the keys, select a range with the mouse and with the keys,
+and copy it. The text stays read-only. The behavior is written once, in the
+helpers that every such widget shares, and the keys come from the one key table
+of the text domain.
+
+**Repository:** projectured-julia. No file that the plan changes is sealed
+(`SEALING.md` seals only kernel files, and the plan changes none).
+
+**Branch:** `innermost-click`, in the worktree
+`../projectured-julia-innermost-click`, after the pause of step 6 of
+[a-click-reaches-the-innermost-part-in-every-view.md](a-click-reaches-the-innermost-part-in-every-view.md).
+
+## 1. The request
+
+The owner, on the caret that a click puts into the text of a label (2026-11-13):
+
+> hmm, just having the caret is not very good, can't navigate with cursor,
+> cannot select a range, cannot copy-paste. We should reconsider the plans. This
+> would be desirable to have but we should not reinvent the text domain
+> everywhere.
+
+> No, I don't necessarily want to allow editing all strings, so don't replace
+> them with a text view or whatever.
+>
+> just selection with mouse, navigation with cursor, range selection with both,
+> copy with clipboard would be nice. But I don't want to repeat the all of this
+> behavior in every place. That would be bad.
+
+## 2. What exists
+
+- **The widgets that record their text.** The label, the badge, the avatar, the
+  alert, the card (its title and its description) and the group of facts draw
+  their text themselves and record each line that they draw as a
+  `DrawnTextLine`: the text element, the part of the input that it shows, such
+  as `.content`, and the character where the line starts
+  (`source/platform/widget/DrawnTextLine.jl`). They share the helpers
+  `_read_drawn_text`, `_map_drawn_text_forward`, `_map_drawn_text_backward` and
+  `make_drawn_selection_elements`, which draws the caret and the band of the
+  part selected as a whole.
+- **A click puts the caret.** A plain click on such a text puts the caret at the
+  character (`.content{k}`), and an Alt+click does it in every widget (D10 of
+  the plan of the click).
+- **A key reaches the widget and is lost.** The containers give a key to the
+  widget that holds the selection. `_read_drawn_text` reads a press and a move
+  only, so the key gets no answer.
+- **The one key table of the text domain.** `@gestures TextBlock`
+  (`source/platform/text/TextDocument.jl`) moves the caret by a character and by
+  a word, extends a range with Shift, goes to the start and the end of the text
+  with Ctrl+Home and Ctrl+End, and selects all with Ctrl+A. It also types,
+  removes and indents. Home, End, Up, Down, Page Up and Page Down need the
+  places of the lines, so the reader of `TextToGraphics` answers them, not the
+  table.
+- **The mouse in a text view.** A plain press puts the caret and starts a drag
+  (`StartDragOperation`); each `DragMove` and the `DragEnd` move the moving end
+  of the range. Shift with a press or a click extends the range.
+- **The drags that a widget uses.** A tab moves when a person drags it, a list
+  that offers it moves an element, a slider moves its thumb, and a divider
+  moves.
+- **The clipboard.** A selection `<document>.<field>{a:b}` whose field holds a
+  text is a text target (`_find_text_target` in
+  `source/platform/clipboard/Clipboard.jl`); a copy reads its characters. Not
+  yet run on a label.
+- **A table keeps its grid keys.** When the caret is inside the text of a cell,
+  the table gives a plain arrow to that text and moves between cells only from
+  a whole cell (`_wt_key_navigate`). For a read-only cell, the key is lost today.
+
+## 3. Decisions
+
+- **E1 (owner, 2026-11-13). The keys come from the one table.** On each key,
+  the shared helper makes a short-lived text block of the string of the part
+  that holds the caret. Nothing draws the block and nothing keeps it. The helper
+  gives it the caret or the range, asks the key table what the key does, and
+  maps the new caret or range back to the part, `.content{a:b}`. An answer that
+  edits, such as a typed letter, a removal, a break, an indent or a style, is
+  dropped, so the text stays read-only. The owner chose this over a key table of
+  its own for strings: "let's go with option A then". Rejected: a second table
+  that copies the rules (they drift apart; D1 of the one text domain plan, "There
+  should only be one text domain"); the rules moved into functions of a plain
+  string that two tables call (more work in the text domain, and two lists of
+  keys).
+- **E2 (owner, 2026-11-13). A range with the mouse keeps the existing drags.** A
+  plain drag over a widget text selects a range, unless the part around it uses
+  the drag, as a tab, a movable list element, a slider or a divider does; there
+  the drag keeps its meaning. An Alt+drag always selects a range in a widget
+  text, as an Alt+click always puts the caret. Shift with a click extends the
+  range. The owner: "yes, keep the meaning of existing drags, so option A, I
+  agree". Rejected: only an Alt+drag makes a range (a drag over a paragraph of a
+  card would select nothing).
+- **P1 (proposed by the assistant). One place.** The keys, the drag and the
+  drawing of a range go into the shared helpers of the widget slice:
+  `_read_drawn_text` reads a key and a drag as well as a press, and
+  `make_drawn_selection_elements` draws a range. Each widget that records its
+  lines gets the behavior from them, and a widget with a reader of its own (the
+  card, the group of facts) calls the same helper for a key and a drag. No widget
+  holds a rule of its own for a key. Rejected: a rule in each widget.
+- **P2 (proposed by the assistant). The string of a part.** The block holds the
+  string that the part shows, one line for each line of the string, so the flat
+  place of a character in the block is its place in the string (a break counts
+  one in both). A caret or a range of the part is `part{a:b}`, the form that a
+  click already gives. A key moves the caret only inside the part that holds it;
+  it does not cross to another part of the same widget, such as from the title
+  of an alert to its description. Rejected: one block of every line that the
+  widget draws (the parts are different fields, and a range across them has no
+  path).
+- **P3 (proposed by the assistant). The keys that need the places of the
+  lines.** Home and End go to the start and the end of the drawn line of the
+  caret, and Shift with them extends the range. Up and Down move the caret to
+  the nearest character of the drawn line above or below, by the records of the
+  lines; on the first line Up, and on the last line Down, give no answer, so the
+  key goes on to the container, which moves its row. Page Up and Page Down give
+  no answer. Rejected: no Home and End (a person expects them); the geometry
+  half of `TextToGraphics` (it reads the places of a printed text block, which a
+  widget text does not have).
+- **P4 (proposed by the assistant). The drawing of a range.** A range draws a
+  band behind its characters on each line, in the color of the band of a whole
+  part, and draws no caret. Rejected: a caret at the moving end as well (the text
+  view draws none on a range).
+- **P5 (proposed by the assistant). The drag.** A plain press on the text puts
+  the caret and starts a drag, as the text view does, unless the widget is a
+  control (it has bindings of its own) or a container around it claims the
+  press for a drag of its own. An Alt press always starts the drag of a range.
+  `DragMove` and `DragEnd` move the moving end to the nearest character of the
+  part. How a container claims its drag before the text is the first finding of
+  step 3, recorded here then.
+- **P6 (proposed by the assistant). The copy.** Ctrl+C on a range copies its
+  characters through the text target of the clipboard. Where the clipboard does
+  not do it for a widget, the fix goes into the clipboard rule, not into the
+  widgets. Ctrl+X and Ctrl+V do nothing on a read-only text.
+- **P7 (proposed by the assistant). The controls.** After the behavior works in
+  the widgets that record their lines, the controls record the line of their
+  text too: the button (stash `3f8923c5d` holds its start), the toolbar item,
+  the segment of a toggle group, the name of a menu, the link and the title of a
+  tab. On a control a plain click acts (D9), so only an Alt+click puts the caret
+  and only an Alt+drag selects a range.
+- **P8 (proposed by the assistant). The guides.** The keyboard and mouse guide,
+  the gestures guide and the guides of the widget and the text describe the
+  selection in a widget text.
+
+## 4. Steps
+
+One commit for each step. Each step runs the narrowest tests of what it
+changes: `test_widget_label_caret()`, the widget sets of the changed widgets,
+`test_text()` where the text table is read, and the clipboard sets where the
+copy changes.
+
+- [ ] 1. **The keys (E1, P1, P2, P3).** `_read_drawn_text` answers a key on the
+  part that holds the selection through the short-lived block and the table, and
+  the line records for Home, End, Up and Down. Tests: Left, Right, Shift with
+  them, Ctrl with them, Home, End, Ctrl+A and Up and Down in a label of two
+  lines, and a typed letter that changes nothing.
+- [ ] 2. **The drawing of a range (P4).** `make_drawn_selection_elements` draws
+  the band of a range. Test: the band covers the characters of the range on
+  each line.
+- [ ] 3. **The mouse (E2, P5).** A press and a drag, Shift with a click, and an
+  Alt+drag. Tests: a drag over a label selects a range; a drag of a tab and of
+  a movable list element keeps its meaning; an Alt+drag on a tab title selects
+  a range.
+- [ ] 4. **The copy (P6).** Ctrl+C on a range of a label through the clipboard
+  of the window. Test: the clipboard holds the characters of the range.
+- [ ] 5. **The card and the group of facts (P1).** Their readers call the
+  helper for a key and a drag.
+- [ ] 6. **The controls (P7).** One commit for each group of controls.
+- [ ] 7. **The guides (P8)** and a run of the click test over the catalog.
