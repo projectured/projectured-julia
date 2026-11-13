@@ -218,4 +218,23 @@ function test_widget_label_caret()
         answer = read_intent(badge_printer, badge_io, KeyDown(:right, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == place(2)
     end
+
+    @testset "a range draws a band behind its characters on each line, and no caret" begin
+        p = _label_caret_printer()
+        place(a, b) = ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(a, b), EmptyReference()))
+        bands(io) = [(Int(e.x), Int(e.w)) for e in io.output.elements
+                     if e isa GraphicsRect && is_color_equal(e.color, p.selected_color)]
+        marks(io) = [e for e in io.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+        x0(io, k) = Int(unwrap_cell(getfield(io.drawn[k].text, :x)))
+        label = WidgetLabel("alpha beta")
+        iomap = print_document(p, nothing, label, PrinterContext())
+        set_selection!(label, place(2, 5))
+        @test bands(iomap) == [(x0(iomap, 1) + 20, 30)] && isempty(marks(iomap))
+        # A range over two lines: the end of the first and the start of the second.
+        two = WidgetLabel("alpha\nbeta")
+        lines = print_document(p, nothing, two, PrinterContext())
+        set_selection!(two, place(3, 8))
+        @test bands(lines) == [(x0(lines, 1) + 30, 20), (x0(lines, 2), 20)]
+    end
 end

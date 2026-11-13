@@ -1,8 +1,9 @@
 # Fragment of `WidgetModule` — a line of text that a widget drew, with the part of
 # the input of the widget that the line shows. A widget that keeps these records
 # puts the caret at the character under the pointer on a plain click, draws a caret
-# that lies in the part on its line and a band behind a part selected as a whole,
-# and names the part under the pointer on a move.
+# that lies in the part on its line and a band behind a part selected as a whole and
+# behind the characters of a range, names the part under the pointer on a move, and
+# moves the caret and the range on a key.
 
 """
     DrawnTextLine(text, part, start)
@@ -242,9 +243,10 @@ end
 
 The `elements` of the canvas of a widget that keeps the records `drawn`, with the
 mark of `selection`, the stored selection of the widget, in its text: a band in
-`band_color` behind each line of a part that `selection` names as a whole, and a
-thin rectangle on top, in the colour of the line, while `selection` is a caret in
-a part that a line shows. With no such mark, the answer is `elements` itself, so
+`band_color` behind each line of a part that `selection` names as a whole, and
+behind the characters of each line that a range of a part holds, and a thin
+rectangle on top, in the colour of the line, while `selection` is a caret in a
+part that a line shows. With no such mark, the answer is `elements` itself, so
 a widget that holds no selection in its text has no element for it.
 """
 function make_drawn_selection_elements(elements, drawn, selection, measure, band_color)
@@ -259,17 +261,31 @@ function make_drawn_selection_elements(elements, drawn, selection, measure, band
 end
 
 # A band in `color` over the box of each line of the part that `selection` names as
-# a whole, in the frame of the canvas of the lines.
+# a whole, and over the characters of each line that a range of a part holds, in
+# the frame of the canvas of the lines.
 function _make_drawn_bands(drawn, selection, measure, color)
     selection isa ConcreteReference || return Any[]
-    part = strip_reference_types(selection)
+    whole = strip_reference_types(selection)
+    found = _split_part_range(selection)
     bands = Any[]
     for line in drawn
-        strip_reference_types(line.part) == part || continue
-        box = compute_line_box(measure, _get_drawn_string(line), unwrap_cell(getfield(line.text, :font)))
+        part = strip_reference_types(line.part)
+        text = _get_drawn_string(line)
+        font = unwrap_cell(getfield(line.text, :font))
+        box = compute_line_box(measure, text, font)
         x = round(Int, unwrap_cell(getfield(line.text, :x)))
         y = round(Int, unwrap_cell(getfield(line.text, :y))) - box.text_y
-        push!(bands, GraphicsRect(x, y, box.width, box.height; color, radius = 0))
+        if part == whole
+            push!(bands, GraphicsRect(x, y, box.width, box.height; color, radius = 0))
+        elseif found !== nothing && found[1] == part && found[2].start < found[2].stop
+            from = max(found[2].start - line.start, 0)
+            to = min(found[2].stop - line.start, length(text))
+            from < to || continue
+            offsets = compute_caret_offsets(measure, text, font)
+            push!(bands, GraphicsRect(x + round(Int, offsets[from + 1]), y,
+                                      round(Int, offsets[to + 1] - offsets[from + 1]), box.height;
+                                      color, radius = 0))
+        end
     end
     bands
 end

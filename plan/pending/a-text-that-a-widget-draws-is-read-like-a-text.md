@@ -169,9 +169,15 @@ copy changes.
   table answers with an edit gives `nothing`, so it goes on: Return reaches the
   list around a label. `test_widget_label_caret` 61, and 11 widget, table, tab
   and menu sets and `test_dataframes` 622 pass.
-- [ ] 2. **The drawing of a range (P4).** `make_drawn_selection_elements` draws
+- [x] 2. **The drawing of a range (P4).** `make_drawn_selection_elements` draws
   the band of a range. Test: the band covers the characters of the range on
   each line.
+
+  Done (2026-11-13): `_make_drawn_bands` draws a band behind the characters
+  that a range holds on each line, by the caret offsets of the line, and the
+  band of a whole part as before; a range draws no caret.
+  `test_widget_label_caret` 63, `test_widget_card_fold` 77 and
+  `test_widget_fact_group` 55 pass.
 - [ ] 3. **The mouse (E2, P5).** A press and a drag, Shift with a click, and an
   Alt+drag. Tests: a drag over a label selects a range; a drag of a tab and of
   a movable list element keeps its meaning; an Alt+drag on a tab title selects
