@@ -2425,24 +2425,35 @@ _is_value_child(document_iomap) =
 
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
-# A caret or a range in a plain value is a range of the text of its view, and the
-# value as a whole is that text as a whole; both map through the IO map of the view
-# to their place in its output. A document in `content` maps through its child.
+# A caret or a range in the value that a text widget shows, a plain value or the
+# value that the child of a document in `content` gives, is a range of the text of
+# its view, and the value as a whole is that text as a whole; both map through the
+# IO map of the view to their place in its output. Any other document in `content`
+# maps through its child.
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference) =
-    something(_map_plain_text_forward(iomap, reference), Some(_map_child_forward(iomap, reference)))
+    something(_map_shown_text_forward(iomap, reference), Some(_map_child_forward(iomap, reference)))
 
-# The place in the output of `reference`, `.content` or `.content{s:e}` of a text
-# widget that shows a plain value, or `nothing` for any other reference.
-function _map_plain_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, reference)
-    (iomap.value_iomap === nothing && !(iomap.input.content isa Document) && reference isa Reference) ||
-        return nothing
+# The place in the output of `reference`, a path under `.content` of a text widget
+# that shows a value as a text, or `nothing` for any other reference: `.content`
+# and `.content{s:e}` of a plain value, and a path that the child of the document
+# in `content` maps to a range of the string of its value.
+function _map_shown_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, reference)
+    child = iomap.value_iomap
+    ((child !== nothing || !(iomap.input.content isa Document)) && reference isa Reference) || return nothing
     view = iomap.content_iomap
     view === nothing && return nothing
     steps = collect(get_reference_steps(strip_reference_types(reference)))
     (!isempty(steps) && steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
-    text = length(steps) == 1 ? EmptyReference() :
-           length(steps) == 2 && steps[2] isa RangeReferenceStep ?
-               make_flat_range_reference(steps[2].start, steps[2].stop) : nothing
+    text = if length(steps) == 1
+        EmptyReference()
+    elseif child !== nothing
+        rest = extend_reference(EmptyReference(), steps[2:end]...)
+        range = map_reference_forward(child.projection, child, annotate_reference_types(child.input, rest))
+        flat = range isa Reference ? strip_reference_types(range) : nothing
+        flat isa ConcreteReference && flat.head isa TextRangeReferenceStep ? flat : nothing
+    elseif length(steps) == 2 && steps[2] isa RangeReferenceStep
+        make_flat_range_reference(steps[2].start, steps[2].stop)
+    end
     text === nothing && return nothing
     inner = ConcreteReference(FieldReferenceStep("content"), text)
     image = map_reference_forward(get_iomap_projection(view), view,

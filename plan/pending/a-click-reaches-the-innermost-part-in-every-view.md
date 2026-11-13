@@ -1344,6 +1344,16 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     the view read an unfilled slot and threw `UndefRefError` after a press in
     the explorer. It asks `isassigned` of every `AbstractArray` now. The walk
     of `explorer/explorer` presses all its 43 points with no throw.
+  - ~~**The caret in a field of a form maps forward to nothing**~~
+    (`examples/nested_object_to_widget`, the object view). A field of the form
+    holds an `ObjectField`, whose child gives the value that the text field
+    shows, and the forward map of the field went into the child, which gives a
+    value and no graphics. The forward map of a text field asks that child for
+    the flat range of the value now, as the backward map does
+    (`_map_shown_text_forward`, which the plain value uses too). The walk:
+    `examples/nested_object_to_widget` 21 → 13, `examples/object_to_widget`
+    3 → 2, `examples/chart_inspector` 42 → 39, and no caret that is not drawn
+    is left in them.
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.

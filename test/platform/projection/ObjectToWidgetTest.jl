@@ -177,6 +177,21 @@ end # @testset
 
 end # @testset
 
+@testset "a caret in a field of the form maps forward to the character that the field draws" begin
+
+    holder = OtwPlainHolder("gateway", OtwPlainWindow("Main", 800), nothing)
+    w2g = WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0))
+    projection = ChainingProjection(ObjectToWidget(),
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch, make_object_field_widget_dispatch(w2g.dispatch)))))
+    iomap = print_document(projection, holder)
+    caret = ConcreteReference(FieldReferenceStep("name"), ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
+    place = map_reference_forward(projection, iomap, annotate_reference_types(holder, caret))
+    @test place !== nothing
+    @test last(get_reference_steps(strip_reference_types(place))) == RangeReferenceStep(2, 2)
+
+end # @testset
+
 @testset "WidgetCheckbox click emits the toggle convention operation" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
