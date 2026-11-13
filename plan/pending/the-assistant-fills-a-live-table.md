@@ -1,6 +1,6 @@
 # The assistant fills a live table
 
-> **Kind:** plan · **Status:** a plan, written 2026-11-05. Nothing is built. · **Stands on:**
+> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Step 1 is done. · **Stands on:**
 > [roster.md](../../documentation/package/platform/roster/roster.md),
 > [operation.md](../../documentation/package/kernel/operation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md),
@@ -172,12 +172,22 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
 
 Each step is one commit in a worktree of projectured-julia, on main.
 
-1. **A named tuple is a part.** Widen `_is_referenced_value` in `ReferencedDocument.jl` and
+1. ✅ **A named tuple is a part.** Widen `_is_referenced_value` in `ReferencedDocument.jl` and
    `get_stored_value` in `DocumentMacro.jl`. The code tool shows a part of a named tuple as the
    tuple. Tests: `test_referenced_document()` asserts the path `records[2]` of a read and the
    stored fields. `test_referenced_document_editor()` asserts that
    `replace_referenced_value!(records[2], :state, "equal")` replaces the record in its slot, and
    that one undo puts it back.
+   **Done on 2026-11-13** (branch `baseline-catch-up` of the plan `the-ide-follows-the-baseline-catch-up.md`
+   of omnet-julia, its step 3): `_is_referenced_value` answers `true` for a `NamedTuple`, and
+   `get_stored_value` stores the `get_document` of each field of a named tuple that holds a part.
+   The display needed no change: a part of a record shows as `ReferencedDocument{NamedTuple} at
+   content[2]: (…)`. The write needed no change either: `with_object_field` already merges a field
+   into a named tuple, and `ReplaceReferencedValueOperation` writes the copy into its slot.
+   `test_referenced_document()` 82 of 82, with the new testset of a record: the path of a read, a
+   field as a leaf, the stored documents of the fields, and the write of a field that copies the
+   record into its slot and keeps the other records. `test_kernel()` 5169 passed, 2 broken. The case
+   in an editor, with one undo, moves to step 3, where the view of a record table takes the write.
 2. **The document `RecordTable`.** `RecordTable(title::AbstractString; columns, records = [])`, the
    held roster with its arrangement, `pred_arguments`, `make_pred_document`, `get_document_title`,
    `get_document_decoration` with the count of records, and `get_arranged_collection_steps`. The

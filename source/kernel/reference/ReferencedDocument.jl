@@ -111,10 +111,11 @@ function _print_part_hint(io::IO, exception::MethodError, argument_types, keywor
     end
 end
 
-# A value that a read answers as a referenced document: a document or a collection.
-# Any other value is a leaf and is answered as it is.
+# A value that a read answers as a referenced document: a document, a collection or
+# a record, which is a named tuple. Any other value is a leaf and is answered as it is.
 _is_referenced_value(value) =
-    value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple
+    value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple ||
+    value isa NamedTuple
 
 # `value` as a referenced document one `step` below the document of `x`. The step
 # records the type of the node it stands on, and the reference ends on the type of

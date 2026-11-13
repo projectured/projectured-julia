@@ -324,12 +324,15 @@ _emit_accessors(plan) = (
 The value that a document stores for `value`: its [`get_document`](@ref), and for a
 plain `Vector` that holds a referenced document, a new vector of the `get_document`
 of each element, so a document holds no referenced document, also not inside a
-list. A vector with no referenced document, or with an unassigned element, is
-stored as it is. The constructor and the write of a field of a `@document` store
-it, and so does a verb that writes a value it was given.
+list. A named tuple stores the `get_document` of each field in the same way. A
+vector with no referenced document, or with an unassigned element, is stored as it
+is. The constructor and the write of a field of a `@document` store it, and so does
+a verb that writes a value it was given.
 """
 function get_stored_value(value)
     value = get_document(value)
+    value isa NamedTuple &&
+        return any(field -> get_document(field) !== field, value) ? map(get_document, value) : value
     (value isa Vector && !isbitstype(eltype(value))) || return value
     all(index -> isassigned(value, index), eachindex(value)) || return value
     any(element -> get_document(element) !== element, value) || return value

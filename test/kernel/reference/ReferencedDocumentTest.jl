@@ -225,6 +225,35 @@ function test_referenced_document()
         @test holder.content === plain
     end
 
+    @testset "a record, a named tuple, is a part, and a document stores the documents of its fields" begin
+        records = ReferencedHolder(Any[(number = 1, state = "waiting"), (number = 2, state = "waiting")], nothing)
+        whole = ReferencedDocument(records, EmptyReference())
+        second = whole.content[2]
+        @test second isa ReferencedDocument
+        @test get_document(second) === records.content[2]
+        @test strip_reference_types(get_reference(second)) == strip_reference_types(@reference(records, content[2]))
+        # A field of a record is a leaf.
+        @test second.state == "waiting"
+        # The write of a field of a record copies the record into its slot, and the
+        # other records stay the same objects.
+        first_record = records.content[1]
+        ProjecturedKernel.OperationModule.evaluate_operation((; document = records),
+            ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation(nothing,
+                @reference(records, content[2].state), "equal"))
+        @test records.content[2] == (number = 2, state = "equal")
+        @test records.content[1] === first_record
+        # A record that holds a part stores the document of the part.
+        root = _make_referenced_tree()
+        part = ReferencedDocument(root, EmptyReference()).children[1]
+        holder = ReferencedHolder((number = 3, leaf = part), nothing)
+        @test holder.content.leaf === root.children[1]
+        @test holder.content.number == 3
+        # A record with no part is stored as it is.
+        plain = (number = 4, state = "equal")
+        holder.content = plain
+        @test holder.content === plain
+    end
+
     @testset "a plain document has no place, and the error says how to get a part" begin
         leaf = ReferencedLeaf("a", nothing)
         refusal = try get_reference(leaf); "" catch exception; sprint(showerror, exception) end
