@@ -5,10 +5,9 @@
     GitTheme
 
 The colors and the fonts of the texts of the git domain, one for each kind of line
-of a [`GitTextLine`](@ref): the subject, the facts and the message of a commit, the
-heading and the rows of the list of the changed files, the path of a changed file,
-the lines of a diff and of a file at a revision, and the notes. Also the gap between
-the parts of a page.
+of a [`GitTextLine`](@ref), and of the header of a commit: the subject, the facts and
+the message of a commit, the path of a changed file, the lines of a diff and of a file
+at a revision, and the notes. Also the gap between the parts of a page.
 
 `@theme` declares it, so `ScaledGitTheme` holds each value times its scale, and
 `GitTheme()` is the default theme. A page takes its styles with `get_git_style`,
@@ -21,10 +20,6 @@ from a theme scaled or not.
     fact_text::ThemeText = TextRole(:text_muted; font_role = :quiet)
     "The message of a commit, after its subject."
     message_text::ThemeText = TextRole(:text; font_role = :document_text)
-    "The heading of the list of the changed files."
-    section_text::ThemeText = TextRole(:text_muted; font_role = :section)
-    "A row of the list of the changed files: the kind, the path and the counts."
-    file_text::ThemeText = TextRole(:text; font_role = :code)
     "The path of a changed file, above its diff, and of a file at a revision."
     path_text::ThemeText = TextRole(:text; font_role = :code, weight = 700)
     "The first line of a hunk, which says where the hunk starts on each side."
@@ -41,6 +36,6 @@ from a theme scaled or not.
     note_text::ThemeText = TextRole(:text_faint; font_role = :quiet)
     "The words of git for a read that failed."
     failure_text::ThemeText = TextRole(:error_text; font_role = :text)
-    "The gap between the title of a file at a revision and its text."
+    "The gap between the parts of a page: the header, the table and the text of a commit, and the title and the text of a file."
     gap::Spacing = Spacing(8)
 end

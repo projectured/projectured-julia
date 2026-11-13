@@ -60,15 +60,16 @@ function GitCommitRange(repository::AbstractString, revisions::AbstractString;
                            listing)
     holder[] = range
     roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("commits")));
-                    columns = _RANGE_COLUMNS, title = names)
+                    columns = _RANGE_COLUMNS, title = names, shares = _RANGE_SHARES)
     link_roster!(roster, range)
     range.table = ArrangementDocument(roster, ArrangementEntry[])
     range
 end
 
-# The columns of the table of a range: the short hash, then the columns of the list
-# of gitk.
+# The columns of the table of a range, the short hash, then the columns of the list
+# of gitk, and their shares of the width.
 const _RANGE_COLUMNS = ["hash", "subject", "author", "date"]
+const _RANGE_SHARES = [1, 5, 3, 2]
 
 # The facets of a commit, which the columns of a range show and a person filters
 # and sorts by. A commit whose header is still to come has empty facets.

@@ -22,8 +22,9 @@ The commit that `revision` names in the repository in the folder `repository`. A
 revision is a hash, a branch, a tag, or another name that git reads, such as
 `HEAD~2`. The read gives the `header`, a [`GitCommitHeader`](@ref), and the
 `changes`, a [`GitFileChange`](@ref) for each changed file against the first
-parent. `diff` is the text of its page, a [`GitDiffText`](@ref). A commit never
-changes, so its read runs one time. A `header` that a log gave already is the
+parent. `table` is the arrangement of a roster of the changes, which its page draws
+and a person filters and sorts, and `diff` is the text of the diffs of its page, a
+[`GitDiffText`](@ref). A commit never changes, so its read runs one time. A `header` that a log gave already is the
 header of the commit, and the read then gives only the changes.
 """
 @document struct GitCommit <: GitDocument
@@ -31,6 +32,7 @@ header of the commit, and the read then gives only the changes.
     revision::String
     header::Any
     changes::Any
+    table::Any
     diff::Any
     reading::Bool
 end
@@ -44,9 +46,19 @@ function GitCommit(repository::AbstractString, revision::AbstractString;
     read = make_background_cell(source, () -> (:commit, folder, name); working = reading)
     header_cell = header === nothing ? Cell(@computation _get_read_header(read[])) : Cell(header)
     changes = Cell(@computation _make_file_changes(source, folder, read[]))
-    diff = _make_git_text(GitDiffText, () -> _make_commit_lines(name, header_cell, changes))
-    GitCommit(folder, name, header_cell, changes, diff, reading)
+    diff = _make_git_text(GitDiffText, () -> _make_commit_lines(header_cell, changes))
+    commit = GitCommit(folder, name, header_cell, changes, Cell(nothing), diff, reading)
+    roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("changes")));
+                    columns = _CHANGE_COLUMNS, title = "Changed files", shares = _CHANGE_SHARES)
+    link_roster!(roster, commit)
+    commit.table = ArrangementDocument(roster, ArrangementEntry[])
+    commit
 end
+
+# The columns of the table of the changed files of a commit, and their shares of the
+# width. The first column, the path, is a link to the page of the change.
+const _CHANGE_COLUMNS = ["path", "change", "added", "removed"]
+const _CHANGE_SHARES = [6, 1, 1, 1]
 
 _get_read_header(answer) = answer === nothing ? nothing : answer.header
 
@@ -88,8 +100,22 @@ end
 # A walk of the documents does not read a diff or a text: the read runs git, and a
 # diff can hold thousands of lines that no walk needs. A page reads them when it
 # shows them.
-is_field_walked(::GitCommit, name::Symbol) = name !== :diff
+is_field_walked(::GitCommit, name::Symbol) = !(name in (:table, :diff))
 is_field_walked(::GitFileChange, name::Symbol) = !(name in (:hunks, :diff))
+
+# The facets of a change, which the columns of the table of a commit show and a
+# person filters and sorts by.
+get_item_facets(::Type{GitFileChange}) = [
+    "path" => "the path of the file; for a rename or a copy, the old and the new path",
+    "change" => "the kind of the change in words, and binary for a binary file",
+    "added" => "the count of the added lines",
+    "removed" => "the count of the removed lines"]
+compute_item_facet(change::GitFileChange, ::Val{:path}) =
+    _format_change_path(change.kind, change.old_path, change.new_path)
+compute_item_facet(change::GitFileChange, ::Val{:change}) =
+    change.is_binary ? _format_change_kind(change.kind) * ", binary" : _format_change_kind(change.kind)
+compute_item_facet(change::GitFileChange, ::Val{:added}) = change.added_count
+compute_item_facet(change::GitFileChange, ::Val{:removed}) = change.removed_count
 
 function _make_file_change(source::BackgroundSource, repository::String, hash::String, parent, file::GitFileSummary)
     reading = Cell(false)

@@ -7,8 +7,8 @@
 
 One line of a git text: its `kind`, which a page draws in the style of that kind,
 its `text`, and the `label` of its gutter: the old and the new number of a line of
-a diff, or `""`. The kinds are `:subject`, `:fact`, `:message`, `:section`, `:file`,
-`:path`, `:hunk`, `:kept`, `:removed`, `:added`, `:marked`, `:note` and `:failure`.
+a diff, or `""`. The kinds are `:path`, `:fact`, `:hunk`, `:kept`, `:removed`, `:added`,
+`:marked`, `:note` and `:failure`.
 """
 struct GitTextLine
     kind::Symbol
@@ -31,9 +31,10 @@ abstract type GitText <: GitDocument end
 """
     GitDiffText
 
-The text of a commit or of the change of one file, as `git show` writes it: the
-header and the changed files of a commit, then the path and the hunks of each
-changed file. The gutter of each line of a diff holds its old and its new number.
+The text of the diffs of a commit or of the change of one file, as `git show` writes
+them: the path and the hunks of each changed file, and for one change a line with its
+kind, its counts and its revisions. The gutter of each line of a diff holds its old
+and its new number.
 """
 @document struct GitDiffText <: GitText
     lines::Any
@@ -71,36 +72,23 @@ end
 
 # ── The lines of a commit ───────────────────────────────────────────────────
 
-# The lines of a commit: the subject, the facts and the rest of the message; the list
-# of the changed files; and the path and the diff of each changed file.
-function _make_commit_lines(revision::String, header_cell, changes_cell)
+# The lines of the diffs of a commit: the path and the diff of each changed file. The
+# page shows the header of the commit and the table of its files above them, and the
+# words of git for a read that failed.
+function _make_commit_lines(header_cell, changes_cell)
     header = _read_git_answer(header_cell)
-    header === nothing && return [GitTextLine(:subject, revision), GitTextLine(:note, "Reading the commit…")]
-    header isa GitException &&
-        return [GitTextLine(:subject, revision), GitTextLine(:failure, sprint(showerror, header))]
-    lines = [GitTextLine(:subject, header.subject),
-             GitTextLine(:fact, string(_format_short_hash(header.hash), " · ", header.author_name, " <",
-                                       header.author_email, "> · ", header.author_date)),
-             GitTextLine(:fact, _format_parents(header.parents))]
-    body = _get_message_body(header.message)
-    if !isempty(body)
-        push!(lines, GitTextLine(:message, ""))
-        append!(lines, (GitTextLine(:message, line) for line in split(body, '\n')))
-    end
+    header === nothing && return [GitTextLine(:note, "Reading the commit…")]
+    header isa GitException && return GitTextLine[]
     changes = _read_git_answer(changes_cell)
-    changes isa GitException && return push!(lines, GitTextLine(:failure, sprint(showerror, changes)))
-    changes === nothing && return push!(lines, GitTextLine(:note, ""), GitTextLine(:note, "Reading the changes…"))
+    changes isa GitException && return GitTextLine[]
+    changes === nothing && return [GitTextLine(:note, "Reading the changes…")]
     changes = collect(changes)
-    push!(lines, GitTextLine(:note, ""), GitTextLine(:section, _format_file_count(length(changes))))
-    append!(lines, (GitTextLine(:file, _format_file_row(change.kind, change.old_path, change.new_path,
-                                                        change.added_count, change.removed_count,
-                                                        change.is_binary))
-                    for change in changes))
     answers = [_read_git_answer(getfield(change, :hunks)) for change in changes]
     width = maximum(_get_number_width, answers; init = 0)
+    lines = GitTextLine[]
     for (change, answer) in zip(changes, answers)
-        push!(lines, GitTextLine(:note, ""),
-              GitTextLine(:path, _format_change_path(change.kind, change.old_path, change.new_path)))
+        isempty(lines) || push!(lines, GitTextLine(:note, ""))
+        push!(lines, GitTextLine(:path, _format_change_path(change.kind, change.old_path, change.new_path)))
         append!(lines, _make_diff_lines(answer, change.is_binary, width))
     end
     lines
@@ -118,8 +106,6 @@ function _get_message_body(message::AbstractString)
     length(parts) == 2 ? String(strip(parts[2], '\n')) : ""
 end
 
-_format_file_count(count::Int) = string(count, count == 1 ? " changed file" : " changed files")
-
 # The kind of a change in words.
 _format_change_kind(kind::Symbol) = kind === :type_changed ? "type changed" : string(kind)
 
@@ -130,11 +116,6 @@ _format_change_path(kind::Symbol, old_path, new_path) =
 _format_change_counts(added_count::Int, removed_count::Int, is_binary::Bool) =
     is_binary ? "binary" : string("+", added_count, " −", removed_count)
 
-# The row of a changed file in the list of the files, in columns: the kind, the path
-# and the counts.
-_format_file_row(kind::Symbol, old_path, new_path, added_count::Int, removed_count::Int, is_binary::Bool) =
-    string(rpad(_format_change_kind(kind), 13), _format_change_path(kind, old_path, new_path), "  ",
-           _format_change_counts(added_count, removed_count, is_binary))
 
 # ── The lines of a change ───────────────────────────────────────────────────
 

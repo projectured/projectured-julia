@@ -344,7 +344,13 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      `GitCommitRangeToWidget` draws a line and the table, and its reader keeps the arrangement and
      opens a row at its place (`keep_held_arrangement`, `retarget_held_row_open`). The table builds
      only its shown rows, filters and sorts in its bar, and the hash of a row opens the commit.
-   - Results: `test_git()` 148 pass with the table of a range (before it: 141, the range test 22, in an editor with a `FileChangeFeed`: a
+   - The list of the changed files of a commit is a roster too (the owner, 2026-11-13: "Yes" to the
+     table of the files before step 4). `GitCommit` holds `table`, a roster of its `changes` with the
+     facets `path`, `change`, `added` and `removed` of `GitFileChange` and the shares 6:1:1:1; the
+     path of a row is the link to the page of the change. The page of a commit is a grid: the header
+     as labels, the table (a third of the height below it), the diffs in a pane (the rest). The text
+     of a commit holds only the diffs. The table of a range has the shares 1:5:3:2.
+   - Results: `test_git()` 150 pass with the table of the files of a commit (before it: 148 with the table of a range (before it: 141, the range test 22, in an editor with a `FileChangeFeed`: a
      remote ref moves, the refs are packed and the ref moves again, a commit lands on the branch);
      `test_repository()` 619 and `test_package_graph()` 562 pass; the naming guard passes; the
      documentation report is the same as on main.

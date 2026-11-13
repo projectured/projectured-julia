@@ -44,17 +44,19 @@ Each document holds the text of its page: `diff`, a `GitDiffText`, for a commit 
 
 | Text | Its lines |
 | --- | --- |
-| of a commit | the subject, the facts and the parents, the rest of the message, the list of the changed files, then the path and the diff of each file, as `git show` writes it |
+| of a commit | the path and the diff of each changed file, as `git show` writes them |
 | of a change | the path, a line with the kind, the counts and the two revisions, then the diff |
 | of a file at a revision | the lines of the file; the line that the file names has the kind `:marked` |
 
 The text of a commit holds the diff of each changed file, so its first draw reads them all: one task of each frame reads the patches that the frame demanded.
 
+The page of a commit has three parts. Its header, as labels: the subject, the short hash with the author and the date, the parents and the rest of the message. The table of its changed files: `table`, the arrangement of a roster whose source is the collection `changes` of the commit, with the facets `path`, `change` (the kind in words, and `binary`), `added` and `removed` of `GitFileChange` as its columns. The path of a row is a link that opens the page of the change, and a person filters and sorts the table in its bar. Below the table, the text of the diffs in a pane. The table takes a third of the height below the header, and the diffs the rest.
+
 `GitTextToText` draws a git text as a block of the text domain: a `TextLine` for each line, with one `TextString` in the style of its kind from the `GitTheme`. For a line of a diff it puts the label of the line, its old and its new number, into the `number` lane of the `TextGutter` of the line. The hunks hold the numbers, so no stage counts them. A text of a file has no labels, and `TextLineNumbering` after the stage numbers its lines. Then `TextBlockToScrollLayout` lays the lines and their gutters out. This is the chain of the code of a file, so the caret, the motion keys, a selection with the mouse, copy and the gutter all come from the text domain.
 
 The flat string of the block is the `text` of the document, so the place `text{s:e}` of the document is the flat range `{s:e}` of the block, in both directions. The reader of the stage keeps a selection, the part under the pointer and a drag, and answers no edit: a range edit, an element write and a key that the stages after it give back answer nothing. So a person reads, selects and copies, and the text of a page never changes.
 
-A page is a `VerticalLayout` that holds a `WidgetScrollPane` of its text, and a title above it for a file at a revision, as the view of an open file is. The chain of a page ends with `VerticalLayoutToGraphicsCanvas`, and the recursion of the renderer draws the pane and the text by their own rows: `make_graphics_projection` of `GitDiffText` and `GitFileText` gives the text chain, and the pane takes apart its `ScrollLayout`, so the gutter stays at the left edge while the lines scroll. A walk of the documents reads no `hunks`, `diff` or `content`.
+The page of a change and of a file at a revision is a `VerticalLayout` that holds a `WidgetScrollPane` of its text, and a title above it for a file at a revision, as the view of an open file is. The chain of a page ends with `VerticalLayoutToGraphicsCanvas`, and the recursion of the renderer draws the pane and the text by their own rows: `make_graphics_projection` of `GitDiffText` and `GitFileText` gives the text chain, and the pane takes apart its `ScrollLayout`, so the gutter stays at the left edge while the lines scroll. A walk of the documents reads no `hunks`, `diff` or `content`.
 
 ### The values of the output of git
 

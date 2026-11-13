@@ -15,18 +15,26 @@ function test_git_views()
             repository = make_git_example_repository(joinpath(folder, "repository"))
             _git_view_commit_long_files!(repository)
 
-            @testset "the page of a commit shows its header, its files, its hunks and its lines" begin
-                editor, backend = _git_view_editor(GitCommit(repository, "v1"); height = 1400)
+            @testset "the page of a commit shows its header, the table of its files and its diffs" begin
+                commit = GitCommit(repository, "v1")
+                editor, backend = _git_view_editor(commit; height = 1400)
                 texts() = first.(_git_view_texts(backend))
-                @test _git_view_run_frames_until(editor, () -> "+LINE 19" in texts())
+                @test _git_view_run_frames_until(editor, () -> "+LINE 19" in texts() && "bin.dat" in texts())
                 @test "second subject continues here" in texts()
                 @test "fd72243 · Ann Author <ann@example.org> · 2026-01-03T04:05:06-02:30" in texts()
                 @test "Parent 73521a2" in texts()
                 @test "Body line one." in texts()
-                @test "6 changed files" in texts()
-                @test "renamed      a.txt → b.txt  +2 −2" in texts()
+                # The table of the changed files: a header and a row for each file.
+                @test all(text -> text in texts(), ("path", "change", "added", "removed"))
+                @test all(text -> text in texts(), ("renamed", "added, binary", "deleted"))
+                rows = commit.table.document.rows
+                @test [[row.values[k] for k in 1:4] for row in rows] ==
+                      [["a.txt → b.txt", "renamed", 2, 2], ["bin.dat", "added, binary", 0, 0],
+                       ["gone.txt", "deleted", 0, 1], ["mode.sh", "modified", 0, 0],
+                       ["sp ace é.txt", "modified", 1, 1], ["ta\tb\"q.txt", "added", 1, 0]]
+                @test [row.item for row in rows] == collect(commit.changes)
+                # The diffs: the old and the new number of a line stand in its gutter, on its row.
                 @test "@@ -16,5 +16,5 @@ line 15" in texts()
-                # The old and the new number of a line stand in its gutter, on its row.
                 @test _git_view_has_label(backend, "-line 19", "19   ")
                 @test _git_view_has_label(backend, "+LINE 19", "   19")
                 @test _git_view_has_label(backend, " line 20", "20 20")
