@@ -345,11 +345,20 @@ change, and D3:
   and print 1 row again whose count is off by 201. The computations that are left
   are mostly the 875 guards that the paint records for the new canvas nodes and
   589 lazy links of the new canvas lists.
-- **Open: the header column builds 200 headers past the view.** After the move
-  the list of rows has 37 built nodes and the list of row headers 236. The header
-  column of the table mirrors the row headers with new nodes for each new head
-  (`_make_header_row_node` in `WidgetTableParts.jl`), so its grid sees another
-  list and takes the extent unshifted.
+- **The header column built 200 headers past the view; fixed.** After the move
+  the list of rows had 37 built nodes and the list of row headers 236. The header
+  column of the table mirrors the row headers with a list of rows of one cell
+  (`_make_header_row_node` in `WidgetTableParts.jl`), and it made a new mirror for
+  each new head, so its grid saw another list and took the extent unshifted.
+  `_HeaderRows` now also keeps the node of the mirror of each node of the row
+  headers (`mirrors`), and `_take_header_row_head!` gives the grid the node of the
+  mirror of the new head, when the mirror holds it. A new list of row headers
+  makes a new mirror, as before. After the fix the list of row headers has 37
+  built nodes after the move. `WidgetTablePartsTest.jl`, "far from the head, the
+  row headers move with the rows", asserts that the move builds no header; the
+  table suite passes 261. The other suites of a table with row headers pass:
+  part selection 73, header levels 40, the widget table 17, the frame statistics
+  feed 178, table selection 25, table navigation 67, table cell editing 14.
 - **Open: the list keeps every row that the wheel passed.** A frame of 100,000
   rows, 3000 notches down: with point 3 the list holds 5645 built nodes behind its
   head, and the live memory after a full GC grows from 199 MB to 338 MB, about 10

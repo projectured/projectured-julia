@@ -809,10 +809,17 @@ end
     op = wheel(io, -1)
     moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
     @test any(o -> o.reference.head.name == "row_headers", moved)
+    # The header column links the headers as far as row 305, as a view of them does.
+    @test any(t -> t[3] == "#305", texts(io.output; limit = 400))
+    built = ProjecturedPlatform.CollectionModule._count_computed_links(table.row_headers, :next)
     apply!(table, op)
     @test table.cells.value[1].content == "row 301"
     @test table.row_headers.value.content == "#301"
     @test text_at(io, "#305")[2] == text_at(io, "row 305")[2]
+    # The new head of the row headers is a node of their list that the header
+    # column linked, so its grid reaches the same headers from it, and the move
+    # builds none.
+    @test ProjecturedPlatform.CollectionModule._count_computed_links(table.row_headers, :next) == built - 300
 end
 
 @testset "row headers on a list need Fixed rows, and a corner needs a header row" begin

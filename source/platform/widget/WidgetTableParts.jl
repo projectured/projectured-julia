@@ -409,21 +409,36 @@ _print_table_corner(recursion, w::WidgetTable, inner) =
                             :x),
                         :y))
 
-# The rows of one cell that hold the row headers, by the header, for the head of
-# the list now and for the head before it. A header that the new head reaches
-# again keeps its row, so the grid keeps the print of the row; a row that no head
-# reaches goes with the head after it.
+# The rows of one cell that hold the row headers, by the header, for the list of
+# the headers now and for the list before it, and the node of the mirror of each
+# node of the list now. A header that the new list reaches again keeps its row,
+# so the grid keeps the print of the row; a row that no list reaches goes with
+# the list after it. A head that moves inside the list keeps the mirror.
 mutable struct _HeaderRows
     current::IdDict{Any,Any}
     before::IdDict{Any,Any}
+    mirrors::IdDict{Any,Any}    # node of the list of the row headers => its node of the mirror
 end
-_HeaderRows() = _HeaderRows(IdDict{Any,Any}(), IdDict{Any,Any}())
+_HeaderRows() = _HeaderRows(IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
 
-# A new head of the list of the row headers.
+# A new list of the row headers, which a new mirror follows.
 function _start_header_rows!(rows::_HeaderRows)
     rows.before = rows.current
     rows.current = IdDict{Any,Any}()
+    rows.mirrors = IdDict{Any,Any}()
     nothing
+end
+
+# The head of the mirror of `headers`, the row headers of the table: the node
+# of the mirror of `headers` when the head of the row headers moves inside the
+# list that the mirror follows, so the grid of the header column finds the new
+# head among the nodes that it linked; else the head of a new mirror, or
+# `nothing` when the row headers are no list.
+function _take_header_row_head!(headers, rows::_HeaderRows)
+    mirror = get(rows.mirrors, headers, nothing)
+    mirror === nothing || return mirror
+    _start_header_rows!(rows)
+    headers isa ListNode ? _make_header_row_node(headers, rows) : nothing
 end
 
 # The row of one cell that holds `header`: the row of the head before, or a new one.
@@ -432,11 +447,13 @@ _take_header_row!(rows::_HeaderRows, header) =
          rows.current, header)
 
 # The node of a list that mirrors the headers of `header_node` as rows of one
-# cell, the form of a row of a grid, each kept in `rows`. A node is built when a
-# walk first reaches it, so the header column reaches as far as the rows do.
+# cell, the form of a row of a grid, each kept in `rows`, as is the node of each
+# node of the headers. A node is built when a walk first reaches it, so the
+# header column reaches as far as the rows do.
 function _make_header_row_node(header_node::ListNode, rows::_HeaderRows)
     header = header_node.value
     node = ListNode(header === nothing ? CellVector(Cell[Cell(_wt_empty_cell())]) : _take_header_row!(rows, header))
+    rows.mirrors[header_node] = node
     set_lazy_link!(node, :next, () -> begin
         following = header_node.next
         following === nothing && return nothing
@@ -470,11 +487,7 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height_r
         max(_get_part_child_width(corner), cell === nothing ? 0 : _get_part_child_width(cell[3]))
     end)
     kept = _HeaderRows()
-    rows = Cell(@computation begin
-        headers = w.row_headers
-        _start_header_rows!(kept)
-        headers isa ListNode ? _make_header_row_node(headers, kept) : nothing
-    end)
+    rows = Cell(@computation _take_header_row_head!(w.row_headers, kept))
     grid = GridLayout(rows, Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
                       Cell(@computation Fixed(width[])), getfield(w, :row_policy), Cell(Any[]),
                       Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
