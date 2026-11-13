@@ -277,10 +277,21 @@ copy changes.
   in a cell apart from the cell that draws, and draws the text of a shortcut;
   it needs its own design of where the records live. The guides say that these
   take no caret.
-- [ ] 7. **The guides (P8)** and a run of the click test over the catalog.
+- [x] 7. **The guides (P8)** and a run of the click test over the catalog.
 
   The guides, done (2026-11-13): `widget.md` describes the shared helpers, the
   paste rules and the controls; `keyboard-and-mouse-guide.md` how a person
   selects in a text that the editor shows; `text.md` that a widget text takes
   the keys of the table; `domain.md` and `operation.md` the field form of
   `accepts_pasted_text`.
+
+  Run 5 of the click test over the catalog (2026-11-13, scratchpad
+  `step6/run5`): 3166 lines in 301 of 546 examples, against 3194 in run 4. An
+  Alt+click with no caret falls from 968 to 692 lines, and a plain click that
+  does nothing from 232 to 200. A move that names another part than the
+  Alt+double click rises from 611 to 889: on a control the move names the
+  control as a whole, so it lights, and the Alt+double click selects the text in
+  it, the innermost part. That is the design of P7, so the click test must take
+  a control as the part of its move; this goes to the click test, step 8 of the
+  plan of the click. `test_documentation` fails only at the 3 private names that
+  main has.
