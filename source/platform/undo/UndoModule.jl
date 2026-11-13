@@ -52,6 +52,7 @@ using ..EditorModule
 using ..AgentModule
 using ..ProjectionAlgebraModule
 using ..NaturalModule
+using ..LayoutModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field,

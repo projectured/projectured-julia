@@ -157,7 +157,11 @@ function GitFileRevision(repository::AbstractString, revision::AbstractString, p
     text = make_background_cell(_make_git_source(), () -> (:file, folder, name, file_path);
                                 default = "", working = reading)
     named = line === nothing ? nothing : Int(line)
-    content = _make_git_text(GitFileText, () -> _make_file_lines(text, named))
+    selection = named === nothing ? nothing :
+                ConcreteReference(GitFileText, FieldReferenceStep("lines"),
+                                  ConcreteReference(Vector{GitTextLine}, ElementReferenceStep(named),
+                                                    EmptyReference(GitTextLine)))
+    content = _make_git_text(GitFileText, () -> _make_file_lines(text, named); selection)
     GitFileRevision(folder, name, file_path, named, text, content, reading)
 end
 

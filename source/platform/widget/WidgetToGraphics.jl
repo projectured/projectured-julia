@@ -1190,6 +1190,7 @@ WidgetScrollBarToGraphicsCanvas(theme;
     content_iomap::Any
     bars::Any        # the bars that the pane draws: `(field, document, iomap, place)` each
     parts::Any       # the parts of a `ScrollLayout` that the pane takes apart, or `nothing`
+    revealed_scroll::Any # the cell of the offset that shows the selection when the pane starts, or `nothing`
     box::Any
 end
 
@@ -6724,8 +6725,11 @@ end
 # is. The ends that a list does have stop it, once the walk from the head reaches
 # them (`_clamp_to_list_ends`). A list that runs to the side has its extent down,
 # and the pane clamps to it.
-function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer)
-    y = Int((getfield(w, :scroll_position)[]::Point2D).y[])
+#
+# `revealed` is the offset that shows the selection when the pane starts, or
+# `nothing` (`_get_pane_stored_scroll`).
+function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer, revealed = nothing)
+    y = _get_pane_stored_scroll(w, revealed)[2]
     if is_infinite_canvas(content)
         _find_list_canvas(content, :y) === nothing &&
             return clamp(y, 0, max(0, Int(content.h) - Int(view_h)))
@@ -6740,11 +6744,82 @@ end
 # clamped as it is read, as the offset down is, because the content can shrink
 # under it, as a graph does when its zoom goes out. A list that runs to the side
 # stops at its ends as it is read, as a list that runs down does.
-function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer)
-    x = Int((getfield(w, :scroll_position)[]::Point2D).x[])
+function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer, revealed = nothing)
+    x = _get_pane_stored_scroll(w, revealed)[1]
     is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing &&
         return _clamp_to_list_ends(content, x, Int(view_w), :x)
     clamp(x, 0, max(0, Int(content.w) - Int(view_w)))
+end
+
+# The offset that a pane scrolls from, `(x, y)`, before the clamp: its scroll
+# position, or `revealed`, the offset that shows the selection of its content when
+# the pane starts, while the pane holds the position that it starts with
+# (`revealed_position`). The first scroll writes a new position, so the pane then
+# scrolls from where the person puts it.
+function _get_pane_stored_scroll(w::WidgetScrollPane, revealed)
+    point = getfield(w, :scroll_position)[]::Point2D
+    (revealed === nothing || getfield(w, :revealed_position)[] !== point) && return (Int(point.x[]), Int(point.y[]))
+    revealed
+end
+
+# The offset that shows the selection when the pane of `iomap` starts, or `nothing`.
+_get_pane_revealed_scroll(iomap::WidgetScrollPaneToGraphicsCanvasIoMap) = iomap.revealed_scroll
+
+# The cell of the offset at which a pane shows the selection of its content when it
+# starts, `(x, y)`, or `nothing` while the selected part has no box. The offset is
+# found once, the first time the part has a box in a view that has an extent, and
+# then holds, so a later move of the selection, such as a click, does not move the
+# view.
+function _make_pane_revealed_scroll(p, w::WidgetScrollPane, content_iomap, parts, vw_cell, vh_cell)
+    found = Ref{Any}(nothing)
+    Cell(@computation begin
+        found[] === nothing && (found[] = _find_pane_revealed_scroll(p, w, content_iomap, parts, vw_cell, vh_cell))
+        found[]
+    end)
+end
+
+function _find_pane_revealed_scroll(p, w::WidgetScrollPane, content_iomap, parts, vw_cell, vh_cell)
+    content = w.content
+    content isa Document || return nothing
+    path = get_selection(content)
+    path isa Reference || return nothing
+    view_w, view_h = parts === nothing ? (Int(vw_cell[]), Int(vh_cell[])) : (Int(parts.view_w[]), Int(parts.view_h[]))
+    (view_w > 0 && view_h > 0) || return nothing
+    box = _find_pane_part_box(p, content_iomap, parts, path)
+    box === nothing && return nothing
+    start = getfield(w, :revealed_position)[]::Point2D
+    (_compute_revealed_offset(Int(start.x[]), view_w, box[1], box[3]),
+     _compute_revealed_offset(Int(start.y[]), view_h, box[2], box[4]))
+end
+
+# The offset of a view of `size` at `offset` that shows a part from `start` of
+# `extent` when a pane starts: the same offset when the part shows, else the offset
+# that puts the part in the middle of the view, or its start when it is longer than
+# the view.
+function _compute_revealed_offset(offset::Int, size::Int, start::Int, extent::Int)
+    (start >= offset && start + extent <= offset + size) && return offset
+    extent >= size && return start
+    max(0, start - (size - extent) ÷ 2)
+end
+
+# The box of the part at `path`, a path of the input of the content of a pane, in
+# the canvas that the pane scrolls: `(left, top, width, height)` from the origin of
+# that canvas, the center of the parts for a content that the pane takes apart.
+# `nothing` when the part has no image there.
+function _find_pane_part_box(p, content_iomap, parts, path::Reference)
+    image = map_reference_forward(content_iomap.projection, content_iomap, path)
+    image === nothing && return nothing
+    canvas = content_iomap.output
+    if parts !== nothing
+        (image isa ConcreteReference && image.head isa FieldReferenceStep &&
+         image.head.name == String(SCROLL_LAYOUT_PARTS[_PANE_CENTER])) || return nothing
+        canvas, image = parts.canvases[_PANE_CENTER], image.tail
+    end
+    canvas isa GraphicsCanvas || return nothing
+    box = find_reference_box(canvas, image; measure = p.measure)
+    box === nothing && return nothing
+    (round(Int, box.x) - Int(canvas.x), round(Int, box.y) - Int(canvas.y), round(Int, box.width),
+     round(Int, box.height))
 end
 
 # The canvas whose elements are a list that runs along `axis` (`:y` down, `:x`
@@ -6934,10 +7009,10 @@ _get_pane_band_extent(band::Int, extents, view::Int) =
     band == 1 ? extents[1] : band == 2 ? view : extents[3]
 
 # How far the pane scrolls the center, `(x, y)`.
-function _get_pane_part_scroll(w::WidgetScrollPane, parts::_PaneParts)
+function _get_pane_part_scroll(w::WidgetScrollPane, parts::_PaneParts, revealed = nothing)
     center = parts.canvases[_PANE_CENTER]
     center === nothing && return (0, 0)
-    (_pane_scroll_x(w, center, Int(parts.view_w[])), _pane_scroll_y(w, center, Int(parts.view_h[])))
+    (_pane_scroll_x(w, center, Int(parts.view_w[]), revealed), _pane_scroll_y(w, center, Int(parts.view_h[]), revealed))
 end
 
 # A coordinate of the view of a pane along one axis, in the frame in which the
@@ -6959,10 +7034,8 @@ end
 # Put each part of `parts` in a viewport of its own, at its band of the view of
 # the pane, moved by the scroll on the axes on which the part scrolls.
 function _push_pane_part_viewports!(elems::Vector, w::WidgetScrollPane, parts::_PaneParts,
-                                    cox::Int, coy::Int, vw_cell::Cell, vh_cell::Cell)
-    parts.view_w = Cell(@computation Int32(max(0, Int(vw_cell[]) - _get_pane_part_insets(parts)[1])))
-    parts.view_h = Cell(@computation Int32(max(0, Int(vh_cell[]) - _get_pane_part_insets(parts)[2])))
-    scroll = Cell(@computation _get_pane_part_scroll(w, parts))
+                                    cox::Int, coy::Int, vw_cell::Cell, vh_cell::Cell, revealed)
+    scroll = Cell(@computation _get_pane_part_scroll(w, parts, revealed === nothing ? nothing : revealed[]))
     for (index, canvas) in enumerate(parts.canvases)
         canvas === nothing && continue
         column, row = get_scroll_layout_cell(index)
@@ -7053,7 +7126,8 @@ end
 
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
     w.visible == false &&
-        return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing, _NO_BOX_GEOMETRY)
+        return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing, nothing,
+                                                     _NO_BOX_GEOMETRY)
     pos = w.position
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
@@ -7173,10 +7247,18 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     content_h = _get_listed_content_extent(offer_h, content_canvas, content_h, inner_ctx.maximum_height, :y)
     vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
     vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
+    if parts !== nothing
+        parts.view_w = Cell(@computation Int32(max(0, Int(vw_cell[]) - _get_pane_part_insets(parts)[1])))
+        parts.view_h = Cell(@computation Int32(max(0, Int(vh_cell[]) - _get_pane_part_insets(parts)[2])))
+    end
+    # The offset that shows the selection of the content when the pane starts.
+    revealed = getfield(w, :revealed_position)[] === nothing || content_iomap === nothing ? nothing :
+               _make_pane_revealed_scroll(p, w, content_iomap, parts, vw_cell, vh_cell)
+    get_revealed() = revealed === nothing ? nothing : revealed[]
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
     inner_x = Cell(@computation Int32(-(content_canvas === nothing ?
-        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, content_canvas[], vw_cell[]))))
+        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, content_canvas[], vw_cell[], get_revealed()))))
     elems = Any[]
     # The margin, the border and the padding follow the viewport extent; the
     # viewport is the content part. A transparent part draws no element.
@@ -7199,7 +7281,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # Vertical offset of the content inside the viewport. With `follow_end`
         # the pane sticks to the bottom of its content, so newly appended content
         # (a streaming chat) stays in view as the content grows.
-        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, content_canvas[], vh_cell[])))
+        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, content_canvas[], vh_cell[], get_revealed())))
         # A content whose elements are a collection is drawn element by element.
         # A content that holds its elements in a cell — a layout of a list — is
         # drawn as its canvas, so a new list in that cell reaches the viewport
@@ -7215,14 +7297,14 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                                       Cell(affine_identity),
                                       Cell(nothing)))
     elseif parts !== nothing
-        _push_pane_part_viewports!(elems, w, parts, cox, coy, vw_cell, vh_cell)
+        _push_pane_part_viewports!(elems, w, parts, cox, coy, vw_cell, vh_cell, revealed)
     end
     # The bars lie over the content, so they come after it. They scroll the
     # center of parts, in the view of the center.
     bars = parts === nothing ?
-        _print_pane_bars(p, recursion, w, box, ctx, content_canvas, vw_cell, vh_cell) :
+        _print_pane_bars(p, recursion, w, box, ctx, content_canvas, vw_cell, vh_cell; revealed) :
         _print_pane_bars(p, recursion, w, box, ctx, parts.canvases[_PANE_CENTER], vw_cell, vh_cell;
-                         scroll_view_w = parts.view_w, scroll_view_h = parts.view_h)
+                         scroll_view_w = parts.view_w, scroll_view_h = parts.view_h, revealed)
     for bar in bars
         push!(elems, bar.place)
     end
@@ -7238,7 +7320,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
-    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars, parts, geometry)
+    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars, parts, revealed, geometry)
 end
 
 # The viewport of a scroll pane or a transform pane shows the content in a canvas
@@ -7306,12 +7388,13 @@ function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
     parts = iomap.parts
     if parts === nothing
         content = iomap.content_iomap.output
-        sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx)
-        sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty)
+        revealed = _get_pane_revealed_scroll(iomap)
+        sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx, revealed)
+        sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty, revealed)
         return (x - cox + sx, y - coy + sy)
     end
     # Parts: the frame in which the layout puts them together.
-    sx, sy = _get_pane_part_scroll(w, parts)
+    sx, sy = _get_pane_part_scroll(w, parts, _get_pane_revealed_scroll(iomap))
     widths, heights = parts.extents[]
     edge_widths, edge_heights = parts.edges[]
     (_move_into_parts(x - cox, edge_widths[1], Int(parts.view_w[]), sx, widths[2]),
@@ -7327,7 +7410,7 @@ function _find_scroll_pane_point(p::WidgetScrollPaneToGraphicsCanvas,
         return (x - ox, y - oy)
     end
     cox, coy = _get_content_offset(_get_box_geometry(iomap))
-    sx, sy = _get_pane_part_scroll(iomap.input, parts)
+    sx, sy = _get_pane_part_scroll(iomap.input, parts, _get_pane_revealed_scroll(iomap))
     widths, heights = parts.extents[]
     edge_widths, edge_heights = parts.edges[]
     (_move_out_of_parts(x, edge_widths[1], Int(parts.view_w[]), sx, widths[2]) + cox,
@@ -7381,15 +7464,15 @@ end
 #
 # Every write of a scroll is view state, so a history never records it and
 # `Ctrl+Z` takes back an edit, not a scroll.
-function _scroll_by(sp, dx, dy, room = nothing)
-    old = sp.scroll_position
-    x = Int(old.x[]) + dx
-    y = Int(old.y[]) + dy
+function _scroll_by(sp::WidgetScrollPane, dx, dy, room = nothing, revealed = nothing)
+    old_x, old_y = _get_pane_stored_scroll(sp, revealed)
+    x = old_x + dx
+    y = old_y + dy
     if room !== nothing
         x = clamp(x, 0, room[1])
         y = clamp(y, 0, room[2])
     end
-    (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
+    (x == old_x && y == old_y) && return nothing
     _write_view_state(sp, "scroll_position", Point2D(x, y))
 end
 
@@ -7477,7 +7560,7 @@ function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
         dy >= 0 && return nothing                   # already at the end, and asked to go further
         # Release the pin, and start from where the reader is actually looking,
         # which is the end — not from whatever the unread cell happens to hold.
-        x = clamp(Int(w.scroll_position.x[]) + dx, 0, room[1])
+        x = clamp(_get_pane_stored_scroll(w, _get_pane_revealed_scroll(iomap))[1] + dx, 0, room[1])
         y = clamp(room[2] + dy, 0, room[2])
         return CompoundOperation(Any[
             _write_view_state(w, "follow_end", false),
@@ -7486,7 +7569,7 @@ function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
     content = _get_pane_scroll_canvas(iomap)
     room === nothing && content isa GraphicsCanvas && is_infinite_canvas(content) &&
         return _scroll_list_by(p, iomap, content, dx, dy)
-    op = _scroll_by(w, dx, dy, room)
+    op = _scroll_by(w, dx, dy, room, _get_pane_revealed_scroll(iomap))
     # Back at the end: follow again, so new turns stay in view.
     if op !== nothing && room !== nothing && room[2] > 0 &&
        Int(get_wrapped_operation(op).value.y[]) == room[2] && getfield(w, :follow_end)[] === false
@@ -7504,8 +7587,9 @@ end
 function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
     w = iomap.input
     view_w, view_h = _get_pane_scroll_view(p, iomap)
-    drawn_x = _pane_scroll_x(w, content, view_w)
-    drawn_y = _pane_scroll_y(w, content, view_h)
+    revealed = _get_pane_revealed_scroll(iomap)
+    drawn_x = _pane_scroll_x(w, content, view_w, revealed)
+    drawn_y = _pane_scroll_y(w, content, view_h, revealed)
     x = _find_list_canvas(content, :x) === nothing ?
         clamp(drawn_x + dx, 0, max(0, Int(content.w) - view_w)) :
         _clamp_to_list_ends(content, drawn_x + dx, view_w, :x)
@@ -7702,17 +7786,19 @@ function _scroll_pane_with_point(p, iomap, move::Tuple{Int,Int})
     content isa GraphicsCanvas || return nothing
     w = iomap.input
     view_w, view_h = _get_pane_scroll_view(p, iomap)
-    x = max(0, _pane_scroll_x(w, content, view_w) + move[1])
-    y = max(0, _pane_scroll_y(w, content, view_h) + move[2])
-    old = getfield(w, :scroll_position)[]::Point2D
-    (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
+    revealed = _get_pane_revealed_scroll(iomap)
+    x = max(0, _pane_scroll_x(w, content, view_w, revealed) + move[1])
+    y = max(0, _pane_scroll_y(w, content, view_h, revealed) + move[2])
+    (x, y) == _get_pane_stored_scroll(w, revealed) && return nothing
     _write_view_state(w, "scroll_position", Point2D(x, y))
 end
 
-# The path of the selection that `operation` asks to show, or `nothing`.
+# The path of the part that `operation` asks to show, the selection of a
+# `ShowSelectionOperation` or the part of a `RevealPartOperation`, or `nothing`.
 _find_shown_path(::Any) = nothing
 _find_shown_path(operation::ShowSelectionOperation) =
     operation.operation isa ReplaceSelectionOperation ? operation.operation.path : nothing
+_find_shown_path(operation::RevealPartOperation) = operation.reference
 function _find_shown_path(operation::CompoundOperation)
     for member in operation.operations
         path = _find_shown_path(member)
@@ -7723,25 +7809,22 @@ end
 
 # The scroll of a pane that brings the part at `path`, a path of the input of its
 # content, into its view: the least move that shows the part, its top when the part
-# is taller than the view. `nothing` when the part shows, has no image, or the pane
-# scrolls parts that keep their own places.
+# is taller than the view. A content that the pane takes apart shows the part in the
+# view of its center. `nothing` when the part shows or has no image.
 function _scroll_pane_to_show(p, iomap, path::Reference)
     content_iomap = iomap.content_iomap
-    (content_iomap === nothing || iomap.parts !== nothing) && return nothing
-    canvas = content_iomap.output
+    content_iomap === nothing && return nothing
+    canvas = _get_pane_scroll_canvas(iomap)
     canvas isa GraphicsCanvas || return nothing
-    image = map_reference_forward(content_iomap.projection, content_iomap, path)
-    image === nothing && return nothing
-    box = find_reference_box(canvas, image; measure = p.measure)
+    box = _find_pane_part_box(p, content_iomap, iomap.parts, path)
     box === nothing && return nothing
     view_w, view_h = _get_pane_scroll_view(p, iomap)
     w = iomap.input
-    x = _pane_scroll_x(w, canvas, view_w)
-    y = _pane_scroll_y(w, canvas, view_h)
-    top = round(Int, box.y) - Int(canvas.y)
-    left = round(Int, box.x) - Int(canvas.x)
-    shown_y = _compute_shown_offset(y, view_h, top, round(Int, box.height))
-    shown_x = _compute_shown_offset(x, view_w, left, round(Int, box.width))
+    revealed = _get_pane_revealed_scroll(iomap)
+    x = _pane_scroll_x(w, canvas, view_w, revealed)
+    y = _pane_scroll_y(w, canvas, view_h, revealed)
+    shown_x = _compute_shown_offset(x, view_w, box[1], box[3])
+    shown_y = _compute_shown_offset(y, view_h, box[2], box[4])
     (shown_x == x && shown_y == y) && return nothing
     _scroll_pane_by(p, iomap, shown_x - x, shown_y - y)
 end
@@ -7776,14 +7859,14 @@ _has_no_extent_along(content::GraphicsCanvas, axis::Symbol) =
 # of the content that the view shows. A content that fits, or that has no extent
 # along the axis, gives a thumb that fills the track.
 function _compute_pane_bar_numbers(w::WidgetScrollPane, field::AbstractString,
-                                   content::GraphicsCanvas, view_w::Integer, view_h::Integer)
+                                   content::GraphicsCanvas, view_w::Integer, view_h::Integer, revealed = nothing)
     vertical = field == "vertical_scroll_bar"
     _has_no_extent_along(content, vertical ? :y : :x) && return (0.0, 1.0)
     view = vertical ? Int(view_h) : Int(view_w)
     extent = vertical ? Int(content.h) : Int(content.w)
     room = extent - view
     room <= 0 && return (0.0, 1.0)
-    offset = vertical ? _pane_scroll_y(w, content, view) : _pane_scroll_x(w, content, view)
+    offset = vertical ? _pane_scroll_y(w, content, view, revealed) : _pane_scroll_x(w, content, view, revealed)
     (clamp(offset / room, 0.0, 1.0), view / extent)
 end
 
@@ -7791,9 +7874,11 @@ end
 # pane names it, as a row of a list is lit by the mouse target of the list.
 # `content` is the canvas that the pane scrolls, or a cell of the canvas of a
 # content that can print a new one, which the numbers read as they compute.
-function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w::Cell, view_h::Cell)
+function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w::Cell, view_h::Cell,
+                        revealed = nothing)
     numbers = Cell(@computation _compute_pane_bar_numbers(w, field, unwrap_cell(content)::GraphicsCanvas,
-                                                          view_w[], view_h[]))
+                                                          view_w[], view_h[],
+                                                          revealed === nothing ? nothing : revealed[]))
     target = Cell(@computation _is_mouse_target_in_field(w, field) ? EmptyReference() : nothing)
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection, mouse_target.
@@ -7804,11 +7889,11 @@ function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content, vie
 end
 
 # The bar that the field `field` of a pane asks for, or `nothing`.
-function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h)
+function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h, revealed = nothing)
     asked = getfield(w, Symbol(field))[]
     asked isa WidgetScrollBar && return asked
     (asked === :auto && (content isa GraphicsCanvas || content isa Cell)) || return nothing
-    _make_pane_bar(w, field, content, view_w, view_h)
+    _make_pane_bar(w, field, content, view_w, view_h, revealed)
 end
 
 # The bars of a pane, each printed along the edge of the view and the padding
@@ -7819,9 +7904,9 @@ end
 # center of parts, and else the whole view.
 function _print_pane_bars(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane,
                           box::BoxGeometry, ctx, content, view_w, view_h;
-                          scroll_view_w = view_w, scroll_view_h = view_h)
+                          scroll_view_w = view_w, scroll_view_h = view_h, revealed = nothing)
     thickness = p.scroll_bar_thickness
-    asked = [(field, _get_pane_bar(w, field, content, scroll_view_w, scroll_view_h))
+    asked = [(field, _get_pane_bar(w, field, content, scroll_view_w, scroll_view_h, revealed))
              for field in _PANE_BAR_FIELDS]
     shown = Dict(field => bar === nothing ? Cell(false) :
                           Cell(@computation Float64(bar.thumb_size) < 1.0)
@@ -7935,15 +8020,15 @@ function _scroll_pane_to_bar_value(p, iomap, field::AbstractString, value::Float
     w = iomap.input
     room = _scroll_room(p, iomap)
     room === nothing && return nothing
-    old = getfield(w, :scroll_position)[]::Point2D
+    old_x, old_y = _get_pane_stored_scroll(w, _get_pane_revealed_scroll(iomap))
     if field == "horizontal_scroll_bar"
         x = round(Int, clamp(value, 0.0, 1.0) * room[1])
-        x == Int(old.x[]) && return nothing
-        return _write_view_state(w, "scroll_position", Point2D(x, Int(old.y[])))
+        x == old_x && return nothing
+        return _write_view_state(w, "scroll_position", Point2D(x, old_y))
     end
     y = round(Int, clamp(value, 0.0, 1.0) * room[2])
     following = getfield(w, :follow_end)[]
-    operations = Any[_write_view_state(w, "scroll_position", Point2D(Int(old.x[]), y))]
+    operations = Any[_write_view_state(w, "scroll_position", Point2D(old_x, y))]
     following === true && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
     following === false && room[2] > 0 && y == room[2] &&
         push!(operations, _write_view_state(w, "follow_end", true))
@@ -11566,10 +11651,10 @@ function _print_rows_pane(p, recursion, w, ctx)
     colors = _get_box_colors(p, w)
     left, top, right, bottom = _get_sides_outside(box, :padding)
     # Positional: content, position, size, grows, scroll_position, follow_end,
-    # wheel_run, at_natural_size, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
-    # border, padding, style, tooltip, selection, mouse_target.
+    # wheel_run, at_natural_size, revealed_position, vertical_scroll_bar, horizontal_scroll_bar, visible,
+    # margin, border, padding, style, tooltip, selection, mouse_target.
     pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), getfield(w, :scroll_position), Cell(nothing),
-                            Cell(nothing), Cell(false),
+                            Cell(nothing), Cell(false), Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
                             Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),

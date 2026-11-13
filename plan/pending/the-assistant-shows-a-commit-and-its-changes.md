@@ -420,8 +420,46 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    - A click on the path of a file in the table of a commit opens the change, and a click on the
      hash of a row of a range opens the commit: the links of the roster, with no code of the git
      domain. So the plan's Ctrl+click on a file row is a plain click on the link.
-   - Open: the page of a file at a revision starts at its first line. The pane scrolls to a part only
-     for an answer that shows it, and a new page has no answer yet. A question to the owner.
+   - The page of a file at a revision brings its named line into view. The owner: "There should be a
+     reveal operation on the scroll pane taking a reference. Revealing the selection at start is an
+     option on the scroll pane." So:
+     - `RevealPartOperation(reference)` (layout slice, beside `KeepPointOperation`) asks the panes
+       that hold the part to scroll the least amount that shows it. The reader of a scroll pane
+       whose content holds the part answers the scroll, or nothing when the part shows already;
+       a pane that does not hold it lets it go up. It is no edit, so undo records nothing.
+     - `WidgetScrollPane` takes the option `is_selection_revealed` (default `false`). While the
+       scroll position is the one of its construction, the print scrolls to show the selection of
+       its content, and the readers of the pane scroll from that offset. The first scroll of a
+       person writes the position, so the option stops.
+     - A pane whose content draws as parts (a gutter at the left edge) shows the part in its
+       center canvas.
+     - The selection of a `GitFileText` is a caret at the start of the named line.
+     What the implementation found (done, 2026-11-14):
+     - `revealed_position` is the latch: the `Point2D` that the pane starts with. Each scroll writes
+       a new `Point2D`, so the start ends at the first scroll, and no write path changes.
+     - The print finds the offset once, the first time the selected part has a box in a view with
+       an extent, and the offset then holds: a click that moves the selection does not move the
+       view. The IO map keeps it (`revealed_scroll`), and each reader of the pane (the wheel, a bar,
+       a point under the pointer, a show) scrolls from it.
+     - The start puts the part in the middle of the view (my decision: an open at line 3000 that
+       puts the line on the last row of the view hides what follows it). A reveal and a selection
+       to show keep the least move.
+     - `_scroll_pane_to_show` now also works for a content that the pane takes apart. Each text that
+       `TextBlockToScrollLayout` draws is such a content, also with no gutter, so a selection to
+       show now scrolls the pane of a Julia file and of a document of the language server as well.
+     - The selection of the text of a file is `.lines[k]`, a reference with no offset in the text,
+       which the forward map of `GitTextToText` makes the caret at the start of line `k`. So it
+       holds before the read of the file comes. A click writes the usual `.text{s}`.
+     - The new field changes the type of `WidgetScrollPane`, so a recorded call that names the type
+       no longer resolves. The list of `ProjecturedGraph` has 62 of 601 such calls, more than the
+       10 % at which a list fails, so its load warns. Step 7 records the lists again.
+     - Results: `test_scroll_pane_show()` 25, `test_text_gutter()` 49, `test_git()` 165 pass;
+       `test_scroll_pane_parts()`, `test_scroll_pane_hover()`, `test_scroll_pane_bar()`,
+       `test_widget_table_bar()`, `test_widget_rows_scroll()`, `test_text_folding()` 24,
+       `test_undo()` 141, the navigator suites, `test_julia_file_view()`, `test_julia_code_pieces()`
+       and `test_graph_layout_zoom()` 38 pass; the naming guard passes. Known failures of main
+       stay: `NavigatorChoicesTest.jl:174/178/208/211`, `GraphScrollPaneTest.jl:183-210`, and two
+       checks of `test_platform_layering()` on files that this branch does not change.
    - Open: the reader is no gesture binding, so the command palette does not list the two opens, and
      a line shows no tooltip of its numbers and its revision yet.
    - Results: `test_git()` 162 pass (`test_git_gestures()`: the visit and Back, the new tab, the link

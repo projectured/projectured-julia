@@ -35,7 +35,8 @@ using ..StyleModule
 import ..DocumentModule: has_document_duplicate
 import ..SerializationModule: is_pred_constructible
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..OperationModule: evaluate_operation, get_wrapped_operation, rewrap_operation
+import ..OperationModule: evaluate_operation, get_wrapped_operation, rewrap_operation, operation_reference,
+                          retarget_operation
 
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis,
        compute_axis_offsets, find_axis_band, compute_axis_extents, layout_min,
@@ -58,13 +59,14 @@ export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_
        with_visible_size, get_visible_width, get_visible_height
 export read_child_event, make_layout_selection_ring
 export PlaceBlocks, get_block_total, get_total_before, find_place_at
-export KeepPointOperation
+export KeepPointOperation, RevealPartOperation
 
 
 include("LayoutDocument.jl")
 include("ConstraintSolver.jl")
 include("PlaceBlocks.jl")
 include("KeepPointOperation.jl")
+include("RevealPartOperation.jl")
 include("LayoutToGraphics.jl")
 include("LayoutList.jl")
 include("GridList.jl")

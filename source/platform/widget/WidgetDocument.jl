@@ -1597,7 +1597,7 @@ set_cell_computation!(w::WidgetTabbedPane, f::Function) = (set_cell_computation!
 
 """
     WidgetScrollPane(content; position, size, grows = (width = false, height = false),
-                     scroll_position, follow_end,
+                     scroll_position, follow_end, is_selection_revealed = false,
                      vertical_scroll_bar = :auto, horizontal_scroll_bar = :auto,
                      <base kwargs>)
 
@@ -1670,6 +1670,15 @@ writes it back to bring the end into view.
 projection that makes a new pane at each print passes the cell of a field of
 its document, so the pane keeps its place across the prints.
 
+With `is_selection_revealed = true` the pane shows the selection of its content
+when it starts: while the pane holds the scroll position that it starts with, it
+scrolls so that the selected part shows in the middle of its view. A part that
+the content draws later, such as a line of a text that a read fills, shows when
+it comes. The first scroll of a person starts from that offset and writes a new
+position, and the pane then stays where the person puts it. `revealed_position`
+is the position that the pane starts with, or `nothing` for a pane that does not
+show its selection when it starts.
+
 See also `WidgetCard`, whose `height` bounds a body that scrolls.
 
 For the assistant.
@@ -1683,6 +1692,7 @@ For the assistant.
     follow_end::Union{Bool,Nothing}
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     at_natural_size::Bool        # view state: the content has no limit on either axis
+    revealed_position::Union{Point2D,Nothing} # the position that the pane starts with to show the selection, or nothing
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
@@ -1699,15 +1709,17 @@ function WidgetScrollPane(content;
                           grows::NamedTuple=(width = false, height = false),
                           scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
                           follow_end::Union{Bool,Nothing,AbstractCell}=nothing,
+                          is_selection_revealed::Bool=false,
                           vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
+    scroll_cell = scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position)
     WidgetScrollPane(Cell(content),
-                     Cell(position), Cell(size), Cell(_make_pane_grows(grows)),
-                     scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
+                     Cell(position), Cell(size), Cell(_make_pane_grows(grows)), scroll_cell,
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end), Cell(nothing),
-                     Cell(false), Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
+                     Cell(false), Cell(is_selection_revealed ? scroll_cell[] : nothing),
+                     Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))
 end

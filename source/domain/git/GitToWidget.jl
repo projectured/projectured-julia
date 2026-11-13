@@ -40,7 +40,7 @@ end
 
 function print_document(p::GitTextToText, recursion, text::GitText, ctx)
     lines = getfield(text, :lines)
-    paths = make_output_path_cells(text, _forward_git_text)
+    paths = make_output_path_cells(text, path -> _forward_git_text(text, path))
     output = TextBlock(CellVector(@computation _make_git_text_block_lines(p, lines[])), paths.selection,
                        paths.mouse_target)
     SimpleIoMap(p, text, output)
@@ -61,11 +61,20 @@ function _make_git_text_line(p::GitTextToText, line::GitTextLine, width::Int, nu
 end
 
 # Forward: the place `.text{s:e}` of the document is the flat range `{s:e}` of the
-# block.
-function _forward_git_text(reference)
+# block, and the line `.lines[k]` is the caret at the start of line `k`.
+function _forward_git_text(text::GitText, reference)
     @reference_case reference begin
         text{s:e} => make_flat_range_reference(s, e; direction = get_range_direction(reference))
+        lines[k] => _make_git_line_start(getfield(text, :lines)[], k)
     end
+end
+
+# The caret at the start of line `k` of `lines`, or `nothing` when the text has no
+# such line: each line before it counts its characters and its line end.
+function _make_git_line_start(lines::AbstractVector, k::Integer)
+    1 <= k <= length(lines) || return nothing
+    start = sum((length(lines[i].text) + 1 for i in 1:(k - 1)); init = 0)
+    make_flat_range_reference(start, start)
 end
 
 # Backward: the whole block is the whole document, and a place of the block is the
@@ -87,7 +96,7 @@ _make_git_text_caret(::GitFileText, s::Int) = @reference ::GitFileText.text::Str
 _get_git_text_type(::GitDiffText) = GitDiffText
 _get_git_text_type(::GitFileText) = GitFileText
 
-map_reference_forward(::GitTextToText, ::SimpleIoMap, reference) = _forward_git_text(reference)
+map_reference_forward(::GitTextToText, iomap::SimpleIoMap, reference) = _forward_git_text(iomap.input, reference)
 
 map_reference_backward(::GitTextToText, iomap::SimpleIoMap, reference) =
     _backward_git_text(iomap.input, iomap.output, reference)
@@ -159,7 +168,8 @@ struct GitFileChangeToWidget <: Projection end
 
 Draw a [`GitFileRevision`](@ref) as a page: its path and its revision in the style
 `title`, then its text, a [`GitFileText`](@ref), in a pane that scrolls, `gap`
-below the title. The text numbers its lines and marks the line that the file names.
+below the title. The text numbers its lines and marks the line that the file names,
+and the page opens with that line in the middle of the pane.
 """
 @projection UntrackedCell struct GitFileRevisionToWidget <: Projection
     title::StyleText = unwrap_cell(get_git_style(nothing, :path_text))
@@ -179,20 +189,23 @@ _get_page_pane_steps(::GitFileRevisionToWidget) =
     (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("content"))
 
 print_document(p::GitFileChangeToWidget, recursion, change::GitFileChange, ctx) =
-    _print_git_page(p, change, Any[], 0)
+    _print_git_page(p, change, Any[], 0, false)
 
 function print_document(p::GitFileRevisionToWidget, recursion, file::GitFileRevision, ctx)
     title = LayoutConstraint(WidgetLabel(string(file.path, " at ", file.revision); text_style = unwrap_cell(p.title));
                              height = Content)
-    _print_git_page(p, file, Any[title], p.gap)
+    _print_git_page(p, file, Any[title], p.gap, true)
 end
 
 # The page: the parts `above` the pane, and the pane that shows the text of the
-# document and fills the rest of the height. The layout passes a key by its own
-# selection, so it carries the part of the path of the document below it.
-function _print_git_page(p::_GitPageToWidget, document, above::Vector, gap::Int)
+# document and fills the rest of the height. The pane of a file at a revision shows
+# the selection of its text when it starts, the caret at the named line. The layout
+# passes a key by its own selection, so it carries the part of the path of the
+# document below it.
+function _print_git_page(p::_GitPageToWidget, document, above::Vector, gap::Int, is_selection_revealed::Bool)
     text = getfield(document, Symbol(_get_page_text_step(p).name))[]
-    output = VerticalLayout(Any[above..., WidgetScrollPane(text)]; gap, child_width = Fill, child_height = Fill)
+    pane = WidgetScrollPane(text; is_selection_revealed)
+    output = VerticalLayout(Any[above..., pane]; gap, child_width = Fill, child_height = Fill)
     iomap = SimpleIoMap(p, document, output)
     set_output_path_computations!(output, document, path -> map_reference_forward(p, iomap, path); dormant = false)
     iomap

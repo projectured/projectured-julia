@@ -209,13 +209,13 @@ is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operat
 # An operation that edits no document: one that does nothing, a move of the
 # selection or of the part under the pointer, a fold, a write of view state, a
 # write into a field that the type of its document declares view state, a timer, a
-# selection to show, and a compound of nothing else. A compound that holds one real
-# write is an edit.
+# selection or a part to show, and a compound of nothing else. A compound that holds
+# one real write is an edit.
 _is_no_edit(operation) =
     operation isa Union{DoNothingOperation, ReplacePathOperation,
                         SelectNextInsertionOperation, ToggleCollapseOperation,
                         ReplaceViewStateOperation, SetTimerOperation,
-                        SelectDocumentOperation} ||
+                        SelectDocumentOperation, RevealPartOperation} ||
     (operation isa ShowSelectionOperation && _is_no_edit(operation.operation)) ||
     _writes_view_state_field(operation) ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&

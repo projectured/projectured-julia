@@ -67,6 +67,13 @@ function test_git_views()
                 lines = file.content.lines
                 @test length(lines) == 5000
                 @test [line.kind for line in lines[2999:3001]] == [:kept, :marked, :kept]
+                # The page starts with the named line in the middle of the pane, and
+                # the caret at its start; the first line is above the view.
+                @test _git_view_run_frames_until(editor, () -> any(entry -> first(entry) == "long 3000" &&
+                                                                            150 < entry[3] < 500,
+                                                                   _git_view_texts(backend)))
+                @test all(entry -> entry[3] < 0, (entry for entry in _git_view_texts(backend) if first(entry) == "long 1"))
+                @test string(strip_reference_types(file.content.selection)) == ".lines[3000]"
             end
 
             @testset "a key in a text edits nothing, and a click puts the caret" begin

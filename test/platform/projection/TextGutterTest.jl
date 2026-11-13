@@ -10,8 +10,8 @@ using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedPlatform.TextModule: TextGutter, TextGutterToGraphics, TextBlockToScrollLayout,
     TextBlock, TextLine, TextString, TextToGraphics, TextRangeReferenceStep, PrimitiveNumberToText,
     TextDocument, TextLineNumbering, WordWrapping, HighlightedText, HighlightedTextToText,
-    FilteredText, FilteredTextToText, SelectionInverting, TextFirstLine
-using ProjecturedPlatform.LayoutModule: ScrollLayout
+    FilteredText, FilteredTextToText, SelectionInverting, TextFirstLine, make_flat_range_reference
+using ProjecturedPlatform.LayoutModule: ScrollLayout, RevealPartOperation
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D, WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsViewport,
     GraphicsToGraphics, layout_none, find_first_baseline
@@ -254,6 +254,32 @@ function test_text_gutter()
         held(viewport) = _gt_unwrap(viewport.content)
         @test (Int(held(viewports[1]).x[]), Int(held(viewports[1]).y[])) == (0, -10)
         @test Int(held(viewports[2]).y[]) == -10
+    end
+
+    @testset "a pane shows a line of a text with a gutter: at the start, and for a reveal" begin
+        renderer = _gt_renderer()
+        # Sixty lines of 20 pixels each, in a view of two lines.
+        lines() = TextBlock(TextDocument[_gt_line("line $i", _GT_SMALL, i) for i in 1:60])
+        line_start(k) = sum((length("line $i") + 1 for i in 1:(k - 1)); init = 0)
+        held(viewport) = _gt_unwrap(viewport.content)
+        offsets(iomap) = [Int(held(node).y[]) for node in (_gt_unwrap(e) for e in iomap.output.elements)
+                          if node isa GraphicsViewport]
+        # The pane starts with the selected line 50 in the middle of the view of the
+        # center, and the gutter beside it.
+        block = lines()
+        getfield(block, :selection)[] = make_flat_range_reference(line_start(50), line_start(50))
+        shown = print_document(renderer, WidgetScrollPane(block; size = Point2D(60, 40), is_selection_revealed = true))
+        @test offsets(shown) == [-(49 * 20 - 10), -(49 * 20 - 10)]
+        # A reveal of line 10 in a pane at the top scrolls the least: line 10 at the
+        # bottom of the view.
+        pane = WidgetScrollPane(lines(); size = Point2D(60, 40))
+        iomap = print_document(renderer, pane)
+        caret = make_flat_range_reference(line_start(10), line_start(10))
+        answer = ProjecturedPlatform.WidgetModule._show_pane_selection(get_iomap_projection(iomap), iomap,
+                                                                        RevealPartOperation(caret))
+        written = only(write for write in _find_shown_members(answer, ReplaceReferencedValueOperation)
+                       if write.document === pane)
+        @test Int(written.value.y[]) == 10 * 20 - 40
     end
 end
 end

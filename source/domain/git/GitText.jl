@@ -61,17 +61,20 @@ end
     GitFileText
 
 The text of a file at a revision, with the line that the open of the file names
-marked. The gutter of each line holds its number.
+marked. The gutter of each line holds its number. Its selection starts as the
+line that the open names, `.lines[k]`, which a page draws as the caret at the
+start of the line, and its page shows that line when it opens.
 """
 @document struct GitFileText <: GitText
     lines::Any
     text::Any
 end
 
-# A text of type `T` whose lines `compute_lines()` computes from the reads of git.
-function _make_git_text(T::Type, compute_lines::Function)
+# A text of type `T` whose lines `compute_lines()` computes from the reads of git,
+# with the selection `selection`.
+function _make_git_text(T::Type, compute_lines::Function; selection = nothing)
     lines = Cell(Computation(compute_lines))
-    T(lines, Cell(@computation join((line.text for line in lines[]), '\n')))
+    T(lines, Cell(@computation join((line.text for line in lines[]), '\n')), Cell(selection), Cell(nothing))
 end
 
 # The value of the cell of a read: the answer, `nothing` while it is still to come,
