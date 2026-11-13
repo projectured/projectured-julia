@@ -31,6 +31,8 @@ A key press goes to the view under the selection, and each view says which keys 
 
 A click does what the part is for. Alt + click is always the caret, so you can put a caret into any text, for example to copy it. Alt + double click always selects the part as a whole. Alt with an arrow key then moves that selection: up to the part that holds it, down into it, or to the part beside it. For example, an Alt + double click on the text `Alice` in a JSON string selects the value. One Alt + Up selects the JSON string, and more Alt + Up go out to the object and the file.
 
+**Select in a text that the editor shows.** A text such as a path in a card, a label or the text of a button is read-only, but you can select in it and copy it. Click it to put the caret; on a button, Alt+click it, because a click presses the button. Move the caret with the arrow keys, Home and End. Hold Shift with them, or drag over the text, to select a range; on a button, drag with Alt. Ctrl+C copies the range. Typing, Delete and Ctrl+V change nothing there.
+
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
 Only a left click moves the selection. A right click opens the menu of the lit part, and leaves the selection where it was. See [the context menu](context-menu-guide.md) for the steps, the keys that add more menus, and the command that opens one with no pointer.

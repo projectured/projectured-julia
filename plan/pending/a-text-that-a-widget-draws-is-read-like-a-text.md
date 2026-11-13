@@ -252,4 +252,35 @@ copy changes.
   range in the header text. `test_widget_label_caret` 86, `test_widget_selection`
   119, `test_part_pointer_shape` 32 and 15 widget, button, toolbar, window and
   pointer sets pass.
+
+  The toolbar item (a1ba2cab0), the segments of a toggle group (da9d9712c)
+  and the link (1b2c109d1), done (2026-11-13) by a Sonnet agent on the pattern
+  of the button and checked: each records its text (`.action.label` when the
+  item has no icon; `.options[i]`, also in the step look; `.content` of a text
+  face), draws the caret and the band, maps both ways, gives an event to
+  `_read_control_text` first, and refuses a paste (`Action`; the field
+  `options`; the field `content` of a link). `test_widget_label_caret` 129,
+  `test_widget_toolbar` 84, `test_widget_link` 48, `test_chart` 562 and
+  `test_sequencechart` 476 (they build a toolbar item), `test_clipboard_edits`
+  34 pass; `test_clipboard` and `test_application` fail only at their known
+  lines.
+
+  Found: a copy of a range of an option of a toggle group takes nothing,
+  because the text target of the clipboard needs a field step before the range,
+  and an option is an element of a vector (two range steps). A key on an option
+  selected as a whole answers nothing, because `_split_part_range` reads the
+  element step as a range of `.options`; the caret and the range of an option
+  take the keys.
+
+  Open: the items of a menu and the names of a menu bar. `WidgetMenuItem` has an
+  IO map of its own with children (its label can be a widget), measures its size
+  in a cell apart from the cell that draws, and draws the text of a shortcut;
+  it needs its own design of where the records live. The guides say that these
+  take no caret.
 - [ ] 7. **The guides (P8)** and a run of the click test over the catalog.
+
+  The guides, done (2026-11-13): `widget.md` describes the shared helpers, the
+  paste rules and the controls; `keyboard-and-mouse-guide.md` how a person
+  selects in a text that the editor shows; `text.md` that a widget text takes
+  the keys of the table; `domain.md` and `operation.md` the field form of
+  `accepts_pasted_text`.
