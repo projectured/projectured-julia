@@ -1,6 +1,6 @@
 # The assistant fills a live table
 
-> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Step 1 is done. · **Stands on:**
+> **Kind:** plan · **Status:** in progress since 2026-11-13, as step 3 of the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md`. Steps 1 and 2 are done. · **Stands on:**
 > [roster.md](../../documentation/package/platform/roster/roster.md),
 > [operation.md](../../documentation/package/kernel/operation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md),
@@ -188,7 +188,7 @@ Each step is one commit in a worktree of projectured-julia, on main.
    field as a leaf, the stored documents of the fields, and the write of a field that copies the
    record into its slot and keeps the other records. `test_kernel()` 5169 passed, 2 broken. The case
    in an editor, with one undo, moves to step 3, where the view of a record table takes the write.
-2. **The document `RecordTable`.** `RecordTable(title::AbstractString; columns, records = [])`, the
+2. ✅ **The document `RecordTable`.** `RecordTable(title::AbstractString; columns, records = [])`, the
    held roster with its arrangement, `pred_arguments`, `make_pred_document`, `get_document_title`,
    `get_document_decoration` with the count of records, and `get_arranged_collection_steps`. The
    typed `title` keeps the constructor apart from those that `@document` makes. Test: a new
@@ -196,6 +196,14 @@ Each step is one commit in a worktree of projectured-julia, on main.
    `ProjecturedPlatformTest.jl` and `PlatformSuite.jl`. It asserts four facts. An insert adds one row. A
    field write changes one row and keeps the other rows as the same objects. A `.pred` file gives
    back the same title, columns and records. Two equal records show as one row.
+   **Done on 2026-11-13**: `source/platform/roster/RecordTable.jl`. The records are a `CellVector` of
+   plain cells (`Cell[Cell(record) …]`), each record stored with `get_stored_value`. The decoration
+   counts "n records" with the icon `:list`. `get_arranged_collection_steps` answers `table`,
+   `document`, `rows`, the rows of the roster in the arrangement. `test_record_table()` 19 of 19, with
+   a fifth fact: a verb of the arrangement finds the rows; `test_roster`, `test_roster_table` and
+   `test_roster_program` pass. The field write of the test is a `ReplaceReferencedValueOperation`
+   evaluated on the table; the write through `replace_referenced_value!` in an editor is the test of
+   step 3.
 3. **The view `RecordTableToWidget`.** A line that counts the records, and the table under it, which
    fills the height. Its maps pass `table.<rest>`. Its reader calls `keep_held_arrangement` and
    `retarget_held_row_open`. `_make_roster_graphics_entries` registers it. Test: `test_record_table()`
