@@ -869,6 +869,111 @@ function test_chart_projection()
             @test length(filter(e -> e isa GraphicsRect, _series_elements(iomap.output))) == 11
         end
 
+        @testset "matrices" begin
+            rows = ["a", "b", "c"]
+            values = Any[Any[1.0, 2.0, nothing, 8.0],
+                         Any[nothing, 4.0, 4.0, 4.0],
+                         Any[0.5, missing, NaN, 3.0]]
+            categories = ["w", "x", "y", "z"]
+            mk(; kw...) = Chart("m", [ChartMatrixSeries("count", rows, values; kw...)];
+                                x_axis = ChartCategoryAxis(categories = categories))
+            # The shade of the block that shows the cell at `row`, `column`.
+            function level(g, row, column)
+                shape = g.matrix_shape
+                rg = only(group for group in shape.row_groups if group[1] <= row <= group[2])
+                cg = only(group for group in shape.column_groups if group[1] <= column <= group[2])
+                only(block[5] for block in shape.blocks if block[1] == cg[3] && block[2] == rg[3])
+            end
+
+            chart = mk()
+            @test get_chart_series_family(chart.series[1]) === :category
+            # The cells fill the plot, as the slots of a category axis do.
+            view = resolve_view(ChartPlot(chart))
+            @test (view.x_min, view.x_max, view.y_min, view.y_max) == (0.5, 4.5, 0.5, 3.5)
+
+            # One rectangle for each cell with a value: `nothing`, `missing` and
+            # NaN are empty cells. Large cells keep a gap between them.
+            g = _chart_layout(chart)
+            @test g.matrix_only && g.matrix[1] == 1
+            @test length(g.matrix_shape.blocks) == 8
+            @test g.matrix_shape.gap
+            rects = filter(e -> e isa GraphicsRect, _series_elements(_chart_canvas(chart)))
+            @test length(rects) == 8
+
+            # The y axis names the rows, the first on top, with no horizontal grid lines.
+            @test g.ylabels == rows
+            @test g.yticks == [3.0, 2.0, 1.0]
+            frame = _chart_canvas(chart).elements
+            @test all(e -> e.y1 != e.y2,
+                      [e for e in frame if e isa GraphicsLine && e.dash !== nothing])
+
+            # The shade grows with the value: 8 is the darkest, 0.5 the lightest,
+            # and equal values take one shade.
+            @test level(g, 1, 4) == 8 && level(g, 3, 1) == 1
+            @test level(g, 2, 2) == level(g, 2, 3) == level(g, 2, 4)
+            @test level(g, 1, 1) < level(g, 2, 2) < level(g, 1, 4)
+            # `min` and `max` fix the range; `log` shades by the logarithm.
+            @test level(_chart_layout(mk(; min = 0.0, max = 16.0)), 1, 4) == 5
+            @test level(_chart_layout(mk(; log = true)), 2, 2) == 7
+
+            # A label shows inside its cell when it fits.
+            labels = [["1", "2", "", "8"], ["", "4", "4", "4"], ["½", "", "", "3"]]
+            texts = [e.text for e in _series_elements(_chart_canvas(mk(; labels))) if e isa GraphicsText]
+            @test "8" in texts && "½" in texts
+            @test isempty([e for e in _series_elements(_chart_canvas(mk(; labels, show_labels = false)))
+                           if e isa GraphicsText])
+            # An `AbstractMatrix` becomes one vector for each row.
+            @test ChartMatrixSeries("m", ["a", "b"], [1 2; 3 4]).values == [[1, 2], [3, 4]]
+
+            # The legend names the value of the lightest and of the darkest shade.
+            legend = [item[2] for item in ChartModule._legend_items(chart, g.series, g.theme_values)]
+            @test legend == ["count", ChartModule.format_tick(0.5), ChartModule.format_tick(8.0)]
+
+            # A cell is a sample: `(row, column, value)`, its index counted down the
+            # rows first. An empty cell is no sample.
+            @test get_chart_sample(chart.series[1], 8) == (2, 3, 4.0)
+            @test get_chart_sample(chart.series[1], 7) === nothing
+            at(column, row) = (round(Int, ChartModule.to_pixel(g.xs, Float64(column))),
+                               round(Int, ChartModule.to_pixel(g.ys, Float64(length(rows) - row + 1))))
+            @test ChartModule._sample_hit(g, at(3, 2)...) == (1, 8)
+            @test ChartModule._sample_hit(g, at(3, 1)...) === nothing
+            readout = ChartModule._format_matrix_readout(g, at(3, 2)...)
+            @test occursin("b", readout) && occursin("y", readout) && occursin("4", readout)
+
+            # A click round-trips to a chart-rooted sample reference.
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            gg = iomap.step_iomaps[2][].geometry
+            op = read_intent(proj, iomap,
+                             MouseClick(:left, round(Int, ChartModule.to_pixel(gg.xs, 3.0)),
+                                        round(Int, ChartModule.to_pixel(gg.ys, 2.0)); time = 0.0))
+            @test op isa ReplaceSelectionOperation
+            chart.selection = op.path
+            @test get_selected_sample(chart) == (1, 8)
+            @test evaluate_reference(chart, op.path) == (2, 3, 4.0)
+            # The selected cell is outlined.
+            chart.selection = make_chart_sample_reference(chart, 1, 8)
+            @test count(e -> e isa GraphicsLine, _series_elements(_chart_canvas(chart))) >= 4
+            chart.selection = nothing
+
+            # A matrix larger than the plot folds into blocks of a few pixels,
+            # which show the greatest value of the block, with no gap.
+            big = Chart("m", [ChartMatrixSeries("v", ["r$i" for i in 1:300],
+                                                [Float64[i + j for j in 1:300] for i in 1:300])];
+                        x_axis = ChartCategoryAxis(categories = ["c$j" for j in 1:300]))
+            gb = _chart_layout(big; width = 400, height = 300)
+            @test !gb.matrix_shape.gap
+            @test length(gb.matrix_shape.blocks) <= (gb.plot_w ÷ 3 + 1) * (gb.plot_h ÷ 3 + 1)
+            @test length(gb.ylabels) < 300
+
+            # A chart file keeps the matrix, with `nothing` for an empty cell.
+            saved = ChartMatrixSeries("count", rows, Any[Any[1.0, nothing], Any[nothing, 2.0]];
+                                      labels = [["1", ""], ["", "2"]], log = true)
+            loaded = parse_pred_text(print_pred_text(saved))
+            @test loaded.values == Any[Any[1.0, nothing], Any[nothing, 2.0]]
+            @test (loaded.labels, loaded.log) == ([["1", ""], ["", "2"]], true)
+        end
+
         @testset "line style" begin
             x = collect(0.0:1.0:10.0)
             mk(style) = Chart("s", [ChartLineSeries("a", x, x; line_style=style)])
@@ -1939,6 +2044,17 @@ function test_chart_scale()
             els = _series_elements(_chart_canvas(chart))
             @test !isempty(els)
             @test length(els) < ceiling
+        end
+
+        @testset "four-million-cell matrix" begin
+            # Cells of a few pixels fold into blocks, and blocks of one shade
+            # along a row merge, so a smooth matrix stays under the ceiling.
+            n = 2_000
+            chart = Chart("m", [ChartMatrixSeries("v", ["r$i" for i in 1:n],
+                                                  [Float64[i + j for j in 1:n] for i in 1:n])];
+                          x_axis = ChartCategoryAxis(categories = ["c$j" for j in 1:n]))
+            @test length(_flatten_elements(_chart_canvas(chart))) < ceiling
+            @test (@elapsed _chart_canvas(chart)) < 5.0
         end
 
         @testset "zoomed in stays exact" begin

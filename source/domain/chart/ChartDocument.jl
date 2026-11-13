@@ -527,6 +527,134 @@ function strip_state_color(series::ChartStripSeries, code, cycle)
     get_series_color(nothing, c, cycle)
 end
 
+"""
+A matrix series: a grid of cells, one row for each entry of `rows` and one column
+for each category of the chart's `ChartCategoryAxis`. The shade of a cell gives
+its value: a light tint of the series colour at `min`, the full colour at `max`.
+`min` and `max` are `nothing` to fit the values; `log` shades by the logarithm
+of the value.
+
+`values` holds one vector for each row, with one value for each column. A value
+that is `nothing`, `missing` or not finite is an empty cell: it draws nothing and
+a click there selects no cell. `labels`, when given, holds a text for each cell in
+the same shape, which the cell shows when it fits. A matrix can also be given as
+an `AbstractMatrix`, which the constructor turns into rows.
+
+The first row is on top, and the y axis names the rows. A chart draws its first
+visible matrix series.
+
+Use it to show a value for each pair of two categories, such as a count for each
+test and each group of results.
+
+# Example
+
+    chart_1 = Chart("Moved values",
+                    [ChartMatrixSeries("count", ["test a", "test b"], [[3, nothing], [12, 1]])];
+                    x_axis = ChartCategoryAxis(categories = ["nav", "queueLength"]))
+    open_pane!(chart_1; title = "Moved values")
+
+See also `Chart`, `ChartCategoryAxis` and `ChartStripSeries`.
+
+For the assistant.
+"""
+@document struct ChartMatrixSeries <: ChartSeries
+    label::String
+    rows::Any
+    values::Any
+    labels::Any = nothing
+    min::Any = nothing
+    max::Any = nothing
+    log::Bool = false
+    show_labels::Bool = true
+    color::Any = nothing
+    visible::Bool = true
+end
+
+function ChartMatrixSeries(label::AbstractString, rows::AbstractVector, values;
+                           labels = nothing, min = nothing, max = nothing, log::Bool = false,
+                           show_labels::Bool = true, color = nothing, visible::Bool = true)
+    ChartMatrixSeries(String(label), rows, _get_matrix_rows(values),
+                      labels === nothing ? nothing : _get_matrix_rows(labels),
+                      min, max, log, show_labels, color, visible, nothing)
+end
+
+# The rows of a matrix: a vector of rows as it is, and an `AbstractMatrix` as one
+# vector for each of its rows.
+_get_matrix_rows(values::AbstractMatrix) = [collect(values[r, :]) for r in axes(values, 1)]
+_get_matrix_rows(values) = values
+
+# The value of the cell at `row` and `column` as a finite `Float64`, or `nothing`
+# for an empty cell or a place outside the matrix.
+function _find_matrix_value(series::ChartMatrixSeries, row::Integer, column::Integer)
+    values = series.values
+    (1 <= row <= length(values)) || return nothing
+    line = values[row]
+    (line isa AbstractVector && 1 <= column <= length(line)) || return nothing
+    value = line[column]
+    value isa Real || return nothing
+    number = Float64(value)
+    isfinite(number) ? number : nothing
+end
+
+# The text of the cell at `row` and `column`, or `""` when it has none.
+function _get_matrix_label(series::ChartMatrixSeries, row::Integer, column::Integer)
+    labels = series.labels
+    (labels === nothing || !(1 <= row <= length(labels))) && return ""
+    line = labels[row]
+    (line isa AbstractVector && 1 <= column <= length(line)) || return ""
+    text = line[column]
+    text === nothing ? "" : string(text)
+end
+
+# A cell of a matrix is one sample. Its index counts down the rows first, as a
+# `Matrix` of Julia does, so the series alone decodes it: `rows` gives the stride.
+_get_matrix_sample_index(series::ChartMatrixSeries, row::Integer, column::Integer) =
+    (column - 1) * length(series.rows) + row
+
+function _get_matrix_cell(series::ChartMatrixSeries, index::Integer)
+    count = length(series.rows)
+    (count >= 1 && index >= 1) || return nothing
+    (mod(index - 1, count) + 1, div(index - 1, count) + 1)
+end
+
+# The values that the shades span: `min` and `max` of the series, or else the
+# least and the greatest value of the cells. A log scale spans the positive
+# values only. `nothing` when no cell has such a value.
+function _compute_matrix_range(series::ChartMatrixSeries)
+    lower = series.min === nothing ? Inf : Float64(series.min)
+    upper = series.max === nothing ? -Inf : Float64(series.max)
+    if series.min === nothing || series.max === nothing
+        for line in series.values
+            line isa AbstractVector || continue
+            for value in line
+                value isa Real || continue
+                number = Float64(value)
+                (isfinite(number) && (!series.log || number > 0)) || continue
+                series.min === nothing && (lower = Base.min(lower, number))
+                series.max === nothing && (upper = Base.max(upper, number))
+            end
+        end
+    end
+    (isfinite(lower) && isfinite(upper)) || return nothing
+    series.log && lower <= 0 && return nothing
+    (lower, Base.max(lower, upper))
+end
+
+# The shade of `value`, from 1 (the tint at the lower end) to `levels` (the full
+# colour). A value at or below the lower end, or not positive on a log scale,
+# takes 1.
+function _get_matrix_level(value::Float64, range, log::Bool, levels::Integer)
+    lower, upper = range
+    upper > lower || return levels
+    if log
+        value <= 0 && return 1
+        fraction = (log10(value) - log10(lower)) / (log10(upper) - log10(lower))
+    else
+        fraction = (value - lower) / (upper - lower)
+    end
+    clamp(1 + floor(Int, fraction * levels), 1, levels)
+end
+
 # ── Chart ────────────────────────────────────────────────────────────────
 
 """
@@ -604,6 +732,7 @@ get_chart_series_family(::ChartFunctionSeries) = :xy
 get_chart_series_family(::ChartHistogramSeries) = :xy
 get_chart_series_family(::ChartStripSeries) = :xy
 get_chart_series_family(::ChartBarSeries) = :category
+get_chart_series_family(::ChartMatrixSeries) = :category
 get_chart_series_family(::ChartPieSeries) = :pie
 
 """
@@ -655,6 +784,14 @@ function get_chart_sample(s::ChartStripSeries, index::Integer)
     upper = index < n ? Float64(s.x[index + 1]) :
             (s.x_end === nothing ? lower : Float64(s.x_end))
     (lower, upper, strip_state_name(s, s.values[index]))
+end
+
+# A cell is `(row, column, value)`; an empty cell is no sample.
+function get_chart_sample(s::ChartMatrixSeries, index::Integer)
+    cell = _get_matrix_cell(s, index)
+    cell === nothing && return nothing
+    value = _find_matrix_value(s, cell...)
+    value === nothing ? nothing : (cell[1], cell[2], value)
 end
 
 # The step type is domain-agnostic; what a sample *is* depends on the series

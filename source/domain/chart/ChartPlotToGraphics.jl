@@ -176,21 +176,42 @@ function _strip_rows(series, chart::Chart)
     (rows, k)
 end
 
+# The first visible matrix series as `(index, series)`, or `nothing`. A chart draws
+# one matrix: the first.
+function _find_shown_matrix(series)
+    for (index, s) in series
+        s isa ChartMatrixSeries && return (index, s)
+    end
+    nothing
+end
+
+# Whether a chart of a category axis shows matrices and nothing else. Its y axis
+# then names the rows of the matrix, and its rows fill the plot.
+_is_matrix_chart(chart::Chart, series) =
+    get_chart_axis_family(chart.x_axis) === :category && !isempty(series) &&
+    all(s -> s isa ChartMatrixSeries, (s for (_, s) in series))
+
 # The data extent of everything drawn, before padding or axis overrides. Bar
 # series live on a category axis, where x is the category index and y has to
 # include the baseline the bars grow from.
 function _data_bounds(series, chart::Chart)
     if get_chart_axis_family(chart.x_axis) === :category
         n = length(chart.x_axis.categories)
-        yb = (chart.bar_baseline, chart.bar_baseline)
-        if chart.bar_placement === :stacked
-            yb = merge_bounds(yb, _stacked_bounds(series, n))
-        else
-            for (_, s) in series
-                s isa ChartBarSeries || continue
-                yb = merge_bounds(yb, get_column_bounds(s.values))
+        matrix = _find_shown_matrix(series)
+        yb = nothing
+        if matrix === nothing || any(s -> s isa ChartBarSeries, (s for (_, s) in series))
+            yb = (chart.bar_baseline, chart.bar_baseline)
+            if chart.bar_placement === :stacked
+                yb = merge_bounds(yb, _stacked_bounds(series, n))
+            else
+                for (_, s) in series
+                    s isa ChartBarSeries || continue
+                    yb = merge_bounds(yb, get_column_bounds(s.values))
+                end
             end
         end
+        # A matrix claims one integer row for each of its rows, as strips do.
+        matrix === nothing || (yb = merge_bounds(yb, (0.5, length(matrix[2].rows) + 0.5)))
         return ((0.5, n + 0.5), yb)
     end
     xb = nothing; yb = nothing
@@ -333,7 +354,9 @@ function _compute_fit_view(plot::ChartPlot)
     # push half a category of empty space in at each end.
     x0, x1 = get_chart_axis_family(chart.x_axis) === :category ?
         (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02)
-    y0, y1 = _fit_range(yb, chart.y_axis, 0.08)
+    # The rows of a matrix fill the plot as the slots of a category axis do.
+    y0, y1 = _is_matrix_chart(chart, series) && yb !== nothing && yb[2] > yb[1] ? yb :
+        _fit_range(yb, chart.y_axis, 0.08)
     ChartView(x0, x1, y0, y1)
 end
 
@@ -355,6 +378,8 @@ end
 function _compute_shown_y_bounds(series, chart::Chart, view::ChartView)
     lo, hi = view.x_min, view.x_max
     if get_chart_axis_family(chart.x_axis) === :category
+        # A matrix keeps its rows, as strips do.
+        _find_shown_matrix(series) === nothing || return nothing
         n = length(chart.x_axis.categories)
         shown = max(1, ceil(Int, lo - 0.5)):min(n, floor(Int, hi + 0.5))
         isempty(shown) && return nothing
@@ -508,6 +533,16 @@ function _legend_items(chart::Chart, series, t, samples = Dict{Int,Any}())
                 color = strip_state_color(s, code, cycle)
                 any(it -> it[2] == label && it[3] == color, states) && continue
                 push!(states, (0, label, color))
+            end
+        elseif s isa ChartMatrixSeries
+            # A matrix names the values of its lightest and of its darkest shade.
+            color = get_series_color(s.color, index, cycle)
+            push!(items, (index, _series_label(s), color))
+            range = _compute_matrix_range(s)
+            if range !== nothing
+                push!(states, (0, format_tick(range[1]), _get_matrix_shade(color, 1)))
+                range[2] > range[1] &&
+                    push!(states, (0, format_tick(range[2]), _get_matrix_shade(color, _MATRIX_LEVELS)))
             end
         elseif s isa ChartPieSeries
             # A pie is one colour for each slice: an entry for each, under its series.
@@ -708,10 +743,15 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     # series visible — or none at all — and the numeric path runs untouched.
     strip_rows, strip_count = _strip_rows(series, chart)
     strip_only = strip_count >= 1 && all(s -> s isa ChartStripSeries, (s for (_, s) in series))
+    # The same mode for a chart of a matrix: the y axis names its rows.
+    matrix = get_chart_axis_family(x_axis) === :category ? _find_shown_matrix(series) : nothing
+    matrix_only = _is_matrix_chart(chart, series)
 
     if strip_only
         yticks = Float64[Float64(strip_rows[i]) for (i, _) in series]
         ylabels = _axis_shows_labels(y_axis) ? [_series_label(s) for (_, s) in series] : String[]
+    elseif matrix_only
+        yticks, ylabels = _compute_matrix_row_ticks(p, matrix[2], view, prov_h, axis_font, y_axis)
     else
         yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h, t.tick_spacing)
         ylabels = _axis_shows_labels(y_axis) ?
@@ -776,12 +816,16 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     strip_spans = Dict{Int,Vector{Tuple{Int,Int,Int}}}(
         i => _compute_strip_spans(xs, view, s)
         for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
+    # The cells of the matrix, computed here for the reason of the strip spans.
+    matrix_shape = matrix === nothing ? nothing :
+        _compute_matrix_shape(p, xs, ys, view, chart, matrix[2], style, axis_font)
 
     (; w, h, chart, style, theme_values = t, view, series, legend,
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        point_cache, function_samples, strip_spans, strip_rows, strip_count, strip_only, pie,
+       matrix, matrix_only, matrix_shape,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, axis_title_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
@@ -837,7 +881,7 @@ function _frame_elements!(out, g)
 
     # In row-label mode the y ticks name the strips rather than measuring
     # anything, so a gridline through each would just underline the bands.
-    if grid_y !== :none && !g.strip_only
+    if grid_y !== :none && !g.strip_only && !g.matrix_only
         for tick in g.yticks
             y = round(Int, to_pixel(g.ys, tick))
             (py <= y <= py + ph) || continue
@@ -1396,6 +1440,220 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     out
 end
 
+# ── Matrices ─────────────────────────────────────────────────────────────
+#
+# A matrix draws a cell for each value, in a shade of its colour. A cell narrower
+# or lower than a few pixels folds with its neighbours into one block, which shows
+# the greatest value of the block, so the cost of a matrix depends on the size of
+# the plot and not on the size of the matrix.
+
+# The count of the shades of a matrix. Quantized shades let neighbour blocks of
+# one shade merge into one rectangle.
+const _MATRIX_LEVELS = 8
+
+# The most labels of cells that one layout measures.
+const _MATRIX_LABEL_LIMIT = 2000
+
+# The rows that the y axis names in the window of `view`, from the top: every
+# `k`-th row, so that the names fit the height. Answers the ticks and the names.
+function _compute_matrix_row_ticks(p::ChartPlotToGraphicsCanvas, s::ChartMatrixSeries, view,
+                                   span_px, font, axis)
+    count = length(s.rows)
+    shown = Int[r for r in 1:count if view.y_min <= count - r + 1 <= view.y_max]
+    isempty(shown) && return (Float64[], String[])
+    height = compute_line_box(p.measure, "0", font).height
+    k = label_step(length(shown), span_px, height + 2)
+    rows = shown[1:k:end]
+    ticks = Float64[count - r + 1 for r in rows]
+    (ticks, _axis_shows_labels(axis) ? String[string(s.rows[r]) for r in rows] : String[])
+end
+
+# The groups of consecutive indices from `first` to `last` that draw as one span,
+# each at least `min_px` pixels long, as `(first index, last index, lower pixel,
+# upper pixel)`. `edges(i)` answers the two pixel edges of index `i`.
+function _group_matrix_spans(edges, first::Int, last::Int, min_px::Int)
+    groups = NTuple{4,Int}[]
+    i = first
+    while i <= last
+        a, b = edges(i)
+        lower, upper = min(a, b), max(a, b)
+        j = i
+        while upper - lower < min_px && j < last
+            j += 1
+            a, b = edges(j)
+            lower, upper = min(lower, a, b), max(upper, a, b)
+        end
+        push!(groups, (i, j, round(Int, lower), round(Int, upper)))
+        i = j + 1
+    end
+    groups
+end
+
+# The cell of the greatest value in the rows `ra:rb` and the columns `ca:cb`, as
+# `(row, column, value)`, or `nothing` when every cell there is empty.
+function _find_matrix_block_peak(s::ChartMatrixSeries, ra::Int, rb::Int, ca::Int, cb::Int)
+    peak = nothing
+    for row in ra:rb, column in ca:cb
+        value = _find_matrix_value(s, row, column)
+        value === nothing && continue
+        (peak === nothing || value > peak[3]) && (peak = (row, column, value))
+    end
+    peak
+end
+
+"""
+    _compute_matrix_shape(p, xs, ys, view, chart, series, style, font) -> NamedTuple
+
+What a matrix draws in the window of `view`, in absolute pixels: the groups of the
+rows and of the columns, the blocks as `(left, top, width, height, shade)`, the
+labels that fit their cells as `(x, y, text, shade)`, the range of the values, and
+whether the cells are large enough for a gap between them.
+"""
+function _compute_matrix_shape(p::ChartPlotToGraphicsCanvas, xs, ys, view, chart::Chart,
+                               s::ChartMatrixSeries, style, font)
+    columns = length(chart.x_axis.categories)
+    count = length(s.rows)
+    range = _compute_matrix_range(s)
+    c0 = max(1, ceil(Int, view.x_min - 0.5))
+    c1 = min(columns, floor(Int, view.x_max + 0.5))
+    r0 = max(1, count + 1 - floor(Int, view.y_max + 0.5))
+    r1 = min(count, count + 1 - ceil(Int, view.y_min - 0.5))
+    min_px = max(style.bin_fold_px + 1, 3)
+    column_groups = c0 <= c1 ?
+        _group_matrix_spans(c -> (to_pixel(xs, c - 0.5), to_pixel(xs, c + 0.5)), c0, c1, min_px) :
+        NTuple{4,Int}[]
+    row_groups = r0 <= r1 ?
+        _group_matrix_spans(r -> (to_pixel(ys, count - r + 1.5), to_pixel(ys, count - r + 0.5)),
+                            r0, r1, min_px) :
+        NTuple{4,Int}[]
+    blocks = NTuple{5,Int}[]
+    labels = Tuple{Int,Int,String,Int}[]
+    folded = any(group -> group[1] != group[2], column_groups) ||
+             any(group -> group[1] != group[2], row_groups)
+    gap = !folded && !isempty(column_groups) && !isempty(row_groups) &&
+          minimum(group -> group[4] - group[3], column_groups) >= 6 &&
+          minimum(group -> group[4] - group[3], row_groups) >= 6
+    range === nothing && return (; range, column_groups, row_groups, blocks, labels, gap)
+    measured = 0
+    for (ra, rb, top, bottom) in row_groups
+        run = nothing
+        for (ca, cb, left, right) in column_groups
+            peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+            if peak === nothing
+                run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+                run = nothing
+                continue
+            end
+            level = _get_matrix_level(peak[3], range, s.log, _MATRIX_LEVELS)
+            if gap
+                push!(blocks, (left, top, right - left, bottom - top, level))
+            elseif run !== nothing && run[3] == level && run[2] == left
+                run = (run[1], right, level)
+            else
+                run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+                run = (left, right, level)
+            end
+            (s.show_labels && ra == rb && ca == cb && measured < _MATRIX_LABEL_LIMIT) || continue
+            text = _get_matrix_label(s, ra, ca)
+            isempty(text) && continue
+            measured += 1
+            line = compute_line_box(p.measure, text, font)
+            (line.width + 4 <= right - left && line.height + 2 <= bottom - top) || continue
+            push!(labels, (left + (right - left - line.width) ÷ 2,
+                           top + (bottom - top - line.height) ÷ 2 + line.text_y, text, level))
+        end
+        run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+    end
+    (; range, column_groups, row_groups, blocks, labels, gap)
+end
+
+# The colour of the shade `level`: the colour of the series, more opaque for a
+# greater value, as the folded cloud of a scatter series shades its density.
+_get_matrix_shade(color::StyleColor, level::Integer) =
+    StyleColor(color.red, color.green, color.blue, color.alpha * (0.15 + 0.85 * level / _MATRIX_LEVELS))
+
+# The opaque colour that `color` gives over `background`.
+_blend_color_over(color::StyleColor, background::StyleColor) =
+    StyleColor(background.red + (color.red - background.red) * color.alpha,
+               background.green + (color.green - background.green) * color.alpha,
+               background.blue + (color.blue - background.blue) * color.alpha, 1.0)
+
+function _draw_matrix_cells!(out, g)
+    g.matrix === nothing && return out
+    index, s = g.matrix
+    shape = g.matrix_shape
+    ox, oy = g.plot_x, g.plot_y
+    t = g.theme_values
+    color = _draw_color(g, index, s.color)
+    gap = shape.gap ? 1 : 0
+    for (left, top, width, height, level) in shape.blocks
+        push!(out, GraphicsRect(left - ox, top - oy, max(width - gap, 1), max(height - gap, 1);
+                                color = _get_matrix_shade(color, level)))
+    end
+    for (x, y, text, level) in shape.labels
+        shown = _blend_color_over(_get_matrix_shade(color, level), t.plot_background)
+        push!(out, GraphicsText(text, x - ox, y - oy; font = g.axis_font,
+                                color = _strip_label_color(shown, t.text_color, t.strip_contrast_text)))
+    end
+    out
+end
+
+# The group of rows and the group of columns of the block under the absolute pixel
+# `x`, `y`, or `nothing` when no block of the matrix is there.
+function _find_matrix_block(g, x::Integer, y::Integer)
+    g.matrix === nothing && return nothing
+    shape = g.matrix_shape
+    column = findfirst(group -> group[3] <= x < group[4], shape.column_groups)
+    row = findfirst(group -> group[3] <= y < group[4], shape.row_groups)
+    (column === nothing || row === nothing) && return nothing
+    (shape.row_groups[row], shape.column_groups[column])
+end
+
+# The cell under the absolute pixel `x`, `y` as `(series_index, sample_index)`:
+# the cell whose value the block shows. An empty block selects no cell.
+function _find_matrix_sample(g, x::Integer, y::Integer)
+    block = _find_matrix_block(g, x, y)
+    block === nothing && return nothing
+    (ra, rb, _, _), (ca, cb, _, _) = block
+    index, s = g.matrix
+    peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+    peak === nothing ? nothing : (index, _get_matrix_sample_index(s, peak[1], peak[2]))
+end
+
+# The selected cell, outlined where it is drawn: the block that holds it.
+function _outline_selected_matrix_cell!(out, g, index::Int, s::ChartMatrixSeries, k::Integer)
+    (g.matrix === nothing || g.matrix[1] != index) && return out
+    cell = _get_matrix_cell(s, k)
+    cell === nothing && return out
+    row, column = cell
+    shape = g.matrix_shape
+    rows = findfirst(group -> group[1] <= row <= group[2], shape.row_groups)
+    columns = findfirst(group -> group[1] <= column <= group[2], shape.column_groups)
+    (rows === nothing || columns === nothing) && return out
+    _, _, top, bottom = shape.row_groups[rows]
+    _, _, left, right = shape.column_groups[columns]
+    t = g.theme_values
+    _outline!(out, left - g.plot_x, top - g.plot_y, max(right - left, 1), max(bottom - top, 1),
+              t.selected_edge, t.selected_width)
+end
+
+# What the pointer is over inside a matrix: the row, the column and the value of
+# the cell that its block shows, and the label of the cell.
+function _format_matrix_readout(g, x::Integer, y::Integer)
+    block = _find_matrix_block(g, x, y)
+    block === nothing && return nothing
+    (ra, rb, _, _), (ca, cb, _, _) = block
+    _, s = g.matrix
+    peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+    peak === nothing && return nothing
+    row, column, value = peak
+    categories = g.chart.x_axis.categories
+    name = column <= length(categories) ? string(categories[column]) : string(column)
+    text = string(_series_label(s), "  ", string(s.rows[row]), ", ", name, ": ", format_tick(value))
+    label = _get_matrix_label(s, row, column)
+    isempty(label) ? text : string(text, " (", label, ")")
+end
+
 # ── Overlay ──────────────────────────────────────────────────────────────
 #
 # What is drawn over the series inside the plot viewport: the crosshair with its
@@ -1436,6 +1694,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         series = g.chart.series[sample[1]]
         if series isa ChartStripSeries
             _selected_strip!(out, g, sample[1], series, sample[2])
+        elseif series isa ChartMatrixSeries
+            _outline_selected_matrix_cell!(out, g, sample[1], series, sample[2])
         else
             point = get_chart_sample(series, sample[2])
             if point isa Tuple && length(point) == 2
@@ -1462,6 +1722,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         # Inside a band, the y coordinate is a row number and reading it back as
         # a value would be meaningless — the state holding there is the answer.
         strip = _strip_readout(g, cursor[1], cy + g.plot_y)
+        strip === nothing && (strip = _format_matrix_readout(g, cx + g.plot_x, cy + g.plot_y))
         label = strip === nothing ?
             string(format_tick(cursor[1]), ", ", format_tick(cursor[2])) : strip
         push!(out, GraphicsText(label, cx + 6, cy - 18; font = g.axis_font, color = text_color))
@@ -1609,7 +1870,8 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         if g.pie
             _pie_elements!(series_out, g)
         elseif family === :category
-            _bar_elements!(series_out, g, drawable)
+            _draw_matrix_cells!(series_out, g)
+            _bar_elements!(series_out, g, [(i, s) for (i, s) in drawable if s isa ChartBarSeries])
         else
             for (index, s) in drawable
                 _series_elements!(series_out, g, index, s)
@@ -2416,7 +2678,8 @@ function _sample_hit(g, x::Integer, y::Integer)
     # A point within reach wins: it is a smaller target than a whole band, so
     # the click that could have meant either meant the point.
     best === nothing || return best
-    _strip_sample_hit(g, x, y)
+    strip = _strip_sample_hit(g, x, y)
+    strip === nothing ? _find_matrix_sample(g, x, y) : strip
 end
 
 # The segment a click lands on, as `(series_index, sample_index)`. The index is

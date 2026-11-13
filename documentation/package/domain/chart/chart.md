@@ -2,7 +2,7 @@
 
 > **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
 
-`ProjecturedChart` draws line, scatter, bar, pie, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
+`ProjecturedChart` draws line, scatter, bar, pie, histogram, colored-strip and matrix charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
 
 <img width="396" alt="Chart example" src="../../../asset/image/example/chart.png">
 
@@ -23,10 +23,11 @@
 | `ChartPieSeries` | `categories` and `values`, one slice for each, and `colors`, one for each slice or `nothing` for the colour cycle |
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
+| `ChartMatrixSeries` | `rows`, the names of the rows; `values`, one vector for each row with one value for each category; `labels` in the same shape; the shade range `min` and `max`; `log` |
 
 **An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
 
-The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
+The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 
 **A series holds whole columns, one cell for each column.** A column is numeric leaf data and no caret goes into it, so a cell for each sample costs about 88 bytes and gives nothing. An assignment of a new column, `chart.series[1].y = v`, repaints the chart without a new print of the projection. Any `AbstractVector{<:Real}` works, so a column of a data frame goes into a series directly. This is an exception to `PAR-FINEST-GRANULARITY`, on the same grounds as `GraphicsPolyline.points`.
 
@@ -52,11 +53,21 @@ A `ChartStripSeries` draws a sequence of enumerated values over time, such as th
 - **Colours.** A colour follows the state code, not the series. `strip_state_color` takes the `state_colors` entry of the series, or else the entry of the chart's cycle at the code. So two strips with different tables give their first state the same colour, unless one of them sets `state_colors`.
 - **Legend.** The legend lists the states after the series. The entry of a strip has a grey swatch, and a click on it still hides or shows the series. A click on a state entry selects the legend.
 
+### Matrices
+
+A `ChartMatrixSeries` draws a value for each pair of a row and a category: one cell for each, in a shade of the colour of the series. The shade grows with the value, in eight steps, from a light tint at `min` to the full colour at `max`; `nothing` fits each bound to the values, and `log` shades by the logarithm. A value that is `nothing`, `missing` or not finite is an empty cell: it draws nothing and a click there selects no cell. `nothing` is the form that a `.pred` file keeps.
+
+- **Rows and columns.** The columns are the categories of the x axis. Each row takes one integer row, the first on top, as a strip does, and a chart of only matrices labels its y axis with the row names, draws no horizontal grid lines, and fills the plot with its cells, as a category axis fills it with its slots. A long list of rows names every `k`-th row that fits.
+- **Values.** `values` is a vector of rows, because a `.pred` file holds vectors and not a `Matrix`; the constructor turns an `AbstractMatrix` into rows. A cell takes a gap of one pixel when every cell is at least 6 pixels on each side. `labels` gives a text to each cell, which the cell shows when it fits.
+- **Folding.** Rows and columns under 3 pixels fold into groups of at least 3 pixels. A block of a row group and a column group shows the greatest value in it, and neighbour blocks of one shade along a row merge into one rectangle.
+- **Samples.** A cell is a sample, `(row, column, value)`. Its index counts down the rows first, as a `Matrix` of Julia does, so the series alone decodes it. A click selects the cell whose value its block shows, the selected cell is outlined, and the readout names the row, the category, the value and the label.
+- **Legend.** The legend lists the series, then the value of the lightest and of the darkest shade.
+
 ### A reference step into a column
 
 A column has no document for each sample, so no field or element step can name one sample. `ChartSampleReferenceStep`, written `.sample(i)`, names a position inside the opaque column instead. It is a `:structural` step, as `PointReferenceStep` is for a pixel inside a graphics element.
 
-The step file registers the step with the reference DSLs through `build_reference_step` and `match_reference_step`, so `@reference_case` can match `::Chart.series[i].sample(k)`. The domain supplies `evaluate_reference_step`, because what a sample is depends on the series: `get_chart_sample` returns an `(x, y)` pair, a `(lower, upper, value)` bin, a bar value, or a `(lower, upper, state_name)` strip segment in data coordinates.
+The step file registers the step with the reference DSLs through `build_reference_step` and `match_reference_step`, so `@reference_case` can match `::Chart.series[i].sample(k)`. The domain supplies `evaluate_reference_step`, because what a sample is depends on the series: `get_chart_sample` returns an `(x, y)` pair, a `(lower, upper, value)` bin, a bar value, a `(lower, upper, state_name)` strip segment in data coordinates, or a `(row, column, value)` cell of a matrix.
 
 ```julia
 make_chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)
@@ -116,9 +127,10 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 - **Scatter folding.** Past `scatter_fold_threshold` visible points, the cloud becomes a density grid of eight shades, and neighbour cells of equal shade merge into one band.
 - **Bar and bin folding.** Bars narrower than `bin_fold_px` merge into min and max envelopes.
 - **Strip folding.** Equal neighbour values merge into runs. Runs narrower than a pixel fold into one span with the state that holds it longest. This is the one output that is not exact, because a span below a pixel has no one colour.
+- **Matrix folding.** Cells under 3 pixels fold into blocks that show their greatest value, and blocks of one shade along a row merge. A smooth matrix of four million cells draws under 4,000 elements; a matrix of random values draws at most one block for each 3 by 3 pixels of the plot.
 - **Label thinning and markers.** A dense category axis draws every k-th label. Markers draw only while fewer than `marker_limit` points are visible.
 
-`test_chart_scale()` holds a million-sample line, a million-point scatter, a million-sample strip, a ten-thousand-category bar chart and a ten-thousand-bin histogram each under 4,000 graphics elements. A click finds a sample with a binary search too, so it costs the same on a million samples as on a hundred.
+`test_chart_scale()` holds a million-sample line, a million-point scatter, a million-sample strip, a ten-thousand-category bar chart, a ten-thousand-bin histogram and a four-million-cell matrix each under 4,000 graphics elements. A click finds a sample with a binary search too, so it costs the same on a million samples as on a hundred.
 
 ### The theme
 
@@ -174,6 +186,8 @@ Chart("Throughput", [ChartBarSeries("run A", [12.0, 19.0, 7.0])];
       x_axis = ChartCategoryAxis(; categories = ["baseline", "tuned", "burst"]),
       bar_placement = :stacked)
 Chart("MAC states", [ChartStripSeries("channel", [0.0, 4.0, 9.0], ["idle", "busy", "idle"]; x_end = 20.0)])
+Chart("Moved values", [ChartMatrixSeries("count", ["test a", "test b"], [[3, nothing], [12, 1]])];
+      x_axis = ChartCategoryAxis(; categories = ["nav", "queueLength"]))
 
 projection = make_chart_projection(; measure = FontFileMeasure())
 ```
@@ -190,3 +204,5 @@ projection = make_chart_projection(; measure = FontFileMeasure())
 - The line styles are `:solid`, `:dotted` and `:dashed`. A dash-dot line needs a pattern of four elements, and the graphics polyline has one on-off pair.
 - No label rotates, because the SDL and PDF backends draw no rotated text. A dense category axis thins its labels instead, and a state name that does not fit in its segment is left out.
 - A folded scatter cloud has no single points, so a click there selects the series.
+- A chart draws its first visible matrix series. A matrix together with bar series is allowed but reads badly: the y axis stays numeric and the rows sit on its integer rows.
+- The workload of the package draws no matrix, so the first matrix of a session compiles its code while it runs.
