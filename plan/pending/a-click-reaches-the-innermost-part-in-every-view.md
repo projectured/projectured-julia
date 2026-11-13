@@ -1473,6 +1473,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   2. The click test of step 1: a plain click acts or puts the caret; an
      Alt+click puts the caret on every text; an Alt+double click selects the
      innermost part; a move names the part of the Alt+double click.
+
+     Done in the work (2026-11-13): `_pc_check_point!` presses a plain click, an
+     Alt+click and an Alt+double click (`_pc_double_press!`, two presses 0.05 s
+     apart) at each point. A plain click on a text fails when it does nothing,
+     selects outside the document or puts the caret outside the text; an
+     Alt+click fails when it acts or gives no caret; the Alt+double click keeps
+     the checks of the innermost part, and the move is compared with it. The
+     run over the catalog follows part 3.
   3. A plain Left or Right on a part selected as a whole: the caret at its start
      or its end, or, on a part with no meaningful caret, the sibling.
   4. The guides: `keyboard-and-mouse-guide.md` (the lines of Alt and the

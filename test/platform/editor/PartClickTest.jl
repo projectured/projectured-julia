@@ -1,6 +1,8 @@
-# A plain click and an Alt+click reach the innermost part under the pointer, in an
-# editor that is built as the app builds it: the window, the gesture tracker and
-# the pane are on the way.
+# A click reaches the innermost part under the pointer, in an editor that is built
+# as the app builds it: the window, the gesture tracker and the pane are on the
+# way. Alt means "select, do not act" (D10): a plain click does what the part does,
+# an Alt+click always puts the caret at the character, and an Alt+double click
+# always selects the innermost part as a whole.
 #
 # For each point, the expected part comes from two sources that the readers
 # under test do not decide:
@@ -8,17 +10,19 @@
 # - the forward map: each part of the document maps forward to the node that
 #   draws it, so every part whose node draws the element under the point is a
 #   part that the answer must lie inside;
-# - the drawn caret: a plain click on a text puts the caret on the character
+# - the drawn caret: an Alt+click on a text puts the caret on the character
 #   under the point, and the forward map of that caret draws it there. The glyph
 #   of an icon font is a picture, not a text (P4), so it takes no caret.
 #
-# An Alt+click at the same point selects the part that holds that caret as a
-# whole, a ring or a band of the selection is drawn at the point, and the mouse
-# target of a move there names the same part. A text of only whitespace draws
-# nothing, so it is an empty area: a band hugs the characters that draw, so the
-# mark of the part that the Alt+click selects there can lie beside the point, and
-# that part can hold the part of the caret and of the move, as a leaf holds the
-# space around its operator.
+# A plain click on a text does something: it acts, as a control does, chooses a
+# part, as a header chooses its line, or puts the caret (D9); a plain click that
+# does nothing fails. An Alt+double click at the point selects the part that holds
+# the caret of the Alt+click as a whole, a ring or a band of the selection is
+# drawn at the point, and the mouse target of a move there names the same part. A
+# text of only whitespace draws nothing, so it is an empty area: a band hugs the
+# characters that draw, so the mark of the part that the Alt+double click selects
+# there can lie beside the point, and that part can hold the part of the caret and
+# of the move, as a leaf holds the space around its operator.
 
 import ProjecturedKernelExample: HeadlessBackend, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
@@ -289,6 +293,18 @@ function _pc_press!(session, x, y, modifiers)
     (up = up, selection = _pc_strip_types(get_selection(session.editor.document)))
 end
 
+# A double click at (x, y): two presses 0.05 s apart, which the gesture tracker
+# makes a click of count 2.
+function _pc_double_press!(session, x, y, modifiers)
+    session.clock[] += 10.0
+    t = session.clock[]
+    _pc_send!(session, MouseDown(:left, x, y, modifiers; time = t))
+    _pc_send!(session, MouseUp(:left, x, y, modifiers; time = t + 0.01))
+    _pc_send!(session, MouseDown(:left, x, y, modifiers; time = t + 0.05))
+    up = _pc_send!(session, MouseUp(:left, x, y, modifiers; time = t + 0.06))
+    (up = up, selection = _pc_strip_types(get_selection(session.editor.document)))
+end
+
 # A move into (x, y) from outside the window, so the part under the point is
 # entered anew: the mouse target that it leaves at the root.
 function _pc_move!(session, x, y)
@@ -332,19 +348,36 @@ function _pc_check_point!(session, element)
     blank = _pc_is_blank_text(top.node)
     format(path) = _pc_format_relative(path, base)
     _pc_count!(session, :points)
-    # A plain click puts the caret on the character under the point. A control
-    # acts on the click, which is the release, and takes no caret.
+    text = top.node isa GraphicsText && !_pc_is_icon_glyph(top.node)
+    # A plain click does what the part does: it acts, as a control does on the
+    # click, which is the release, chooses a part, or puts the caret (D9). On a
+    # text it must do something.
     _pc_select!(session, base)
     layout = _pc_get_text_layout(session)
     plain = _pc_press!(session, x, y, ModifierKeys())
     # A press that moves what is drawn, as an option of a toggle group does, acted.
     acted = _pc_is_action(plain.up) || _pc_get_text_layout(session) != layout
+    if text && !acted
+        if plain.selection === nothing || _pc_is_same_part(plain.selection, base)
+            push!(session.failures, "$at: a plain click does nothing: $(format(plain.selection))")
+        elseif !_pc_is_within(base, plain.selection)
+            push!(session.failures, "$at: a plain click selects $(format(plain.selection)), outside the document")
+        elseif _pc_is_place(plain.selection) && !_pc_is_within(deepest, plain.selection)
+            push!(session.failures, "$at: the caret $(format(plain.selection)) is not inside $(format(deepest))")
+        end
+    end
+    # An Alt+click puts the caret on the character under the point, whatever the
+    # part does, and the caret is drawn there.
     caret = nothing
-    if top.node isa GraphicsText && !_pc_is_icon_glyph(top.node) && !acted
-        if !_pc_is_place(plain.selection)
-            push!(session.failures, "$at: a plain click gives no caret: $(format(plain.selection))")
+    if text
+        _pc_select!(session, base)
+        alt = _pc_press!(session, x, y, ModifierKeys(alt = true))
+        if _pc_is_action(alt.up)
+            push!(session.failures, "$at: an Alt+click acts")
+        elseif !_pc_is_place(alt.selection)
+            push!(session.failures, "$at: an Alt+click gives no caret: $(format(alt.selection))")
         else
-            caret = plain.selection
+            caret = alt.selection
             _pc_count!(session, :carets)
             _pc_is_within(deepest, caret) ||
                 push!(session.failures, "$at: the caret $(format(caret)) is not inside $(format(deepest))")
@@ -366,32 +399,35 @@ function _pc_check_point!(session, element)
             end
         end
     end
-    # An Alt+click selects the innermost part: no part that draws the element lies
-    # below it, and it is the part that holds the caret of the plain click.
+    # An Alt+double click selects the innermost part: no part that draws the
+    # element lies below it, and it is the part that holds the caret of the
+    # Alt+click.
     _pc_select!(session, base)
-    whole = _pc_press!(session, x, y, ModifierKeys(alt = true)).selection
+    whole = _pc_double_press!(session, x, y, ModifierKeys(alt = true)).selection
     _pc_count!(session, :wholes)
     if whole === nothing || _pc_is_place(whole)
-        push!(session.failures, "$at: an Alt+click selects no part: $(format(whole))")
+        push!(session.failures, "$at: an Alt+double click selects no part: $(format(whole))")
     else
         _pc_is_within(deepest, whole) ||
-            push!(session.failures, "$at: an Alt+click selects $(format(whole)), outside $(format(deepest))")
+            push!(session.failures, "$at: an Alt+double click selects $(format(whole)), outside $(format(deepest))")
         caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
             blank && _pc_is_part_within(whole, _pc_cut_place(caret)) ||
-            push!(session.failures, "$at: an Alt+click selects $(format(whole)), not $(format(_pc_cut_place(caret))), " *
-                                    "the part of the caret")
+            push!(session.failures, "$at: an Alt+double click selects $(format(whole)), not " *
+                                    "$(format(_pc_cut_place(caret))), the part of the caret")
         _pc_is_selection_drawn(session, x, y; anywhere = blank) ||
-            push!(session.failures, blank ? "$at: an Alt+click selects $(format(whole)), and no ring or band is drawn" :
-                                            "$at: an Alt+click selects $(format(whole)), and no ring or band holds the point")
+            push!(session.failures, blank ?
+                  "$at: an Alt+double click selects $(format(whole)), and no ring or band is drawn" :
+                  "$at: an Alt+double click selects $(format(whole)), and no ring or band holds the point")
     end
-    # A move names the part that the Alt+click selects.
+    # A move names the part that the Alt+double click selects.
     target = _pc_move!(session, x, y)
     _pc_count!(session, :moves)
     if target === nothing
         push!(session.failures, "$at: a move names no part under the pointer")
     elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole) &&
            !(blank && _pc_is_part_within(whole, _pc_cut_place(target)))
-        push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), the part of the Alt+click")
+        push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), " *
+                                "the part of the Alt+double click")
     end
     nothing
 end
@@ -401,7 +437,7 @@ end
                      label = "", counts = Dict{Symbol,Int}(), remake = nothing) -> Vector{String}
 
 Build an editor on `document` and `projection` as the app builds it, and press a
-plain click, an Alt+click and a move at the centre of each element that it draws
+plain click, an Alt+click, an Alt+double click and a move at the centre of each element that it draws
 for `document`, at most `limit` of them. Answer one line for each answer that is
 not at the innermost part under the point. `counts` gets the number of the
 points, the carets, the whole selections and the moves that the walk checked, so
