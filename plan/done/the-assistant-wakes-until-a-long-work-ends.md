@@ -3,11 +3,12 @@
 > **Kind:** plan · **Status:** a plan, written 2026-11-05 from a survey of
 > projectured-julia `main` at `de6b4e95d` and omnet-julia `main` at `f7b41c034`,
 > and re-checked at projectured-julia `main` `6b93bfcf3` and omnet-julia `main` `a1dfa5af3`.
-> Nothing is built. · **Stands on:**
+> Done: steps 1 to 4 landed on 2026-11-06 (projectured-julia `19e56d912`, omnet-julia
+> `6fbc0da33`), and the owner made the live check of step 5 on 2026-11-13. · **Stands on:**
 > [assistant.md](../../documentation/package/platform/assistant/assistant.md),
 > [task.md](../../documentation/package/platform/task/task.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
-> [an-assistant-carries-a-long-study-to-its-end.md](an-assistant-carries-a-long-study-to-its-end.md)
+> [an-assistant-carries-a-long-study-to-its-end.md](../pending/an-assistant-carries-a-long-study-to-its-end.md)
 > (built, merged), inet-cpp `plan/pending/ieee80211-chart-baseline-evolution.md` §9.3, gap G9 ·
 > **Related plans:** [the-assistant-starts-programs-as-tasks.md](../done/the-assistant-starts-programs-as-tasks.md)
 > (G1, written the same day); [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md)
@@ -235,7 +236,8 @@ only `source/kernel/`, and every file here is under `source/platform/` or `test/
         the paragraph of the `.pred` file in assistant.md (no `wake`), and study.md in omnet-julia.
       - `test_referenced_document_editor` (rank of `search_api`), `test_assistant_documentation`
         and `test_documentation` pass together: 3170 tests.
-- [ ] **5. A live check in omnet_ide, with no code.** Run the window with an external
+- [x] **5. A live check in omnet_ide, with no code.** **Done on 2026-11-13 by the owner:** the wakes
+      worked in the window. Run the window with an external
       agent through `workspace/bin/bounded-run` on a copy of a small project. Ask for six
       stages, each a run card of a short configuration, and allow 10 wakes. Check six wake
       notes, the count at 4, then a held note after the person sets the count to 0. Record the
