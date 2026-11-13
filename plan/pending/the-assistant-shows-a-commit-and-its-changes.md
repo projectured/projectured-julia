@@ -409,6 +409,23 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    commit. Ctrl+click on a removed line visits the file at the parent at its old line, and Back
    returns. Ctrl+Shift+click on an added line opens a new tab at the new line. Ctrl+click on a file
    row visits its change. The selection of the person stays, and undo records nothing.
+   What the implementation found (step 4 in part, 2026-11-13):
+   - Each line of a diff carries a `GitLinePlace` (the repository, the revision and the path of its
+     side, and its number there): a removed line the old side, a kept or an added line the new side,
+     the start of a hunk and the path of a file their first line.
+   - The text domain answers a Ctrl+click with the caret at its point. The 4-argument reader of
+     `GitTextToText` finds the line of that caret and answers `OpenPageOperation(GitFileRevision(...),
+     EmptyReference(), :here)`, or `:new_tab` with Shift, in the place of the caret, so the selection
+     of the person stays. The navigator makes the open a visit, and Back returns.
+   - A click on the path of a file in the table of a commit opens the change, and a click on the
+     hash of a row of a range opens the commit: the links of the roster, with no code of the git
+     domain. So the plan's Ctrl+click on a file row is a plain click on the link.
+   - Open: the page of a file at a revision starts at its first line. The pane scrolls to a part only
+     for an answer that shows it, and a new page has no answer yet. A question to the owner.
+   - Open: the reader is no gesture binding, so the command palette does not list the two opens, and
+     a line shows no tooltip of its numbers and its revision yet.
+   - Results: `test_git()` 162 pass (`test_git_gestures()`: the visit and Back, the new tab, the link
+     of the table, the selection that stays).
 5. **The link.** `find_url_document` in `UrlInterface.jl`, its two calls in the navigator slice, and
    the git method for both forms. Test: `test_link()` (`test/platform/link/LinkTest.jl`) and
    `test_open_page_operation()`, with a scheme that the test defines. `:here` makes a visit, and

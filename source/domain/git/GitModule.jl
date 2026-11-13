@@ -25,7 +25,7 @@ export GitCommitHeader, GitFileSummary, GitDiffFile, GitDiffHunk, GitDiffLine
 export parse_git_log_text, parse_git_commit_text, parse_git_diff_text
 export GitException
 export GitDocument, GitCommit, GitFileChange, GitFileRevision
-export GitText, GitTextLine, GitDiffText, GitFileText
+export GitText, GitTextLine, GitLinePlace, GitDiffText, GitFileText
 export GitCommitRange, ApplyGitCommitRangeOperation
 export GitTheme, ScaledGitTheme, GitTextToText, GitCommitToWidget, GitFileChangeToWidget, GitFileRevisionToWidget,
        GitCommitRangeToWidget

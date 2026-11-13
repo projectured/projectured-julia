@@ -124,8 +124,8 @@ function _make_file_change(source::BackgroundSource, repository::String, hash::S
     hunks = make_background_cell(source, () -> (:patch, repository, hash, old_path, new_path);
                                  default = GitDiffHunk[], working = reading)
     kind, added_count, removed_count, is_binary = file.kind, file.added_count, file.removed_count, file.is_binary
-    diff = _make_git_text(GitDiffText, () -> _make_change_lines(kind, old_path, new_path, added_count, removed_count,
-                                                                is_binary, parent, hash, hunks))
+    diff = _make_git_text(GitDiffText, () -> _make_change_lines(repository, kind, old_path, new_path, added_count,
+                                                                removed_count, is_binary, parent, hash, hunks))
     GitFileChange(repository, parent, hash, kind, old_path, new_path, added_count, removed_count, is_binary, hunks,
                   diff, reading)
 end

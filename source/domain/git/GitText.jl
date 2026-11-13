@@ -3,20 +3,36 @@
 # revision.
 
 """
+    GitLinePlace
+
+The place of a line of a diff in a file: the repository, the revision and the path
+of the file on the side of the line, and the number of the line there. A removed
+line has its place on the old side, and a kept or an added line on the new side.
+"""
+struct GitLinePlace
+    repository::String
+    revision::String
+    path::String
+    number::Int
+end
+
+"""
     GitTextLine
 
 One line of a git text: its `kind`, which a page draws in the style of that kind,
-its `text`, and the `label` of its gutter: the old and the new number of a line of
-a diff, or `""`. The kinds are `:path`, `:fact`, `:hunk`, `:kept`, `:removed`, `:added`,
+its `text`, the `label` of its gutter, the old and the new number of a line of a
+diff or `""`, and its `place`, a [`GitLinePlace`](@ref) that a Ctrl+click opens, or
+`nothing`. The kinds are `:path`, `:fact`, `:hunk`, `:kept`, `:removed`, `:added`,
 `:marked`, `:note` and `:failure`.
 """
 struct GitTextLine
     kind::Symbol
     text::String
     label::String
+    place::Union{GitLinePlace,Nothing}
 end
 
-GitTextLine(kind::Symbol, text::AbstractString) = GitTextLine(kind, String(text), "")
+GitTextLine(kind::Symbol, text::AbstractString) = GitTextLine(kind, String(text), "", nothing)
 
 """
     GitText
@@ -88,8 +104,11 @@ function _make_commit_lines(header_cell, changes_cell)
     lines = GitTextLine[]
     for (change, answer) in zip(changes, answers)
         isempty(lines) || push!(lines, GitTextLine(:note, ""))
-        push!(lines, GitTextLine(:path, _format_change_path(change.kind, change.old_path, change.new_path)))
-        append!(lines, _make_diff_lines(answer, change.is_binary, width))
+        sides = _get_diff_sides(change.repository, change.old_revision, change.old_path, change.new_revision,
+                                change.new_path)
+        push!(lines, GitTextLine(:path, _format_change_path(change.kind, change.old_path, change.new_path), "",
+                                 _make_file_place(sides)))
+        append!(lines, _make_diff_lines(answer, change.is_binary, width, sides))
     end
     lines
 end
@@ -121,17 +140,34 @@ _format_change_counts(added_count::Int, removed_count::Int, is_binary::Bool) =
 
 # The lines of the change of one file: its path, its kind, its counts and its
 # revisions, then its diff.
-function _make_change_lines(kind::Symbol, old_path, new_path, added_count::Int, removed_count::Int,
-                            is_binary::Bool, old_revision, new_revision::String, hunks_cell)
+function _make_change_lines(repository::String, kind::Symbol, old_path, new_path, added_count::Int,
+                            removed_count::Int, is_binary::Bool, old_revision, new_revision::String, hunks_cell)
     revisions = string(old_revision === nothing ? "no parent" : _format_short_hash(old_revision), " → ",
                        _format_short_hash(new_revision))
     answer = _read_git_answer(hunks_cell)
-    [GitTextLine(:path, _format_change_path(kind, old_path, new_path)),
+    sides = _get_diff_sides(repository, old_revision, old_path, new_revision, new_path)
+    [GitTextLine(:path, _format_change_path(kind, old_path, new_path), "", _make_file_place(sides)),
      GitTextLine(:fact, string(_format_change_kind(kind), " · ",
                                _format_change_counts(added_count, removed_count, is_binary), " · ", revisions)),
      GitTextLine(:note, ""),
-     _make_diff_lines(answer, is_binary, _get_number_width(answer))...]
+     _make_diff_lines(answer, is_binary, _get_number_width(answer), sides)...]
 end
+
+# The two sides of the diff of a file: the repository, and the revision and the path
+# of the file before and after the change, each `nothing` where the side has none.
+_get_diff_sides(repository::String, old_revision, old_path, new_revision, new_path) =
+    (; repository, old_revision, old_path, new_revision, new_path)
+
+# The place of the line `number` on the side `side` (`:old` or `:new`), or `nothing`
+# when that side has no file.
+function _make_line_place(sides, side::Symbol, number::Integer)
+    revision, path = side === :old ? (sides.old_revision, sides.old_path) : (sides.new_revision, sides.new_path)
+    (revision === nothing || path === nothing) ? nothing : GitLinePlace(sides.repository, revision, path, max(Int(number), 1))
+end
+
+# The place of the first line of a file: on the new side, or on the old side for a
+# deleted file.
+_make_file_place(sides) = something(_make_line_place(sides, :new, 1), _make_line_place(sides, :old, 1), Some(nothing))
 
 # The digits of the largest line number of the hunks of a read, or 0.
 _get_number_width(answer) =
@@ -140,19 +176,23 @@ _get_number_width(answer) =
 
 # The lines of the diff of a file, as `git show` writes them: the first line of each
 # hunk and each line with its sign, each line of a diff with the label of its
-# numbers. A read that is still to come, a read that failed, a binary file and a
+# numbers, and each with its place in the file of its side. A read that is still to come, a read that failed, a binary file and a
 # change of the mode only give one line that says so.
-function _make_diff_lines(answer, is_binary::Bool, width::Int)
+function _make_diff_lines(answer, is_binary::Bool, width::Int, sides)
     answer === nothing && return [GitTextLine(:note, "Reading the diff…")]
     answer isa GitException && return [GitTextLine(:failure, sprint(showerror, answer))]
     isempty(answer) && return [GitTextLine(:note, is_binary ? "A binary file: no lines to show." :
                                                              "No line changed: the mode of the file changed.")]
     lines = GitTextLine[]
     for hunk in answer
-        push!(lines, GitTextLine(:hunk, _format_hunk_start(hunk)))
+        start = hunk.new_count > 0 ? _make_line_place(sides, :new, hunk.new_start) :
+                _make_line_place(sides, :old, hunk.old_start)
+        push!(lines, GitTextLine(:hunk, _format_hunk_start(hunk), "", start))
         for line in hunk.lines
             sign = line.kind === :removed ? '-' : line.kind === :added ? '+' : ' '
-            push!(lines, GitTextLine(line.kind, string(sign, line.text), _format_line_label(line, width)))
+            place = line.kind === :removed ? _make_line_place(sides, :old, line.old_number) :
+                    _make_line_place(sides, :new, line.new_number)
+            push!(lines, GitTextLine(line.kind, string(sign, line.text), _format_line_label(line, width), place))
             line.has_line_end || push!(lines, GitTextLine(:note, "\\ No newline at end of file"))
         end
     end

@@ -102,6 +102,43 @@ function read_intent(p::GitTextToText, iomap::SimpleIoMap, operation::ReplacePat
     path === nothing ? nothing : make_path_operation(operation, path)
 end
 
+# A Ctrl+click on a line that has a place opens the file at that place: as a visit of
+# the navigator around the page, and with Shift in a new tab. The text domain answers
+# the click with the caret at its point, and the caret names the line. The open
+# takes the place of the caret, so the selection of the person stays.
+function read_intent(p::GitTextToText, recursion, change::Intent, iomap::SimpleIoMap)
+    open = _find_line_open(iomap, change)
+    open === nothing || return Intent(change.gesture, open,
+                                      open.place === :new_tab ? "Open the file at this line in a new tab" :
+                                                                "Open the file at this line", "git")
+    invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+end
+
+# The open of the file at the place of the line under a Ctrl+click, or `nothing`.
+function _find_line_open(iomap::SimpleIoMap, change::Intent)
+    gesture = change.gesture
+    (gesture isa MouseClick && gesture.button === :left && gesture.count == 1 && gesture.modifiers.ctrl &&
+     !gesture.modifiers.alt && change.operation isa ReplaceSelectionOperation) || return nothing
+    offset = get_flat_caret(iomap.output, change.operation.path)
+    offset === nothing && return nothing
+    place = _find_line_place(getfield(iomap.input, :lines)[], offset)
+    place === nothing && return nothing
+    OpenPageOperation(GitFileRevision(place.repository, place.revision, place.path; line = place.number),
+                      EmptyReference(), gesture.modifiers.shift ? :new_tab : :here)
+end
+
+# The place of the line that holds the flat offset `offset`: each line counts its
+# characters and its line end.
+function _find_line_place(lines, offset::Int)
+    start = 0
+    for line in lines
+        stop = start + length(line.text)
+        offset <= stop && return line.place
+        start = stop + 1
+    end
+    nothing
+end
+
 read_intent(::GitTextToText, ::SimpleIoMap, ::ReplaceRangeOperation) = nothing
 read_intent(::GitTextToText, ::SimpleIoMap, ::ReplaceReferencedValueOperation) = nothing
 read_intent(::GitTextToText, ::SimpleIoMap, ::Union{KeyPress, KeyDown}) = nothing
