@@ -2006,6 +2006,30 @@ function test_explorer()
         end
     end
 
+    @testset "a page keeps its grid and its scroll offset when a card gets the pointer or the selection" begin
+        cards = Any[DashboardCard(string("Card ", k), PrimitiveString(string("text of ", k))) for k in 1:3]
+        dashboard = Dashboard("Study", cards)
+        title_style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+        projection = DashboardToWidget(; gap = 10, card_width = 100, title_style)
+        page = print_document(projection, nothing, dashboard,
+                              PrinterContext(EmptyReference(), Cell(1100), Cell(600), Dict{Symbol,Any}())).output
+        pane = page.children[2].child
+        grid = pane.content
+        set_cell_value!(getfield(pane, :scroll_position), Point2D(0, 40))
+        buttons = _find_widgets_below(page, WidgetToolbarItem)
+        @test length(buttons) == 3
+        card_path(k) = extend_reference(EmptyReference(), FieldReferenceStep("cards"), RangeReferenceStep(k - 1, k))
+        # The title button of a card shows while the pointer is on the card, and the page keeps its grid, as the
+        # button reads the part under the pointer and the page maps it.
+        set_cell_value!(getfield(dashboard, :mouse_target), card_path(2))
+        @test is_color_transparent(buttons[1].style.label_text_color) && !is_color_transparent(buttons[2].style.label_text_color)
+        @test pane.content === grid && Int(pane.scroll_position.y[]) == 40
+        set_cell_value!(getfield(dashboard, :mouse_target), card_path(3))
+        set_cell_value!(getfield(dashboard, :selection), card_path(1))
+        @test !is_color_transparent(buttons[1].style.label_text_color) && !is_color_transparent(buttons[3].style.label_text_color)
+        @test pane.content === grid && Int(pane.scroll_position.y[]) == 40
+    end
+
     @testset "a dashboard bounds its pane by the part of the page that shows" begin
         study = Dashboard("Study", Any[DashboardCard(string("Card ", k), PrimitiveString(string("text of ", k)))
                                        for k in 1:60])

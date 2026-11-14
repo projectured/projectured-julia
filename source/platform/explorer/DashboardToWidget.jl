@@ -183,10 +183,12 @@ function _make_card_title(p::DashboardToWidget, dashboard::Dashboard, card::Dash
                                style = p.title_style === nothing ? nothing :
                                        WidgetStyle(; label_text_color = p.title_style.color),
                                tooltip = TooltipNote(; title = name))
+    # The colour is read in its own computation. A read of it here would make the grid a reader of
+    # the colour, and the colour reads the part under the pointer, which reads the grid.
     if p.title_style !== nothing
-        shown = button.style.label_text_color
         set_cell_computation!(getfield(button.style, :label_text_color), () ->
-            get_selection(widget) !== nothing || get_mouse_target(widget) !== nothing ? shown : color_transparent)
+            get_selection(widget) !== nothing || get_mouse_target(widget) !== nothing ?
+                p.title_style.color : color_transparent)
     end
     HorizontalLayout(Any[LayoutConstraint(label; width = Fill), LayoutConstraint(button)]; vertical_align = :center)
 end
