@@ -396,6 +396,16 @@ element 2.
     the view of a document of another domain. The choice that the owner did not
     take: only the view at the root of a place reads a key, as after step 5, with
     which the keys of a part work only at a place of its own.
+21. **Step 8 moves to a later plan** (the owner, 2026-11-15: "Agreed"). The
+    selection fields go from a type only when every chain that shows the type is a
+    chain of views. Found 2026-11-14: 40 of 46 chains of `JsonToSyntax`, 133 of 147
+    chains of `SyntaxToText` and each of the 181 chains of `TextToGraphics` have no
+    view; 18 of the 19 domains have no view; four JSON types have none. So the
+    removal is the end of the move of the domains, and no step of the pilot. The
+    choices that the owner did not take: the move of JSON whole in this plan, with
+    the tab of a JSON file and the uses in `omnet-julia`; the move of all domains.
+    The picture for the decision on the whole project is
+    `plan/tentative/content-and-view-for-the-whole-project.md`.
 
 ## What is not known yet
 
@@ -954,7 +964,8 @@ and the output of each stage, as structures that a person reads.
    guard passes. A check in a real editor with a headless backend and real key
    events, which is not in the repository: the example of this step 9 of 9, and
    the example of step 6 again 9 of 9.
-8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
+8. **The selection fields go** for the text, syntax and JSON types (decision 2).
+   Not a step of this plan: it moves to a later plan (decision 21).
 9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
    `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`,
    `markdown.md`; the plan moves to `plan/done/`.
