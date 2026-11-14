@@ -1,6 +1,6 @@
 # A dashboard card states its size and can fill the page
 
-> **Kind:** plan · **Status:** design approved by the owner on 2026-11-14; steps 1 to 4 are done. ·
+> **Kind:** plan · **Status:** done on 2026-11-14; steps 1 to 4 are built on the branch `baseline-catch-up`. ·
 > **Stands on:** the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md` (its step 11 found
 > the need), `source/platform/explorer/Dashboard.jl`, `DashboardToWidget.jl`, and the maximize of a
 > pane group (`PaneTree.maximized`, `source/platform/pane/PaneDocument.jl`).
@@ -129,6 +129,16 @@ Each step is one commit in the worktree `projectured-julia-baseline-catch-up` (b
 Then the catch-up plan uses it: `present.jl` gives the cards their sizes, and the pictures of the
 pages are made again.
 
-## 6. Not in this plan
+## 6. The checks of the lead and a known limit
+
+The lead ran the tests again on 2026-11-14: `test_explorer` 502 of 502, `test_widget_icon` 575,
+`test_grid_span` 55. A known limit: `card_chrome` is measured from a card with a plain text title
+(`_measure_card_chrome`, `DashboardToWidget.jl`), but the title of a card is a layout of its text
+and a button, so a card of `:page` or of a number of pixels can be a few pixels higher than it asks.
+The correct model is in `WidgetCard`: its docstring says that a card of a fixed height gives its body
+the remaining height, and the code does not; with that, the dashboard sets the height of the card
+and measures nothing.
+
+## 7. Not in this plan
 
 A drag of the edge of a card to change its size.
