@@ -1625,6 +1625,23 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   a copy takes it. The owner: "Same behaviour as elsewhere, it's option A".
   Rejected: the math view as an exception, like the items of a menu, where a
   click selects a whole term.
+
+  Done in the work (2026-11-14): a leaf of `MathToGraphics` records the line of
+  its text (`_leaf_iomap(…; part)`: a variable `.name`, a text `.content`, a
+  number or a string `.value`; a symbol draws a glyph that is not the text of
+  its name, so it records none), and `MathIoMap` holds the lines (`drawn`). The
+  canvas of a box draws the caret and the band (`make_drawn_selection_elements`).
+  The forward map takes a caret or a range to its line; the backward map takes a
+  point on the text to the caret, and a place of characters to the caret or the
+  range. The reader gives a press and a click with Shift to the leaf under the
+  point (`_read_point_leaf`), the moves of a drag to the leaf that holds the
+  selection (`_read_selected_leaf`, which moves the point into its frame,
+  because a math box routes no child), and a key first to the text of the leaf
+  (`read_drawn_text_key` in `_read_key`). A plain click on a leaf text gives
+  the caret now, so the press test of the fraction expects the caret in the
+  value of the numerator. `test_math` 221 pass and fails only at
+  `MathToGraphicsTest.jl:346`, the walk depth that main has (`:314` before the
+  new test set).
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,

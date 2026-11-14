@@ -206,12 +206,14 @@ end
     _press(x, y) = read_intent(fraction.projection, fraction,
                                MouseClick(:left, Int(x), Int(y); time = 0.0))
 
+    # A press on the text of a leaf puts the caret in its value, as on the text of
+    # a label.
     numerator_x, numerator_y = _at(canvas, 1)
     operation = _press(numerator_x + 1, numerator_y + 1)
     @test operation isa ReplaceSelectionOperation
     @test operation.path.head isa FieldReferenceStep
     @test operation.path.head.name == "numerator"
-    @test operation.path.tail isa EmptyReference
+    @test operation.path.tail isa ConcreteReference && operation.path.tail.head == FieldReferenceStep("value")
 
     denominator_x, denominator_y = _at(canvas, 2)
     operation = _press(denominator_x + 1, denominator_y + 1)
@@ -220,6 +222,36 @@ end
     # The rule belongs to no child, so a press on it lands on the fraction.
     rule = canvas.elements[length(canvas.elements)]
     @test _press(1, Int(rule.y[])).path isa EmptyReference
+end
+
+@testset "the text of a leaf is read like the text of a label" begin
+    formula = MathBinaryOperation(:+, MathVariable("alpha"), MathVariable("b"))
+    iomap = _print(formula)
+    selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+    place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("left"),
+        ConcreteReference(FieldReferenceStep("name"),
+            ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference())))
+    read(event) = read_intent(iomap.projection, iomap, event)
+    lx, ly = _at(iomap.output, 1)
+    text = _first_text(iomap.output)
+    offsets = compute_caret_offsets(FontFileMeasure(), "alpha", unwrap_cell(getfield(text, :font)))
+    # A press puts the caret at the character and starts a drag.
+    down = read(MouseDown(:left, lx + round(Int, offsets[3]), ly + 2, ModifierKeys(); time = 0.0))
+    @test down isa CompoundOperation && selected(down.operations[1]) == place(2)
+    @test down.operations[2] isa StartDragOperation
+    set_selection!(formula, place(2))
+    # A move of the drag, in the frame of the formula, moves the moving end.
+    @test selected(read(DragMove(lx + round(Int, offsets[5]), ly + 2; time = 0.0))) == place(2, 4)
+    # A key moves the caret, and with Shift makes a range.
+    @test selected(read(KeyDown(:right, ModifierKeys(); time = 0.0))) == place(3)
+    @test selected(read(KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == place(2, 5)
+    # A click with Shift moves the moving end there.
+    @test selected(read(MouseClick(:left, lx + round(Int, offsets[1]) + 1, ly + 2, 1,
+                                   ModifierKeys(shift = true); time = 0.0))) == place(0, 2; direction = :backward)
+    # The caret maps forward to its place on the line, and the leaf draws it.
+    image = map_reference_forward(iomap.projection, iomap, place(2))
+    @test image !== nothing
+    set_selection!(formula, nothing)
 end
 
 @testset "a selection maps out to its node and back" begin

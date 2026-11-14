@@ -41,7 +41,12 @@ child, so a change in one leaf re-derives only the boxes above it.
     width::Cell
     ascent::Cell
     descent::Cell
+    drawn::Cell
 end
+
+# The lines of a box that draws no text of a field, such as an operation or a
+# symbol, whose glyph is not the text of its name.
+const _NO_MATH_LINES = DrawnTextLine[]
 
 """
     MathProjection
@@ -320,14 +325,19 @@ function _math_iomap(p, doc, build::Cell)
                                 # paints nothing while nothing is selected.
                                 elements = Any[_selection_element(p, doc, build)]
                                 append!(elements, build[].elements)
-                                elements
+                                # The text of a leaf draws the caret and the band
+                                # of its selection, as the text of a label does.
+                                make_drawn_selection_elements(elements, get(build[], :drawn, _NO_MATH_LINES),
+                                                              getfield(doc, :selection)[], p.config.measure,
+                                                              p.config.selection_wash)
                             end)),
                             layout_none, true, Cell(nothing))
     MathIoMap(p, doc, canvas,
               Cell(@computation build[].children),
               Cell(@computation build[].width[]),
               Cell(@computation build[].ascent[]),
-              Cell(@computation build[].descent[]))
+              Cell(@computation build[].descent[]),
+              Cell(@computation get(build[], :drawn, _NO_MATH_LINES)))
 end
 
 """
@@ -415,22 +425,29 @@ MathVariableToGraphics(c::MathConfig) = MathVariableToGraphics(c, :display)
 
 # A leaf box: one run of text, the whole box.
 function _leaf_iomap(p, doc, text::Function, font::Function, color::StyleColor,
-                     c::MathConfig)
+                     c::MathConfig; part = nothing)
     build = Cell(Computation(function ()
         element = _text_element(text, font, color)
-        _build(Any[element],
-               Cell(@computation compute_text_extent(c.measure, text(), font())[1]),
-               Cell(@computation compute_text_extent(c.measure, text(), font())[2]),
-               Cell(@computation compute_text_extent(c.measure, text(), font())[3]),
-               MathChild[])
+        drawn = part === nothing ? _NO_MATH_LINES : DrawnTextLine[DrawnTextLine(element, part, 0)]
+        merge(_build(Any[element],
+                     Cell(@computation compute_text_extent(c.measure, text(), font())[1]),
+                     Cell(@computation compute_text_extent(c.measure, text(), font())[2]),
+                     Cell(@computation compute_text_extent(c.measure, text(), font())[3]),
+                     MathChild[]),
+              (; drawn))
     end))
     _math_iomap(p, doc, build)
 end
 
+# The field of a leaf whose text the leaf draws, which records its line, so the text
+# takes a caret, a range and the keys as the text of a label does.
+_math_field(name::String) = ConcreteReference(FieldReferenceStep(name), EmptyReference())
+
 function print_document(p::MathVariableToGraphics, recursion, doc::MathVariable, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> doc.name,
-                () -> compute_math_metrics(p.config, style).slanted, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).slanted, p.config.ink, p.config;
+                part = _math_field("name"))
 end
 
 struct MathSymbolToGraphics <: MathProjection
@@ -467,7 +484,8 @@ MathTextToGraphics(c::MathConfig) = MathTextToGraphics(c, :display)
 function print_document(p::MathTextToGraphics, recursion, doc::MathText, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> doc.content,
-                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config;
+                part = _math_field("content"))
 end
 
 struct MathNumberToGraphics <: MathProjection
@@ -479,13 +497,15 @@ MathNumberToGraphics(c::MathConfig) = MathNumberToGraphics(c, :display)
 function print_document(p::MathNumberToGraphics, recursion, doc::PrimitiveNumber, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> string(doc.value),
-                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config;
+                part = _math_field("value"))
 end
 
 function print_document(p::MathNumberToGraphics, recursion, doc::PrimitiveString, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> string(doc.value),
-                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config;
+                part = _math_field("value"))
 end
 
 struct MathSpaceToGraphics <: MathProjection
@@ -1754,12 +1774,15 @@ end
 """
 A reference to the box itself is its own canvas. A reference into a child is the
 node of the child's canvas in this box's canvas, found by identity
-(`find_node_reference`), followed by what the child maps the rest to.
+(`find_node_reference`), followed by what the child maps the rest to. A caret or a
+range in the text of a leaf is the place of its characters on the line.
 """
 function map_reference_forward(p::MathProjection, iomap::MathIoMap, reference)
     reference = _bare(reference)
     reference === nothing && return nothing
     reference isa EmptyReference && return EmptyReference()
+    place = map_drawn_caret_forward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
     for child in _math_children(iomap)
         rest = _peel(child, reference)
         rest === nothing && continue
@@ -1773,12 +1796,18 @@ end
 
 """
 A point maps to the child whose placed box holds it, and to this box itself
-when no child does — a click on a fraction's rule selects the fraction.
+when no child does — a click on a fraction's rule selects the fraction. A point
+on the text of a leaf is the caret at the character there, and a place of its
+characters is the caret or the range in its field.
 """
 function map_reference_backward(p::MathProjection, iomap::MathIoMap, reference)
-    reference isa PointReferenceStep || return nothing
+    reference isa PointReferenceStep ||
+        return reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     child = _child_at(iomap, reference.x, reference.y)
-    child === nothing && return EmptyReference()
+    if child === nothing
+        caret = find_drawn_caret(iomap.drawn, iomap.output, reference.x, reference.y, p.config.measure)
+        return caret === nothing ? EmptyReference() : annotate_reference_types(iomap.input, caret)
+    end
     inner = map_reference_backward(child.iomap.projection, child.iomap,
                                    PointReferenceStep(reference.x - Int(child.x[]),
                                                       reference.y - Int(child.y[])))
@@ -1824,12 +1853,51 @@ A key goes the other way: it is offered to the selected child first, and this
 node acts only on what the child declined. That is what makes one small rule per
 key add up to whole-tree navigation — a child that cannot go further left hands
 the key back, and its parent moves to the previous sibling.
+
+The text of a leaf is read as the text of a label (D11): a press on it puts the
+caret and starts the drag of a range, a click with Shift moves the moving end
+there, the moves of the drag reach the leaf that holds the selection, and a key
+moves the caret or the range in it, read-only.
 """
 function read_intent(p::MathProjection, iomap::MathIoMap, event)
-    event isa MouseClick && event.button === :left &&
+    event isa Union{DragMove, DragEnd} && return _read_selected_leaf(iomap, event, _read_leaf_pointer)
+    event isa MouseDown && event.button === :left && return _read_point_leaf(iomap, event, _read_leaf_pointer)
+    if event isa MouseClick && event.button === :left
+        event.modifiers == ModifierKeys(shift = true) && return _read_point_leaf(iomap, event, _read_leaf_click)
         return _select_at(iomap, Int(event.x), Int(event.y))
+    end
     (event isa KeyDown || event isa KeyPress) || return nothing
     _read_key(iomap, event)
+end
+
+# The answer of the leaf under the point of `event`, which `read(leaf, event)` gives
+# with the point moved into the frame of the leaf, re-rooted here.
+function _read_point_leaf(iomap::MathIoMap, event, read)
+    child = _child_at(iomap, Int(event.x), Int(event.y))
+    child === nothing && return read(iomap, event)
+    content = get_content_iomap(child.iomap)
+    content isa MathIoMap || return nothing
+    answer = _read_point_leaf(content, shift_event_position(event, -Int(child.x[]), -Int(child.y[])), read)
+    answer === nothing ? nothing : reroot_operation(answer, child.steps)
+end
+
+# The answer of the leaf that holds the selection, which `read(leaf, event)` gives
+# with the point moved into the frame of the leaf, re-rooted here.
+function _read_selected_leaf(iomap::MathIoMap, event, read)
+    child, _ = _selected_child(iomap)
+    child === nothing && return read(iomap, event)
+    content = get_content_iomap(child.iomap)
+    content isa MathIoMap || return nothing
+    answer = _read_selected_leaf(content, shift_event_position(event, -Int(child.x[]), -Int(child.y[])), read)
+    answer === nothing ? nothing : reroot_operation(answer, child.steps)
+end
+
+_read_leaf_pointer(leaf::MathIoMap, event) =
+    read_drawn_text_pointer(leaf.drawn, leaf.output, leaf.input, event, leaf.projection.config.measure)
+
+function _read_leaf_click(leaf::MathIoMap, event)
+    path = find_drawn_click_selection(leaf.drawn, leaf.output, leaf.input, event, leaf.projection.config.measure)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 function _select_at(iomap::MathIoMap, x::Integer, y::Integer)
@@ -1866,6 +1934,9 @@ _select_child(iomap::MathIoMap, child::MathChild) =
                                                        _prepend(child.steps, EmptyReference())))
 
 function _read_key(iomap::MathIoMap, event)
+    # A key moves the caret or the range in the text of a leaf, read-only.
+    text = read_drawn_text_key(iomap.drawn, iomap.input, event, iomap.projection.config.measure)
+    text === nothing || return text
     # Ctrl+Home / Ctrl+End mean "the start of this content", and the start of a
     # formula is the formula. The check comes before the descent so the outermost
     # box answers, which is what a container asking a cell to take a selection
