@@ -1,6 +1,6 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the questions QB and QC of step 6. The JSON
+Status: IN PROGRESS, decided but for the question QC of step 6. The JSON
 pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
 `projectured-julia-views-compose`, branch `views-compose`; step 2 is done in
 the model of one recursion (decisions 10 to 13).
@@ -355,10 +355,10 @@ element 2.
 - QA, the state of a view and the state of a place, has its answer in the decisions
   15 and 16: the view keeps the caret and the folds, the scroll pane keeps the
   scroll, and no place type keeps a thing.
-- **QB, for step 6. A key when the caret of a view is not in the part of the focused
-  place.** My reading, which the owner did not confirm yet: decision 15 leaves no
-  case. A place of a part holds the view of the part, and the caret of that view is
-  a path inside the part.
+- QB, a key when the caret of a view is not in the part of the focused place, is
+  closed with no rule (the owner, 2026-11-14): decision 15 leaves no case. A place
+  of a part holds the view of the part, and the caret of that view is a path inside
+  the part.
 - **QC, for step 6. The pastes of a view.** A new place of the same view, a new view
   that starts from a copy of the state, or a copy of the content: three commands, or
   one paste whose kind the person picks.
