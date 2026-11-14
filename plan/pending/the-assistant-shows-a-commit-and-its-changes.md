@@ -535,6 +535,37 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    in `[sources]`, see the risks), then
    `Pkg.resolve()` and `Pkg.precompile()` run, and the same check runs in omnet_ide. Then this plan
    moves to `plan/done/`.
+   What the implementation found (2026-11-14):
+   - The workload: `ProjecturedGit` already compiled its natural rows ahead (step 3). Its list is
+     recorded now (`record_package_calls!`, 53 calls). The list of `ProjecturedGraph` is recorded
+     again, because the new field of `WidgetScrollPane` (step 4) made more than 10 % of it stale
+     (865 calls). The list of `ProjecturedSDL` is recorded again too: 106 of its 906 calls were
+     stale on main already, over the limit, and the new field added one. The list of
+     `ProjecturedExample` is recorded again (8239 calls): 722 of its 7834 calls were stale on main,
+     and the 64 that name the scroll pane took it just over the limit. Its workload fails for the 4
+     examples that fail on main (`json_sorted`, `filesystem`, `files`, `chart`).
+   - After these recordings a load of the umbrella warns for six lists, as on main: Math, Chart,
+     Formula, Pivot, Workflow and Research. No line of them names what this branch changed.
+   - The MCP connection of the window (`omnet-ide`, port 9876) did not connect in this session, so
+     the live check is a script in `environment/all`: an editor with the fonts of the application
+     drives the views, and `write_window_picture`, the writer of `take_picture`, writes a picture of
+     the window at each view.
+   - Results on `b3e5ccc` of inet-cpp (3 files, 2982 lines of text): the first frame 0.12 s, the
+     diffs show after 2.1 s; to the end by a Shift+click on the bar and four wheel turns, 6 frames,
+     the slowest 0.56 s, the mean 0.28 s; a Ctrl+click on a removed line at the end opens
+     `omnetpp.ini` at the parent at line 46, with the caret at its start, and Back returns; on a
+     Markdown page a click on a `git+file:` link visits the commit; `read_git_document!` of the
+     commit takes 0.12 s.
+   - Found: a commit with a long message (`1374297`, 30 lines) fills the page with its header, so
+     the table and the diffs are below the window, and the page does not scroll to them. A
+     question to the owner.
+   - Found, outside this plan: in a text, End moves to the end of the row also with Ctrl, and a
+     caret move by a key does not ask the pane to show the caret.
+   - omnet-julia: branch `git-views`, worktree `omnet-julia-git-views`, commit `b3e80653f`:
+     `import ProjecturedGit` in `OmnetIde`, its lines in `[deps]` and `[sources]` of `OmnetIde`
+     and of `environment/all`, and the closure test requires it and counts 37 names. Its
+     `[sources]` reach the main checkout of projectured-julia, so its resolve and its tests run
+     when this branch lands.
 
 ## 6. Risks
 
