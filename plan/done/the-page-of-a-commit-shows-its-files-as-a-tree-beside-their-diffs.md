@@ -2,7 +2,7 @@
 
 > **Kind:** plan · **Status:** done, 2026-11-14 · **Branch:** `git-views` (worktree
 > `projectured-julia-git-views`), before it lands · **Follows:**
-> [the-assistant-shows-a-commit-and-its-changes.md](../pending/the-assistant-shows-a-commit-and-its-changes.md)
+> [the-assistant-shows-a-commit-and-its-changes.md](the-assistant-shows-a-commit-and-its-changes.md)
 
 ## 1. The problem
 

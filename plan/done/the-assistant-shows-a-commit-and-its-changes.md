@@ -1,17 +1,18 @@
 # The assistant shows a commit and its changes
 
 > **Kind:** plan · **Status:** a plan of 2026-11-05, at `main` `6b93bfcf3`. Step 2a and the export of
-> the parse were added on 2026-11-13 (D9). No step is done.
+> the parse were added on 2026-11-13 (D9). **Done on 2026-11-14:** every step landed on `main`
+> `6a1d9f833` of projectured-julia and `5893ca74f` of omnet-julia, not pushed.
 > · **Stands on:** [domain-inventory.md](../../documentation/design/domain-inventory.md),
 > [navigator.md](../../documentation/package/platform/navigator/navigator.md),
 > [link.md](../../documentation/package/platform/link/link.md),
 > [editor.md](../../documentation/package/kernel/editor.md) (the background cell),
 > [filesystem.md](../../documentation/package/platform/filesystem/filesystem.md) (the folder model),
-> [assistant-api-consolidation.md](assistant-api-consolidation.md),
+> [assistant-api-consolidation.md](../pending/assistant-api-consolidation.md),
 > [the-assistant-finds-its-names-by-reflection.md](the-assistant-finds-its-names-by-reflection.md)
 > · **Sibling plans:** G1
 > [the-assistant-starts-programs-as-tasks.md](../done/the-assistant-starts-programs-as-tasks.md), G4
-> [a-tab-shows-the-file-that-a-program-rewrites.md](a-tab-shows-the-file-that-a-program-rewrites.md)
+> [a-tab-shows-the-file-that-a-program-rewrites.md](../pending/a-tab-shows-the-file-that-a-program-rewrites.md)
 
 This plan closes the gap G8 of the inet-cpp plan `plan/pending/ieee80211-chart-baseline-evolution.md`,
 §9.3. The owner decided on 2026-11-05 to close G1, G3, G4, G5 and G9 first, then G8.
@@ -527,7 +528,7 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      that this branch does not change: the docstrings of `get_range_direction`, `get_range_ends`
      and `make_range_reference_step` lack the form, and the example of `describe_task` calls
      `get_task_document_result`, which no model can write.
-7. **The workload and the live check.** `@compile_ahead` with `run_natural_rows_workload(GitModule)`.
+7. **The workload and the live check.** **Done on 2026-11-14.** `@compile_ahead` with `run_natural_rows_workload(GitModule)`.
    Then a live check in the Projectured window through its MCP connection. It opens a commit of
    `inet-cpp` with more than 2000 changed lines and scrolls to its end. It clicks a removed line with
    Ctrl, and a `git+file:` link of a Markdown page. `take_picture` shows each view. In omnet-julia,
@@ -567,6 +568,18 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      and of `environment/all`, and the closure test requires it and counts 37 names. Its
      `[sources]` reach the main checkout of projectured-julia, so its resolve and its tests run
      when this branch lands.
+   - The landing (2026-11-14): projectured-julia `main` `6a1d9f833`, then omnet-julia `main`
+     `5893ca74f`. In the worktree of omnet-julia, `Pkg.resolve()`, `Pkg.precompile()` and
+     `using OmnetIde` pass: the window offers the nine git names, `read_git_document!` included,
+     and the system text holds the sentence of the domain.
+   - Before the landing, the closure test of the IDE fails on main: it counts 38 names and asserts 36. With
+     `ProjecturedGit` it counts 39 and asserts 37, so it fails as before by the same two names.
+   - The load warns for stale lists. The list of `ProjecturedGit` has 14 of 51 stale calls,
+     because the tree page changed `GitCommit` and removed the table after its recording. The
+     list of `OmnetIde` has 1024 of 6143, and 57 of its calls name `WidgetScrollPane`; the other
+     stale omnet lists were stale on 2026-11-05 too. The branch `baseline-catch-up` of another
+     session holds this landing and records every list of projectured-julia, and its sibling
+     plan in omnet-julia records the lists of the IDE, so this plan records no list again.
 
 ## 6. Risks
 
