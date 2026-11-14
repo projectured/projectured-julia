@@ -1618,6 +1618,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (math 73, task 45), an Alt+click caret outside the part of the point 351, an
   Alt+double click outside the innermost part 297, a plain click that does
   nothing 200 (math 37, widget examples 36).
+
+  **D11 (owner, 2026-11-14). A formula is a read-only text.** A math view
+  that draws a formula takes the same text behavior as a label: a click on a
+  name puts the caret there, a range is selected by the keys and the mouse, and
+  a copy takes it. The owner: "Same behaviour as elsewhere, it's option A".
+  Rejected: the math view as an exception, like the items of a menu, where a
+  click selects a whole term.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
