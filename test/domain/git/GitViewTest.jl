@@ -10,6 +10,44 @@ a file at a revision numbers its lines and marks the named line; a read that fai
 shows the words of git; and a key in a text edits nothing.
 """
 function test_git_views()
+    @testset "the tree of the changed files of a commit" begin
+        source = GitModule._make_git_source()
+        change(kind, old, new, added, removed; binary = false) =
+            GitModule._make_file_change(source, "/tmp/repository", "c" ^ 40, "p" ^ 40,
+                                        GitFileSummary(kind, old, new, added, removed, binary))
+        tree(changes) = GitModule._make_changed_folder(changes, "/tmp/repository")
+        labels(node) = [format_tree_node_label(child) for child in node.children]
+
+        # Files at the top and in two folders: the top node is the repository.
+        top = tree([change(:modified, "a.txt", "a.txt", 1, 1), change(:added, nothing, "src/x.c", 5, 0),
+                    change(:deleted, "doc/y.md", nothing, 0, 3)])
+        @test (top.path, format_tree_node_label(top)) == ("", "repository  +6 −4")
+        @test labels(top) == ["doc  +0 −3", "src  +5 −0", "a.txt  +1 −1"]
+        @test [get_document_decoration(child).icon for child in top.children[1].children] == [:file_minus]
+        @test get_document_decoration(top).icon === :folder
+
+        # Every file under one chain of folders: the top node is the deepest folder.
+        top = tree([change(:modified, "show/tsn/t/a.anf", "show/tsn/t/a.anf", 107, 2238),
+                    change(:modified, "show/tsn/t/doc/index.rst", "show/tsn/t/doc/index.rst", 124, 90),
+                    change(:modified, "show/tsn/t/omnetpp.ini", "show/tsn/t/omnetpp.ini", 63, 35)])
+        @test (top.path, format_tree_node_label(top)) == ("show/tsn/t", "show/tsn/t  +294 −2363")
+        @test labels(top) == ["doc  +124 −90", "a.anf  +107 −2238", "omnetpp.ini  +63 −35"]
+        @test top.children[1].path == "show/tsn/t/doc"
+        @test [get_document_decoration(child).icon for child in top.children[2:3]] == [:file_diff, :file_diff]
+
+        # A chain of folders below the top node is one node; a rename, a binary file.
+        top = tree([change(:renamed, "src/inet/l/ieee/old.cc", "src/inet/l/ieee/new.cc", 2, 2),
+                    change(:renamed, "src/inet/n/moved.cc", "src/inet/l/ieee/b.cc", 0, 0),
+                    change(:added, nothing, "src/inet/n/pic.png", 0, 0; binary = true)])
+        @test format_tree_node_label(top) == "src/inet  +2 −2"
+        @test labels(top) == ["l/ieee  +2 −2", "n  +0 −0"]
+        @test top.children[1].path == "src/inet/l/ieee"
+        @test labels(top.children[1]) == ["b.cc ← src/inet/n/moved.cc  +0 −0", "old.cc → new.cc  +2 −2"]
+        @test labels(top.children[2]) == ["pic.png  binary"]
+        @test get_document_decoration(top.children[2].children[1]).icon === :file_plus
+        @test [something(c.new_path, c.old_path) for c in GitModule._collect_node_changes(top)] ==
+              ["src/inet/l/ieee/b.cc", "src/inet/l/ieee/new.cc", "src/inet/n/pic.png"]
+    end
     @testset "git views" begin
         mktempdir() do folder
             repository = make_git_example_repository(joinpath(folder, "repository"))

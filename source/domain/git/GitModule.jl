@@ -19,7 +19,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..DocumentModule: get_document_title, is_field_walked
 import ..WidgetModule: make_graphics_projection
 import ..OperationModule: evaluate_operation
-import ..DomainModule: acquire_document!, release_document!
+import ..DomainModule: acquire_document!, release_document!, get_document_decoration
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 import ..FileChangeModule: receive_folder_change!
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..LinkModule: find_url_document
@@ -27,7 +28,7 @@ import ..LinkModule: find_url_document
 export GitCommitHeader, GitFileSummary, GitDiffFile, GitDiffHunk, GitDiffLine
 export parse_git_log_text, parse_git_commit_text, parse_git_diff_text
 export GitException
-export GitDocument, GitCommit, GitFileChange, GitFileRevision
+export GitDocument, GitCommit, GitFileChange, GitFileRevision, GitChangedFolder
 export GitText, GitTextLine, GitLinePlace, GitDiffText, GitFileText
 export GitCommitRange, ApplyGitCommitRangeOperation
 export read_git_document!
@@ -37,6 +38,7 @@ export GitTheme, ScaledGitTheme, GitTextToText, GitCommitToWidget, GitFileChange
 include("GitParse.jl")
 include("GitRead.jl")
 include("GitDocument.jl")
+include("GitTree.jl")
 include("GitText.jl")
 include("GitRange.jl")
 include("GitAddress.jl")

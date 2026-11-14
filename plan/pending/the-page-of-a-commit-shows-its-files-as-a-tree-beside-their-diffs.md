@@ -78,10 +78,21 @@ counts in the line (§2). The assistant proposes, and the owner approves with th
 
 Each step runs in the worktree `projectured-julia-git-views` and ends with one commit.
 
-1. **The tree of the changed files.** `GitChangedFolder`, the function that makes the top node from
+1. **The tree of the changed files.** **Done on 2026-11-14.** `GitChangedFolder`, the function that makes the top node from
    the changes of a commit, the generics of a node, the labels and the icons. Test: a new testset of
    `test_git_views()`: the tree of a list of changes made as values, with files at the top, in one
    folder, in a chain of folders, and in two folders at the top; the labels and the sums.
+   What the implementation found:
+   - `GitChangedFolder` is a plain `Document`, not a `GitDocument`: it reads nothing and holds no
+     repository. The fragment is `GitTree.jl`; `_make_changed_folder(changes, repository)` builds
+     the top node, and `_collect_node_changes(node)` gives the changes under a node in the order of
+     the tree.
+   - The icon table of the platform gets three names of Lucide glyphs: `:file_plus` (`file-plus`,
+     an added file), `:file_minus` (`file-minus`, a deleted file) and `:file_diff` (`file-diff`,
+     every other kind). A folder has `:folder`.
+   - The label of a rename or a copy in the same folder is `old → new`, and from another folder
+     `new ← old path`; a binary file says `binary` in place of its counts.
+   - Results: the new testset 15, `test_git_views()` 43 and the git layering guard 7 pass.
 2. **The page.** The header, the split pane, the tree and the text of the chosen node; the message at
    the top node; the dormant place in the tree; the table and the facets go. Test:
    `test_git_views()` and `test_git_gestures()`: the page shows the tree and every diff with the

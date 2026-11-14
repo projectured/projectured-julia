@@ -10780,6 +10780,9 @@ const LUCIDE_ICON_GLYPHS = (
     :menu           => 0xe115,  # menu
     # Documents
     :file           => 0xe0c0,  # file
+    :file_plus      => 0xe0c9,  # file-plus: a file with a plus
+    :file_minus     => 0xe0c6,  # file-minus: a file with a minus
+    :file_diff      => 0xe317,  # file-diff: a file with a plus over a minus
     :folder         => 0xe0d7,  # folder
     :save           => 0xe14d,  # save
     :pencil         => 0xe1f9,  # pencil
