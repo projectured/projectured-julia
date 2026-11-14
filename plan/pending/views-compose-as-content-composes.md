@@ -363,6 +363,19 @@ element 2.
     Note stores the object itself, Copy stores a full copy, Paste puts the stored
     object into the selected slot, and "Paste copy" (Ctrl+Shift+V) puts a new full
     copy of it.
+18. **Step 7 gives a view to the four Markdown types of its example** (the owner,
+    2026-11-14: "It's B"): `MarkdownRoot`, `MarkdownHeading`, `MarkdownParagraph`
+    and `MarkdownText`, so a person puts a caret in each part of the example. The
+    other 13 Markdown types keep no view and print as content, as a JSON object
+    does. The choices that the owner did not take: a view of the root only, with
+    which the caret names a heading or a paragraph only as a whole; a view of each
+    of the 17 types, which is the move of a whole domain and no step of this plan.
+
+    Open with it: the heading, the paragraph and the text keep their children or
+    their text in a field with the name `content`, and a view keeps what it shows
+    in a field with that name too, while the field of its child views needs the
+    name of the child field of its content. About 80 fields in the tree have this
+    name. The rule for the name is a question to the owner.
 
 ## What is not known yet
 
