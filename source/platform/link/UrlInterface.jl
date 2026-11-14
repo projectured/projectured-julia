@@ -1,7 +1,8 @@
 # Fragment of `LinkModule` — the pieces of an address: the read of a text into
 # pieces, their print, and the edit of the text or of one piece; and what an
 # address names: whether it names its place by itself, the file of a `file:`
-# address, and the open of an address as the target of a link.
+# address, the document of an address of a scheme that a package reads, and the
+# open of an address as the target of a link.
 
 # The pieces of an address, in the order of its text.
 const _URL_PIECES = (:scheme, :userinfo, :host, :port, :path, :query, :fragment)
@@ -157,11 +158,25 @@ function find_url_file_path end
 
 find_url_file_path(url::Url) =
     url.scheme !== nothing && lowercase(url.scheme) == "file" && startswith(url.path, '/') ?
-        _decode_url_text(url.path) : nothing
+        decode_url_text(url.path) : nothing
 
-# The text of `text` with each `%` and two hex digits read as the byte that they
-# name, so a name of a file keeps its spaces and its letters outside ASCII.
-function _decode_url_text(text::AbstractString)
+"""
+    decode_url_text(text) -> String
+
+`text`, a piece of an address, with each `%` and two hex digits read as the byte
+that they name, so a name of a file keeps its spaces and its letters outside ASCII.
+A `%` that two hex digits do not follow stays as it is.
+
+Use it to read the path or the fragment of an address in a method of
+`find_url_document`.
+
+# Example
+
+    decode_url_text("/tmp/a%20b.txt")   # "/tmp/a b.txt"
+"""
+function decode_url_text end
+
+function decode_url_text(text::AbstractString)
     units = codeunits(text)
     bytes = UInt8[]
     k = 1
@@ -196,6 +211,32 @@ function find_web_url(text::AbstractString)
     pieces.scheme !== nothing && (pieces.host !== nothing || lowercase(pieces.scheme) == "mailto") ?
         Url(; pieces...) : nothing
 end
+
+"""
+    find_url_document(url) -> document or nothing
+
+The document that `url` names inside the editor, or `nothing` when the editor has
+no document for it and a program of the system opens it. The answer depends on
+the scheme of `url`: `find_url_document(::Val{scheme}, url)` answers for the
+scheme `scheme`, a `Symbol` in lower case, and the default answers `nothing`. A
+package that reads the documents of a scheme adds a method for it. A method makes
+a document and reads nothing: the document reads what it shows when a view prints
+it.
+
+The open of an address asks it first: a link opens the document as a page, in the
+navigator around the link or in a new tab.
+
+# Example
+
+    find_url_document(::Val{Symbol("git+file")}, url::Url) = ...   # a method of a package
+    find_url_document(Url("https://julialang.org"))                # nothing
+"""
+function find_url_document end
+
+find_url_document(url::Url) =
+    url.scheme === nothing ? nothing : find_url_document(Val(Symbol(lowercase(url.scheme))), url)
+
+find_url_document(::Val, url::Url) = nothing
 
 # An absolute address opens outside the editor; a relative one opens through the
 # page of the link, which resolves it (`find_navigator_target`).

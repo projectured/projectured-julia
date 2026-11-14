@@ -50,6 +50,11 @@ end
 
 _nav_make_site(shelf; folder = "") = NavigatorTestSite(_nav_make_linked_page(_nav_make_shelf()), shelf, folder, nothing)
 
+# A scheme that the test reads, as a package reads the documents of its scheme:
+# `test-book:///<title>` names a new book of that title, with no chapter.
+ProjecturedPlatform.LinkModule.find_url_document(::Val{Symbol("test-book")}, url::Url) =
+    NavigatorTestBook(decode_url_text(url.path[2:end]), _nav_vector(NavigatorTestChapter[]), nothing)
+
 # The glyph of the icon of Open in a tab.
 const _NAV_OPEN_TAB = string(Char(0xe0b9))
 
@@ -239,6 +244,36 @@ function test_open_page_operation()
         @test length(tabs) == 2
         @test tabs[2].content.content === site
         @test get_navigator_page(tabs[2].content) === shelf.books[2]
+    end
+
+    @testset "a link to an address whose document a package reads opens the document as a page" begin
+        @test find_url_document(Url("TEST-BOOK:///Z")).title == "Z"
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf)
+        editor, backend = _nav_editor(navigator; tabs = true)
+        place = @reference(editor.document, root.tabs[1].content.content)
+        # With Ctrl, the link opens the document in a new tab.
+        before = length(_nav_tabs(editor))
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("test-book:///Y"; place = :new_tab)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test length(_nav_tabs(editor)) == before + 1
+        @test get_navigator_page(last(_nav_tabs(editor)).content).title == "Y"
+        # An open of the address itself, as a link of a widget answers, opens a new tab.
+        evaluate_operation(editor, OpenUrlOperation(Url("test-book:///X")))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test length(_nav_tabs(editor)) == before + 2
+        @test get_navigator_page(last(_nav_tabs(editor)).content).title == "X"
+        # The link visits the document, and the visit before it is the way back.
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("test-book:///Z")))
+        run_frame!(editor)
+        page = get_navigator_page(navigator)
+        @test page isa NavigatorTestBook && page.title == "Z"
+        @test length(navigator.back) == 1
+        # Any other scheme still opens in the program of the system.
+        @test_logs (:warn, "No program of the system opened the address.") match_mode = :any evaluate_operation(
+            editor, OpenUrlOperation(Url("other-scheme:///X")))
     end
 
     @testset "a new tab of a document opens over the content of the navigator that holds it" begin

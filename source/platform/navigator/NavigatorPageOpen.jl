@@ -174,13 +174,16 @@ function _find_opened_content(root, operation::OpenPageOperation)
     (content, annotate_reference_types(content, extend_reference(EmptyReference(), steps[index:end]...)))
 end
 
-# An address outside the editor: a file opens in a new tab with a navigator, as a
-# link to a file does, and any other address in the program of the system for it,
-# through the backend of the editor. A backend that opens nothing says so in the
-# log.
+# An address: a file opens in a new tab with a navigator, as a link to a file does,
+# an address whose document a package reads (`find_url_document`) opens that
+# document as a page in a new tab, and any other address opens in the program of
+# the system for it, through the backend of the editor. A backend that opens
+# nothing says so in the log.
 function evaluate_operation(editor, operation::OpenUrlOperation)
     path = find_url_file_path(operation.url)
     path === nothing || return evaluate_operation(editor, OpenFileOperation(path; file_wrap = Navigator))
+    document = find_url_document(operation.url)
+    document === nothing || return evaluate_operation(editor, OpenPageOperation(document, EmptyReference(), :new_tab))
     address = format_url(operation.url)
     open_url!(editor.backend, address) || @warn("No program of the system opened the address.", address)
     nothing

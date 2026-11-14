@@ -295,5 +295,13 @@ end
         editor, OpenUrlOperation(Url("https://julialang.org")))
 end
 
+@testset "an address names a document of the editor only for a scheme that a package reads" begin
+    @test find_url_document(Url("https://julialang.org")) === nothing
+    @test find_url_document(Url("#install")) === nothing
+    @test find_url_document(Url("file:///tmp/notes.txt")) === nothing
+    @test decode_url_text("/tmp/a%20b%C3%A9.txt") == "/tmp/a bé.txt"
+    @test decode_url_text("100%") == "100%"
+end
+
 end
 end # test_link

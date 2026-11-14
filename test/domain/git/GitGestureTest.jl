@@ -7,8 +7,9 @@ the file at the parent at its old line, and Back returns to the commit; a
 Ctrl+Shift+click on an added line opens the file at the commit at its new line in a
 new tab; a click on the path of a file in the table visits its change; a
 Ctrl+click moves no selection; the command palette lists the two opens at the line
-of the caret and runs one; and a rest of the pointer on a line of a diff shows the
-file, the revision and the line that the line opens.
+of the caret and runs one; a rest of the pointer on a line of a diff shows the
+file, the revision and the line that the line opens; and a link to a `git+file:`
+address visits the commit or the file at a revision that it names.
 """
 function test_git_gestures()
     root_hash = "73521a28082f6c1bd1b6a4b02b109a6333cbe7a1"
@@ -115,6 +116,51 @@ function test_git_gestures()
                 @test any(note -> note.title == "Removed line" &&
                                   note.facts == ["File" => "a.txt", "Revision" => first(root_hash, 7), "Line" => "19"],
                           notes)
+            end
+
+            @testset "an address names a commit or a file at a revision" begin
+                address(text) = find_url_document(Url(text))
+                commit = address("git+file://$repository#v1")
+                @test commit isa GitCommit && (commit.repository, commit.revision) == (repository, "v1")
+                file = address("GIT+FILE://$repository#v1:dir/c%20d.txt")
+                @test file isa GitFileRevision && (file.revision, file.path, file.line) == ("v1", "dir/c d.txt", nothing)
+                @test address("git+file://host$repository#v1") === nothing
+                @test address("git+file://$repository") === nothing
+                @test address("git+file://$repository#:b.txt") === nothing
+                @test address("git+file://$repository#v1:") === nothing
+            end
+
+            @testset "a link to a git+file: address visits what it names, and a bad revision shows the words of git" begin
+                # The links of the page answer the target form that a link of
+                # Markdown answers, which the navigator resolves.
+                link(target) = WidgetLabel(target; gestures = GestureBinding[
+                    GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]),
+                                   (_, _) -> OpenPageOperation(nothing, EmptyReference(), :here; target);
+                                   description = "Follow the link", domain = "test")])
+                targets = ["git+file://$repository#v1", "git+file://$repository#v1:b.txt",
+                           "git+file://$repository#no-such-revision"]
+                page = VerticalLayout(Any[link(target) for target in targets])
+                navigator = Navigator(page)
+                editor, backend = _git_view_editor(navigator; height = 800)
+                texts() = first.(_git_view_texts(backend))
+                function follow!(target)
+                    (x, y) = _git_gesture_place(backend, target)
+                    _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                    get_navigator_page(navigator)
+                end
+                back!() = _git_view_press!(editor, backend, KeyDown(:left_bracket, ModifierKeys(ctrl = true); time = 0.0))
+                commit = follow!(targets[1])
+                @test commit isa GitCommit && commit.revision == "v1"
+                @test _git_view_run_frames_until(editor, () -> "second subject continues here" in texts())
+                back!()
+                @test get_navigator_page(navigator) === page
+                file = follow!(targets[2])
+                @test file isa GitFileRevision && (file.revision, file.path) == ("v1", "b.txt")
+                @test _git_view_run_frames_until(editor, () -> "b.txt at v1" in texts())
+                back!()
+                bad = follow!(targets[3])
+                @test bad isa GitCommit
+                @test _git_view_run_frames_until(editor, () -> any(text -> occursin("no-such-revision", text), texts()))
             end
         end
     end

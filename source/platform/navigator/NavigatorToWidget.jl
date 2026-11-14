@@ -477,12 +477,19 @@ end
 # A link to a target: the domain of the content resolves it. A part of the
 # content opens as a visit, or, for a new tab, as an open rooted at the content,
 # which goes on up. A file opens in a new tab with a navigator of its own, as the
-# open of a file does. A target that names nothing here is answered, and does
-# nothing.
+# open of a file does. An address whose document a package reads
+# (`find_url_document`) opens that document as a visit, or as an open of it in a
+# new tab. A target that names nothing here is answered, and does nothing.
 function _follow_navigator_target(navigator::Navigator, operation::OpenPageOperation)
     found = find_navigator_target(navigator.content, operation.target)
     found isa AbstractString && return OpenFileOperation(found; file_wrap = Navigator)
-    found isa Url && return OpenUrlOperation(found, operation.place)
+    if found isa Url
+        document = find_url_document(found)
+        document === nothing && return OpenUrlOperation(found, operation.place)
+        operation.place === :here || return OpenPageOperation(document, EmptyReference(), operation.place)
+        return something(make_navigator_open_operation(navigator, document, EmptyReference(); selects = false),
+                         DoNothingOperation())
+    end
     found isa Reference || return DoNothingOperation()
     operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
     something(make_navigator_open_operation(navigator, found; selects = false), DoNothingOperation())

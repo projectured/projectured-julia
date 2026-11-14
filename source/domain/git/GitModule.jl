@@ -3,8 +3,9 @@
 
 The git domain: a commit, the change of one file in a commit, a file at a revision
 and the commits of a range, which the `git` program reads off the loop; their texts and their pages,
-which the text domain draws; and the values of the output of git with the
-functions that read that output.
+which the text domain draws; the address `git+file://<repository>#<revision>`
+that a link names them by; and the values of the output of git with the functions
+that read that output.
 """
 module GitModule
 
@@ -21,6 +22,7 @@ import ..OperationModule: evaluate_operation
 import ..DomainModule: acquire_document!, release_document!
 import ..FileChangeModule: receive_folder_change!
 import ..RosterModule: get_item_facets, compute_item_facet
+import ..LinkModule: find_url_document
 
 export GitCommitHeader, GitFileSummary, GitDiffFile, GitDiffHunk, GitDiffLine
 export parse_git_log_text, parse_git_commit_text, parse_git_diff_text
@@ -36,6 +38,7 @@ include("GitRead.jl")
 include("GitDocument.jl")
 include("GitText.jl")
 include("GitRange.jl")
+include("GitAddress.jl")
 include("GitTheme.jl")
 include("GitToWidget.jl")
 

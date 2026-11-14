@@ -476,12 +476,25 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      - Results: `test_git()` 176 pass (`test_git_gestures()` 21).
    - Results: `test_git()` 162 pass (`test_git_gestures()`: the visit and Back, the new tab, the link
      of the table, the selection that stays).
-5. **The link.** `find_url_document` in `UrlInterface.jl`, its two calls in the navigator slice, and
+5. **The link.** **Done on 2026-11-14.** `find_url_document` in `UrlInterface.jl`, its two calls in the navigator slice, and
    the git method for both forms. Test: `test_link()` (`test/platform/link/LinkTest.jl`) and
    `test_open_page_operation()`, with a scheme that the test defines. `:here` makes a visit, and
    `:new_tab` makes a tab. An unknown scheme still goes to the program of the system. Then
    `test_navigator()` and `test_markdown_link_gestures()`. A new testset in `test_git_gestures()`
    clicks both forms on a Markdown page, and a bad hash shows a failed read and throws nothing.
+   What the implementation found (2026-11-14):
+   - The git method is in a fragment of its own, `GitAddress.jl`. The first `:` of the fragment
+     ends the revision. An address with a host, with no revision, or with an empty revision or
+     path names nothing, and the open goes on to the program of the system.
+   - The method reads escaped characters with the decoder of the link slice, which is public now
+     as `decode_url_text` (renamed from a private name with `julia-rename.jl`).
+   - `ProjecturedGitTest` does not depend on the Markdown domain: a test package depends only on
+     the packages below it. So the testset of the git test clicks labels whose press answers the
+     target form of `OpenPageOperation`, the answer of a Markdown link, and the navigator resolves
+     it as it resolves a Markdown link. `test_markdown_link_gestures()` covers the Markdown side.
+   - Results: `test_git()` 189, `test_open_page_operation()` 103, `test_link()` 2109,
+     `test_navigator_to_widget()` 69, `test_navigator_gestures()` 26,
+     `test_markdown_link_gestures()` 18 and `test_markdown_link_target()` 14 pass.
 6. **The verbs.** `find_git_commits`, `describe_git_commit`, the docstrings and the marks. Test: the new `test_git_verbs()` (`GitVerbTest.jl`). It asserts the hashes in order for
    `revisions`, `paths`, `first_parent` and `limit`, and the header facts of each commit with no read.
    It asserts the `ArgumentError` of a bad range, and the text of `describe_git_commit` with `paths`

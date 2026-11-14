@@ -25,6 +25,13 @@ Each run of git is the same with any configuration of a person: `git -C <reposit
 
 A `.pred` file writes a commit as `GitCommit("<folder>", "<hash>")`, and a file at a revision with its repository, its revision, its path and its line.
 
+A link of any domain names a commit with the address `git+file://<repository>#<revision>`, and a file at a revision with `git+file://<repository>#<revision>:<path>`, where the first `:` ends the revision, as in `git show <revision>:<path>`. npm and pip use `git+file:` for a repository in a local folder. The git method of `find_url_document` ([link.md](../../platform/link/link.md)) makes the document, which reads nothing until a view prints it, so a revision that git does not know shows the words of git on its page. An address with a host, or with no revision, names nothing. A link opens the document as a visit of the navigator around it, or in a new tab.
+
+```markdown
+[3fa2c1d](git+file:///home/projectured/workspace/inet-cpp#3fa2c1d)
+[the queue at 3fa2c1d](git+file:///home/projectured/workspace/inet-cpp#3fa2c1d:src/queue/Queue.cc)
+```
+
 ### The commits of a range
 
 `GitCommitRange(repository, revisions; paths)` holds the commits that `git log <revisions> -- <paths>` answers, in the order of the log, with no limit, as `GitCommit` documents with the header of the log. A range names refs, and a ref moves, so a range reads as a folder reads its entries:

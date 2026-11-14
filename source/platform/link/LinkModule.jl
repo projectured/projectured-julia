@@ -12,8 +12,9 @@ walk of the documents does not go through a `Link` into its target.
 
 A `Url` is an address and a link to itself. It holds the pieces of RFC 3986 as
 written, and `format_url` prints them back as the same text. A relative address
-opens through the page of its link, and an absolute one outside the editor,
-through `OpenUrlOperation`, which the editor evaluates with `open_url!` of its
+opens through the page of its link, and an absolute one through
+`OpenUrlOperation`: as a page when a package reads the documents of its scheme
+(`find_url_document`), and else outside the editor, with `open_url!` of the
 backend.
 
 `LinkInterface.jl` holds the functions of a link and their defaults,
@@ -54,7 +55,8 @@ import ..WidgetModule: make_graphics_projection, make_target_open_operation
 export is_link, get_link_target, get_link_content, format_link_label, describe_link, is_link_broken
 export Link, LinkToWidget
 export Url, UrlView, UrlViewToWidget, UrlToSyntax, format_url, make_url_text_operation, make_url_piece_operation
-export is_absolute_url, find_url_file_path, find_web_url, OpenUrlOperation, open_url!
+export is_absolute_url, find_url_file_path, find_web_url, find_url_document, decode_url_text, OpenUrlOperation,
+       open_url!
 
 include("LinkInterface.jl")
 include("LinkDocument.jl")
