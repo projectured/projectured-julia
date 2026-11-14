@@ -52,7 +52,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
        ScrollLayoutToGraphicsCanvas, LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap,
-       get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell
+       get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell, compute_grid_places
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,

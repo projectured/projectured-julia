@@ -18,7 +18,7 @@ function test_grid_span()
 
 proj = make_layout_projection_example()
 offer() = with_exact_size(PrinterContext(EmptyReference()); width = _GS_Cell(600), height = _GS_Cell(400))
-place = ProjecturedPlatform.LayoutModule._gl_place
+place = ProjecturedPlatform.LayoutModule.compute_grid_places
 
 @testset "the grid fills its rows in order, and a span takes the columns after it" begin
     @test place([1, 1, 2, 1, 1], 2) == [(1, 1, 1), (1, 2, 1), (2, 1, 2), (3, 1, 1), (3, 2, 1)]

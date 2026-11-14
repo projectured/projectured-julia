@@ -1,6 +1,6 @@
 # A dashboard card states its size and can fill the page
 
-> **Kind:** plan · **Status:** design approved by the owner on 2026-11-14; nothing is built. ·
+> **Kind:** plan · **Status:** design approved by the owner on 2026-11-14; step 1 is done, step 2 waits for a decision (see its note). ·
 > **Stands on:** the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md` (its step 11 found
 > the need), `source/platform/explorer/Dashboard.jl`, `DashboardToWidget.jl`, and the maximize of a
 > pane group (`PaneTree.maximized`, `source/platform/pane/PaneDocument.jl`).
@@ -83,11 +83,24 @@ the field of the card, which undo records and a save keeps:
 Each step is one commit in the worktree `projectured-julia-baseline-catch-up` (branch
 `baseline-catch-up`). Each test runs through `bounded-run` with the private depot of the worktree.
 
-1. **The size of a card.** The fields `columns` and `height`, their `.pred` form, the layout of
+1. ~~**The size of a card.**~~ **Done.** The fields `columns` and `height`, their `.pred` form, the layout of
    `DashboardToWidget` and the height limit. Tests: a card of 2 columns and one of `:all` in a page
    of 3 columns and in a page of 1; a card of `:content` with a high content scrolls inside and is
    one page high; `:page` and a number; a card that holds a table of 9,000 rows builds only the rows
    that show, and its memory stays bounded; a `.pred` round trip.
+   Facts of the code: `DashboardCard` has `columns::Union{Int,Symbol} = 1` and `height::Union{Int,Symbol} = :content`,
+   and a constructor `DashboardCard(title, content; columns, height)`; a `.pred` file writes both fields.
+   The grid of the page is a list of rows of one column; each row is a `GridLayout` of N columns whose cells
+   are `LayoutConstraint(card widget; column_span)`, so the spans use the grid that exists, and the rows stay
+   lazy. The cards go to rows by `compute_grid_places` (the placement that `GridLayout` uses, now public), and
+   N is no more than the sum of the spans. A vector `GridLayout` with fewer children than columns kept only as
+   many columns as children; it now keeps all its columns, which the last row of a dashboard needs. The body
+   of a card is a `WidgetScrollPane` in a `VerticalLayout`: `:content` caps the pane at the visible height of
+   the page less `card_chrome` (the height of a card with a title and no content, measured from the card
+   projection), `:page` and a number set the pane to that height less `card_chrome`, so the card is that
+   high. A page with no visible height leaves `:content` and `:page` as high as the content. The path of
+   a card is `children[r][1].children[i].child` below the grid, and its content is
+   `content.children[1].child.content` below the card.
 2. **The maximize of a card.** The view state, the button, the double click and Escape. Tests in a
    real editor: each gesture maximizes and restores; the other cards keep their state; a save keeps
    no maximize; undo records nothing.

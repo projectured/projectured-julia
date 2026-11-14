@@ -76,7 +76,7 @@ The geometry cells:
 - `row_count::Cell` — the number of rows (`ceil(n / columns)`).
 - `horizontal_gap` / `vertical_gap` — the inter-cell gaps.
 - `w::Cell` / `h::Cell` — the outer canvas extent.
-- `places::Cell` — row, first column and column span of each child (`_gl_place`).
+- `places::Cell` — row, first column and column span of each child (`compute_grid_places`).
 
 All cells are reactive: an edit that changes a child's intrinsic extent
 invalidates only the downstream geometry cells.
@@ -1426,12 +1426,24 @@ end
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
 
-# Where each child of a grid stands: its row, its column, and the number of
-# columns that it takes (`get_column_span`). The grid fills its rows in order. A
-# child that takes more columns than its row has left starts the next row, and a
-# span past the number of columns takes the whole row. With every span 1, child
-# `i` stands at row `div(i - 1, c) + 1` and column `mod(i - 1, c) + 1`.
-function _gl_place(spans::Vector{Int}, c::Int)
+"""
+    compute_grid_places(spans, columns) -> Vector{NTuple{3,Int}}
+
+Where each child of a grid of `columns` columns stands: its row, its first column
+and the number of columns that it takes, from `spans`, the span of each child
+(`get_column_span`). The grid fills its rows in order. A child that takes more
+columns than its row has left starts the next row, and a span past the number of
+columns takes the whole row. With every span 1, child `i` stands at row
+`div(i - 1, columns) + 1` and column `mod(i - 1, columns) + 1`.
+
+Use it to know which children share a row of a grid, such as the cards of a
+dashboard that a row holds.
+
+# Example
+
+    compute_grid_places([1, 2, 3, 1], 3)   # [(1, 1, 1), (1, 2, 2), (2, 1, 3), (3, 1, 1)]
+"""
+function compute_grid_places(spans::Vector{Int}, c::Int)
     c = max(c, 1)
     places = Vector{NTuple{3,Int}}(undef, length(spans))
     row, col = 1, 1
@@ -1720,17 +1732,16 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     # Where each child stands. The spans are read once here, as the children are.
     spans = Int[get_column_span(doc.children[i]) for i in 1:n]
-    places = Cell(@computation _gl_place(spans, cols_cell[]))
+    places = Cell(@computation compute_grid_places(spans, cols_cell[]))
     row_count_cell = Cell(Computation(function ()
         rows_of_places = places[]
         isempty(rows_of_places) ? 0 : maximum(first, rows_of_places)
     end))
-    content_col_w = Cell[]
-    content_row_h = Cell[]
-    for k in 1:n
-        push!(content_col_w, _gl_col_w_cell(k, child_iomaps, places))
-        push!(content_row_h, _gl_row_h_cell(k, child_iomaps, places))
-    end
+    # A grid has its columns, also when it holds fewer children than columns, such
+    # as the last row of the cards of a dashboard.
+    ncols = max(n, cols_cell[]::Int)
+    content_col_w = Cell[_gl_col_w_cell(k, child_iomaps, places) for k in 1:ncols]
+    content_row_h = Cell[_gl_row_h_cell(k, child_iomaps, places) for k in 1:n]
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
     # The gap above row `r`: its entry of `row_gaps`, or `vertical_gap`.
@@ -1746,11 +1757,11 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # gives its share to its cells as their minimum, and is as wide or as tall as
     # the larger of the share and its cells; its cells read only the share, so no
     # extent reads itself. Every other one is its share.
-    share_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
+    share_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:ncols]
     share_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
     shares_least_w(k::Int) = least_w && _gl_is_weighted(peek_column_policy(k))
     shares_least_h(k::Int) = least_h && _gl_is_weighted(peek_row_policy(k))
-    col_w = Cell[shares_least_w(k) ? _gl_at_least_cell(share_w[k], content_col_w[k]) : share_w[k] for k in 1:n]
+    col_w = Cell[shares_least_w(k) ? _gl_at_least_cell(share_w[k], content_col_w[k]) : share_w[k] for k in 1:ncols]
     row_h = Cell[shares_least_h(k) ? _gl_at_least_cell(share_h[k], content_row_h[k]) : share_h[k] for k in 1:n]
 
     # The edge of a `Content` column: the grid's edge, less the gaps, less what
@@ -1773,7 +1784,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             Int32(max(0, r))
         end)
     end
-    column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
+    column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:ncols]
     # The edge of a `Content` row, as the edge of a `Content` column: the grid's
     # edge, less the gaps, less what the `Content` rows above it drew, less the
     # minimums of the other rows.
@@ -1794,10 +1805,10 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
     row_edges = Union{Nothing,Cell}[make_row_edge(row) for row in 1:n]
     span_w = Cell[_gl_span_w_cell(i, places, col_w, hgap) for i in 1:n]
-    col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
+    col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:ncols]
     # The columns that child `i` spans, at the column count of this print.
     places_now = places[]
-    spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, n)
+    spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, ncols)
     # A spanning child reaches from its first column to the edge of the grid, and
     # at least over the columns that it spans: it widens no column, and a text in
     # it breaks at the width that the grid was offered. A grid offered no width

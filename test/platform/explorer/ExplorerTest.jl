@@ -1288,20 +1288,17 @@ function test_explorer()
         @test _nav_steps(selection)[6:7] == [ElementReferenceStep(2), FieldReferenceStep("content")]
         # With an exact width at the print, as many columns as cards of the least
         # width fit, and no more than the cards.
-        grid_of(width) = begin
-            context = PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())
-            page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context).output
-            page.children[2].child.content
-        end
-        @test grid_of(430).columns == 3 && grid_of(205).columns == 1 && grid_of(220).columns == 2
+        columns_of(width) = ExplorerModule._get_grid_columns(
+            print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
+                           PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())).output)
+        @test columns_of(430) == 3 && columns_of(205) == 1 && columns_of(220) == 2
         # The count follows the cell of the width while the page shows.
         width_cell = Cell(430)
         follow_page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
                               PrinterContext(EmptyReference(), width_cell, Cell(600), Dict{Symbol,Any}())).output
-        holder() = follow_page.children[2].child.content
-        @test holder().columns == 3
+        @test ExplorerModule._get_grid_columns(follow_page) == 3
         width_cell[] = 205
-        @test holder().columns == 1
+        @test ExplorerModule._get_grid_columns(follow_page) == 1
         # In a live window, a resize lays the cards out again.
         card(title) = DashboardCard(title, PrimitiveString("text of " * title))
         study = Dashboard("Study", Any[card("One"), card("Two"), card("Three"), card("Four"), card("Five")])
@@ -1319,12 +1316,13 @@ function test_explorer()
             run_frame!(live)
             @test rows() == expected
         end
-        # The path of a card in the grid names it back: `children[r][c]`.
-        for k in 1:7
-            steps = (ExplorerModule._make_card_steps(k, 3)..., FieldReferenceStep("content"), FieldReferenceStep("rest"))
-            @test ExplorerModule._find_card_below(steps, 3) == (k, (FieldReferenceStep("rest"),))
+        # The path of a card in the grid names it back: row `r`, card `i` of the row.
+        for r in 1:3, i in 1:3
+            steps = (ExplorerModule._make_row_steps(r)..., ExplorerModule._make_card_steps(i)...,
+                     FieldReferenceStep("content"), FieldReferenceStep("rest"))
+            @test ExplorerModule._find_card_below(steps) == (r, i, (FieldReferenceStep("rest"),))
         end
-        @test ExplorerModule._make_card_steps(5, 3)[2:3] == (RangeReferenceStep(1, 2), RangeReferenceStep(1, 2))
+        @test ExplorerModule._get_card_place(dashboard.cards, 3, 2) == (2, 1)
         # Insert on the page adds a card at the end, whose content takes a name.
         _explorer_window_press!(window_editor, window_backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
         @test length(window_dashboard.cards) == 4 && window_dashboard.cards[4].content isa DocumentInsertion
@@ -1333,6 +1331,77 @@ function test_explorer()
         _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "Queue study"))
         _explorer_window_press!(window_editor, window_backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
         @test _nav_steps(getfield(window_explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+    end
+
+    @testset "a card states the columns that it spans and its height" begin
+        live(dashboard; width = 1100) = begin
+            backend = HeadlessBackend()
+            editor = build_editor(dashboard, _nav_natural(); backend,
+                                  devices = Device[Keyboard(), Mouse(), Display()],
+                                  window = (; title = "W", width, height = 500), tabs = true, appearance = false,
+                                  settings = false)
+            run_frame!(editor)
+            run_frame!(editor)
+            (editor, backend)
+        end
+        place(backend, name) = only(t[2:3] for t in _nav_drawn(last(rendered_output(backend)).windows[1].content)
+                                    if t[1] == name)
+        card(title; keywords...) = DashboardCard(title, PrimitiveString("text of " * title); keywords...)
+        gap = Int(get_widget_style(get_scaled_theme!(Appearance(), WidgetTheme), :section_gap)[])
+        # The keyword form states both fields, and a card with neither is one column of its content.
+        @test card("a").columns == 1 && card("a").height === :content
+        @test card("a"; columns = :all, height = 360).columns === :all && card("a"; columns = 2, height = :page).height === :page
+        @test DashboardCard("a", PrimitiveString("x")).columns == 1
+        # In a page of 3 columns, a card of 2 columns is two columns wide beside a card of one, and a card of
+        # all the columns takes a row of its own; in a page of 1 column every card is one column.
+        (_, wide) = live(Dashboard("W", Any[card("A"; columns = 2), card("B"), card("C"; columns = :all), card("D")]))
+        (_, even) = live(Dashboard("E", Any[card("E1"), card("E2"), card("E3")]))
+        step = place(even, "E2")[1] - place(even, "E1")[1]
+        @test place(even, "E3")[1] - place(even, "E2")[1] == step && place(even, "E1")[2] == place(even, "E3")[2]
+        @test place(wide, "B")[1] - place(wide, "A")[1] == 2 * step && place(wide, "A")[2] == place(wide, "B")[2]
+        @test place(wide, "C")[1] == place(wide, "A")[1] && place(wide, "C")[2] > place(wide, "A")[2]
+        @test place(wide, "D")[1] == place(wide, "A")[1] && place(wide, "D")[2] > place(wide, "C")[2]
+        (_, narrow) = live(Dashboard("N", Any[card("A"; columns = 2), card("B"), card("C"; columns = :all)]); width = 300)
+        @test length(unique(place(narrow, name)[1] for name in ("A", "B", "C"))) == 1
+        @test place(narrow, "A")[2] < place(narrow, "B")[2] < place(narrow, "C")[2]
+        # A row of cards with different spans, the last one short, keeps the columns of the rows above it.
+        (_, short) = live(Dashboard("S", Any[card("S1"), card("S2"), card("S3"), card("S4")]))
+        @test place(short, "S4")[1] == place(short, "S1")[1] && place(short, "S4")[2] > place(short, "S1")[2]
+        # The height of a card: a number is that many pixels, `:page` is the visible height of the page, and
+        # a content that is higher than the page scrolls in a card that is as high as the page.
+        row_height(first, second; keywords...) = begin
+            (_, backend) = live(Dashboard("H", Any[first, second]); keywords...)
+            place(backend, "Next")[2] - place(backend, first.title)[2] - gap
+        end
+        next = card("Next"; columns = :all)
+        high = DashboardCard("High", PrimitiveString(join(("line $k" for k in 1:200), "\n")); columns = :all)
+        page = card("Page"; columns = :all, height = :page)
+        small = card("Small"; columns = :all)
+        @test row_height(card("Fixed"; columns = :all, height = 200), next) == 200
+        @test row_height(card("Fixed"; columns = :all, height = 360), next) == 360
+        high_height, page_height = row_height(high, next), row_height(page, next)
+        @test high_height == page_height && 300 <= page_height < 500
+        @test row_height(small, next) < 100
+        # A card whose content is a table of 9,000 rows builds the rows that show, and an idle frame
+        # builds none and keeps no memory.
+        built = Ref(0)
+        columns = Any[WidgetTableColumn(; policy = Relative(1.0)) for _ in 1:2]
+        table = WidgetTable(; column_headers = Any["a", "b"], cells = ListNode(make_widget_table_row(Any["", ""])), columns)
+        set_cell_computation!(getfield(table, :cells), () ->
+            make_index_list(9000, 1, k -> (built[] += 1; make_widget_table_row(Any[WidgetLabel("r$k"), WidgetLabel("c$k")]))))
+        (editor, _) = live(Dashboard("T", Any[DashboardCard("Table", table), card("After"; columns = :all)]))
+        @test 0 < built[] < 400
+        counted = built[]
+        GC.gc()
+        before = Base.gc_live_bytes()
+        for _ in 1:20
+            run_frame!(editor)
+        end
+        GC.gc()
+        @test built[] == counted && Base.gc_live_bytes() - before < 2_000_000
+        # A save keeps both fields.
+        saved = parse_pred_text(print_pred_text(Dashboard("X", Any[card("a"; columns = :all, height = 360), card("b")])))
+        @test [(c.columns, c.height) for c in saved.cards] == [(:all, 360), (1, :content)]
     end
 
     @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin

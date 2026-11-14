@@ -2,7 +2,7 @@
 # and an assistant put the documents that they want to see together.
 
 """
-    DashboardCard(title, content)
+    DashboardCard(title, content; columns = 1, height = :content)
 
 One card of a [`Dashboard`](@ref): a title, and any document as its content, which
 draws in the card by the view of its own type. The content is a document of its
@@ -13,11 +13,18 @@ for a content that shows as itself. The card shows and holds the view, so the
 card keeps its own place in a content that another place shows too. The dashboard
 makes it when it is held, and a save writes none of it.
 
+`columns` is how many columns of the grid the card spans: `1`, `2`, … or `:all`
+for the whole row. A card that asks for more columns than the page has takes the
+whole row. `height` is `:content`, as high as the content but at most the visible
+height of the page, so a higher content scrolls inside the card; `:page`, the
+visible height of the page; or a number of pixels. Both are kept by a save.
+
 Use it to put a document on a dashboard.
 
 # Example
 
     card_1 = DashboardCard("Runs", get_session_task_group_list())
+    card_2 = DashboardCard("Walk", walk_chart; columns = :all, height = 360)
 
 See also `Dashboard`.
 
@@ -27,7 +34,13 @@ For the assistant.
     title::String
     content::Any
     content_view::Union{NavigatorViewSlot, Nothing} = nothing
+    columns::Union{Int, Symbol} = 1
+    height::Union{Int, Symbol} = :content
 end
+
+DashboardCard(title::AbstractString, content; columns::Union{Int, Symbol} = 1,
+              height::Union{Int, Symbol} = :content) =
+    DashboardCard(String(title), content, nothing, columns, height)
 
 # A card keeps the title and the content, and not the view that it shows.
 get_view_state_fields(::Type{<:DashboardCard}) = (:content_view,)
