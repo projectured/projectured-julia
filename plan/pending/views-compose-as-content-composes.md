@@ -1,6 +1,6 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the questions of step 6. The JSON
+Status: IN PROGRESS, decided but for the questions QB and QC of step 6. The JSON
 pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
 `projectured-julia-views-compose`, branch `views-compose`; step 2 is done in
 the model of one recursion (decisions 10 to 13).
@@ -142,8 +142,8 @@ The facts for the JSON pipeline, found 2026-10-18:
 8. **Sharing is by reference, at every level.** Two views of one content are two
    view trees over it, each with its own caret and folds. A view shown at two places
    is two places that refer to the one view tree, or to one subtree of it, so they
-   share its caret and its folds. A place is printed by the focusing projection, and
-   the part that it shows is a field of the place.
+   share its caret and its folds. A container that holds the view, or the view of a
+   part, is the place (decision 15).
 9. **Composition crosses domains.** A view of a Markdown document holds the view of
    its JSON part, and that JSON view can also have places of its own elsewhere.
 
@@ -243,7 +243,8 @@ element 2.
     content projection of its content with a recursion of its view (model 4).
 11. **Nothing new in printing** (the owner, 2026-10-20: "I would like to avoid
     extending the printer context and I would like to also avoid changing the
-    print_document function or introducing a new recursive function").
+    print_document function or introducing a new recursive function"). Decision 16
+    adds one property to the context, and nothing else.
 12. **A content with no view prints with the content recursion** (the owner,
     2026-10-20: "we can still have the content recursion if that's what is in the
     document (no view attached)").
@@ -286,6 +287,61 @@ element 2.
     folds only through the nodes that it shows, and the folding step asks a fold
     where its region ends, not for its lines.
 
+15. **There is no place type** (the owner, 2026-10-22: "Why do we need the place to
+    begin with? I question it's mere existence"; "I think the container can hold
+    the view"). A container holds the view: a tab of a pane, a child of a layout. A
+    place of a part holds the view of the part, which is the child view itself, such
+    as `view_a.elements[3]`, so the folds of the part are the folds that the whole
+    view shows. The scroll stays with the scroll pane, as now. A place of a part
+    needs no focusing projection; the focusing projection stays a feature and works
+    on views (decision 5).
+
+    A whole view at one place and one of its parts at a second place keep the rule
+    of decision 16 with no more code: the path from the root goes through one of the
+    two, and the other shows its stored caret as a dormant one.
+16. **One live selection, and the parent tells the child whether it is on the live
+    path** (the owner, by 2026-11-14: "A selection is either live if it comes from
+    the root or dormant if it does not. So there's only one live selection even if
+    many documents, views or contents appear at multiple places. Dormant selections
+    there can be many"; "When printing a selection, it may turn into a selection or
+    into content. If it turns into selection then dormant selection remains dormant,
+    live selection remains live. When a selection prints into content, then live and
+    dormant looks differently"; "Remember that the recursion into the child from the
+    parent handles selection keeping the above invariants"; "Why not just a live
+    flag which the parent tells the child that it's on the live path?").
+    - A document at two places has one stored caret, so its places show one
+      position. Only the place on the path from the root shows it live; every other
+      place shows it dormant.
+    - The print context carries a live flag of the place, as a property. The root is
+      live. `make_child_context` computes the flag of a child from the parent: the
+      flag of the parent, and the stored path of the parent starts with the steps to
+      the child. The flag is a computed value, because the caret moves between
+      places with no new print, as the path of the place in the context is.
+    - The path itself does not travel: the selection walk stores in each document
+      on the live path the part of the path below it.
+    - A print takes the caret of its input as live when the stored flag of the input
+      and the flag of the place both say so.
+
+    What the code does at the time of the decision, read and not rendered: the live
+    flag is in the selection cell of each document, one for each document and not
+    one for each place; the print recursion carries no selection, and a print reads
+    the cell of its input (`map_selection_forward`, `TextViewToGraphicsCanvas`). So
+    the places 1 and 3 of the examples of steps 1 to 5, which hold one view, both
+    draw a live caret. One document at two places does the same with no view.
+
+    Facts for the build:
+    - About 73 of about 150 calls of `make_child_context` and `make_element_context`
+      give the steps only and no parent document. The child of such a call takes
+      the flag of its parent as it is, so nothing changes there, and the stored
+      flag decides as now. The containers of the example of step 6 give their
+      document.
+    - The rule composes over the stages of a chain. At each level, the stored path
+      of the parent and the steps to the child belong to one document. The stages
+      after the first print documents that one place owns, whose stored flags the
+      first stage wrote with the flag of the place.
+    - `PrinterContext.jl`, `OutputPaths.jl` and `SelectionDefaults.jl` have no seal
+      (`SEALING.md`, 2026-11-14).
+
 ## What is not known yet
 
 - **The cost of the mirrors.** Each view keeps a node for each content node that it
@@ -296,12 +352,13 @@ element 2.
 
 ## Questions
 
-- **QA, for step 6. The state of a view and the state of a place.** My proposal: the
-  view keeps the caret and the folds, which its places share; the place keeps its
-  part, its scroll and the part under the pointer.
+- QA, the state of a view and the state of a place, has its answer in the decisions
+  15 and 16: the view keeps the caret and the folds, the scroll pane keeps the
+  scroll, and no place type keeps a thing.
 - **QB, for step 6. A key when the caret of a view is not in the part of the focused
-  place.** My proposal: a press in a place moves the caret of its view into the part
-  of the place, and a key goes to the caret of the view.
+  place.** My reading, which the owner did not confirm yet: decision 15 leaves no
+  case. A place of a part holds the view of the part, and the caret of that view is
+  a path inside the part.
 - **QC, for step 6. The pastes of a view.** A new place of the same view, a new view
   that starts from a copy of the state, or a copy of the content: three commands, or
   one paste whose kind the person picks.
@@ -351,8 +408,8 @@ and the output of each stage, as structures that a person reads.
      A, view B and view A again. It is on the skip list of the caret sweep beside
      `layout`: a layout sends a key only by the selection, so Ctrl+Home with no
      selection reaches no caret.
-   - The scroll stays with the place; a `TextView` keeps none. Question QA decides
-     it at step 6.
+   - A `TextView` keeps no scroll: the scroll stays with the scroll pane (decision
+     15).
 
    The shape:
 
@@ -624,7 +681,10 @@ and the output of each stage, as structures that a person reads.
    `test_example(json_example)` and `test_click_roundtrips()` 7691, in a fresh
    process. The printer walk and the REPL walk of the example give no error.
 6. [ ] **Places**: the owner's example of one JSON file, two views and four places,
-   with the focusing projection printing a place; the pastes of QC.
+   where a tab holds a view or the view of a part (decision 15); the live flag of a
+   place (decision 16), with a test that only the place on the path from the root
+   draws a live caret and that every other place of the view draws the same
+   position dormant; the pastes of QC.
 7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
