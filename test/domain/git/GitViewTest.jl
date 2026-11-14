@@ -53,25 +53,20 @@ function test_git_views()
             repository = make_git_example_repository(joinpath(folder, "repository"))
             _git_view_commit_long_files!(repository)
 
-            @testset "the page of a commit shows its header, the table of its files and its diffs" begin
+            @testset "the page of a commit shows its header, the tree of its files and the diffs of a node" begin
                 commit = GitCommit(repository, "v1")
                 editor, backend = _git_view_editor(commit; height = 1400)
                 texts() = first.(_git_view_texts(backend))
-                @test _git_view_run_frames_until(editor, () -> "+LINE 19" in texts() && "bin.dat" in texts())
+                @test _git_view_run_frames_until(editor, () -> "+LINE 19" in texts() && "-bye" in texts())
                 @test "second subject continues here" in texts()
                 @test "fd72243 · Ann Author <ann@example.org> · 2026-01-03T04:05:06-02:30" in texts()
                 @test "Parent 73521a2" in texts()
+                # The tree: the files are at the top of the repository, so the top node
+                # is its folder; each file shows its counts.
+                @test all(text -> text in texts(), ("repository  +4 −4", "a.txt → b.txt  +2 −2", "bin.dat  binary",
+                                                    "gone.txt  +0 −1", "mode.sh  +0 −0", "sp ace é.txt  +1 −1"))
+                # The top node: the message after the subject, and every diff.
                 @test "Body line one." in texts()
-                # The table of the changed files: a header and a row for each file.
-                @test all(text -> text in texts(), ("path", "change", "added", "removed"))
-                @test all(text -> text in texts(), ("renamed", "added, binary", "deleted"))
-                rows = commit.table.document.rows
-                @test [[row.values[k] for k in 1:4] for row in rows] ==
-                      [["a.txt → b.txt", "renamed", 2, 2], ["bin.dat", "added, binary", 0, 0],
-                       ["gone.txt", "deleted", 0, 1], ["mode.sh", "modified", 0, 0],
-                       ["sp ace é.txt", "modified", 1, 1], ["ta\tb\"q.txt", "added", 1, 0]]
-                @test [row.item for row in rows] == collect(commit.changes)
-                # The diffs: the old and the new number of a line stand in its gutter, on its row.
                 @test "@@ -16,5 +16,5 @@ line 15" in texts()
                 @test _git_view_has_label(backend, "-line 19", "19   ")
                 @test _git_view_has_label(backend, "+LINE 19", "   19")
@@ -80,6 +75,20 @@ function test_git_views()
                 @test _git_view_has_label(backend, "-bye", " 1   ")
                 @test "A binary file: no lines to show." in texts()
                 @test "No line changed: the mode of the file changed." in texts()
+                # A file of the tree: its diff alone.
+                (x, y) = _git_view_place(backend, "gone.txt  +0 −1")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test _git_view_run_frames_until(editor, () -> "-bye" in texts() && !("+LINE 19" in texts()))
+                @test !("Body line one." in texts())
+                # A click in the diffs keeps them, and the tree keeps the chosen file.
+                (x, y) = _git_view_place(backend, "-bye")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test occursin("diff", string(strip_reference_types(commit.selection)))
+                @test "-bye" in texts() && !("+LINE 19" in texts())
+                # The top node again: every diff.
+                (x, y) = _git_view_place(backend, "repository  +4 −4")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test _git_view_run_frames_until(editor, () -> "+LINE 19" in texts() && "Body line one." in texts())
             end
 
             @testset "the page of a change shows its path, its facts and its diff" begin
@@ -148,6 +157,24 @@ function test_git_views()
                 @test abs(subject_y - hash_y) <= 4 && hash_x < subject_x
             end
 
+            @testset "a commit with a long message shows its tree, and its diffs in the pane" begin
+                mkpath(joinpath(repository, "deep", "inner"))
+                write(joinpath(repository, "deep", "inner", "x.txt"), "x\n")
+                _git_view_commit!(repository, string("long message\n\n", join(("line $k of the body" for k in 1:60), '\n')),
+                                  "2026-01-07T08:09:10+00:00")
+                commit = GitCommit(repository, "HEAD")
+                editor, backend = _git_view_editor(commit; height = 600)
+                texts() = first.(_git_view_texts(backend))
+                @test _git_view_run_frames_until(editor, () -> "line 1 of the body" in texts())
+                # The tree stands in the window beside the message, which fills the pane.
+                (_, y) = _git_view_place(backend, "x.txt  +1 −0")
+                @test y < 600
+                (x, y) = _git_view_place(backend, "x.txt  +1 −0")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test _git_view_run_frames_until(editor, () -> "+x" in texts() && !("line 1 of the body" in texts()))
+                @test _git_view_place(backend, "+x")[2] < 600
+            end
+
             @testset "a read that failed shows the words of git" begin
                 editor, backend = _git_view_editor(GitCommit(repository, "no-such-revision"))
                 @test _git_view_run_frames_until(editor,
@@ -167,6 +194,12 @@ function _git_view_has_label(backend, text, label)
     labels = [entry for entry in drawn if first(entry) == label]
     any(row -> any(entry -> abs(entry[3] - row) <= 4 && entry[2] < minimum(e[2] for e in drawn if first(e) == text),
                    labels), rows)
+end
+
+# The place `(x, y)` of the text `text` that the frame draws highest.
+function _git_view_place(backend, text)
+    found = [(entry[2], entry[3]) for entry in _git_view_texts(backend) if first(entry) == text]
+    found[argmin(last.(found))]
 end
 
 # Send `events` to the window of `editor` and run a frame.

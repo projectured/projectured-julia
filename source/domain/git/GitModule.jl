@@ -21,6 +21,7 @@ import ..WidgetModule: make_graphics_projection
 import ..OperationModule: evaluate_operation
 import ..DomainModule: acquire_document!, release_document!, get_document_decoration
 import ..TreeModule: get_tree_children_steps, format_tree_node_label
+import ..SelectionModule: has_dormant_selection
 import ..FileChangeModule: receive_folder_change!
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..LinkModule: find_url_document

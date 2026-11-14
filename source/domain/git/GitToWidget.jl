@@ -61,10 +61,13 @@ function _make_git_text_line(p::GitTextToText, line::GitTextLine, width::Int, nu
 end
 
 # Forward: the place `.text{s:e}` of the document is the flat range `{s:e}` of the
-# block, and the line `.lines[k]` is the caret at the start of line `k`.
+# block, and the line `.lines[k]` is the caret at the start of line `k`. A place past
+# the end of the text has no image: a kept caret of a commit names a place in the
+# diffs of another node.
 function _forward_git_text(text::GitText, reference)
     @reference_case reference begin
-        text{s:e} => make_flat_range_reference(s, e; direction = get_range_direction(reference))
+        text{s:e} => max(s, e) <= length(text.text) ?
+                     make_flat_range_reference(s, e; direction = get_range_direction(reference)) : nothing
         lines[k] => _make_git_line_start(getfield(text, :lines)[], k)
     end
 end
@@ -270,6 +273,16 @@ function _find_git_path_below(path, steps)
     path
 end
 
+# The rest of `path` after `steps`, with the node types that it holds, or `nothing`
+# when it does not start with them.
+function _find_typed_path_below(path, steps)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return nothing
+        path = path.tail
+    end
+    path
+end
+
 # `diff.<rest>` or `content.<rest>` ↔ the text in the pane.
 function map_reference_forward(p::_GitPageToWidget, iomap::SimpleIoMap, reference)
     output = iomap.output
@@ -297,40 +310,54 @@ end
     GitCommitToWidget(; styles, gap)
 
 Draw a [`GitCommit`](@ref) as a page: its header, the subject, the short hash with
-the author and the date, the parents and the rest of the message; under it the table
-of its changed files, with the path, the kind and the counts of each, whose path
-opens the page of the change; and under the table its diffs, a [`GitDiffText`](@ref)
-in a pane that scrolls. The table takes a third of the height below the header, and
-the diffs the rest. `styles` holds the styles of a [`GitTheme`](@ref), and `gap` is
-the gap between the parts.
+the author and the date, and the parents; under it a split pane, with the tree of
+the changed files on the left, a quarter of the width, and the diffs of the chosen
+node on the right, a [`GitDiffText`](@ref) in a pane that scrolls. A node of the
+tree shows its counts, and the icon of a file shows the kind of its change. A press
+on a node chooses it; a double press or Return on a file opens the page of its
+change. `styles` holds the styles of a [`GitTheme`](@ref), and `gap` is the gap
+between the parts.
 """
 @projection UntrackedCell struct GitCommitToWidget <: Projection
     styles::NamedTuple = _make_git_text_styles(nothing)
     gap::Int = get_git_style(nothing, :gap)
 end
 
-const _COMMIT_TABLE_STEP = FieldReferenceStep("table")
+const _COMMIT_TREE_STEP = FieldReferenceStep("tree")
 const _COMMIT_DIFF_STEP = FieldReferenceStep("diff")
-const _COMMIT_TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
-const _COMMIT_DIFF_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("content"))
+const _COMMIT_SPLIT_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
+const _COMMIT_HOLDER_STEPS = (_COMMIT_SPLIT_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                              FieldReferenceStep("child"))
+const _COMMIT_TREE_PLACE_STEPS = (_COMMIT_HOLDER_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(0, 1))
+const _COMMIT_DIFF_PLACE_STEPS = (_COMMIT_SPLIT_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(1, 2),
+                                  FieldReferenceStep("child"), FieldReferenceStep("content"))
 
 function print_document(p::GitCommitToWidget, recursion, commit::GitCommit, ctx)
     heading = VerticalLayout(Any[]; horizontal_align = :left, gap = p.gap)
     set_cell_computation!(getfield(heading.children, :elements),
                           () -> Cell[Cell(widget) for widget in _build_commit_heading(p, commit)])
+    # The one child of a layout whose children follow the tree of the commit, which
+    # the commit makes again when its read gives the changes.
+    holder = VerticalLayout(CellVector(@computation Any[getfield(commit, :tree)[]]),
+                            Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     pane = WidgetScrollPane(getfield(commit, :diff)[])
-    output = GridLayout(Any[heading, getfield(commit, :table)[], pane], 1; vertical_gap = p.gap,
-                        column_policy = Fill, row_policies = Any[Content, Relative(1), Relative(2)])
+    split = WidgetSplitPane(:horizontal, Any[LayoutConstraint(holder; width = Relative(1)),
+                                             LayoutConstraint(pane; width = Relative(3))])
+    output = GridLayout(Any[heading, split], 1; vertical_gap = p.gap, column_policy = Fill,
+                        row_policies = Any[Content, Fill])
     iomap = SimpleIoMap(p, commit, output)
-    # The grid passes a key by its own selection, so it carries the path of the commit
-    # below it. The table and the text are documents of the commit, which hold their own.
+    # The grid and the split pane pass a key by their own selection, so each carries
+    # the part of the path of the commit below it. The tree and the text are
+    # documents of the commit, which hold their own.
     set_output_path_computations!(output, commit, path -> map_reference_forward(p, iomap, path); dormant = false)
+    set_output_path_computations!(split, output, path -> _find_typed_path_below(path, _COMMIT_SPLIT_STEPS))
+    set_output_path_computations!(holder, output, path -> _find_typed_path_below(path, _COMMIT_HOLDER_STEPS))
     iomap
 end
 
-# The header of a commit: the subject, the facts, the parents and the rest of the
-# message; a note while the read is to come, and the words of git for a read that
-# failed.
+# The header of a commit: the subject, the facts and the parents; a note while the
+# read is to come, and the words of git for a read that failed. The rest of the
+# message stands above the diffs of the top node.
 function _build_commit_heading(p::GitCommitToWidget, commit::GitCommit)
     header = _read_git_answer(getfield(commit, :header))
     header === nothing && return Any[_make_git_label(p, :subject, commit.revision),
@@ -339,22 +366,20 @@ function _build_commit_heading(p::GitCommitToWidget, commit::GitCommit)
                                           _make_git_label(p, :failure, sprint(showerror, header))]
     facts = string(_format_short_hash(header.hash), " · ", header.author_name, " <", header.author_email, "> · ",
                    header.author_date)
-    widgets = Any[_make_git_label(p, :subject, header.subject), _make_git_label(p, :fact, facts),
-                  _make_git_label(p, :fact, _format_parents(header.parents))]
-    body = _get_message_body(header.message)
-    isempty(body) || append!(widgets, (_make_git_label(p, :message, line) for line in split(body, '\n')))
-    widgets
+    Any[_make_git_label(p, :subject, header.subject), _make_git_label(p, :fact, facts),
+        _make_git_label(p, :fact, _format_parents(header.parents))]
 end
 
 # A label of `text` in the style `name` of the projection `p`.
 _make_git_label(p, name::Symbol, text::AbstractString) =
     WidgetLabel(String(text); text_style = unwrap_cell(getproperty(p.styles, name)))
 
-# `table.<rest>` ↔ the table in the grid; `diff.<rest>` ↔ the text in the pane.
+# `tree.<rest>` ↔ the tree on the left; `diff.<rest>` ↔ the text in the pane on the
+# right.
 function map_reference_forward(::GitCommitToWidget, iomap::SimpleIoMap, reference)
     output = iomap.output
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
-    for (step, place) in ((_COMMIT_TABLE_STEP, _COMMIT_TABLE_PLACE_STEPS), (_COMMIT_DIFF_STEP, _COMMIT_DIFF_PLACE_STEPS))
+    for (step, place) in ((_COMMIT_TREE_STEP, _COMMIT_TREE_PLACE_STEPS), (_COMMIT_DIFF_STEP, _COMMIT_DIFF_PLACE_STEPS))
         rest = _find_git_path_below(reference, (step,))
         rest === nothing && continue
         part = getfield(iomap.input, Symbol(step.name))[]
@@ -364,27 +389,41 @@ function map_reference_forward(::GitCommitToWidget, iomap::SimpleIoMap, referenc
     nothing
 end
 
-# A path into the table or the text takes its step; a path into the header names
+# A path into the tree or the text takes its step; a path into the header names
 # nothing, so a press on it leaves the selection where it is; a path to the grid
 # itself names the whole commit.
 function map_reference_backward(::GitCommitToWidget, iomap::SimpleIoMap, reference)
     isempty(get_reference_steps(strip_reference_types(reference))) && return EmptyReference()
-    for (step, place) in ((_COMMIT_TABLE_STEP, _COMMIT_TABLE_PLACE_STEPS), (_COMMIT_DIFF_STEP, _COMMIT_DIFF_PLACE_STEPS))
+    for (step, place) in ((_COMMIT_TREE_STEP, _COMMIT_TREE_PLACE_STEPS), (_COMMIT_DIFF_STEP, _COMMIT_DIFF_PLACE_STEPS))
         rest = _find_git_path_below(reference, place)
         rest === nothing || return ConcreteReference(step, rest)
     end
     nothing
 end
 
-# The page keeps the arrangement of the table when its last entry goes, and it opens
-# the change of a row at its place in the commit, `changes[j]`.
+# The page opens the change of a file node at its place in the commit,
+# `changes[j]`, so the address of its page holds no step of the tree.
 function read_intent(p::GitCommitToWidget, recursion, change::Intent, iomap::SimpleIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     answer isa Intent || return answer
-    commit = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(commit, :table)[], _COMMIT_TABLE_STEP)
-    operation = retarget_held_row_open(operation, commit, _COMMIT_TABLE_STEP)
+    operation = _retarget_change_open(answer.operation, iomap.input)
     operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+end
+
+# The open of a file node of the tree as the open of its change, `changes[j]`; any
+# other operation as it is.
+_retarget_change_open(operation, commit::GitCommit) = operation
+_retarget_change_open(operation::CompoundOperation, commit::GitCommit) =
+    CompoundOperation(Any[_retarget_change_open(member, commit) for member in operation.operations])
+function _retarget_change_open(operation::OpenPageOperation, commit::GitCommit)
+    (operation.document === nothing && operation.target === nothing) || return operation
+    _find_git_path_below(operation.reference, (_COMMIT_TREE_STEP,)) === nothing && return operation
+    node = try_evaluate_reference(commit, strip_reference_types(operation.reference), nothing)
+    node isa GitFileChange || return operation
+    index = findfirst(change -> change === node, collect(commit.changes))
+    index === nothing && return operation
+    place = extend_reference(EmptyReference(), FieldReferenceStep("changes"), ElementReferenceStep(index))
+    OpenPageOperation(nothing, annotate_reference_types(commit, place), operation.place)
 end
 
 # ── The page of a range ─────────────────────────────────────────────────────

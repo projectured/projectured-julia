@@ -93,13 +93,28 @@ Each step runs in the worktree `projectured-julia-git-views` and ends with one c
    - The label of a rename or a copy in the same folder is `old → new`, and from another folder
      `new ← old path`; a binary file says `binary` in place of its counts.
    - Results: the new testset 15, `test_git_views()` 43 and the git layering guard 7 pass.
-2. **The page.** The header, the split pane, the tree and the text of the chosen node; the message at
+2. **The page.** **Done on 2026-11-14.** The header, the split pane, the tree and the text of the chosen node; the message at
    the top node; the dormant place in the tree; the table and the facets go. Test:
    `test_git_views()` and `test_git_gestures()`: the page shows the tree and every diff with the
    message; a click on a folder shows only its diffs, and a click on a file its diff; a click in the
    diffs keeps them; a commit with a long message, which the test adds to its copy of the example
    repository as it adds the long files now, shows its tree and its diffs in the window; a
    Ctrl+click on a line opens the file as before.
+   What the implementation found:
+   - `GitCommit` holds `tree`, a computed `DocumentTree` of the top folder, with every folder open
+     and with `current` on the chosen node; the commit makes it again when its read gives the
+     changes, and a read that is to come or that failed gives an empty tree. The page puts the tree
+     in a holder layout, as the explorer does, so the slot follows the new tree.
+   - The chosen node is the deepest node on the path that the stored selection of the tree names
+     (`get_stored_selection`). `has_dormant_selection(::GitCommit) = true` keeps that path while
+     the selection is in the diffs, and keeps the place in the diffs while it is in the tree.
+   - The forward map of a git text gives no image to a place past the end of the text: a kept
+     caret of the diffs can name a place that the text of another node does not have.
+   - The page opens a file node at the place of its change in the commit, `changes[j]`, so the
+     address of the page holds no step of the tree.
+   - Results: `test_git()` 235, `test_widget_icon()` 587 pass. The view test adds a commit with a
+     message of 60 lines to its copy of the example repository: the tree stands in the window,
+     and a click on its file shows the diff in the window.
 3. **The guide and the live check.** `git.md` describes the page. The script of the live check of
    the git views draws `1374297` and `b3e5ccc` of inet-cpp, chooses a folder and a file, and writes
    a picture of each view.

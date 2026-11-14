@@ -5,7 +5,7 @@ The gestures of the pages of the git domain in the window of an editor whose
 document is a navigator on a commit: a Ctrl+click on a removed line of a diff visits
 the file at the parent at its old line, and Back returns to the commit; a
 Ctrl+Shift+click on an added line opens the file at the commit at its new line in a
-new tab; a click on the path of a file in the table visits its change; a
+new tab; a double click on a file of the tree visits its change; a
 Ctrl+click moves no selection; the command palette lists the two opens at the line
 of the caret and runs one; a rest of the pointer on a line of a diff shows the
 file, the revision and the line that the line opens; and a link to a `git+file:`
@@ -53,14 +53,16 @@ function test_git_gestures()
                 @test (page.revision, page.path, page.line) == (second_hash, "b.txt", 19)
             end
 
-            @testset "a click on the path of a file in the table visits its change" begin
+            @testset "a double click on a file of the tree visits its change" begin
                 commit = GitCommit(repository, "v1")
                 navigator = Navigator(commit)
                 editor, backend = _git_view_editor(navigator; height = 1400)
                 texts() = first.(_git_view_texts(backend))
-                @test _git_view_run_frames_until(editor, () -> "gone.txt" in texts() && "-bye" in texts())
-                (x, y) = _git_gesture_place(backend, "gone.txt")
-                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test _git_view_run_frames_until(editor, () -> "gone.txt  +0 −1" in texts() && "-bye" in texts())
+                (x, y) = _git_gesture_place(backend, "gone.txt  +0 −1")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(); time = 0.0))
+                drain_operations!(editor)
+                run_frame!(editor)
                 @test get_navigator_page(navigator) === collect(commit.changes)[3]
             end
 

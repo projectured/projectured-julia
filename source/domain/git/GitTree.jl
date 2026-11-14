@@ -107,3 +107,44 @@ end
 get_document_decoration(::GitChangedFolder) = DocumentDecoration(; icon = :folder)
 get_document_decoration(change::GitFileChange) =
     DocumentDecoration(; icon = change.kind === :added ? :file_plus : change.kind === :deleted ? :file_minus : :file_diff)
+
+# ── The tree of a commit ────────────────────────────────────────────────────
+
+# The tree of the changed files of a commit, whose top node is `folder`: each folder
+# is open, and the row of the chosen node has the mark of the current page.
+function _make_commit_tree(folder::GitChangedFolder)
+    holder = Ref{Any}(nothing)
+    current = Cell(@computation holder[] === nothing ? nothing : _find_chosen_steps(holder[]).path)
+    tree = DocumentTree(Cell(folder), Cell(folder.name), Cell(IdDict{Any,Any}(folder => _make_open_places(folder))),
+                        Cell(IdDict{Any,Nothing}()), current, Cell(nothing))
+    holder[] = tree
+    tree
+end
+
+# The open places below `folder`: each folder under it, with the places below it.
+_make_open_places(folder::GitChangedFolder) =
+    IdDict{Any,Any}(child => _make_open_places(child) for child in folder.children if child isa GitChangedFolder)
+
+# The node of `tree` that the selection of the tree names, live or dormant: the
+# deepest node on its path, or the top node when the selection names none.
+_find_chosen_node(tree) = _find_chosen_steps(tree).node
+
+# The chosen node and its path from the top node.
+function _find_chosen_steps(tree)
+    node = tree.root
+    steps = ReferenceStep[]
+    path = get_stored_selection(tree)
+    path isa ConcreteReference || return (; node, path = EmptyReference())
+    rest = collect(get_reference_steps(strip_reference_types(path)))
+    (isempty(rest) || rest[1] != FieldReferenceStep("root")) && return (; node, path = EmptyReference())
+    rest = rest[2:end]
+    while node isa GitChangedFolder && length(rest) >= 2 && rest[1] == FieldReferenceStep("children") &&
+          rest[2] isa RangeReferenceStep
+        k = rest[2].stop
+        (rest[2].start == k - 1 && 1 <= k <= length(node.children)) || break
+        append!(steps, rest[1:2])
+        node = node.children[k]
+        rest = rest[3:end]
+    end
+    (; node, path = extend_reference(EmptyReference(), steps...))
+end

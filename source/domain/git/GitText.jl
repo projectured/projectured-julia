@@ -91,20 +91,28 @@ end
 
 # ── The lines of a commit ───────────────────────────────────────────────────
 
-# The lines of the diffs of a commit: the path and the diff of each changed file. The
-# page shows the header of the commit and the table of its files above them, and the
-# words of git for a read that failed.
-function _make_commit_lines(header_cell, changes_cell)
+# The lines of the diffs of the node of the tree of a commit that the selection of the
+# tree names: at the top node, the message after the subject, then the path and the
+# diff of each changed file; at a folder or a file, the diffs under it, in the order
+# of the tree. The header of the page shows the subject, and the words of git for a
+# read that failed.
+function _make_commit_lines(header_cell, changes_cell, tree_cell)
     header = _read_git_answer(header_cell)
     header === nothing && return [GitTextLine(:note, "Reading the commit…")]
     header isa GitException && return GitTextLine[]
     changes = _read_git_answer(changes_cell)
     changes isa GitException && return GitTextLine[]
     changes === nothing && return [GitTextLine(:note, "Reading the changes…")]
-    changes = collect(changes)
+    tree = tree_cell[]
+    node = _find_chosen_node(tree)
+    changes = _collect_node_changes(node)
     answers = [_read_git_answer(getfield(change, :hunks)) for change in changes]
     width = maximum(_get_number_width, answers; init = 0)
     lines = GitTextLine[]
+    if node === tree.root
+        body = _get_message_body(header.message)
+        isempty(body) || append!(lines, (GitTextLine(:message, line) for line in split(body, '\n')))
+    end
     for (change, answer) in zip(changes, answers)
         isempty(lines) || push!(lines, GitTextLine(:note, ""))
         sides = _get_diff_sides(change.repository, change.old_revision, change.old_path, change.new_revision,
