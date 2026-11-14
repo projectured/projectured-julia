@@ -404,7 +404,7 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    - Results: `test_git()` 119 pass; `test_printer(git_example)`, `test_package_graph()` 562 and
      `test_repository()` 619 pass; the naming guard passes; the documentation report is the same as
      on main; the style guard fails one line, `BookModule.jl:34`, as on main.
-4. **The gestures.** The rules of §3.4 and their descriptions, which the command palette lists. Test:
+4. **The gestures.** **Done on 2026-11-14.** The rules of §3.4 and their descriptions, which the command palette lists. Test:
    the new `test_git_gestures()` (`GitGestureTest.jl`) in a real `Editor` with a navigator on a
    commit. Ctrl+click on a removed line visits the file at the parent at its old line, and Back
    returns. Ctrl+Shift+click on an added line opens a new tab at the new line. Ctrl+click on a file
@@ -460,8 +460,20 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
        and `test_graph_layout_zoom()` 38 pass; the naming guard passes. Known failures of main
        stay: `NavigatorChoicesTest.jl:174/178/208/211`, `GraphScrollPaneTest.jl:183-210`, and two
        checks of `test_platform_layering()` on files that this branch does not change.
-   - Open: the reader is no gesture binding, so the command palette does not list the two opens, and
-     a line shows no tooltip of its numbers and its revision yet.
+   - The two opens and a tooltip are one table of gesture bindings of `GitTextToText`
+     (`_make_git_line_bindings`), so what fires is what the command palette lists. A binding gets
+     only its document and the event, so the reader makes the table for one line: for a click,
+     the line of the caret that the text domain answers, fired as an override of that caret; for
+     a listing and a rest of the pointer, the line under the pointer or of the selection, by the
+     rule of `find_pointed_part`. The palette runs an open with no event, at the line of the
+     caret. The tooltip of a line of a diff names the file, the short revision and the line that
+     its Ctrl+click opens; a line with no place has no tooltip, and its opens show greyed.
+     - A row of a listing runs only when its binding has a `name`, so each open is named by its
+       description.
+     - The test types into the list with `shell = true`, as the application does: in an editor
+       with no shell, a key of the window does not reach the list of the palette, although the
+       selection is in its query. That is a fault of the platform outside this plan.
+     - Results: `test_git()` 176 pass (`test_git_gestures()` 21).
    - Results: `test_git()` 162 pass (`test_git_gestures()`: the visit and Back, the new tab, the link
      of the table, the selection that stays).
 5. **The link.** `find_url_document` in `UrlInterface.jl`, its two calls in the navigator slice, and

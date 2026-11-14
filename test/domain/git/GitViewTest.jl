@@ -155,12 +155,13 @@ end
 
 # An editor of `document` in a window of the headless backend, so that its page has
 # a size.
-function _git_view_editor(document; height::Int = 600, tabs::Bool = false)
+function _git_view_editor(document; height::Int = 600, tabs::Bool = false, command_palette::Bool = false,
+                          shell::Bool = false)
     backend = HeadlessBackend()
     editor = build_editor(document, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0)); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
                           window = (; title = "W", width = 900, height), tabs, appearance = false,
-                          settings = false)
+                          settings = false, command_palette, shell)
     run_frame!(editor)
     (editor, backend)
 end

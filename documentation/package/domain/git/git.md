@@ -56,6 +56,16 @@ The page of a commit has three parts. Its header, as labels: the subject, the sh
 
 The flat string of the block is the `text` of the document, so the place `text{s:e}` of the document is the flat range `{s:e}` of the block, in both directions. The line `lines[k]` maps forward to the caret at the start of line `k`: a file at a revision starts with that selection at the line that its open names. The reader of the stage keeps a selection, the part under the pointer and a drag, and answers no edit: a range edit, an element write and a key that the stages after it give back answer nothing. So a person reads, selects and copies, and the text of a page never changes.
 
+Each line of a diff carries its place, a `GitLinePlace`: the repository, the revision and the path of the file on its side, and its number there. A removed line has the place of the parent and its old number, and a kept or an added line the place of the commit and its new number. The start of a hunk and the path of a file have the first line of their file. The gestures of the lines are one table of `GitTextToText`:
+
+| Gesture | What it does |
+| --- | --- |
+| Ctrl+click | opens the file at the place of the line, a `GitFileRevision`, as a visit of the navigator around the page |
+| Ctrl+Shift+click | opens it in a new tab |
+| a rest of the pointer | shows a note with the file, the short revision and the line that the click opens |
+
+A binding gets only its document and the event, so the reader makes the table for one line. The text domain answers a click with the caret at its point, and the reader fires the table at the line of that caret, as an override of the caret, so the selection of the person stays. A listing and a rest of the pointer take the line under the pointer, or the line of the selection. Each open has a name, so the command palette lists it and runs it at the line of the caret. A line with no place, such as a note, has no tooltip, and its opens show greyed.
+
 The page of a change and of a file at a revision is a `VerticalLayout` that holds a `WidgetScrollPane` of its text, and a title above it for a file at a revision, as the view of an open file is. The chain of a page ends with `VerticalLayoutToGraphicsCanvas`, and the recursion of the renderer draws the pane and the text by their own rows: `make_graphics_projection` of `GitDiffText` and `GitFileText` gives the text chain, and the pane takes apart its `ScrollLayout`, so the gutter stays at the left edge while the lines scroll. The pane of a file at a revision shows the selection of its text when it starts (`is_selection_revealed`, see [widget.md](../../platform/widget/widget.md)), so the page opens with the named line in the middle of its view, once the read of the file gives the line. A walk of the documents reads no `hunks`, `diff` or `content`.
 
 ### The values of the output of git

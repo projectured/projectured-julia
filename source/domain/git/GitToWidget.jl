@@ -111,38 +111,87 @@ function read_intent(p::GitTextToText, iomap::SimpleIoMap, operation::ReplacePat
     path === nothing ? nothing : make_path_operation(operation, path)
 end
 
-# A Ctrl+click on a line that has a place opens the file at that place: as a visit of
-# the navigator around the page, and with Shift in a new tab. The text domain answers
-# the click with the caret at its point, and the caret names the line. The open
-# takes the place of the caret, so the selection of the person stays.
+# The gestures of the lines fire from their table (`_make_git_line_bindings`). A
+# listing and a rest of the pointer read it at the line that a person points at. A
+# click reads it at the line of the caret that the text domain answers, as an
+# override of that caret, so the selection of the person stays.
 function read_intent(p::GitTextToText, recursion, change::Intent, iomap::SimpleIoMap)
-    open = _find_line_open(iomap, change)
-    open === nothing || return Intent(change.gesture, open,
-                                      open.place === :new_tab ? "Open the file at this line in a new tab" :
-                                                                "Open the file at this line", "git")
+    own = _read_git_line_gesture(iomap, change)
+    own === nothing || return Intent(change.gesture, own)
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
 end
 
-# The open of the file at the place of the line under a Ctrl+click, or `nothing`.
-function _find_line_open(iomap::SimpleIoMap, change::Intent)
-    gesture = change.gesture
-    (gesture isa MouseClick && gesture.button === :left && gesture.count == 1 && gesture.modifiers.ctrl &&
-     !gesture.modifiers.alt && change.operation isa ReplaceSelectionOperation) || return nothing
-    offset = get_flat_caret(iomap.output, change.operation.path)
+get_projection_gesture_bindings(::GitTextToText, iomap::SimpleIoMap) =
+    _make_git_line_bindings(_find_pointed_line(iomap.input))
+
+function _read_git_line_gesture(iomap::SimpleIoMap, change::Intent)
+    text, gesture, claimed = iomap.input, change.gesture, change.operation
+    selection = get_selection(text)
+    claimed === nothing && gesture isa Union{CollectIntents, MouseDwell} &&
+        return fire_gesture_bindings(_make_git_line_bindings(_find_pointed_line(text)), text, gesture; selection)
+    (gesture isa MouseClick && claimed isa ReplaceSelectionOperation) || return nothing
+    offset = get_flat_caret(iomap.output, claimed.path)
     offset === nothing && return nothing
-    place = _find_line_place(getfield(iomap.input, :lines)[], offset)
-    place === nothing && return nothing
-    OpenPageOperation(GitFileRevision(place.repository, place.revision, place.path; line = place.number),
-                      EmptyReference(), gesture.modifiers.shift ? :new_tab : :here)
+    line = _find_offset_line(getfield(text, :lines)[], offset)
+    fire_gesture_bindings(_make_git_line_bindings(line), text, gesture; selection, claimed)
 end
 
-# The place of the line that holds the flat offset `offset`: each line counts its
-# characters and its line end.
-function _find_line_place(lines, offset::Int)
+# The gestures of `line`, a `GitTextLine`, or `nothing`: Ctrl+click opens the file at
+# the place of the line, as a visit of the navigator around the page, Ctrl+Shift+click
+# opens it in a new tab, and a rest of the pointer shows the file, the revision and
+# the line that the click opens. Each has a name, so the command palette runs it at
+# the line of the caret. A line with no place has none of them, so a listing shows
+# them greyed.
+function _make_git_line_bindings(line)
+    place = line === nothing ? nothing : line.place
+    has_place = (_, _) -> place !== nothing
+    open(where) = (_, _) -> place === nothing ? nothing :
+        OpenPageOperation(GitFileRevision(place.repository, place.revision, place.path; line = place.number),
+                          EmptyReference(), where)
+    click(modifiers) = MouseClickPattern(:left; modifiers, guard = event -> event.count == 1)
+    here = "Open the file at this line"
+    new_tab = "Open the file at this line in a new tab"
+    GestureBinding[
+        GestureBinding(click([:ctrl]), open(:here); applicable = has_place, description = here, domain = "git",
+                       override = true, name = here),
+        GestureBinding(click([:ctrl, :shift]), open(:new_tab); applicable = has_place, description = new_tab,
+                       domain = "git", override = true, name = new_tab),
+        make_tooltip_binding(_ -> _make_git_line_note(line); description = "Show the file that the line opens")]
+end
+
+# What a line says when the pointer rests on it: the file, the revision and the line
+# that its Ctrl+click opens, or `nothing` for a line with no place.
+function _make_git_line_note(line)
+    (line === nothing || line.place === nothing) && return nothing
+    place = line.place
+    TooltipNote(; title = get(_GIT_LINE_TITLES, line.kind, "Line"),
+                facts = ["File" => place.path, "Revision" => _format_short_hash(place.revision),
+                         "Line" => string(place.number)],
+                hint = "Ctrl+click opens the file at this line, and Ctrl+Shift+click opens it in a new tab.")
+end
+
+const _GIT_LINE_TITLES = Dict(:path => "Changed file", :hunk => "Start of a hunk", :kept => "Kept line",
+                              :removed => "Removed line", :added => "Added line")
+
+# The line that a person points at in a git text: the line under the pointer, or,
+# when the pointer is not on the text, the line of the selection.
+function _find_pointed_line(text::GitText)
+    path = something(get_mouse_target(text), Some(get_selection(text)))
+    path isa Reference || return nothing
+    lines = getfield(text, :lines)[]
+    @reference_case path begin
+        text{s:e} => _find_offset_line(lines, s)
+        lines[k] => (1 <= k <= length(lines) ? lines[k] : nothing)
+    end
+end
+
+# The line that holds the flat offset `offset`: each line counts its characters and
+# its line end.
+function _find_offset_line(lines, offset::Int)
     start = 0
     for line in lines
         stop = start + length(line.text)
-        offset <= stop && return line.place
+        offset <= stop && return line
         start = stop + 1
     end
     nothing
