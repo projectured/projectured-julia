@@ -1,6 +1,6 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided but for the question QC of step 6. The JSON
+Status: IN PROGRESS, decided. The JSON
 pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
 `projectured-julia-views-compose`, branch `views-compose`; step 2 is done in
 the model of one recursion (decisions 10 to 13).
@@ -341,6 +341,28 @@ element 2.
       first stage wrote with the flag of the place.
     - `PrinterContext.jl`, `OutputPaths.jl` and `SelectionDefaults.jl` have no seal
       (`SEALING.md`, 2026-11-14).
+17. **A paste gives a new view, and Copy or Note says whether the content is a copy
+    or the same** (the owner, 2026-11-14: "I believe the second place of the same
+    view is less useful than a second view of the same content. So we can have a
+    complete copy of the content with a new view, and new view of the same content
+    this will be the note, and the third case is the same view at a new place this
+    is the least interesting case").
+    - Copy (Ctrl+C), then Paste (Ctrl+V): a copy of the content, with a new view.
+    - Note (Ctrl+N), then Paste (Ctrl+V): the same content, with a new view. The new
+      view starts with a copy of the caret and the folds of the noted view.
+    - Note (Ctrl+N), then the new gesture "Paste the same view" (Ctrl+Alt+V): the
+      same view at a second place. It keeps the feature of one document at two
+      places with one caret, which Note and Paste give before this plan.
+
+    A paste of a stored document that is no view stays as it is. The copy of the
+    nodes of a view that shares the content is a copy policy of the clipboard, and
+    no new mechanism. No binding uses Ctrl+Alt+V in the platform or in `omnet-julia`
+    (2026-11-14).
+
+    What the gestures do at the time of the decision, read and not run on a view:
+    Note stores the object itself, Copy stores a full copy, Paste puts the stored
+    object into the selected slot, and "Paste copy" (Ctrl+Shift+V) puts a new full
+    copy of it.
 
 ## What is not known yet
 
@@ -359,9 +381,7 @@ element 2.
   closed with no rule (the owner, 2026-11-14): decision 15 leaves no case. A place
   of a part holds the view of the part, and the caret of that view is a path inside
   the part.
-- **QC, for step 6. The pastes of a view.** A new place of the same view, a new view
-  that starts from a copy of the state, or a copy of the content: three commands, or
-  one paste whose kind the person picks.
+- QC, the pastes of a view, has its answer in decision 17.
 
 ## Steps
 
@@ -684,7 +704,7 @@ and the output of each stage, as structures that a person reads.
    where a tab holds a view or the view of a part (decision 15); the live flag of a
    place (decision 16), with a test that only the place on the path from the root
    draws a live caret and that every other place of the view draws the same
-   position dormant; the pastes of QC.
+   position dormant; the three pastes of decision 17.
 7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
