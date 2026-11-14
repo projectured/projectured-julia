@@ -761,6 +761,12 @@ and the output of each stage, as structures that a person reads.
      paste put over a view was not live. `_repair_selection_chain!` gives each
      document below its part, from the first that does not hold it; while each
      holds its part, it writes no cell.
+     The fault is one of the storage of a path and of no view: with two plain
+     documents, the new one stored `nothing` after the two writes of a paste. The
+     owner accepted the change (2026-11-14). The cause stays: each document keeps
+     its part of the path and each print reads that part; step 8 takes the parts
+     from the text, syntax and JSON types, and the views and the containers keep
+     theirs.
 
    Facts:
    - A path to a place that holds a view with a dormant caret wakes the caret. A
