@@ -19,6 +19,7 @@ maximum `M` (`PrinterContext`: `minimum_width`, `maximum_width`,
 
 ```
 e = A                  when the child authored the size A
+e = s                  when the child is a widget in an exact range (s, s)
 e = clamp(C, m, M)     when the child is a viewport with no slot, and scrolls the rest
 e = max(m, C(M))       otherwise
 ```
@@ -40,7 +41,7 @@ An axis is in one of four states:
 
 | State | Range | The child |
 | --- | --- | --- |
-| exact | `(s, s)` | takes `s`: it stretches to it, and text wraps at it; its giver cuts at `s` |
+| exact | `(s, s)` | a widget takes `s`: it stretches to it, text wraps at it, and it cuts its content at its box; a layout draws at least `s`, and the place where `s` is written cuts there (§3b) |
 | bounded | `(0, l)` | draws its content, laid out up to `l`; a viewport stops at `l`, and an ancestor cuts there |
 | at least | `(m, ∅)` | draws at least `m`, and grows with its content |
 | free | `(0, ∅)` | draws its content, with no edge |
@@ -76,8 +77,8 @@ offer equally, which is what a weight of one each means.
 
 **An authored size is `Fixed`.** `w.width`, `w.height`, `w.size`, a row count — a
 caller that wrote a number meant it, so it wins over the offer and the content
-does not raise it. A widget told to be 40 wide draws 40 and lets its content
-overflow. `0` means the widget authored nothing, and it is then `Content`.
+does not raise it. A widget told to be 40 wide draws 40 and cuts its content at
+its box (§3b). `0` means the widget authored nothing, and it is then `Content`.
 
 **No constant.** A widget with no size of its own, no offer and no content has no
 extent on that axis, and the answer is `0`. A number invented in a printer is a
@@ -222,28 +223,43 @@ cell to read. An unclipped axis reads a cell that the content produces.
 ## 3b. Who clips
 
 ```
-A container that hands a child a slot (an exact range) on an axis
-MUST clip that axis to the slot it handed out.
+A widget cuts its content at its box. A layout only places its children.
+A size written for a child cuts the child where it is written.
 ```
 
-A slot is a promise about space, not a constraint on the child. Nothing makes a
-widget fit: `_resolve_size` returns an authored size whatever is given, and
-otherwise `max(minimum, content)` — so the content is a floor **above** the slot,
-and a widget never draws smaller than what it holds. That is deliberate. A widget that
-clamped itself to the offer would report the offer as its extent, and a stack could
-no longer tell a child that is too big from one that fits, which is the measurement
-`Content` and `allocate_axis` both run on.
+**A widget cuts at its inner box**, on each axis where its box does not come from
+its content: a size that it authored, or an exact size that it gets. Only the
+widget knows its border and its padding, so only the widget can cut its content
+before the content reaches them. The widget emits a `GraphicsViewport` at its inner
+box, holding the canvas of its content, and reports its own box. A content larger
+than the box starts at the inner start edge of the box and is cut at the end, so a
+caption, a value or a title shows its start. A text field also keeps its caret in
+view (`scroll_position`).
 
-So the promise is kept by the party that made it. The container emits a
-`GraphicsViewport` at the slot, sized to the slot, holding the child's canvas — the
-element `WidgetScrollPane` has always emitted — and reports **its own box** rather
-than what the child reached.
+**An exact range is a size that is decided, and a widget takes it.** In a bounded
+range a widget draws `max(minimum, content)`, so it never draws smaller than what
+it holds. That is deliberate. A widget that clamped itself to an edge would report
+the edge as its extent, and a stack could no longer tell a child that is too big
+from one that fits, which is the measurement `Content` and `allocate_axis` both run
+on. No stack measures a child in an exact range: the range is a `Fixed` size or a
+share, which the stack decided.
 
-**Per axis with a slot, not per widget.** An axis a container withholds — because its own
-extent comes from the child — has nothing to clip against, and clipping to an extent
-derived from the content is the cycle §3 describes. So a tab page clips both axes, a
-split clips its main axis always and its cross axis when it was offered one, and a
-card clips its width but not its height.
+**A layout is not a widget.** A row, a column, a stack, a flow and a composite place
+their children and emit no viewport. A layout in an exact range draws at least that
+range, and its content where the content is larger. A size written for a child that
+is a layout is kept by the place that holds the number. A `LayoutConstraint` that
+states a preferred size, a weight or a maximum on an axis wraps its child in a
+viewport at the size that it gets there (`clip_child_to_slot`), and reports that
+size. A grid does the same for a column or a row that has a set size or a share,
+because the grid holds those policies. So the next child of a row starts after the
+size that the constraint states, and nothing draws past it.
+
+**A widget that gives a slot cuts at it**, as any widget cuts at its box. An axis
+that a widget withholds — because its own extent comes from the child — has nothing
+to cut against, and cutting to an extent derived from the content is the cycle §3
+describes. So a tab page cuts both axes, a split cuts its main axis always and its
+cross axis when it was offered one, and a card cuts its width, and its height when
+it authors one.
 
 **A bounded range adds no clip of its own.** Its maximum is the room of an
 ancestor that gave a slot, less what lies between, and that ancestor clips. Rigid
@@ -263,7 +279,8 @@ is a scissor rect, not a surface, and the alternative is a type test in the prin
 **A widget of rows scrolls by itself.** A `WidgetTable`, a `WidgetList` and a
 `WidgetTree` that get an edge, exact or bounded, on an axis that they scroll take
 their rows up to it and scroll the rest there, inside their border; with no edge
-they are as tall as their rows. So the
+they are as tall as their rows. A list with an authored width cuts its rows at that
+width, also with no edge. So the
 maker of such a widget brings no pane, and a pane around one has nothing left to
 scroll.
 

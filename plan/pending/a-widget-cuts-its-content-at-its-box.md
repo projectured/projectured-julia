@@ -1,7 +1,8 @@
 # A widget cuts its content at its box
 
-> **Kind:** plan · **Status:** a plan, written 2026-11-15 at `main` `11585943d`. Not approved for
-> implementation. · **Stands on:** [layout-rules.md](../../documentation/rule/layout-rules.md),
+> **Kind:** plan · **Status:** a plan, written 2026-11-15 at `main` `11585943d`. The owner approved
+> it for implementation on 2026-11-15, D2 included. The work runs on the branch `widget-cut` in the
+> worktree `projectured-julia-widget-cut`. · **Stands on:** [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout.md](../../documentation/package/platform/layout/layout.md)
 
@@ -121,6 +122,19 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    row, a column, a stack and a flow. Each type that fails goes into a `@test_broken` set that
    names this plan, and the later steps take it out. The comment of `_RULES_INK_BROKEN` names
    `plan/done/a-layout-paints-only-what-the-screen-shows.md`.
+   **Done on 2026-11-15.** The layouts have a kind of their own, `:places`: a layout in an exact
+   range less than its content draws its content, as `:rigid` did before. A `:rigid` widget expects
+   `exact_less = ==(m.less)`. The ink check covers every axis. Three new tables: `_RULES_CUT_SAMPLES`
+   (15 samples, each with a short and a long content, and the axes that the type sets),
+   `_RULES_CONSTRAINT_CASES` (8 cases) and their checks. The first run found the work of steps 2
+   and 4, now in four broken sets: `_RULES_EXACT_BROKEN`, 41 pairs of a type and an axis over 23
+   widget types (a type and an axis, because 5 types fail on one axis only); `_RULES_CUT_BROKEN`,
+   13 of the 15 samples (the scroll pane and the transform pane cut already; `WidgetTextarea` also
+   grows past `rows`); `_RULES_CONSTRAINT_BROKEN`, all 8 cases (each draws its child, 350 or 72);
+   and `WidgetSeparator` in `_RULES_INK_BROKEN`, whose authored axis the ink check did not read
+   before. The card draws its `footer` as `string(w.footer)`, so its sample is a string.
+   `test_layout_rules()`: 548 passed, 73 broken. The rule changed in `layout-rules.md` §1 and
+   §3b, `widget.md` and `layout.md`.
 2. **A widget cuts at its box (D1, D2, D5).** One function of the box code in
    `WidgetToGraphics.jl` puts the content canvas of a widget in a `GraphicsViewport` at the inner
    box, on each axis where the size of the widget is set or exact. `_resolve_width` and

@@ -5,18 +5,21 @@
 # on each axis. The kind says what the type is, and the rule of the kind says what
 # it draws in a range `(minimum, maximum)`; `N` is what it draws with no range:
 #
-# | kind         | exact (S, S) | bounded (0, L) | at least (M, ∅) | bounded (0, l), l < N |
-# | ------------ | ------------ | -------------- | --------------- | --------------------- |
-# | `:rigid`     | S            | N              | M               | N, and its giver cuts |
-# | `:reflowing` | S            | N              | M               | at most l: it wraps   |
-# | `:scrolls`   | S            | N              | M               | l, and it scrolls     |
-# | `:fills`     | S            | N              | M               | N, and its giver cuts |
-# | `:authored`  | N            | N              | N               | N                     |
-# | `:overlay`   | N            | N              | N               | l: it caps            |
+# | kind         | exact (S, S) | bounded (0, L) | at least (M, ∅) | bounded (0, l), l < N | exact (l, l), l < N |
+# | ------------ | ------------ | -------------- | --------------- | --------------------- | ------------------- |
+# | `:rigid`     | S            | N              | M               | N, and an ancestor cuts | l, and it cuts    |
+# | `:reflowing` | S            | N              | M               | at most l: it wraps   | l: it wraps         |
+# | `:scrolls`   | S            | N              | M               | l, and it scrolls     | l, and it scrolls   |
+# | `:fills`     | S            | N              | M               | N, and an ancestor cuts | l, and it cuts    |
+# | `:places`    | S            | N              | M               | N, and an ancestor cuts | N, and its giver cuts |
+# | `:authored`  | N            | N              | N               | N                     | N                   |
+# | `:overlay`   | N            | N              | N               | l: it caps            | l: it caps          |
 #
-# where S, L and M are more than N. A kind that fills a slot, `:fills` and
-# `:scrolls`, takes a slot that is less than N too, and cuts its content there. A type that is not placed alone has a reason
-# instead of a sample, and a guard fails for a type that has neither.
+# where S, L and M are more than N. A widget takes an exact size less than its
+# content and cuts its content at its box; a layout, `:places`, only places its
+# children, and the place where the size is written cuts. A type that is not
+# placed alone has a reason instead of a sample, and a guard fails for a type that
+# has neither.
 
 _rules_projection() = RecursiveProjection(TypeDispatchingProjection(
     WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
@@ -105,12 +108,12 @@ const _RULES_KINDS = Dict{Symbol,Any}(
     :WidgetTree         => (() -> WidgetTree(Any[WidgetTreeNode(:file, "one"), WidgetTreeNode(:file, "two")]),
                             :scrolls, :scrolls),
     :WidgetInsertion    => "an insertion is a mark that a text puts between its characters",
-    :HorizontalLayout   => (() -> HorizontalLayout(Any[WidgetLabel("Left"), WidgetLabel("Right")]; gap = 8), :rigid, :rigid),
-    :VerticalLayout     => (() -> VerticalLayout(Any[WidgetLabel("Top"), WidgetLabel("Bottom")]; gap = 8), :rigid, :rigid),
-    :GridLayout         => (() -> GridLayout(Any[WidgetLabel("R$(r)C$(c)") for r in 1:2 for c in 1:2], 2), :rigid, :rigid),
-    :FlowLayout         => (() -> FlowLayout(Any[WidgetLabel(word) for word in split(_RULES_TEXT)]), :reflowing, :rigid),
-    :StackLayout        => (() -> StackLayout(Any[WidgetLabel("Back"), WidgetLabel("Front")]), :rigid, :rigid),
-    :ScrollLayout       => (() -> ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1")), :rigid, :rigid),
+    :HorizontalLayout   => (() -> HorizontalLayout(Any[WidgetLabel("Left"), WidgetLabel("Right")]; gap = 8), :places, :places),
+    :VerticalLayout     => (() -> VerticalLayout(Any[WidgetLabel("Top"), WidgetLabel("Bottom")]; gap = 8), :places, :places),
+    :GridLayout         => (() -> GridLayout(Any[WidgetLabel("R$(r)C$(c)") for r in 1:2 for c in 1:2], 2), :places, :places),
+    :FlowLayout         => (() -> FlowLayout(Any[WidgetLabel(word) for word in split(_RULES_TEXT)]), :reflowing, :places),
+    :StackLayout        => (() -> StackLayout(Any[WidgetLabel("Back"), WidgetLabel("Front")]), :places, :places),
+    :ScrollLayout       => (() -> ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1")), :places, :places),
     :AnchoredLayout     => "an anchored layout places its entries by the points of its content",
     :ConstraintLayout   => "a constraint layout sizes its children by its solver",
 )
@@ -146,12 +149,33 @@ function _rules_expected(kind::Symbol, m)
     kind === :overlay && return (exact_more = ==(n), bounded_more = ==(n), at_least_more = ==(n),
                                  bounded_less = ==(m.less), exact_less = ==(m.less))
     stretched = (exact_more = ==(m.more), bounded_more = ==(n), at_least_more = ==(m.more))
-    kind === :rigid && return (; stretched..., bounded_less = ==(n), exact_less = ==(n))
+    kind === :rigid && return (; stretched..., bounded_less = ==(n), exact_less = ==(m.less))
+    kind === :places && return (; stretched..., bounded_less = ==(n), exact_less = ==(n))
     kind === :reflowing && return (; stretched..., bounded_less = <=(m.less), exact_less = ==(m.less))
     kind === :scrolls && return (; stretched..., bounded_less = ==(m.less), exact_less = ==(m.less))
     kind === :fills && return (; stretched..., bounded_less = ==(n), exact_less = ==(m.less))
     error("no rule for the kind $kind")
 end
+
+# The widget types, each with an axis, that draw their content, and not the exact
+# size, in an exact range less than their content.
+# @broken: a widget does not yet take an exact size less than its content; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
+const _RULES_EXACT_BROKEN = Set{Tuple{Symbol,Symbol}}([
+    (:WidgetAccordion, :height), (:WidgetAccordion, :width), (:WidgetAlert, :height),
+    (:WidgetBadge, :height), (:WidgetBadge, :width), (:WidgetButton, :height),
+    (:WidgetButton, :width), (:WidgetCard, :height), (:WidgetComposite, :height),
+    (:WidgetComposite, :width), (:WidgetFactGroup, :height), (:WidgetFactGroup, :width),
+    (:WidgetLabel, :height), (:WidgetLink, :height), (:WidgetLink, :width),
+    (:WidgetList, :width), (:WidgetMenuItem, :height), (:WidgetMenuItem, :width),
+    (:WidgetProgressRing, :height), (:WidgetProgressRing, :width), (:WidgetRadioGroup, :height),
+    (:WidgetRadioGroup, :width), (:WidgetSelect, :height), (:WidgetSelect, :width),
+    (:WidgetSpinBox, :height), (:WidgetSpinBox, :width), (:WidgetStatusBar, :height),
+    (:WidgetStatusBar, :width), (:WidgetText, :height), (:WidgetText, :width),
+    (:WidgetTextarea, :width), (:WidgetTitlePane, :height), (:WidgetTitlePane, :width),
+    (:WidgetToggle, :height), (:WidgetToggle, :width), (:WidgetToggleGroup, :height),
+    (:WidgetToggleGroup, :width), (:WidgetToolbar, :height), (:WidgetToolbar, :width),
+    (:WidgetToolbarItem, :height), (:WidgetToolbarItem, :width),
+])
 
 function _rules_check_type(name::Symbol, make, kinds)
     for (axis, kind) in zip((:width, :height), kinds)
@@ -160,7 +184,12 @@ function _rules_check_type(name::Symbol, make, kinds)
             drawn = getfield(m, check)
             @testset "$name $axis $kind $check" begin
                 expected(drawn) || @info "layout rule" name axis kind check drawn m.natural m.more m.less
-                @test expected(drawn)
+                if check === :exact_less && (name, axis) in _RULES_EXACT_BROKEN
+                    # @broken: the widget draws its content in an exact range; see _RULES_EXACT_BROKEN.
+                    @test_broken expected(drawn)
+                else
+                    @test expected(drawn)
+                end
             end
         end
     end
@@ -190,10 +219,14 @@ function _rules_extend_ink!(bounds, node, origin, measure)
     end
 end
 
-# Whether the ink of `document` lies inside the extent that its output reports, on
-# each axis whose kind is not `:authored`, in the range `(minimum, maximum)` on `axis`.
-function _rules_is_ink_inside(document, axis::Symbol, minimum, maximum, kinds)
-    output = print_document(_rules_projection(), nothing, document, _rules_context(axis, minimum, maximum)).output
+# Whether the ink of `document` lies inside the extent that its output reports, in
+# the range `(minimum, maximum)` on `axis`.
+_rules_is_ink_inside(document, axis::Symbol, minimum, maximum) =
+    _rules_is_ink_inside(print_document(_rules_projection(), nothing, document,
+                                        _rules_context(axis, minimum, maximum)).output)
+
+# Whether the ink of `output` lies inside the extent that it reports.
+function _rules_is_ink_inside(output)
     # The widgets measure a text with the fixed measure of the projection, and a plain
     # string inside a widget with the font files, so a text is inside when its box is
     # inside under one of the two.
@@ -201,29 +234,29 @@ function _rules_is_ink_inside(document, axis::Symbol, minimum, maximum, kinds)
         box = _rules_ink_box(output, measure)
         box === nothing && return true
         (x0, y0, x1, y1) = box
-        (kinds[1] === :authored || (x0 >= 0 && x1 <= Int(output.w[]))) &&
-            (kinds[2] === :authored || (y0 >= 0 && y1 <= Int(output.h[])))
+        x0 >= 0 && x1 <= Int(output.w[]) && y0 >= 0 && y1 <= Int(output.h[])
     end
 end
 
 # The types whose sample draws past the extent that it reports in some state: the
 # border or the ring of a button, a radio group, a progress ring and an accordion, a
 # bar of no height, the content of a shell, a tabbed pane and a menu that its giver
-# cuts, and a tooltip that caps.
-# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/pending/a-layout-paints-only-what-the-screen-shows.md.
+# cuts, a tooltip that caps, and a separator that draws past its authored size.
+# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/done/a-layout-paints-only-what-the-screen-shows.md, and for a separator plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
 const _RULES_INK_BROKEN = Set{Symbol}([
     :WidgetAccordion, :WidgetButton, :WidgetContextMenu, :WidgetMenu, :WidgetProgressRing,
-    :WidgetRadioGroup, :WidgetScrollBar, :WidgetShell, :WidgetTabbedPane, :WidgetTooltip])
+    :WidgetRadioGroup, :WidgetScrollBar, :WidgetSeparator, :WidgetShell, :WidgetTabbedPane,
+    :WidgetTooltip])
 
 # Each state of a sample: no range, and the five ranges of `_rules_measure`, on each axis.
-function _rules_check_ink(name::Symbol, make, kinds)
+function _rules_check_ink(name::Symbol, make)
     inside = true
     failing = Tuple{Symbol,Any,Any}[]
     for axis in (:width, :height)
         m = _rules_measure(make, axis)
         for (minimum, maximum) in ((nothing, nothing), (m.more, m.more), (0, m.more), (m.more, nothing),
                                    (0, m.less), (m.less, m.less))
-            _rules_is_ink_inside(make(), axis, minimum, maximum, kinds) && continue
+            _rules_is_ink_inside(make(), axis, minimum, maximum) && continue
             inside = false
             push!(failing, (axis, minimum, maximum))
         end
@@ -234,6 +267,148 @@ function _rules_check_ink(name::Symbol, make, kinds)
         @test_broken inside
     else
         @test inside
+    end
+end
+
+# A word that no width breaks, and ten lines.
+const _RULES_LONG_WORD = "Averyveryverylongwordthatcannotwrap"
+const _RULES_LONG_LINES = join(["line $i of a long text" for i in 1:10], "\n")
+
+# A sample of each widget type that sets a size of its own: a maker with a short
+# content, a maker with a long content that is larger than the size, and the axes
+# on which the type sets its size.
+const _RULES_CUT_SAMPLES = Dict{String,Any}(
+    "WidgetText width" => (() -> WidgetText("a"; width = 40),
+                           () -> WidgetText(_RULES_LONG_WORD; width = 40), (:width,)),
+    "WidgetSpinBox width" => (() -> WidgetSpinBox(1; width = 30),
+                              () -> WidgetSpinBox(1234567890123; width = 30), (:width,)),
+    "WidgetList width" => (() -> WidgetList(Any["a", "b"]; width = 40),
+                           () -> WidgetList(Any[_RULES_LONG_WORD, "b"]; width = 40), (:width,)),
+    "WidgetButton size" => (() -> WidgetButton("a"; size = Point2D(40, 10)),
+                            () -> WidgetButton(_RULES_LONG_WORD; size = Point2D(40, 10)), (:width, :height)),
+    "WidgetSelect width" => (() -> WidgetSelect("a"; options = Any["a"], width = 40),
+                             () -> WidgetSelect(_RULES_LONG_WORD; options = Any[_RULES_LONG_WORD], width = 40),
+                             (:width,)),
+    "WidgetTextarea width rows" => (() -> WidgetTextarea("a"; width = 40, rows = 2),
+                                    () -> WidgetTextarea(_RULES_LONG_LINES; width = 40, rows = 2), (:width, :height)),
+    "WidgetAccordion width" => (() -> WidgetAccordion(Any[("a", "b")]; width = 60),
+                                () -> WidgetAccordion(Any[(_RULES_LONG_WORD, _RULES_LONG_WORD)]; width = 60), (:width,)),
+    "WidgetAlert width" => (() -> WidgetAlert("a"; description = "b", width = 60),
+                            () -> WidgetAlert(_RULES_LONG_WORD; description = _RULES_LONG_WORD, width = 60), (:width,)),
+    "WidgetCard width title" => (() -> WidgetCard(; title = "a", content = "b", width = 60),
+                                 () -> WidgetCard(; title = _RULES_LONG_WORD, content = "b", width = 60), (:width,)),
+    "WidgetCard width footer" => (() -> WidgetCard(; title = "a", content = "b", footer = "c", width = 60),
+                                  () -> WidgetCard(; title = "a", content = "b", footer = _RULES_LONG_WORD, width = 60),
+                                  (:width,)),
+    "WidgetCard height" => (() -> WidgetCard(; title = "a", content = WidgetLabel("b"), width = 60, height = 80),
+                            () -> WidgetCard(; title = "a", content = WidgetLabel(_RULES_LONG_LINES), width = 60, height = 80),
+                            (:width, :height)),
+    "WidgetAvatar size" => (() -> WidgetAvatar("A"; size = 16), () -> WidgetAvatar("ABCDEFGH"; size = 16), (:width, :height)),
+    "WidgetShell size" => (() -> WidgetShell(WidgetLabel("a"); size = Point2D(60, 40)),
+                           () -> WidgetShell(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)), (:width, :height)),
+    "WidgetScrollPane size" => (() -> WidgetScrollPane(WidgetLabel("a"); size = Point2D(60, 40)),
+                                () -> WidgetScrollPane(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)),
+                                (:width, :height)),
+    "WidgetTransformPane size" => (() -> WidgetTransformPane(WidgetLabel("a"); size = Point2D(60, 40)),
+                                   () -> WidgetTransformPane(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)),
+                                   (:width, :height)),
+)
+
+# The samples whose long content draws past the box or makes the box larger.
+# @broken: a widget does not yet cut its content at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
+const _RULES_CUT_BROKEN = Set{String}([
+    "WidgetAccordion width",
+    "WidgetAlert width",
+    "WidgetAvatar size",
+    "WidgetButton size",
+    "WidgetCard height",
+    "WidgetCard width footer",
+    "WidgetCard width title",
+    "WidgetList width",
+    "WidgetSelect width",
+    "WidgetShell size",
+    "WidgetSpinBox width",
+    "WidgetText width",
+    "WidgetTextarea width rows",
+])
+
+# With no range, the long content of a sample draws no ink past the box, and on each
+# axis on which the type sets its size the box is as large as with the short content.
+function _rules_check_cut(name, make_short, make_long, axes)
+    print_free(make) = print_document(_rules_projection(), nothing, make(), PrinterContext()).output
+    short = print_free(make_short)
+    long = print_free(make_long)
+    get_extent(output, axis) = axis === :width ? Int(output.w[]) : Int(output.h[])
+    kept = all(axis -> get_extent(long, axis) == get_extent(short, axis), axes)
+    inside = _rules_is_ink_inside(long)
+    (kept && inside) || @info "a size that does not cut" name kept inside
+    if name in _RULES_CUT_BROKEN
+        # @broken: the sample draws past its box or grows; see _RULES_CUT_BROKEN.
+        @test_broken kept && inside
+    else
+        @test kept && inside
+    end
+end
+
+# A layout that is wider and taller than the size that a constraint gives it.
+_rules_wide_layout() = VerticalLayout(Any[WidgetLabel(_RULES_LONG_WORD), WidgetLabel("line 2"), WidgetLabel("line 3")])
+
+# A constraint that sets a size on a layout, in each kind of container: the maker of
+# the container, the axis and the range that the container gets on it, and what the
+# first child, the constraint, draws on that axis.
+const _RULES_CONSTRAINT_CASES = Dict{String,Any}(
+    "a Fixed width in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed height in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); height = Fixed(30)), WidgetLabel("next")]),
+         :height, nothing, nothing, ==(30)),
+    "a Fixed width in a column" =>
+        (() -> VerticalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed height in a column" =>
+        (() -> VerticalLayout(Any[LayoutConstraint(_rules_wide_layout(); height = Fixed(30)), WidgetLabel("next")]),
+         :height, nothing, nothing, ==(30)),
+    "a share of a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fill), WidgetLabel("next")]; gap = 8),
+         :width, 200, 200, <=(192)),
+    "a maximum in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); max_width = 40), WidgetLabel("next")]),
+         :width, nothing, nothing, <=(40)),
+    "a Fixed width in a stack" =>
+        (() -> StackLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed width in a flow" =>
+        (() -> FlowLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+)
+
+# The cases whose constraint draws its child, and not its size.
+# @broken: a constraint does not yet cut its child at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 4.
+const _RULES_CONSTRAINT_BROKEN = Set{String}([
+    "a Fixed height in a column",
+    "a Fixed height in a row",
+    "a Fixed width in a column",
+    "a Fixed width in a flow",
+    "a Fixed width in a row",
+    "a Fixed width in a stack",
+    "a maximum in a row",
+    "a share of a row",
+])
+
+# The constraint, the first child of the container, draws `expected` on `axis`, and
+# draws no ink past its box.
+function _rules_check_constraint(name, make, axis, minimum, maximum, expected)
+    iomap = print_document(_rules_projection(), nothing, make(), _rules_context(axis, minimum, maximum))
+    output = last(first(getfield(iomap, :child_iomaps)[])).output
+    drawn = axis === :width ? Int(output.w[]) : Int(output.h[])
+    inside = _rules_is_ink_inside(output)
+    (expected(drawn) && inside) || @info "a constraint that does not cut" name drawn inside
+    if name in _RULES_CONSTRAINT_BROKEN
+        # @broken: the constraint draws its child; see _RULES_CONSTRAINT_BROKEN.
+        @test_broken expected(drawn) && inside
+    else
+        @test expected(drawn) && inside
     end
 end
 
@@ -301,13 +476,30 @@ end
     end
 end
 
-@testset "what each type draws lies inside the extent that it reports, except for an authored size" begin
+@testset "what each type draws lies inside the extent that it reports" begin
     for name in sort!(collect(keys(_RULES_KINDS)))
         entry = _RULES_KINDS[name]
         entry isa String && continue
-        (make, width_kind, height_kind) = entry
         @testset "$name" begin
-            _rules_check_ink(name, make, (width_kind, height_kind))
+            _rules_check_ink(name, first(entry))
+        end
+    end
+end
+
+@testset "a widget with a size less than its content cuts the content at its box" begin
+    for name in sort!(collect(keys(_RULES_CUT_SAMPLES)))
+        (make_short, make_long, axes) = _RULES_CUT_SAMPLES[name]
+        @testset "$name" begin
+            _rules_check_cut(name, make_short, make_long, axes)
+        end
+    end
+end
+
+@testset "a constraint with a size cuts a layout at that size, and a layout only places" begin
+    for name in sort!(collect(keys(_RULES_CONSTRAINT_CASES)))
+        (make, axis, minimum, maximum, expected) = _RULES_CONSTRAINT_CASES[name]
+        @testset "$name" begin
+            _rules_check_constraint(name, make, axis, minimum, maximum, expected)
         end
     end
 end
