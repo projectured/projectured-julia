@@ -139,6 +139,9 @@ const formula_queue_example  = Example("formula_queue",   make_formula_queue_doc
 const formula_estimate_example = Example("formula_estimate", make_formula_estimate_document_example, make_formula_projection_example)
 # A Markdown page that holds a sheet: a loan repayment report.
 const formula_report_example = Example("formula_report",  make_formula_report_document_example, make_formula_report_projection_example)
+# A Markdown document that holds a JSON array, in one view at two places: the view
+# of the document, and the view of its JSON part alone.
+const markdown_json_view_example = Example("markdown_json_view", make_markdown_json_view_document_example, make_markdown_json_view_projection_example)
 # `versioning_example` is deliberately kept OUT of the `examples` registry below
 # (like `clipboard_example`). The version-elimination projection selects one of
 # several `ObjectVersion`s by criterion and re-roots edits under
@@ -229,6 +232,7 @@ const domain_examples = Example[
     formula_invoice_example,
     formula_queue_example,
     formula_report_example,
+    markdown_json_view_example,
     versioning_example,
     undo_example,
     undo_history_example,

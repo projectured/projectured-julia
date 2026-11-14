@@ -71,6 +71,7 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "MarkdownJsonViewDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "TableDocumentExample.jl"))
@@ -81,6 +82,7 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "MarkdownJsonViewProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "UndoProjectionExample.jl"))
@@ -169,6 +171,8 @@ export make_formula_insertion_document_example, make_formula_invoice_document_ex
 export make_formula_queue_document_example, make_formula_estimate_document_example
 export make_formula_grid_projection_example
 export make_formula_report_document_example, make_formula_report_projection_example
+export make_markdown_json_view_document_example, make_markdown_json_view_projection_example,
+       make_markdown_json_to_syntax, markdown_json_view_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,

@@ -842,10 +842,94 @@ and the output of each stage, as structures that a person reads.
    not in the repository: 9 of 9; it found the fault of the selection walk.
 7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
+
+   Built 2026-11-14; the step stays open for the keys of the view of a part (see
+   "Open" below). What it made:
+   - **The field `viewed`** (decision 19). The eight view types of the text, of the
+     syntax and of JSON keep what they show in `viewed`. `get_edited_field` of a
+     view answers `:viewed`, and an edit through a view goes below `.viewed`. A
+     viewing step refuses a view whose content has a field `viewed`, with an
+     `ArgumentError`. The check runs at the print of the view and not at the
+     definition of its type, because a type has no hook at its definition.
+   - **The views of Markdown** in `MarkdownView.jl` (decision 18): the abstract
+     `MarkdownView`, and `MarkdownRootView`, whose `elements` hold the views of the
+     blocks, `MarkdownHeadingView` and `MarkdownParagraphView`, whose `content`
+     holds the views of the inline nodes, and `MarkdownTextView`. They have no key
+     table, because the four content types have none.
+   - **The composition.** A view makes the view of each child with
+     `make_content_view`, so the view of a `MarkdownRoot` holds a `JsonArrayView`
+     for a JSON array among its blocks. No Markdown code names JSON, and no JSON
+     code names Markdown. The stage of the syntax of the example gives a node to
+     the table of its domain: `MarkdownDocument => MarkdownToSyntax()`,
+     `JsonDocument => JsonToSyntax()`, and `Vector{Cell} => CopyingProjection()`,
+     which each of the two tables has.
+   - The example `markdown_json_view`: the view of the document at one place and
+     the view of its JSON part at a second place. It lives in the umbrella example
+     package, and its test `test_markdown_json_view()` in the umbrella test package,
+     because they name two domains. `test_markdown_view()` of the Markdown suite
+     tests the four views with no other domain.
+
+   Facts:
+   - A typed character in the heading, in the paragraph and in a string of the
+     JSON part edits the content through the view of the document, and the caret
+     stays on the view. The text stage reads these keys.
+   - The JSON part has one caret and one fold at its two places, and only the
+     place on the path from the root draws the caret as a live one. A second view
+     of the document has a view of the JSON part of its own.
+   - The root of Markdown has no fold in its text: its node has no indentation, so
+     no line carries a fold. So `MarkdownRootView` has no fold field.
+
+   Open:
+   - **A key of the view of a part does not fire inside the view of the
+     document.** Measured in the example, with the caret on the whole second
+     element of the array: a comma inside the view of the document gives no
+     operation, and the same comma at the place of the part alone appends an
+     element. A viewing step gives a key that no later stage took to the key table
+     of the view at the root of the place only; the tables of the JSON views and of
+     the syntax views walk the caret from that root. With no view, a key goes to
+     the documents on the path of the selection, the deepest first: the reader of a
+     projection template asks the focused child before its own document
+     (`_read_override_gesture`), and `read_gesture_outward` of the kernel is the
+     same rule over a path. The rule for the views is a question to the owner.
+
+   Limits:
+   - 13 Markdown types have no view: a node of one of them prints as content, and
+     the caret of the view above it names it only as a whole.
+   - Only the source style of `MarkdownToSyntax` is tested with views.
+   - The dead `collapsed` fields of the Markdown content types stay.
+   - The design document of Markdown gets the views in step 9, with the other
+     guides.
+
+   The shape:
+
+   ```
+   MarkdownRoot [ MarkdownHeading, MarkdownParagraph, JsonArray ]        the content, held once
+   MarkdownRootView { viewed = root, elements = [MarkdownHeadingView, MarkdownParagraphView, JsonArrayView] }
+     MarkdownHeadingView   { viewed = heading,   content = [MarkdownTextView] }
+     MarkdownParagraphView { viewed = paragraph, content = [MarkdownTextView] }
+     JsonArrayView         { viewed = array,     elements = [JsonStringView, JsonNumberView], collapsed }
+
+   VerticalLayout [ the view of the document, its .elements[3] ]        two places, one JSON view
+
+   MarkdownRootView ── ViewingProjection(MarkdownDocument => MarkdownToSyntax(), JsonDocument => JsonToSyntax())
+                         ──► SyntaxNodeView(node of the document, children = the outputs of the steps of the blocks)
+                    ── ViewingProjection(SyntaxToText(text_folds = true)) ──► TextView(text, closed folds of the views)
+                    ── TextFolding ── TextView => TextViewToGraphicsCanvas ──► [band, drawing, caret]
+   JsonArrayView at the second place prints through the same stages.
+   ```
+
+   Tests: `test_markdown_view()` in `test_markdown()` (the four views, two views of
+   one document, a caret and a typed character in the paragraph and in the
+   heading, a type with no view) and `test_markdown_json_view()` of the umbrella
+   (the view of the part inside the view of the document, one caret and one fold
+   at two places, a typed character in each part); a testset in `test_text_view()`
+   for the check of the field `viewed`; the printer test of the example. With
+   `test_markdown()`, `test_json()`, the view tests, the clipboard tests and the
+   layer guard of the platform: 3464 pass, no failure. The naming guard passes.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
 9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
-   `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`; the
-   plan moves to `plan/done/`.
+   `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`,
+   `markdown.md`; the plan moves to `plan/done/`.
 
 ## Not in this plan
 
