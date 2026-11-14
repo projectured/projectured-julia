@@ -186,9 +186,12 @@ when the place of the print is on the path of the live selection, so a view at
 two places shows a live caret at one of them. For any other input, it prints the
 input with `content`, as a stage with no views does.
 
-A key goes to the key table of the view. An operation from the next stage goes
-back through the readers of the content print, because a path of the view is the
-path of its content.
+A key goes down along the live caret of the view: each view on the path of the
+caret reads it with its own key table, the deepest first, as the documents on the
+path of a selection do (`read_gesture_outward`). So a view of a part answers its
+keys inside the view of the document that holds the part, of any domain. An
+operation from the next stage goes back through the readers of the content print,
+because a path of the view is the path of its content.
 """
 struct ViewingProjection <: Projection
     content::Any
@@ -356,12 +359,15 @@ map_reference_backward(p::ViewingProjection, iomap::ViewingIoMap, reference) =
 map_reference_backward(p::ViewingProjection, iomap, reference) =
     map_reference_backward(iomap.projection, iomap, reference)
 
-# A gesture that no later stage took goes to the key table of the view. An
-# operation goes back through the readers of the content print.
+# A gesture that no later stage took goes to the key tables of the views on the
+# live caret of the view, the deepest first. An operation goes back through the
+# readers of the content print.
 function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::ViewingIoMap)
     if change.operation === nothing && change.route === nothing
-        return Intent(change.gesture, read_gesture(iomap.input, change.gesture),
-                      change.description, change.domain)
+        view = iomap.input
+        operation = read_gesture_outward(nothing, change.gesture, view;
+                                         steps = _find_caret_view_steps(view), with_part = true)
+        return Intent(change.gesture, operation, change.description, change.domain)
     end
     if change.operation !== nothing
         operation = read_view_operation(iomap.input, iomap.content, change.operation)
@@ -373,6 +379,29 @@ end
 
 read_intent(p::ViewingProjection, recursion, change::Intent, iomap) =
     read_intent(p.content, recursion, change, iomap)
+
+# The steps of the live caret of `view` that lead to the deepest view on it: the
+# steps into the child views, and no step into a field of a content. Empty when
+# `view` has no live caret, and when its caret names no child view.
+function _find_caret_view_steps(view::ContentView)
+    steps, pending = ReferenceStep[], ReferenceStep[]
+    caret = get_selection(view)
+    path = caret isa Reference ? strip_reference_types(caret) : nothing
+    node = view
+    while path isa ConcreteReference
+        node = try_evaluate_reference(node, Reference(path.head), nothing)
+        # A collection of child views is on the way to a view; any other value is a
+        # field of a content, or a child that has no view.
+        (node isa ContentView || node isa AbstractVector || node isa CellVector) || break
+        push!(pending, path.head)
+        if node isa ContentView
+            append!(steps, pending)
+            empty!(pending)
+        end
+        path = path.tail
+    end
+    steps
+end
 
 read_intent(p::ViewingProjection, iomap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

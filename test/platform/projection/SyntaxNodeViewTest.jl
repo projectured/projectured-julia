@@ -112,6 +112,22 @@ end
     @test stored(view_b) == in_child(1, 0)
 end
 
+@testset "A key goes down along the live caret: the deepest view reads it first" begin
+    # The caret is in the second leaf. The view of that leaf and the view of the
+    # node both have Ctrl+Alt+Home; the view of the leaf reads it first, and selects
+    # the whole leaf at its path.
+    replace_selection!(root, caret_at(1, 2, 1))
+    @test press!(key(:home; ctrl = true, alt = true)) isa ReplaceSelectionOperation
+    @test stored(view_a) == strip_reference_types(@reference(view_a, children[2]))
+    # A key that the view of the leaf does not have goes to the view of the node.
+    @test press!(key(:up; alt = true)) isa ReplaceSelectionOperation
+    @test stored(view_a) == EmptyReference()
+    # With the caret on the node itself, no view is deeper, and the node reads the key.
+    @test press!(key(:home; ctrl = true, alt = true)) isa ReplaceSelectionOperation
+    @test stored(view_a) == EmptyReference()
+    @test stored(view_b) == in_child(1, 0)
+end
+
 @testset "A click puts the caret of the view that it hits" begin
     place_y = Int(iomap.output.elements[2].y)
     # x = 25 is between the caret 2 and the caret 3 of `[ab, cdXe]`: `.children[1].value{1}`.

@@ -69,8 +69,9 @@ end
         _toggle_syntax_cursor(doc.viewed, _get_view_caret(doc))
 end
 
-# The keys of a node, read against the caret of the view: a view at the root of a
-# stage answers them for the whole tree of its views, as a node does for its tree.
+# The keys of a node, read against the caret of the view. A view answers them for
+# the tree of views below it, as a node does for its tree; a view deeper on the
+# caret reads a key before it.
 @gestures SyntaxNodeView begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())

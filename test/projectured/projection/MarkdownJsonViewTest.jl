@@ -136,5 +136,27 @@ end
     @test is_folded.(texts()) == [false, false, false]
 end
 
+@testset "A key of the JSON view fires inside the view of the document" begin
+    # A key goes down along the live caret. The view of the document has no key
+    # table; the view of the array is deeper on the caret and reads the comma.
+    replace_selection!(root, at(1, @reference(view, elements[3].elements[2])))
+    @test press!(typed(',')) isa CompoundOperation
+    @test length(array.elements) == 3 && array.elements[3] isa JsonInsertion
+    @test stored(view) == plain(@reference(view, elements[3].elements[3]))
+    @test get_stored_selection(array) === nothing
+    # A key that replaces an element with one of another kind.
+    replace_selection!(root, at(1, @reference(view, elements[3].elements[2])))
+    @test press!(typed('n')) isa CompoundOperation
+    @test array.elements[2] isa JsonNull
+    @test part.elements[2] isa JsonNullView && other.elements[3].elements[2] isa JsonNullView
+    @test all(text -> occursin("\n  null,\n", text), texts())
+    # The paragraph is no part of the array, so the comma of the array does not
+    # fire there: the text takes the key and types it.
+    replace_selection!(root, at(1, @reference(view, elements[2].content[1].content{0})))
+    @test press!(typed(',')) isa ReplaceStringRangeOperation
+    @test paragraph.content[1].content == ",abcd!"
+    @test length(array.elements) == 3
+end
+
 end
 end

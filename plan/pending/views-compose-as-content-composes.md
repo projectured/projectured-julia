@@ -387,6 +387,15 @@ element 2.
     Markdown types change their field, and each later domain with a field `content`
     does the same; each view type chooses its name, which gives more than one name
     to one role. The word `viewed` is the proposal of the build.
+20. **A key goes down along the live caret** (the owner, 2026-11-14: "Yes, keys
+    should go down along the live selection"). Each view on the path of the live
+    caret reads a key with its own key table, the deepest first. It is the rule
+    that the documents with no view have: the reader of a projection template asks
+    the focused child before its own document, and `read_gesture_outward` of the
+    kernel is that rule over a path. So a view of a part answers its keys inside
+    the view of a document of another domain. The choice that the owner did not
+    take: only the view at the root of a place reads a key, as after step 5, with
+    which the keys of a part work only at a place of its own.
 
 ## What is not known yet
 
@@ -840,11 +849,10 @@ and the output of each stage, as structures that a person reads.
    175079 pass, 7 broken, which no marker of this step adds, and no failure. The
    naming guard passes. A check in a real editor with a headless backend, which is
    not in the repository: 9 of 9; it found the fault of the selection walk.
-7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
+7. [x] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
 
-   Built 2026-11-14; the step stays open for the keys of the view of a part (see
-   "Open" below). What it made:
+   Done 2026-11-14. What it made:
    - **The field `viewed`** (decision 19). The eight view types of the text, of the
      syntax and of JSON keep what they show in `viewed`. `get_edited_field` of a
      view answers `:viewed`, and an edit through a view goes below `.viewed`. A
@@ -879,18 +887,33 @@ and the output of each stage, as structures that a person reads.
    - The root of Markdown has no fold in its text: its node has no indentation, so
      no line carries a fold. So `MarkdownRootView` has no fold field.
 
-   Open:
-   - **A key of the view of a part does not fire inside the view of the
-     document.** Measured in the example, with the caret on the whole second
-     element of the array: a comma inside the view of the document gives no
-     operation, and the same comma at the place of the part alone appends an
-     element. A viewing step gives a key that no later stage took to the key table
-     of the view at the root of the place only; the tables of the JSON views and of
-     the syntax views walk the caret from that root. With no view, a key goes to
-     the documents on the path of the selection, the deepest first: the reader of a
-     projection template asks the focused child before its own document
-     (`_read_override_gesture`), and `read_gesture_outward` of the kernel is the
-     same rule over a path. The rule for the views is a question to the owner.
+   - **The keys along the live caret** (decision 20). A viewing step gives a key
+     that no later stage took to `read_gesture_outward`, with the steps of the
+     live caret of its view that lead to the deepest view on it
+     (`_find_caret_view_steps`). Before, only the view at the root of the place
+     read the key: a comma on an element of the array gave no operation inside the
+     view of the document, and appended an element at the place of the part alone.
+     Now the view of the array reads the comma at both places. The key tables of
+     the JSON views and of the syntax views did not change: a table that walks the
+     caret of its view answers the same when a deeper view of its kind is asked
+     first.
+
+   More facts, of the keys:
+   - In a tree of syntax views, the view of the leaf that holds the caret reads
+     Ctrl+Alt+Home before the view of the node, and selects the leaf. The view of
+     the node reads it when the caret is on the node itself. Before, the view at
+     the root read it and selected the root node.
+     The description of the key of a node view stays "Select the root node",
+     as in the key table of a node; a view of an inner node that reads the key
+     selects its own node.
+   - A comma in the paragraph, beside the JSON part, types a comma: the view of the
+     array is not on that caret.
+   - A place draws the caret that the path of its own view names. When the caret
+     of the view of the document is in the heading and the live caret is in the
+     place of the part alone, the place of the document draws its dormant caret in
+     the heading, and not the caret of the part.
+   - A listing of the keys joins the tables of the views on the caret, by the rule
+     of `read_gesture_outward`. No test reads such a listing.
 
    Limits:
    - 13 Markdown types have no view: a node of one of them prints as content, and
@@ -925,7 +948,12 @@ and the output of each stage, as structures that a person reads.
    at two places, a typed character in each part); a testset in `test_text_view()`
    for the check of the field `viewed`; the printer test of the example. With
    `test_markdown()`, `test_json()`, the view tests, the clipboard tests and the
-   layer guard of the platform: 3464 pass, no failure. The naming guard passes.
+   layer guard of the platform: 3482 pass, no failure, with the keys along the
+   caret: a comma and a replace key of the JSON view inside the view of the
+   document, and the order of the views in `test_syntax_node_view()`. The naming
+   guard passes. A check in a real editor with a headless backend and real key
+   events, which is not in the repository: the example of this step 9 of 9, and
+   the example of step 6 again 9 of 9.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).
 9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
    `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`,
