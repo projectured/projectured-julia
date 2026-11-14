@@ -463,10 +463,34 @@ _axis_shows_labels(axis) = (axis isa ChartAxis || axis isa ChartCategoryAxis) &&
 # bars already fill, so a category axis carries no grid of its own.
 _axis_grid(axis) = axis isa ChartAxis ? axis.grid : :none
 
-# Ticks and their labels for the x axis. A numeric axis picks round numbers; a
-# category axis puts one tick per slot and thins the labels to whatever fits,
-# which is what keeps a ten-thousand-category axis from emitting ten thousand
-# text elements.
+# Whether a numeric axis names its whole numbers.
+_has_axis_names(axis) = axis isa ChartAxis && axis.names !== nothing && !isempty(axis.names)
+
+# The ticks of an axis that names its whole numbers: each whole number from `lo` to
+# `hi` that has a name, every `k`-th so that labels of `label_px` fit `span_px`,
+# with their names.
+function _compute_named_ticks(names, lo::Real, hi::Real, span_px::Real, label_px::Real)
+    count = length(names)
+    first_shown = lo <= 1 ? 1 : (lo > count ? count + 1 : ceil(Int, lo))
+    last_shown = hi >= count ? count : (hi < 1 ? 0 : floor(Int, hi))
+    first_shown <= last_shown || return (Float64[], String[])
+    shown = first_shown:label_step(last_shown - first_shown + 1, span_px, label_px):last_shown
+    (Float64.(shown), String[string(names[i]) for i in shown])
+end
+
+# A value on `axis` as a readout says it: the name of the nearest whole number on an
+# axis that has one, else the number.
+function _format_axis_value(axis, value::Real)
+    if _has_axis_names(axis) && isfinite(value) && 0.5 <= value < length(axis.names) + 0.5
+        return string(axis.names[round(Int, value)])
+    end
+    format_tick(value)
+end
+
+# Ticks and their labels for the x axis. A numeric axis picks round numbers, or
+# its named whole numbers; a category axis puts one tick per slot and thins the
+# labels to whatever fits, which is what keeps a ten-thousand-category axis from
+# emitting ten thousand text elements.
 function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font, t)
     if axis isa ChartCategoryAxis
         cats = axis.categories
@@ -476,6 +500,10 @@ function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font
         k = label_step(n, span_px, widest + t.padding)
         idx = [i for i in 1:k:n if view.x_min <= i <= view.x_max]
         (Float64.(idx), String[String(cats[i]) for i in idx])
+    elseif _has_axis_names(axis)
+        widest = maximum((first(compute_text_extent(p.measure, string(name), font)) for name in axis.names); init=0)
+        ticks, labels = _compute_named_ticks(axis.names, view.x_min, view.x_max, span_px, widest + t.padding)
+        (ticks, axis.show_labels ? labels : String[])
     else
         ticks = _axis_ticks(axis, view.x_min, view.x_max, span_px, t.tick_spacing)
         step = _tick_step(ticks)
@@ -565,8 +593,10 @@ end
 # The legend's items and the box that holds them, before it is positioned, in
 # series order unless the legend asks for a dictionary sort. `font` is the
 # legend's own font, which may differ from the axis font the frame draws with.
+# The rows of strips or of a matrix fill a plot (`filled`), so an inside legend
+# of such a plot goes below it.
 function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
-                      font::StyleFont, w::Int, h::Int, t, samples = Dict{Int,Any}())
+                      font::StyleFont, w::Int, h::Int, t, samples = Dict{Int,Any}(); filled::Bool = false)
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
@@ -574,22 +604,24 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
+    position = filled && legend.position === :inside ? :below : legend.position
     sizes = Tuple{Int,Int}[_get_text_size(p.measure, it[2], font) for it in items]
-    horizontal = legend.position in (:above, :below) ||
-                 (legend.position === :inside && legend.anchor in (:north, :south))
+    horizontal = position in (:above, :below) ||
+                 (position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * t.padding : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * t.padding
     box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=t.swatch,
                                 gap=t.legend_gap, line_gap=t.legend_line_gap, pad=t.legend_padding)
-    (; position = legend.position, anchor = legend.anchor, border = legend.border,
+    (; position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
        gap = t.legend_gap, x = 0, y = 0)
 end
 
 # Put the box where `position` and `anchor` say. An outside legend is anchored
 # within the strip already reserved for it; an inside one within the plot
-# rectangle itself.
-function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
+# rectangle itself. A legend below starts under the ticks and the labels of the x
+# axis, which take `axis_h` under the plot.
+function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t, axis_h)
     plan === nothing && return nothing
     bw, bh = plan.box_w, plan.box_h
     pad = t.padding
@@ -601,7 +633,7 @@ function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, 
         x, y = plot_x + dx, top - bh - pad
     elseif plan.position === :below
         dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
-        x, y = plot_x + dx, h - bottom + pad
+        x, y = plot_x + dx, h - bottom + axis_h + pad
     elseif plan.position === :left
         _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
         x, y = pad, plot_y + dy
@@ -752,6 +784,10 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         ylabels = _axis_shows_labels(y_axis) ? [_series_label(s) for (_, s) in series] : String[]
     elseif matrix_only
         yticks, ylabels = _compute_matrix_row_ticks(p, matrix[2], view, prov_h, axis_font, y_axis)
+    elseif _has_axis_names(y_axis)
+        label_height = compute_line_box(p.measure, "0", axis_font).height
+        yticks, ylabels = _compute_named_ticks(y_axis.names, view.y_min, view.y_max, prov_h, label_height + 2)
+        y_axis.show_labels || (ylabels = String[])
     else
         yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h, t.tick_spacing)
         ylabels = _axis_shows_labels(y_axis) ?
@@ -780,7 +816,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
 
     # An outside legend reserves a strip, shrinking the plot; an inside one
     # overlays it and takes nothing.
-    legend = _legend_plan(p, chart, series, legend_font, w, h, t, function_samples)
+    legend = _legend_plan(p, chart, series, legend_font, w, h, t, function_samples; filled = strip_only || matrix_only)
     if legend !== nothing && legend.position !== :inside
         legend.position === :above && (top += legend.box_h + t.padding)
         legend.position === :below && (bottom += legend.box_h + t.padding)
@@ -792,7 +828,15 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     plot_y = top
     plot_w = max(w - left - right, 20)
     plot_h = max(h - top - bottom, 20)
-    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
+    # The labels of the x axis were thinned for a provisional width; long labels of
+    # the y axis or a legend at a side can leave the plot narrower, so they are
+    # thinned again for the width that the plot has.
+    if !pie && plot_w < prov_w
+        xticks, xlabels = _x_ticks_labels(p, x_axis, view, plot_w, axis_font, t)
+        xsizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in xlabels]
+    end
+    axis_h = t.tick_length + (isempty(xlabels) ? 0 : label_h + t.label_gap)
+    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t, axis_h)
 
     xlog = x_axis isa ChartAxis && x_axis.log
     ylog = y_axis isa ChartAxis && y_axis.log
@@ -1728,7 +1772,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         strip = _strip_readout(g, cursor[1], cy + g.plot_y)
         strip === nothing && (strip = _format_matrix_readout(g, cx + g.plot_x, cy + g.plot_y))
         label = strip === nothing ?
-            string(format_tick(cursor[1]), ", ", format_tick(cursor[2])) : strip
+            string(_format_axis_value(g.chart.x_axis, cursor[1]), ", ", _format_axis_value(g.chart.y_axis, cursor[2])) :
+            strip
         push!(out, GraphicsText(label, cx + 6, cy - 18; font = g.axis_font, color = text_color))
         return out
     end
@@ -1737,8 +1782,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     color = get_series_color(g.chart.series[index].color, index, _get_color_cycle(g.style, g.theme_values))
     push!(out, GraphicsCircle(px, py, 4; color, border_width=t.border_width, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
-                   format_tick(to_data(g.xs, px + g.plot_x)), ", ",
-                   format_tick(to_data(g.ys, py + g.plot_y)))
+                   _format_axis_value(g.chart.x_axis, to_data(g.xs, px + g.plot_x)), ", ",
+                   _format_axis_value(g.chart.y_axis, to_data(g.ys, py + g.plot_y)))
     # A value with an interval says it beside the value.
     interval = _find_interval_at(g, g.chart.series[index], px)
     interval === nothing ||

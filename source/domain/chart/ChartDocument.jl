@@ -64,15 +64,22 @@ end
 """
 A numeric axis. `min`/`max` are `nothing` for auto-ranging from the data (with
 the usual padding), a number to pin that end. `grid` is `:none`, `:major` or
-`:all`.
+`:all`. `names` is `nothing`, or a name for each whole number from 1: the axis
+then puts its ticks at the whole numbers that have a name, each with its name, as
+many as fit, and a readout gives the name of the nearest whole number.
 
-Use it to set the range, the title and the grid of a numeric axis of a chart.
+Use it to set the range, the title and the grid of a numeric axis of a chart, and
+to name the places of a line, such as the files or the runs that its points
+follow.
 
 # Example
 
     chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))];
                     y_axis = ChartAxis(title = "units", min = 0, max = 1))
     open_pane!(chart_1; title = "Sales")
+    chart_2 = Chart("Runs", [ChartLineSeries("time", 1:3, [4.0, 3.5, 3.6])];
+                    x_axis = ChartAxis(names = ["first", "second", "third"], min = 0.5, max = 3.5))
+    open_pane!(chart_2; title = "Runs")
 
 See also `Chart`, which holds it, and `ChartCategoryAxis`.
 
@@ -86,6 +93,7 @@ For the assistant.
     grid::Symbol = :major
     show_title::Bool = true
     show_labels::Bool = true
+    names::Any = nothing
 end
 
 """
@@ -119,7 +127,8 @@ end
 The legend box. `position` is `:inside`, `:above`, `:below`, `:left` or
 `:right`; `anchor` is one of the eight compass points, placing the box within
 whichever strip `position` reserved. `sort` switches item order from the series
-order to a dictionary sort of the labels.
+order to a dictionary sort of the labels. The rows of a chart of only strips or of
+only a matrix fill its plot, so an `:inside` legend of such a chart goes below it.
 
 Use it to place the box that names the series of a chart.
 

@@ -899,6 +899,21 @@ function test_chart_projection()
             @test g.matrix_shape.gap
             rects = filter(e -> e isa GraphicsRect, _series_elements(_chart_canvas(chart)))
             @test length(rects) == 8
+            # The cells fill the plot, so the legend goes below it and covers no cell.
+            @test g.legend.position === :below
+            @test g.legend.y >= g.plot_y + g.plot_h
+
+            # Long names of the rows leave the plot narrow: the names of the columns are
+            # thinned for the width of the plot, so no two of them overlap.
+            wide = Chart("m", [ChartMatrixSeries("count", ["a long name of a row, $k" ^ 3 for k in 1:3],
+                                                 [Any[Float64(c) for c in 1:40] for _ in 1:3])];
+                         x_axis = ChartCategoryAxis(categories = ["group of scalars $c" for c in 1:40]))
+            gw = _chart_layout(wide)
+            @test gw.plot_w < 500
+            places = [ChartModule.to_pixel(gw.xs, tick) for tick in gw.xticks]
+            @test length(places) >= 2
+            @test all(places[i + 1] - places[i] >= (gw.xsizes[i].width + gw.xsizes[i + 1].width) / 2
+                      for i in 1:length(places) - 1)
 
             # The y axis names the rows, the first on top, with no horizontal grid lines.
             @test g.ylabels == rows
@@ -1092,6 +1107,11 @@ function test_chart_projection()
             below = _line_chart(); below.legend.position = :below
             @test Int(_viewport_of(_chart_canvas(below)).h) <
                   Int(_viewport_of(_chart_canvas(_line_chart())).h)
+            # A legend below starts under the labels of the x axis and ends over its title.
+            gb = _chart_layout(below)
+            @test !isempty(gb.xlabels)
+            @test gb.legend.y >= gb.plot_y + gb.plot_h + gb.label_h
+            @test gb.legend.y + gb.legend.box_h <= gb.h - gb.x_title_h
 
             # Anchors move the box without resizing it.
             boxes = map((:northwest, :northeast, :southeast)) do anchor
@@ -1861,6 +1881,67 @@ function test_chart_projection()
             # Two dashed crosshair lines, and a readout naming the series.
             @test count(e -> e isa GraphicsLine && e.dash !== nothing, els) == 2
             @test any(e -> e isa GraphicsText && occursin("a", String(e.text)), els)
+        end
+
+        @testset "an axis that names its whole numbers" begin
+            names = ["before step 5", "step 5", "step 7", "step 8"]
+            chart = Chart("c", [ChartLineSeries("timeouts", 1:4, [63.0, 63.0, 60.0, 75.0])];
+                          x_axis = ChartAxis(; names, min = 0.5, max = 4.5))
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            # Each whole number has its name as its tick, and no tick lies between them.
+            @test g.xticks == [1.0, 2.0, 3.0, 4.0]
+            @test g.xlabels == names
+            # The readout gives the name of the nearest whole number, and a number outside.
+            @test ChartModule._format_axis_value(chart.x_axis, 2.3) == "step 5"
+            @test ChartModule._format_axis_value(chart.x_axis, 4.4) == "step 8"
+            @test ChartModule._format_axis_value(chart.x_axis, 4.6) == ChartModule.format_tick(4.6)
+            # The pointer on the third point reads its name and its value.
+            x = round(Int, ChartModule.to_pixel(g.xs, 3.0))
+            y = round(Int, ChartModule.to_pixel(g.ys, 60.0))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)))
+            @test plot.cursor !== nothing
+            @test any(e -> e isa GraphicsText && occursin("timeouts  step 7, ", String(e.text)),
+                      _series_elements(iomap.output))
+
+            # Many names in a narrow chart: every k-th, each at its whole number.
+            many = ["run $k" for k in 1:40]
+            narrow = Chart("n", [ChartLineSeries("a", 1:40, rand(40))]; x_axis = ChartAxis(; names = many))
+            gn = _chart_layout(narrow; width = 300)
+            @test 2 <= length(gn.xticks) < 40
+            @test all(isinteger, gn.xticks)
+            @test gn.xlabels == [many[Int(tick)] for tick in gn.xticks]
+
+            # The y axis names its whole numbers too, and hides the names when its labels are off.
+            levels = Chart("y", [ChartLineSeries("a", [0.0, 1.0, 2.0], [1.0, 2.0, 3.0])];
+                           y_axis = ChartAxis(; names = ["low", "middle", "high"]))
+            @test _chart_layout(levels).ylabels == ["low", "middle", "high"]
+            hidden = Chart("y", [ChartLineSeries("a", [0.0, 1.0], [1.0, 2.0])];
+                           y_axis = ChartAxis(; names = ["low", "high"], show_labels = false))
+            @test isempty(_chart_layout(hidden).ylabels)
+
+            # A file keeps the names.
+            loaded = parse_pred_text(print_pred_text(chart))
+            @test loaded.x_axis.names == names
+        end
+
+        @testset "a zoomed strip draws the segment that covers its window" begin
+            commits = ChartStripSeries("commits", collect(1:1188), ones(Int, 1188); states = ["passed"], x_end = 1189)
+            positions = ChartStripSeries("positions", [1, 209], [1, 2]; states = ["approved", "ahead"], x_end = 1189)
+            chart = Chart("w", [commits, positions])
+            iomap = _chart_iomap(chart)
+            plot = iomap.step_iomaps[1][].output
+            # A window inside the last segment: no start of the strip lies in it.
+            plot.view = ChartModule.ChartView(300.0, 400.0, 0.5, 2.5)
+            g = iomap.step_iomaps[2][].geometry
+            spans = g.strip_spans[2]
+            @test length(spans) == 1 && spans[1][3] == 2
+            @test spans[1][1] <= g.plot_x && spans[1][2] >= g.plot_x + g.plot_w
+            # A window across the change of state draws both segments.
+            plot.view = ChartModule.ChartView(150.0, 250.0, 0.5, 2.5)
+            @test [span[3] for span in iomap.step_iomaps[2][].geometry.strip_spans[2]] == [1, 2]
         end
 
         @testset "part navigation" begin
