@@ -1,8 +1,8 @@
 # The page of a commit shows its files as a tree beside their diffs
 
-> **Kind:** plan · **Status:** proposed, 2026-11-14 · **Branch:** `git-views` (worktree
+> **Kind:** plan · **Status:** done, 2026-11-14 · **Branch:** `git-views` (worktree
 > `projectured-julia-git-views`), before it lands · **Follows:**
-> [the-assistant-shows-a-commit-and-its-changes.md](the-assistant-shows-a-commit-and-its-changes.md)
+> [the-assistant-shows-a-commit-and-its-changes.md](../pending/the-assistant-shows-a-commit-and-its-changes.md)
 
 ## 1. The problem
 
@@ -115,9 +115,16 @@ Each step runs in the worktree `projectured-julia-git-views` and ends with one c
    - Results: `test_git()` 235, `test_widget_icon()` 587 pass. The view test adds a commit with a
      message of 60 lines to its copy of the example repository: the tree stands in the window,
      and a click on its file shows the diff in the window.
-3. **The guide and the live check.** `git.md` describes the page. The script of the live check of
+3. **The guide and the live check.** **Done on 2026-11-14.** `git.md` describes the page. The script of the live check of
    the git views draws `1374297` and `b3e5ccc` of inet-cpp, chooses a folder and a file, and writes
    a picture of each view.
+   What the live check found: on `1374297` the tree of 39 rows and the diffs show after 2.6 s, the
+   message of 30 lines stands at the top of the pane on the right, and the tree stays in the
+   window; a press on the folder `bin` shows the diffs of its two files without the message, and a
+   press on `all.py` its diff of 74 lines. On `b3e5ccc` the end of 2982 lines shows after a
+   Shift+click on the bar (2 frames, 0.43 s each), a Ctrl+click on a removed line opens
+   `omnetpp.ini` at the parent at its line, Back returns, and a `git+file:` link of a Markdown
+   page visits the commit.
 
 ## 5. Risks
 

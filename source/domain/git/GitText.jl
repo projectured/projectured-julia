@@ -22,8 +22,8 @@ end
 One line of a git text: its `kind`, which a page draws in the style of that kind,
 its `text`, the `label` of its gutter, the old and the new number of a line of a
 diff or `""`, and its `place`, a [`GitLinePlace`](@ref) that a Ctrl+click opens, or
-`nothing`. The kinds are `:path`, `:fact`, `:hunk`, `:kept`, `:removed`, `:added`,
-`:marked`, `:note` and `:failure`.
+`nothing`. The kinds are `:message`, `:path`, `:fact`, `:hunk`, `:kept`, `:removed`,
+`:added`, `:marked`, `:note` and `:failure`.
 """
 struct GitTextLine
     kind::Symbol
