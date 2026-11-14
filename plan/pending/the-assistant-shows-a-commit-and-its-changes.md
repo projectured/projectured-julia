@@ -557,8 +557,9 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
      Markdown page a click on a `git+file:` link visits the commit; `read_git_document!` of the
      commit takes 0.12 s.
    - Found: a commit with a long message (`1374297`, 30 lines) fills the page with its header, so
-     the table and the diffs are below the window, and the page does not scroll to them. A
-     question to the owner.
+     the table and the diffs are below the window, and the page does not scroll to them. The
+     owner designed a new page on 2026-11-14: a tree of the changed files beside their diffs, in
+     the plan `the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md`.
    - Found, outside this plan: in a text, End moves to the end of the row also with Ctrl, and a
      caret move by a key does not ask the pane to show the caret.
    - omnet-julia: branch `git-views`, worktree `omnet-julia-git-views`, commit `b3e80653f`:
