@@ -9,6 +9,8 @@ Covers:
 - a caret move in one leaf writes no `selection` cell of an ancestor,
 - a keeper keeps the branch that the focus leaves as dormant, and a later write
   makes it live again,
+- a write of the stored path gives its part to a document that a write of a value
+  put on the path, and writes no cell when each document holds its part,
 - `map_selection_forward` carries the live or dormant state to the image,
 - `@selected` builds a path typed against the document that it builds.
 """
@@ -179,6 +181,35 @@ function test_selection()
               Reference(FieldReferenceStep("left"), FieldReferenceStep("page"),
                         FieldReferenceStep("text"))
         @test get_selection(root.right) === nothing
+    end
+
+    @testset "the stored path gives its part to a document that a write put on it" begin
+        root = SelectionPair(left = SelectionLeaf(text = "a"), right = SelectionLeaf(text = "b"))
+        left = Reference(FieldReferenceStep("left"))
+        replace_selection!(root, left)
+
+        # While each document holds its part, a write of the stored path writes no cell.
+        watch = Cell(@computation getfield(root.left, :selection)[])
+        watch[]
+        replace_selection!(root, left)
+        @test is_cell_valid(watch)
+
+        # Another document of the same type goes into the place, as a paste puts it.
+        pasted = SelectionLeaf(text = "c")
+        root.left = pasted
+        @test get_stored_selection(pasted) === nothing
+        replace_selection!(root, left)
+        @test get_selection(pasted) isa EmptyReference
+        @test is_live_selection(pasted)
+
+        # A document that holds a dormant selection of its own becomes live.
+        shown_before = SelectionLeaf(text = "d")
+        getfield(shown_before, :selection)[] =
+            SelectionDocument(; primary = EmptyReference(), live = false)
+        root.left = shown_before
+        replace_selection!(root, left)
+        @test is_live_selection(shown_before)
+        @test get_selection(shown_before) isa EmptyReference
     end
 
     @testset "map_selection_forward carries the live or dormant state" begin
