@@ -47,7 +47,8 @@ import ..DocumentModule: get_document_title, has_document_duplicate, copy_docume
 import ..EditorModule: make_change
 import ..DomainModule: acquire_document!, release_document!, accepts_opened_file,
                        get_insertion_aliases, make_insertion_document, get_document_decoration,
-                       make_pasted_document_operation
+                       make_pasted_document_operation, compute_context_menu
+import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..GestureHelpModule: collect_part_commands
 import ..NavigatorModule: find_navigator_address
 import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation, is_self_contained_operation

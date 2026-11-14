@@ -45,6 +45,39 @@ DashboardCard(title::AbstractString, content; columns::Union{Int, Symbol} = 1,
 # A card keeps the title and the content, and not the view that it shows.
 get_view_state_fields(::Type{<:DashboardCard}) = (:content_view,)
 
+# The menu of a card, which a right click on the card opens: the width in columns
+# and the height, each item an edit of the field of the card, which an undo takes
+# back.
+const _CARD_WIDTHS = ("1 column" => 1, "2 columns" => 2, "3 columns" => 3, "Full row" => :all)
+const _CARD_HEIGHTS = ("Fit content" => :content, "One page" => :page, "240 px" => 240, "360 px" => 360,
+                       "480 px" => 480, "720 px" => 720)
+
+# A submenu opens in a window of its own, so its items run an action of the
+# editor, which writes the field of the card where the editor holds the card, as one
+# step of undo. A card that the editor does not hold changes nothing.
+_make_card_size_menu(card::DashboardCard, field::String, sizes) =
+    WidgetMenu(Any[WidgetMenuItem(label; action = Action(label; callback = editor ->
+                                                          _set_card_size!(editor, card, field, size)))
+                   for (label, size) in sizes])
+
+function _set_card_size!(editor, card::DashboardCard, field::String, size)
+    parts = search_documents(editor.document, node -> node === card; places = true)
+    isempty(parts) && return nothing
+    description = "Set the " * field * " of the card " * card.title
+    target = extend_reference(strip_reference_types(get_reference(first(parts))), FieldReferenceStep(field))
+    write = find_rooted_operation(editor, target,
+                                  relative -> ReplaceReferencedValueOperation(nothing, relative, size); description)
+    write === nothing || apply_change!(RootedOperation(write, description); editor)
+end
+
+compute_context_menu(card::DashboardCard) =
+    WidgetMenu(Any[WidgetMenuItem("Width"; submenu = _make_card_size_menu(card, "columns", _CARD_WIDTHS)),
+                   WidgetMenuItem("Height"; submenu = _make_card_size_menu(card, "height", _CARD_HEIGHTS))])
+
+get_document_gesture_bindings_own(::Type{DashboardCard}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu;
+                                             description = "Show the size menu of the card")]
+
 get_document_title(card::DashboardCard) = card.title
 format_tree_node_label(card::DashboardCard) = card.title
 get_document_decoration(card::DashboardCard) =

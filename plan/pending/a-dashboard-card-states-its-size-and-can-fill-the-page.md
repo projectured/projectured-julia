@@ -104,8 +104,15 @@ Each step is one commit in the worktree `projectured-julia-baseline-catch-up` (b
 2. **The maximize of a card.** The view state, the button, the double click and Escape. Tests in a
    real editor: each gesture maximizes and restores; the other cards keep their state; a save keeps
    no maximize; undo records nothing.
-3. **The size from the context menu.** The two submenus. Tests: each item writes its field, undo
+3. ~~**The size from the context menu.**~~ **Done.** The two submenus. Tests: each item writes its field, undo
    takes it back, the layout follows.
+   Facts of the code: a right click on a card (its `WidgetCard` carries the binding) opens
+   `compute_context_menu(::DashboardCard)`, and the binding is in the gesture table of `DashboardCard`, so the
+   palette runs it. A submenu opens in a window of its own, which closes the context menu layer, so an item
+   can not carry an `operation` that the menu lifts; each item runs an `Action` whose callback finds the card
+   in the editor (`search_documents` with `places`) and applies `find_rooted_operation` and `apply_change!`,
+   which one entry of undo records. The page maps the path of a card widget back to `cards[k]` and its title
+   to `cards[k].title`, which the source of a menu needs.
 4. **The guide.** The explorer guide describes the size of a card, the maximize and the menu; the
    naming guard; the dashboard tests of the explorer suite.
 

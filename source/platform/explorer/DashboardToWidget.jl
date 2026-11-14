@@ -144,7 +144,9 @@ function _make_card_widget(p::DashboardToWidget, card::DashboardCard, root, step
     place = LayoutConstraint(pane; width = Fill)
     _set_card_body_height!(p, place, card.height, visible)
     body = VerticalLayout(Any[place]; child_width = Fill)
-    widget = WidgetCard(; title = card.title, content = body)
+    widget = WidgetCard(; title = card.title, content = body,
+                        gestures = GestureBinding[make_context_menu_binding(_ -> compute_context_menu(card);
+                                                                            description = "Show the size menu of the card")])
     for (part, below) in ((widget, ()), (body, _CARD_BODY_STEPS[1:1]), (place, _CARD_BODY_STEPS[1:3]),
                           (pane, _CARD_BODY_STEPS[1:4]))
         part_steps = (steps..., below...)
@@ -195,14 +197,13 @@ _make_row_steps(r::Int) = (FieldReferenceStep("children"), RangeReferenceStep(r 
 # The steps from a row to the widget of its card `i`: `children[i].child`.
 _make_card_steps(i::Int) = (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i), FieldReferenceStep("child"))
 
-# The card that `steps` below the grid name, as `(r, i, the steps after its content)`, or
+# The card that `steps` below the grid name, as `(r, i, the steps after its widget)`, or
 # `nothing` when they name no card.
 function _find_card_below(steps)
-    (length(steps) >= 7 && steps[1] == FieldReferenceStep("children") && steps[2] isa RangeReferenceStep &&
+    (length(steps) >= 6 && steps[1] == FieldReferenceStep("children") && steps[2] isa RangeReferenceStep &&
      steps[3] == RangeReferenceStep(0, 1) && steps[4] == FieldReferenceStep("children") &&
-     steps[5] isa RangeReferenceStep && steps[6] == FieldReferenceStep("child") &&
-     steps[7] == FieldReferenceStep("content")) || return nothing
-    (steps[2].stop, steps[5].stop, steps[8:end])
+     steps[5] isa RangeReferenceStep && steps[6] == FieldReferenceStep("child")) || return nothing
+    (steps[2].stop, steps[5].stop, steps[7:end])
 end
 
 # The count of the columns of the grid that the page `root` shows now. A page with
@@ -271,10 +272,16 @@ function map_reference_backward(p::DashboardToWidget, iomap, reference)
             k = found === nothing ? nothing :
                 _find_card_at(iomap.input.cards, found[1], found[2], _get_grid_columns(iomap.output))
             if k !== nothing
-                below = _find_card_content_steps(iomap.input.cards[k], found[3])
-                below === nothing && return nothing
-                return extend_reference(EmptyReference(), FieldReferenceStep("cards"),
-                                        ElementReferenceStep(k), FieldReferenceStep("content"), below...)
+                card_steps = (FieldReferenceStep("cards"), ElementReferenceStep(k))
+                inside = found[3]
+                isempty(inside) && return extend_reference(EmptyReference(), card_steps...)
+                first(inside) == FieldReferenceStep("title") &&
+                    return extend_reference(EmptyReference(), card_steps..., inside...)
+                if first(inside) == FieldReferenceStep("content")
+                    below = _find_card_content_steps(iomap.input.cards[k], inside[2:end])
+                    below === nothing && return nothing
+                    return extend_reference(EmptyReference(), card_steps..., FieldReferenceStep("content"), below...)
+                end
             end
         end
     end

@@ -1320,7 +1320,7 @@ function test_explorer()
         for r in 1:3, i in 1:3
             steps = (ExplorerModule._make_row_steps(r)..., ExplorerModule._make_card_steps(i)...,
                      FieldReferenceStep("content"), FieldReferenceStep("rest"))
-            @test ExplorerModule._find_card_below(steps) == (r, i, (FieldReferenceStep("rest"),))
+            @test ExplorerModule._find_card_below(steps) == (r, i, (FieldReferenceStep("content"), FieldReferenceStep("rest")))
         end
         @test ExplorerModule._get_card_place(dashboard.cards, 3, 2) == (2, 1)
         # Insert on the page adds a card at the end, whose content takes a name.
@@ -1402,6 +1402,64 @@ function test_explorer()
         # A save keeps both fields.
         saved = parse_pred_text(print_pred_text(Dashboard("X", Any[card("a"; columns = :all, height = 360), card("b")])))
         @test [(c.columns, c.height) for c in saved.cards] == [(:all, 360), (1, :content)]
+    end
+
+    @testset "the menu of a card sets its width and its height, and an undo takes each back" begin
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        first_card, second_card = card("First"), card("Second")
+        dashboard = Dashboard("Menu", Any[first_card, second_card])
+        @test !isempty(get_document_gesture_bindings_own(DashboardCard))
+        menu = compute_context_menu(second_card)
+        @test [item.action.label for item in menu.elements] == ["Width", "Height"]
+        width_items, height_items = [collect(item.submenu.elements) for item in menu.elements]
+        @test [item.action.label for item in width_items] == ["1 column", "2 columns", "3 columns", "Full row"]
+        @test [item.action.label for item in height_items] ==
+              ["Fit content", "One page", "240 px", "360 px", "480 px", "720 px"]
+        backend = HeadlessBackend()
+        editor = build_editor(dashboard, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1100, height = 500,
+                                        opened_window_projections = Pair{Type,Any}[Document => _nav_natural()]),
+                              tabs = true, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+        send!(event, id) = (push_event!(backend, WindowInput(id, event)); run_frame!(editor))
+        windows() = collect(last(rendered_output(backend)).windows)
+        find_text(name) = begin
+            for window in windows(), entry in _nav_drawn(window.content)
+                entry[1] == name && return (window.id, entry[2], entry[3])
+            end
+            nothing
+        end
+        function click!(button, name, time)
+            (id, x, y) = find_text(name)
+            send!(MouseClick(button, x + 2, y + 2, 1, ModifierKeys(); time), id)
+        end
+        # The menu of a card opens on a right click on its title, and each item is one entry of undo.
+        function choose!(submenu, item, time)
+            click!(:right, "Second", time)
+            @test find_text("Width") !== nothing && find_text("Height") !== nothing
+            click!(:left, submenu, time + 0.2)
+            click!(:left, item, time + 0.4)
+            run_frame!(editor)
+        end
+        undo!(time) = (evaluate_operation(editor, UndoOperation(history)); run_frame!(editor))
+        position(name) = find_text(name)[3]
+        @test position("Second") == position("First")
+        choose!("Width", "Full row", 1.0)
+        @test second_card.columns === :all && position("Second") > position("First")
+        undo!(2.0)
+        @test second_card.columns == 1 && position("Second") == position("First")
+        choose!("Width", "2 columns", 3.0)
+        @test second_card.columns == 2
+        undo!(4.0)
+        @test second_card.columns == 1
+        for (label, height, time) in (("Fit content", :content, 5.0), ("One page", :page, 6.0), ("240 px", 240, 7.0),
+                                      ("720 px", 720, 8.0))
+            choose!("Height", label, time)
+            @test second_card.height === height
+            undo!(time + 0.8)
+            @test second_card.height === :content
+        end
     end
 
     @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
