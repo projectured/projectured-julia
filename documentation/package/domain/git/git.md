@@ -127,6 +127,27 @@ Another domain can read a patch of its own with `parse_git_diff_text` and compar
 
 ## Usage
 
+The documents read git off the loop when a page shows them. Code, such as the code
+of the assistant, finishes their reads with `read_git_document!` before it reads
+their fields, and opens them as pages with `open_pane!`:
+
+```julia
+range_1 = read_git_document!(GitCommitRange("/home/me/inet-cpp", "fd436d7..v4.7.0";
+                                            paths = ["src/inet/linklayer/ieee80211"]))
+commit_1 = read_git_document!(range_1.commits[3])
+println(commit_1.header.subject)
+print(commit_1.diff.text)
+show_pane!(open_pane!(commit_1))
+```
+
+The verb waits with `wait_for_cell!`: on the task of the editor, or with no editor,
+it runs git on the calling task; from another task, the frames of the editor run
+it. A read that failed throws the `GitException` with the words of git. The mark
+`For the assistant.` on `GitDocument` and on the verb offers them to the model, and
+the domain gives the system text a sentence about them.
+
+The values of the output of git read with no document:
+
 ```julia
 using ProjecturedGit
 

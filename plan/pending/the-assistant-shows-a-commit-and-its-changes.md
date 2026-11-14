@@ -495,12 +495,38 @@ test under `test/domain/git/` in `package/ProjecturedGitTest`, one under `test/p
    - Results: `test_git()` 189, `test_open_page_operation()` 103, `test_link()` 2109,
      `test_navigator_to_widget()` 69, `test_navigator_gestures()` 26,
      `test_markdown_link_gestures()` 18 and `test_markdown_link_target()` 14 pass.
-6. **The verbs.** `find_git_commits`, `describe_git_commit`, the docstrings and the marks. Test: the new `test_git_verbs()` (`GitVerbTest.jl`). It asserts the hashes in order for
+6. **The verbs.** **Done on 2026-11-14.** `find_git_commits`, `describe_git_commit`, the docstrings and the marks. Test: the new `test_git_verbs()` (`GitVerbTest.jl`). It asserts the hashes in order for
    `revisions`, `paths`, `first_parent` and `limit`, and the header facts of each commit with no read.
    It asserts the `ArgumentError` of a bad range, and the text of `describe_git_commit` with `paths`
    and `context = 10`. The four names carry the mark `For the assistant.`, so `search_api` finds
    them while the package is loaded. Then
    `test_assistant_documentation()`, `test_assistant_verbs()` and `test_referenced_document_editor()`.
+   The owner changed this step on 2026-11-14 ("the assistant should be able to control the git
+   domain in the editor", then "Yes" to the proposal): the two verbs go, because
+   `find_git_commits` repeats `GitCommitRange` and `describe_git_commit` is a text form only for the
+   assistant, which the rule of 2026-11-07 forbids (the assistant reads values). In their place:
+   - The assistant uses the documents: `GitCommitRange`, `GitCommit`, `GitFileChange` and
+     `GitFileRevision`, which the mark on `GitDocument` offers, and `open_pane!`, `show_pane!` and
+     the commands of the pages for the editor.
+   - One verb, `read_git_document!(document; editor)` (`GitProgram.jl`), finishes the reads of git
+     of a document in the code of its caller, as `read_filesystem_folder!` does for a folder, with
+     `wait_for_cell!`: the listing and the commits of a range; the changes, the header and the
+     lines of the diffs of a commit, then the hunks of each change; the text of a file at a
+     revision. A read that failed throws the `GitException`. A part, a `ReferencedDocument`,
+     reads as its document, as the documentation check asks of a verb.
+   - `first_parent`, `limit` and `context` go: a range reads all its commits with one `git log`,
+     and a diff has the 3 lines of context of git.
+   - `GitModule.__init__` gives the system text a sentence that names the documents and the verb
+     (`register_assistant_api!`).
+   - Tests: `test_git_verbs()` with no editor, and a case of `test_assistant_verbs()` in which the
+     code of the assistant reads a range and a commit and opens the commit as a page. The walker
+     of drawn texts of that test follows a lazy list by the links that its layout built.
+   - Results: `test_git()` 214 (`test_git_verbs()` 25), `test_assistant_verbs()` 92 and
+     `test_referenced_document_editor()` 134 pass; the naming guard passes.
+     `test_assistant_documentation()` passes for every git name and has 4 errors of main, on files
+     that this branch does not change: the docstrings of `get_range_direction`, `get_range_ends`
+     and `make_range_reference_step` lack the form, and the example of `describe_task` calls
+     `get_task_document_result`, which no model can write.
 7. **The workload and the live check.** `@compile_ahead` with `run_natural_rows_workload(GitModule)`.
    Then a live check in the Projectured window through its MCP connection. It opens a commit of
    `inet-cpp` with more than 2000 changed lines and scrolls to its end. It clicks a removed line with

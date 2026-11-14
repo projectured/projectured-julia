@@ -30,6 +30,7 @@ export GitException
 export GitDocument, GitCommit, GitFileChange, GitFileRevision
 export GitText, GitTextLine, GitLinePlace, GitDiffText, GitFileText
 export GitCommitRange, ApplyGitCommitRangeOperation
+export read_git_document!
 export GitTheme, ScaledGitTheme, GitTextToText, GitCommitToWidget, GitFileChangeToWidget, GitFileRevisionToWidget,
        GitCommitRangeToWidget
 
@@ -39,7 +40,18 @@ include("GitDocument.jl")
 include("GitText.jl")
 include("GitRange.jl")
 include("GitAddress.jl")
+include("GitProgram.jl")
 include("GitTheme.jl")
 include("GitToWidget.jl")
+
+# The sentence that the system text of a window says about the domain while the
+# package is loaded; the mark on `GitDocument` and on `read_git_document!` offers
+# the names.
+function __init__()
+    register_assistant_api!(Any[];
+        description = "A git repository shows as documents: `GitCommitRange` holds the commits of a range, " *
+                      "`GitCommit` a commit with its changed files and its diffs, and `GitFileRevision` a file " *
+                      "at a revision; `read_git_document!` finishes their reads of git before code reads their fields.")
+end
 
 end # module GitModule

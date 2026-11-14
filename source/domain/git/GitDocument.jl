@@ -4,14 +4,32 @@
 """
     GitDocument
 
-A document of the git domain. A commit, a change and a file at a revision hold
-the absolute path of their repository, and read what they show by the `git`
-program, off the loop: a print that reads a field records a demand for the read, and a task
-runs `git` after the frame. The
+A document of the git domain: the commits of a range (`GitCommitRange`), a commit
+(`GitCommit`), the change of one file in a commit (`GitFileChange`) and a file at
+a revision (`GitFileRevision`). Each holds the absolute path of its repository,
+and reads what it shows by the `git` program, off the loop: a print that reads a
+field records a demand for the read, and a task runs `git` after the frame. The
 cell of the field holds the answer. While the answer is still to come, the cell is
-provisional (`is_cell_provisional`), and `reading` is `true` while git runs. A read
-of the field of a read that failed throws a [`GitException`](@ref) with the words
-of git.
+provisional (`is_cell_provisional`), and `reading` is `true` while git runs. A
+read of the field of a read that failed throws a [`GitException`](@ref) with the
+words of git. Code finishes the reads with `read_git_document!` before it reads
+the fields. A link names a commit as `git+file://<repository>#<revision>`, and a
+file at a revision as `git+file://<repository>#<revision>:<path>`.
+
+Use it to show the commits of a range, a commit with its changed files and its
+diffs, or a file at a revision as a page, and to read what git says about them.
+
+# Example
+
+    range_1 = GitCommitRange("/home/me/inet-cpp", "v4.6.0..v4.7.0")
+    tab_1 = open_pane!(range_1)
+    show_pane!(tab_1)
+    open_pane!(GitCommit("/home/me/inet-cpp", "HEAD~2"))
+    open_pane!(GitFileRevision("/home/me/inet-cpp", "v4.7.0", "src/inet/common/Units.h"; line = 120))
+
+See also `read_git_document!`, `GitCommitRange`, `GitCommit`, `GitFileRevision`.
+
+For the assistant.
 """
 abstract type GitDocument <: Document end
 

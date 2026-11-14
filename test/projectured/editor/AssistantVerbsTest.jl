@@ -330,21 +330,63 @@ function test_assistant_verbs()
         end
         @test get_edited_document(picture_file) isa Image
     end
+
+    @testset "tell: code reads the commits of a range and a commit of it, which opens as a page" begin
+        repository = make_git_example_repository(joinpath(directory, "repository"))
+        answer = _run_assistant_code(editor, """
+            range_1 = read_git_document!(GitCommitRange("$repository", "main"))
+            commit_1 = read_git_document!(range_1.commits[3])
+            println(commit_1.header.subject)
+            println(occursin("+LINE 19", commit_1.diff.text))
+            tab_1 = open_pane!(commit_1; title = "Commit")
+            show_pane!(tab_1)
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        @test occursin("second subject continues here", answer) && occursin("true", answer)
+        # The page draws the diff that the code read.
+        focus_pane!(find_pane("Commit"; editor); editor)
+        run_frame!(editor)
+        @test any(text -> occursin("+LINE 19", text), _drawn_texts_of(editor))
+    end
 end
 end
 
-# Every text that the last frame of `editor` drew, in the order of the walk.
+# Every text that the last frame of `editor` drew, in the order of the walk. A list
+# builds a node when its layout reads the link to it, so the walk follows only the
+# links that the layout built, from the head in both directions.
 function _drawn_texts_of(editor)
     texts = String[]
     walk(node, depth) = begin
         depth > 200 && return
         node isa GraphicsText && push!(texts, String(node.text))
-        node isa GraphicsCanvas && foreach(i -> walk(node.elements[i], depth + 1), 1:length(node.elements))
+        if node isa GraphicsCanvas
+            elements = node.elements
+            if elements isa ListNode
+                for direction in (:next, :prev)
+                    item = direction === :next ? elements : _find_drawn_list_link(elements, :prev)
+                    while item !== nothing
+                        walk(item.value, depth + 1)
+                        item = _find_drawn_list_link(item, direction)
+                    end
+                end
+            else
+                foreach(i -> walk(elements[i], depth + 1), 1:length(elements))
+            end
+        end
         node isa GraphicsViewport && walk(node.content, depth + 1)
         hasproperty(node, :windows) && foreach(window -> walk(window.content, depth + 1), node.windows)
     end
     walk(last(rendered_output(editor.backend)), 0)
     texts
+end
+
+# The neighbour of the list node `node` on the side `direction` when the layout
+# built it, else `nothing`.
+function _find_drawn_list_link(node::ListNode, direction::Symbol)
+    link = getfield(node, direction)
+    link isa ReactiveCell && !is_cell_valid(link) && return nothing
+    link[]
 end
 
 # Whether `m` belongs to the editor, whose documentation this repository writes. A

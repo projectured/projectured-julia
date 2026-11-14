@@ -1,8 +1,9 @@
 """
     ProjecturedGit
 
-The git domain: the values that the output of the `git` program gives, and the
-functions that read that output.
+The git domain: the commits of a range, a commit, the change of one file and a
+file at a revision as documents that the `git` program reads, their pages, and
+the values of the output of git with the functions that read that output.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
