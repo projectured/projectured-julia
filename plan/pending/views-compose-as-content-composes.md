@@ -376,6 +376,17 @@ element 2.
     in a field with that name too, while the field of its child views needs the
     name of the child field of its content. About 80 fields in the tree have this
     name. The rule for the name is a question to the owner.
+19. **A view keeps what it shows in the field `viewed`, in every view type** (the
+    owner, 2026-11-14: "It's option 1"). "What a view shows" is one role, so it has
+    one name, and the name is a word that a content type does not use: no field in
+    the tree has it, and `content` is the most common field name of the content
+    types. A caret path of a view stays the path of the document, such as
+    `.content[1].content{3}` in a paragraph, and an edit goes below `.viewed`. A
+    content type that has a view has no field `viewed`; a viewing step refuses a
+    view whose content has one. The choices that the owner did not take: the
+    Markdown types change their field, and each later domain with a field `content`
+    does the same; each view type chooses its name, which gives more than one name
+    to one role. The word `viewed` is the proposal of the build.
 
 ## What is not known yet
 
