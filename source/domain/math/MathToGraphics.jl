@@ -1788,7 +1788,9 @@ function map_reference_forward(p::MathProjection, iomap::MathIoMap, reference)
         rest === nothing && continue
         inner = map_reference_forward(child.iomap.projection, child.iomap, rest)
         inner === nothing && return nothing
-        outer = find_node_reference(iomap.output, unwrap_cell(child.iomap.output))
+        # A grid places its children inside the canvas of its body, inside a row,
+        # so a child can lie four nodes below this box.
+        outer = find_node_reference(iomap.output, unwrap_cell(child.iomap.output); depth = 6)
         return outer === nothing ? nothing : concat_references(outer, inner)
     end
     nothing
@@ -1860,6 +1862,7 @@ there, the moves of the drag reach the leaf that holds the selection, and a key
 moves the caret or the range in it, read-only.
 """
 function read_intent(p::MathProjection, iomap::MathIoMap, event)
+    event isa MouseMove && return _read_math_move(iomap, event)
     event isa Union{DragMove, DragEnd} && return _read_selected_leaf(iomap, event, _read_leaf_pointer)
     event isa MouseDown && event.button === :left && return _read_point_leaf(iomap, event, _read_leaf_pointer)
     if event isa MouseClick && event.button === :left
@@ -1868,6 +1871,15 @@ function read_intent(p::MathProjection, iomap::MathIoMap, event)
     end
     (event isa KeyDown || event isa KeyPress) || return nothing
     _read_key(iomap, event)
+end
+
+# A move names the part under the pointer, as a click selects it: the caret on the
+# text of a leaf, else the smallest box. A move off the formula names nothing.
+function _read_math_move(iomap::MathIoMap, event::MouseMove)
+    x, y = Int(event.x), Int(event.y)
+    (0 <= x < Int(iomap.width[]) && 0 <= y < Int(iomap.ascent[]) + Int(iomap.descent[])) || return nothing
+    path = map_reference_backward(iomap.projection, iomap, PointReferenceStep(x, y))
+    path === nothing ? nothing : ReplaceMouseTargetOperation(path)
 end
 
 # The answer of the leaf under the point of `event`, which `read(leaf, event)` gives

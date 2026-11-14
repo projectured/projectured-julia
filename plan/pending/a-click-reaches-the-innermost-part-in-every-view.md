@@ -1641,7 +1641,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   the caret now, so the press test of the fraction expects the caret in the
   value of the numerator. `test_math` 221 pass and fails only at
   `MathToGraphicsTest.jl:346`, the walk depth that main has (`:314` before the
-  new test set).
+  new test set). A move names the part under the pointer as a click
+  selects it (`_read_math_move`: the caret on a leaf text, else the smallest
+  box), where the hover fell back to the whole formula before, and the forward
+  map searches a child canvas six nodes deep, because a grid places its
+  children in the canvas of its body inside a row (the matrix and the cases).
+  The eight math examples with the most lines in run 6 fall from 135 lines to
+  about 50; what is left is the glyphs that the view adds (a brace piece, an
+  operator, a parenthesis), which are no text of a field: step 5.4.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
