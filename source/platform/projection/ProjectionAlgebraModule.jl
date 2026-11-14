@@ -36,6 +36,7 @@ using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: record_cell_fault!
+import ..DocumentModule: copy_document, has_document_duplicate, is_admitted_by_declared_type
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: get_content_iomap, show_barrier_mark!, retry_barrier_print!
@@ -48,7 +49,8 @@ export ChainingProjection, ChainingIoMap
 export TypeDispatchingProjection
 export RecursiveProjection
 export ContentView, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view, make_child_views,
-       get_content_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation
+       get_content_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation,
+       make_sibling_view
 export SwitchingProjection, SwitchingIoMap
 export PredicateDispatchingProjection
 export ReferenceDispatchingProjection, ReferenceDispatchingIoMap

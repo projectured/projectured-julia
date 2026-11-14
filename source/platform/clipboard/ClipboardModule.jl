@@ -37,6 +37,7 @@ using ..IoMapModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule
+using ..ProjectionAlgebraModule
 using ..ReferenceModule
 using ..SerializationModule
 using ..SelectionModule
@@ -62,7 +63,7 @@ export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
 export ClipboardSlice, ClipboardCollection
 export CLIPBOARD_GESTURES
 export make_clipboard_document, make_clipboard_projection
-export find_clipboard_document, ClipboardCopyPolicy
+export find_clipboard_document, make_pasted_document, ClipboardCopyPolicy
 
 
 include("Clipboard.jl")

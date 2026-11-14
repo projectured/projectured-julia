@@ -19,7 +19,10 @@ the children. What every view does is written here once:
   selection walk stops at the view;
 - an edit of a field that the view does not have edits its content
   (`get_edited_field` names `content`);
-- the view keeps its caret while the focus is elsewhere, as a dormant selection.
+- the view keeps its caret while the focus is elsewhere, as a dormant selection;
+- a copy of the view is a new view of the copy of its content, and a paste of the
+  view puts a second view of the same content (`make_sibling_view`), each with the
+  folds of the view.
 """
 abstract type ContentView <: Document end
 
@@ -99,6 +102,70 @@ function make_child_views(content, field::Symbol)
 end
 
 """
+    make_sibling_view(view::ContentView) -> ContentView
+
+A second view of the content of `view`. It starts with the state of `view`: its
+folds, and its caret as a dormant one, so the two views show the same thing until
+a person changes one of them. An edit of the content shows in both views, because
+they hold the same content.
+
+It is what a paste of a stored view puts in, and the duplicate of a view
+(`make_document_duplicate`).
+
+# Example
+
+    view_a = JsonArrayView(array)
+    view_b = make_sibling_view(view_a)
+    view_b.content === view_a.content     # true
+"""
+make_sibling_view(view::ContentView) =
+    _copy_view_state!(make_content_view(getproperty(view, :content)), view)
+
+# Copy the state of `view` to `copy`, a new view of the same kind over the same
+# content or over a copy of it: each field of state, and the stored caret as a
+# dormant one, which the next selection of the copy wakes. The views of the
+# children take the state of the views of the children of `view`, in their order.
+function _copy_view_state!(copy::ContentView, view::ContentView)
+    for name in fieldnames(typeof(view))
+        (name === :content || is_view_state_field(name)) && continue
+        value = getproperty(view, name)
+        if value isa CellVector
+            for (child_copy, child) in zip(getproperty(copy, name), value)
+                (child_copy isa ContentView && child isa ContentView) && _copy_view_state!(child_copy, child)
+            end
+        else
+            setproperty!(copy, name, value)
+        end
+    end
+    path = get_stored_selection(view)
+    path isa ConcreteReference &&
+        (getfield(copy, :selection)[] = SelectionDocument(; primary = copy_reference(path), live = false))
+    copy
+end
+
+# A copy of a view is a new view of the copy that the policy makes of its content,
+# because the child fields of a view follow the content by identity. A document
+# met twice is one copy, as in the walk.
+function copy_document(policy::CopyPolicy, view::ContentView)
+    memo = get_copy_memo(policy)
+    earlier = memo === nothing ? nothing : get(memo, view, nothing)
+    earlier === nothing || return earlier
+    copy = make_content_view(copy_document(policy, getproperty(view, :content)))
+    memo === nothing || (memo[view] = copy)
+    _copy_view_state!(copy, view)
+end
+
+# The duplicate of a view owns the state of a view and shares the content, whatever
+# the kind of the content declares.
+has_document_duplicate(::ContentView) = true
+copy_document(::DuplicatePolicy, view::ContentView) = make_sibling_view(view)
+
+# A view owns no place that takes a pasted value: its parts are the views of the
+# parts of its content, and a paste of a part is an edit of the content. A paste
+# can still replace the view itself, in the place that its container owns.
+is_admitted_by_declared_type(::ContentView, declared_type::Type, value) = false
+
+"""
     get_content_path(view::ContentView, path) -> Reference
 
 A path of `view` as a path of its content: the same steps, typed with the nodes
@@ -114,8 +181,10 @@ A step that prints a view and its content together. `content` is the projection
 of the contents of the stage, usually the table of its rows. For a `ContentView`,
 the step prints the content of the view with `content`, and gives the view of the
 printed content (`make_content_view`), whose paths are the paths of the view
-mapped through the maps of that print. For any other input, it prints the input
-with `content`, as a stage with no views does.
+mapped through the maps of that print. The caret of the output view is live only
+when the place of the print is on the path of the live selection, so a view at
+two places shows a live caret at one of them. For any other input, it prints the
+input with `content`, as a stage with no views does.
 
 A key goes to the key table of the view. An operation from the next stage goes
 back through the readers of the content print, because a path of the view is the
@@ -147,7 +216,8 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
         "ViewingProjection: the print of the content of a $(nameof(typeof(input))) gives a " *
         "$(nameof(typeof(content.output))), which has no view (make_content_view)"))
     set_output_path_computations!(output, input,
-                                  path -> map_reference_forward(content.projection, content, get_content_path(input, path)))
+                                  path -> map_reference_forward(content.projection, content, get_content_path(input, path));
+                                  context = ctx)
     map_view_state!(output, input, content)
     ViewingIoMap(p, input, output, content)
 end
@@ -210,6 +280,10 @@ view answers the paths of its content. The child view prints through `recursion`
 and the content projection gets the IO map of the content of the child, so it
 builds its output as it does with no view. A child that the view has no view for
 prints as content.
+
+The caret is state of the view, so the recursion tells the child view whether its
+place is on the path of the live selection: it is when the place of the view is,
+and the live caret of the view goes on into the child.
 """
 struct ViewRecursion <: Projection
     view::ContentView
@@ -221,9 +295,13 @@ struct ViewRecursion <: Projection
 end
 
 function print_document(r::ViewRecursion, recursion, input, ctx)
-    child_view = _find_child_view(r, input, ctx)
+    steps = _find_child_steps(r, ctx)
+    child_view = steps === nothing ? nothing : _find_child_view(r, input, steps)
     child_view === nothing && return print_child(r.recursion, input, ctx)
-    iomap = print_child(r.recursion, child_view, ctx)
+    view, parent_context = r.view, r.context
+    child_context = with_live_place(ctx, () -> is_live_place(parent_context) &&
+                                               has_live_selection_below(view, steps))
+    iomap = print_child(r.recursion, child_view, child_context)
     iomap isa ViewingIoMap || return iomap
     r.prints[iomap.content] = iomap
     iomap.content
@@ -245,15 +323,20 @@ function _make_output_children(r::ViewRecursion, content)
     end))
 end
 
-# The view of the child `input` of the view of `r`: the steps that the context of the
-# child adds to the path of the view, applied to the view. `nothing` when they reach
-# no view of `input`.
-function _find_child_view(r::ViewRecursion, input, ctx)
+# The steps that the context `ctx` of a child adds to the path of the view of `r`, or
+# `nothing` when `ctx` is no context below that path.
+function _find_child_steps(r::ViewRecursion, ctx)
     (r.context === nothing || ctx === nothing) && return nothing
     parent = get_reference_steps(strip_reference_types(r.context.reference[]))
     child = get_reference_steps(strip_reference_types(ctx.reference[]))
     (length(child) > length(parent) && child[1:length(parent)] == parent) || return nothing
-    view = try_evaluate_reference(r.view, Reference(child[length(parent)+1:end]...), nothing)
+    child[length(parent)+1:end]
+end
+
+# The view of the child `input` of the view of `r`: `steps`, the steps of the child,
+# applied to the view. `nothing` when they reach no view of `input`.
+function _find_child_view(r::ViewRecursion, input, steps)
+    view = try_evaluate_reference(r.view, Reference(steps...), nothing)
     (view isa ContentView && getproperty(view, :content) === input) ? view : nothing
 end
 

@@ -230,6 +230,34 @@ When the focus returns to a document with a dormant selection, the next
 extending the incoming path with the dormant one it finds at the point the two
 diverge.
 
+### A document at two places
+
+The live selection is one path from the root. A document that two containers
+hold stores one selection, and the path reaches it through one of the two places.
+The stored state can not tell the places apart, so the print of each place asks
+its printer context: `is_live_place(ctx)` says whether the place of the print is
+on the path of the live selection.
+
+A parent tells each child. `make_child_context(ctx, parent, steps...)` gives the
+child a live place when the place of the parent is live and the live selection of
+the parent goes on into the child (`has_live_selection_below(parent, steps)`). The
+root is live. A context made with no parent document gives the child the flag of
+the parent as it is.
+
+A print takes the selection of its input as live only when the stored state and
+the place both say so:
+
+```julia
+is_live = Cell(@computation is_live_selection(input) && is_live_place(ctx))
+```
+
+`make_output_path_cells` and `set_output_path_computations!` do the same with the
+keyword `context = ctx`, and `map_selection_forward` with the keyword `live`. So
+the place that the path reaches shows a live selection, and every other place of
+the same document shows the same stored path as a dormant one. The flag is a
+computation over the selections of the documents above the place, so it follows
+the selection with no new print.
+
 ## Selection stored in each domain type
 
 Different domains interpret selection paths differently, but always as the same

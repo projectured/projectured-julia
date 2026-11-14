@@ -32,11 +32,13 @@
 """
     CLIPBOARD_GESTURES
 
-The seven gestures a clipboard slice can offer, by name: `:toggle` (`Ctrl+/`),
+The eight gestures a clipboard slice can offer, by name: `:toggle` (`Ctrl+/`),
 `:copy` (`Ctrl+C`), `:copy_reference` (`Ctrl+Shift+C`), `:cut` (`Ctrl+X`),
-`:note` (`Ctrl+N`), `:paste` (`Ctrl+V`) and `:paste_copy` (`Ctrl+Shift+V`).
+`:note` (`Ctrl+N`), `:paste` (`Ctrl+V`), `:paste_copy` (`Ctrl+Shift+V`) and
+`:paste_same_view` (`Ctrl+Alt+V`).
 """
-const CLIPBOARD_GESTURES = (:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy)
+const CLIPBOARD_GESTURES = (:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy,
+                            :paste_same_view)
 
 """
     ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing,
@@ -75,6 +77,11 @@ answers. A copy stores an independent copy made with
 [`ClipboardCopyPolicy`](@ref): a document that refuses a paste, such as a tool,
 is copied as the duplicate its kind declares, and the copy is refused when the
 kind declares none. A note stores the document itself, a tool too.
+
+A paste puts in what the stored document answers for a paste
+(`make_pasted_document`): the stored document itself, or, for a stored view of a
+content, a second view of the same content. "Paste the same view" puts the stored
+document itself, so a stored view is then at two places with one caret.
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
@@ -380,10 +387,12 @@ function _clipboard_note(p, input)
     CompoundOperation(ops)
 end
 
-# Paste: replace the selection target with the stored slice. The trailing
-# ReplaceSelectionOperation pins the selection to the pasted target (rather than
-# letting it follow the slice's stale inner selection). When the internal slice is
-# empty, fall back to the OS clipboard via the projection's `from_text` converter.
+# Paste: replace the selection target with what the stored slice answers for a
+# paste (`make_pasted_document`): the slice itself, or a second view of the content
+# of a stored view. The trailing ReplaceSelectionOperation pins the selection to
+# the pasted target (rather than letting it follow the slice's stale inner
+# selection). When the internal slice is empty, fall back to the OS clipboard via
+# the projection's `from_text` converter.
 function _clipboard_paste(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
     taken = _document_target_paste(input, input.slice)
@@ -401,6 +410,21 @@ function _clipboard_paste(p, input)
             ReplaceSelectionOperation(sel),
         ])
     end
+    sel = _find_paste_target(input, slice)
+    sel === nothing && return nothing
+    CompoundOperation(Any[
+        make_replace_document_operation(sel, make_pasted_document(slice)),
+        ReplaceSelectionOperation(sel),
+    ])
+end
+
+# Paste the same view: replace the selection target with the stored slice itself.
+# A stored view is then at a second place, and its places share its caret and its
+# folds. For a stored document that is no view, it is what a paste does.
+function _clipboard_paste_same_view(p, input)
+    (p.text && input.content isa TextBlock) && return nothing
+    slice = input.slice
+    slice isa Document || return nothing
     sel = _find_paste_target(input, slice)
     sel === nothing && return nothing
     CompoundOperation(Any[
@@ -472,7 +496,7 @@ end
 # ModifierKeys are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
-    named = (:toggle, :copy, :copy_reference, :cut, :note, :paste_copy, :paste)
+    named = (:toggle, :copy, :copy_reference, :cut, :note, :paste_copy, :paste, :paste_same_view)
     GestureBinding[binding for (name, binding) in zip(named, _make_clipboard_bindings(p))
                    if name in p.offered_gestures]
 end
@@ -503,6 +527,10 @@ function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_paste(p, doc); description = "Paste",
                        domain = "clipboard", name = "Paste"),
+        GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :alt]),
+                       (doc, event) -> _clipboard_paste_same_view(p, doc);
+                       description = "Paste the same view at a second place",
+                       domain = "clipboard", name = "Paste the same view"),
     ]
 end
 

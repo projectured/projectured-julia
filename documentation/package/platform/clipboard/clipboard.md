@@ -15,7 +15,7 @@ The clipboard is a wrapper document around the whole content of a window:
 
 `ClipboardSliceToAnyProjection` prints the content on display through the recursion, at the context of the clipboard's own `content` step, and prints the stored `slice` through the recursion too, only while `display_slice` is set. Its output is a computed cell that chooses the content's output or the slice's output by that cell. So Ctrl+/ toggles the view with a plain cell write, and only the child on display prints again. The output has no node for the clipboard itself: a reference forward loses the `content` or `slice` step, and a reference backward gets it again. `ClipboardCollectionToAnyProjection` prints its `elements` vector as one document the same way, only while `display_collection` is set, so only a projection that draws a vector can render it.
 
-The reader has seven gestures, in a gesture table of the projection:
+The reader has eight gestures, in a gesture table of the projection:
 
 | Key | Gesture | What it stores or does |
 | --- | --- | --- |
@@ -23,8 +23,9 @@ The reader has seven gestures, in a gesture table of the projection:
 | Ctrl+Shift+C | copy the reference | Julia code that gives the selected document, as text |
 | Ctrl+X | cut | the selected document itself; the source becomes `DocumentNothing()` |
 | Ctrl+N | note | the selected document itself, not a copy: a live bookmark |
-| Ctrl+V | paste | the stored document replaces the selection |
+| Ctrl+V | paste | the stored document replaces the selection; for a stored view of a content, a second view of the same content does |
 | Ctrl+Shift+V | paste a copy | a copy of the stored document replaces the selection |
+| Ctrl+Alt+V | paste the same view | the stored document itself replaces the selection, a stored view too |
 | Ctrl+/ | toggle | shows the stored document instead of the content |
 
 A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`. `ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.

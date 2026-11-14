@@ -27,12 +27,22 @@ _is_live_value(value::SelectionDocument) = value.live
 # is `false` by default, because most callers guard on `nothing` before mapping.
 # A projection that **introduces** a selection maps `nothing` to a real image, so
 # such a caller passes `true` and lets the mapper answer for the missing path.
-function map_selection_forward(source, map; map_missing::Bool = false)
+function map_selection_forward(source, map; map_missing::Bool = false, live::Bool = true)
     path = get_stored_selection(source)
     (path === nothing && !map_missing) && return nothing
     image = map(path)
     image === nothing && return nothing
-    is_live_selection(source) ? image : SelectionDocument(; primary = image, live = false)
+    (live && is_live_selection(source)) ? image : SelectionDocument(; primary = image, live = false)
+end
+
+function has_live_selection_below(document, steps)
+    is_live_selection(document) || return false
+    path = get_stored_selection(document)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return false
+        path = path.tail
+    end
+    true
 end
 
 get_stored_selection(document) =

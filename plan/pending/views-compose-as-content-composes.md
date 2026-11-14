@@ -354,10 +354,10 @@ element 2.
       same view at a second place. It keeps the feature of one document at two
       places with one caret, which Note and Paste give before this plan.
 
-    A paste of a stored document that is no view stays as it is. The copy of the
-    nodes of a view that shares the content is a copy policy of the clipboard, and
-    no new mechanism. No binding uses Ctrl+Alt+V in the platform or in `omnet-julia`
-    (2026-11-14).
+    A paste of a stored document that is no view stays as it is. No binding uses
+    Ctrl+Alt+V in the platform or in `omnet-julia` (2026-11-14). The build of step 6
+    makes the second view with `make_sibling_view`, and the copy of a view with a
+    method of `copy_document` for a view under every policy; no new copy policy.
 
     What the gestures do at the time of the decision, read and not run on a view:
     Note stores the object itself, Copy stores a full copy, Paste puts the stored
@@ -371,6 +371,12 @@ element 2.
 - **The old text chains.** `TextToGraphics` draws a `TextBlock` with its own caret
   for every chain that is not a chain of views yet, so step 8 can take the field
   from `TextBlock` only when no chain gives a text a caret.
+- **The live flag in the chains with no view.** About 126 calls in 64 files wire
+  the selection of an output with no context (step 6). To pass the context in each
+  is a wide change with no design in it; it is not a step of this plan yet.
+- **A paste into a view.** The clipboard writes at the path of the selection, and
+  the path of a part of a view names a view. The write must go to the content, as
+  `make_content_edit` does for the keys of a view (step 6).
 
 ## Questions
 
@@ -700,11 +706,110 @@ and the output of each stage, as structures that a person reads.
    folding tests and the printer walk of every platform example 155585;
    `test_example(json_example)` and `test_click_roundtrips()` 7691, in a fresh
    process. The printer walk and the REPL walk of the example give no error.
-6. [ ] **Places**: the owner's example of one JSON file, two views and four places,
+6. [x] **Places**: the owner's example of one JSON file, two views and four places,
    where a tab holds a view or the view of a part (decision 15); the live flag of a
    place (decision 16), with a test that only the place on the path from the root
    draws a live caret and that every other place of the view draws the same
    position dormant; the three pastes of decision 17.
+
+   Done 2026-11-14. What it made:
+   - **No place type.** The example `json_view_places` is a vertical layout of four
+     places: view A, the view of the nested array of view A, view B and the view of
+     the nested array of view B. The place of a part holds the child view itself.
+   - **The live flag of a place**, in the kernel:
+     - `is_live_place(ctx)` and `with_live_place(ctx, is_live)` in
+       `PrinterContext.jl`. The flag is a function in the property `:live_place` of
+       the context, and no cell: a computation that calls `is_live_place` reads the
+       selection cells of the documents above the place, so it follows the selection.
+     - `make_child_context(ctx, parent, steps...)` and
+       `make_element_context(ctx, parent, index, make_steps)` give the child the
+       flag: the place of the parent is live, and
+       `has_live_selection_below(parent, steps)` of the selection layer says that
+       the live path of the parent goes on into the child. A parent with no
+       selection field gives its flag as it is.
+     - `map_selection_forward` takes `live`, and `make_output_path_cells` and
+       `set_output_path_computations!` take `context`: the image of a live selection
+       is a dormant one when the place is not live.
+   - **The flag in the views.** A step of `ViewingProjection` gives its context to
+     the paths of its output view. `ViewRecursion` tells the child view from the
+     view, and not from the content that the content projection names as the parent:
+     the caret is state of the view. `TextViewToGraphicsCanvas` draws a live caret
+     when the stored state and the place both say live.
+   - **The three pastes.**
+     - `make_sibling_view(view)`: a second view of the same content, with the folds
+       of the view and its caret as a dormant one, which the selection of the new
+       view wakes. The views of the children take the state of the views of the
+       children, in their order.
+     - `copy_document(policy, view)`: a copy of a view is a new view of the copy that
+       the policy makes of its content, because the child fields of a view follow
+       the content by identity and a copy of their cells does not. The duplicate of
+       a view (`make_document_duplicate`) is a sibling view.
+     - `make_pasted_document(stored)` of the clipboard: what a paste puts in for the
+       stored document, the document itself, or a sibling view for a stored view.
+       It lives in the clipboard slice, because the projection slice must not use
+       the domain slice.
+     - The gesture `:paste_same_view`, "Paste the same view", on Ctrl+Alt+V: the
+       stored document itself. A note of the view of a part and this paste give a
+       place of the part.
+     - A view owns no place that takes a pasted value
+       (`is_admitted_by_declared_type` of a view answers `false`), so a paste and a
+       cut do not write into a view. A paste replaces a view at its place, and a cut
+       takes it from its place.
+   - **A fix of the selection walk**, in the kernel. A write of the stored path wrote
+     no cell, so a document that a write of a value put on the path, in the place of
+     one of the same type, kept no part of the path, or a dormant one. A view that a
+     paste put over a view was not live. `_repair_selection_chain!` gives each
+     document below its part, from the first that does not hold it; while each
+     holds its part, it writes no cell.
+
+   Facts:
+   - A path to a place that holds a view with a dormant caret wakes the caret. A
+     second write of the path, to the view that is then live, selects the view as a
+     whole. A person selects a whole view from inside it, with the keys of the tree.
+   - The copy of a stored view keeps the dormant caret of each child view, and no
+     caret of the view itself.
+   - The cost of the flag: one child context with a parent document takes 455 ns
+     and 1216 bytes without the flag, and 601 ns and 1840 bytes with it. It is
+     below 0.1 % of the print and the walk of the examples `json`, `layout`,
+     `table` and `widget`.
+   - In a real editor with a headless backend, the flag goes through every
+     container of a window: the path of the caret of the example is
+     `.content.content.content.content.windows[1].content.content.children[1]…`,
+     and only the place on it draws a live caret.
+
+   Limits:
+   - The prints of the chains with no view do not use the flag: about 126 calls of
+     `make_output_path_cells` and `set_output_path_computations!` in 64 files give
+     no context. A document with no view at two places draws a live selection at
+     both, as before.
+   - A paste onto a part inside a view is refused. It is an edit of the content
+     through the view, with a path of the view and a value that is content.
+   - The state copy of a sibling view visits every node of the view tree.
+   - The replace of a root content by a key of another kind still does nothing
+     (the limit of step 4).
+
+   The shape:
+
+   ```
+   VerticalLayout [ view A, view A .elements[3], view B, view B .elements[3] ]
+     the context of each child carries the live flag: the place of the layout is live,
+       and the live path of the layout goes on into this child
+     view A at place 1 and its part at place 2 store one caret; place 1 or place 2 draws it live
+
+   Ctrl+C, Ctrl+V      copy_document(ClipboardCopyPolicy(), view)  then  make_sibling_view(stored)
+   Ctrl+N, Ctrl+V      the view itself                             then  make_sibling_view(stored)
+   Ctrl+N, Ctrl+Alt+V  the view itself                             then  the stored view itself
+   ```
+
+   Tests: `test_json_view_places` (four places: only the place on the path from the
+   root draws a live caret, and each other place of that view draws the same
+   position dormant) and `test_json_view_pastes` (the three pastes, a paste over a
+   view, a cut of a view); a testset each in `TextViewTest`, `ClipboardTest` and
+   `SelectionTest`, and one in `test_json_string_view`. The suites of the kernel,
+   of JSON, of the data frames and of the platform, with their layer guards:
+   175079 pass, 7 broken, which no marker of this step adds, and no failure. The
+   naming guard passes. A check in a real editor with a headless backend, which is
+   not in the repository: 9 of 9; it found the fault of the selection walk.
 7. [ ] **Composition across domains**: a JSON part of a Markdown document, its view
    inside the Markdown view and at a place of its own. Tests: `test_markdown()`.
 8. [ ] **The selection fields go** for the text, syntax and JSON types (decision 2).

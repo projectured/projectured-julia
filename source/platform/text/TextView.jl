@@ -12,8 +12,9 @@ A view of the text `content`. Its `selection` is the caret of this view: a flat
 place in `content`, a `TextRangeReferenceStep` caret or range, or a whole-element
 `TextSpanReferenceStep`. The path ends at the view and never enters `content`, so
 another view of the same text keeps a caret of its own. A place that shows the
-view shows its caret, so two places of one view share it. The view keeps its caret
-while the focus is elsewhere, as a dormant selection.
+view shows its caret, so two places of one view share it; the caret is live at the
+place that the live selection reaches, and dormant at any other. The view keeps
+its caret while the focus is elsewhere, as a dormant selection.
 
 `closed_folds` are the folds of the text that this view closes, or `nothing`:
 `TextFolding` hides their lines in this view only. The view of the text of a node
@@ -61,7 +62,8 @@ Draw a `TextView`: the drawing of its content, which the recursion prints with t
 row of `TextBlock` (`TextBlockToGraphicsCanvas`), and over it the band under the
 selection of the view and its caret. `theme` is a `TextTheme`, scaled or not, whose
 caret and band it draws; with `nothing`, those of the default theme. A dormant
-caret is drawn muted.
+caret is drawn muted, and so is the caret of a view at a place that the live
+selection does not reach (`is_live_place`).
 
 The caret of the view maps forward through the IO map of the content, and a point
 maps back through it to a caret of the view. The keys are the keys of the view
@@ -113,7 +115,7 @@ function print_document(p::TextViewToGraphicsCanvas, recursion, view::TextView, 
     # place on the screen too; `is_live` decides how it is painted.
     selection_cell = getfield(view, :selection)
     overlay = Cell(@computation _compute_selection_marks(content, _get_stored_path(selection_cell[])))
-    is_live = Cell(@computation _is_live_selection(selection_cell[]))
+    is_live = Cell(@computation _is_live_selection(selection_cell[]) && is_live_place(ctx))
     marks = _make_selection_marks(p, overlay, is_live)
     drawing = content.output
     elements = CellVector(Cell[Cell(marks.band), Cell(drawing), Cell(marks.caret)])

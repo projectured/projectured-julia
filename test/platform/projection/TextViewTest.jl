@@ -58,6 +58,10 @@ function _text_view_caret_x(view_iomap)
     caret.w == 0 ? nothing : Int(caret.x)
 end
 
+# Whether the caret that a view draws has the color of a live caret.
+_text_view_is_caret_live(view_iomap) =
+    view_iomap.output.elements[3].color == view_iomap.projection.caret_color
+
 function test_text_view()
 @testset "TextView" begin
 
@@ -112,6 +116,19 @@ end
     @test stored(view_a) == caret(7)
     # A character is 10 pixels wide, so the caret at 7 is at x = 70.
     @test _text_view_caret_x.(view_iomaps) == [70, 50, 70]
+end
+
+@testset "Only the place on the path from the root draws a live caret" begin
+    # The path goes through the third place: the first place draws the same caret
+    # of view A as a dormant one, and the caret of view B is dormant.
+    @test _text_view_is_caret_live.(view_iomaps) == [false, false, true]
+    replace_selection!(root, caret_at(1, 7))
+    @test _text_view_is_caret_live.(view_iomaps) == [true, false, false]
+    @test _text_view_caret_x.(view_iomaps) == [70, 50, 70]
+    replace_selection!(root, caret_at(2, 5))
+    @test _text_view_is_caret_live.(view_iomaps) == [false, true, false]
+    replace_selection!(root, caret_at(3, 7))
+    @test _text_view_is_caret_live.(view_iomaps) == [false, false, true]
 end
 
 @testset "A key moves the caret of the view" begin

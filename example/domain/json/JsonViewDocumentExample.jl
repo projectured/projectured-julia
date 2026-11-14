@@ -26,3 +26,20 @@ function make_json_array_view_document_example()
                                                  @reference(view_b, elements[3].elements[1].value{2})))
     layout
 end
+
+# One JSON array in two views at four places: each view is at a place of the whole
+# view and at a place of the view of its nested array. The places of view A share
+# its caret, which goes through the place of the whole view, so that place draws it
+# as the live one and the place of the part draws it as a dormant one. View B folds
+# the nested array, at both of its places. The arrays hold no fold and no caret.
+function make_json_view_places_document_example()
+    nested = JsonArray([JsonString("a part"), JsonString("at a place of its own")])
+    array = JsonArray([JsonString("one array"), JsonNumber(2), nested])
+    view_a = JsonArrayView(array)
+    view_b = JsonArrayView(array)
+    view_b.elements[3].collapsed = true
+    layout = VerticalLayout([view_a, view_a.elements[3], view_b, view_b.elements[3]]; gap = 20)
+    replace_selection!(layout, concat_references(@reference(layout, children[1]),
+                                                 @reference(view_a, elements[3].elements[1].value{2})))
+    layout
+end

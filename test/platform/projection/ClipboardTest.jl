@@ -731,7 +731,24 @@ end
     @test read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation
     @test read_intent(p, iomap, KeyDown(:v, ctrl_shift; time = 0.0)) isa CompoundOperation
     @test Set(CLIPBOARD_GESTURES) ==
-              Set((:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy))
+              Set((:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy, :paste_same_view))
+    # A host that does not offer "Paste the same view" does not answer its key.
+    @test !(read_intent(p, iomap, KeyDown(:v, ModifierKeys(ctrl = true, alt = true); time = 0.0)) isa CompoundOperation)
+end
+
+@testset "Paste the same view puts the stored document itself" begin
+    stored = PrimitiveString("stored")
+    slice = ClipboardSlice(PrimitiveString("hello"), stored)
+    slice.selection = cpath(FieldReferenceStep("content"))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    op = read_intent(p, iomap, KeyDown(:v, ModifierKeys(ctrl = true, alt = true); time = 0.0))
+    @test op isa CompoundOperation
+    @test _rd_val(op.operations[1]) === stored
+    @test op.operations[2] isa ReplaceSelectionOperation
+    # A stored document that is no view is what a paste puts in.
+    @test make_pasted_document(stored) === stored
+    @test _rd_val(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)).operations[1]) === stored
 end
 
 @testset "Ctrl+Shift+C copies the reference of the selected object as code" begin

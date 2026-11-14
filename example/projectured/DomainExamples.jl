@@ -9,6 +9,7 @@
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
 const json_string_view_example = Example("json_string_view", make_json_string_view_document_example, make_json_string_view_projection_example)
 const json_array_view_example = Example("json_array_view", make_json_array_view_document_example, make_json_array_view_projection_example)
+const json_view_places_example = Example("json_view_places", make_json_view_places_document_example, make_json_array_view_projection_example)
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
 # A bare `JsonInsertion` (the typed-name insertion buffer) under the FULL json projection, so
 # the placeholder can be authored into any JSON value (the leaf insertion
@@ -168,6 +169,7 @@ const domain_examples = Example[
     json_insertion_example,
     json_string_view_example,
     json_array_view_example,
+    json_view_places_example,
     yaml_example,
     xml_example,
     mixed_example,

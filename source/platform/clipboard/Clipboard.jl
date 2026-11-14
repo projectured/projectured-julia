@@ -165,6 +165,21 @@ around what a person sees, such as a pane tab around the document it shows.
 find_clipboard_document(document) = document isa Document ? document : nothing
 
 """
+    make_pasted_document(stored) -> Document
+
+The document that a paste puts in for `stored`, the document that a copy, a cut or
+a note stored. `stored` itself by default, so a paste of a noted document puts
+that document at a second place.
+
+A view of a content answers a second view of the same content
+(`make_sibling_view`), which starts with the folds and the caret of `stored`. A
+paste then gives a view with a caret of its own, and never the same view twice;
+the gesture "Paste the same view" puts `stored` itself.
+"""
+make_pasted_document(stored) = stored
+make_pasted_document(stored::ContentView) = make_sibling_view(stored)
+
+"""
     ClipboardCopyPolicy()
 
 The policy of the copy that a copy gesture stores. It copies as the plain copy

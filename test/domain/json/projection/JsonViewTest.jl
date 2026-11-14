@@ -5,6 +5,7 @@
 
 const _json_view_collect = ProjecturedPlatformTest._text_view_collect
 const _json_view_caret_x = ProjecturedPlatformTest._text_view_caret_x
+const _json_view_is_caret_live = ProjecturedPlatformTest._text_view_is_caret_live
 
 function test_json_string_view()
 @testset "JsonStringView" begin
@@ -62,6 +63,18 @@ end
     @test all(m -> get_stored_selection(m.content.output) === nothing, json_steps)
     # The open quote is one character: `.value{1}` is drawn at 20 and `.value{3}` at 40.
     @test _json_view_caret_x.(drawn) == [20, 40, 20]
+end
+
+@testset "Only the place on the path from the root draws a live caret" begin
+    # The path goes through the first place. The view of each stage is live there
+    # and dormant at the third place, which shows the same view.
+    @test _json_view_is_caret_live.(drawn) == [true, false, false]
+    @test is_live_selection.([m.output for m in json_steps]) == [true, false, false]
+    replace_selection!(root, caret_at(3, 1))
+    @test _json_view_is_caret_live.(drawn) == [false, false, true]
+    @test is_live_selection.([m.output for m in json_steps]) == [false, false, true]
+    @test _json_view_caret_x.(drawn) == [20, 40, 20]
+    replace_selection!(root, caret_at(1, 1))
 end
 
 @testset "A key moves the caret of the view" begin
@@ -207,6 +220,283 @@ end
     @test press!(KeyDown(:period, ModifierKeys(ctrl = true); time = 0.0)) isa ToggleFoldOperation
     @test view_b.elements[3].collapsed
     @test folded_text.(texts()) == [true, true, true]
+end
+
+end
+end
+
+# The four stages that print a view of a JSON array at a place, as the editor
+# chains them.
+_make_json_view_stages(measure) = ChainingProjection(
+    RecursiveProjection(ViewingProjection(JsonToSyntax())),
+    RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+    TextFolding(),
+    RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+        TextView  => TextViewToGraphicsCanvas(),
+        TextBlock => TextBlockToGraphicsCanvas(; measure),
+    ])))
+
+# One JSON array in two views at four places: each view is at a place of the whole
+# view and at a place of the view of its nested array. No type stands for a place:
+# the layout holds the view, or the view of the part. The places of one view share
+# its folds and its caret, and only the place on the path from the root draws the
+# caret as a live one.
+function test_json_view_places()
+@testset "The places of JSON views" begin
+
+measure = FixedMeasure(10, 18, 6, 0)
+nested = JsonArray([JsonString("x"), JsonString("y")])
+array = JsonArray([JsonString("ab"), JsonNumber(42), nested])
+view_a = JsonArrayView(array)
+view_b = JsonArrayView(array)
+part_a = view_a.elements[3]
+part_b = view_b.elements[3]
+root = VerticalLayout([view_a, part_a, view_b, part_b])
+projection = RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+    VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+    JsonArrayView  => _make_json_view_stages(measure),
+]))
+iomap = print_document(projection, root)
+editor = (; document = root)
+press!(event) = begin
+    operation = read_intent(projection, iomap, event)
+    operation === nothing || evaluate_operation(editor, operation)
+    operation
+end
+
+place(i) = @reference(root, children[i])
+at(i, path) = concat_references(place(i), strip_reference_types(path))
+stored(document) = strip_reference_types(get_stored_selection(document))
+plain(path) = strip_reference_types(path)
+drawn() = _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
+texts() = [get_flat_string(m.input.content) for m in drawn()]
+whole_text = "[\n  \"ab\",\n  42,\n  [\n    \"x\",\n    \"y\"\n  ]\n]"
+part_text = "[\n  \"x\",\n  \"y\"\n]"
+
+@testset "A place of a part prints the view of the part" begin
+    @test part_a isa JsonArrayView && part_a.content === nested
+    @test part_a !== part_b && part_b.content === nested
+    @test texts() == [whole_text, part_text, whole_text, part_text]
+    # The step of each place prints the view that the place holds.
+    steps = filter(m -> m.input isa JsonArrayView, _json_view_collect(iomap, ViewingIoMap))
+    @test all(map(===, [m.input for m in steps], [view_a, part_a, view_b, part_b]))
+end
+
+@testset "A fold of a part is the fold that the whole view shows" begin
+    folded(text) = !occursin("\"x\"", text)
+    evaluate_operation(editor, ToggleFoldOperation(place(2)))
+    @test part_a.collapsed && !part_b.collapsed
+    @test folded.(texts()) == [true, true, false, false]
+    evaluate_operation(editor, ToggleFoldOperation(at(1, @reference(view_a, elements[3]))))
+    @test !part_a.collapsed
+    @test texts() == [whole_text, part_text, whole_text, part_text]
+end
+
+@testset "A caret through the whole view is dormant at the place of the part" begin
+    replace_selection!(root, at(1, @reference(view_a, elements[3].elements[2].value{1})))
+    @test stored(part_a) == plain(@reference(part_a, elements[2].value{1}))
+    @test _json_view_is_caret_live.(drawn())[1:2] == [true, false]
+    # The two places draw the same place of the text of `"y"`: the whole view has
+    # two more spaces before it than the part has.
+    xs = _json_view_caret_x.(drawn())
+    @test xs[1] == xs[2] + 20
+    @test xs[3] === nothing && xs[4] === nothing
+end
+
+@testset "A caret through the place of the part leaves the whole view its own caret" begin
+    replace_selection!(root, at(2, @reference(part_a, elements[1].value{0})))
+    @test stored(part_a) == plain(@reference(part_a, elements[1].value{0}))
+    @test stored(view_a) == plain(@reference(view_a, elements[3].elements[2].value{1}))
+    @test !is_live_selection(view_a)
+    @test _json_view_is_caret_live.(drawn())[1:2] == [false, true]
+end
+
+@testset "A key at the place of the part edits the content of every place" begin
+    @test press!(KeyPress('Z', ModifierKeys(); time = 0.0)) isa ReplaceStringRangeOperation
+    @test nested.elements[1].value == "Zx"
+    @test stored(part_a) == plain(@reference(part_a, elements[1].value{1}))
+    @test all(text -> occursin("\"Zx\"", text), texts())
+    @test get_stored_selection(nested) === nothing
+end
+
+@testset "A second view keeps a caret of its own at its places" begin
+    replace_selection!(root, at(4, @reference(part_b, elements[2].value{0})))
+    @test stored(part_b) == plain(@reference(part_b, elements[2].value{0}))
+    @test stored(part_a) == plain(@reference(part_a, elements[1].value{1}))
+    @test _json_view_is_caret_live.(drawn()) == [false, false, false, true]
+    # The whole view B holds no caret: the path from the root did not go through it.
+    @test get_stored_selection(view_b) === nothing
+end
+
+end
+end
+
+# The three pastes of a view, with the keys of the clipboard. A copy and a paste
+# give a copy of the content with a new view. A note and a paste give a second
+# view of the same content. A note and "Paste the same view" give the same view at
+# a second place.
+function test_json_view_pastes()
+@testset "The pastes of a JSON view" begin
+
+measure = FixedMeasure(10, 18, 6, 0)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_white)
+nested = JsonArray([JsonString("x"), JsonString("y")])
+array = JsonArray([JsonString("ab"), JsonNumber(42), nested])
+view_a = JsonArrayView(array)
+layout = VerticalLayout(Any[view_a, [make_text_block("empty", style) for _ in 1:5]...])
+root = make_clipboard_document(layout)
+projection = make_clipboard_projection(RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+    VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+    JsonArrayView  => _make_json_view_stages(measure),
+    TextBlock      => TextBlockToGraphicsCanvas(; measure),
+])))
+iomap = print_document(projection, root)
+editor = (; document = root)
+press!(event) = begin
+    operation = read_intent(projection, iomap, event)
+    operation === nothing || evaluate_operation(editor, operation)
+    operation
+end
+ctrl(name; modifiers...) = KeyDown(name, ModifierKeys(; ctrl = true, modifiers...); time = 0.0)
+
+place(i) = @reference(root, content.children[i])
+at(i, view, path) = concat_references(place(i), strip_reference_types(path))
+select!(path) = replace_selection!(root, path)
+# A path to a place wakes the dormant caret of the view at the place. A second
+# write of the path, to the view that is then live, selects the view as a whole.
+select_whole!(i) = (select!(place(i)); select!(place(i)))
+stored(document) = strip_reference_types(get_stored_selection(document))
+plain(path) = strip_reference_types(path)
+held(i) = layout.children[i]
+drawn() = _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
+texts() = [get_flat_string(m.input.content) for m in drawn()]
+
+# View A folds its nested array and has its caret in its first element.
+view_a.elements[3].collapsed = true
+
+@testset "A note and a paste give a second view of the same content" begin
+    select_whole!(1)
+    @test press!(ctrl(:n)) isa CompoundOperation
+    @test root.slice === view_a
+    select!(at(1, view_a, @reference(view_a, elements[1].value{1})))
+    select!(place(2))
+    @test press!(ctrl(:v)) isa CompoundOperation
+    view_b = held(2)
+    @test view_b isa JsonArrayView && view_b !== view_a && view_b.content === array
+    @test held(1) === view_a
+    # The new view starts with the fold and the caret of view A, and its caret is
+    # the live one.
+    @test view_b.elements[3].collapsed && view_b.elements[3] !== view_a.elements[3]
+    @test stored(view_b) == plain(@reference(view_b, elements[1].value{1}))
+    @test is_live_selection(view_b) && !is_live_selection(view_a)
+    @test length(texts()) == 2 && texts()[1] == texts()[2]
+
+    # Then each view keeps its own caret and its own fold, over one content.
+    @test press!(KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
+    @test stored(view_b) == plain(@reference(view_b, elements[1].value{2}))
+    @test stored(view_a) == plain(@reference(view_a, elements[1].value{1}))
+    view_b.elements[3].collapsed = false
+    @test view_a.elements[3].collapsed
+    @test occursin("\"x\"", texts()[2]) && !occursin("\"x\"", texts()[1])
+    @test press!(KeyPress('Q', ModifierKeys(); time = 0.0)) isa ReplaceStringRangeOperation
+    @test array.elements[1].value == "abQ"
+    @test all(text -> occursin("\"abQ\"", text), texts())
+end
+
+@testset "A second paste gives a third view" begin
+    select!(place(3))
+    @test press!(ctrl(:v)) isa CompoundOperation
+    @test held(3) isa JsonArrayView && held(3) !== view_a && held(3) !== held(2)
+    @test held(3).content === array
+end
+
+@testset "A note and Paste the same view give the same view at a second place" begin
+    select!(at(1, view_a, @reference(view_a, elements[1].value{1})))
+    select!(place(4))
+    @test press!(ctrl(:v; alt = true)) isa CompoundOperation
+    @test held(4) === view_a
+    # The path from the root goes through the new place: the caret of view A is
+    # live there and dormant at its first place.
+    @test stored(view_a) == plain(@reference(view_a, elements[1].value{1}))
+    views = [m for m in drawn()]
+    @test length(views) == 4
+    @test _json_view_is_caret_live.(views[[1, 4]]) == [false, true]
+    @test _json_view_caret_x(views[1]) == _json_view_caret_x(views[4])
+end
+
+@testset "A note of a part and Paste the same view give a place of the part" begin
+    select!(at(1, view_a, @reference(view_a, elements[3])))
+    @test press!(ctrl(:n)) isa CompoundOperation
+    @test root.slice === view_a.elements[3]
+    select!(place(5))
+    @test press!(ctrl(:v; alt = true)) isa CompoundOperation
+    @test held(5) === view_a.elements[3]
+    @test held(5).content === nested
+end
+
+@testset "A copy and a paste give a copy of the content with a new view" begin
+    select_whole!(1)
+    @test press!(ctrl(:c)) isa CompoundOperation
+    copy = root.slice
+    @test copy isa JsonArrayView && copy !== view_a && copy.content !== array
+    @test copy.content.elements[1].value == "abQ" && copy.elements[3].collapsed
+    @test !(get_stored_selection(copy) isa ConcreteReference)
+    select!(place(6))
+    @test press!(ctrl(:v)) isa CompoundOperation
+    view_c = held(6)
+    @test view_c isa JsonArrayView && view_c !== copy && view_c.content === copy.content
+    @test view_c.elements[3].collapsed
+    # An edit of the copy does not change the content of view A.
+    select!(at(6, view_c, @reference(view_c, elements[1].value{0})))
+    @test press!(KeyPress('W', ModifierKeys(); time = 0.0)) isa ReplaceStringRangeOperation
+    @test view_c.content.elements[1].value == "WabQ"
+    @test array.elements[1].value == "abQ"
+    # "Paste copy" gives a new copy of the content each time.
+    select_whole!(6)
+    @test press!(ctrl(:v; shift = true)) isa CompoundOperation
+    @test held(6) isa JsonArrayView && held(6) !== view_c
+    @test held(6).content !== copy.content && held(6).content !== array
+    @test held(6).content.elements[1].value == "WabQ"
+end
+
+@testset "A paste does not write into a view" begin
+    select_whole!(1)
+    @test press!(ctrl(:n)) isa CompoundOperation
+    select!(at(2, held(2), @reference(held(2), elements[2])))
+    @test !(press!(ctrl(:v)) isa CompoundOperation)
+    @test !(press!(ctrl(:v; alt = true)) isa CompoundOperation)
+    @test !(press!(ctrl(:x)) isa CompoundOperation)
+    @test array.elements[2] isa JsonNumber && length(array.elements) == 3
+    @test held(2).elements[2] isa JsonNumberView
+end
+
+@testset "A paste replaces a view at its place" begin
+    select_whole!(2)
+    earlier = held(2)
+    @test press!(ctrl(:v)) isa CompoundOperation
+    @test held(2) isa JsonArrayView && held(2) !== earlier && held(2) !== view_a
+    @test held(2).content === array
+    # The new view is the selected one, as a whole.
+    @test get_selection(held(2)) isa EmptyReference && is_live_selection(held(2))
+    # The same view over a view of the same kind: it is live at the new place.
+    select_whole!(6)
+    @test press!(ctrl(:v; alt = true)) isa CompoundOperation
+    @test held(6) === view_a
+    @test get_selection(view_a) isa EmptyReference && is_live_selection(view_a)
+end
+
+@testset "The duplicate of a view is a second view of the same content" begin
+    duplicate = make_document_duplicate(view_a)
+    @test duplicate isa JsonArrayView && duplicate !== view_a && duplicate.content === array
+    @test duplicate.elements[3].collapsed
+    @test copy_document(view_a).content !== array
+end
+
+@testset "A cut takes a view from its place" begin
+    select_whole!(3)
+    taken = held(3)
+    @test press!(ctrl(:x)) isa CompoundOperation
+    @test root.slice === taken && held(3) isa DocumentNothing
 end
 
 end
