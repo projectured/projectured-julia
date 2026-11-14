@@ -321,7 +321,7 @@ end
 # A text view hides the lines of its own closed folds, so two views of one text
 # fold apart; its caret maps through the lines that the folds keep.
 function print_document(p::TextFolding, recursion, view::TextView, ctx)
-    text = view.content
+    text = view.viewed
     folded = _fold_text(p, text, fold -> _is_closed_in_view(view, fold))
     shown = TextBlock(folded.elements, Cell(nothing))
     content = TextFoldingIoMap(p, text, shown, folded.kept)
@@ -352,7 +352,7 @@ end
 # Ctrl+. gets the innermost fold around the caret of the view.
 function read_intent(::TextFolding, iomap::TextViewFoldingIoMap, op::ToggleCollapseOperation)
     op.target === nothing || return op
-    fold = _find_innermost_fold(iomap.input.content, iomap.input.selection)
+    fold = _find_innermost_fold(iomap.input.viewed, iomap.input.selection)
     fold === nothing ? nothing : ToggleCollapseOperation(fold)
 end
 

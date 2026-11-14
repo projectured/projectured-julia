@@ -44,7 +44,7 @@ drawn = _text_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
     @test length(viewing) == 3
     @test all(map(===, [m.input for m in viewing], [view_a, view_b, view_a]))
     @test all(m -> m.content.input === leaf, viewing)
-    @test all(m -> m.output isa TextView && m.output.content === m.content.output, viewing)
+    @test all(m -> m.output isa TextView && m.output.viewed === m.content.output, viewing)
     @test all(map(===, [m.input for m in drawn], [m.output for m in viewing]))
 end
 
@@ -80,7 +80,7 @@ end
     @test stored(view_b) == value_caret(1)
     @test get_stored_selection(leaf) === nothing
     @test get_stored_selection(leaf.value) === nothing
-    @test all(m -> get_flat_string(m.output.content) == "\"abcXdef\"", viewing)
+    @test all(m -> get_flat_string(m.output.viewed) == "\"abcXdef\"", viewing)
 end
 
 @testset "A click puts the caret of the view that it hits" begin

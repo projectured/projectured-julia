@@ -17,48 +17,48 @@ does for a document.
 abstract type JsonView <: ContentView end
 
 """
-    JsonNullView(content::JsonNull)
+    JsonNullView(viewed::JsonNull)
 
 A view of a JSON null. Its caret is the whole null or a place in its text.
 """
 @document struct JsonNullView <: JsonView
-    content::JsonNull
+    viewed::JsonNull
 end
 
 """
-    JsonBoolView(content::JsonBool)
+    JsonBoolView(viewed::JsonBool)
 
 A view of a JSON boolean. Its caret is the whole boolean or a place in its text.
 """
 @document struct JsonBoolView <: JsonView
-    content::JsonBool
+    viewed::JsonBool
 end
 
 """
-    JsonNumberView(content::JsonNumber)
+    JsonNumberView(viewed::JsonNumber)
 
 A view of a JSON number. Its caret is a path of the number, such as `.value{1}`.
 """
 @document struct JsonNumberView <: JsonView
-    content::JsonNumber
+    viewed::JsonNumber
 end
 
 """
-    JsonStringView(content::JsonString)
+    JsonStringView(viewed::JsonString)
 
-A view of the JSON string `content`. Its caret is a path of the string, such as
+A view of the JSON string `viewed`. Its caret is a path of the string, such as
 `.value{3}`, or a place on a quote, which has no place in the string; it ends at
 the view, so another view of the same string keeps a caret of its own. A viewing
 step of `JsonToSyntax` prints it as the `SyntaxLeafView` of the leaf of the string.
 """
 @document struct JsonStringView <: JsonView
-    content::JsonString
+    viewed::JsonString
 end
 
 """
-    JsonArrayView(content::JsonArray)
+    JsonArrayView(viewed::JsonArray)
 
-A view of the JSON array `content`. `elements` holds the view of each element, in
+A view of the JSON array `viewed`. `elements` holds the view of each element, in
 the order of the elements, and follows them by identity (`make_child_views`).
 `collapsed` is the fold of this view, which another view of the array does not
 share. A viewing step of `JsonToSyntax` prints it as the `SyntaxNodeView` of the
@@ -66,7 +66,7 @@ node of the array, whose children are the views of the nodes of the elements and
 whose fold is the fold of this view.
 """
 @document struct JsonArrayView <: JsonView
-    content::JsonArray
+    viewed::JsonArray
     elements::CellVector
     collapsed::Bool = false
 end
@@ -90,7 +90,7 @@ function _find_replaceable_view(view::JsonView)
     path = normalize_named_node_reference(caret)
     path isa ConcreteReference || return nothing
     named = try_evaluate_reference(view, path, nothing)
-    (named isa JsonView && !(getproperty(named, :content) isa JsonObjectEntry)) ? named : nothing
+    (named isa JsonView && !(getproperty(named, :viewed) isa JsonObjectEntry)) ? named : nothing
 end
 
 # A replace of the node that the caret names, as an edit of the content: the new
@@ -140,7 +140,7 @@ function _append_element_through_view(view::JsonArrayView)
     found = _find_innermost_array(view, view.selection)
     found === nothing && return nothing
     array_view, path = found
-    edit = make_content_edit(append_insertion_operation(array_view.content, :elements, JsonInsertion))
+    edit = make_content_edit(append_insertion_operation(array_view.viewed, :elements, JsonInsertion))
     path isa EmptyReference ? edit : reroot_operation(edit, Tuple(get_reference_steps(path)))
 end
 

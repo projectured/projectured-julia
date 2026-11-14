@@ -11,14 +11,14 @@
     ContentView
 
 The supertype of every view of a content. A view holds its content in the field
-`content` and declares the child fields of its content, which hold the views of
+`viewed` and declares the child fields of its content, which hold the views of
 the children. What every view does is written here once:
 
 - a field step that the view does not have reads that field of its content, so a
   path into the content, such as `.value{3}`, is a path of the view, and the
   selection walk stops at the view;
 - an edit of a field that the view does not have edits its content
-  (`get_edited_field` names `content`);
+  (`get_edited_field` names `viewed`);
 - the view keeps its caret while the focus is elsewhere, as a dormant selection;
 - a copy of the view is a new view of the copy of its content, and a paste of the
   view puts a second view of the same content (`make_sibling_view`), each with the
@@ -26,13 +26,13 @@ the children. What every view does is written here once:
 """
 abstract type ContentView <: Document end
 
-DocumentModule.get_edited_field(::ContentView) = :content
+DocumentModule.get_edited_field(::ContentView) = :viewed
 
 SelectionModule.has_dormant_selection(::ContentView) = true
 
 function ReferenceModule.evaluate_reference_step(step::AFieldReferenceStep, view::ContentView)
     hasfield(typeof(view), Symbol(step.name)) ||
-        return evaluate_reference_step(step, getproperty(view, :content))
+        return evaluate_reference_step(step, getproperty(view, :viewed))
     invoke(evaluate_reference_step, Tuple{AFieldReferenceStep, Any}, step, view)
 end
 
@@ -62,7 +62,7 @@ make_content_view(content, children) = make_content_view(content)
 
 An edit that the key table of a view makes with the helpers of its content, such
 as an insert of an element or a replace of a node, as an edit through the view.
-Each write of a value goes to the same place below the field `content` of the view,
+Each write of a value goes to the same place below the field `viewed` of the view,
 because the child fields of a view hold views; the value keeps no caret of its own.
 Each caret stays a path of the view, which the view of the new part takes.
 """
@@ -71,8 +71,8 @@ make_content_edit(operation::CompoundOperation) =
 function make_content_edit(operation::ReplaceReferencedValueOperation)
     operation.document === nothing || return operation
     foreach(_clear_written_selection!, operation.value isa AbstractVector ? operation.value : (operation.value,))
-    content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
-    ReplaceReferencedValueOperation(nothing, concat_references(content, operation.reference), operation.value)
+    viewed = ConcreteReference(FieldReferenceStep("viewed"), EmptyReference())
+    ReplaceReferencedValueOperation(nothing, concat_references(viewed, operation.reference), operation.value)
 end
 make_content_edit(operation) = operation
 
@@ -116,10 +116,10 @@ It is what a paste of a stored view puts in, and the duplicate of a view
 
     view_a = JsonArrayView(array)
     view_b = make_sibling_view(view_a)
-    view_b.content === view_a.content     # true
+    view_b.viewed === view_a.viewed     # true
 """
 make_sibling_view(view::ContentView) =
-    _copy_view_state!(make_content_view(getproperty(view, :content)), view)
+    _copy_view_state!(make_content_view(getproperty(view, :viewed)), view)
 
 # Copy the state of `view` to `copy`, a new view of the same kind over the same
 # content or over a copy of it: each field of state, and the stored caret as a
@@ -127,7 +127,7 @@ make_sibling_view(view::ContentView) =
 # children take the state of the views of the children of `view`, in their order.
 function _copy_view_state!(copy::ContentView, view::ContentView)
     for name in fieldnames(typeof(view))
-        (name === :content || is_view_state_field(name)) && continue
+        (name === :viewed || is_view_state_field(name)) && continue
         value = getproperty(view, name)
         if value isa CellVector
             for (child_copy, child) in zip(getproperty(copy, name), value)
@@ -150,7 +150,7 @@ function copy_document(policy::CopyPolicy, view::ContentView)
     memo = get_copy_memo(policy)
     earlier = memo === nothing ? nothing : get(memo, view, nothing)
     earlier === nothing || return earlier
-    copy = make_content_view(copy_document(policy, getproperty(view, :content)))
+    copy = make_content_view(copy_document(policy, getproperty(view, :viewed)))
     memo === nothing || (memo[view] = copy)
     _copy_view_state!(copy, view)
 end
@@ -172,7 +172,7 @@ A path of `view` as a path of its content: the same steps, typed with the nodes
 of the content, which the maps and the key tables of the content match.
 """
 get_content_path(view::ContentView, path) =
-    annotate_reference_types(getproperty(view, :content), strip_reference_types(path))
+    annotate_reference_types(getproperty(view, :viewed), strip_reference_types(path))
 
 """
     ViewingProjection(content)
@@ -210,7 +210,11 @@ end
 function print_document(p::ViewingProjection, recursion, input, ctx)
     input isa ContentView || return print_document(p.content, recursion, input, ctx)
     view_recursion = ViewRecursion(input, recursion, ctx, IdDict{Any,Any}())
-    content = print_document(p.content, view_recursion, getproperty(input, :content), ctx)
+    viewed = getproperty(input, :viewed)
+    hasfield(typeof(viewed), :viewed) && throw(ArgumentError(
+        "ViewingProjection: a $(nameof(typeof(viewed))) has a field `viewed`, the name of the field in " *
+        "which a view keeps what it shows, so a path of its view can not name that field"))
+    content = print_document(p.content, view_recursion, viewed, ctx)
     output = make_content_view(content.output, _make_output_children(view_recursion, content))
     output === nothing && throw(ArgumentError(
         "ViewingProjection: the print of the content of a $(nameof(typeof(input))) gives a " *
@@ -337,7 +341,7 @@ end
 # applied to the view. `nothing` when they reach no view of `input`.
 function _find_child_view(r::ViewRecursion, input, steps)
     view = try_evaluate_reference(r.view, Reference(steps...), nothing)
-    (view isa ContentView && getproperty(view, :content) === input) ? view : nothing
+    (view isa ContentView && getproperty(view, :viewed) === input) ? view : nothing
 end
 
 # The maps of a step are the maps of the projection that printed the content, which

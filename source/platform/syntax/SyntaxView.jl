@@ -7,21 +7,21 @@
 # such as `.children[2].value{3}` is a path of the view and of its node.
 
 """
-    SyntaxLeafView(content::SyntaxLeaf)
+    SyntaxLeafView(viewed::SyntaxLeaf)
 
-A view of the syntax leaf `content`. Its caret is a path of the leaf, such as
+A view of the syntax leaf `viewed`. Its caret is a path of the leaf, such as
 `.value{3}` or the whole leaf `∅`, and it ends at the view, so another view of the
 same leaf keeps a caret of its own. A viewing step of `SyntaxToText` prints it as
 the `TextView` of the text of the leaf.
 """
 @document struct SyntaxLeafView <: ContentView
-    content::SyntaxLeaf
+    viewed::SyntaxLeaf
 end
 
 """
-    SyntaxNodeView(content::SyntaxNode)
+    SyntaxNodeView(viewed::SyntaxNode)
 
-A view of the syntax node `content`. `children` holds the view of each child of the
+A view of the syntax node `viewed`. `children` holds the view of each child of the
 node, in the order of the children, and follows them by identity
 (`make_child_views`). `collapsed` is the fold of this view: a closed view shows the
 first line of its node and the placeholder of its fold, and another view of the
@@ -32,7 +32,7 @@ a place in a delimiter. A viewing step of `SyntaxToText` prints it as the
 that are closed.
 """
 @document struct SyntaxNodeView <: ContentView
-    content::SyntaxNode
+    viewed::SyntaxNode
     children::CellVector
     collapsed::Bool = false
 end
@@ -66,7 +66,7 @@ end
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" =>
-        _toggle_syntax_cursor(doc.content, _get_view_caret(doc))
+        _toggle_syntax_cursor(doc.viewed, _get_view_caret(doc))
 end
 
 # The keys of a node, read against the caret of the view: a view at the root of a
@@ -75,12 +75,12 @@ end
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" =>
-        _toggle_syntax_cursor(doc.content, _get_view_caret(doc))
+        _toggle_syntax_cursor(doc.viewed, _get_view_caret(doc))
     when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
-        _navigate_syntax_tree(doc.content, _get_view_caret(doc), k)
+        _navigate_syntax_tree(doc.viewed, _get_view_caret(doc), k)
     when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
         _is_tree_selection(_get_view_caret(doc)) ?
-            _navigate_syntax_tree(doc.content, _get_view_caret(doc), k) : nothing
+            _navigate_syntax_tree(doc.viewed, _get_view_caret(doc), k) : nothing
 end
 
 # The closed folds of the text of a node view: the fold that the print of each node

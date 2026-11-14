@@ -6,11 +6,11 @@
 # keep two carets; two places that show one view show its one caret.
 
 """
-    TextView(content::TextBlock)
+    TextView(viewed::TextBlock)
 
-A view of the text `content`. Its `selection` is the caret of this view: a flat
-place in `content`, a `TextRangeReferenceStep` caret or range, or a whole-element
-`TextSpanReferenceStep`. The path ends at the view and never enters `content`, so
+A view of the text `viewed`. Its `selection` is the caret of this view: a flat
+place in `viewed`, a `TextRangeReferenceStep` caret or range, or a whole-element
+`TextSpanReferenceStep`. The path ends at the view and never enters `viewed`, so
 another view of the same text keeps a caret of its own. A place that shows the
 view shows its caret, so two places of one view share it; the caret is live at the
 place that the live selection reaches, and dormant at any other. The view keeps
@@ -23,36 +23,36 @@ of syntax computes them from the folds of the views of the nodes.
 `TextViewToGraphicsCanvas` draws the view over the drawing of its content.
 """
 @document struct TextView <: ContentView
-    content::TextBlock
+    viewed::TextBlock
     closed_folds::Any = nothing
 end
 
 # The view of a text that a viewing step prints.
 make_content_view(content::TextBlock) = TextView(content)
 
-_find_edited_text(view::TextView) = view.content
+_find_edited_text(view::TextView) = view.viewed
 
 # The keys of a view: the keys of a text, read against the lines of its content and
 # the caret of the view. Each edit and each motion is a flat place of the view, so
 # its caret stays on the view.
 @gestures TextView begin
-    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => _text_insert(doc.content, t, doc.selection)
-    KeyPress('\n';)        => "Break the line"       => _text_break(doc.content, doc.selection)
-    KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc.content, :backspace, doc.selection)
-    KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc.content, :delete, doc.selection)
-    KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc.content, :start)
-    KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc.content, :end)
+    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => _text_insert(doc.viewed, t, doc.selection)
+    KeyPress('\n';)        => "Break the line"       => _text_break(doc.viewed, doc.selection)
+    KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc.viewed, :backspace, doc.selection)
+    KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc.viewed, :delete, doc.selection)
+    KeyDown(:home; ctrl)   => "Cursor to text start" => _text_jump(doc.viewed, :start)
+    KeyDown(:end; ctrl)    => "Cursor to text end"   => _text_jump(doc.viewed, :end)
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
-    KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc.content, :left, doc.selection)
-    KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc.content, :right, doc.selection)
-    KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc.content, :left, doc.selection)
-    KeyDown(:right;)       => "Cursor right"         => _text_char_motion(doc.content, :right, doc.selection)
-    KeyDown(:left; shift)        => "Extend the selection left"         => _text_extend(doc.content, :left, doc.selection)
-    KeyDown(:right; shift)       => "Extend the selection right"        => _text_extend(doc.content, :right, doc.selection)
-    KeyDown(:left; ctrl, shift)  => "Extend the selection a word left"  => _text_extend(doc.content, :word_left, doc.selection)
-    KeyDown(:right; ctrl, shift) => "Extend the selection a word right" => _text_extend(doc.content, :word_right, doc.selection)
-    KeyDown(:home; ctrl, shift)  => "Extend the selection to the start" => _text_extend(doc.content, :start, doc.selection)
-    KeyDown(:end; ctrl, shift)   => "Extend the selection to the end"   => _text_extend(doc.content, :end, doc.selection)
+    KeyDown(:left; ctrl)   => "Word left"            => _text_word_motion(doc.viewed, :left, doc.selection)
+    KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc.viewed, :right, doc.selection)
+    KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc.viewed, :left, doc.selection)
+    KeyDown(:right;)       => "Cursor right"         => _text_char_motion(doc.viewed, :right, doc.selection)
+    KeyDown(:left; shift)        => "Extend the selection left"         => _text_extend(doc.viewed, :left, doc.selection)
+    KeyDown(:right; shift)       => "Extend the selection right"        => _text_extend(doc.viewed, :right, doc.selection)
+    KeyDown(:left; ctrl, shift)  => "Extend the selection a word left"  => _text_extend(doc.viewed, :word_left, doc.selection)
+    KeyDown(:right; ctrl, shift) => "Extend the selection a word right" => _text_extend(doc.viewed, :word_right, doc.selection)
+    KeyDown(:home; ctrl, shift)  => "Extend the selection to the start" => _text_extend(doc.viewed, :start, doc.selection)
+    KeyDown(:end; ctrl, shift)   => "Extend the selection to the end"   => _text_extend(doc.viewed, :end, doc.selection)
 end
 
 """
@@ -107,7 +107,7 @@ const _TEXT_VIEW_CONTENT_STEP =
     ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
 
 function print_document(p::TextViewToGraphicsCanvas, recursion, view::TextView, ctx)
-    content = print_child(recursion, view.content, make_child_context(ctx, FieldReferenceStep("content")))
+    content = print_child(recursion, view.viewed, make_child_context(ctx, FieldReferenceStep("viewed")))
     content isa TextBlockToGraphicsCanvasIoMap || throw(ArgumentError(
         "TextViewToGraphicsCanvas draws its caret over a content that TextBlockToGraphicsCanvas " *
         "prints; the recursion printed it with $(typeof(content.projection))"))
@@ -162,12 +162,12 @@ function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanva
 end
 
 # The place in the content that a reference of the view names: its own caret, range
-# or box, or the tail of a path through `content`.
+# or box, or the tail of a path through `viewed`.
 function _find_text_view_place(reference)
     plain = strip_reference_types(reference)
     (plain isa EmptyReference || _is_flat_text_place(plain)) && return plain
     (plain isa ConcreteReference && plain.head isa FieldReferenceStep &&
-     plain.head.name == "content") ? plain.tail : nothing
+     plain.head.name == "viewed") ? plain.tail : nothing
 end
 
 # The path in the drawing of the content that a path of the output names, or

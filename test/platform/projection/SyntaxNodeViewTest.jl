@@ -64,7 +64,7 @@ node_steps = filter(m -> m.input isa SyntaxNodeView, _text_view_collect(iomap, V
 
 @testset "The recursion of a view prints the view of each child" begin
     @test all(map(===, [m.input for m in node_steps], [view_a, view_b, view_a]))
-    @test view_a.children[1].content === first_leaf && view_a.children[2].content === second_leaf
+    @test view_a.children[1].viewed === first_leaf && view_a.children[2].viewed === second_leaf
     @test view_a.children[1] !== view_b.children[1]
     # The stage prints the three views of the places and the views of their
     # children, and no content on its own: R gives each child print to a view.
@@ -74,7 +74,7 @@ node_steps = filter(m -> m.input isa SyntaxNodeView, _text_view_collect(iomap, V
     @test Set(objectid.(child_views)) ==
           Set(objectid.([view_a.children[1], view_a.children[2], view_b.children[1], view_b.children[2]]))
     # The content print of each place is the print of the node with its leaves.
-    @test all(m -> m.content.input === node && get_flat_string(m.output.content) == "[ab, cde]", node_steps)
+    @test all(m -> m.content.input === node && get_flat_string(m.output.viewed) == "[ab, cde]", node_steps)
 end
 
 @testset "The carets live on the child views, and no content holds one" begin
@@ -101,7 +101,7 @@ end
     @test second_leaf.value.content == "cdXe"
     @test stored(view_a) == in_child(2, 3)
     @test all(d -> get_stored_selection(d) === nothing, (node, first_leaf, second_leaf))
-    @test all(m -> get_flat_string(m.output.content) == "[ab, cdXe]", node_steps)
+    @test all(m -> get_flat_string(m.output.viewed) == "[ab, cdXe]", node_steps)
 end
 
 @testset "The keys of the tree act on the caret of the view" begin
@@ -123,8 +123,8 @@ end
     first_view = view_a.children[1]
     insert!(node.children, 1, SyntaxLeaf(text("z")))
     @test view_a.children[2] === first_view
-    @test view_a.children[1].content.value.content == "z"
-    @test all(m -> get_flat_string(m.output.content) == "[z, ab, cdXe]",
+    @test view_a.children[1].viewed.value.content == "z"
+    @test all(m -> get_flat_string(m.output.viewed) == "[z, ab, cdXe]",
               filter(m -> m.input isa SyntaxNodeView, _text_view_collect(iomap, ViewingIoMap)))
 end
 

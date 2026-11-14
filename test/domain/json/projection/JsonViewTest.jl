@@ -46,11 +46,11 @@ drawn = _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
 @testset "Each place prints its view through the three stages" begin
     @test all(map(===, [m.input for m in json_steps], [view_a, view_b, view_a]))
     # JSON to syntax: the view of the leaf that the string printed to.
-    @test all(m -> m.output isa SyntaxLeafView && m.output.content === m.content.output, json_steps)
+    @test all(m -> m.output isa SyntaxLeafView && m.output.viewed === m.content.output, json_steps)
     # Syntax to text: the view of the text of that leaf.
     leaf_steps = filter(m -> m.input isa SyntaxLeafView, steps)
     @test all(map(===, [m.input for m in leaf_steps], [m.output for m in json_steps]))
-    @test all(m -> m.output isa TextView && get_flat_string(m.output.content) == "\"abcd\"", leaf_steps)
+    @test all(m -> m.output isa TextView && get_flat_string(m.output.viewed) == "\"abcd\"", leaf_steps)
     @test length(drawn) == 3
 end
 
@@ -149,13 +149,13 @@ at(place, path) = concat_references(places[place], strip_reference_types(path))
 stored(document) = strip_reference_types(get_stored_selection(document))
 plain(path) = strip_reference_types(path)
 # The text that each place draws.
-texts() = [get_flat_string(m.input.content) for m in _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)]
+texts() = [get_flat_string(m.input.viewed) for m in _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)]
 open_text = "[\n  \"ab\",\n  42,\n  [\n    \"x\"\n  ]\n]"
 
 @testset "Each element has a view of its kind" begin
     @test view_a.elements[1] isa JsonStringView && view_a.elements[2] isa JsonNumberView
     @test view_a.elements[3] isa JsonArrayView && view_a.elements[3].elements[1] isa JsonStringView
-    @test all(i -> view_a.elements[i].content === array.elements[i], 1:3)
+    @test all(i -> view_a.elements[i].viewed === array.elements[i], 1:3)
     @test all(i -> view_a.elements[i] !== view_b.elements[i], 1:3)
     @test texts() == [open_text, open_text, open_text]
 end
@@ -163,10 +163,10 @@ end
 @testset "The step of an array gives the view of its node over the views of its elements" begin
     steps = _json_view_collect(iomap, ViewingIoMap)
     step = first(filter(m -> m.input === view_a, steps))
-    @test step.output isa SyntaxNodeView && step.output.content === step.content.output
+    @test step.output isa SyntaxNodeView && step.output.viewed === step.content.output
     children = collect(step.output.children)
     @test children[1] isa SyntaxLeafView && children[2] isa SyntaxLeafView && children[3] isa SyntaxNodeView
-    @test all(i -> children[i].content === step.output.content.children[i], 1:3)
+    @test all(i -> children[i].viewed === step.output.viewed.children[i], 1:3)
     # The view of the node of the nested array is the output of the step of the view
     # of that array, not a new view: it takes the fold of that view.
     view_a.elements[3].collapsed = true
@@ -269,13 +269,13 @@ at(i, path) = concat_references(place(i), strip_reference_types(path))
 stored(document) = strip_reference_types(get_stored_selection(document))
 plain(path) = strip_reference_types(path)
 drawn() = _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
-texts() = [get_flat_string(m.input.content) for m in drawn()]
+texts() = [get_flat_string(m.input.viewed) for m in drawn()]
 whole_text = "[\n  \"ab\",\n  42,\n  [\n    \"x\",\n    \"y\"\n  ]\n]"
 part_text = "[\n  \"x\",\n  \"y\"\n]"
 
 @testset "A place of a part prints the view of the part" begin
-    @test part_a isa JsonArrayView && part_a.content === nested
-    @test part_a !== part_b && part_b.content === nested
+    @test part_a isa JsonArrayView && part_a.viewed === nested
+    @test part_a !== part_b && part_b.viewed === nested
     @test texts() == [whole_text, part_text, whole_text, part_text]
     # The step of each place prints the view that the place holds.
     steps = filter(m -> m.input isa JsonArrayView, _json_view_collect(iomap, ViewingIoMap))
@@ -369,7 +369,7 @@ stored(document) = strip_reference_types(get_stored_selection(document))
 plain(path) = strip_reference_types(path)
 held(i) = layout.children[i]
 drawn() = _json_view_collect(iomap, TextViewToGraphicsCanvasIoMap)
-texts() = [get_flat_string(m.input.content) for m in drawn()]
+texts() = [get_flat_string(m.input.viewed) for m in drawn()]
 
 # View A folds its nested array and has its caret in its first element.
 view_a.elements[3].collapsed = true
@@ -382,7 +382,7 @@ view_a.elements[3].collapsed = true
     select!(place(2))
     @test press!(ctrl(:v)) isa CompoundOperation
     view_b = held(2)
-    @test view_b isa JsonArrayView && view_b !== view_a && view_b.content === array
+    @test view_b isa JsonArrayView && view_b !== view_a && view_b.viewed === array
     @test held(1) === view_a
     # The new view starts with the fold and the caret of view A, and its caret is
     # the live one.
@@ -407,7 +407,7 @@ end
     select!(place(3))
     @test press!(ctrl(:v)) isa CompoundOperation
     @test held(3) isa JsonArrayView && held(3) !== view_a && held(3) !== held(2)
-    @test held(3).content === array
+    @test held(3).viewed === array
 end
 
 @testset "A note and Paste the same view give the same view at a second place" begin
@@ -431,32 +431,32 @@ end
     select!(place(5))
     @test press!(ctrl(:v; alt = true)) isa CompoundOperation
     @test held(5) === view_a.elements[3]
-    @test held(5).content === nested
+    @test held(5).viewed === nested
 end
 
 @testset "A copy and a paste give a copy of the content with a new view" begin
     select_whole!(1)
     @test press!(ctrl(:c)) isa CompoundOperation
     copy = root.slice
-    @test copy isa JsonArrayView && copy !== view_a && copy.content !== array
-    @test copy.content.elements[1].value == "abQ" && copy.elements[3].collapsed
+    @test copy isa JsonArrayView && copy !== view_a && copy.viewed !== array
+    @test copy.viewed.elements[1].value == "abQ" && copy.elements[3].collapsed
     @test !(get_stored_selection(copy) isa ConcreteReference)
     select!(place(6))
     @test press!(ctrl(:v)) isa CompoundOperation
     view_c = held(6)
-    @test view_c isa JsonArrayView && view_c !== copy && view_c.content === copy.content
+    @test view_c isa JsonArrayView && view_c !== copy && view_c.viewed === copy.viewed
     @test view_c.elements[3].collapsed
     # An edit of the copy does not change the content of view A.
     select!(at(6, view_c, @reference(view_c, elements[1].value{0})))
     @test press!(KeyPress('W', ModifierKeys(); time = 0.0)) isa ReplaceStringRangeOperation
-    @test view_c.content.elements[1].value == "WabQ"
+    @test view_c.viewed.elements[1].value == "WabQ"
     @test array.elements[1].value == "abQ"
     # "Paste copy" gives a new copy of the content each time.
     select_whole!(6)
     @test press!(ctrl(:v; shift = true)) isa CompoundOperation
     @test held(6) isa JsonArrayView && held(6) !== view_c
-    @test held(6).content !== copy.content && held(6).content !== array
-    @test held(6).content.elements[1].value == "WabQ"
+    @test held(6).viewed !== copy.viewed && held(6).viewed !== array
+    @test held(6).viewed.elements[1].value == "WabQ"
 end
 
 @testset "A paste does not write into a view" begin
@@ -475,7 +475,7 @@ end
     earlier = held(2)
     @test press!(ctrl(:v)) isa CompoundOperation
     @test held(2) isa JsonArrayView && held(2) !== earlier && held(2) !== view_a
-    @test held(2).content === array
+    @test held(2).viewed === array
     # The new view is the selected one, as a whole.
     @test get_selection(held(2)) isa EmptyReference && is_live_selection(held(2))
     # The same view over a view of the same kind: it is live at the new place.
@@ -487,9 +487,9 @@ end
 
 @testset "The duplicate of a view is a second view of the same content" begin
     duplicate = make_document_duplicate(view_a)
-    @test duplicate isa JsonArrayView && duplicate !== view_a && duplicate.content === array
+    @test duplicate isa JsonArrayView && duplicate !== view_a && duplicate.viewed === array
     @test duplicate.elements[3].collapsed
-    @test copy_document(view_a).content !== array
+    @test copy_document(view_a).viewed !== array
 end
 
 @testset "A cut takes a view from its place" begin

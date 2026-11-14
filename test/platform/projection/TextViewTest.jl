@@ -62,6 +62,16 @@ end
 _text_view_is_caret_live(view_iomap) =
     view_iomap.output.elements[3].color == view_iomap.projection.caret_color
 
+# A content with a field of the name `viewed`, the field in which a view keeps what
+# it shows, and a view of that content.
+@document struct TextViewClashContent
+    viewed::String
+end
+
+@document struct TextViewClashView <: ContentView
+    viewed::TextViewClashContent
+end
+
 function test_text_view()
 @testset "TextView" begin
 
@@ -173,6 +183,13 @@ end
     @test _text_view_stale_counts(text_cells) == [0, 0, 0]
     stale = _text_view_stale_counts(view_cells)
     @test stale[1] > 0 && stale[2] == 0 && stale[3] == stale[1]
+end
+
+@testset "A viewing step refuses a content that has a field with the name viewed" begin
+    # A path of the view can not name that field of the content: the field of the
+    # view has the same name.
+    clash = TextViewClashView(TextViewClashContent("x"))
+    @test_throws ArgumentError print_document(ViewingProjection(nothing), nothing, clash, nothing)
 end
 
 end
