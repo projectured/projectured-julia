@@ -10864,6 +10864,7 @@ const LUCIDE_ICON_GLYPHS = (
     :zoom_in        => 0xe1b6,  # zoom-in: a magnifier with a plus
     :zoom_out       => 0xe1b7,  # zoom-out: a magnifier with a minus
     :maximize       => 0xe112,  # maximize: four corners that point out
+    :minimize       => 0xe11a,  # minimize: four corners that point in
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS

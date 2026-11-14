@@ -1,6 +1,6 @@
 # A dashboard card states its size and can fill the page
 
-> **Kind:** plan · **Status:** design approved by the owner on 2026-11-14; step 1 is done, step 2 waits for a decision (see its note). ·
+> **Kind:** plan · **Status:** design approved by the owner on 2026-11-14; steps 1 to 4 are done. ·
 > **Stands on:** the omnet-julia plan `the-ide-follows-the-baseline-catch-up.md` (its step 11 found
 > the need), `source/platform/explorer/Dashboard.jl`, `DashboardToWidget.jl`, and the maximize of a
 > pane group (`PaneTree.maximized`, `source/platform/pane/PaneDocument.jl`).
@@ -73,7 +73,7 @@ the field of the card, which undo records and a save keeps:
 | # | Decision | State |
 | --- | --- | --- |
 | D1 | The card states its size (L1). Rejected: explicit rows on the dashboard (L2), which can not reflow; one size for all cards (L3). | owner, 2026-11-14 |
-| D2 | A maximized card is view state of the view of the dashboard, as the maximize of a pane group is. | owner, 2026-11-14 (the recommendation) |
+| D2 | A maximized card is a field `maximized` of the `Dashboard`, as view state: a save keeps none, undo records none, and two tabs of one dashboard share it. Rejected for now: a page document that a first stage makes, as `ChartPlot` (option 1), and a `DashboardView` in the document tree (option 2). | owner, 2026-11-14, option 3: "Let's make it 3 for now. There's a plan which separates content from view in the whole editor but that's for another day." |
 | D3 | The gestures are the button in the title, a double click on the title, and Escape. Rejected: Ctrl+M from the inside out (M3), which changes what Ctrl+M does today. | owner, 2026-11-14 |
 | D4 | The size changes from the context menu of a card, with the values of §3. | proposed by the assistant; the owner asked for UI control "as it makes sense" |
 | D5 | The default height of a card is its content, at most the visible height of the page. | proposed by the assistant |
@@ -101,9 +101,19 @@ Each step is one commit in the worktree `projectured-julia-baseline-catch-up` (b
    high. A page with no visible height leaves `:content` and `:page` as high as the content. The path of
    a card is `children[r][1].children[i].child` below the grid, and its content is
    `content.children[1].child.content` below the card.
-2. **The maximize of a card.** The view state, the button, the double click and Escape. Tests in a
+2. ~~**The maximize of a card.**~~ **Done.** The view state, the button, the double click and Escape. Tests in a
    real editor: each gesture maximizes and restores; the other cards keep their state; a save keeps
    no maximize; undo records nothing.
+   Facts of the code: `Dashboard.maximized` holds the card (or `nothing`), is listed in
+   `get_view_state_fields(::Type{<:Dashboard})`, and is written only by
+   `ReplaceViewStateOperation`. The page shows only that card, one column wide and `:page` high
+   (`_get_shown_cards`); the maps go through `_get_shown_index` and `_get_card_index`. The title of
+   a card is a layout of its text, which a double click toggles, and a toolbar item (`:maximize`, and
+   `:minimize` while the card fills the page) whose colour follows the mouse target and the
+   selection of the card widget, as the controls of an outline row do. The toggle also selects the
+   part that made it, so Escape (`@gestures Dashboard`, which answers `nothing` while no card
+   fills the page) reaches the dashboard. The path of a card widget maps to `cards[k]` and its
+   title to `cards[k].title`, both ways.
 3. ~~**The size from the context menu.**~~ **Done.** The two submenus. Tests: each item writes its field, undo
    takes it back, the layout follows.
    Facts of the code: a right click on a card (its `WidgetCard` carries the binding) opens
@@ -113,7 +123,7 @@ Each step is one commit in the worktree `projectured-julia-baseline-catch-up` (b
    in the editor (`search_documents` with `places`) and applies `find_rooted_operation` and `apply_change!`,
    which one entry of undo records. The page maps the path of a card widget back to `cards[k]` and its title
    to `cards[k].title`, which the source of a menu needs.
-4. **The guide.** The explorer guide describes the size of a card, the maximize and the menu; the
+4. ~~**The guide.**~~ **Done.** The explorer guide describes the size of a card, the maximize and the menu; the
    naming guard; the dashboard tests of the explorer suite.
 
 Then the catch-up plan uses it: `present.jl` gives the cards their sizes, and the pictures of the

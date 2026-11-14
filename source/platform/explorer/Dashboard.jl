@@ -97,7 +97,10 @@ end
     Dashboard(title, cards = CellVector(Any[]))
 
 A page of cards, each a [`DashboardCard`](@ref), in columns that follow the width
-of the page: each card fills its cell, and its content gives its height. A person
+of the page: each card fills the columns that it spans, and its height says how high it is.
+A button in the title of a card, a double click on the title, and Escape make the card fill the
+page, or give the page back: `maximized` is the card that fills it, or `nothing`; it is view
+state, so a save keeps none and an undo records none, and the tabs of one dashboard share it. A person
 adds a card with Insert or a paste on the page, and an assistant with an insert into `cards`,
 which an undo takes back. The cards are the children of its node in an explorer.
 
@@ -115,7 +118,32 @@ For the assistant.
 @document struct Dashboard <: Document
     title::String
     cards::CellVector = CellVector(Any[])
+    maximized::Any = nothing
 end
+
+# The card that fills the page is where a person stands in the page, not what the
+# page holds: a save and a search leave it out, and it is written with
+# `ReplaceViewStateOperation`, so an undo records no change of it.
+get_view_state_fields(::Type{<:Dashboard}) = (:maximized,)
+
+# The write that makes `card`, or no card for `nothing`, the card that fills the page
+# of `dashboard`.
+_make_maximize_operation(dashboard::Dashboard, card) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(dashboard, "maximized", card))
+
+# The write that gives the page back, or `nothing` while no card fills it.
+_make_restore_operation(dashboard::Dashboard) =
+    dashboard.maximized === nothing ? nothing : _make_maximize_operation(dashboard, nothing)
+
+# Whether `card` fills the page of `dashboard`.
+_is_card_maximized(dashboard::Dashboard, card) = dashboard.maximized === card
+
+# The write of the button and the double click of the title of `card`: the card
+# fills the page, or the page comes back when it does already, with the selection
+# on the part that made it, so Escape reaches the dashboard.
+_make_toggle_maximize_operation(dashboard::Dashboard, card) =
+    CompoundOperation(Any[_make_maximize_operation(dashboard, _is_card_maximized(dashboard, card) ? nothing : card),
+                          ReplaceSelectionOperation(EmptyReference())])
 
 get_document_title(dashboard::Dashboard) = dashboard.title
 format_tree_node_label(dashboard::Dashboard) = dashboard.title
@@ -136,6 +164,8 @@ is_explorer_entry_type(::Type{Dashboard}) = true
 # explorer, where no reader of its page answers, so the answer holds the view of
 # the card itself.
 @gestures Dashboard begin
+    # It answers `nothing` while no card fills the page, so Escape keeps its other meanings.
+    KeyDown(:escape;) => "Give the page back from the card that fills it" => _make_restore_operation(doc)
     KeyDown(:insert) => "Add a card" =>
         _add_card_holds(doc, make_insert_elements_operation(
             extend_reference(EmptyReference(), FieldReferenceStep("cards")),

@@ -15,7 +15,7 @@
 # of the content goes through the field of the view that holds it.
 
 """
-    DashboardToWidget(; gap, card_width, card_chrome)
+    DashboardToWidget(; gap, card_width, card_chrome, title_style)
 
 Draw a [`Dashboard`](@ref) as its page: a field with its title, and its cards in
 a grid that scrolls. The grid has as many columns as cards of at least
@@ -34,7 +34,12 @@ card says how to add one.
 
 `card_chrome` is the height that a card draws around its content: its title and
 its insets. A card is as high as its `height` says, so its body is that height less
-`card_chrome`.
+`card_chrome`. `title_style` is the text of the title of a card, or `nothing`.
+
+A card that the dashboard has maximized (`Dashboard`) is the only card of the page: one
+column wide, and as high as the visible height of the page. The title of each card holds
+a button that shows while the pointer is on the card, which maximizes it or gives the page
+back, and a double click on the text of the title does the same.
 
 A page that is held holds the content of its cards ([`Dashboard`](@ref)), and its
 reader adds the change of what it holds to an edit of `cards`.
@@ -43,6 +48,7 @@ reader adds the change of what it holds to an edit of `cards`.
     gap::Int = get_widget_style(nothing, :section_gap)
     card_width::Int = 280
     card_chrome::Int = 0
+    title_style::Any = nothing
 end
 
 const _DASHBOARD_SCROLL_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
@@ -93,10 +99,12 @@ _count_card_columns(p::DashboardToWidget, width) =
 # rows are a list, and a grid of a list divides only a width that its parent
 # offers, so with no width it has one column of `card_width`.
 function _build_card_grid(p::DashboardToWidget, dashboard::Dashboard, columns::Int, root, has_width::Bool, visible)
-    cards = dashboard.cards
-    isempty(cards) && return WidgetLabel("This dashboard has no card. Insert or Ctrl+V on this page adds one.")
-    # No more columns than the cards fill, so a page of few cards gives each its share.
-    count = has_width ? min(columns, sum(card -> _get_card_span(card, columns), cards)) : 1
+    isempty(dashboard.cards) && return WidgetLabel("This dashboard has no card. Insert or Ctrl+V on this page adds one.")
+    # No more columns than the cards fill, so a page of few cards gives each its share. A card
+    # that fills the page is one column of the whole width.
+    maximized = _is_maximized_shown(dashboard)
+    cards = _get_shown_cards(dashboard)
+    count = has_width && !maximized ? min(columns, sum(card -> _get_card_span(card, columns), cards)) : 1
     places = compute_grid_places(Int[_get_card_span(card, count) for card in cards], count)
     rows = Any[]
     for k in 1:length(cards)
@@ -105,7 +113,7 @@ function _build_card_grid(p::DashboardToWidget, dashboard::Dashboard, columns::I
         i = length(rows[r]) + 1
         row_steps = (_DASHBOARD_GRID_STEPS..., _make_row_steps(r)...)
         steps = (row_steps..., _make_card_steps(i)...)
-        widget = _make_card_widget(p, cards[k], root, steps, visible)
+        widget = _make_card_widget(p, dashboard, cards[k], root, steps, visible, maximized)
         cell = LayoutConstraint(widget; column_span = span)
         set_output_path_computations!(cell, root, path -> _find_path_below(path, steps[1:(end - 1)]))
         push!(rows[r], cell)
@@ -139,14 +147,16 @@ const _CARD_BODY_STEPS = (FieldReferenceStep("content"), FieldReferenceStep("chi
 # height bounds: the content, or its view, in a scroll pane. A card of `:content`
 # is as high as its content, and at most the visible height of the page; a card of
 # `:page` or of a number of pixels is that high, and its content scrolls.
-function _make_card_widget(p::DashboardToWidget, card::DashboardCard, root, steps, visible)
+function _make_card_widget(p::DashboardToWidget, dashboard::Dashboard, card::DashboardCard, root, steps, visible,
+                          maximized::Bool)
     pane = WidgetScrollPane(_get_card_view(card))
     place = LayoutConstraint(pane; width = Fill)
-    _set_card_body_height!(p, place, card.height, visible)
+    _set_card_body_height!(p, place, maximized ? :page : card.height, visible)
     body = VerticalLayout(Any[place]; child_width = Fill)
-    widget = WidgetCard(; title = card.title, content = body,
+    widget = WidgetCard(; content = body,
                         gestures = GestureBinding[make_context_menu_binding(_ -> compute_context_menu(card);
                                                                             description = "Show the size menu of the card")])
+    set_cell_value!(getfield(widget, :title), _make_card_title(p, dashboard, card, widget))
     for (part, below) in ((widget, ()), (body, _CARD_BODY_STEPS[1:1]), (place, _CARD_BODY_STEPS[1:3]),
                           (pane, _CARD_BODY_STEPS[1:4]))
         part_steps = (steps..., below...)
@@ -154,6 +164,47 @@ function _make_card_widget(p::DashboardToWidget, card::DashboardCard, root, step
     end
     widget
 end
+
+# The title of a card: its text, which a double click makes the card fill the page, and
+# the button that does the same, which shows while the pointer is on the card.
+function _make_card_title(p::DashboardToWidget, dashboard::Dashboard, card::DashboardCard, widget::WidgetCard)
+    toggle = () -> _make_toggle_maximize_operation(dashboard, card)
+    fills = _is_card_maximized(dashboard, card)
+    double_click = GestureBinding(MouseClickPattern(:left),
+                                  (_, gesture) -> gesture.count == 2 ? toggle() : nothing;
+                                  description = "Fill the page with the card, or give the page back",
+                                  domain = "dashboard")
+    label = WidgetLabel(card.title; gestures = GestureBinding[double_click], text_style = p.title_style)
+    name = fills ? "Give the page back" : "Fill the page with the card"
+    button = WidgetToolbarItem(name; icon = WidgetIcon(fills ? :minimize : :maximize), focusable = false,
+                               gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> toggle();
+                                                                        description = name, domain = "dashboard")],
+                               margin = inset_default, border = inset_default, padding = inset_default,
+                               style = p.title_style === nothing ? nothing :
+                                       WidgetStyle(; label_text_color = p.title_style.color),
+                               tooltip = TooltipNote(; title = name))
+    if p.title_style !== nothing
+        shown = button.style.label_text_color
+        set_cell_computation!(getfield(button.style, :label_text_color), () ->
+            get_selection(widget) !== nothing || get_mouse_target(widget) !== nothing ? shown : color_transparent)
+    end
+    HorizontalLayout(Any[LayoutConstraint(label; width = Fill), LayoutConstraint(button)]; vertical_align = :center)
+end
+
+# The cards that the page shows: the card that fills it, or all of them.
+_get_shown_cards(dashboard::Dashboard) = _is_maximized_shown(dashboard) ? Any[dashboard.maximized] : dashboard.cards
+
+# Whether a card of `dashboard` fills its page.
+_is_maximized_shown(dashboard::Dashboard) =
+    dashboard.maximized !== nothing && any(card -> card === dashboard.maximized, dashboard.cards)
+
+# The index among the shown cards of card `k` of `dashboard`, or `nothing` for a card that is hidden.
+_get_shown_index(dashboard::Dashboard, k::Int) =
+    !_is_maximized_shown(dashboard) ? k : (dashboard.cards[k] === dashboard.maximized ? 1 : nothing)
+
+# The index in `dashboard.cards` of the card `j` of the shown cards.
+_get_card_index(dashboard::Dashboard, j::Int) =
+    !_is_maximized_shown(dashboard) ? j : findfirst(card -> card === dashboard.maximized, dashboard.cards)
 
 # The height of the body of a card in the constraint `place`. With no visible
 # height of the page, a card of `:content` and of `:page` is as high as its content.
@@ -246,14 +297,19 @@ function map_reference_forward(p::DashboardToWidget, iomap, reference)
                                                                        RangeReferenceStep(0, 1), get_reference_steps(field)...))
     if reference isa ConcreteReference
         steps = get_reference_steps(strip_reference_types(reference))
-        if length(steps) >= 3 && steps[1] == FieldReferenceStep("cards") && steps[2] isa RangeReferenceStep &&
-           steps[3] == FieldReferenceStep("content")
+        if length(steps) >= 2 && steps[1] == FieldReferenceStep("cards") && steps[2] isa RangeReferenceStep
             k = steps[2].stop
             k <= length(iomap.input.cards) || return nothing
-            (r, i) = _get_card_place(iomap.input.cards, k, _get_grid_columns(iomap.output))
-            return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), _DASHBOARD_GRID_STEPS...,
-                _make_row_steps(r)..., _make_card_steps(i)..., FieldReferenceStep("content"),
-                _make_card_view_steps(iomap.input.cards[k], steps[4:end])...))
+            j = _get_shown_index(iomap.input, k)
+            j === nothing && return nothing
+            (r, i) = _get_card_place(_get_shown_cards(iomap.input), j, _get_grid_columns(iomap.output))
+            card_steps = (_DASHBOARD_GRID_STEPS..., _make_row_steps(r)..., _make_card_steps(i)...)
+            # The card itself, and its title, are the widget of the card.
+            (length(steps) == 2 || steps[3] == FieldReferenceStep("title")) &&
+                return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), card_steps...))
+            steps[3] == FieldReferenceStep("content") &&
+                return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), card_steps...,
+                    FieldReferenceStep("content"), _make_card_view_steps(iomap.input.cards[k], steps[4:end])...))
         end
     end
     invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
@@ -269,14 +325,15 @@ function map_reference_backward(p::DashboardToWidget, iomap, reference)
         rest = _find_path_below(path, _DASHBOARD_GRID_STEPS)
         if rest isa ConcreteReference
             found = _find_card_below(get_reference_steps(rest))
-            k = found === nothing ? nothing :
-                _find_card_at(iomap.input.cards, found[1], found[2], _get_grid_columns(iomap.output))
+            j = found === nothing ? nothing :
+                _find_card_at(_get_shown_cards(iomap.input), found[1], found[2], _get_grid_columns(iomap.output))
+            k = j === nothing ? nothing : _get_card_index(iomap.input, j)
             if k !== nothing
                 card_steps = (FieldReferenceStep("cards"), ElementReferenceStep(k))
                 inside = found[3]
                 isempty(inside) && return extend_reference(EmptyReference(), card_steps...)
                 first(inside) == FieldReferenceStep("title") &&
-                    return extend_reference(EmptyReference(), card_steps..., inside...)
+                    return extend_reference(EmptyReference(), card_steps..., FieldReferenceStep("title"))
                 if first(inside) == FieldReferenceStep("content")
                     below = _find_card_content_steps(iomap.input.cards[k], inside[2:end])
                     below === nothing && return nothing
@@ -307,7 +364,9 @@ function make_graphics_projection(::Type{<:Dashboard}; measure, appearance)
     theme = get_scaled_theme!(appearance, WidgetTheme)
     ChainingProjection(
         DashboardToWidget(; gap = get_widget_style(theme, :section_gap),
-                          card_chrome = _measure_card_chrome(theme, measure)),
+                          card_chrome = _measure_card_chrome(theme, measure),
+                          title_style = make_theme_cell(StyleText, theme,
+                                                        values -> StyleText(values.title_font, values.foreground))[]),
         VerticalLayoutToGraphicsCanvas())
 end
 

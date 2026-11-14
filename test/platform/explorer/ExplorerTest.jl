@@ -1462,6 +1462,100 @@ function test_explorer()
         end
     end
 
+    @testset "a card fills the page by the button in its title, a double click on the title, and Escape" begin
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        first_card, second_card, third_card = card("First"), card("Second"), card("Third")
+        dashboard = Dashboard("Fill", Any[first_card, second_card, third_card])
+        @test dashboard.maximized === nothing && ExplorerModule._make_restore_operation(dashboard) === nothing
+        backend = HeadlessBackend()
+        editor = build_editor(dashboard, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1100, height = 500), tabs = true, appearance = false,
+                              settings = false, undo = true)
+        run_frame!(editor)
+        history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+        send!(event) = (push_event!(backend, WindowInput(:W, event)); run_frame!(editor))
+        # Each text of the window with its colour, as the frame draws it.
+        function drawn(canvas = last(rendered_output(backend)).windows[1].content, ox = 0, oy = 0, found = Any[])
+            x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+            for element in canvas.elements
+                element = element isa Cell ? element[] : element
+                element isa ListNode && (element = element.value)
+                if element isa GraphicsText
+                    push!(found, (String(element.text), x + Int(element.x), y + Int(element.y), element.color))
+                elseif element isa GraphicsCanvas
+                    drawn(element, x, y, found)
+                elseif element isa GraphicsViewport
+                    drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                          y + Int(element.y) + round(Int, element.transform.f), found)
+                end
+            end
+            found
+        end
+        texts(name) = [entry for entry in drawn() if entry[1] == name]
+        maximize_glyph, restore_glyph = string(Char(0xe112)), string(Char(0xe11a))
+        # The button of the card whose title is on the line of `name`: the nearest one right of it.
+        button(glyph, name) = begin
+            title = only(texts(name))
+            candidates = [entry for entry in texts(glyph) if abs(entry[3] - title[3]) <= 6 && entry[2] > title[2]]
+            candidates[argmin([entry[2] for entry in candidates])]
+        end
+        click!(x, y; count = 1, time = 1.0) = send!(MouseClick(:left, x + 2, y + 2, count, ModifierKeys(); time))
+        layout_before = (texts("First")[1][2:3], texts("Second")[1][2:3], texts("Third")[1][2:3])
+        # The button shows while the pointer is on its card.
+        @test all(entry -> is_color_transparent(entry[4]), texts(maximize_glyph))
+        title = only(texts("Second"))
+        send!(MouseMove(title[2] + 2, title[3] + 2; time = 0.5))
+        @test !is_color_transparent(button(maximize_glyph, "Second")[4])
+        @test is_color_transparent(button(maximize_glyph, "First")[4])
+        entries_before = length(history.undo_entries)
+        # The button makes the card fill the page, and the other cards are hidden, not closed.
+        pressed = button(maximize_glyph, "Second")
+        click!(pressed[2], pressed[3]; time = 1.0)
+        @test dashboard.maximized === second_card
+        @test isempty(texts("First")) && isempty(texts("Third")) && length(dashboard.cards) == 3
+        @test !isempty(texts("text of Second")) && texts("Second")[1][2] == layout_before[1][1]
+        @test length(history.undo_entries) == entries_before
+        # An undo takes back nothing of it, and a save keeps nothing of it.
+        evaluate_operation(editor, UndoOperation(history)); run_frame!(editor)
+        @test dashboard.maximized === second_card
+        text = print_pred_text(dashboard)
+        @test !occursin("maximized", text) && parse_pred_text(text).maximized === nothing
+        # The button of the card that fills the page gives the page back.
+        restored = button(restore_glyph, "Second")
+        click!(restored[2], restored[3]; time = 2.0)
+        @test dashboard.maximized === nothing
+        @test (texts("First")[1][2:3], texts("Second")[1][2:3], texts("Third")[1][2:3]) == layout_before
+        @test first_card.columns == 1 && first_card.height === :content && first_card.content isa PrimitiveString
+        # A double click on the title does the same, and Escape gives the page back.
+        title = only(texts("Third"))
+        click!(title[2], title[3]; count = 2, time = 3.0)
+        @test dashboard.maximized === third_card
+        send!(KeyDown(:escape, ModifierKeys(); time = 4.0))
+        @test dashboard.maximized === nothing
+        # Escape with no card that fills the page changes nothing of the page.
+        send!(KeyDown(:escape, ModifierKeys(); time = 5.0))
+        @test dashboard.maximized === nothing && length(texts("Second")) == 1
+        # Two prints of one dashboard, as two tabs show it, both show only the card that fills the page.
+        shown(page) = begin
+            grid = page.children[2].child.content
+            count = 0
+            node = grid.children
+            while node !== nothing
+                count += length(node.value[1].children)
+                node = node.next
+            end
+            count
+        end
+        context() = PrinterContext(EmptyReference(), Cell(1100), Cell(600), Dict{Symbol,Any}())
+        pages = [print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context()).output
+                 for _ in 1:2]
+        @test [shown(page) for page in pages] == [3, 3]
+        evaluate_operation(nothing, ExplorerModule._make_maximize_operation(dashboard, second_card))
+        @test [shown(page) for page in pages] == [1, 1]
+        evaluate_operation(nothing, ExplorerModule._make_maximize_operation(dashboard, nothing))
+        @test [shown(page) for page in pages] == [3, 3]
+    end
+
     @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
         dashboard = Dashboard("Study")
         content = ExplorerSection("Explorer", Any[dashboard])
