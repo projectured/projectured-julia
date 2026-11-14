@@ -1032,6 +1032,30 @@ function test_chart_projection()
             @test parse_pred_text(print_pred_text(matrix)).links == matrix.links
         end
 
+        @testset "a chart file writes an equal colour inline at each place" begin
+            x = collect(0.0:1.0:3.0)
+            green = StyleColor(0.1, 0.6, 0.2, 1.0)
+            red = StyleColor(0.8, 0.1, 0.1, 1.0)
+            first_series = ChartStripSeries("a", x, [1, 2, 1, 2]; states = ["ON", "OFF"],
+                                            state_colors = [green, red])
+            second_series = ChartStripSeries("b", x, [1, 2, 1, 2]; states = ["ON", "OFF"],
+                                             state_colors = [green, green])
+            chart = Chart("c", [first_series, second_series])
+            directory = mktempdir()
+            try
+                path = joinpath(directory, "chart.pred")
+                write_document_file(chart, path)
+                @test !occursin("node(", read(path, String))
+                loaded = read_document_file(path)
+                colors = [loaded.series[1].state_colors[1], loaded.series[1].state_colors[2],
+                          loaded.series[2].state_colors[1], loaded.series[2].state_colors[2]]
+                @test all(color -> color isa StyleColor, colors)
+                @test colors == [green, red, green, green]
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "line style" begin
             x = collect(0.0:1.0:10.0)
             mk(style) = Chart("s", [ChartLineSeries("a", x, x; line_style=style)])

@@ -133,7 +133,9 @@ find_held_file(node) = is_file_document(node) ? node : nothing
 # `owner[node] = (file, path)` for every document node some file writes. A file
 # walks its content through nodes of its own domain and stops at anything else:
 # a node of another domain is that domain's to own, a file document is a cut, a
-# node already owned stays with its first owner.
+# node that has an identity and is already owned stays with its first owner. A
+# value (see `_is_value`) has no identity beyond what it holds, so it is owned by
+# no one, unless it is the content of a file, and each place writes it inline.
 #
 # A node is written at its owner path and named by a marker at every other place,
 # so the owner path must be a place that the node itself fits. An element of a
@@ -182,7 +184,16 @@ function _own_inline_walk!(owner, file, node, path::Reference, visited::IdDict)
     visited[node] = true
     entry = get(owner, node, nothing)
     if entry === nothing
-        is_written_inline(file, node) && (owner[node] = (file, path))
+        # An immutable node of the file's domain is owned by no one; the walk goes
+        # through it to what it holds.
+        if _is_value(node) && is_file_domain_node(file, node)
+            for (steps, child) in _child_slots(node)
+                is_written_in_file(file, node, _slot_field(steps)) || continue
+                _own_inline_walk!(owner, file, child, extend_reference(path, steps...), visited)
+            end
+        else
+            is_written_inline(file, node) && (owner[node] = (file, path))
+        end
         return
     end
     owner_file, owner_path = entry
@@ -199,15 +210,23 @@ function _own_walk!(owner, file, node, path::Reference, kept, leaf_type, at_fixe
     node isa Document || return
     find_held_file(node) === nothing || return
     is_file_domain_node(file, node) || return
-    haskey(owner, node) && return
-    !at_fixed && haskey(kept, node) && return
-    owner[node] = (file, path)
+    if !_is_value(node) || path isa EmptyReference
+        haskey(owner, node) && return
+        !at_fixed && haskey(kept, node) && return
+        owner[node] = (file, path)
+    end
     for (steps, child) in _child_slots(node)
         is_written_in_file(file, node, _slot_field(steps)) || continue
         _own_walk!(owner, file, child, extend_reference(path, steps...), kept, leaf_type,
                    _is_fixed_slot(leaf_type, node, steps))
     end
 end
+
+# Whether `node` is a value: not mutable and holding no cell that can be written.
+# Equal values are one object, so a value has no identity to name by a marker.
+_is_value(node) = !ismutable(node) &&
+    all(name -> !(getfield(node, name) isa AbstractCell) || getfield(node, name) isa ImmutableCell,
+        fieldnames(typeof(node)))
 
 # The type of the reference leaf of `file`, or `nothing` for a file that writes no
 # reference, such as a file whose format has no place for one.
@@ -292,6 +311,8 @@ function _cut_copy(cut::_FileCut, node, path::Reference)
     held = find_held_file(node)
     held === nothing || return _make_held_file_leaf(cut, held, path)
     entry = get(cut.owner, node, nothing)
+    entry === nothing && _is_value(node) && is_file_domain_node(cut.file, node) &&
+        return _rebuild(cut, node, path)
     entry === nothing &&
         throw(FileCutException(_orphan_message(cut.file, path, node, cut.strict)))
     owner_file, owner_path = entry
