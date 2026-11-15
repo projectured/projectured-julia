@@ -142,10 +142,13 @@ with the plan, 2026-11-15, when the owner asked for the implementation.
   because it keeps two strings for one document. **A person sees this:** a saved JSON, XML,
   YAML, SQL, Markdown, RST or plain text file ends with a line break, as a Julia and a math
   file do today.
-- **P7. The empty document of a new file is the insertion of the domain,** from
-  `make_document_seed(domain)`. `@domain` gives the method; Markdown, RST and math, which
-  do not call `@domain`, write it. It is also the default content of a `File{F}`. So YAML,
-  Markdown, RST and math get a seed.
+- **P7. The empty document of a new file comes from one function,**
+  `make_document_seed(domain)`, and each domain writes its method. It is the insertion of the
+  domain where a person must type a first element (JSON, XML, YAML, SQL, Julia, math), and
+  the empty root where the root takes edits (Markdown, RST, and NED, INI and test files of
+  omnet-julia). It is also the default content of a `File{F}`. `@domain` does not write the
+  method. Changed on 2026-11-15, see §10: the first form said "the insertion of the domain"
+  for each domain.
 - **P8. The short names stay,** each in its package: `const JsonFile = File{JsonFileFormat}`.
   About 120 places construct or test such a file. A new format needs no short name.
 - **P9 (accepted, O6). The three functions that the assistant calls keep their names in this plan:**
@@ -176,6 +179,9 @@ A domain declares the first two groups with methods. The examples use YAML.
 | `read_file_content(format, path)` | the content; the default parses the text of the file | the same name, on the file type |
 | `is_written_in_file(format, node, field)`, `is_written_inline(format, node)` | what the string holds | the same names, on the file |
 | `make_reference_leaf(format, marker)`, `find_reference_marker(node)` | the node of a reference to another file, and back | the same names, on the file |
+| `is_file_domain_node(format, node)` | true when a file of the format writes the node itself; the default asks the domain of the format | the same name, on the file |
+| `get_file_type(format)` | the type of the document of a file of the format; `File{F}` by default | `get_file_document_type(path)` |
+| `make_file(format, filename, string)` | the document of a file, from its text | `make_file(type, filename, text)` |
 
 **A domain declares:**
 
@@ -184,7 +190,6 @@ A domain declares the first two groups with methods. The examples use YAML.
 | `make_syntax_projection(type; appearance)` | the projection of its documents to syntax | `_NOTATIONS`, the `rung` and `make` keywords |
 | `find_natural_file_format(document)` | the format that writes the document when nobody names one, or nothing | `get_natural_format`, `get_natural_extension`, `find_file_extension` |
 | `make_document_seed(domain)` | the empty document of a new file | `make_document_seed(::Val{extension})` |
-| `is_domain_node(domain, node)` | true when the node is a document of the domain | `is_file_domain_node` |
 | `make_document_expression(document)` | the `Expr` that runs the document | `_EXPRESSIONS`, `make_natural_expression` |
 | `find_navigator_target(document, target)` | the part that a link names | the same name, on the file |
 
@@ -272,9 +277,14 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   `page-pictures`, which changed `MarkdownFile.jl`, `RstFile.jl` and `DocumentFile.jl`,
   landed on main on 2026-11-15 (`6a24a6db6`), after §3 was written. Read the files of §3
   again before step 2.
-- **A parameter that no field uses.** `CellVector{T}` is the only document struct with a
-  parameter today, and its fields use it. Step 5 proves the case first. If it fails, the
-  plan stops and the owner decides.
+- **A parameter that no field uses.** `@document` gives each document type one layout
+  parameter for each field, and `CellVector{T}` adds a parameter of its own that its fields
+  use. Step 5 proves first how `File{F}` joins its own parameter with the layout parameters,
+  and which name a method and an `isa` test use for "a file of the format F in any layout".
+  If it fails, the plan stops and the owner decides.
+- **The name of a type.** `nameof` of each `File{F}` is `:File`, and its module is the
+  serialization slice. Code that makes a text from the name of a file type must ask the
+  format. Step 5 searches each use.
 - **Saved files change** by P6, and a file made with no content holds an insertion and not
   a "nothing" document, by P7. Tests that compare a saved string change with them.
 - **Removed exports.** The functions and the tables that go are exported, so the next
@@ -287,3 +297,37 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   again.
 - **Sealed files.** Check [SEALING.md](../../SEALING.md) for each kernel file before an
   edit. The plan expects no edit of a sealed file.
+
+## 10. Found during the work
+
+**2026-11-15, from the inventory of omnet-julia** (its plan:
+`omnet-julia/plan/pending/a-file-format-is-declared-once.md`, branch `file-format`). The
+six file types of omnet-julia show cases that §4 and §5 did not cover. Each change below is
+proposed by the assistant, and the owner gets it in the next report.
+
+- **From a format to the type of its file.** `load_project`, `make_file_tab` and the write
+  of a file build the file from the type that the extension names. A result file of
+  omnet-julia and the source file of the language server keep a struct of their own. So §5
+  gets `get_file_type(format)`, with `File{F}` as the default, and `make_file` takes the
+  format. A file is built again from another content as
+  `get_file_type(get_file_format(file))(filename, content)`, never from
+  `typename(typeof(file)).wrapper`, which loses the format.
+- **A file uses its own format.** A reload, a save and each other operation on a file that
+  exists ask `get_file_format(file)`. Only the open of a path with no file searches by the
+  extension. So a format can have no extension: the fingerprint store of omnet-julia is
+  `fingerprint.json`, and its opener chooses its format.
+- **The seed is not the insertion for each domain** (P7 above). A new NED, INI, test,
+  Markdown or RST file starts as an empty root that takes edits. `@domain` emits no method,
+  because a domain that wants its root would then define the same method a second time.
+- **`is_file_domain_node` takes the format, and keeps its name.** The owner accepted
+  `is_domain_node(domain, node)`. That key does not work: `.pred` and four formats of
+  omnet-julia have the domain `Document`, and a `.test` file writes nodes of three domains.
+  The question is "does a file of this format write this node itself", so the format is the
+  key. The math format answers true for a plain number.
+- **The text of `describe_natural_formats()` stays equal.** It lists the formats that parse
+  a string, as today, and not each format of `collect_file_formats()`. The result files and
+  the event log have no parser. The system prompt must not change (P9).
+- **Where P6 shows in omnet-julia.** A saved NED or INI file ends with a line break. The
+  read removes one line break, so an INI file that ends with an empty line has one node
+  less in its tree, and the text that the file writes is equal.
+
