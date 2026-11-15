@@ -1560,6 +1560,11 @@ decides what the gesture *means*: the strip answers with
 [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
 [`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 
+In a slot that is narrower than its tabs, the long names shrink so that the tabs
+fit, and a cut name ends with "…". When the names at their least width still do
+not fit, a menu button at the right end of the strip lists all tabs, and a click
+on an item opens its tab. The strip scrolls with the wheel, and shows the open tab.
+
 See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
 children shown at once.
 

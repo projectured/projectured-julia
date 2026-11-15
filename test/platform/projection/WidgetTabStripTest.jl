@@ -371,7 +371,8 @@ end
 
 @testset "a strip that does not fit shows its open tab and stays where the wheel puts it" begin
     proj = _proj()
-    pane = WidgetTabbedPane(Any[("tab $i", WidgetLabel("$i")) for i in 1:10])
+    # Names of two or three characters keep their width, so the strip scrolls them.
+    pane = WidgetTabbedPane(Any[("t$i", WidgetLabel("$i")) for i in 1:10])
     open_tab!(index) = set_selection!(pane, Reference(FieldReferenceStep("selector_element_pairs"),
                                                       ElementReferenceStep(index)))
     context = with_exact_size(PrinterContext(); width = Cell(Int32(200)), height = Cell(Int32(80)))
@@ -381,29 +382,87 @@ end
     iomap = print_pane()
     # The open tab shows, and nothing is drawn past the right edge of the slot: the
     # line under the tabs and the page stop there.
-    @test _shown_tab(iomap, "tab 9")[2]
-    @test !_shown_tab(iomap, "tab 1")[2]
+    @test _shown_tab(iomap, "t9")[2]
+    @test !_shown_tab(iomap, "t1")[2]
     @test maximum(_right_edges_outside_views(iomap.output)) <= 200
     # A turn of the wheel over the strip moves it toward the first tab, and the open
     # tab goes out of view and stays out.
     view_x, view_y, _, view_h = _strip_view(iomap.output)
     for second in 1:200
-        _shown_tab(iomap, "tab 1")[2] && break
+        _shown_tab(iomap, "t1")[2] && break
         evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
                                                                          time = Float64(second))))
         iomap = print_pane()
     end
-    @test _shown_tab(iomap, "tab 1")[2]
-    @test !_shown_tab(iomap, "tab 9")[2]
+    @test _shown_tab(iomap, "t1")[2]
+    @test !_shown_tab(iomap, "t9")[2]
     # A click on a tab in view opens it, and the strip does not move.
-    x, _ = _shown_tab(iomap, "tab 2")
+    x, _ = _shown_tab(iomap, "t2")
     evaluate_operation(editor, read_intent(proj, iomap, _press(x + 2, view_y + view_h ÷ 2)))
     iomap = print_pane()
-    @test _shown_tab(iomap, "tab 2")[1] == x
+    @test _shown_tab(iomap, "t2")[1] == x
     # A tab that opens in another way shows.
     open_tab!(10)
     iomap = print_pane()
-    @test _shown_tab(iomap, "tab 10")[2]
+    @test _shown_tab(iomap, "t10")[2]
+end
+
+# The names of the tabs that `iomap` draws in the band of its strip, in the order of
+# the strip.
+function _drawn_names(iomap, names)
+    _, view_y, _, view_h = _strip_view(iomap.output)
+    [text for (_, y, text, _) in sort(_strip_texts(iomap.output); by = first)
+     if view_y <= y < view_y + view_h && !isempty(text) && any(name -> startswith(name, rstrip(text, '…')), names)]
+end
+
+@testset "in a slot the long names shrink to share the width, and a cut name ends with …" begin
+    proj = _proj()
+    names = ["a", "b", "a long name of a tab", "another long name"]
+    pane = WidgetTabbedPane(Any[(name, WidgetLabel(name)) for name in names])
+    natural = print_document(proj, pane)
+    natural_w = Int(unwrap_cell(natural.output.w))
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(natural_w - 100)), height = Cell(Int32(80)))
+    iomap = print_document(proj, nothing, pane, context)
+    drawn = _drawn_names(iomap, names)
+    # The short names keep their width, and the long ones end with "…".
+    @test drawn[1] == "a" && drawn[2] == "b"
+    @test endswith(drawn[3], "…") && endswith(drawn[4], "…")
+    @test startswith(names[3], rstrip(drawn[3], '…')) && startswith(names[4], rstrip(drawn[4], '…'))
+    # All tabs show, and the strip draws no menu button and nothing past the slot.
+    view_x, _, view_w, _ = _strip_view(iomap.output)
+    @test all(view_x <= x && x + 10 * length(text) <= view_x + view_w
+              for (x, _, text, _) in _strip_texts(iomap.output) if text in drawn)
+    @test maximum(_right_edges_outside_views(iomap.output)) <= natural_w - 100
+end
+
+@testset "below the least width of a name a menu button lists the tabs, and an item opens its tab" begin
+    proj = _proj()
+    names = ["$i tab number" for i in 1:10]
+    pane = WidgetTabbedPane(Any[(name, WidgetLabel(name)) for name in names])
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(200)), height = Cell(Int32(80)))
+    iomap = print_document(proj, nothing, pane, context)
+    # The names are cut at their least width, four widths of "M".
+    @test _drawn_names(iomap, names)[1] == "1 t…"
+    # A sweep of the strip finds the menu button at its right end.
+    view_x, view_y, view_w, view_h = _strip_view(iomap.output)
+    found = nothing
+    for x in (view_x + view_w):2:200
+        answer = read_intent(proj, iomap, _press(x, view_y + view_h ÷ 2))
+        answer isa WrappingOperation && (answer = get_wrapped_operation(answer))
+        answer isa OpenContextMenuOperation && (found = answer; break)
+    end
+    @test found isa OpenContextMenuOperation
+    found isa OpenContextMenuOperation || return
+    items = [item for (_, menu, _) in found.layers for item in menu.elements if item isa WidgetMenuItem]
+    @test [item.action.label for item in items] == names
+    # The item of a tab selects that tab of the list of the pages, as a click on it.
+    item = items[7]
+    part = find_menu_item_part(found, item.operation)
+    evaluate_operation((document = pane,),
+                       reroot_operation(item.operation, Tuple(get_reference_steps(strip_reference_types(part)))))
+    @test WidgetModule._tab_index_from_selection(get_stored_selection(pane), 10) == 7
+    iomap = print_document(proj, nothing, pane, context)
+    @test "7 t…" in _drawn_names(iomap, names)
 end
 
 end # testset

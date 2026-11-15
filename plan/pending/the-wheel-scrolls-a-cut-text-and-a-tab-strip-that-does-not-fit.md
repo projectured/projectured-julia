@@ -62,6 +62,30 @@ space".
   is read above the tabbed pane, so it does not clear `scrolled_tab`: after a turn, a switch away
   and back to the tab of the turn shows the strip where the wheel put it.
 
+- **D6** (the owner, 2026-11-15, option C): when the tabs do not fit, the tabs first shrink to
+  share the width, and their names are cut with "…". Below a minimum width, a menu button at the
+  right end of the strip shows, only while tabs are hidden. It lists all tabs, and a click opens
+  one. Rejected by the owner: A, arrow buttons at the ends; B alone, the menu button with no
+  shrink.
+- **D7** (proposed by the assistant): in a slot, when the tabs at their natural width do not fit,
+  only the names shrink. The icon, the badges and the close button stay whole. Each name is at
+  most a cap wide, and the cap is the largest that lets the tabs and the new-tab button fit; a
+  name that is shorter than the cap keeps its width. A cut name ends with "…". A name that holds
+  the caret keeps its whole width. With no slot, the strip keeps its natural width. Rejected: all
+  tabs take the same width. A short name then takes space that it does not need.
+- **D8** (proposed by the assistant): a name shrinks to no less than four widths of "M" of its
+  font, or its own width when that is less. The count is a field of the projection,
+  `minimum_name_ems`, 4 by default.
+- **D9** (proposed by the assistant): when the names at their minimum do not fit, the menu button
+  shows at the right end of the strip, outside the part that scrolls, with the icon
+  `chevron_down`. The strip scrolls as before in the rest of the width. A click on the button
+  opens the context menu window at the button, with one item for each tab, in the order of the
+  strip, with the whole name. The menu is a layer of the list of pages, so an item opens its tab
+  as a click on the tab does: in a plain pane it selects `selector_element_pairs[i]`, and in a
+  group of window tabs the pane tree maps that to `tabs[i]`. Rejected: a popup whose items hold
+  final operations, as the list of a select does. The pane of a window group is an output of the
+  pane tree, so no final operation can open its tab.
+
 ## 4. Steps
 
 1. [x] The wheel in a text field and a text area (D1–D4). `WidgetText` and `WidgetTextarea` get
@@ -76,7 +100,7 @@ space".
    at the next answer after the selection changed, so a caret that comes back to the place of the
    turn shows too. The build reads the selection box only while it follows the selection.
    `test_widget_text_editing`: all pass, 14 new assertions.
-2. [ ] The tab strip that does not fit. Open question to the owner; see §5.
+2. [x] The tab strip that does not fit (D5–D9).
    - [x] The parts that do not depend on the answer, done 2026-11-15. The page panel, the box
      and the line under the tabs take the width of the slot (`_get_tabbed_pane_inner_width`).
      The strip moves by the least amount that shows the open tab, except while the open tab is
@@ -86,13 +110,23 @@ space".
      view at the wrong level of the output, so it took the strip as one that fits. The wheel then
      moved nothing, and a click on a scrolled strip hit the wrong tab. The IO map now keeps the
      width that the printer used (`strip_view_width`). Test in `WidgetTabStripTest.jl`.
-   - [ ] What shows the hidden tabs: the answer of the owner.
+   - [x] The names shrink and are cut with "…" (D7, D8). Done 2026-11-15.
+     `_tab_strip_geometry` takes the width of the slot, which the IO map keeps
+     (`strip_slot_width`), so the printer and the reader compute the same shrunk strip. The
+     geometry gives `view_w`, `menu_x` and `menu_w`; `_tab_view_w` is gone. The cap is a binary
+     search over the widths (`_compute_name_cap`), and the cut takes the wider of the two fonts of
+     a name (`_cut_tab_name`).
+   - [x] The menu button and its menu of the tabs (D9). Done 2026-11-15. The button is drawn like
+     the new-tab button, in a canvas of its own after the view of the strip. Its click answers
+     `OpenContextMenuOperation` with the source `selector_element_pairs[1]`, one step below the
+     part, and the point under the button. Tests in `WidgetTabStripTest.jl`: the shrink, the cut
+     names, and the menu item that opens its tab through `find_menu_item_part`.
 3. [ ] The guides: the widget page and the docstrings of the two widgets. Move the plan to
    `plan/done/`.
 
 ## 5. Open question
 
-The tab strip: what a person sees and does when the tabs do not fit. Asked on 2026-11-15.
+None. The question of the tab strip was answered with D6.
 
 ## 6. Not in this plan
 
