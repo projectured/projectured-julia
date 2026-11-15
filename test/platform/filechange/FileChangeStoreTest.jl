@@ -832,8 +832,9 @@ function test_file_change_store()
                     reads = count_reads()
                     @test reads == 1
                     @test get_file_disk_state(b_file).read_count == 0
-                    # @broken: a load writes the content of a file with no hold, so no holder holds the new file document and its file is not watched; G4 open question 10
-                    @test_broken is_document_held(editor, b_file) && is_document_file_watched(b_file; store)
+                    # The load moves the hold of the holder to its new dashboard, so the new card
+                    # holds the file of b.txt and its file is watched.
+                    @test is_document_held(editor, b_file) && is_document_file_watched(b_file; store)
                     # F5 gives the same.
                     @test save_file!(PredFile(paths["h.pred"], Dashboard("three", Any[make_card("B", "b.txt"),
                                                                                     make_card("A", "a.txt")])), root)

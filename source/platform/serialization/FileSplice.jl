@@ -203,12 +203,14 @@ end
 
 # Every child slot of `node` whose leaf is a reference gets the node it names,
 # written into the slot's cell. `resolve` answers the node that a leaf names, or
-# `nothing` for a leaf it leaves. The walk visits each object once, so a graph
-# the splice closes into a cycle still terminates.
-function _splice_walk!(resolve, node, visited::IdDict)
+# `nothing` for a leaf it leaves. With `find_named_file`, each document gets the
+# files that it names by a path (`splice_named_file!`). The walk visits each object
+# once, so a graph the splice closes into a cycle still terminates.
+function _splice_walk!(resolve, node, visited::IdDict, find_named_file = nothing)
     node isa Document || return
     haskey(visited, node) && return
     visited[node] = true
+    find_named_file === nothing || splice_named_file!(node, find_named_file)
     for name in fieldnames(typeof(node))
         is_view_state_field(typeof(node), name) && continue
         raw = getfield(node, name)
@@ -219,16 +221,16 @@ function _splice_walk!(resolve, node, visited::IdDict)
             for index_in in eachindex(value)
                 element = value[index_in]
                 target = element isa Union{Tuple,NamedTuple} ?
-                         _splice_tuple(resolve, element, visited) :
+                         _splice_tuple(resolve, element, visited, find_named_file) :
                          resolve(element)
                 if target !== nothing
                     value[index_in] = target
                 else
-                    _splice_walk!(resolve, element, visited)
+                    _splice_walk!(resolve, element, visited, find_named_file)
                 end
             end
         elseif value isa Union{Tuple,NamedTuple}
-            target = _splice_tuple(resolve, value, visited)
+            target = _splice_tuple(resolve, value, visited, find_named_file)
             if target !== nothing
                 raw isa AbstractCell || _throw_unspliceable_field(name, node)
                 raw[] = target
@@ -239,7 +241,7 @@ function _splice_walk!(resolve, node, visited::IdDict)
                 raw isa AbstractCell || _throw_unspliceable_field(name, node)
                 raw[] = target
             else
-                _splice_walk!(resolve, value, visited)
+                _splice_walk!(resolve, value, visited, find_named_file)
             end
         end
     end
@@ -253,14 +255,14 @@ _throw_unspliceable_field(name, node) =
 # A tuple or a named tuple built again with each reference leaf in it, at any
 # depth, replaced by the node that it names, or `nothing` when no leaf in it
 # names a node of the set. A document in it is walked as any other.
-function _splice_tuple(resolve, value::Union{Tuple,NamedTuple}, visited::IdDict)
+function _splice_tuple(resolve, value::Union{Tuple,NamedTuple}, visited::IdDict, find_named_file = nothing)
     changed = false
     spliced = map(value) do element
         target = element isa Union{Tuple,NamedTuple} ?
-                 _splice_tuple(resolve, element, visited) :
+                 _splice_tuple(resolve, element, visited, find_named_file) :
                  resolve(element)
         target === nothing || (changed = true; return target)
-        _splice_walk!(resolve, element, visited)
+        _splice_walk!(resolve, element, visited, find_named_file)
         element
     end
     changed ? spliced : nothing
@@ -294,7 +296,9 @@ what `find_file(path)` answers for the absolute path of `p` against `base_dir`, 
 answer the content: `content` itself, or the file that it is when the whole content
 is such a leaf. `find_file` is asked once for each path, so two slots of one file
 get one answer. An answer `nothing` keeps the leaf. A `node(…)`, a `section(…)` and
-any other verb stay leaves. The walk goes into a tuple and a named tuple. It reads
+any other verb stay leaves. The walk goes into a tuple and a named tuple. Each
+document of `content` that names a file by a path, such as an image of a page, gets
+the answer of `find_file` for that path too ([`splice_named_file!`](@ref)). It reads
 no disk and changes nothing outside `content`; a `find_file` can change state, as the
 one of each caller does when it adds a file to the open files of an editor.
 
@@ -310,21 +314,44 @@ See also `load_project` and `find_held_file`.
 function splice_held_files!(content, base_dir::AbstractString, find_file)
     answers = Dict{String,Any}()
     resolve = leaf -> _find_held_file_answer!(answers, leaf, base_dir, find_file)
+    find_named_file = relative -> _find_named_file_answer!(answers, relative, base_dir, find_file)
     visited = IdDict{Any,Bool}()
-    target = content isa Union{Tuple,NamedTuple} ? _splice_tuple(resolve, content, visited) : resolve(content)
+    target = content isa Union{Tuple,NamedTuple} ?
+             _splice_tuple(resolve, content, visited, find_named_file) : resolve(content)
     target !== nothing && return target
-    _splice_walk!(resolve, content, visited)
+    _splice_walk!(resolve, content, visited, find_named_file)
     content
 end
 
+"""
+    splice_named_file!(node, find_file) -> nothing
+
+Give `node` the file document of each file that it names by a path, such as the
+picture of an image of a page. `find_file(path)` answers the file document for
+`path` as `node` writes it, against the folder of the file that holds `node`.
+[`splice_held_files!`](@ref) calls it for each document of a content that enters an
+editor, at the open of a file and at each load, so the answer is the editor's one file
+document of that path. The default does nothing. A domain adds a method for a type
+that names a file, and keeps the answer in a field of view state, which no save
+writes, so the text of the file still names only the path.
+"""
+splice_named_file!(node, find_file) = nothing
+
 # What `find_file` answers for the file that `leaf` names as a whole `file("p")`, or
-# `nothing` for any other leaf. `answers` keeps one answer for each path.
+# `nothing` for any other leaf.
 function _find_held_file_answer!(answers::Dict{String,Any}, leaf, base_dir::AbstractString, find_file)
     marker = find_reference_marker(leaf)
     marker === nothing && return nothing
     expression = _parse_marker_expression(marker)
     relative = _find_file_expression_path(expression)
     relative === nothing && return nothing
+    _find_named_file_answer!(answers, relative, base_dir, find_file)
+end
+
+# What `find_file` answers for the file at `relative` against `base_dir`. `answers`
+# keeps one answer for each path.
+function _find_named_file_answer!(answers::Dict{String,Any}, relative::AbstractString,
+                                  base_dir::AbstractString, find_file)
     path = abspath(joinpath(base_dir, relative))
     haskey(answers, path) || (answers[path] = find_file(path))
     answers[path]

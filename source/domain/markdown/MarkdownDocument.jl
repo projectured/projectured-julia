@@ -87,10 +87,14 @@ end
 
 """
 An inline image (`![alt](url)`). `alt` is the alternative text, `url` the source.
+`picture` is the editor's file document of the picture that `url` names, with the
+url that named it, as `url => file`, or `nothing`: the open and each load of the
+page give it, and no save writes it.
 """
 @document struct MarkdownImage <: MarkdownDocument
     alt::String
     url::String
+    picture::Any = nothing
 end
 
 # ── Block nodes ───────────────────────────────────────────────────────────────

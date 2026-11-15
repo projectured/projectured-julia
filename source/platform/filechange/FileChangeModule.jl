@@ -26,6 +26,7 @@ using ..SerializationModule
 using ..ToolModule
 using ..FileFormatModule
 using ..FeedModule
+using ..ReferenceModule
 
 # Imported to extend: the feed of this module answers each of them, and a file
 # that enters or leaves the window starts or stops its watch.

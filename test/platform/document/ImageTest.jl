@@ -164,10 +164,10 @@ end
     test_image_span_size_work(make_span, path)
 
 What the image span of a domain does with the head of the file `path`, in the frames of
-an editor. `make_span()` prints the span, a `TextGraphics` whose `Image` is made in the
-print. The span measures 640 by 409 until the head answers, and the size of the file
-after, while the pixels have no read. Two more frames with no change run the print
-and the size work no more, and the span keeps its `Image`.
+an editor. `make_span()` prints the span, a `TextGraphics` that holds an `Image`, or a
+picture file that holds one. The span measures 640 by 409 until the head answers, and
+the size of the file after, while the pixels have no read. Two more frames with no
+change run the print and the size work no more, and the span keeps what it holds.
 """
 function test_image_span_size_work(make_span::Function, path::AbstractString)
     @testset "an image span asks for the size and not the pixels" begin
@@ -184,7 +184,8 @@ function test_image_span_size_work(make_span::Function, path::AbstractString)
                                  EditorModule.get_background_work_store(editor).records)
 
         span, measure = frame()
-        image = span.content
+        held = span.content
+        image = get_shown_picture(held)
         @test measure == (640, 409)
         @test image.natural_size === nothing
         start_background_cell_work!(editor)
@@ -195,7 +196,7 @@ function test_image_span_size_work(make_span::Function, path::AbstractString)
 
         for _ in 1:3
             frame_span, measure = frame()
-            @test frame_span === span && frame_span.content === image
+            @test frame_span === span && frame_span.content === held
             @test measure == (16, 16)
             start_background_cell_work!(editor)
             drain_operations!(editor)
