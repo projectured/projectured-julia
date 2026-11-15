@@ -194,7 +194,12 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    at the right edge, Left moves the caret 10 pixels and not the text, Home puts it at the left
    edge; a text area of two rows of ten lines draws its last line, with the caret, inside the
    view. The forward map of a field whose content is a document returns `nothing` for a caret in
-   it, on `main` too, so the field test uses a plain string (see §6).
+   it, on `main` too, so the field test uses a plain string (see §6). A review of the branch found three
+   faults, now fixed: a caret at the end of a cut text stood on the right edge of the view and was
+   cut away, so the scroll keeps the width of the caret of the theme (`:caret_width`); every field
+   read its selection in its build, so a field computes the box of its selection only when its
+   text is larger than its box; and `scroll_position` was no view state for a save, so both
+   documents declare it in `get_view_state_fields`, as `WidgetTable` does.
 4. **A `LayoutConstraint` cuts where it states a size (D4).** Its printer wraps the output of the
    child with `clip_child_to_slot` on each axis where it states a preferred size, a weight or a
    maximum, and the size that it gets is exact or bounded. Its reference mappers go through the
@@ -236,6 +241,16 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
   it.
 
 ## 6. Not in this plan
+
+- A wheel that scrolls the text of a field or a text area. The print follows the caret at each
+  build, so a wheel scroll that leaves the caret out of view is taken back at the next print; a
+  wheel needs the follow at a move of the caret only, as a scroll pane follows a
+  `ShowSelectionOperation`. Today only a key or a press moves the text, and a text area that cuts
+  its lines shows the others only through its caret. The two text areas of the platform set
+  `rows = 0`, so they are as tall as their text.
+- The stored offset of a field is written with an answer of its reader only. A selection that
+  another path puts in the field, such as a find, is shown, but the next move of the caret starts
+  from the stored offset, so the text can move once.
 
 - The forward map of a `WidgetText` or a `WidgetTextarea` whose content is a document: it returns
   `nothing` for a path in the content (`get_child_iomaps` of their IO maps is `nothing`), on `main`

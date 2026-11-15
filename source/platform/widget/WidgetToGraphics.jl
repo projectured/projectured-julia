@@ -2480,11 +2480,13 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
                                       color = style.color))
         end
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
-        # A text larger than the box scrolls in it, so the caret stays in view.
-        selection_box = _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
-                                                    content_iomap[], inner, p.measure)
-        scroll = _compute_text_scroll(w, selection_box, inner_w, Int(inner.h[]),
-                                      outer_w - inset_width, outer_h - inset_height)
+        # A text larger than the box scrolls in it, so the caret stays in view. A
+        # text that fits reads no selection, so a caret move builds no field.
+        view_w, view_h = outer_w - inset_width, outer_h - inset_height
+        scroll = inner_w <= view_w && Int(inner.h[]) <= view_h ? (0, 0) :
+            _compute_text_scroll(w, _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
+                                                                content_iomap[], inner, p.measure),
+                                 inner_w, Int(inner.h[]), view_w, view_h)
         _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]); scroll)
         state === :disabled && push!(elems, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elems, w, box, outer_w, outer_h, p.focus_ring_stroke, radius;
@@ -2596,19 +2598,22 @@ end
 # The offset at which a text widget draws a text of `text_width` by `text_height` in
 # a view of `view_width` by `view_height`: the least move from the offset that it
 # stores that shows its selection at `selection_box`, kept between 0 and the end of
-# the text. A text that fits the view has the offset 0.
+# the text. A caret is as wide as the caret of the theme, so a caret at the end of
+# the text shows inside the view. A text that fits the view has the offset 0.
 function _compute_text_scroll(w, selection_box, text_width::Int, text_height::Int,
                               view_width::Int, view_height::Int)
     stored = w.scroll_position::Point2D
     x, y = Int(stored.x[]), Int(stored.y[])
+    caret = Int(unwrap_cell(get_text_style(nothing, :caret_width)))
     if selection_box !== nothing
         box_x, box_y, box_width, box_height = selection_box
-        x = _compute_shown_offset(x, view_width, box_x, box_width)
+        x = _compute_shown_offset(x, view_width, box_x, max(box_width, caret))
         y = _compute_shown_offset(y, view_height, box_y, box_height)
-        text_width = max(text_width, box_x + box_width)
         text_height = max(text_height, box_y + box_height)
     end
-    (clamp(x, 0, max(0, text_width - view_width)), clamp(y, 0, max(0, text_height - view_height)))
+    # The text scrolls past its end by the width of a caret, so a caret at its end
+    # shows, and the text stays while that caret moves back.
+    (clamp(x, 0, max(0, text_width + caret - view_width)), clamp(y, 0, max(0, text_height - view_height)))
 end
 
 # The answer of a text widget, with the write of `scroll`, the offset that it draws
@@ -12238,10 +12243,12 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         enabled && push!(elements, GraphicsPointerShape(margin_rect..., :ibeam))
         first_content = length(elements) + 1
         push!(elements, _make_canvas(content_x, content_y, Any[inner]))
-        # A text larger than the box scrolls in it, so the caret stays in view.
-        selection_box = _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure)
-        scroll = _compute_text_scroll(w, selection_box, Int(inner.w[]), text_height,
-                                      outer_width - inset_width, outer_height - inset_height)
+        # A text larger than the box scrolls in it, so the caret stays in view. A
+        # text that fits reads no selection, so a caret move builds no area.
+        view_w, view_h = outer_width - inset_width, outer_height - inset_height
+        scroll = Int(inner.w[]) <= view_w && text_height <= view_h ? (0, 0) :
+            _compute_text_scroll(w, _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure),
+                                 Int(inner.w[]), text_height, view_w, view_h)
         _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height;
                              scroll)
         enabled || push!(elements, GraphicsPointerShape(margin_rect..., :arrow))

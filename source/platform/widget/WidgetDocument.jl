@@ -4201,6 +4201,11 @@ pred_arguments(pane::WidgetTransformPane) = (pane.content,), _get_field_keywords
 # edge are what a person did to the view of a table, and no part of what it holds.
 get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :shown, :column_drag)
 
+# The offset of a text in a field that cuts it follows the caret, and is no part of
+# what the field holds.
+get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position,)
+get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position,)
+
 # A saved table keeps its headers and its cells. The counts of its rows and of
 # its columns, which a table without data for them derives from the cells and the
 # headers, are built again when the file loads; the data of a row or a column is
