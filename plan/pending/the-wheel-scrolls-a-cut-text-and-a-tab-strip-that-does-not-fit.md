@@ -1,0 +1,85 @@
+# The wheel scrolls a cut text, and a tab strip that does not fit
+
+Status: pending. Branch `widget-scroll`, worktree `projectured-julia-widget-scroll`.
+
+## 1. The ask
+
+The owner, 2026-11-15, after the plan
+[a-widget-cuts-its-content-at-its-box](../done/a-widget-cuts-its-content-at-its-box.md) landed:
+"solve scrolling in text field and area, and also tab pane selector parts if they don't fit the
+space".
+
+## 2. Facts
+
+- A `WidgetText` and a `WidgetTextarea` cut a text that is larger than their box, and draw it at
+  the offset `scroll_position` (view state). The build moves the offset by the least amount that
+  shows the caret (`_compute_text_scroll`). The reader writes the drawn offset back with its next
+  answer (`_keep_text_scroll`). No reader of the two widgets reads `MouseScroll`, so the wheel
+  moves nothing in them.
+- A scroll pane gives the wheel to its content first, and scrolls itself only when the content
+  answers `nothing` (`_self_scroll`). A pane at its end answers `nothing`, so the next pane out
+  scrolls.
+- A notch over a pane moves `lines_per_notch` lines (3), at most the view less one line. A fast run
+  of notches grows by `wheel_growth` (1.25), which the pane keeps in the view state `wheel_run`
+  (`_compute_wheel_turn`, `_add_wheel_run`). A touchpad turn moves by its fraction. Ctrl and the
+  wheel zoom and never scroll.
+- If the build keeps the caret in view at each print, a turn of the wheel that moves the caret
+  out of the view is taken back at the next print. So the build must know when the caret moved
+  after the turn.
+- A `WidgetTabbedPane` cuts its tab strip at the width of its slot, and a vertical or horizontal
+  turn over the strip scrolls it (`tab_scroll`, view state). The rule test lists the tabbed pane in
+  `_RULES_INK_BROKEN`: it draws past the extent that it reports in some state.
+- An image of ten tabs in a pane of width 300 (2026-11-15) shows four faults:
+  - The line under the tabs runs past the right edge of the pane, over the next widget, to the
+    end of the strip. The page panel and the box do the same. They take the width
+    `max(strip_w, page_w)`, not the width of the slot.
+  - The open tab can be out of view: with tab 9 open, the strip shows tabs 1 to 3.
+  - Nothing shows that more tabs exist, and only the wheel reaches them.
+  - A tab whose name is longer than the pane is cut at the pane, and its close button is out of
+    view.
+- A widget opens a popup with `OpenPopupOperation`, as a select and a menu do.
+
+## 3. Decisions
+
+- **D1** (proposed by the assistant): a turn of the wheel over a text widget moves its text on the
+  axis of the turn when the text is larger than the box on that axis. Else the turn goes on to the
+  pane around the widget. So a vertical turn over a one-line field scrolls the page, and a field
+  takes only a horizontal turn. Rejected: a vertical turn moves a field sideways, as over the tab
+  strip. That stops the scroll of a form at each field under the pointer.
+- **D2** (proposed by the assistant): a notch moves the text as a notch moves a pane: the same
+  step, the same speed-up of a fast run, the same touchpad fraction. A text widget keeps its own
+  `wheel_run`. A turn at the end of the text moves nothing and goes on to the pane around it.
+  Ctrl and the wheel never scroll a text.
+- **D3** (proposed by the assistant): the wheel leaves the caret where it is, also outside the
+  view. The text stays where the wheel put it while the widget holds the selection that it held at
+  the turn. The view state `scrolled_selection` keeps that selection. A new selection, from a key,
+  a click or an edit, moves the text again to show the caret. Rejected: the wheel moves the caret
+  with the text. No editor that a person knows does that.
+- **D4** (proposed by the assistant): a disabled text widget scrolls with the wheel too. A turn is
+  no edit, and a person can read a long disabled text.
+
+## 4. Steps
+
+1. [x] The wheel in a text field and a text area (D1–D4). `WidgetText` and `WidgetTextarea` get
+   the view state `wheel_run` and `scrolled_selection`, and their projections get
+   `lines_per_notch` and `wheel_growth`. The build gives the offset, the largest offset and the
+   view; the reader reads `MouseScroll` before the text domain. Tests in `WidgetTextEditTest.jl`:
+   a horizontal turn over a cut field, a vertical turn over it that goes on, a turn over a cut
+   text area and at its end, Ctrl and the wheel, and the caret that shows again after a key.
+   Done 2026-11-15. The IO map field `scroll` holds `(offset, room, view)`, so the reader has the
+   largest offset and the view that the build computed. `_is_following_selection` compares the
+   selection with `scrolled_selection` by `==`. `_keep_text_scroll` clears `scrolled_selection`
+   at the next answer after the selection changed, so a caret that comes back to the place of the
+   turn shows too. The build reads the selection box only while it follows the selection.
+   `test_widget_text_editing`: all pass, 14 new assertions.
+2. [ ] The tab strip that does not fit. Open question to the owner; see §5.
+3. [ ] The guides: the widget page and the docstrings of the two widgets. Move the plan to
+   `plan/done/`.
+
+## 5. Open question
+
+The tab strip: what a person sees and does when the tabs do not fit. Asked on 2026-11-15.
+
+## 6. Not in this plan
+
+- A scroll bar on a text area.

@@ -629,6 +629,8 @@ WidgetLabelToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     graphics_style::NamedTuple                    # the ring of the widget selected as a whole
     corner_radius::Int
     appearance::Any                               # whose theme of a language colors a field of code
+    lines_per_notch::Int                          # lines that one notch of the wheel scrolls
+    wheel_growth::Float64                         # factor of each fast notch of a run of the wheel
 end
 
 WidgetTextToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -650,12 +652,13 @@ WidgetTextToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                            graphics_style = _make_graphics_style(graphics_theme),
                            corner_radius = _themed(Int, theme, t -> t.radius),
-                           appearance = theme isa ScaledTheme ? get_theme_appearance(theme) : nothing) =
+                           appearance = theme isa ScaledTheme ? get_theme_appearance(theme) : nothing,
+                           lines_per_notch = 3, wheel_growth = 1.25) =
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
                                content_disabled_color, label_text, label_disabled_text,
                                placeholder_text, focus_ring_stroke, graphics_style, corner_radius,
-                               appearance)
+                               appearance, lines_per_notch, Float64(wheel_growth))
 
 @projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
     measure::TextMeasure
@@ -2248,7 +2251,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = not
     content_iomap::Any
     value_iomap::Any   # the child of a document in `content` that gives a value, or nothing
     box::Any
-    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
+    scroll::Any        # the scroll of a text that the box cuts: `(offset, room, view)`, each `(x, y)`
 end
 
 # ── A plain value as a text ─────────────────────────────────────────────────
@@ -2483,11 +2486,12 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # A text larger than the box scrolls in it, so the caret stays in view. A
         # text that fits reads no selection, so a caret move builds no field.
         view_w, view_h = outer_w - inset_width, outer_h - inset_height
-        scroll = inner_w <= view_w && Int(inner.h[]) <= view_h ? (0, 0) :
-            _compute_text_scroll(w, _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
-                                                                content_iomap[], inner, p.measure),
+        scroll = inner_w <= view_w && Int(inner.h[]) <= view_h ? _make_fitting_text_scroll(view_w, view_h) :
+            _compute_text_scroll(w, () -> _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
+                                                                      content_iomap[], inner, p.measure),
                                  inner_w, Int(inner.h[]), view_w, view_h)
-        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]); scroll)
+        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]);
+                             scroll = scroll.offset)
         state === :disabled && push!(elems, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elems, w, box, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.graphics_style)
@@ -2595,16 +2599,20 @@ function _find_content_selection_box(w, value_iomap, view, canvas, measure)
     (box.x - Int(canvas.x), box.y - Int(canvas.y), box.width, box.height)
 end
 
-# The offset at which a text widget draws a text of `text_width` by `text_height` in
-# a view of `view_width` by `view_height`: the least move from the offset that it
-# stores that shows its selection at `selection_box`, kept between 0 and the end of
-# the text. A caret is as wide as the caret of the theme, so a caret at the end of
-# the text shows inside the view. A text that fits the view has the offset 0.
-function _compute_text_scroll(w, selection_box, text_width::Int, text_height::Int,
+# The scroll of a text widget that draws a text of `text_width` by `text_height` in
+# a view of `view_width` by `view_height`: the offset that it draws the text at, the
+# largest offset, and the view, each `(x, y)`. The offset is the one that the widget
+# stores, moved by the least amount that shows its selection, whose box `find_box()`
+# gives. While the widget holds the selection of the last turn of the wheel, it does
+# not move the text to show the selection, so the text stays where the wheel put it.
+# A caret is as wide as the caret of the theme, so a caret at the end of the text
+# shows inside the view.
+function _compute_text_scroll(w, find_box, text_width::Int, text_height::Int,
                               view_width::Int, view_height::Int)
     stored = w.scroll_position::Point2D
     x, y = Int(stored.x[]), Int(stored.y[])
     caret = Int(unwrap_cell(get_text_style(nothing, :caret_width)))
+    selection_box = _is_following_selection(w) ? find_box() : nothing
     if selection_box !== nothing
         box_x, box_y, box_width, box_height = selection_box
         x = _compute_shown_offset(x, view_width, box_x, max(box_width, caret))
@@ -2613,18 +2621,64 @@ function _compute_text_scroll(w, selection_box, text_width::Int, text_height::In
     end
     # The text scrolls past its end by the width of a caret, so a caret at its end
     # shows, and the text stays while that caret moves back.
-    (clamp(x, 0, max(0, text_width + caret - view_width)), clamp(y, 0, max(0, text_height - view_height)))
+    room = (max(0, text_width + caret - view_width), max(0, text_height - view_height))
+    (offset = (clamp(x, 0, room[1]), clamp(y, 0, room[2])), room = room, view = (view_width, view_height))
 end
 
-# The answer of a text widget, with the write of `scroll`, the offset that it draws
-# its text at, when the widget stores another offset: the next print moves the text
-# from where it is, so the text stays while the caret moves inside the view. No
+# The scroll of a text widget whose text fits its view of `view_width` by
+# `view_height`: the text does not move.
+_make_fitting_text_scroll(view_width::Int, view_height::Int) =
+    (offset = (0, 0), room = (0, 0), view = (view_width, view_height))
+
+# Whether the text widget `w` moves its text to show its selection: always, except
+# while it holds the selection that it held at the last turn of the wheel.
+function _is_following_selection(w)
+    scrolled = w.scrolled_selection
+    scrolled === nothing || get_selection(w) != scrolled
+end
+
+# The answer of a text widget, with the write of the offset that `scroll` draws its
+# text at when the widget stores another offset: the next print moves the text from
+# where it is, so the text stays while the caret moves inside the view. A widget that
+# shows its selection again forgets the selection of the last turn of the wheel. No
 # answer writes nothing.
-function _keep_text_scroll(w, scroll::Tuple{Int,Int}, answer)
+function _keep_text_scroll(w, scroll, answer)
     answer === nothing && return nothing
+    writes = Any[]
     stored = w.scroll_position::Point2D
-    (Int(stored.x[]), Int(stored.y[])) == scroll && return answer
-    CompoundOperation(Any[answer, _write_view_state(w, "scroll_position", Point2D(scroll...))])
+    (Int(stored.x[]), Int(stored.y[])) == scroll.offset ||
+        push!(writes, _write_view_state(w, "scroll_position", Point2D(scroll.offset...)))
+    (w.scrolled_selection === nothing || !_is_following_selection(w)) ||
+        push!(writes, _write_view_state(w, "scrolled_selection", nothing))
+    isempty(writes) ? answer : CompoundOperation(Any[answer, writes...])
+end
+
+# A turn of the wheel over a text widget, whose text is in `font`: the write of the
+# offset that moves the text by the turn on the axis of the turn, as a turn moves the
+# content of a pane. The caret stays where it is: the selection of the widget is
+# kept as the selection of the turn, so the next print does not move the text back to
+# it. `nothing` when the text can not move that way, so the turn goes on to the pane
+# around the widget. Ctrl and the wheel zoom and never scroll.
+function _read_text_wheel(p, iomap, evt::MouseScroll, font)
+    evt.modifiers.ctrl && return nothing
+    w = iomap.input
+    scroll = iomap.scroll
+    turn_x, turn_y = evt.precise_dx, evt.precise_dy
+    horizontal = turn_x != 0 && turn_y == 0
+    axis = horizontal ? 1 : 2
+    scroll.room[axis] > 0 || return nothing
+    _, line = _text_size(p.measure, font, "M")
+    largest = max(line, scroll.view[axis] - line)
+    step = min(p.lines_per_notch * line, largest)
+    distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
+                                        step, largest, p.wheel_growth)
+    x, y = scroll.offset
+    moved = horizontal ? (clamp(x - distance, 0, scroll.room[1]), y) :
+                         (x, clamp(y - distance, 0, scroll.room[2]))
+    moved == (x, y) && return nothing
+    _add_wheel_run(CompoundOperation(Any[_write_view_state(w, "scroll_position", Point2D(moved...)),
+                                         _write_view_state(w, "scrolled_selection", get_selection(w))]),
+                   w, run)
 end
 
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
@@ -2674,13 +2728,15 @@ read_intent(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 # bar and the indent of the node of an outline.
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
+    # A turn of the wheel is no edit, so a disabled field scrolls too.
+    evt isa MouseScroll && return _read_text_wheel(p, iomap, evt, _get_text_field_style(p, iomap.input, nothing).font)
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     _is_plain_typed(evt, '\n') && return nothing
     evt isa KeyPress && evt.char == '\t' && return nothing
     left, top = _get_content_offset(_get_box_geometry(iomap))
     scroll = iomap.scroll
     operation = _validate_text_edit(iomap.input,
-        _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
+        _read_text_content_intent(p, iomap, evt, left - scroll.offset[1], top - scroll.offset[2]))
     child = iomap.value_iomap
     _keep_text_scroll(iomap.input, scroll,
                       child === nothing ? operation : _make_value_text_store(iomap.input, child, operation))
@@ -12166,6 +12222,8 @@ end
     label_disabled_text::StyleText
     focus_ring_stroke::StyleStroke      # focus ring when selected
     corner_radius::Int
+    lines_per_notch::Int                # lines that one notch of the wheel scrolls
+    wheel_growth::Float64               # factor of each fast notch of a run of the wheel
 end
 
 WidgetTextareaToGraphicsCanvas(theme; measure,
@@ -12182,11 +12240,12 @@ WidgetTextareaToGraphicsCanvas(theme; measure,
                                label_disabled_text =
                                    _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
-                               corner_radius = _themed(Int, theme, t -> t.radius)) =
+                               corner_radius = _themed(Int, theme, t -> t.radius),
+                               lines_per_notch = 3, wheel_growth = 1.25) =
     WidgetTextareaToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                    padding_color, content_color, padding_disabled_color,
                                    content_disabled_color, label_text, label_disabled_text,
-                                   focus_ring_stroke, corner_radius)
+                                   focus_ring_stroke, corner_radius, lines_per_notch, Float64(wheel_growth))
 
 # IoMap for a WidgetTextarea. The text domain draws and edits the content, as it
 # does for a `WidgetText`: a Document content, typically a `TextBlock`, is
@@ -12198,7 +12257,7 @@ WidgetTextareaToGraphicsCanvas(theme; measure,
     output::Any
     content_iomap::Any
     box::Any
-    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
+    scroll::Any        # the scroll of a text that the box cuts: `(offset, room, view)`, each `(x, y)`
 end
 
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
@@ -12246,11 +12305,11 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         # A text larger than the box scrolls in it, so the caret stays in view. A
         # text that fits reads no selection, so a caret move builds no area.
         view_w, view_h = outer_width - inset_width, outer_height - inset_height
-        scroll = Int(inner.w[]) <= view_w && text_height <= view_h ? (0, 0) :
-            _compute_text_scroll(w, _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure),
+        scroll = Int(inner.w[]) <= view_w && text_height <= view_h ? _make_fitting_text_scroll(view_w, view_h) :
+            _compute_text_scroll(w, () -> _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure),
                                  Int(inner.w[]), text_height, view_w, view_h)
         _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height;
-                             scroll)
+                             scroll = scroll.offset)
         enabled || push!(elements, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements, scroll=scroll)
@@ -12281,10 +12340,13 @@ read_intent(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = noth
 # a plain Return breaks the line there.
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
+    # A turn of the wheel is no edit, so a disabled area scrolls too.
+    evt isa MouseScroll && return _read_text_wheel(p, iomap, evt, _get_state_text(p, iomap.input, :label).font)
     iomap.input.enabled === false && return nothing
     left, top = _get_content_offset(_get_box_geometry(iomap))
     scroll = iomap.scroll
-    _keep_text_scroll(iomap.input, scroll, _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
+    _keep_text_scroll(iomap.input, scroll,
+                      _read_text_content_intent(p, iomap, evt, left - scroll.offset[1], top - scroll.offset[2]))
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
