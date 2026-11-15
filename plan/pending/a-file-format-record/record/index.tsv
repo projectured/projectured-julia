@@ -1,0 +1,45 @@
+input	export	save
+example/domain/markdown/paragraphs.md	1819 bytes, no line break at the end	1819 bytes, no line break at the end
+example/platform/filesystem/fixture/project/README.md	344 bytes, no line break at the end	344 bytes, no line break at the end
+example/platform/filesystem/fixture/project/data/config.yaml	37 bytes, no line break at the end	37 bytes, no line break at the end
+example/platform/filesystem/fixture/project/data/sample.json	82 bytes, no line break at the end	82 bytes, no line break at the end
+example/platform/filesystem/fixture/project/doc/guide.md	251 bytes, no line break at the end	251 bytes, no line break at the end
+example/platform/filesystem/fixture/project/src/main.jl	216 bytes, no line break at the end	217 bytes, ends with a line break
+example/platform/filesystem/fixture/project/src/util.jl	126 bytes, no line break at the end	127 bytes, ends with a line break
+example/projectured/workspace/contact-list.json	156 bytes, no line break at the end	156 bytes, no line break at the end
+example/projectured/workspace/lorem-ipsum.txt	error: import_document: unsupported extension ".txt" for "example/projectured/workspace/lorem-ipsum.txt"	449 bytes, ends with a line break
+test/domain/rst/fixture/rst/global.rst	303 bytes, no line break at the end	303 bytes, no line break at the end
+test/domain/rst/fixture/rst/showcase-manualconfiguration.rst	17196 bytes, no line break at the end	17196 bytes, no line break at the end
+test/domain/rst/fixture/rst/showcase-txop.rst	8235 bytes, no line break at the end	8235 bytes, no line break at the end
+test/domain/rst/fixture/rst/showcases-index.rst	2421 bytes, no line break at the end	2421 bytes, no line break at the end
+test/domain/rst/fixture/rst/users-guide-queueing.rst	14937 bytes, no line break at the end	14937 bytes, no line break at the end
+input/extension/bmp/a.bmp	error: import_document: unsupported extension ".bmp" for "input/extension/bmp/a.bmp"	error: emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)
+input/extension/c/a.c	error: import_document: unsupported extension ".c" for "input/extension/c/a.c"	error: save_file! answered false
+input/extension/cc/a.cc	error: import_document: unsupported extension ".cc" for "input/extension/cc/a.cc"	error: save_file! answered false
+input/extension/cpp/a.cpp	error: import_document: unsupported extension ".cpp" for "input/extension/cpp/a.cpp"	error: save_file! answered false
+input/extension/cxx/a.cxx	error: import_document: unsupported extension ".cxx" for "input/extension/cxx/a.cxx"	error: save_file! answered false
+input/extension/gif/a.gif	error: import_document: unsupported extension ".gif" for "input/extension/gif/a.gif"	error: emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)
+input/extension/h/a.h	error: import_document: unsupported extension ".h" for "input/extension/h/a.h"	error: save_file! answered false
+input/extension/hh/a.hh	error: import_document: unsupported extension ".hh" for "input/extension/hh/a.hh"	error: save_file! answered false
+input/extension/hpp/a.hpp	error: import_document: unsupported extension ".hpp" for "input/extension/hpp/a.hpp"	error: save_file! answered false
+input/extension/hxx/a.hxx	error: import_document: unsupported extension ".hxx" for "input/extension/hxx/a.hxx"	error: save_file! answered false
+input/extension/jpeg/a.jpeg	error: import_document: unsupported extension ".jpeg" for "input/extension/jpeg/a.jpeg"	error: emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)
+input/extension/jpg/a.jpg	error: import_document: unsupported extension ".jpg" for "input/extension/jpg/a.jpg"	error: emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)
+input/extension/markdown/a.markdown	error: import_document: unsupported extension ".markdown" for "input/extension/markdown/a.markdown"	29 bytes, no line break at the end
+input/extension/none/a	error: import_document: unsupported extension "" for "input/extension/none/a"	19 bytes, ends with a line break
+input/extension/png/a.png	error: import_document: unsupported extension ".png" for "input/extension/png/a.png"	error: emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)
+input/extension/yml/a.yml	23 bytes, no line break at the end	23 bytes, no line break at the end
+input/workload/BookDocument/a.pred	error: import_document: unsupported extension ".pred" for "input/workload/BookDocument/a.pred"	1569 bytes, ends with a line break
+input/workload/Chart/a.pred	error: import_document: unsupported extension ".pred" for "input/workload/Chart/a.pred"	1808 bytes, ends with a line break
+input/workload/GraphGraph/a.pred	error: import_document: unsupported extension ".pred" for "input/workload/GraphGraph/a.pred"	791 bytes, ends with a line break
+input/workload/JsonFile/a.json	33 bytes, no line break at the end	33 bytes, no line break at the end
+input/workload/JuliaFile/a.jl	1234 bytes, no line break at the end	1235 bytes, ends with a line break
+input/workload/MarkdownFile/a.md	29 bytes, no line break at the end	29 bytes, no line break at the end
+input/workload/MathFile/a.math	5 bytes, no line break at the end	6 bytes, ends with a line break
+input/workload/ResearchQuestion/a.pred	error: import_document: unsupported extension ".pred" for "input/workload/ResearchQuestion/a.pred"	401 bytes, ends with a line break
+input/workload/RstFile/a.rst	33 bytes, no line break at the end	33 bytes, no line break at the end
+input/workload/SqlFile/a.sql	30 bytes, ends with a line break	30 bytes, ends with a line break
+input/workload/TextFile/a.txt	error: import_document: unsupported extension ".txt" for "input/workload/TextFile/a.txt"	19 bytes, ends with a line break
+input/workload/WorkflowStep/a.pred	error: import_document: unsupported extension ".pred" for "input/workload/WorkflowStep/a.pred"	443 bytes, ends with a line break
+input/workload/XmlFile/a.xml	47 bytes, no line break at the end	47 bytes, no line break at the end
+input/workload/YamlFile/a.yaml	23 bytes, no line break at the end	23 bytes, no line break at the end

@@ -1,0 +1,4 @@
+SELECT 
+  name
+FROM 
+  people

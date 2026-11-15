@@ -215,9 +215,10 @@ the natural slice, because the three steps are fixed.
 
 Each step is one commit. Each step changes the documents that it makes wrong.
 
-- [ ] **1. The record of today.** For each format and each of its example files, record the
+- [x] **1. The record of today.** For each format and each of its example files, record the
   string that `export_document` writes and the string that `save_file!` writes. The record
   is the reference for step 5. Test: none; the record is a file in the worktree.
+  **Done** 2026-11-15: [a-file-format-record/](a-file-format-record/), see §10.
 - [ ] **2. The format and its seams.** Add `FileFormat` and the functions of the first and
   the third table of §5 to the serialization slice, with no user. Test: a new
   `FileFormatTest.jl` that declares a format in the test.
@@ -341,4 +342,37 @@ failure each in `test_math()` and `test_julia()`. Main already fails `test_docum
 `test_platform()` (108 failures and 66 errors, most of them in the conversation tests). A
 step compares its counts with these. `test_platform()` in one call needs a cap of 14 GB and
 `-t 2`, and takes 36 minutes.
+
+**2026-11-15, step 1: the record.** The folder
+[a-file-format-record/](a-file-format-record/) holds the script `record.jl`, its inputs and
+its record.
+
+- **The inputs, 44.** The 14 data files of the repository: the examples and the fixtures
+  of `example/` and the RST fixtures of `test/domain/rst/fixture/`. The folder `input/`
+  holds 30 more that the first run made: the text of `make_workload_file` for each of its
+  14 types (eight domains, plain text, and five `.pred` files), and one file for each
+  extension of the registry that no other input has (`.yml`, `.markdown`, no extension,
+  the five picture extensions and the eight source extensions of the language server).
+- **The record.** `record/export/<input>` is the string that
+  `export_document(import_document(input), …)` writes, `record/save/<input>` the string
+  that `save_file!` writes for `load_file` of the input, and `record/index.tsv` lists each
+  with its size and its last line break, or the first line of the error. Two runs give the
+  same bytes.
+- **For step 5.** Run `julia --project=environment/all
+  plan/pending/a-file-format-record/record.jl <new folder>` and compare with
+  `diff -r record <new folder>`. When `import_document` and `export_document` no longer
+  exist, the script calls `read_document_file` and `write_document_file!`. It reads the
+  folder `input/`, so it needs no registry.
+- **What today writes.** The export and the save are equal for each input that both
+  write, except Julia and math, where the save adds one line break (§3). The save of a
+  `.pred` file ends with a line break too. The SQL printer ends its string with a line
+  break of its own (`SELECT\n  name\nFROM\n  people\n`), so by P6 a saved SQL file ends
+  with an empty line; step 5 checks this against the record.
+- **What today does not write.** `import_document` refuses plain text, no extension,
+  `.pred`, `.markdown`, the pictures and the source files, so these have no export
+  string. The save of a picture raises an error (`ImageFile` has no `emit_text`), and the
+  save of a source file of the language server, loaded alone, answers `false` ("holds a
+  MarkedText … that is not of its domain"). The editor saves no picture
+  (`is_editable_file_type` is `false`); how it saves a source file is not checked here. A
+  change of these in step 5 is no difference of P6, and step 5 names it.
 

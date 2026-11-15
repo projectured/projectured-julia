@@ -1,0 +1,1 @@
+emit_text: no method defined for ImageFile{Cell, Cell, Cell, Cell, Cell} — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)

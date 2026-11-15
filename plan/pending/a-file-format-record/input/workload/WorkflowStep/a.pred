@@ -1,0 +1,19 @@
+WorkflowStep(
+    title = PrimitiveString(
+        value = "Survey the literature",
+    ),
+    state = :done,
+    children = [],
+    journal = [
+        WorkflowEntry(
+            time = "2026-10-27T10:00:00",
+            author = :person,
+            kind = :comment,
+            text = PrimitiveString(
+                value = "Keep the records readable.",
+            ),
+            source = nothing,
+        ),
+    ],
+    elements = [],
+)

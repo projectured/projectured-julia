@@ -1,0 +1,34 @@
+GraphGraph(
+    vertices = [
+        GraphVertex(
+            content = PrimitiveString(
+                value = "alpha",
+            ),
+        ),
+        GraphVertex(
+            content = PrimitiveString(
+                value = "beta",
+            ),
+        ),
+    ],
+    edges = [
+        GraphEdge(
+            source = GraphVertex(
+                content = PrimitiveString(
+                    value = "alpha",
+                ),
+            ),
+            target = GraphVertex(
+                content = PrimitiveString(
+                    value = "beta",
+                ),
+            ),
+            directed = true,
+            label = nothing,
+            visible = true,
+        ),
+    ],
+    highlight_vertex = nothing,
+    highlight_edge = nothing,
+    constraints = [],
+)

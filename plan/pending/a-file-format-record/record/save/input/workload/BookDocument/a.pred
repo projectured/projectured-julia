@@ -1,0 +1,42 @@
+BookChapter(
+    title = "Introduction",
+    numbering = "1",
+    elements = [
+        BookParagraph(
+            content = TextBlock(
+                elements = [
+                    TextLine(
+                        elements = [
+                            TextString(
+                                content = "Alice writes a book.",
+                                font = ACStyleFont(
+                                    family = "Ubuntu Mono",
+                                    size = 20,
+                                    weight = 400,
+                                    italic = false,
+                                ),
+                                font_color = ACStyleColor(
+                                    red = 0.00392156862745098,
+                                    green = 0.00392156862745098,
+                                    blue = 0.00392156862745098,
+                                    alpha = 1.0,
+                                ),
+                                fill_color = nothing,
+                                line_color = nothing,
+                                padding = nothing,
+                                pointer_shape = nothing,
+                            ),
+                        ],
+                        indentation = 0,
+                        gutter = nothing,
+                        fold = nothing,
+                        soft_breaks = [],
+                    ),
+                ],
+            ),
+            alignment = :left,
+            collapsed = false,
+        ),
+    ],
+    collapsed = false,
+)

@@ -1,0 +1,17 @@
+ResearchQuestion(
+    id = "Q1",
+    statement = PrimitiveString(
+        value = "Which queue capacity keeps the drop rate low?",
+    ),
+    criterion = PrimitiveString(
+        value = "the drop rate",
+    ),
+    purpose = PrimitiveString(
+        value = "the capacity",
+    ),
+    parent = nothing,
+    elements = [],
+    status = :open,
+    author = :person,
+    time = "2026-10-27T10:00:00Z",
+)
