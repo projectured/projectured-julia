@@ -70,7 +70,8 @@ export export_document
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
        save_file_to_disk!, reload_file_from_disk!,
        compute_file_text, compute_file_text_hash, compute_file_stamp, read_file_content_again,
-       make_unread_file, ensure_file_text_cell!, demand_file_text, is_file_stale, ApplyFileTextOperation
+       make_unread_file, ensure_file_text_cell!, demand_file_text, make_picture_span, is_file_stale,
+       ApplyFileTextOperation
 export get_file_icon, make_file_note
 export FileToContent
 export FileView, make_file_view, FileViewToWidget, KeepFileEditsOperation, receive_file_change!

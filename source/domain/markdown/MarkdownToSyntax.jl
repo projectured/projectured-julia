@@ -475,8 +475,8 @@ function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceS
 end
 
 # ── MarkdownImageToStyledNode (rendered; real image via TextGraphics) ─────────
-# An `alt` caption above the decoded image (from `url`), falling back to the url
-# text when the file is not on disk. Modelled on BookPictureToSyntaxLeaf.
+# An `alt` caption above the picture that the image holds, falling back to the url
+# text when it holds none. Modelled on BookPictureToSyntaxLeaf.
 #   .alt[k] → .children[1].value[k]   .url[k] → .children[2].value[k]
 
 @projection UntrackedCell struct MarkdownImageToStyledNode
@@ -484,18 +484,14 @@ end
     placeholder::StyleText   = get_markdown_style(nothing, :marker_text)
 end
 
-# The image span: an inline `TextGraphics` with an `Image` when `url` names a file
-# on disk (sized to its natural extent, capped at `max_w`, and 720 by 460 until the
-# size of its file is read, not until its pixels are); otherwise the url / a placeholder as text.
-function _md_image_value(url, placeholder::StyleText; max_w::Int = 640)
-    if url isa AbstractString && !isempty(url) && isfile(String(url))
-        img  = Image(String(url))
-        _nat(i, fb) = (size = get_image_natural_size(img); size === nothing ? fb : Int(size[i]))
-        dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
-        dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
-        return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    end
-    TextString(isempty(String(url)) ? "image" : String(url), placeholder)
+# The image span: the picture file that the image holds for its url
+# (`make_picture_span`), and otherwise the url, or a placeholder, as text. It reads
+# no disk.
+function _md_image_value(image::MarkdownImage, placeholder::StyleText)
+    url = image.url
+    file = find_held_picture(image.picture, url)
+    file === nothing || return make_picture_span(file)
+    TextString(isempty(url) ? "image" : String(url), placeholder)
 end
 
 function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
@@ -514,7 +510,7 @@ function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownIm
                          placeholder = "image",
                          style = p.caption_style);
         selection=alt_sel)
-    img_leaf = SyntaxLeaf(_md_image_value(doc.url, p.placeholder); selection=url_sel)
+    img_leaf = SyntaxLeaf(_md_image_value(doc, p.placeholder); selection=url_sel)
     node = SyntaxNode(CellVector(Cell[Cell(alt_leaf), Cell(img_leaf)]); sep=TextString("\n", p.placeholder))
     SimpleIoMap(p, doc, node)
 end

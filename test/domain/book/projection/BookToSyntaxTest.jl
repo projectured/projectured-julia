@@ -87,8 +87,51 @@ para(text) = BookParagraph(TextBlock(TextLine(TextString(text))))
 
     @testset "the picture span asks for the size of its file" begin
         file = normpath(joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image", "file.png"))
+        held = ImageFile(file)
         ProjecturedPlatformTest.test_image_span_size_work(file) do
-            print_document(b2s, BookPicture(file, "logo")).output.children[2].value
+            picture = BookPicture(file, "logo")
+            picture.picture = file => held
+            print_document(b2s, picture).output.children[2].value
+        end
+        # A picture file in the content, as a `.pred` file gives it, draws that file.
+        @test print_document(b2s, BookPicture(held, "logo")).output.children[2].value.content === held
+        # A path that the picture holds no file for shows the path as text.
+        @test print_document(b2s, BookPicture(file, "logo")).output.children[2].value isa TextString
+    end
+
+    @testset "a picture of a book in a file in a tab holds one picture of its path" begin
+        asset = normpath(joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image"))
+        folder = mktempdir()
+        chart = joinpath(folder, "chart.png")
+        cp(joinpath(asset, "file.png"), chart)
+        book = BookBook("Guide")
+        push!(book.elements, BookPicture("chart.png", "Chart"))
+        push!(book.elements, BookPicture("https://example.org/a.png", "Web"))
+        path = joinpath(folder, "guide.pred")
+        write(path, print_pred_text(book))
+        editor = build_editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                              backend = HeadlessBackend(), devices = Device[], window = false, tabs = true,
+                              appearance = false, settings = false, file_change = true)
+        try
+            # The window holds its tabs before the file opens.
+            drain_operations!(editor)
+            run_frame!(editor)
+            store = get_session_file_change_store(; editor)
+            tab = open_file!(path; editor)
+            drain_operations!(editor)
+            run_frame!(editor)
+            elements = get_edited_document(find_open_file_document(path; editor)).elements
+            picture = find_open_file_document(chart; editor)
+            @test picture isa ImageFile && elements[1].picture == ("chart.png" => picture)
+            @test elements[2].picture === nothing
+            @test is_document_held(editor, picture) && count(watch -> watch.receiver === picture, store.files) == 1
+            @test print_document(b2s, elements[1]).output.children[2].value.content === picture
+            close_pane!(tab; editor)
+            drain_operations!(editor)
+            run_frame!(editor)
+            @test find_open_file_document(chart; editor) === nothing
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
         end
     end
 

@@ -3,7 +3,8 @@
 # A cross-file reference is written in reStructuredText as a `pred-ref`
 # directive whose argument is the marker. The file writes one where the save
 # cuts, and the load splices the node it names into its place. The `section`
-# verb, which names a section by its title, lives here too.
+# verb, which names a section by its title, and the pictures that the figures and
+# the images of a file hold live here too.
 
 """
     RstFile(filename, content)
@@ -130,3 +131,40 @@ function _section_titles(document, acc = String[])
     end
     acc
 end
+
+# ── The pictures of the figures and the images ─────────────────────────────
+# A figure and an image hold the editor's one file document of the picture that their
+# path names, as an image of a Markdown page does: the open and each load of the file
+# give it, against the folder of the file; the root holds its figures and images while
+# a holder holds the file, and each holds its picture. A url of the web and a path of a
+# file that is not a picture name no picture. An edit changes no hold.
+
+get_view_state_fields(::Type{<:Union{RstFigure, RstImage}}) = (:picture,)
+
+function splice_named_file!(node::Union{RstFigure, RstImage}, find_file)
+    path = node.path
+    (find_web_url(path) === nothing && is_picture_file_path(path)) || return nothing
+    file = find_file(path)
+    file isa ImageFile && (node.picture = path => file)
+    nothing
+end
+
+acquire_document!(editor, node::Union{RstFigure, RstImage}) =
+    hold_documents!(editor, node, _collect_held_pictures(node))
+release_document!(editor, node::Union{RstFigure, RstImage}) =
+    release_held_documents!(editor, node, _collect_held_pictures(node))
+
+# The picture file that `node` holds for its path now, as the only element.
+function _collect_held_pictures(node::Union{RstFigure, RstImage})
+    file = find_held_picture(node.picture, node.path)
+    file === nothing ? Any[] : Any[file]
+end
+
+acquire_document!(editor, root::RstRoot) = hold_documents!(editor, root, _collect_rst_pictured_nodes(root))
+release_document!(editor, root::RstRoot) =
+    release_held_documents!(editor, root, _collect_rst_pictured_nodes(root))
+
+# Each figure and each image of the file `root`, at any depth.
+_collect_rst_pictured_nodes(root::RstRoot) =
+    Any[walk_document(DocumentWalk(), root, node -> node isa Union{RstFigure, RstImage};
+                      limit = nothing, enter_matches = false)...]

@@ -35,6 +35,14 @@ A link follows its target with the target form of `OpenPageOperation` ([navigato
 
 A `MarkdownLink` is a link of the slice `link` ([link.md](../../platform/link/link.md)): `get_link_target` answers `Url(url)`, and `get_link_content` its inline parts. So a view that shows any link, such as `LinkToWidget`, shows a link of Markdown too.
 
+### Images
+
+A `MarkdownImage` holds the picture that its url names in its field `picture`, as `url => file`, where `file` is the editor's one `ImageFile` of the path. The field is view state, so no save writes it, and the text of the page names only the url. The open and each load of the page give it: `splice_held_files!` calls `splice_named_file!` for each part of a file that enters the editor, and the method of `MarkdownImage` asks the editor for the file of its url, against the folder of the page. A web url and a path of a file that is not a picture (`is_picture_file_path`) get no picture, so an image never holds a page.
+
+The image holds its picture as a tab holds the file that it shows. `MarkdownRoot` holds each of its images while a holder holds the page: a tab holds the root as a layer, and a file document holds its edited document, so a card holds it too. So the editor watches each picture file once, and the rendered view draws each rewrite of it. The span of the rendered view is `make_picture_span(file)`: it reads no disk, it asks for the read of the file when a layout asks for its size, and the paint asks for the pixels. An image that holds no picture for its url shows the url as text.
+
+An edit changes no hold. An image that an edit adds, or whose url an edit changes, holds no picture until the next load of the page, and it shows its url until then.
+
 ### Views
 
 Four Markdown types have a view ([MarkdownView.jl](../../../../source/domain/markdown/MarkdownView.jl)), all subtypes of `MarkdownView <: ContentView`:

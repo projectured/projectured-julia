@@ -1,5 +1,5 @@
-# A Markdown image whose url names a file on disk renders an inline image in the
-# rendered view: one position of the flat caret space of `SyntaxToText`. Every
+# A Markdown image that holds the picture file of its url renders an inline image in
+# the rendered view: one position of the flat caret space of `SyntaxToText`. Every
 # walk over it runs without an error, and an edit of the image through its syntax
 # declines, so the image stays in the document.
 
@@ -12,7 +12,14 @@ rendered view, and Backspace and Delete at each caret of the rendered view.
 function test_markdown_image_leaf()
 @testset "a markdown image with a real image file" begin
     image = joinpath(@__DIR__, "..", "..", "..", "asset", "image", "file.png")
-    make_document() = MarkdownRoot([MarkdownParagraph([MarkdownText("see "), MarkdownImage("logo", image),
+    # The image holds its picture, as the open of its page gives it.
+    function make_held_image(path, picture = ImageFile(path))
+        node = MarkdownImage("logo", path)
+        node.picture = path => picture
+        node
+    end
+    picture = ImageFile(image)
+    make_document() = MarkdownRoot([MarkdownParagraph([MarkdownText("see "), make_held_image(image, picture),
                                                        MarkdownText(" the end.")])])
     measure = FixedMeasure(10, 12, 4, 0)
     projections = (plain = () -> make_markdown_projection_example(measure = measure),
@@ -49,8 +56,9 @@ function test_markdown_image_leaf()
     # The image span asks for the size of its file, and the pixels have no read.
     @testset "the image span asks for the size" begin
         file = normpath(image)
+        held = ImageFile(file)
         ProjecturedPlatformTest.test_image_span_size_work(file) do
-            node = print_document(MarkdownImageToStyledNode(), nothing, MarkdownImage("logo", file),
+            node = print_document(MarkdownImageToStyledNode(), nothing, make_held_image(file, held),
                                   PrinterContext()).output
             node.children[2].value
         end

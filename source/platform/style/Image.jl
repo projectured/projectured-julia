@@ -225,7 +225,8 @@ document that no other place shares. A holder that must follow the file asks the
 editor for its one file document of the path with `open_file_document!`.
 
 Use it to show a picture file in a card of a dashboard or in a zoom tab. The card
-and the tab show the new picture after a program writes the file again.
+and the tab show the new picture after a program writes the file again. An image of
+a page holds the picture that it names in the same way ([`splice_named_file!`](@ref)).
 
 # Example
 
@@ -270,3 +271,28 @@ shows a picture file thus draws its picture.
     picture_1 = get_shown_picture(ImageFile("media/throughput.png"))   # an Image
 """
 get_shown_picture(content) = content isa ImageFile ? get_edited_document(content) : content
+
+"""
+    is_picture_file_path(path) -> Bool
+
+Whether the file at `path` is a picture file, an [`ImageFile`](@ref), by its
+extension. It reads no disk. An image of a page that names a picture by a path asks
+it before it takes a file document of the path, so an image never holds a page.
+
+# Example
+
+    is_picture_file_path("media/throughput.png")   # true
+    is_picture_file_path("notes.md")               # false
+"""
+is_picture_file_path(path::AbstractString) =
+    has_file_document_type(path) && get_file_document_type(path) <: ImageFile
+
+"""
+    find_held_picture(picture, path) -> ImageFile or nothing
+
+The picture file that an image holds for the path `path` that it writes now. An image
+keeps the file of its picture with the path that named it, as `path => file`, so
+after an edit of its path it holds no picture for the new path, and `nothing` comes.
+"""
+find_held_picture(picture, path::AbstractString) =
+    picture isa Pair && picture.first == path ? picture.second : nothing

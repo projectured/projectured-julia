@@ -1235,22 +1235,15 @@ function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op:
 end
 
 # ── The picture ───────────────────────────────────────────────────────────────
-# A figure and an image draw the file `path` names, read on a task and capped in
-# width; a path that is not on disk falls back to the path as text. Modelled on
-# the markdown rendered image.
+# A figure and an image draw the picture file that they hold for their path
+# (`make_picture_span`); one that holds none shows the path as text. It reads no
+# disk. Modelled on the markdown rendered image.
 
-function _rst_picture(path, placeholder::StyleText; max_w::Int = 640)
-    if path isa AbstractString && !isempty(path) && isfile(String(path))
-        image = Image(String(path))
-        natural(i, fallback) = (size = get_image_natural_size(image); size === nothing ? fallback : Int(size[i]))
-        width  = Cell(@computation Int32(min(natural(1, 720), max_w)))
-        height = Cell(@computation begin
-            w = min(natural(1, 720), max_w)
-            Int32(round(Int, natural(2, 460) * w / natural(1, 720)))
-        end)
-        return TextGraphics(Cell(image), width, height, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    end
-    TextString(isempty(String(path)) ? "image" : String(path), placeholder)
+function _rst_picture(node::Union{RstFigure, RstImage}, placeholder::StyleText)
+    path = node.path
+    file = find_held_picture(node.picture, path)
+    file === nothing || return make_picture_span(file)
+    TextString(isempty(path) ? "image" : String(path), placeholder)
 end
 
 @projection UntrackedCell struct RstFigureToStyledNode
@@ -1260,7 +1253,7 @@ end
 
 @rst_flat RstFigureToStyledNode RstFigure (prj, doc, indent) ->
     SyntaxConcatenation([
-        SyntaxLeaf(_rst_picture(doc.path, prj.placeholder)),
+        SyntaxLeaf(_rst_picture(doc, prj.placeholder)),
         SyntaxNode(collection(:caption);
                    open=make_text_block(() -> isempty(doc.caption) ? "" : "\n" * indent, prj.caption_style),
                    sep=TextString("\n" * indent, prj.caption_style),
@@ -1307,7 +1300,7 @@ end
 end
 
 @rst_flat RstImageToStyledNode RstImage (prj, doc, indent) ->
-    SyntaxLeaf(_rst_picture(doc.path, prj.placeholder))
+    SyntaxLeaf(_rst_picture(doc, prj.placeholder))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Dispatcher

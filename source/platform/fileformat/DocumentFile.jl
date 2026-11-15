@@ -578,9 +578,15 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
     content = op.content === nothing ? _read_file_again(file) : op.content
     content = _splice_open_files!(editor, file, content)
+    loaded_from = get_edited_document(file)
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file), content)
+    # A held file holds its edited document, so the hold moves to the new one, and
+    # what the new document holds, such as the pictures of a page, is held.
+    loaded = get_edited_document(file)
+    (loaded === loaded_from || loaded === file || loaded_from === file) ||
+        evaluate_operation(editor, ChangeHeldDocumentsOperation(file, Any[loaded_from], Any[loaded]))
     state = get_file_disk_state(file)
     if op.file_hash !== nothing
         state.file_hash = op.file_hash
@@ -867,6 +873,35 @@ function demand_file_text(file::FileDocument)
     box === nothing && return nothing
     state.read_count > state.loaded_count && box.cell[]
     nothing
+end
+
+"""
+    make_picture_span(file; max_width = 640) -> TextGraphics
+
+The inline span of a text that draws the picture of the picture file `file`, such as
+an image of a page draws. The span holds the file and draws the picture that the file
+holds, so it draws each rewrite of the file. Its size is the natural size of the
+picture, capped at `max_width`, and 720 by 460 until the size is read. The span asks
+for the read of the file when a layout asks for its size, and the paint asks for the
+pixels, so a span that no layout reaches reads nothing.
+
+# Example
+
+    span_1 = make_picture_span(open_file_document!("media/throughput.png"))
+"""
+function make_picture_span(file::ImageFile; max_width::Int = 640)
+    natural(index, fallback) = begin
+        demand_file_text(file)
+        picture = get_shown_picture(file)
+        size = picture isa Image ? get_image_natural_size(picture) : nothing
+        size === nothing ? fallback : Int(size[index])
+    end
+    width = Cell(@computation Int32(min(natural(1, 720), max_width)))
+    height = Cell(@computation begin
+        shown = min(natural(1, 720), max_width)
+        Int32(round(Int, natural(2, 460) * shown / natural(1, 720)))
+    end)
+    TextGraphics(Cell(file), width, height, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 
 """

@@ -251,20 +251,31 @@ end
 # the watch. The file is the receiver of its own file. An editor with no file change
 # feed watches nothing. The open files of the editor list the file while it is held.
 # The file reads its text when it is drawn, so a file that is held and not drawn reads
-# nothing.
+# nothing. The file holds its edited document, past the history, so a part of the
+# document that holds a file, such as an image of a page that holds its picture, holds
+# it in a card as in a tab; a load moves that hold to the new document.
 function acquire_document!(editor, file::FileDocument)
     ensure_file_text_cell!(file)
     watch_document_file!(file; store = find_file_change_store(editor))
     # A file that changed while it was not held counts as a change.
     is_file_stale(file) && receive_file_change!(editor, file)
     add_open_file!(editor, file)
+    hold_documents!(editor, file, _collect_file_held_documents(file))
     nothing
 end
 
 function release_document!(editor, file::FileDocument)
+    release_held_documents!(editor, file, _collect_file_held_documents(file))
     unwatch_document_file!(file; store = find_file_change_store(editor))
     remove_open_file!(editor, file)
     nothing
+end
+
+# The edited document of `file`, which the file holds, or none for a file that is its
+# own content.
+function _collect_file_held_documents(file::FileDocument)
+    document = get_edited_document(file)
+    document === file ? Any[] : Any[document]
 end
 
 """

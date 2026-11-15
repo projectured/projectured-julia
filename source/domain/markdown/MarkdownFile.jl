@@ -3,7 +3,8 @@
 # A cross-file reference is written in Markdown as a fenced block in the
 # `pred-ref` language holding the marker. The file writes one where the save
 # cuts, and the load splices the node it names into its place. The `section`
-# verb, which names what a heading heads, lives here too.
+# verb, which names what a heading heads, and the pictures that the images of a
+# page hold live here too.
 
 """
 The info string that tags a fenced code block as a cross-file marker:
@@ -137,3 +138,40 @@ _heading_texts(elements) =
 # because the registry holds one function per verb name. Markdown adds its method
 # here; RST adds its own.
 get_document_section(root::MarkdownRoot, title::AbstractString) = get_markdown_section(root, title)
+
+# ── The pictures of the images ─────────────────────────────────────────────
+# An image holds the editor's one file document of the picture that its url names,
+# as a tab holds the file that it shows, so the editor watches each picture file once
+# and the image draws each rewrite of it. The open and each load of the page give the
+# image its picture, against the folder of the page; the page holds its images while a
+# holder holds the page, and each image holds its picture. A url of the web and a path
+# of a file that is not a picture name no picture. An edit changes no hold: an image
+# that an edit adds, or whose url an edit changes, has no picture until the next load.
+
+get_view_state_fields(::Type{<:MarkdownImage}) = (:picture,)
+
+function splice_named_file!(image::MarkdownImage, find_file)
+    url = image.url
+    (find_web_url(url) === nothing && is_picture_file_path(url)) || return nothing
+    file = find_file(url)
+    file isa ImageFile && (image.picture = url => file)
+    nothing
+end
+
+acquire_document!(editor, image::MarkdownImage) = hold_documents!(editor, image, _collect_held_pictures(image))
+release_document!(editor, image::MarkdownImage) =
+    release_held_documents!(editor, image, _collect_held_pictures(image))
+
+# The picture file that `image` holds for its url now, as the only element.
+function _collect_held_pictures(image::MarkdownImage)
+    file = find_held_picture(image.picture, image.url)
+    file === nothing ? Any[] : Any[file]
+end
+
+acquire_document!(editor, root::MarkdownRoot) = hold_documents!(editor, root, _collect_markdown_images(root))
+release_document!(editor, root::MarkdownRoot) =
+    release_held_documents!(editor, root, _collect_markdown_images(root))
+
+# Each image of the page `root`, at any depth.
+_collect_markdown_images(root::MarkdownRoot) =
+    Any[walk_document(DocumentWalk(), root, node -> node isa MarkdownImage; limit = nothing, enter_matches = false)...]

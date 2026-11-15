@@ -558,13 +558,13 @@ end
     placeholder::StyleText = get_book_style(nothing, :placeholder_text)
 end
 
-# The value span for a picture's content: when the content is a path to an image
-# file on disk, an inline `TextGraphics` carrying an `Image` (which
-# `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image, sized to its
-# natural extent capped at `max_w`, and 720 by 460 until its pixels are read);
-# otherwise the path/placeholder text.
+# The value span for a picture's content: the picture file that the picture shows
+# (`find_book_picture_file`), as an inline `TextGraphics` (`make_picture_span`), which
+# `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image; otherwise the
+# path/placeholder text. It reads no disk.
 # The field type on `SyntaxLeaf.value` is only a hint — the Cell holds either.
-function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
+function _picture_leaf_value(picture::BookPicture, placeholder::StyleText)
+    content = picture.content
     if content isa GraphicsDocument
         # A pre-projected sub-document (e.g. a `WidgetTable` run through
         # `WidgetToGraphics`, or any ad-hoc `GraphicsCanvas`): embed the graphics
@@ -575,13 +575,8 @@ function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
         gh = Cell(@computation Int32(hasproperty(content, :h) ? Int(content.h) : 0))
         return TextGraphics(Cell(content), gw, gh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
-    if content isa AbstractString && !isempty(content) && isfile(String(content))
-        img  = Image(String(content))
-        _nat(i, fb) = (size = get_image_natural_size(img); size === nothing ? fb : Int(size[i]))
-        dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
-        dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
-        return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    end
+    file = find_book_picture_file(picture)
+    file === nothing || return make_picture_span(file)
     TextString(content === nothing ? "enter picture path" : string(content), placeholder)
 end
 
@@ -597,7 +592,7 @@ end
         [ SyntaxLeaf(bound(:title, String,
                            TextString(() -> isempty(doc.title) ? "untitled" : doc.title, prj.style))),
           SyntaxLeaf(bound(:content, String,
-                           _picture_leaf_value(doc.content, prj.placeholder))) ];
+                           _picture_leaf_value(doc, prj.placeholder))) ];
         sep=TextString("\n", prj.placeholder))
 
 # The newline `sep` between caption and figure is a projection-introduced position
