@@ -374,7 +374,8 @@ function test_explorer()
         (_, x, y) = texts[argmax([entry[2] for entry in texts])]
         _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
         file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
-        place = file * ".document.content.entries[1].value.value{0}"
+        # The content of the file is its history, and the JSON is the content of the history.
+        place = file * ".document.content.content.entries[1].value.value{0}"
         @test selected() == place
         # The row of another file takes the keys, then a double press on the row of
         # the file puts them back: the file, its document and the place in the JSON.

@@ -784,6 +784,50 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         `test_referenced_document_editor()`, `test_filechange()` and `test_explorer()`. The last
         two open files in an editor with no settings, and such a file now has a history. In
         omnet-julia: `test_ide_file_navigator()`.
+      **Done in projectured-julia on 2026-11-15 (branch `file-open`):** the history, the marks,
+      the docstrings, the guide and the tests. **Open:** the INI link of omnet-julia (see the last
+      fact below).
+      What the implementation found (2026-11-15, branch `file-open`):
+      - `_make_editor_history_wrap(editor)` is
+        `make_history_wrap(something(find_editor_settings(; editor), Settings()))`. The file-system
+        slice uses the settings slice for `Settings`, which comes before it in the include order.
+        A `Settings()` holds only the groups that a call asks for, so it makes only
+        `HistorySettings`, with its default of 100 steps.
+      - Besides the docstrings that the step names, two more named the old state:
+        `OpenFileOperation` said that the open gives a history only when the editor has settings,
+        and the marked docstring of `ImageFile` named `make_file_tab`. Both are changed. The
+        docstrings of `make_file_tab` and `make_file_tab_content` say that each makes a new
+        document that no other place shares, and name `open_file_document!` and `open_file!`.
+      - `ApplicationTest` asked for `:make_file_tab` among the names of the assistant. It asks for
+        `:open_file!` now, and that neither builder is offered.
+      - The new test set "each file that an editor with no settings makes keeps a history" in
+        `FileChangeStoreTest.jl` opens a tab with `open_file!` and gets a card document with
+        `open_file_document!` in an editor with no settings: each content is an `UndoBuffer` of
+        100 steps whose `has_unsaved_edits` answers `false`, not `nothing`.
+      - `test_explorer()` expected the selection path of a JSON file in an editor with no
+        settings as `….document.content.entries[1]…`. The content of the file is its history now,
+        so the path is `….document.content.content.entries[1]…` (`ExplorerTest.jl:377`).
+      - `test_open_page_operation()` asserted that a file which a link opens in an editor with no
+        settings has no history. The set "a target that names a file opens it with a navigator, in
+        a history" now asserts a history in both editors (`OpenPageOperationTest.jl:315`).
+      - Eight more test functions open a file in an editor with no settings, so they run too:
+        `test_background_work()`, `test_open_page_operation()`, `test_window_wrappers()`,
+        `test_assistant_work()`, `test_window_shell()` and `test_work_plan()` of the platform, and
+        `test_markdown_link_target()` with `test_markdown_link_gestures()` of Markdown.
+      - The results on the branch: `test_filechange()` 241 pass and 1 broken, as on main;
+        `test_explorer()` 507 pass; `test_open_page_operation()` 103 pass; the other five
+        platform functions pass; the two Markdown functions 14 and 18 pass;
+        `test_assistant_verbs()` 98 pass; `test_referenced_document_editor()` 134 pass.
+        `test_application()` gives 412 pass, 1 fail and 2 broken: the fail is the usage text of
+        an agent bar (`ApplicationTest.jl:1016`), which fails on main too.
+        `test_assistant_documentation()` gives 2889 pass and 4 errors: the three range functions
+        of `ReferenceModule` and `describe_task`, which fail on main too.
+      - The INI link of omnet-julia can not simply call `open_file_document!`. A new document of
+        that call reads its file only when a view draws it, and the link finds its section with
+        `find_navigator_target(file, section)` at the click, so an unread file has no section.
+        On main the link reads the file in the gesture answer with `make_file_tab(path)`, which
+        is a read of the disk in a reader. A listing does not call the answer, because the
+        bindings of the link have no name. Asked the owner on 2026-11-15.
 - [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in

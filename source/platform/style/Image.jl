@@ -220,7 +220,7 @@ to the `read_count` of the picture that the file keeps. Making an `ImageFile` re
 nothing: not a byte of the file, and not its time or its size.
 
 The extensions `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif` are this type, so
-`make_file_tab` and the open of a file make one. `ImageFile(filename)` makes a new
+the open of a file and `open_file_document!` make one. `ImageFile(filename)` makes a new
 document that no other place shares. A holder that must follow the file asks the
 editor for its one file document of the path with `open_file_document!`.
 

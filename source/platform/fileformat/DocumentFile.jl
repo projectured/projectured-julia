@@ -153,15 +153,16 @@ application gives every file it opens an overlay of its own â€” a history, say â
 without this layer naming one. A file that is its own content is its content, so
 `wrap` is applied to the file, and the result is what `wrap` makes.
 
-Use it to make the document of a file, with the content that the file holds on the disk.
+The answer is a new document, which no other place shares. The open of a tab calls
+it for a file that no place of the editor holds yet. To get the one document of a
+path that each place of an editor shares, use [`open_file_document!`](@ref) or
+`open_file!`.
 
 # Example
 
     file_1 = make_file_tab("notes.json")
 
 See also `make_file_tab_content` and `read_document_file`.
-
-For the assistant.
 """
 function make_file_tab end
 
@@ -225,16 +226,16 @@ it read ([`make_file_tab`](@ref)). The scroll is made here, where a file tab is 
 and not by the tab, because a tab page gets no scroll of its own: a page can hold two
 parts that each scroll.
 
-Use it to open a file in a tab.
+The file is a new document, as [`make_file_tab`](@ref) makes it, which no other
+place shares. A window calls it for the files that it shows at its start. To open a
+file in a tab of an editor, use `open_file!`, which gives the tab the one
+document of the path that each place of the editor shares.
 
 # Example
 
     content_1 = make_file_tab_content("notes.json")
-    open_pane!(content_1; title = "notes.json")
 
-See also `make_file_tab` and `open_pane!`.
-
-For the assistant.
+See also `make_file_tab` and `open_file!`.
 """
 function make_file_tab_content end
 

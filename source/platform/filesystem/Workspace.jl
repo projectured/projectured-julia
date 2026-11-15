@@ -105,7 +105,7 @@ Use it to show the files of a folder in a tab.
     workspace_1 = Workspace([WorkspaceFolder("data", "/home/person/data")])
     open_pane!(workspace_1; title = "Explorer")
 
-See also `WorkspaceFolder` and `make_file_tab_content`.
+See also `WorkspaceFolder` and `open_file!`.
 
 For the assistant.
 """

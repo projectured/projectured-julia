@@ -653,6 +653,35 @@ function test_file_change_store()
             end
         end
 
+        @testset "each file that an editor with no settings makes keeps a history" begin
+            folder = mktempdir()
+            tab_path = joinpath(folder, "tab.txt")
+            card_path = joinpath(folder, "card.txt")
+            write(tab_path, "one\n")
+            write(card_path, "one\n")
+            editor = build_editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend = HeadlessBackend(), devices = Device[], window = false, tabs = true,
+                                  appearance = false, settings = false, file_change = true)
+            try
+                run_frame!(editor)
+                @test ProjecturedPlatform.SettingsManagingModule.find_editor_settings(; editor) === nothing
+                # The open of a tab and the document that a card gets each have a history of
+                # the default length, so each says whether the person edited the file.
+                open_file!(tab_path; editor)
+                run_frame!(editor)
+                tab_file = find_open_file_document(tab_path; editor)
+                card_file = open_file_document!(card_path; editor)
+                for file in (tab_file, card_file)
+                    history = get_file_content(file)
+                    @test history isa UndoBuffer
+                    @test history.capacity == ProjecturedPlatform.UndoModule.HistorySettings().undo_capacity
+                    @test has_unsaved_edits(history) === false
+                end
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        end
+
         @testset "a file that is released and held again reads the change at its next draw" begin
             path = joinpath(mktempdir(), "shared.txt")
             write(path, "one\n")

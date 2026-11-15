@@ -39,6 +39,7 @@ using ..ReferenceModule
 using ..SelectionModule
 using ..SerializationModule
 using ..SettingsManagingModule
+using ..SettingsModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
