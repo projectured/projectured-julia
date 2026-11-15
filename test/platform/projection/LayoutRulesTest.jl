@@ -113,7 +113,7 @@ const _RULES_KINDS = Dict{Symbol,Any}(
     :GridLayout         => (() -> GridLayout(Any[WidgetLabel("R$(r)C$(c)") for r in 1:2 for c in 1:2], 2), :places, :places),
     :FlowLayout         => (() -> FlowLayout(Any[WidgetLabel(word) for word in split(_RULES_TEXT)]), :reflowing, :places),
     :StackLayout        => (() -> StackLayout(Any[WidgetLabel("Back"), WidgetLabel("Front")]), :places, :places),
-    :ScrollLayout       => (() -> ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1")), :places, :places),
+    :ScrollLayout       => (() -> ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1")), :fills, :places),
     :AnchoredLayout     => "an anchored layout places its entries by the points of its content",
     :ConstraintLayout   => "a constraint layout sizes its children by its solver",
 )
@@ -160,22 +160,7 @@ end
 # The widget types, each with an axis, that draw their content, and not the exact
 # size, in an exact range less than their content.
 # @broken: a widget does not yet take an exact size less than its content; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
-const _RULES_EXACT_BROKEN = Set{Tuple{Symbol,Symbol}}([
-    (:WidgetAccordion, :height), (:WidgetAccordion, :width), (:WidgetAlert, :height),
-    (:WidgetBadge, :height), (:WidgetBadge, :width), (:WidgetButton, :height),
-    (:WidgetButton, :width), (:WidgetCard, :height), (:WidgetComposite, :height),
-    (:WidgetComposite, :width), (:WidgetFactGroup, :height), (:WidgetFactGroup, :width),
-    (:WidgetLabel, :height), (:WidgetLink, :height), (:WidgetLink, :width),
-    (:WidgetList, :width), (:WidgetMenuItem, :height), (:WidgetMenuItem, :width),
-    (:WidgetProgressRing, :height), (:WidgetProgressRing, :width), (:WidgetRadioGroup, :height),
-    (:WidgetRadioGroup, :width), (:WidgetSelect, :height), (:WidgetSelect, :width),
-    (:WidgetSpinBox, :height), (:WidgetSpinBox, :width), (:WidgetStatusBar, :height),
-    (:WidgetStatusBar, :width), (:WidgetText, :height), (:WidgetText, :width),
-    (:WidgetTextarea, :width), (:WidgetTitlePane, :height), (:WidgetTitlePane, :width),
-    (:WidgetToggle, :height), (:WidgetToggle, :width), (:WidgetToggleGroup, :height),
-    (:WidgetToggleGroup, :width), (:WidgetToolbar, :height), (:WidgetToolbar, :width),
-    (:WidgetToolbarItem, :height), (:WidgetToolbarItem, :width),
-])
+const _RULES_EXACT_BROKEN = Set{Tuple{Symbol,Symbol}}([])
 
 function _rules_check_type(name::Symbol, make, kinds)
     for (axis, kind) in zip((:width, :height), kinds)
@@ -240,12 +225,12 @@ end
 
 # The types whose sample draws past the extent that it reports in some state: the
 # border or the ring of a button, a radio group, a progress ring and an accordion, a
-# bar of no height, the content of a shell, a tabbed pane and a menu that its giver
-# cuts, a tooltip that caps, and a separator that draws past its authored size.
-# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/done/a-layout-paints-only-what-the-screen-shows.md, and for a separator plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
+# bar of no height, a tabbed pane and a menu that its giver cuts, and a tooltip
+# that caps.
+# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/done/a-layout-paints-only-what-the-screen-shows.md.
 const _RULES_INK_BROKEN = Set{Symbol}([
     :WidgetAccordion, :WidgetButton, :WidgetContextMenu, :WidgetMenu, :WidgetProgressRing,
-    :WidgetRadioGroup, :WidgetScrollBar, :WidgetSeparator, :WidgetShell, :WidgetTabbedPane,
+    :WidgetRadioGroup, :WidgetScrollBar, :WidgetTabbedPane,
     :WidgetTooltip])
 
 # Each state of a sample: no range, and the five ranges of `_rules_measure`, on each axis.
@@ -284,8 +269,11 @@ const _RULES_CUT_SAMPLES = Dict{String,Any}(
                               () -> WidgetSpinBox(1234567890123; width = 30), (:width,)),
     "WidgetList width" => (() -> WidgetList(Any["a", "b"]; width = 40),
                            () -> WidgetList(Any[_RULES_LONG_WORD, "b"]; width = 40), (:width,)),
-    "WidgetButton size" => (() -> WidgetButton("a"; size = Point2D(40, 10)),
-                            () -> WidgetButton(_RULES_LONG_WORD; size = Point2D(40, 10)), (:width, :height)),
+    # The bottom margin holds the shadow of a button, which lies below its border
+    # box (see `_RULES_INK_BROKEN`), so the sample checks the cut of the caption.
+    "WidgetButton size" => (() -> WidgetButton("a"; size = Point2D(40, 14), margin = Inset(0, 4, 0, 0)),
+                            () -> WidgetButton(_RULES_LONG_WORD; size = Point2D(40, 14), margin = Inset(0, 4, 0, 0)),
+                            (:width, :height)),
     "WidgetSelect width" => (() -> WidgetSelect("a"; options = Any["a"], width = 40),
                              () -> WidgetSelect(_RULES_LONG_WORD; options = Any[_RULES_LONG_WORD], width = 40),
                              (:width,)),
@@ -316,21 +304,7 @@ const _RULES_CUT_SAMPLES = Dict{String,Any}(
 
 # The samples whose long content draws past the box or makes the box larger.
 # @broken: a widget does not yet cut its content at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
-const _RULES_CUT_BROKEN = Set{String}([
-    "WidgetAccordion width",
-    "WidgetAlert width",
-    "WidgetAvatar size",
-    "WidgetButton size",
-    "WidgetCard height",
-    "WidgetCard width footer",
-    "WidgetCard width title",
-    "WidgetList width",
-    "WidgetSelect width",
-    "WidgetShell size",
-    "WidgetSpinBox width",
-    "WidgetText width",
-    "WidgetTextarea width rows",
-])
+const _RULES_CUT_BROKEN = Set{String}([])
 
 # With no range, the long content of a sample draws no ink past the box, and on each
 # axis on which the type sets its size the box is as large as with the short content.

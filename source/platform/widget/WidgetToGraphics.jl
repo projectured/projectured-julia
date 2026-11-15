@@ -282,6 +282,53 @@ function _push_box_parts!(elements::Vector, box::BoxGeometry, colors, content_wi
                  radius = max(0, radius - border_left - padding_left))
 end
 
+# Cut the content of a widget at the inner box of `box` (`layout-rules.md` §3b).
+# `elements[first:end]` is the content, drawn in the frame of the widget, and it
+# reaches `content_width` by `content_height` from the inner edge of the box, in a
+# widget whose outer extent is `width` by `height`. When it reaches past the inner
+# box on an axis, the content goes into one viewport at the inner box, so it draws
+# over neither the border of the widget nor the widget beside it. The canvas in the
+# viewport moves the content back by the place of the viewport, so each element
+# keeps its place in the frame of the widget. A content that fits keeps its
+# elements as they are.
+function _cut_content_at_box!(elements::Vector, first::Int, box::BoxGeometry, width::Int, height::Int,
+                              content_width::Int, content_height::Int)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    _cut_elements!(elements, first, content_x, content_y, max(0, width - inset_width),
+                   max(0, height - inset_height), content_width, content_height)
+end
+
+# Cut `elements[first:end]` at the rect `(x, y, width, height)` in their frame, when
+# they reach `reach_width` by `reach_height` from `(x, y)` and that passes the rect
+# on an axis: the elements go into one viewport at the rect, and keep their places.
+# A part of a widget that holds a content beside a mark of its own, such as the
+# value of a select beside its chevron, cuts the content at the rect of the content.
+function _cut_elements!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int,
+                        reach_width::Int, reach_height::Int)
+    (reach_width <= width && reach_height <= height) && return elements
+    _put_in_viewport!(elements, first, x, y, width, height)
+end
+
+# Put `elements[first:end]` into one viewport at the rect `(x, y, width, height)` in
+# their frame; the canvas in the viewport moves them back by the place of the
+# viewport, so each element keeps its place.
+function _put_in_viewport!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int)
+    first > length(elements) && return elements
+    content = elements[first:end]
+    deleteat!(elements, first:length(elements))
+    canvas = GraphicsCanvas(Int32(-x), Int32(-y), Int32(0), Int32(0),
+                            CellVector(Cell[Cell(element) for element in content]),
+                            layout_none, true, Cell(nothing))
+    push!(elements, GraphicsViewport(Int32(x), Int32(y), Int32(max(0, width)), Int32(max(0, height)), canvas))
+    elements
+end
+
+# The place of a content of `extent` in an inner box of `room` on one axis, from the
+# inner edge: `offset` when it fits, and the edge when it is larger, so a content
+# that is cut shows its start.
+_place_in_room(offset::Int, extent::Int, room::Int) = extent > room ? 0 : offset
+
 # Push the band of `sides` inside a rectangle whose origin and size are thunks:
 # each rect computes its geometry from them, so it follows the cells that the
 # thunks read without a print of the widget. A transparent band adds no element.
@@ -1398,12 +1445,11 @@ end
 # minimum and a maximum (`PrinterContext`); the widget draws
 # `max(minimum, content)`, or its authored size.
 #
-#   - an exact range (the minimum is the maximum) stretches the widget to it, so
-#     the widget takes its slot in a layout;
+#   - an exact range (the minimum is the maximum) is the size of the widget, so
+#     the widget takes its slot in a layout, and cuts a larger content at its box;
 #   - a bounded or a free range has no minimum, so the widget draws its content;
-#   - the widget never goes under its content — the measured content plus its
-#     padding — so content is never lost; the container clips what passes the
-#     maximum.
+#   - in a bounded or a free range the widget never goes under its content — the
+#     measured content plus its padding; an ancestor cuts what passes the maximum.
 #
 # A widget with no measurable content (progress, slider, skeleton) has a content
 # of 0 and sizes from the minimum or from its authored value.
@@ -1432,18 +1478,22 @@ end
 # content is smaller: an exact range stretches it to the slot, and a bounded or
 # a free range, whose minimum is 0, leaves it at its content.
 #
-# The content is a floor under the minimum, never under an authored size. A
-# widget told to be 40 wide draws 40 and lets its content overflow, because that
-# is what being told a size means. The maximum does not cut the widget: the
-# container clips what passes it.
+# An exact range is a size that is decided, and the widget takes it, as it takes
+# an authored size. In a bounded or a free range the content is a floor under the
+# minimum, so a stack can tell a child that is too big from one that fits. A
+# widget told to be 40 wide, or given exactly 40, draws 40 and cuts its content at
+# its box (`_cut_content_at_box!`). The maximum of a bounded range does not cut the
+# widget: an ancestor cuts what passes it.
 #
 # An authored size does not hold the space that the parent gives around the box
 # (`_get_given_space`), so the widget is the authored size and the space. The
-# content and the minimum hold the space.
+# content, the minimum and an exact range hold the space.
 function _resolve_size(ctx, axis::Symbol, authored::Int, content::Int=0)
     authored > 0 && return authored + _get_given_space_extent(ctx, axis)
-    minimum = ctx === nothing ? nothing :
-              axis === :x ? ctx.minimum_width : ctx.minimum_height
+    ctx === nothing && return content
+    exact = axis === :x ? get_exact_width(ctx) : get_exact_height(ctx)
+    exact === nothing || return max(0, Int(exact[]))
+    minimum = axis === :x ? ctx.minimum_width : ctx.minimum_height
     minimum === nothing ? content : max(0, Int(minimum[]), content)
 end
 
@@ -1978,18 +2028,24 @@ function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGe
         outer_height = _resolve_height(ctx, 0, text_height + inset_height)
         _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
                          radius)
+        first_content = length(elements) + 1
         append!(elements, text_elements)
+        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, text_width, text_height)
         return (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
     end
     # No size of its own, so the offer decides and the content is the floor.
-    # An image label fills what it is given; text stays where it is drawn.
+    # An image label fills what it is given; text stays where it is drawn, and the
+    # box cuts a text that is larger than the box.
     outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
     outer_height = _resolve_height(ctx, 0, content_height + inset_height)
+    reach_width, reach_height = content isa ImageDocument ? (0, 0) : (content_width, content_height)
     content_width, content_height = outer_width - inset_width, outer_height - inset_height
     _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+    first_content = length(elements) + 1
     _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
                    content_height; placeholder_color = p.placeholder_color)
     part === nothing || push!(drawn, DrawnTextLine(last(elements), part, 0))
+    _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, reach_width, reach_height)
     (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
 end
 
@@ -2409,16 +2465,19 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         _push_box_parts!(elems, box, _get_box_colors(p, w; state),
                          outer_w - inset_width, outer_h - inset_height; radius)
         w.quiet && _make_box_quiet!(elems, w)
+        # A press anywhere in the box of a field that takes edits puts the caret,
+        # and a press on a disabled field does nothing, also over its text.
+        margin_rect = _get_part_rect(box, :margin, outer_w, outer_h)
+        state === :disabled || push!(elems, GraphicsPointerShape(margin_rect..., :ibeam))
+        # The placeholder and the text are the content, which the box cuts.
+        first_content = length(elems) + 1
         if shows_placeholder
             style = placeholder_style
             push!(elems, GraphicsText(String(placeholder), content_x, content_y; font = style.font,
                                       color = style.color))
         end
-        # A press anywhere in the box of a field that takes edits puts the caret,
-        # and a press on a disabled field does nothing, also over its text.
-        margin_rect = _get_part_rect(box, :margin, outer_w, outer_h)
-        state === :disabled || push!(elems, GraphicsPointerShape(margin_rect..., :ibeam))
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
+        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]))
         state === :disabled && push!(elems, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elems, w, box, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.graphics_style)
@@ -2816,17 +2875,22 @@ function _build_button(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, box::Bo
                                   hovered_color = p.layer_hovered_color,
                                   pressed_color = p.layer_pressed_color, radius = corner_radius)
     # Lay out icon + label as one centered group; the icon tints to the label color
-    # (so it mutes with the button), the label sits to its right.
-    start_x = content_x + (inner_width - full_w) ÷ 2
-    cy = content_y + (inner_height - content_height) ÷ 2
+    # (so it mutes with the button), the label sits to its right. A group larger
+    # than the box starts at its inner edge, and the box cuts it.
+    first_content = length(elements) + 1
+    start_x = content_x + _place_in_room((inner_width - full_w) ÷ 2, full_w, inner_width)
+    cy = content_y + _place_in_room((inner_height - content_height) ÷ 2, full_h, inner_height)
     if icon_w > 0
-        _push_icon!(elements, icon, start_x, content_y + (inner_height - icon_sz) ÷ 2, icon_sz, label.color)
+        _push_icon!(elements, icon, start_x,
+                    content_y + _place_in_room((inner_height - icon_sz) ÷ 2, full_h, inner_height), icon_sz,
+                    label.color)
     end
     _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
                    content_height; placeholder_color = p.placeholder_color)
     drawn = DrawnTextLine[]
     _is_drawn_value(label_content) && !isempty(string(label_content)) &&
         push!(drawn, DrawnTextLine(last(elements), _ACTION_LABEL_PART, 0))
+    _cut_content_at_box!(elements, first_content, box, button_width, button_height, full_w, full_h)
     _push_focus_ring!(elements, w, box, button_width, button_height, p.focus_ring_stroke, corner_radius)
     # A press on a button that acts runs its action.
     enabled && push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, button_width, button_height)...,
@@ -3028,6 +3092,7 @@ function _build_link(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, box::BoxGeome
     outer_height = _resolve_height(ctx, 0, height + inset_height)
     _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
                      outer_height - inset_height)
+    _cut_content_at_box!(body, 1, box, outer_width, outer_height, width, height)
     append!(elements, body)
     _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
     _is_link_enabled(w) &&
@@ -3606,6 +3671,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         # the content. It reads the mouse target in cells of its own, so a light
         # changes no extent.
         needed.enabled && _push_hover_layer!(final, w, surface...; hovered_color = p.layer_hovered_color)
+        first_content = length(final) + 1
         append!(final, needed.elements)
         # The keys stand at the right edge of the item, so the keys of the items of
         # a menu make a column.
@@ -3614,6 +3680,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             _push_text!(final, p.measure, p.keys_text.font, needed.keys, right - needed.keys_width,
                         needed.keys_y, p.keys_text.color)
         end
+        _cut_content_at_box!(final, first_content, box, control_w, control_h, needed.width - needed.inset_width,
+                             needed.height - needed.inset_height)
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
     # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
@@ -3754,6 +3822,7 @@ function _build_toolbar_item(p::WidgetToolbarItemToGraphicsCanvas, w::WidgetTool
     enabled && _push_hover_layer!(drawn, w, surface...; hovered_color = p.layer_hovered_color,
                                   pressed_color = p.layer_pressed_color,
                                   stroke = p.layer_stroke, radius = p.corner_radius)
+    _cut_content_at_box!(elements, 1, box, width, height, content_width, content_height)
     append!(drawn, elements)
     (width = width, height = height, elements = drawn, drawn = lines)
 end
@@ -4053,6 +4122,21 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         end
         elems
     end))
+    # A composite in an exact range takes it, and cuts the children that reach
+    # past it at its inner box: the outer extent and the reach of the children, or
+    # `nothing` when they fit. The answer is plain data, so a change inside a child
+    # that keeps the fit builds nothing.
+    exact_width = ctx isa PrinterContext ? get_exact_width(ctx) : nothing
+    exact_height = ctx isa PrinterContext ? get_exact_height(ctx) : nothing
+    cut = Cell(@computation begin
+        (exact_width === nothing && exact_height === nothing) && return nothing
+        content_width, content_height = extent[]
+        inset_width, inset_height = _get_inset_total(geometry[])
+        width = exact_width === nothing ? content_width + inset_width : Int(exact_width[])
+        height = exact_height === nothing ? content_height + inset_height : Int(exact_height[])
+        (content_width + inset_width <= width && content_height + inset_height <= height) && return nothing
+        (width, height, content_width, content_height)
+    end)
     build = Cell(@computation begin
         content_x, content_y = _get_content_offset(geometry[])
         cims = child_cells[]
@@ -4061,6 +4145,8 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         for cim in cims
             push!(elems, _make_canvas(content_x, content_y, Any[cim.output]))
         end
+        reach = cut[]
+        reach === nothing || _cut_content_at_box!(elems, 2, geometry[], reach...)
         (elements=elems, child_iomaps=child_iomaps)
     end)
     # The ring over the element the composite's selection names as a whole.
@@ -4413,6 +4499,14 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         for (name, cim) in slots[]
             push!(elems, _make_canvas(get_band_left(name), Cell(@computation Int32(get_band_top(name))),
                                       Any[cim.output]))
+            # The shell gives its content a slot on each axis where it has a size,
+            # and cuts the content there.
+            if name === :content && (has_width || has_height) && cim.output isa GraphicsCanvas
+                content_width, content_height = Int(cim.output.w[]), Int(cim.output.h[])
+                _cut_elements!(elems, length(elems), get_band_left(name), Int(get_band_top(name)),
+                               has_width ? Int(avail_w_cell[]) : content_width,
+                               has_height ? Int(avail_h_cell[]) : content_height, content_width, content_height)
+            end
         end
         elems
     end)
@@ -4678,10 +4772,13 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
         _push_box_parts!(elems, box, _get_box_colors(p, w), box_content_width,
                          outer_height - inset_height)
         title_bar_color = _get_part_color(w, :title_bar_color, p.title_bar_color)
+        first_content = length(elems) + 1
         _push_panel!(elems, content_x, content_y0, box_content_width, th; fill = title_bar_color)
         # Card-like: bold title, body in the content style.
         _push_text!(elems, p.measure, title_text.font, title, content_x, content_y0, title_text.color)
         append!(elems, body_elems)
+        _cut_content_at_box!(elems, first_content, box, outer_width, outer_height, max(tw, cw),
+                             (content_y - content_y0) + ch)
         (width=outer_width, height=outer_height, elements=elems, child_iomaps=child_iomaps)
     end)
     WidgetChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps),
@@ -8347,7 +8444,9 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         elems = Any[]
         _push_box_parts!(elems, box, _get_box_colors(p, w), width - inset_width,
                          height - inset_height)
+        first_item = length(elems) + 1
         append!(elems, items)
+        _cut_content_at_box!(elems, first_item, box, width, height, content_width, content_height)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
     WidgetChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps),
@@ -8447,6 +8546,8 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
         elements = Any[]
         _push_box_parts!(elements, box, _get_box_colors(p, w),
                          width - inset_width, height[] - inset_height)
+        _, line_height = _text_size(p.measure, label.font, "M")
+        _cut_content_at_box!(labels, 1, box, width, height[], x, line_height)
         append!(elements, labels)
         (width=width, elements=elements)
     end)
@@ -8997,7 +9098,7 @@ function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, b
                                width::Int, height::Int; drawn = nothing)
     style = _get_badge_style(p, w)
     text = string(w.content)
-    _, content_height = _text_size(p.measure, style.label.font, text)
+    content_width, content_height = _text_size(p.measure, style.label.font, text)
     inset_width, inset_height = _get_inset_total(box)
     content_x, content_y = _get_content_offset(box)
     border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
@@ -9006,7 +9107,7 @@ function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, b
                      radius = border_box_height ÷ 2)
     _push_text!(elements, p.measure, style.label.font, text, content_x, content_y, style.label.color)
     drawn === nothing || _is_drawn_value(w.content) && push!(drawn, DrawnTextLine(last(elements), _CONTENT_PART, 0))
-    elements
+    _cut_content_at_box!(elements, length(elements), box, width, height, content_width, content_height)
 end
 
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
@@ -9076,8 +9177,9 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
             line_length = outer_height - inset_height
             outer_width = thickness + inset_width
             _push_box_parts!(elements, box, colors, thickness, line_length)
-            push!(elements, GraphicsLine(content_x, content_y, content_x, content_y + line_length;
-                                         color = divider_stroke.color, width=thickness))
+            # The rule fills its band, so it draws inside the box.
+            push!(elements, GraphicsRect(content_x, content_y, thickness, line_length;
+                                         color = divider_stroke.color, radius = 0))
             (width=outer_width, height=outer_height, elements=elements)
         else
             outer_width = _resolve_width(ctx, rule_length > 0 ? rule_length + inset_width - space_width : 0,
@@ -9085,8 +9187,8 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
             line_length = outer_width - inset_width
             outer_height = thickness + inset_height
             _push_box_parts!(elements, box, colors, line_length, thickness)
-            push!(elements, GraphicsLine(content_x, content_y, content_x + line_length, content_y;
-                                         color = divider_stroke.color, width=thickness))
+            push!(elements, GraphicsRect(content_x, content_y, line_length, thickness;
+                                         color = divider_stroke.color, radius = 0))
             (width=outer_width, height=outer_height, elements=elements)
         end
     end), geometry)
@@ -9363,7 +9465,9 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = p.corner_radius)
     w.variant === :row && push!(surface, _make_row_band(p, w, box, region_width + inset_width, card_height))
     # The three regions, each a panel (transparent by default, so it costs
-    # nothing) behind the elements that fill it.
+    # nothing) behind the elements that fill it. They are the content, which the
+    # box cuts: a title, a footer or a body larger than an authored size.
+    first_content = length(surface) + 1
     _push_panel!(surface, content_x, header_top, region_width, header_bottom - header_top;
                 fill = _get_state_color(p, w, :header))
     append!(surface, header_elements)
@@ -9373,6 +9477,8 @@ function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     _push_panel!(surface, content_x, footer_top, region_width, footer_bottom - footer_top;
                 fill = _get_state_color(p, w, :footer))
     append!(surface, footer_elements)
+    _cut_content_at_box!(surface, first_content, box, card_width, card_height, max_content_width + column,
+                         y - content_y)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps,
      header = (height = header_h, title_box = title_box), drawn = drawn)
 end
@@ -9940,7 +10046,9 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
         _push_box_parts!(elements, box, _get_box_colors(p, w), content_width, content_height)
-        cx, cy = content_x + radius, content_y + content_height ÷ 2
+        first_ring = length(elements) + 1
+        cx = content_x + radius
+        cy = content_y + radius + _place_in_room(content_height ÷ 2 - radius, 2radius, content_height)
         stroke = clamp(p.stroke_width, 1, radius)
         push!(elements, GraphicsCircle(cx, cy, radius; color = color_transparent, border_width = stroke,
                                        border_color = _get_state_color(p, w, :track)))
@@ -9955,6 +10063,7 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
                                     start_angle = () -> w.value === nothing ?
                                                         360 * _get_clock_phase(clock, period) : 0.0,
                                     sweep_angle = () -> _compute_ring_sweep(w.value, share)))
+        _cut_content_at_box!(elements, first_ring, box, outer_width, outer_height, 2radius, 2radius)
         (width=outer_width, height=outer_height, elements=elements)
     end), geometry)
 end
@@ -10273,6 +10382,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         elements = Any[]
         row_bounds = Tuple{Int,Int}[]
         _push_box_parts!(elements, box, colors, group_width, group_height)
+        first_row = length(elements) + 1
         for (i, state, label, label_str, label_width, label_height, row_height, row_y) in rows
             center_y = content_y + row_y + row_height ÷ 2
             cx = content_x + diameter ÷ 2
@@ -10289,6 +10399,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
             push!(row_bounds, (content_y + row_y, content_y + row_y + row_height))
         end
         outer_width, outer_height = group_width + inset_width, group_height + inset_height
+        _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, content_width, content_height)
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, 0)
         (width=outer_width, height=outer_height, elements=elements, row_bounds=row_bounds)
     end)
@@ -10398,9 +10509,13 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
             initials = string(w.initials)
             font = with_font_size(label.font, max(1, round(Int, size * _AVATAR_TEXT_SHARE)))
             initials_width, initials_height = _text_size(p.measure, font, initials)
-            _push_text!(elements, p.measure, font, initials, content_x + radius - initials_width ÷ 2,
-                        content_y + radius - initials_height ÷ 2, label.color)
+            first_initials = length(elements) + 1
+            _push_text!(elements, p.measure, font, initials,
+                        content_x + _place_in_room(radius - initials_width ÷ 2, initials_width, size),
+                        content_y + _place_in_room(radius - initials_height ÷ 2, initials_height, size), label.color)
             _is_drawn_value(w.initials) && push!(drawn, DrawnTextLine(last(elements), _INITIALS_PART, 0))
+            _cut_content_at_box!(elements, first_initials, box, size + inset_width, size + inset_height,
+                                 initials_width, initials_height)
         end
         (width=size + inset_width, height=size + inset_height, elements=elements, drawn = drawn)
     end))
@@ -10517,6 +10632,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         surface = Any[]
         _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
                          radius = p.corner_radius)
+        _cut_content_at_box!(elements, 1, box, alert_width, alert_height, max_content_width, y - content_y)
         append!(surface, elements)
         (width=alert_width, height=alert_height, elements=surface, drawn = drawn)
     end))
@@ -10956,8 +11072,11 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         radius = p.corner_radius
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x + (content_width - text_width) ÷ 2,
-                    content_y + (content_height - text_height) ÷ 2, label.color)
+        _push_text!(elements, p.measure, label.font, text,
+                    content_x + _place_in_room((content_width - text_width) ÷ 2, text_width, content_width),
+                    content_y + _place_in_room((content_height - text_height) ÷ 2, text_height, content_height),
+                    label.color)
+        _cut_content_at_box!(elements, length(elements), box, outer_width, outer_height, text_width, text_height)
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
     end), slot, geometry)
@@ -11100,7 +11219,10 @@ function _build_toggle_group(p::WidgetToggleGroupToGraphicsCanvas, w::WidgetTogg
                       prefs = copy(label_widths), weights = fill(1.0, segment_count),
                       gap = 0, n = segment_count)
     content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
-    content_width  = sum(segment_widths; init=0)
+    # The segments keep at least the width of their labels, and the box cuts them
+    # when the group is given less.
+    segments_width = sum(segment_widths; init=0)
+    content_width  = max(0, offered_width)
     corner_radius = p.corner_radius
     # The content radius, less the border and the padding that lie between
     # it and the rounded outline — the same rule `_push_box_parts!` applies
@@ -11108,6 +11230,7 @@ function _build_toggle_group(p::WidgetToggleGroupToGraphicsCanvas, w::WidgetTogg
     segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
     elements = Any[]
     _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
+    first_segment = length(elements) + 1
     x = content_x
     for i in eachindex(labels)
         segment_width = segment_widths[i]
@@ -11118,13 +11241,17 @@ function _build_toggle_group(p::WidgetToggleGroupToGraphicsCanvas, w::WidgetTogg
         label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
         label = _get_state_text(p, w, :label; state = label_state)
         text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
-        _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
-                    content_y + (content_height - segment_text_height) ÷ 2, label.color)
+        _push_text!(elements, p.measure, label.font, labels[i],
+                    x + _place_in_room((segment_width - text_width) ÷ 2, text_width, segment_width),
+                    content_y + _place_in_room((content_height - segment_text_height) ÷ 2, segment_text_height,
+                                               content_height), label.color)
         _is_drawn_value(w.options[indices[i]]) && !isempty(labels[i]) &&
             push!(lines, DrawnTextLine(last(elements), _make_option_part(indices[i]), 0))
         x += segment_width
     end
     outer_width, outer_height = content_width + inset_width, content_height + inset_height
+    _cut_content_at_box!(elements, first_segment, box, outer_width, outer_height, segments_width,
+                         text_height + 2segment_padding_y)
     _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
     (width = outer_width, height = outer_height, elements = elements,
      segment_widths = segment_widths, drawn = lines)
@@ -11299,7 +11426,13 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
+        # The value is cut before the chevron.
+        first_value = length(elements) + 1
+        _push_text!(elements, p.measure, label.font, text, content_x,
+                    content_y + _place_in_room((content_height - text_height) ÷ 2, text_height, content_height),
+                    label.color)
+        _cut_elements!(elements, first_value, content_x, content_y,
+                       max(0, content_width - p.gap - 2chevron_size), content_height, text_width, text_height)
         _push_chevron!(elements, content_x + content_width - chevron_size, content_y + content_height ÷ 2, chevron_size,
                        :down, chevron_color)
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
@@ -11527,15 +11660,25 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         divider_stroke = _get_state_stroke(p, w, :divider; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
+        # The value is cut before the stepper.
+        first_value = length(elements) + 1
+        _push_text!(elements, p.measure, label.font, text, content_x,
+                    content_y + _place_in_room((content_height - th) ÷ 2, th, content_height), label.color)
+        _cut_elements!(elements, first_value, content_x, content_y,
+                       max(0, content_width - stepper_w - gap), content_height, tw, th)
         sx = content_x + content_width - stepper_w
         sy = content_y - padding_top
+        first_stepper = length(elements) + 1
         dw = max(1, Int(divider_stroke.width))
         push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w; color = divider_stroke.color, width=dw))
         isz = max(p.glyph_minimum, stepper_w ÷ 2 - p.glyph_inset)
         ix = sx + (stepper_w - isz) ÷ 2
         _push_icon!(elements, :plus,  ix, sy + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
         _push_icon!(elements, :minus, ix, sy + stepper_w ÷ 2 + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
+        # A box narrower than the stepper cuts it at the padding box.
+        padding_x = content_x - box.padding[1]
+        sx < padding_x && _put_in_viewport!(elements, first_stepper, padding_x, sy,
+                                            content_width + box.padding[1] + box.padding[3], stepper_w)
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, stepper_w=stepper_w, elements=elements)
     end)
@@ -11848,7 +11991,11 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
             push!(rows, GraphicsCanvas(row; x = content_x, y = content_y + (i - 1) * row_height,
                                        w = content_width, h = row_height))
         end
+        first_row = length(elements) + 1
         append!(elements, rows)
+        # A list with no pane cuts its rows at its box, as a pane does.
+        bare || _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, intrinsic,
+                                     n * row_height)
         (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
@@ -11998,10 +12145,11 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         inner = content_iomap[].output::GraphicsCanvas
         _, line_height = _text_size(p.measure, label.font, "M")
         text_height = max(Int(inner.h[]), line_height)
-        # An authored extent does not hold the space around the box, which
-        # `_resolve_size` adds.
+        # `rows` is the authored height: the area is that many lines tall and cuts
+        # the other lines. An authored extent does not hold the space around the
+        # box, which `_resolve_size` adds.
         authored_height = Int(w.rows) > 0 ?
-            max(Int(w.rows) * line_height, text_height) + inset_height - _get_space_total(box)[2] : 0
+            Int(w.rows) * line_height + inset_height - _get_space_total(box)[2] : 0
         outer_height = _resolve_height(ctx, authored_height, text_height + inset_height)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + inset_width)
         radius = p.corner_radius
@@ -12012,7 +12160,9 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         # and a press on a disabled area does nothing, also over its text.
         margin_rect = _get_part_rect(box, :margin, outer_width, outer_height)
         enabled && push!(elements, GraphicsPointerShape(margin_rect..., :ibeam))
+        first_content = length(elements) + 1
         push!(elements, _make_canvas(content_x, content_y, Any[inner]))
+        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height)
         enabled || push!(elements, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
@@ -12192,6 +12342,11 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             else
                 push!(header_elements, _make_canvas(item_padding_x, item_padding_y, Any[titles[i].output]))
             end
+            # A title is cut before the chevron.
+            title_width = size_of(titles[i], item.title, title_style.font)[1]
+            _cut_elements!(header_elements, 1, item_padding_x, item_padding_y,
+                           max(0, content_width - 2item_padding_x - p.gap - 2chevron_size), title_height,
+                           title_width, title_height)
             _push_chevron!(header_elements, content_width - item_padding_x - chevron_size,
                            row_height ÷ 2, chevron_size, i == expanded ? :down : :right, chevron_color)
             header = GraphicsCanvas(header_elements; x = content_x, y = content_y + y,
@@ -12219,7 +12374,9 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         outer_height = _resolve_height(ctx, 0, y + inset_height)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, outer_height - inset_height)
+        first_row = length(elements) + 1
         append!(elements, row_elements)
+        _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, item_content_min, y)
         (width=outer_width, height=outer_height, elements=elements,
          header_bounds=header_bounds, body_entry=body_entry, headers=headers)
     end)
@@ -12517,8 +12674,11 @@ function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::Widget
         _push_box_parts!(surface, box, colors, group_width - inset_width, group_height - inset_height)
         row_nodes = Any[_make_fact_row_node(p, w, i, content_x, top, group_width - inset_width, bottom - top)
                         for (i, (top, bottom)) in enumerate(row_bounds)]
+        first_content = length(surface) + 1
         append!(surface, row_nodes)
         append!(surface, elements)
+        _cut_content_at_box!(surface, first_content, box, group_width, group_height, content_width,
+                             y - _get_content_offset(box)[2])
         (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps,
          row_nodes = row_nodes, row_bounds = row_bounds, drawn = drawn)
     end)

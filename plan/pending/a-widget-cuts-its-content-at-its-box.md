@@ -142,6 +142,27 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    widget that the test of step 1 finds, uses the function. A `WidgetList` cuts its width also with
    no height edge. A `WidgetCard` cuts its height when it sets one. `WidgetShell` leaves
    `_RULES_INK_BROKEN`. Tests: `test_layout_rules()` and the test file of each widget changed.
+   **Done on 2026-11-15.** `_resolve_size` gives an exact range as the size, after an authored
+   size. Three functions: `_cut_content_at_box!` (the inner box), `_cut_elements!` (any rect, for
+   a value beside a mark of its widget) and `_put_in_viewport!`; `_place_in_room` starts a content
+   that does not fit at the inner edge (D5). The cut is conditional: a content that fits keeps its
+   elements, so a view whose widgets fit draws the same tree as before. The widgets that cut: label,
+   text field (placeholder and text), button, select (value before the chevron), spin box (value
+   before the stepper, and the stepper at the padding box when the box is narrower than it), text
+   area, avatar, alert, card (title, description, body and footer together), list with no pane,
+   accordion (each title before its chevron, and the whole content), badge, link, toggle, toolbar
+   item, menu item (label and keys), toggle group (its box is the resolved size, and the segments
+   keep their minimum widths and are cut), radio group, progress ring, composite, toolbar, status
+   bar, title pane, fact group (row bands and texts together) and shell (its content slot). The
+   composite keeps its cut decision in a cell of plain data, so a change inside a child that keeps
+   the fit does not build the composite again (the stop rule of `cell.md`). The separator draws its
+   rule as a `GraphicsRect` of its thickness: a `GraphicsLine` centred on the edge of the box drew
+   half of its width outside. Two facts changed the test: `ScrollLayout` gives its center an exact
+   width, which the child now takes, so its width is `:fills`; and the shadow of a button lies
+   below its border box (a fault that `_RULES_INK_BROKEN` holds), so the cut sample of the button
+   has a bottom margin that holds the shadow. `WidgetTextarea` makes `rows` its authored height
+   here (D7). `test_layout_rules()`: 604 passed, 17 broken (the 9 older ink faults, and the 8
+   constraint cases of step 4).
 3. **A text field keeps its caret in view (D6, D7).** `scroll_position` on `WidgetText`,
    `WidgetTextarea` and `WidgetSpinBox`; the offset in the print and in the IO map; the write in
    the reader. Test: a field of width 60 that holds a long text, a caret at its end, and a key press
