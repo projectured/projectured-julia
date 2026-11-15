@@ -25,9 +25,11 @@ from `main`.
 - **The size is the whole project.** 554 document types here and 188 in the two
   other repositories keep a caret now. 13 domains print to the syntax, and 38 key
   tables read a caret.
-- **`main` went another way for the text in the meantime.** Since 2026-11-05,
-  `main` has a `TextView` of its own, whose caret stays in the text. The two must
-  become one design before the pilot can land.
+- **`main` has the first half of the text view.** Since 2026-11-05, `main` has a
+  `TextView` of its own, which keeps the look of a text, and whose caret stays in
+  the text. Its plan made it as the smallest form of the type of the pilot. The
+  two become one type before the pilot can land
+  (`plan/pending/one-text-view-keeps-the-look-and-the-caret.md`).
 - **My recommendation** is in section 10: go on, one domain at a time, but first
   build the three parts that every domain needs and that the pilot does not have.
 
@@ -58,7 +60,9 @@ a view is a tree with one node for each node of its content.
 2026-11-05). `TextView(content, wrap, line_spacing)` of `main` keeps the look of
 one showing of a text. Its caret stays in the `TextBlock`, and a path of the view
 reaches the text through the step `content`. The pilot has a type of the same name
-in the same file, with the other rule for the caret.
+in the same file, with the other rule for the caret. The plan of `main` records
+that its type is the smallest form of the type of the pilot, and that the pilot
+moves the caret into it and adds the folds.
 
 ## 3. The rules of the pilot
 
@@ -374,13 +378,14 @@ the 13 domains.
    rule of the text chain can fail there, or can need a second form.
 2. **Large documents.** The mirror is not lazy, and the memory grows by half. A
    log, a roster or a data frame with many rows can not take that.
-3. **The branch is 1219 commits behind `main`, and `main` went another way for
-   the text.** 24 files changed on both sides, among them the selection walk, the
-   print context, `TextToGraphics`, `SyntaxToText`, `TextFolding` and the clipboard.
-   `main` has its own `TextView`, in the same file, which the text of each widget
-   prints through. Its caret stays in the text; the caret of the pilot is in the
-   view. So the rebase is a design task: one `TextView` that keeps the look and the
-   caret, one name for the field of what it shows, and one rule for the caret. The
+3. **The branch is 1227 commits behind `main`, and the text of a widget must
+   change.** A trial merge gives 13 files in conflict, among them
+   `TextToGraphics`, `TextDocument`, `TextFolding`, `SyntaxDocument` and the
+   clipboard. `main` has its own `TextView`, in the same file, which the text of
+   each widget prints through. Its caret stays in the text; the caret of the pilot
+   is in the view. The plan of `main` made that type as the first half of the type
+   of the pilot, so the design is one `TextView` that keeps the look and the caret.
+   The work is the move of the caret of the text of each widget into the view. The
    recorded precompile statements are stale too.
 4. **A long time with two systems.** Each new feature of `main` must work in both
    until the last chain moves.
@@ -399,9 +404,11 @@ the 13 domains.
 - **Land the pilot, and decide later.** The rebase and the landing put the
   mechanism on `main` with three domains of examples. No chain of the editor uses
   it. It costs the rebase now and keeps the code alive.
-- **Go on, in this order.** This is my recommendation.
-  1. Decide the one `TextView` with the owner, then rebase and land the pilot, so
-     the work is not lost to the distance from `main`.
+- **Go on, in this order.** This is my recommendation. The owner approved the
+  order on 2026-11-15 ("Yes, that's good plan").
+  1. Make the one `TextView`, bring the branch up to `main` and land the pilot, so
+     the work is not lost to the distance from `main`. The plan is
+     `plan/pending/one-text-view-keeps-the-look-and-the-caret.md`.
   2. Design and build the three parts that each domain needs: who makes and holds a
      view in the editor, the view of a lazy list, and the tools that read a caret.
   3. Move JSON whole, with a file in a tab. This is way A of step 8, and it is the
