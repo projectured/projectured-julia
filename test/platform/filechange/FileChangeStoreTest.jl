@@ -937,6 +937,43 @@ function test_file_change_store()
                 replace_selection!(editor.document, keep)
                 evaluate_operation(editor, ReloadFileOperation(file))
                 @test string(strip_reference_types(get_selection(editor.document))) == string(strip_reference_types(keep))
+                # The new document holds its part of the path.
+                stored = get_stored_selection(get_dashboard().cards[1])
+                @test stored !== nothing && string.(get_reference_steps(strip_reference_types(stored))) ==
+                                            string.([FieldReferenceStep("title"), PositionReferenceStep(1)])
+                evaluate_operation(editor, ReleaseDocumentOperation(view))
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        end
+
+        @testset "after a load, the caret takes keys" begin
+            folder = mktempdir()
+            path = joinpath(folder, "notes.txt")
+            write(path, "First line of the notes.\nSecond line.\n")
+            file = make_file_tab(path, UndoBuffer)
+            view = make_file_view(file)
+            backend = HeadlessBackend()
+            editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend, devices = Device[Keyboard(), Mouse(), Display()], window = false,
+                                  tabs = false, appearance = false, settings = false, file_change = true)
+            try
+                run_frame!(editor)
+                evaluate_operation(editor, AcquireDocumentOperation(view))
+                get_text() = get_wrapped_document(get_file_content(file))
+                # The caret is at the end of the first line.
+                replace_selection!(editor.document, annotate_reference_types(editor.document, extend_reference(
+                    find_document_path(editor.document, get_text()), FieldReferenceStep("value"), PositionReferenceStep(24))))
+                run_frame!(editor)
+                write(path, "First line of the notes.\nSecond line, rewritten.\n")
+                evaluate_operation(editor, ReloadFileOperation(file))
+                run_frame!(editor)
+                stored = get_stored_selection(get_text())
+                @test stored !== nothing && string.(get_reference_steps(strip_reference_types(stored))) ==
+                                            string.([FieldReferenceStep("value"), PositionReferenceStep(24)])
+                push_event!(backend, KeyPress('w'; time = 0.0))
+                run_frame!(editor)
+                @test get_text().value == "First line of the notes.w\nSecond line, rewritten.\n"
                 evaluate_operation(editor, ReleaseDocumentOperation(view))
             finally
                 foreach(step -> step(editor), editor.stop_steps)

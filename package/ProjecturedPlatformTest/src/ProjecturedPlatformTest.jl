@@ -605,7 +605,7 @@ using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
 using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep, PositionReferenceStep,
     annotate_reference_types, extend_reference, strip_reference_types, get_reference_steps, is_valid_reference, search_documents
-using ProjecturedKernel.SelectionModule: get_selection, replace_selection!
+using ProjecturedKernel.SelectionModule: get_selection, replace_selection!, get_stored_selection
 using ProjecturedPlatform.FaultViewModule: get_session_fault_log
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
@@ -619,8 +619,8 @@ using ProjecturedKernel.EditorModule: Editor, build_editor, run_frame!, insert_e
 using ProjecturedKernel.ProjectionModule: print_document
 using ProjecturedPlatform.FileSystemModule: open_file!
 using ProjecturedPlatform.SettingsManagingModule: Settings
-using ProjecturedKernel.DeviceModule: Device, Mouse, Display
-using ProjecturedKernel.EventModule: ModifierKeys, MouseScroll, WindowInput
+using ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+using ProjecturedKernel.EventModule: ModifierKeys, MouseScroll, WindowInput, KeyPress
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedKernelExample: HeadlessBackend, push_event!

@@ -72,7 +72,7 @@ Each place that shows a file shows a view of it. `make_document_view(file)` make
 - If they differ, it writes nothing and shows the band.
 - With `force = true`, it writes with no check.
 
-"Save as" (`save_file_dialog!`) writes with `force = true`. A history inside the file adds no step for a save or for `KeepFileEditsOperation`, because their way back is `DoNothingOperation`. `ReloadFileOperation` keeps the hash of the text that it read (its `file_hash`, or the hash of the file on disk now) and takes the band away.
+"Save as" (`save_file_dialog!`) writes with `force = true`. A history inside the file adds no step for a save or for `KeepFileEditsOperation`, because their way back is `DoNothingOperation`. `ReloadFileOperation` keeps the hash of the text that it read (its `file_hash`, or the hash of the file on disk now) and takes the band away. The new document holds no part of the path of the selection, because each document on the path keeps the rest of the path in its own field. So the load writes a live selection that passes through the file again from the root: the path that it names, or the longest start of that path that still names a part. The caret of the new document then draws and takes keys. A dormant selection stays as it is, and its tab writes it again when it takes the focus.
 
 `FileBand` holds a `message` and `choices`, each a label with an operation. `FileViewToWidget` draws the band of the file of a view above the scroll pane of the view, so the band stays at the top while a long file scrolls, in each view of the file. After a change on disk, the band says "<name> changed on disk." and offers two choices:
 

@@ -597,7 +597,7 @@ function evaluate_operation(editor, op::ReloadFileOperation)
         (state.file_stamp = compute_file_stamp(abspath(get_filename(file))))
     state.loaded_count = max(state.loaded_count, state.read_count)
     state.band = nothing
-    _repair_selection!(editor)
+    _repair_selection!(editor, file)
     nothing
 end
 
@@ -617,15 +617,25 @@ function _splice_open_files!(editor, file::FileDocument, content)
                        path -> open_file_document!(editor, path))
 end
 
-# The selection of the editor after a load: it stays where it is, or when the new
-# document lacks the part that it names, it becomes the longest start of its path that
-# names a part. A selection that names no part can make a printer fail at each frame.
-function _repair_selection!(editor)
+# The selection of the editor after a load of `file`: it stays where it is, or when the
+# new document lacks the part that it names, it becomes the longest start of its path
+# that names a part. A selection that names no part can make a printer fail at each
+# frame. Each document on the path of a selection keeps the rest of the path in its own
+# field, and the new document keeps none, so a live selection that passes through
+# `file` is written again from the root, into each document on its path
+# (`set_selection!`; a replace of an equal path writes nothing): the caret of the new
+# document then draws and takes keys. A dormant selection stays as it is; its tab
+# writes it again when it takes the focus.
+function _repair_selection!(editor, file::FileDocument)
     editor isa Editor || return nothing
     root = editor.document
     selection = get_selection(root)
-    (selection isa ConcreteReference && !is_valid_reference(root, selection)) || return nothing
-    evaluate_operation(editor, ReplaceSelectionOperation(get_valid_reference_prefix(root, selection)))
+    selection isa ConcreteReference || return nothing
+    if !is_valid_reference(root, selection)
+        evaluate_operation(editor, ReplaceSelectionOperation(get_valid_reference_prefix(root, selection)))
+    elseif get_stored_selection(file) !== nothing && is_live_selection(file)
+        set_selection!(root, selection)
+    end
     nothing
 end
 
