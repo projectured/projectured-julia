@@ -1,11 +1,11 @@
 # Views compose as content composes
 
-Status: DONE on 2026-11-15, and not landed. The JSON
+Status: DONE and landed on 2026-11-15. The JSON
 pipeline is the pilot, built from the bottom up, on the branch `views-compose`.
 Steps 1 to 7 and 9 are done; step 8 is no step of this plan (decision 21). The
 plan `one-text-view-keeps-the-look-and-the-caret.md` brought the branch up to
-`main`, made one `TextView` from the two, and did step 9. The landing waits for
-the owner.
+`main`, made one `TextView` from the two, and did step 9. The owner approved the
+landing, and `main` holds the pilot from `adea9d83f` on.
 
 ## The ask
 

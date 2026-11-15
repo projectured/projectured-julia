@@ -1,8 +1,9 @@
 # One text view keeps the look and the caret
 
-**Status:** done on 2026-11-15, and not landed. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
-Hungarian keyboard"). Steps 1 to 4 are done on the branch `views-compose`, which
-holds `main` at `6a24a6db6`. The landing and the push each wait for the owner.
+**Status:** done and landed on 2026-11-15. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
+Hungarian keyboard"). Steps 1 to 4 were done on the branch `views-compose`. The
+owner approved the landing ("Yes"), and `main` took the branch by a fast-forward
+from `6a24a6db6` to `adea9d83f`. The push waits for the owner.
 
 This plan is point 1 of the order in
 `plan/tentative/content-and-view-for-the-whole-project.md`. The owner approved

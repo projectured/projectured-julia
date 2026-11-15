@@ -3,9 +3,10 @@
 Status 2026-11-15: for a decision of the owner. This document has no steps. If the
 owner decides to go on, the steps come in a plan of their own.
 
-The pilot is `plan/done/views-compose-as-content-composes.md`, on the branch
-`views-compose`. Its steps 1 to 7 and 9 are done. This document says only what
-differed from `main` on 2026-11-15, before point 1 of the order in section 10.
+The pilot is `plan/done/views-compose-as-content-composes.md`. It was on the
+branch `views-compose`, and it is on `main` since 2026-11-15 (`adea9d83f`). Its
+steps 1 to 7 and 9 are done. This document says only what differed from `main` on
+2026-11-15, before point 1 of the order in section 10.
 
 ## 1. The answer in short
 
@@ -29,8 +30,8 @@ differed from `main` on 2026-11-15, before point 1 of the order in section 10.
   `TextView` of its own, which keeps the look of a text, and whose caret stays in
   the text. Its plan made it as the smallest form of the type of the pilot. The
   two become one type before the pilot can land
-  (`plan/done/one-text-view-keeps-the-look-and-the-caret.md`, done on the branch
-  on 2026-11-15).
+  (`plan/done/one-text-view-keeps-the-look-and-the-caret.md`, done and landed on
+  2026-11-15).
 - **My recommendation** is in section 10: go on, one domain at a time, but first
   build the three parts that every domain needs and that the pilot does not have.
 
@@ -410,7 +411,7 @@ the 13 domains.
   1. Make the one `TextView`, bring the branch up to `main` and land the pilot, so
      the work is not lost to the distance from `main`. The plan is
      `plan/done/one-text-view-keeps-the-look-and-the-caret.md`. Its four steps
-     are done on the branch on 2026-11-15; the landing waits for the owner.
+     are done, and the pilot is on `main` since 2026-11-15 (`adea9d83f`).
   2. Design and build the three parts that each domain needs: who makes and holds a
      view in the editor, the view of a lazy list, and the tools that read a caret.
   3. Move JSON whole, with a file in a tab. This is way A of step 8, and it is the
