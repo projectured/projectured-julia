@@ -195,7 +195,7 @@ _get_part_child_width(width::_LevelHeaderWidth) =
 # above level `l` is at the top of row `l` of its grid.
 function _find_column_header_level_at(st, y::Int)
     levels = st.levels.column_levels
-    grid = st.column_header_pane.content_iomap
+    grid = _get_part_grid(st.column_header_pane)
     found = 1
     for l in 2:levels
         y >= Int(grid.row_y[l][]) && (found = l)
@@ -243,7 +243,7 @@ end
 # with the column before it, and the rule above each level but the first.
 function _push_level_header_rules!(out, st, edges::Vector{Int}, h::Int, divider)
     levels = st.levels
-    grid = st.column_header_pane.content_iomap
+    grid = _get_part_grid(st.column_header_pane)
     bw = st.bw
     for (k, edge) in enumerate(edges)
         shared = 2 <= k <= length(levels.column_shared) + 1 ? levels.column_shared[k - 1] : 0
@@ -271,7 +271,7 @@ function _make_level_header_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
         run === nothing && return (0, 0, 0, 0)
         edges = st.edges[]
         (first(run[1]) >= 1 && last(run[1]) + 1 <= length(edges)) || return (0, 0, 0, 0)
-        top = Int(st.column_header_pane.content_iomap.row_y[l][]) + st.bw
+        top = Int(_get_part_grid(st.column_header_pane).row_y[l][]) + st.bw
         left = edges[first(run[1])]
         (left, top, edges[last(run[1]) + 1] - left, max(0, Int(height[]) - top))
     end)
@@ -396,13 +396,13 @@ function _print_level_header_column(recursion, w::WidgetTable, inner, sizes::_Le
     pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
     iomap = print_child(recursion, pane, with_size_range(with_free_axis(inner, :x); height = height_range))
-    sizes.grid[] = iomap.content_iomap
+    sizes.grid[] = _get_part_grid(iomap)
     iomap
 end
 
 # The level of the header column at `x`, in the coordinates of its rules.
 function _find_row_header_level_at(st, x::Int)
-    grid = st.row_header_pane.content_iomap
+    grid = _get_part_grid(st.row_header_pane)
     found = 1
     for l in 2:st.levels.row_levels
         x >= Int(grid.col_x[l][]) && (found = l)
@@ -447,7 +447,7 @@ function _get_level_header_column_band_span(w::WidgetTable, reference, k::Int, s
     _, start, l = found
     levels = st.levels.row_levels
     _is_row_in_header_run(w, start, k, l, levels) || return (0, 0)
-    left = Int(st.row_header_pane.content_iomap.col_x[l][])
+    left = Int(_get_part_grid(st.row_header_pane).col_x[l][])
     (left, Int(st.header_width[]) - left)
 end
 
@@ -456,7 +456,7 @@ end
 # the row before it, and the rule left of each level but the first.
 function _push_level_header_column_rules!(out, w::WidgetTable, st, k::Int, h::Int, divider)
     levels = st.levels.row_levels
-    grid = st.row_header_pane.content_iomap
+    grid = _get_part_grid(st.row_header_pane)
     width = Int(st.header_width[])
     node = find_list_node(w.row_headers, k)
     shared = node === nothing ? 0 :
@@ -573,7 +573,7 @@ function _find_column_header_label_at(st, c::Int, y::Int)
     found = _find_column_header_run(st.levels, l, c)
     found === nothing && return (nothing, ())
     run, child = found
-    cell = _find_header_entry_cell(st, st.column_header_pane.content_iomap.child_iomaps[child])
+    cell = _find_header_entry_cell(st, _get_part_grid(st.column_header_pane).child_iomaps[child])
     if cell !== nothing && cell[1].input isa LayoutConstraint
         cell = (cell[1].inner_iomap, cell[2], cell[3])
     end

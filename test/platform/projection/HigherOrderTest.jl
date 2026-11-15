@@ -60,6 +60,10 @@ function test_empty_nesting()
     number = PrimitiveNumber(1)
     iomap = print_document(empty, NestMarkingProjection(), number, PrinterContext())
     @test iomap.output === number            # printed by the recursion that it got
+    # A printer that looks at the IO map of a child sees the IO map that the
+    # recursion printed, as through a fault barrier.
+    @test get_content_iomap(iomap) === iomap.child_iomap
+    @test get_content_iomap(iomap) isa SimpleIoMap
 
     # A payload reaches the reader of the IO map that the print made, also with no
     # recursion at the read.
