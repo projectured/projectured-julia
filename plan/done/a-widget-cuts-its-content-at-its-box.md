@@ -1,8 +1,9 @@
 # A widget cuts its content at its box
 
 > **Kind:** plan · **Status:** a plan, written 2026-11-15 at `main` `11585943d`. The owner approved
-> it for implementation on 2026-11-15, D2 included. The work runs on the branch `widget-cut` in the
-> worktree `projectured-julia-widget-cut`. · **Stands on:** [layout-rules.md](../../documentation/rule/layout-rules.md),
+> it for implementation on 2026-11-15, D2 included. Done on 2026-11-15: steps 1 to 5 are built and
+> checked on the branch `widget-cut` in the worktree `projectured-julia-widget-cut`, not landed on
+> `main`. · **Stands on:** [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout.md](../../documentation/package/platform/layout/layout.md)
 
@@ -227,6 +228,19 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    Render the probe of §2 again: no text passes its box. Look at the explorer filter and the
    folder path field with a long text in a window. Measure the time of a frame of a large data frame
    view before and after step 2, because D2 adds a viewport to many cells.
+   **Done on 2026-11-15.** `test_platform()` in its 253 parts: 231,434 passed, 13 failed, 22
+   broken. The 13 failures are known on `main`: the layering guard (2 testsets: edges between
+   slices, qualified names, import forms, in files this plan does not touch),
+   `ClipboardTest.jl:502-504`, `NavigatorChoicesTest.jl:174,178,208,211` and the Save As of
+   `FileDialogTest.jl`. A first run on step 2 found three regressions, in
+   `WidgetRowsScrollTest.jl`, `ScrollPaneHoverTest.jl` and `WidgetTransformPaneTest.jl`, which D8
+   fixed. `test_dataframes()`, `test_git()` and `test_research()`: 1243 passed. The probe of §2,
+   rendered again: every sample stays inside its box. A spin box of width 40 shows no digit,
+   because its stepper takes the room of the box. The frame cost of D2 is measured as a count,
+   because the cut is conditional: a data frame view of 1000 rows with a column of notes wider
+   than the column holds 2013 viewports, the cell cuts of its grid, and no cut of a widget, and
+   its print takes 1.1 ms. The explorer filter and the folder path field were not looked at in a
+   window: they are `WidgetText` fields, which the field test and the probe cover.
 
 ## 5. Risks
 
