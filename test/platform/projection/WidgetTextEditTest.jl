@@ -298,4 +298,67 @@ end
     @test whole !== nothing && find_reference_box(iomap.output, whole; measure = _stub) !== nothing
 end
 
+# The viewport that cuts the text of `widget`, as the rect `(x, y, width, height)`
+# in the frame of the widget, and the IO map of the print.
+function _print_cut_text(proj, widget)
+    iomap = print_document(proj, proj, widget, PrinterContext())
+    view = only(element for element in iomap.output.elements if element isa GraphicsViewport)
+    (iomap, (Int(view.x), Int(view.y), Int(view.w), Int(view.h)))
+end
+
+# The box of the caret of `widget` in the frame of the widget, as it is drawn.
+function _find_drawn_caret(iomap, widget)
+    place = map_reference_forward(iomap.projection, iomap, annotate_reference_types(widget, get_selection(widget)))
+    find_reference_box(iomap.output, place; measure = _stub)
+end
+
+# Each drawn text and where it starts in the frame of `canvas`, also inside a
+# viewport, whose content canvas moves its text by its own place.
+function _drawn_texts_in_views(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    if node isa GraphicsViewport
+        _drawn_texts_in_views(node.content, ox + Int(node.x), oy + Int(node.y), found)
+    elseif node isa GraphicsCanvas
+        x = ox + Int(node.x); y = oy + Int(node.y)
+        for element in node.elements
+            element isa GraphicsText ? push!(found, (String(element.text), x + Int(element.x), y + Int(element.y))) :
+                                       _drawn_texts_in_views(element, x, y, found)
+        end
+    end
+    found
+end
+
+@testset "a field narrower than its text cuts the text and keeps the caret in view" begin
+    proj = _proj()
+    # Thirty characters of 10 pixels in a field of 60.
+    doc = WidgetText("abcdefghijklmnopqrstuvwxyz0123"; width = 60)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _plain_cursor(30))
+    iomap, (left, _, width, _) = _print_cut_text(proj, doc)
+    caret = _find_drawn_caret(iomap, doc)
+    # The caret at the end of the text shows at the right edge of the field.
+    @test left + width - 10 <= caret.x <= left + width
+    # A step to the left moves the caret one character, and the text stays.
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test _find_drawn_caret(iomap, doc).x == caret.x - 10
+    # Home shows the start of the text, with the caret at the left edge.
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:home, ModifierKeys(); time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test _find_drawn_caret(iomap, doc).x == left
+end
+
+@testset "a text area of two rows cuts its other lines and shows the line of its caret" begin
+    proj = _proj()
+    lines = ["line $i" for i in 1:10]
+    text = join(lines, "\n")
+    doc = WidgetTextarea(text; rows = 2)
+    set_selection!(doc, _plain_cursor(length(text)))
+    iomap, (_, top, _, height) = _print_cut_text(proj, doc)
+    # The area is two lines tall, and the last line, which holds the caret, is
+    # drawn inside it.
+    @test height == 2 * 24
+    _, _, y = only(t for t in _drawn_texts_in_views(iomap.output) if t[1] == "line 10")
+    @test top <= y < top + height
+end
+
 end # test_widget_text_editing

@@ -199,11 +199,13 @@ or beside a button that uses it.
 
     open_pane!(WidgetText("name =~ *delay*"; width = 240); title = "Filter")
 
-`width` is a floor and not a size: the box is at least that many pixels wide and
-grows with what is typed into it. It is `0` by default, which is the box that
-fits its content exactly — and which is a box of nothing at all when the content
-is empty. A form gives its fields a width so that an empty one can still be
-clicked. `WidgetSpinBox` carries the same field for the same reason.
+`width` is the width of the box in pixels. A text that is wider is cut at the
+box, and the field scrolls its text so that the caret stays in view;
+`scroll_position` is that offset, view state that no undo records. `width` is
+`0` by default, which is the box that fits its content exactly — and which is a
+box of nothing at all when the content is empty. A form gives its fields a width
+so that an empty one can still be clicked. `WidgetSpinBox` carries the same field
+for the same reason.
 
 `language` names the language of a field of code, such as `:julia`, or is
 `nothing`. The field colors its text by [`compute_code_pieces`](@ref), which
@@ -249,6 +251,7 @@ For the assistant.
     padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
+    scroll_position::Point2D   # view state: the offset of a text that the box cuts
 end
 
 function WidgetText(content; position::Point2D=Point2D(0, 0),
@@ -263,11 +266,11 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
-                    style=nothing, tooltip=nothing)
+                    style=nothing, tooltip=nothing, scroll_position::Point2D=Point2D(0, 0))
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
                Cell(placeholder), Cell(text_style), Cell(wrap), Cell(line_spacing), Cell(quiet), Cell(visible), Cell(enabled), Cell(margin), Cell(border),
-               Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+               Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position), Cell(nothing))
 end
 
 """
@@ -2831,7 +2834,9 @@ Several lines of text.
 
 Use it to show or take a paragraph: a note, a NED fragment, a finding.
 `content` is a string, and its newlines split the rows; `rows` is the height in
-lines and `width` a floor in pixels. A string is read only. A text document, such
+lines and `width` the width in pixels. A larger text is cut at the box, and the
+area scrolls its text so that the caret stays in view; `scroll_position` is that
+offset, view state that no undo records. A string is read only. A text document, such
 as a `TextBlock`, is edited as the content of a `WidgetText` is, and Return
 types a line break.
 
@@ -2856,12 +2861,15 @@ For the assistant.
     padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
+    scroll_position::Point2D   # view state: the offset of a text that the box cuts
 end
 WidgetTextarea(content; position::Point2D=Point2D(0, 0), width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
-               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing,
+               scroll_position::Point2D=Point2D(0, 0)) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(enabled),
-                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position),
+                   Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 

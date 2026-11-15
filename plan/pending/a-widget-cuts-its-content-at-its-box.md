@@ -179,6 +179,22 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    `WidgetTextarea` and `WidgetSpinBox`; the offset in the print and in the IO map; the write in
    the reader. Test: a field of width 60 that holds a long text, a caret at its end, and a key press
    of Left and of Home. Assert the place of the caret in the output, not only that it exists.
+   **Done on 2026-11-15.** `WidgetSpinBox` draws its value as a plain text with no caret, so D6
+   applies to `WidgetText` and `WidgetTextarea` only, and the spin box cuts its value (step 2).
+   Both documents get `scroll_position`, view state, as `WidgetList` has it. The print maps the
+   selection into the view of the content (`_map_content_into_view`, which `_map_shown_text_forward`
+   now uses too), finds its box (`_find_content_selection_box`), and draws at
+   `_compute_text_scroll`: the least move from the stored offset that shows the selection, kept
+   between 0 and the end of the text. The cut viewport moves its canvas by that offset (the
+   keyword `scroll` of `_cut_content_at_box!`). The IO maps keep the drawn offset in a field
+   `scroll`; the reader moves a press by it, and `_keep_text_scroll` adds the write of the drawn
+   offset to an answer when the stored offset differs. The docstrings said that `width` is a floor
+   and that the box grows with the text, which the code never did; they now say that the box cuts
+   and scrolls. Tests in `WidgetTextEditTest.jl`: a field of width 60 with 30 characters, the caret
+   at the right edge, Left moves the caret 10 pixels and not the text, Home puts it at the left
+   edge; a text area of two rows of ten lines draws its last line, with the caret, inside the
+   view. The forward map of a field whose content is a document returns `nothing` for a caret in
+   it, on `main` too, so the field test uses a plain string (see §6).
 4. **A `LayoutConstraint` cuts where it states a size (D4).** Its printer wraps the output of the
    child with `clip_child_to_slot` on each axis where it states a preferred size, a weight or a
    maximum, and the size that it gets is exact or bounded. Its reference mappers go through the
@@ -204,6 +220,11 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
   it.
 
 ## 6. Not in this plan
+
+- The forward map of a `WidgetText` or a `WidgetTextarea` whose content is a document: it returns
+  `nothing` for a path in the content (`get_child_iomaps` of their IO maps is `nothing`), on `main`
+  too. `_map_content_into_view` maps such a path into the view, so the widget can keep its caret
+  in view; its forward map does not use it yet.
 
 - An end mark "…" on a cut caption or value.
 - `wrap = true` on a text field with a set width wraps at the width of the parent, not at the set

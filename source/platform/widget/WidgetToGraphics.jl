@@ -292,11 +292,11 @@ end
 # keeps its place in the frame of the widget. A content that fits keeps its
 # elements as they are.
 function _cut_content_at_box!(elements::Vector, first::Int, box::BoxGeometry, width::Int, height::Int,
-                              content_width::Int, content_height::Int)
+                              content_width::Int, content_height::Int; scroll::Tuple{Int,Int} = (0, 0))
     inset_width, inset_height = _get_inset_total(box)
     content_x, content_y = _get_content_offset(box)
     _cut_elements!(elements, first, content_x, content_y, max(0, width - inset_width),
-                   max(0, height - inset_height), content_width, content_height)
+                   max(0, height - inset_height), content_width, content_height; scroll)
 end
 
 # Cut `elements[first:end]` at the rect `(x, y, width, height)` in their frame, when
@@ -305,19 +305,21 @@ end
 # A part of a widget that holds a content beside a mark of its own, such as the
 # value of a select beside its chevron, cuts the content at the rect of the content.
 function _cut_elements!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int,
-                        reach_width::Int, reach_height::Int)
+                        reach_width::Int, reach_height::Int; scroll::Tuple{Int,Int} = (0, 0))
     (reach_width <= width && reach_height <= height) && return elements
-    _put_in_viewport!(elements, first, x, y, width, height)
+    _put_in_viewport!(elements, first, x, y, width, height; scroll)
 end
 
 # Put `elements[first:end]` into one viewport at the rect `(x, y, width, height)` in
 # their frame; the canvas in the viewport moves them back by the place of the
-# viewport, so each element keeps its place.
-function _put_in_viewport!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int)
+# viewport, so each element keeps its place, and further by `scroll`, the offset of
+# a content that scrolls in its box.
+function _put_in_viewport!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int;
+                           scroll::Tuple{Int,Int} = (0, 0))
     first > length(elements) && return elements
     content = elements[first:end]
     deleteat!(elements, first:length(elements))
-    canvas = GraphicsCanvas(Int32(-x), Int32(-y), Int32(0), Int32(0),
+    canvas = GraphicsCanvas(Int32(-x - scroll[1]), Int32(-y - scroll[2]), Int32(0), Int32(0),
                             CellVector(Cell[Cell(element) for element in content]),
                             layout_none, true, Cell(nothing))
     push!(elements, GraphicsViewport(Int32(x), Int32(y), Int32(max(0, width)), Int32(max(0, height)), canvas))
@@ -2246,6 +2248,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = not
     content_iomap::Any
     value_iomap::Any   # the child of a document in `content` that gives a value, or nothing
     box::Any
+    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
 end
 
 # ── A plain value as a text ─────────────────────────────────────────────────
@@ -2477,14 +2480,19 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
                                       color = style.color))
         end
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
-        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]))
+        # A text larger than the box scrolls in it, so the caret stays in view.
+        selection_box = _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
+                                                    content_iomap[], inner, p.measure)
+        scroll = _compute_text_scroll(w, selection_box, inner_w, Int(inner.h[]),
+                                      outer_w - inset_width, outer_h - inset_height)
+        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]); scroll)
         state === :disabled && push!(elems, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elems, w, box, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.graphics_style)
-        (width=outer_w, height=outer_h, elements=elems)
+        (width=outer_w, height=outer_h, elements=elems, scroll=scroll)
     end)
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap,
-                                    value_slot, geometry)
+                                    value_slot, geometry, Cell(@computation build[].scroll))
 end
 
 # The parts of the box of a quiet field take no colour while the field holds no
@@ -2534,16 +2542,34 @@ map_reference_forward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
 # in `content` maps to a range of the string of its value.
 function _map_shown_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, reference)
     child = iomap.value_iomap
-    ((child !== nothing || !(iomap.input.content isa Document)) && reference isa Reference) || return nothing
+    (child !== nothing || !(iomap.input.content isa Document)) || return nothing
     view = iomap.content_iomap
-    view === nothing && return nothing
+    image = _map_content_into_view(iomap.input, child, view, reference)
+    image === nothing && return nothing
+    outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(view)); depth = 6)
+    outer === nothing ? nothing : concat_references(outer, image)
+end
+
+# The place of `reference`, a path under `.content` of the text widget `w`, in the
+# output of `view`, the IO map of its content, or `nothing`. A widget that shows a
+# value as a text, a plain value or the value of `value_iomap`, the child of a
+# document in `content`, maps `.content` and a range of the value to the text of
+# the view. A document in `content` maps the rest of the path itself.
+function _map_content_into_view(w, value_iomap, view, reference)
+    (view === nothing || !(reference isa Reference)) && return nothing
     steps = collect(get_reference_steps(strip_reference_types(reference)))
     (!isempty(steps) && steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
+    if value_iomap === nothing && w.content isa Document
+        rest = extend_reference(EmptyReference(), steps[2:end]...)
+        return map_reference_forward(get_iomap_projection(view), view,
+                                     annotate_reference_types(get_iomap_input(view), rest))
+    end
     text = if length(steps) == 1
         EmptyReference()
-    elseif child !== nothing
+    elseif value_iomap !== nothing
         rest = extend_reference(EmptyReference(), steps[2:end]...)
-        range = map_reference_forward(child.projection, child, annotate_reference_types(child.input, rest))
+        range = map_reference_forward(value_iomap.projection, value_iomap,
+                                      annotate_reference_types(value_iomap.input, rest))
         flat = range isa Reference ? strip_reference_types(range) : nothing
         flat isa ConcreteReference && flat.head isa TextRangeReferenceStep ? flat : nothing
     elseif length(steps) == 2 && steps[2] isa RangeReferenceStep
@@ -2551,11 +2577,49 @@ function _map_shown_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, referen
     end
     text === nothing && return nothing
     inner = ConcreteReference(FieldReferenceStep("content"), text)
-    image = map_reference_forward(get_iomap_projection(view), view,
-                                  annotate_reference_types(get_iomap_input(view), inner))
+    map_reference_forward(get_iomap_projection(view), view, annotate_reference_types(get_iomap_input(view), inner))
+end
+
+# The box `(x, y, width, height)` of the selection of the text widget `w` in
+# `canvas`, the output of `view`, in the frame of that canvas, or `nothing` when
+# the selection is not in the content.
+function _find_content_selection_box(w, value_iomap, view, canvas, measure)
+    selection = get_selection(w)
+    selection === nothing && return nothing
+    image = _map_content_into_view(w, value_iomap, view, selection)
     image === nothing && return nothing
-    outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(view)); depth = 6)
-    outer === nothing ? nothing : concat_references(outer, image)
+    box = find_reference_box(canvas, image; measure)
+    box === nothing && return nothing
+    (box.x - Int(canvas.x), box.y - Int(canvas.y), box.width, box.height)
+end
+
+# The offset at which a text widget draws a text of `text_width` by `text_height` in
+# a view of `view_width` by `view_height`: the least move from the offset that it
+# stores that shows its selection at `selection_box`, kept between 0 and the end of
+# the text. A text that fits the view has the offset 0.
+function _compute_text_scroll(w, selection_box, text_width::Int, text_height::Int,
+                              view_width::Int, view_height::Int)
+    stored = w.scroll_position::Point2D
+    x, y = Int(stored.x[]), Int(stored.y[])
+    if selection_box !== nothing
+        box_x, box_y, box_width, box_height = selection_box
+        x = _compute_shown_offset(x, view_width, box_x, box_width)
+        y = _compute_shown_offset(y, view_height, box_y, box_height)
+        text_width = max(text_width, box_x + box_width)
+        text_height = max(text_height, box_y + box_height)
+    end
+    (clamp(x, 0, max(0, text_width - view_width)), clamp(y, 0, max(0, text_height - view_height)))
+end
+
+# The answer of a text widget, with the write of `scroll`, the offset that it draws
+# its text at, when the widget stores another offset: the next print moves the text
+# from where it is, so the text stays while the caret moves inside the view. No
+# answer writes nothing.
+function _keep_text_scroll(w, scroll::Tuple{Int,Int}, answer)
+    answer === nothing && return nothing
+    stored = w.scroll_position::Point2D
+    (Int(stored.x[]), Int(stored.y[])) == scroll && return answer
+    CompoundOperation(Any[answer, _write_view_state(w, "scroll_position", Point2D(scroll...))])
 end
 
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
@@ -2608,10 +2672,13 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     _is_plain_typed(evt, '\n') && return nothing
     evt isa KeyPress && evt.char == '\t' && return nothing
+    left, top = _get_content_offset(_get_box_geometry(iomap))
+    scroll = iomap.scroll
     operation = _validate_text_edit(iomap.input,
-        _read_text_content_intent(p, iomap, evt, _get_content_offset(_get_box_geometry(iomap))...))
+        _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
     child = iomap.value_iomap
-    child === nothing ? operation : _make_value_text_store(iomap.input, child, operation)
+    _keep_text_scroll(iomap.input, scroll,
+                      child === nothing ? operation : _make_value_text_store(iomap.input, child, operation))
 end
 
 # An edit of the text view of the value that the child of `content` gives: the
@@ -12126,6 +12193,7 @@ WidgetTextareaToGraphicsCanvas(theme; measure,
     output::Any
     content_iomap::Any
     box::Any
+    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
 end
 
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
@@ -12170,13 +12238,18 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         enabled && push!(elements, GraphicsPointerShape(margin_rect..., :ibeam))
         first_content = length(elements) + 1
         push!(elements, _make_canvas(content_x, content_y, Any[inner]))
-        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height)
+        # A text larger than the box scrolls in it, so the caret stays in view.
+        selection_box = _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure)
+        scroll = _compute_text_scroll(w, selection_box, Int(inner.w[]), text_height,
+                                      outer_width - inset_width, outer_height - inset_height)
+        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height;
+                             scroll)
         enabled || push!(elements, GraphicsPointerShape(margin_rect..., :arrow))
         _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
-        (width=outer_width, height=outer_height, elements=elements)
+        (width=outer_width, height=outer_height, elements=elements, scroll=scroll)
     end)
     WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                        content_iomap, geometry)
+                                        content_iomap, geometry, Cell(@computation build[].scroll))
 end
 
 map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -12202,7 +12275,9 @@ read_intent(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = noth
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing
-    _read_text_content_intent(p, iomap, evt, _get_content_offset(_get_box_geometry(iomap))...)
+    left, top = _get_content_offset(_get_box_geometry(iomap))
+    scroll = iomap.scroll
+    _keep_text_scroll(iomap.input, scroll, _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
