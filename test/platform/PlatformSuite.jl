@@ -183,6 +183,7 @@ function test_platform()
         test_text_file()
         test_marker_language()
         test_pred_file()
+        test_file_format()
         # documents
         test_point_reference()
         test_syntax()
@@ -447,7 +448,7 @@ export test_identity
 export test_collection, test_table_interface, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping, test_empty_nesting
 export test_versioning_to_any
-export test_text_file, test_marker_language, test_pred_file
+export test_text_file, test_marker_language, test_pred_file, test_file_format
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference
 export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_image, test_image_head, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback, test_font_face,

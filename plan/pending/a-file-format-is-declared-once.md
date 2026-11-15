@@ -47,10 +47,14 @@ emit_text(f::YamlFile) = print_natural_text(get_file_content(f))
   `_FORMATS`, `_PARSERS`, `_EXPRESSIONS`, `_LADDER`, with six register functions.
 - The serialization slice keeps `_FILE_DOCUMENT_TYPES` in
   [FileProject.jl](../../source/platform/serialization/FileProject.jl), with
-  `register_file_document_type!` (21 calls in the three repositories).
+  `register_file_document_type!` (21 calls in the three repositories outside the tests:
+  15 here, two of them loops over the 5 picture and the 8 source extensions, and 6 in
+  omnet-julia).
 - The file format slice keys the seed of a new file by the extension:
-  `make_document_seed(::Val{:json})` in
-  [DocumentFile.jl](../../source/platform/fileformat/DocumentFile.jl).
+  `make_document_seed(::Val)` and its methods for `.txt` and no extension are in
+  [DocumentFile.jl](../../source/platform/fileformat/DocumentFile.jl), and a domain adds
+  a method for `.json`, `.xml`, `.sql` and `.jl` (`make_document_seed(::Val{:json})` in
+  `JsonToSyntax.jl`); omnet-julia adds `.ned`, `.ini` and `.test`.
 
 **The homes disagree.**
 
@@ -64,8 +68,8 @@ read_document_file("x.math")      # parse_math(text): the natural parser
 ```
 
 - `.markdown` has a file type and no natural parser.
-- The Julia and the math file types add a line break at the end of a file. The natural
-  printer does not. So `export_document` and `save_file!` write two different files.
+- The Julia and the math file types add a line break at the end of a file, and so does
+  the `.pred` file type. The natural printer does not. So `export_document` and `save_file!` write two different files.
 - A new file has two different empty documents: `make_document_seed(Val(:json))` gives
   `JsonInsertion()`, and the default `content` of `JsonFile` is `JsonNothing()`. YAML,
   Markdown, RST and math have no seed method, so their new file is a `DocumentNothing`.
@@ -77,10 +81,19 @@ same three fields. `SourceFile` (language server) and `LegacyResultFile` (omnet-
 one more field.
 
 **Code that names the file type of one format,** apart from the methods that this plan
-moves: 8 rows of `make_workload_file`, one row `make_graphics_projection(::Type{JuliaFile})`,
-4 gesture tables for the tooltip of a part (`@gestures JsonFile`), 2 methods of
+moves: 9 rows of `make_workload_file` (the eight domains and plain text), one row
+`make_graphics_projection(::Type{JuliaFile})`, 4 gesture tables for the tooltip of a part
+(`@gestures JsonFile`, `XmlFile` and `YamlFile`, and `IniFile` in omnet-julia), 2 methods of
 `find_navigator_target`, 2 constructions of `MarkdownFile` in the research domain, and 2
-type checks in omnet-julia.
+type checks in omnet-julia. `ImageFile` is named in about 15 places of the platform, the
+PDF backend and the book domain (`isa ImageFile`, `ImageFile(filename)`), and `PredFile(…)`
+in 5 places; the short names of P8 keep them.
+
+**What `page-pictures` added** (`6a24a6db6`). An image of a Markdown page, a figure and an
+image of an RST file, and a picture of a book keep the file of their picture in the
+view-state field `picture`, with a method of `splice_named_file!`, and a root holds them
+through `acquire_document!`. `BookPicture` asks `isa ImageFile`. These methods name the
+nodes and not a file type, and this plan does not move them.
 
 **The slice order** allows the design: serialization is below style, natural, syntax and
 fileformat ([ProjecturedPlatform.jl:38](../../package/ProjecturedPlatform/src/ProjecturedPlatform.jl#L38)).
@@ -219,9 +232,14 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   string that `export_document` writes and the string that `save_file!` writes. The record
   is the reference for step 5. Test: none; the record is a file in the worktree.
   **Done** 2026-11-15: [a-file-format-record/](a-file-format-record/), see §10.
-- [ ] **2. The format and its seams.** Add `FileFormat` and the functions of the first and
+- [x] **2. The format and its seams.** Add `FileFormat` and the functions of the first and
   the third table of §5 to the serialization slice, with no user. Test: a new
   `FileFormatTest.jl` that declares a format in the test.
+  **Done** 2026-11-16: `FileFormat.jl` and `test_file_format()` (55 pass). Equal to the
+  baseline, with the same failures: `test_serialization()`, `test_file_project()`,
+  `test_pred_file()`, `test_text_file()`, `test_naming()`, `test_package_graph()`,
+  `test_platform_layering()`, `test_exports()`, `test_arguments()`,
+  `test_documentation()`. See §10.
 - [ ] **3. Each format is declared.** The eight domains, plain text, `.pred`, the pictures
   and the source files of the language server each get a format type and its methods. The
   old tables stay for this step. Test: one contract test over `collect_file_formats()`: the
@@ -375,4 +393,60 @@ its record.
   MarkedText … that is not of its domain"). The editor saves no picture
   (`is_editable_file_type` is `false`); how it saves a source file is not checked here. A
   change of these in step 5 is no difference of P6, and step 5 names it.
+
+**2026-11-15, before step 2: §3 read again on `6a24a6db6`.** Corrected in §3: the seed
+methods of the domains are in the domains and not in `DocumentFile.jl`; the `.pred` file
+type also adds a line break; `make_workload_file` has 9 rows that name a file type, with
+plain text; the 4 gesture tables are 3 here and `@gestures IniFile` in omnet-julia;
+`ImageFile` and `PredFile` are named in about 20 more places, which the short names keep;
+and what `page-pictures` added. The rest of §3 holds: the five tables and six register
+functions of `NaturalNotation.jl`, 21 calls of `register_file_document_type!` outside the
+tests, the eight equal structs, the slice order, and the ten functions that read a method
+table.
+
+**2026-11-15, step 2: the format and its seams.**
+
+- **Where it lives.** The new fragment `source/platform/serialization/FileFormat.jl`,
+  included after `FileSplice.jl`, holds `FileFormat`, the seams and the searches. Its test
+  is `test/platform/serialization/FileFormatTest.jl`, `test_file_format()`.
+- **The slice has no suite of its own.** Its tests `test_text_file()`,
+  `test_marker_language()` and `test_pred_file()` run in `test_platform()`.
+  `test_serialization()` is a test of the umbrella, in `test/projectured/serializer/`, of
+  the binary snapshot and of `import_document` and `export_document`. So
+  `test_file_format()` runs in `test_platform()` after `test_pred_file()`, and alone.
+- **A generic function with no method** where the default comes in a later step or each
+  format must answer: `get_file_type` and `get_file_format` (the default for `File{F}`
+  comes in step 5), `make_document_string` (its general method comes in the natural slice
+  in step 4), `parse_document_string`, `get_file_format_extensions` and
+  `get_file_format_domain`. `make_reference_leaf(format, marker)` documents its signature
+  and has no default, as the form on a file has none.
+- **The defaults.** `is_editable_file_format` is `true`, `is_written_in_file` is `true`,
+  `is_written_inline` is `false`, `is_file_domain_node` asks `get_file_format_domain`, and
+  `make_file(format, filename, string)` makes `get_file_type(format)(filename, content)`.
+  `read_file_content(format, path)` parses the whole string of the file. In step 5 its
+  default becomes the one read of P6, which removes one line break before the parse,
+  because `load_project` (`FileSplice.jl`) and the file tab (`DocumentFile.jl`) read a file
+  through it, and `read_document_file` calls it too. A format that reads its file in a
+  method of its own, such as a picture, has no line break to remove.
+- **The searches.** `collect_file_formats()` reads `methods(get_file_format_extensions)`
+  and gives the value of each concrete type with no field, in the order of the names of
+  the types. A format with no extension declares `()`, so that it is in the list. A type
+  with a field is not in it (P1). `find_file_format(name)` takes a string that a format
+  declares as it is as an extension, any other string as a path, and a symbol as the
+  extension without its dot; case does not count. So `".yml"` and `"a.yml"` name the YAML
+  format, and `".bashrc"` is a path with no extension.
+- **Proposed by the assistant: an extension that two formats declare is an error that
+  names both.** The reason is the rule of this slice for a name of two loaded types
+  (`get_pred_type`): a file can not say which format it means, and with no registry no
+  load order can choose. The registry of today lets the last registration win, with no
+  word. The test adds a second format of `.tly` for one testset and removes its method
+  with `Base.delete_method` after it.
+- **No assistant mark.** No new docstring has the line `For the assistant.`, because the
+  system text does not change in this plan (P9). A docstring of a method does not change
+  the docstring of its generic function, which is the one that a model reads.
+- **For step 3.** The formats that `FileFormatTest.jl` declares, `TallyFileFormat` and
+  `TallyLogFileFormat`, are in `collect_file_formats()` in each session that loads
+  `ProjecturedPlatformTest`. They have no workload text. The contract test of step 3 over
+  `collect_file_formats()` must check them too, or check only the formats of the packages
+  of the product.
 

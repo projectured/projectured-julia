@@ -114,6 +114,7 @@ include("../../../test/platform/projection/VersioningToAnyTest.jl")
 include("../../../test/platform/serialization/TextFileTest.jl")
 include("../../../test/platform/serialization/MarkerLanguageTest.jl")
 include("../../../test/platform/serialization/PredFileTest.jl")
+include("../../../test/platform/serialization/FileFormatTest.jl")
 # ── visual documents ─────────────────────────────────────────────────────────
 include("../../../test/platform/document/PointReferenceTest.jl")
 include("../../../test/platform/document/SyntaxDocumentTest.jl")

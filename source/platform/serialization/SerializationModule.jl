@@ -48,6 +48,9 @@ export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text
        make_marker_text, is_own_content, make_file, is_editable_file_type, read_file_content,
        is_written_in_file, is_written_inline, make_inline_leaf, find_held_file, splice_held_files!,
        splice_named_file!
+export FileFormat, get_file_format_extensions, parse_document_string, make_document_string,
+       get_file_format_domain, is_editable_file_format, get_file_type, get_file_format,
+       collect_file_formats, find_file_format
 export TextFile
 export parse_path_text, print_path_text
 export PredFile, PredText, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
@@ -58,6 +61,7 @@ include("BinarySerialization.jl")
 include("FileProject.jl")
 include("FileCut.jl")
 include("FileSplice.jl")
+include("FileFormat.jl")
 include("TextFile.jl")
 include("PredFile.jl")
 
