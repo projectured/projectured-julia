@@ -1,9 +1,11 @@
 # Views compose as content composes
 
-Status: IN PROGRESS, decided. The JSON
-pipeline is the pilot, built from the bottom up. Step 1 is done, in the worktree
-`projectured-julia-views-compose`, branch `views-compose`; step 2 is done in
-the model of one recursion (decisions 10 to 13).
+Status: DONE on 2026-11-15, and not landed. The JSON
+pipeline is the pilot, built from the bottom up, on the branch `views-compose`.
+Steps 1 to 7 and 9 are done; step 8 is no step of this plan (decision 21). The
+plan `one-text-view-keeps-the-look-and-the-caret.md` brought the branch up to
+`main`, made one `TextView` from the two, and did step 9. The landing waits for
+the owner.
 
 ## The ask
 
@@ -966,9 +968,13 @@ and the output of each stage, as structures that a person reads.
    the example of step 6 again 9 of 9.
 8. **The selection fields go** for the text, syntax and JSON types (decision 2).
    Not a step of this plan: it moves to a later plan (decision 21).
-9. [ ] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
+9. [x] **The guides.** `concepts.md`, `engineer-tour.md`, `architecture-rules.md`,
    `selection.md`, `projection-system.md`, `text.md`, `syntax.md`, `json.md`,
    `markdown.md`; the plan moves to `plan/done/`.
+
+   Done 2026-11-15, as step 4 of `one-text-view-keeps-the-look-and-the-caret.md`,
+   which holds the record. The guides of the widgets and of the clipboard follow
+   too.
 
 ## Not in this plan
 

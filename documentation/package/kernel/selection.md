@@ -238,7 +238,7 @@ The stored state can not tell the places apart, so the print of each place asks
 its printer context: `is_live_place(ctx)` says whether the place of the print is
 on the path of the live selection.
 
-A parent tells each child. `make_child_context(ctx, parent, steps...)` gives the
+The printer context of each child carries the answer. `make_child_context(ctx, parent, steps...)` gives the
 child a live place when the place of the parent is live and the live selection of
 the parent goes on into the child (`has_live_selection_below(parent, steps)`). The
 root is live. A context made with no parent document gives the child the flag of

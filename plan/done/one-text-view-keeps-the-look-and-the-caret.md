@@ -1,7 +1,8 @@
 # One text view keeps the look and the caret
 
-**Status:** pending. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
-Hungarian keyboard"). Steps 1 and 2 are done. Step 3 is next.
+**Status:** done on 2026-11-15, and not landed. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
+Hungarian keyboard"). Steps 1 to 4 are done on the branch `views-compose`, which
+holds `main` at `6a24a6db6`. The landing and the push each wait for the owner.
 
 This plan is point 1 of the order in
 `plan/tentative/content-and-view-for-the-whole-project.md`. The owner approved
@@ -155,12 +156,12 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
   Tests: the tests of step 1, and a real editor: a text field and a text area
   that take typed text, a caret move, a range by the mouse, a wrap, a cut text
   with the caret at its end, and a caret that stays in view; the name of a tab.
-- [ ] **3. The wide check.** `test_platform()`, `test_json()`, `test_markdown()`,
+- [x] **3. The wide check.** Done 2026-11-15; the record is below. `test_platform()`, `test_json()`, `test_markdown()`,
   the umbrella suites that the pilot touched, and the sweep of the examples,
   against the known failures of `main`. A new record of the precompile
   statements. `Pkg.precompile` of `omnet-julia` against the branch. If a
   released version exports a name that goes, the version takes a minor step.
-- [ ] **4. The guides.** Step 9 of the pilot plan, with the one `TextView`: the
+- [x] **4. The guides.** Done 2026-11-15; the record is below. Step 9 of the pilot plan, with the one `TextView`: the
   guides of the text, the widgets, the syntax, JSON and Markdown, and the rule
   "Content documents and view documents". Both plans move to `plan/done/`. Then
   the session asks for the landing, and for the push apart.
@@ -294,6 +295,121 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
     `PaneRenameTest.jl` of the platform suite cover it.
   - The domains and the umbrella, the set of step 1: 16202 pass, 0 fail.
   - The naming guard passes.
+
+## Step 3: what the wide check found
+
+- **`main` moved two times while the plan ran, so the branch has three merges.**
+  The merge of step 1 took `main` at `8541a3592`. The second merge took `main` at
+  `3a9b4fae4`, 12 commits that give each file of the editor one document, with one
+  conflict in the import lines of `MarkdownModule.jl`. The third merge took `main`
+  at `6a24a6db6`, 4 commits that make an image hold its picture file, with two
+  conflicts: the same import lines, and the guide of Markdown, which keeps the
+  section on images of `main` and the section on views of the pilot. After the
+  third merge, `main` has no commit that the branch lacks.
+- **The wide check ran on the branch after the second merge**, as four jobs:
+  - The suites of the kernel, of JSON, of Markdown and of the data frames, the view
+    test of the umbrella and the print of the seven view examples, in one process:
+    21944 pass, 2 fail, 2 broken. The first failure is `BuildEditorTest.jl` line
+    257, which fails only when other test packages are in the process: the kernel
+    suite in a process of its own gives 5179 pass, 0 fail, 2 broken. The second is
+    the layer guard of Markdown, for the line
+    `using ..NavigatorModule: find_edited_document_target`. `main` had that line at
+    `3a9b4fae4` and has none at `6a24a6db6`, and the third merge takes that.
+  - `test_platform()`: 236250 pass, 14 fail, 22 broken. They are the 13 failures of
+    step 2 and one more edge between slices, which a file of `main` has since the
+    second merge: `FileSystemModule` to `SettingsModule`.
+  - The sweeps of every example of the umbrella: the printers 1108671 pass; the
+    readers 32660 pass; the position navigation 9418 pass, 5 broken; the REPL walk
+    31881 pass, 313 fail, 8 broken.
+  - The real editor check of step 2: 21 of 21.
+- **The 313 failures of the REPL walk are failures of `main`.** They are in two
+  examples: YAML, 107 of 230 events, and the graph, 206 of 230. The same walk on a
+  clean worktree of `main` at `6a24a6db6`, with the same Julia, gives the same
+  counts and the same first events. In the YAML example a typed `0` replaces an
+  entry of a mapping by a number, when the caret is on a part that the printer of
+  the entry introduced. In the graph example a plain Insert reaches the XML vertex,
+  which does not hold the caret, and adds an insertion that the example prints
+  with no row. The registry of the known REPL failures (`repl_broken`) does not
+  name them, and this plan does not change that.
+- **The check of the third merge.** `test_markdown()`, `test_rst()`, `test_book()`,
+  the view test of the umbrella and the print of its example, `test_image()` and
+  `test_file_change_store()`: 3424 pass, 0 fail.
+- **The recorded precompile calls of five packages are recorded again.** A load of
+  every package on the branch gave the warning of a stale list for five packages:
+  `ProjecturedJSON` (183 of 737 calls did not resolve), `ProjecturedJulia` (587 of
+  2930), `ProjecturedMarkdown` (104 of 846), `ProjecturedChart` (65 of 613) and
+  `ProjecturedLanguageServer` (2 of 17). `main` gives it for `ProjecturedChart`
+  only (62 of 613). Most of those calls name a generated keyword function of a
+  module of the platform by its number, such as `var"##TextGutterToGraphics#289"`,
+  and the number moves when the module gets code before that function. The JSON
+  types of the pilot also have other type parameters, because the field
+  `collapsed` is in the view. `record_package_calls!` wrote the `workload.txt` of
+  each of the five again. After it, a load of every package gives no such warning.
+- **No package takes a minor step for a removed name.** The branch removes three
+  exported names of `ProjecturedPlatform`: `make_text_view`, `TextViewToGraphics`
+  and `TextViewToGraphicsIoMap`. They came to `main` on 2026-11-05, after the last
+  release of the platform (0.3.0, 2026-10-22), so no released version exports
+  them.
+- **Found, and not decided: the field `collapsed` of the JSON types.** The pilot
+  takes the field `collapsed` from `JsonArray`, `JsonObjectEntry` and `JsonObject`,
+  because a fold is state of a view (decision 14 of the pilot plan). The released
+  `ProjecturedJSON` 0.1.2 has that field and the keyword of the constructors. The
+  release generator compares the exported names and finds no lost name there, so
+  it gives `ProjecturedJSON` a patch step. A recommendation of the session, which
+  the owner did not decide: `ProjecturedJSON` takes a minor step at its next
+  release, as a renamed theme field gave one in decision R36 of the release plan.
+  The versions are given at release time, so the landing does not wait for it.
+- **The repositories that use the platform.** `omnet-julia` at `6b6375c93` and
+  `inet-julia` name none of the three removed names, `TextView`, or the field
+  `collapsed` of a JSON type. `Pkg.precompile()` of the environment
+  `environment/all` of a copy of `omnet-julia`, in which each path of
+  `projectured-julia` leads to the branch, compiles the 75 packages of
+  `omnet-julia` with no error: no import of a name that is not there, and no
+  method that a package writes over. It took two runs, because a memory cap of
+  6.3G stopped the workload of `OmnetPresentationExample` in the first, and
+  `Pkg.precompile()` then ended with no error and without the 12 packages after
+  it. A cap of 13G was enough (peak 9.8G). Two recorded lists of `omnet-julia`
+  give the warning of a stale list against the branch: `OmnetLegacyFormat` (427 of
+  3675 calls) and `OmnetPresentationExample` (2231 of 8411). The second is stale
+  on `main` too (1822 calls at `5f2bdab54`, by the record of another session). The
+  count of the first on `main` was not measured. `inet-julia` was scanned for the
+  names and not compiled.
+
+## Step 4: what the guides say
+
+- **Eleven guides follow the views and the one `TextView`:** `concepts.md`,
+  `engineer-tour.md`, the rule "A type that has views" in `architecture-rules.md`,
+  `selection.md` ("A selection through views"), `projection-system.md` ("Views in
+  a chain"), and the guides of the text, the widgets, the syntax, JSON, Markdown
+  and the clipboard. This is step 9 of the pilot plan, with the guides of the
+  widgets and of the clipboard added, because step 2 of this plan and the rule of
+  a paste change them.
+- **Each statement was read against the source.** Five were corrected: two
+  sentences that told what the code was before, one sentence that the source does
+  not show, one example with a chain too many, and the statement on the fold of a
+  chain with no view. One word that made a mechanism a person was replaced.
+- **The static guards on the result.** The naming guard passes. The documentation
+  guard reports 10 findings, all in three guides of `main` that this plan does not
+  change (`git.md`, `testing-guide.md`, `task.md`). The exports guard reports 36
+  and the arguments guard 5, none in a module or a file that this plan changes.
+  The list of the lines that the documentation guard gives a person to read named
+  one sentence of the branch, in `selection.md`, which made a parent a person; it
+  names the printer context now.
+- **Both plans are in `plan/done/`.** The pilot plan
+  `views-compose-as-content-composes.md` has its step 9 done by this step; its step
+  8 is no step of it (decision 21).
+
+## What a person sees after the landing
+
+- A paste of a view selects the pasted view as a whole, as `main` selects each
+  pasted document. Before the merge of step 1, the caret of the pasted view was
+  live.
+- A cut of a view that is an element of a layout takes the element out of the
+  list. Before the merge it left an empty document in its place.
+- A fold of a JSON array or object in a chain with no view is a cell of the syntax
+  node that the print makes, and a new print of that part loses it. On `main` the
+  JSON document keeps it in `collapsed`. No pipeline of the editor makes a view
+  yet; that is point 2 of the order.
 
 ## Risks
 

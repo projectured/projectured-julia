@@ -109,5 +109,5 @@ answer.
 
 ## Related
 
-`plan/pending/views-compose-as-content-composes.md`: step 1 prints the content of a
+`plan/done/views-compose-as-content-composes.md`: step 1 prints the content of a
 view once for each place that shows the view.
