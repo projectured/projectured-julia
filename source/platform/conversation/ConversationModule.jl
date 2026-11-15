@@ -40,9 +40,11 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..SerializationModule
+using ..SettingsModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -52,19 +54,23 @@ import ..DomainModule: accepts_pasted_document, accepts_pasted_text, make_pasted
                        get_insertion_aliases, get_document_decoration
 import ..FocusModule: is_selection_walk_stop
 import ..SelectionModule: has_dormant_selection
-import ..OperationModule: evaluate_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation, is_self_contained_operation
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: get_projection_gesture_bindings
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           get_child_iomaps
+import ..TreeModule: get_tree_children_steps, format_tree_node_label
 
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label, find_form_document,
        get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
        ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation,
        ToggleEvaluatorOptionOperation, StopEvaluatorFormOperation,
        RecallEvaluatorFormOperation
-export ConversationDocument, make_conversation_thinking_part
+export ConversationDocument, make_conversation_thinking_part, ReplaceConversationFoldOperation,
+       ConversationSettings
 export ConversationPermissionRequest, is_permission_request_open, answer_permission_request!
 export ConversationSignInRequest
+export ConversationNote, is_note_turn
 export ConversationQuestionForm, ConversationQuestionRequest, is_question_request_open, find_question_values,
        answer_question_request!
 export ConversationTheme, ScaledConversationTheme
@@ -80,7 +86,7 @@ export ConversationComposerToWidget, make_conversation_composer_projection,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,
        make_submit_operation, make_evaluate_operation,
-       ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
+       ComposerInputOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
        ComposerRevertOperation, ComposerSubmitOperation, InsertDraftDocumentOperation, has_text_form
@@ -90,10 +96,12 @@ export ConversationConversation, EvaluatorForm, EvaluatorToplevel, ConversationT
 
 include("Evaluator.jl")
 include("ConversationDocument.jl")
+include("ConversationSettings.jl")
 include("ConversationTheme.jl")
 include("ConversationToWidget.jl")
 include("EvaluatorToWidget.jl")
 include("ConversationEditor.jl")
 include("ConversationRows.jl")
+include("ConversationTree.jl")
 
 end # module

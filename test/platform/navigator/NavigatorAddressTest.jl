@@ -90,7 +90,8 @@ function test_navigator_address()
         _nav_press!(editor, backend, _nav_key(:l))
         _nav_type!(editor, backend, ".chapters[5]")
         _nav_press!(editor, backend, _nav_plain_key(:return))
-        @test _nav_has_text(backend, "✗ step 4 reaches no part")
+        @test _nav_has_text(backend, "step 4 reaches no part")
+        @test _nav_has_text(backend, string(find_icon_character(:x)))
         @test get_navigator_page(navigator) === shelf.books[2]
         _nav_press!(editor, backend, _nav_plain_key(:escape))
         @test !navigator.address_draft.edited

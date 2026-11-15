@@ -22,13 +22,21 @@ function print_document(p::FormulaFormulaToLayout, recursion, formula::FormulaFo
     name = formula.name
     code = formula.code
     value = _format_stored_formula_value(formula)
+    # A function shows its equation and no value, and the mark while it computes.
+    is_function = _has_function_value(formula)
     children = if is_math_code(code)
-        Any[MathAssignment(_formula_name_tree(name), code),
-            WidgetLabel( "= " * value)]
+        tail = is_function ? value : "= " * value
+        # A word space parts the label from the equation, as it parts `=` from the value.
+        Any[MathAssignment(_formula_name_tree(name), code), (isempty(tail) ? () : (WidgetLabel(" " * tail),))...]
     else
-        Any[WidgetLabel( name * " = " * print_natural_text(code) * " = " * value)]
+        line = name * " = " * print_natural_text(code)
+        Any[WidgetLabel(is_function ? (isempty(value) ? line : line * " " * value) : line * " = " * value)]
     end
-    SimpleIoMap(p, formula, HorizontalLayout(children))
+    # The value stands on the baseline of the equation, beside a tall fraction too.
+    root = HorizontalLayout(children; vertical_align = :baseline)
+    iomap = SimpleIoMap(p, formula, root)
+    follow_widget_output!(root, formula, path -> map_reference_forward(p, iomap, path))
+    iomap
 end
 
 """
@@ -39,8 +47,12 @@ formula, each drawn by its own projection.
 """
 struct FormulaEnvironmentToLayout <: Projection end
 
-print_document(p::FormulaEnvironmentToLayout, recursion, env::FormulaEnvironment, ctx) =
-    SimpleIoMap(p, env, VerticalLayout(Any[formula for formula in env.formulas]))
+function print_document(p::FormulaEnvironmentToLayout, recursion, env::FormulaEnvironment, ctx)
+    root = VerticalLayout(Any[formula for formula in env.formulas])
+    iomap = SimpleIoMap(p, env, root)
+    follow_widget_output!(root, env, path -> map_reference_forward(p, iomap, path))
+    iomap
+end
 
 # The name of a formula as a math tree: `p_{block}` draws with its subscript.
 # A name the reader cannot read draws as text.

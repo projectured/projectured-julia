@@ -192,7 +192,7 @@ function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
                        (doc, event) -> _create_version(p, iomap);
                        description = "Create version", domain = "versioning",
                        name = "Create version"),
-        GestureBinding(KeyDownPattern(:delete; modifiers = [:ctrl]),
+        GestureBinding(KeyDownPattern(:delete; modifiers = [:alt]),
                        (doc, event) -> _delete_version(iomap);
                        description = "Delete version", domain = "versioning",
                        name = "Delete version"),

@@ -11,28 +11,34 @@
 const _MAIN_WEIGHT = 1.0
 
 """
-    AssistantToWidgetSplitPane(theme)
-    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height)
+    AssistantToWidgetSplitPane(theme; slot_padding, button_gap, label_gap)
+    AssistantToWidgetSplitPane(; composer_min_height, button_gap, label_gap, slot_padding)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
-takes the rest. A row under the composer, of the height that the theme gives,
-holds the button that stops the turn that runs, and for an external agent the
-menus of its options. With no theme it takes the values of the default theme.
+takes the rest. A row under the composer holds the button that stops the turn
+that runs, and for an external agent the menus of its options. The slot of the
+row takes the height of its content, and the space that a slot of the split
+pane gives at its top and its bottom is `slot_padding` of the `WidgetTheme`; the
+gap of its items is the `button_gap` of that theme. With no theme it takes the
+values of the default themes.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
-    option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
-    option_gap::Int = get_conversation_style(nothing, :option_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
+    label_gap::Int = get_widget_style(nothing, :label_gap)
+    slot_padding::Inset = get_widget_style(nothing, :slot_padding)
 end
 
-AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
+AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme};
+                           slot_padding = get_widget_style(nothing, :slot_padding),
+                           button_gap = get_widget_style(nothing, :button_gap),
+                           label_gap = get_widget_style(nothing, :label_gap)) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
-                                 option_bar_height = get_conversation_style(theme, :option_bar_height),
-                                 option_gap = get_conversation_style(theme, :option_gap))
+                                 button_gap, label_gap, slot_padding)
 
 """
-    AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
+    AssistantToWidgetCard(; title, transcript_height, cell_height)
 
 The same assistant, as a card of a fixed height rather than a pane that fills a
 window. It is what an assistant embedded in a DOCUMENT needs: a page of prose
@@ -41,8 +47,7 @@ transcript would push the rest of the page down on every keystroke.
 
 So each half scrolls inside the card, and the page stays the length it was.
 The card has no width of its own: it is as wide as its page, and so are the two
-halves. `gap` is the space between the halves; its default
-is the `card_gap` of the default `ConversationTheme`.
+halves. The halves touch: the card gives no gap between them.
 
 The output is a `VerticalLayout`, so a renderer row can end in
 `VerticalLayoutToGraphicsCanvas` and everything inside re-enters the renderer
@@ -53,14 +58,21 @@ struct AssistantToWidgetCard <: Projection
     title::String
     transcript_height::Int
     cell_height::Int
-    gap::Int
 end
 
 AssistantToWidgetCard(; title::AbstractString = ASSISTANT_TITLE,
                                transcript_height::Integer = 460,
-                               cell_height::Integer = 120,
-                               gap::Integer = get_theme_defaults(ConversationTheme).card_gap) =
-    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height), Int(gap))
+                               cell_height::Integer = 120) =
+    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height))
+
+# The IO map of the split pane: `wakes` is the spin box of the count of wakes, so
+# the reader turns its write into the operation that sets the count.
+@iomap struct AssistantToWidgetSplitPaneIoMap
+    projection::Any
+    input::Any
+    output::Any
+    wakes::Any
+end
 
 function print_document(projection::AssistantToWidgetSplitPane,
                            recursion, a::Assistant, ctx)
@@ -73,7 +85,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     # Stick to the bottom: as streamed turns/parts are appended, the latest
     # message stays in view instead of scrolling below the fold (standard chat UX).
-    conv_pane  = WidgetScrollPane(a.conversation; follow_end=true)
+    conv_pane  = WidgetScrollPane(a.conversation; follow_end=true, grows = (width = false, height = true))
     # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
     # dispatches to the composer rather than the history presentation; it already
     # back-links the assistant for submit).
@@ -93,21 +105,26 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # button shows them, and a line says how much of its context the session
     # uses. The row is the last child, so the maps below, which name the first
     # two, stay as they are, and a click on it is a click on a part that the view
-    # drew. A split pane prints a child at the height of its slot, so the row
-    # declares its height.
-    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
+    # drew. The row is a slot of the height of its content.
+    wakes = make_assistant_wakes_box(a)
+    # The label of the spin box stands closer to it than to the buttons, and the
+    # row puts the middle of each item on one line.
+    wake_group = HorizontalLayout(Any[WidgetLabel("Wakes left:"), wakes];
+                                  vertical_align = :center, gap = projection.label_gap)
+    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a), wake_group]
     if a.backend === :acp
         push!(items, _make_assistant_work_button(a))
-        usage = WidgetLabel("")
+        # One line, cut with "…" where the row ends: a narrow pane shows its start,
+        # and the tooltip says the usage in full.
+        usage = WidgetLabel(""; max_lines = 1)
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
         set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
         append!(items, Any[make_agent_option_bar(a), usage])
     end
-    row = HorizontalLayout(items; gap = projection.option_gap)
-    push!(panes, LayoutConstraint(row; min_height = projection.option_bar_height,
-                                  preferred_height = projection.option_bar_height))
+    row = HorizontalLayout(items; vertical_align = :center, gap = projection.button_gap)
+    push!(panes, LayoutConstraint(row; height = Content))
     column = WidgetSplitPane(:vertical, panes)
-    iomap = SimpleIoMap(projection, a, column)
+    iomap = AssistantToWidgetSplitPaneIoMap(projection, a, column, wakes)
     # A key is routed by selection: the split pane sends it to the pane that the
     # assistant's selection names. The part under the pointer follows the same map.
     set_output_path_computations!(column, a, path -> map_reference_forward(projection, iomap, path);
@@ -133,10 +150,10 @@ function print_document(p::AssistantToWidgetCard,
     # Each half authors its height and a width of 0, so it is as wide as the card,
     # and the card is as wide as the page.
     transcript = WidgetScrollPane(a.conversation; follow_end=true,
-                                  size=Point2D(0, p.transcript_height))
+                                  size=Point2D(0, p.transcript_height), grows = (width = false, height = true))
     cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height))
     card = WidgetCard(; title=p.title,
-                      content=VerticalLayout(Any[transcript, cell]; gap=p.gap, child_width=Fill))
+                      content=VerticalLayout(Any[transcript, cell]; gap=0, child_width=Fill))
     column = VerticalLayout(Any[card]; child_width=Fill)
     iomap = SimpleIoMap(p, a, column)
     # A keystroke is routed by SELECTION, and every container between the root
@@ -274,6 +291,18 @@ function map_reference_backward(p::AssistantToWidgetSplitPane,
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
+# The write of the spin box of the wakes sets the count; any other operation takes
+# the way below.
+function read_intent(p::AssistantToWidgetSplitPane, iomap::AssistantToWidgetSplitPaneIoMap,
+                     op::ReplaceReferencedValueOperation)
+    count = op.document === iomap.wakes ? _parse_wake_count(op.value) : nothing
+    count === nothing ? invoke(read_intent, Tuple{AssistantToWidgetSplitPane,Any,Any}, p, iomap, op) :
+                        SetAssistantWakesOperation(iomap.input, count)
+end
+
+_parse_wake_count(value::Real) = isfinite(value) ? Int(round(value)) : nothing
+_parse_wake_count(value) = tryparse(Int, strip(string(value)))
+
 function read_intent(p::AssistantToWidgetSplitPane,
                           iomap, op)
     # The specific KeyPress / KeyDown handlers live in
@@ -350,17 +379,35 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
     theme = get_scaled_theme!(appearance, ConversationTheme)
     # The pane is a vertical layout of widgets: its own canvas draws it, and the
     # renderer draws the widgets inside, as for the MCP log.
-    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme),
-                   AssistantList => ChainingProjection(AssistantListToWidgetPane(theme),
+    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
+    slot_padding = get_widget_style(widget_theme, :slot_padding)
+    button_gap = get_widget_style(widget_theme, :button_gap)
+    label_gap = get_widget_style(widget_theme, :label_gap)
+    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme; slot_padding, button_gap, label_gap),
+                   AssistantList => ChainingProjection(AssistantListToWidgetPane(theme; widget_theme),
                                                        VerticalLayoutToGraphicsCanvas()),
-                   AssistantWork => ChainingProjection(AssistantWorkToWidget(theme),
+                   AssistantWork => ChainingProjection(AssistantWorkToWidget(theme; widget_theme),
                                                        VerticalLayoutToGraphicsCanvas()),
-                   AgentWork => ChainingProjection(AgentWorkToWidget(theme),
+                   AgentWork => ChainingProjection(AgentWorkToWidget(theme; widget_theme),
                                                    VerticalLayoutToGraphicsCanvas())]
 end
 
 function __init__()
     register_natural_graphics!(:assistant, build_assistant_graphics_entry)
+end
+
+"""
+    make_assistant_wakes_box(assistant) -> WidgetSpinBox
+
+The spin box of the wakes that `assistant` has left, "Wakes left: [ 3 ]". It
+follows `wakes_left`; an edit makes `SetAssistantWakesOperation`, and 0 stops the
+wakes.
+"""
+function make_assistant_wakes_box(a::Assistant)
+    box = WidgetSpinBox(a.wakes_left; min = 0, width = 56,
+                        tooltip = "How many turns the assistant may start on its own, such as when a task group that it started ends. A message of yours gives at least three; 0 stops them.")
+    set_cell_computation!(getfield(box, :value), () -> a.wakes_left)
+    box
 end
 
 # ── The options of an external agent ───────────────────────────────────────
@@ -374,7 +421,7 @@ the stop icon and no word, so the row of the options of an agent keeps its
 room; its tooltip says what it does.
 """
 function make_assistant_stop_button(a::Assistant)
-    button = WidgetButton(""; icon = :stop, tooltip = "Stop the turn",
+    button = WidgetButton(""; icon = :stop, tooltip = "Stop the turn.",
                           action = editor -> evaluate_operation(editor, CancelAssistantTurnOperation(a)))
     set_cell_computation!(getfield(button, :enabled), () -> is_assistant_turn_running(a))
     button
@@ -385,18 +432,18 @@ end
 
 The button that puts a picture into the draft of `assistant`, with
 `AddDraftPictureOperation`: a picture of the part that the person selected with
-Alt+click, or else of the window. It shows the camera icon and no word; its
+Alt+double click, or else of the window. It shows the camera icon and no word; its
 tooltip says what it does.
 """
 make_assistant_picture_button(a::Assistant) =
     WidgetButton(""; icon = :camera,
-                 tooltip = "Add a picture of the selected part, or else of the window, to the message",
+                 tooltip = "Add a picture of the selected part, or of the window, to the message.",
                  action = editor -> evaluate_operation(editor, AddDraftPictureOperation(a)))
 
 # The button that shows the work page of the agent of an assistant in a tab.
 _make_assistant_work_button(a::Assistant) =
     WidgetButton(""; icon = :list,
-                 tooltip = "Show the work of the agent: its plans, subagents and tasks",
+                 tooltip = "Show the plans, the subagents and the tasks of the agent.",
                  action = editor -> (show_assistant_work!(a; editor); nothing))
 
 # The options of an external agent that the bar shows, in this order, with the
@@ -423,6 +470,7 @@ function make_agent_option_bar(a::Assistant)
     for (index, (category, word)) in enumerate(_AGENT_OPTION_BAR)
         item = WidgetMenuItem(word; action = editor -> evaluate_operation(editor, StartExternalAgentOperation(a)))
         set_cell_computation!(item, () -> _get_agent_option_label(a, category, word, index))
+        set_cell_computation!(getfield(item, :tooltip), () -> _make_agent_option_note(a, category))
         set_cell_computation!(getfield(item, :visible),
                               () -> isempty(a.agent_options) ? index == 1 :
                                     _find_agent_option(a, category) !== nothing)
@@ -433,7 +481,7 @@ function make_agent_option_bar(a::Assistant)
     set_cell_computation!(getfield(commands, :visible), () -> !isempty(a.agent_commands))
     set_cell_computation!(getfield(commands, :submenu), () -> _make_agent_command_menu(a))
     push!(items, commands)
-    sign_out = WidgetMenuItem("Sign out"; tooltip = "Sign the agent out",
+    sign_out = WidgetMenuItem("Sign out"; tooltip = "Sign the agent out.",
                               action = editor -> evaluate_operation(editor, SignOutAgentOperation(a)))
     set_cell_computation!(getfield(sign_out, :visible), () -> !isempty(a.agent_options) && _has_agent_sign_out(a))
     push!(items, sign_out)
@@ -464,11 +512,20 @@ function _get_agent_option_label(a::Assistant, category::Symbol, word::String, i
     word * ": " * (value === nothing ? option.current_value : option.values[value].name)
 end
 
+# What the menu of an option says when the pointer rests: the description that the
+# agent gives, or nothing when it gives none.
+function _make_agent_option_note(a::Assistant, category::Symbol)
+    option = _find_agent_option(a, category)
+    (option === nothing || isempty(option.description)) && return nothing
+    TooltipNote(; title = option.name, text = option.description)
+end
+
 # The values of one option, with a mark before the one that holds.
 function _make_agent_option_menu(a::Assistant, category::Symbol)
     option = _find_agent_option(a, category)
     option === nothing && return nothing
     WidgetMenu(Any[WidgetMenuItem((value.value == option.current_value ? "✓ " : "   ") * value.name;
+                                  tooltip = isempty(value.description) ? nothing : value.description,
                                   action = editor -> evaluate_operation(editor,
                                       SetAgentOptionOperation(a, option.id, value.value)))
                    for value in option.values])

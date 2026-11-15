@@ -1,5 +1,14 @@
 # The page about the program: what it draws, and what a host gives it.
 
+# What a printer draws, as text.
+function _draw_help_text(projection, document)
+    text = ChainingProjection(projection,
+                              RecursiveProjection(SyntaxToText()),
+                              RecursiveProjection(TextToString()))
+    output = print_document(text, document).output
+    output isa Cell ? output[] : output
+end
+
 function test_about_page_to_syntax()
 @testset "the page about the program" begin
     lines = split(_draw_help_text(AboutPageToSyntax(), AboutPage()), "\n")

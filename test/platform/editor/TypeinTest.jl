@@ -315,12 +315,26 @@ function _selection_caret_ok(document, target, pos::Int)
     sel === nothing && return (false, "selection is nothing, expected caret at $pos")
     expected = extend_reference(target.cursor, PositionReferenceStep(pos))
     ok = try
-        is_reference_equal(strip_reference_types(sel), strip_reference_types(expected))
+        is_reference_equal(strip_reference_types(sel), strip_reference_types(expected)) ||
+            (target.kind === :texttext && _get_text_block_caret(document, target, sel) == (pos, pos))
     catch e
         return (false, "comparing selection threw: $e")
     end
     ok ? (true, "") :
          (false, "caret at $(repr(strip_reference_types(sel))), expected caret at $pos")
+end
+
+# The flat place `(start, stop)` that `selection` names in the text block of
+# `target`, or `nothing`. A text block spells a caret flat, `{k}`, or as the place
+# in its span, `.elements[i].elements[j].content{k}`, which a span edit leaves; the
+# two name the same caret.
+function _get_text_block_caret(document, target, selection)
+    prefix = collect(get_reference_steps(strip_reference_types(target.cursor)))
+    steps = collect(get_reference_steps(strip_reference_types(selection)))
+    (length(steps) > length(prefix) && steps[1:length(prefix)] == prefix) || return nothing
+    block = evaluate_reference(document, target.cursor)
+    block isa TextBlock || return nothing
+    get_flat_range(block, Reference(steps[(length(prefix) + 1):end]...))
 end
 
 # A short description of an operation for failure messages: its type plus the

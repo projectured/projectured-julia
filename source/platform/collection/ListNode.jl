@@ -219,6 +219,32 @@ function find_list_node(head::ListNode, index::Integer)
 end
 
 """
+    find_computed_list_node(head::ListNode, index::Integer) -> ListNode | Nothing
+
+The node at `index` counted from `head`, as `find_list_node` counts, when each
+link on the way exists now. `nothing` when a link on the way does not exist yet,
+or when the chain ends first. It reads each link with `peek`, so it builds no
+node and depends on no cell of the chain.
+
+Use it to find a node that a walk built before, such as the node of a list at a
+new place of its head, when the list is reused only if the node exists.
+
+See also `find_list_node` and `count_computed_nodes`.
+"""
+function find_computed_list_node(head::ListNode, index::Integer)
+    node = head
+    link = index >= 1 ? :next : :prev
+    for _ in 1:abs(index - 1)
+        cell = getfield(node, link)
+        is_computed_cell(cell) && !is_cell_valid(cell) && return nothing
+        linked = peek(cell)
+        linked isa ListNode || return nothing
+        node = linked
+    end
+    node
+end
+
+"""
     find_list_index(head, node; limit = 10_000) -> Int | Nothing
 
 The index of `node` counted from `head`, as `find_list_node` counts: 1 is `head`,
@@ -229,7 +255,17 @@ Use it to turn a node back into a place, such as the new head of a list that a
 table writes, when the owner of the list keeps the place as an anchor. It walks
 both ways from `head` and reads the links on the way, so a lazy chain builds the
 nodes that it passes.
+
+# Example
+
+    index_1 = find_list_index(head_1, node_1)
+
+See also `get_table_row_count`.
+
+For the assistant.
 """
+function find_list_index end
+
 function find_list_index(head, node; limit::Int = 10_000)
     head isa ListNode || return nothing
     forward, backward = head, head

@@ -1,6 +1,6 @@
 # Examples Tour
 
-> **Kind:** reference · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
+> **Kind:** reference · **For:** user · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
 
 This guide walks through seven ProjecturEd examples in order of complexity.
 For each one: what it demonstrates, how to run it, what to try, and which
@@ -18,7 +18,7 @@ write_example_image("json", "/tmp/snapshot.png")
 write_example_pdf("json", "/tmp/snapshot.pdf")
 ```
 
-`[example.name for example in ProjecturedExample.examples]` lists every name; there are 105. `catalog()` answers a longer list, one entry for each document of each domain with each projection that draws it, which is what a sweep walks.
+`[example.name for example in ProjecturedExample.examples]` lists every name; there are 141. `catalog()` answers a longer list, one entry for each document of each domain with each projection that draws it, which is what a sweep walks.
 
 ## The groups
 
@@ -32,9 +32,20 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 
 **Layout and panes.** `layout`, `constraint_layout`, `widget_split_pane`, `widget_scroll_pane`, `widget_transform_pane`, `widget_shell`, `widget_tabbed_pane`. How a view is given its space.
 
+**The layout cases.** Each of these examples is one worked case of [layout-rules.md](../rule/layout-rules.md) §5, in a window with a hint at the top and a splitter below it. Drag the splitter, or change the size of the window, and see the parts share the space.
+
+| Example | What it shows |
+| --- | --- |
+| `layout_text_above_table` | the detail of a task: a text in a scroll area gives up height and scrolls, and the table below it keeps its minimum of 120 |
+| `layout_scroll_area_in_page` | a code block in a scroll area of its own, in a page that scrolls: the block stays as tall as its lines |
+| `layout_fill_in_scroll_area` | a part that fills, in a scroll area: with a short header it fills the view, and with a long one the area scrolls to the footer |
+| `layout_shares` | `Fixed`, `Content`, `Relative(2)` and `Relative(1)` with minimums, in one column |
+| `layout_row_edge` | a field that takes what a label and a button leave, and a long text before a button, with and without a weight |
+| `layout_rows_in_slot_and_page` | a table that fills a part that cuts and scrolls its rows, and a table and a list in a page, as tall as their rows |
+
 **Charts and diagrams.** `chart`, `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip`, `chart_inspector`, `graph`, `sequencechart` and its four variants. A chart is a document, and a data point is selectable.
 
-**Models that run.** `fsm`, `fsm_toggle`, `fsm_diagram` — a state machine that produces Julia code. `rotating_vector` — a document that drives itself.
+**Models that run.** `fsm_toggle`, `fsm_crossing`, `fsm_alternating_bit` and `fsm`, the TCP connection — state machines that produce Julia code that runs; `fsm_diagram` and `fsm_alternating_bit_diagram` draw a machine. `rotating_vector` — a document that drives itself.
 
 **The general steps.** `collection`, `reversing`, `filtering`, `searching`, `sorting`, `focusing`, `dragging`. One step in front of any data: a filter, a sort, a search. They work for every domain, which is what makes them worth reading.
 

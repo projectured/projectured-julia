@@ -1,0 +1,758 @@
+# Fragment of `ResearchModule` — the verbs that the assistant calls on a study: a
+# new study, an item of each kind, a decision, the check of the predictions, the
+# report, the formula sheet, and the reads of a study.
+#
+# Each verb takes the study as a `ReferencedDocument`, or as the study itself,
+# makes the operation of a builder of `ResearchEdits.jl` with the author
+# `:assistant`, and lets the readers of the editor carry it from the study to the
+# root, so the history of the tab that shows the study records it, as it records
+# an edit of the person. A study that no view shows takes the operation directly.
+# A verb that adds an item answers it as a part of the window, a
+# `ReferencedDocument`, when it was given the study as one, and as the item
+# itself otherwise; a link takes either.
+
+# `field` is the field of the study that the operation writes. The operation is
+# read from the study up to the root, so the reference names a place inside the
+# study: a study can be the whole content of a history, one step from the root.
+function _evaluate_research_operation!(editor, study, field::Symbol, operation, description)
+    change = _find_research_change(editor, study, field, operation, description)
+    evaluate_operation(editor, change === nothing ? operation : change)
+end
+
+# The operation as a change from the root of the editor's document; `nothing` when
+# `study` is no part of a window that the editor printed.
+function _find_research_change(editor, study, field::Symbol, operation, description)
+    study isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    reference = extend_reference(get_reference(study), FieldReferenceStep(String(field)))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+    rooted === nothing ? nothing : RootedOperation(rooted, description)
+end
+
+function _make_research_change(editor, study, field::Symbol, operation, description, verb)
+    change = _find_research_change(editor, study, field, operation, description)
+    change === nothing &&
+        throw(ArgumentError("The study is no part of a window that the editor printed, so no " *
+                            "history can record a change of it; call `" * string(nameof(verb)) *
+                            "`, which changes it at once."))
+    change
+end
+
+# The operation that adds a new item of `type` to `study` as the assistant, its
+# description, the item and the field of the study that it is added to.
+function _make_research_item_edit(study, type, description; fields...)
+    document = get_document(study)
+    item = make_research_item(document, type; author = :assistant, fields...)
+    (make_add_research_item_operation(document, item), description * " " * item.id, item,
+     get_research_kind(item).field)
+end
+
+# Add a new item of `type` to `study` as the assistant, and answer it: as a
+# `ReferencedDocument` when `study` is one, so the answer is a part of the window.
+function _add_research_item!(study, type, editor, description; fields...)
+    run_on_editor_task!(editor; description) do
+        operation, log, item, field = _make_research_item_edit(study, type, description; fields...)
+        _evaluate_research_operation!(editor, study, field, operation, log)
+        _make_study_item_part(study, item)
+    end
+end
+
+function _make_research_item_change(editor, study, type, description, verb; fields...)
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, log, _, field = _make_research_item_edit(study, type, description; fields...)
+        _make_research_change(editor, study, field, operation, log, verb)
+    end
+end
+
+# `item` of `study`, as a `ReferencedDocument` when `study` is one.
+function _make_study_item_part(study::ReferencedDocument, item::ResearchItem)
+    field = get_research_kind(item).field
+    index = findfirst(element -> element === item, collect(getproperty(get_document(study), field)))
+    index === nothing ? item : getproperty(study, field)[index]
+end
+_make_study_item_part(study, item) = item
+
+# ── A study ──────────────────────────────────────────────────────────────
+
+"""
+    start_study!(title; question = nothing, editor = get_evaluation_editor()) -> ReferencedDocument
+
+Make a new study with `title`, and with the question `question` when one is given;
+open it in a tab and add it to the explorer. Answer the study as the part of the
+window that the tab shows, which every other verb takes. The study and its question say that you made them.
+
+Use it to begin the record of a piece of work by the scientific approach: a
+question to answer, and later its sources, hypotheses, experiments, results,
+evidence, decisions and answer.
+
+# Example
+
+    study_1 = start_study!("The buffer of the access router";
+                           question = "Which queue capacity keeps the drop rate under 1 %?")
+
+See also `add_question!`, `describe_study`.
+
+For the assistant.
+"""
+function start_study! end
+
+function start_study!(title; question = nothing, editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "start_study!") do
+        study = ResearchStudy(title = _make_text(title), author = :assistant, time = get_research_time())
+        if question !== nothing
+            push!(study.questions, make_research_item(study, ResearchQuestion; author = :assistant,
+                                                      statement = question))
+        end
+        evaluate_operation(editor, AddExplorerEntryOperation(study))
+        get_edited_document(open_pane!(study; editor))
+    end
+end
+
+"""
+    add_question!(study, statement; criterion = "", purpose = "", parent = nothing,
+                  editor = get_evaluation_editor()) -> the new item
+
+Add a question to `study`: what the study must find out, what would answer it
+(`criterion`), and what the answer decides (`purpose`). `parent` is a wider
+question, or its id. Answer the new question; its id is the next `Q` of the study.
+
+Use it to state a question of a study, or a narrower question under one.
+
+# Example
+
+    question_1 = add_question!(study_1, "Which queue capacity keeps the drop rate under 1 %?";
+                               criterion = "the drop rate of each capacity, with a 95 % interval",
+                               purpose = "the capacity that the router ships with")
+
+See also `add_hypothesis!`, `add_answer!`.
+
+For the assistant.
+"""
+function add_question! end
+
+add_question!(study, statement; criterion = "", purpose = "", parent = nothing,
+              editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchQuestion, editor, "Add the question";
+                        statement, criterion, purpose, parent)
+
+make_change(::typeof(add_question!), study, statement; criterion = "", purpose = "", parent = nothing,
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchQuestion, "Add the question", add_question!;
+                               statement, criterion, purpose, parent)
+
+"""
+    add_source!(study, citation; link = "", summary = "", editor = get_evaluation_editor())
+        -> the new item
+
+Add a source to `study`: an item of the literature, a standard or a data set.
+`citation` says who wrote it, when, and its title; `link` is a DOI, a URL or a
+path; `summary` says what it says that matters to the study. Answer the source.
+
+Use it to record what you read or found that the study rests on.
+
+# Example
+
+    source_1 = add_source!(study_1, "Kleinrock, Queueing Systems, Volume I, 1975";
+                           summary = "The blocking of M/M/1/K in closed form.")
+
+See also `add_hypothesis!`, `add_evidence!`.
+
+For the assistant.
+"""
+function add_source! end
+
+add_source!(study, citation; link::AbstractString = "", summary = "", editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchSource, editor, "Add the source";
+                        citation, link = String(link), summary)
+
+make_change(::typeof(add_source!), study, citation; link::AbstractString = "", summary = "",
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchSource, "Add the source", add_source!;
+                               citation, link = String(link), summary)
+
+"""
+    add_hypothesis!(study, statement; question = nothing, prediction = nothing, basis = Any[],
+                    editor = get_evaluation_editor()) -> the new item
+
+Add a hypothesis to `study`: a claim that a test can refute. `question` is the
+question that it answers, `prediction` what a test must observe if it holds (prose,
+or a `ResearchExpectation` that `check_predictions!` tests), and `basis` the items
+that it rests on. A link is an item or its id, such as `"Q1"`. Answer the hypothesis.
+
+Use it to propose an answer to a question that an experiment or an analysis can test.
+
+# Example
+
+    hypothesis_1 = add_hypothesis!(study_1, "A queue capacity of 13 is enough.";
+        question = "Q1", basis = ["S1"],
+        prediction = ResearchExpectation(result_selection = selection_1, upper = 0.01))
+
+See also `add_experiment!`, `add_evidence!`, `check_predictions!`.
+
+For the assistant.
+"""
+function add_hypothesis! end
+
+add_hypothesis!(study, statement; question = nothing, prediction = nothing, basis = Any[],
+                editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchHypothesis, editor, "Add the hypothesis";
+                        statement, question, prediction, basis)
+
+make_change(::typeof(add_hypothesis!), study, statement; question = nothing, prediction = nothing,
+            basis = Any[], editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchHypothesis, "Add the hypothesis", add_hypothesis!;
+                               statement, question, prediction, basis)
+
+"""
+    add_experiment!(study, title; design = nothing, tests = Any[], uses = Any[],
+                    editor = get_evaluation_editor()) -> the new item
+
+Add an experiment to `study`: a plan that makes new data. `design` is the plan, a
+document of any domain, such as prose, a run selection or a configuration; `tests`
+are the hypotheses that it tests, and `uses` the sources and results that it reads.
+Answer the experiment.
+
+Use it to record how a hypothesis is tested by new data, before the runs.
+
+# Example
+
+    experiment_1 = add_experiment!(study_1, "Sweep K = 1 … 20"; design = selection_1, tests = ["H1"])
+
+See also `add_result!`, `record_decision!`.
+
+For the assistant.
+"""
+function add_experiment! end
+
+add_experiment!(study, title; design = nothing, tests = Any[], uses = Any[],
+                editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchExperiment, editor, "Add the experiment";
+                        title, design, tests, uses)
+
+make_change(::typeof(add_experiment!), study, title; design = nothing, tests = Any[], uses = Any[],
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchExperiment, "Add the experiment", add_experiment!;
+                               title, design, tests, uses)
+
+"""
+    add_analysis!(study, title; method = nothing, tests = Any[], uses = Any[],
+                  editor = get_evaluation_editor()) -> the new item
+
+Add an analysis to `study`: a plan that makes a result from data that exist.
+`method` is Julia code, a SQL query, a pivot, a formula sheet or any document.
+Answer the analysis.
+
+Use it to record a statistic, a fit or a closed form that a hypothesis is held
+against.
+
+# Example
+
+    analysis_1 = add_analysis!(study_1, "Mean drop rate by K"; uses = ["R1"], tests = ["H1"])
+
+See also `add_study_formula!`, `add_result!`.
+
+For the assistant.
+"""
+function add_analysis! end
+
+add_analysis!(study, title; method = nothing, tests = Any[], uses = Any[],
+              editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchAnalysis, editor, "Add the analysis";
+                        title, method, tests, uses)
+
+make_change(::typeof(add_analysis!), study, title; method = nothing, tests = Any[], uses = Any[],
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchAnalysis, "Add the analysis", add_analysis!;
+                               title, method, tests, uses)
+
+"""
+    add_result!(study, title, content; origin = nothing, editor = get_evaluation_editor())
+        -> the new item
+
+Add a result to `study`: the data `content` (a table, a plot, a number, any
+document), which `origin` made, an experiment, an analysis or a source, or its id.
+Answer the result.
+
+Use it to keep the data of a run or an analysis in the study.
+
+# Example
+
+    result_1 = add_result!(study_1, "Drop rate by K", table_1; origin = "X1")
+
+See also `add_evidence!`.
+
+For the assistant.
+"""
+function add_result! end
+
+add_result!(study, title, content; origin = nothing, editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchResult, editor, "Add the result"; title, content, origin)
+
+make_change(::typeof(add_result!), study, title, content; origin = nothing,
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchResult, "Add the result", add_result!;
+                               title, content, origin)
+
+"""
+    add_evidence!(study, statement; basis = Any[], supports = Any[], opposes = Any[],
+                  editor = get_evaluation_editor()) -> the new item
+
+Add evidence to `study`: an observation, stated apart from what it means, of the
+results and sources of `basis`, and the claims that it `supports` and `opposes`.
+Answer the evidence.
+
+Use it to record what a result or a source shows about a hypothesis or an answer.
+
+# Example
+
+    evidence_1 = add_evidence!(study_1, "At K = 13 the drop rate is 0.91 % ± 0.05 %.";
+                               basis = ["R1"], supports = ["H1"])
+
+See also `record_decision!`, `check_predictions!`.
+
+For the assistant.
+"""
+function add_evidence! end
+
+add_evidence!(study, statement; basis = Any[], supports = Any[], opposes = Any[],
+              editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchEvidence, editor, "Add the evidence";
+                        statement, basis, supports, opposes)
+
+make_change(::typeof(add_evidence!), study, statement; basis = Any[], supports = Any[], opposes = Any[],
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchEvidence, "Add the evidence", add_evidence!;
+                               statement, basis, supports, opposes)
+
+"""
+    add_answer!(study, statement; question = nothing, caveats = "", basis = Any[],
+                editor = get_evaluation_editor()) -> the new item
+
+Add an answer to `study`: the answer to `question`, where it does not hold
+(`caveats`), and the items that it rests on. Answer the answer item.
+
+Use it to write down the conclusion of a study with its limits.
+
+# Example
+
+    answer_1 = add_answer!(study_1, "A queue capacity of 13."; question = "Q1",
+                           caveats = "Poisson arrivals only.", basis = ["E1"])
+
+See also `record_decision!`.
+
+For the assistant.
+"""
+function add_answer! end
+
+add_answer!(study, statement; question = nothing, caveats = "", basis = Any[],
+            editor = get_evaluation_editor()) =
+    _add_research_item!(study, ResearchAnswer, editor, "Add the answer";
+                        statement, question, caveats, basis)
+
+make_change(::typeof(add_answer!), study, statement; question = nothing, caveats = "", basis = Any[],
+            editor = get_evaluation_editor()) =
+    _make_research_item_change(editor, study, ResearchAnswer, "Add the answer", add_answer!;
+                               statement, question, caveats, basis)
+
+"""
+    record_decision!(study, statement; accepts = Any[], rejects = Any[], basis = Any[],
+                     reason = "", editor = get_evaluation_editor()) -> the new item
+
+Record a decision in `study`: what was decided and why, the items that it accepts
+and rejects, and the items that it rests on. The status of each accepted item
+becomes `:accepted`, and of each rejected one `:rejected`; a later decision about
+the same item supersedes this one. The decision says that you made it. Answer the
+decision.
+
+Use it to record a decision, or to accept or reject an item, only when the person
+asks you to. The person decides; the record shows who decided.
+
+# Example
+
+    record_decision!(study_1, "A queue capacity of 13 is enough."; accepts = ["H1", "E1"],
+                     basis = ["E1"], reason = "The interval of E1 is under the bound.")
+
+See also `add_evidence!`, `describe_study`.
+
+For the assistant.
+"""
+function record_decision! end
+
+function record_decision!(study, statement; accepts = Any[], rejects = Any[], basis = Any[],
+                          reason = "", editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "record_decision!") do
+        operation, description, decision = _make_record_decision(study, statement; accepts, rejects, basis, reason)
+        _evaluate_research_operation!(editor, study, :decisions, operation, description)
+        _make_study_item_part(study, decision)
+    end
+end
+
+make_change(::typeof(record_decision!), study, statement; accepts = Any[], rejects = Any[], basis = Any[],
+            reason = "", editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation, description, _ = _make_record_decision(study, statement; accepts, rejects, basis, reason)
+        _make_research_change(editor, study, :decisions, operation, description, record_decision!)
+    end
+
+# The operation, its description and the new decision.
+function _make_record_decision(study, statement; accepts, rejects, basis, reason)
+    document = get_document(study)
+    decision = make_research_item(document, ResearchDecision; author = :assistant,
+                                  statement, accepts, rejects, basis, reason)
+    (make_record_decision_operation(document, decision), "Record the decision " * decision.id, decision)
+end
+
+# ── The check of the predictions ─────────────────────────────────────────
+
+"""
+    get_expectation_bounds(expectation) -> (lower, upper)
+
+The bounds that a value is held against. Without a reference they are the
+`lower` and `upper` of the expectation, either of which can be `nothing`. With a
+reference, a formula, they are its value times `1 - tolerance` and
+`1 + tolerance`.
+"""
+function get_expectation_bounds(expectation::ResearchExpectation)
+    reference = expectation.reference
+    reference === nothing && return (expectation.lower, expectation.upper)
+    reference isa FormulaFormula ||
+        throw(ArgumentError("An expectation compares against a formula, and this is a " *
+                            string(nameof(typeof(reference))) * "."))
+    tolerance = expectation.tolerance
+    tolerance isa Real || throw(ArgumentError("An expectation with a reference needs a tolerance."))
+    value = get_formula_value(reference)
+    value isa Real ||
+        throw(ArgumentError("The reference " * repr(reference.name) * " answers " * repr(value) *
+                            " and not a number."))
+    minmax(value * (1 - tolerance), value * (1 + tolerance))
+end
+
+# The evidence of one check: what the read gave, against the bounds, for
+# `hypothesis`. `values` are `label => value` pairs, a label `nothing` when the
+# read gave a bare number, and `basis` is the result that the check read, or
+# `nothing`.
+function _make_check_evidence(study, hypothesis, values, (lower, upper), basis = nothing)
+    bounds = "[" * (lower === nothing ? "-∞" : string(lower)) * ", " *
+             (upper === nothing ? "∞" : string(upper)) * "]"
+    basis_items = basis === nothing ? Any[] : Any[basis]
+    if isempty(values)
+        return make_research_item(study, ResearchEvidence; author = :assistant, basis = basis_items,
+            statement = "The check of " * hypothesis.id * " read no value.")
+    end
+    is_inside(value) = (lower === nothing || value >= lower) && (upper === nothing || value <= upper)
+    outside = filter(pair -> !is_inside(last(pair)), values)
+    holds = isempty(outside)
+    mean = sum(last, values) / length(values)
+    statement = "The check of " * hypothesis.id * " read " * string(length(values)) *
+                (length(values) == 1 ? " value" : " values") * " with the mean " * string(mean) *
+                "; " * (holds ? "every value is" : "not every value is") * " in " * bounds * "."
+    labelled = filter(pair -> first(pair) !== nothing, outside)
+    isempty(labelled) ||
+        (statement *= " Outside: " * join((string(first(pair), ": ", last(pair)) for pair in labelled), "; ") * ".")
+    make_research_item(study, ResearchEvidence; author = :assistant, statement, basis = basis_items,
+                       supports = holds ? Any[hypothesis] : Any[],
+                       opposes = holds ? Any[] : Any[hypothesis])
+end
+
+# What a check reads for an expectation whose selection is `selection`: the
+# selection itself, or the content of a result of the study, which also becomes
+# the basis of the evidence. A result is the item, or a string that is its id; a
+# string that names no result is a selection like any other.
+function _resolve_check_selection(study::ResearchStudy, selection)
+    selection isa AbstractString && (item = find_study_item(study, selection); item isa ResearchResult) &&
+        (selection = item)
+    selection isa ResearchResult ? (selection.content, selection) : (selection, nothing)
+end
+
+# The values that a read answered, as `label => value` pairs: a read answers
+# numbers, or pairs whose first is the label of the value, such as `"G = 2" => 0.031`.
+_make_check_value(value::Pair) = first(value) => Float64(last(value))
+_make_check_value(value) = nothing => Float64(value)
+
+"""
+    check_predictions!(study, read; editor = get_evaluation_editor()) -> Vector
+
+Check each hypothesis of `study` whose prediction is a `ResearchExpectation`:
+`read(selection)` answers the values that the expectation names, and every value
+must lie in its bounds. Each check adds evidence that supports the hypothesis
+when every value is in the bounds, opposes it when one is not, and only says so
+when the read gave no value. The expectation keeps no status, so the study keeps
+every check. Answer the new evidence.
+
+The selection of an expectation may be a result of the study, or the id of one:
+the check then reads the content of the result, and the evidence holds the result
+in its basis, so a person follows the link from the hypothesis to what was read.
+`read` answers numbers, or `label => value` pairs, and the evidence names each
+labelled value that lies outside the bounds.
+
+Use it to hold the results against what the hypotheses predicted, after the runs.
+
+# Example
+
+    check_predictions!(study_1, selection -> read_values(selection))
+
+See also `ResearchExpectation`, `add_hypothesis!`, `record_decision!`.
+
+For the assistant.
+"""
+function check_predictions! end
+
+function check_predictions!(study, read; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "check_predictions!") do
+        document = get_document(study)
+        # Every expectation is read and bounded before any evidence is added, so an
+        # expectation that can not be checked leaves the study as it was.
+        checks = Any[]
+        for hypothesis in collect(document.hypotheses)
+            hypothesis.prediction isa ResearchExpectation || continue
+            selection, basis = _resolve_check_selection(document, hypothesis.prediction.result_selection)
+            values = selection === nothing ? Pair{Any,Float64}[] :
+                     Pair{Any,Float64}[_make_check_value(v) for v in read(selection)]
+            push!(checks, (hypothesis, values, get_expectation_bounds(hypothesis.prediction), basis))
+        end
+        added = Any[]
+        for (hypothesis, values, bounds, basis) in checks
+            evidence = _make_check_evidence(document, hypothesis, values, bounds, basis)
+            _evaluate_research_operation!(editor, study, :evidence,
+                                          make_add_research_item_operation(document, evidence),
+                                          "Check " * hypothesis.id)
+            push!(added, _make_study_item_part(study, evidence))
+        end
+        added
+    end
+end
+
+# ── The report ───────────────────────────────────────────────────────────
+
+# The operation that appends `blocks` to the report of `study`, or that gives a
+# study with no report a new one that holds them.
+function _make_append_report_operation(study::ResearchStudy, blocks)
+    report = study.report
+    report isa MarkdownRoot ||
+        return ReplaceReferencedValueOperation(study, "report", MarkdownRoot(elements = Any[blocks...]))
+    make_insert_elements_operation(Reference(FieldReferenceStep("elements")), length(report.elements) + 1,
+                                   Any[blocks...]; root = report)
+end
+
+function _append_report_blocks!(study, blocks, editor, description)
+    isempty(blocks) && throw(ArgumentError("There is nothing to add to the report."))
+    run_on_editor_task!(editor; description) do
+        _evaluate_research_operation!(editor, study, :report,
+                                      _make_append_report_operation(get_document(study), blocks), description)
+        _make_report_block_parts(study, blocks)
+    end
+end
+
+function _make_report_blocks_change(editor, study, blocks, description, verb)
+    isempty(blocks) && throw(ArgumentError("There is nothing to add to the report."))
+    run_on_editor_task!(editor; description = "make_change") do
+        _make_research_change(editor, study, :report,
+                              _make_append_report_operation(get_document(study), blocks), description, verb)
+    end
+end
+
+_parse_section_blocks(heading::AbstractString, prose::AbstractString) =
+    collect(parse_markdown("## " * String(heading) * "\n\n" * String(prose) * "\n").elements)
+_parse_prose_blocks(prose::AbstractString) = collect(parse_markdown(String(prose) * "\n").elements)
+_get_embedded_blocks(documents) = Any[get_document(document) for document in documents]
+
+# The blocks of the report of `study`, each as a `ReferencedDocument` when `study` is
+# one, found in the report by their identity.
+function _make_report_block_parts(study::ReferencedDocument, blocks)
+    elements = study.report.elements
+    held = collect(get_document(elements))
+    Any[let index = findfirst(element -> element === block, held)
+            index === nothing ? block : elements[index]
+        end for block in blocks]
+end
+_make_report_block_parts(study, blocks) = blocks
+
+"""
+    add_study_section!(study, heading, prose; editor = get_evaluation_editor()) -> the heading
+
+Append a section to the report of `study`: a heading and the paragraphs of
+`prose`, which is Markdown. A study with no report gets one. Answer the heading.
+
+Use it to write a titled section of the report: the question, the model, the
+method, the results, the answer.
+
+# Example
+
+    add_study_section!(study_1, "The model", "A source feeds a queue with a finite buffer.")
+
+See also `add_study_prose!`, `embed_in_study!`.
+
+For the assistant.
+"""
+function add_study_section! end
+
+add_study_section!(study, heading::AbstractString, prose::AbstractString; editor = get_evaluation_editor()) =
+    first(_append_report_blocks!(study, _parse_section_blocks(heading, prose), editor, "add_study_section!"))
+
+make_change(::typeof(add_study_section!), study, heading::AbstractString, prose::AbstractString;
+            editor = get_evaluation_editor()) =
+    _make_report_blocks_change(editor, study, _parse_section_blocks(heading, prose), "add_study_section!",
+                               add_study_section!)
+
+"""
+    add_study_prose!(study, prose; editor = get_evaluation_editor()) -> the last paragraph
+
+Append the paragraphs of `prose`, which is Markdown, to the report of `study`.
+
+Use it to write an explanation, a remark or a transition into the report.
+
+# Example
+
+    add_study_prose!(study_1, "The load is 0.8, so the queue is busy four fifths of the time.")
+
+See also `add_study_section!`.
+
+For the assistant.
+"""
+function add_study_prose! end
+
+add_study_prose!(study, prose::AbstractString; editor = get_evaluation_editor()) =
+    last(_append_report_blocks!(study, _parse_prose_blocks(prose), editor, "add_study_prose!"))
+
+make_change(::typeof(add_study_prose!), study, prose::AbstractString; editor = get_evaluation_editor()) =
+    _make_report_blocks_change(editor, study, _parse_prose_blocks(prose), "add_study_prose!", add_study_prose!)
+
+"""
+    embed_in_study!(study, documents...; editor = get_evaluation_editor()) -> the last document
+
+Place documents as blocks of the report of `study`, in order: an item of the
+study, a file, a table, a plot, any document. An item is the item itself, so a
+change of it shows in the report.
+
+Use it to put an item or a document into the report where the reader sees it.
+
+# Example
+
+    embed_in_study!(study_1, find_study_item(study_1, "E1"))
+
+See also `add_study_section!`.
+
+For the assistant.
+"""
+function embed_in_study! end
+
+embed_in_study!(study, documents...; editor = get_evaluation_editor()) =
+    last(_append_report_blocks!(study, _get_embedded_blocks(documents), editor, "embed_in_study!"))
+
+make_change(::typeof(embed_in_study!), study, documents...; editor = get_evaluation_editor()) =
+    _make_report_blocks_change(editor, study, _get_embedded_blocks(documents), "embed_in_study!", embed_in_study!)
+
+# ── The formula sheet ────────────────────────────────────────────────────
+
+"""
+    add_study_formula!(study, name, text; editor = get_evaluation_editor()) -> FormulaFormula
+
+Add a named formula, written in math notation, to the sheet of the analysis of
+`study` whose method is a formula sheet. A study with no such analysis gets one,
+"Closed form". Answer the formula; `get_formula_value` reads its value.
+
+Use it to write a closed form that a hypothesis is held against, such as the
+blocking of a queue. A name with one name in parentheses, `S_{pure}(G)`, makes the
+formula a function of that name: the formula is callable, another formula of the
+sheet calls it, and a chart draws it.
+
+# Example
+
+    add_study_formula!(study_1, "P_block", "(1 - rho) rho^(K + 1) / (1 - rho^(K + 2))")
+    S_pure = add_study_formula!(study_1, "S_{pure}(G)", "G e^{-2G}")
+    S_pure(0.5)                                                  # 0.18394
+    add_study_formula!(study_1, "S_{peak}", "S_{pure}(0.5)")     # a call from another formula
+
+See also `ResearchExpectation`, `check_predictions!`.
+
+For the assistant.
+"""
+function add_study_formula! end
+
+function add_study_formula!(study, name::AbstractString, text::AbstractString;
+                            editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "add_study_formula!") do
+        document = get_document(study)
+        analysis = findfirst(item -> item.method isa FormulaEnvironment, collect(document.analyses))
+        sheet = if analysis === nothing
+            made = FormulaEnvironment(Any[])
+            item = make_research_item(document, ResearchAnalysis; author = :assistant,
+                                      title = "Closed form", method = made)
+            _evaluate_research_operation!(editor, study, :analyses,
+                                          make_add_research_item_operation(document, item),
+                                          "Add the analysis " * item.id)
+            made
+        else
+            document.analyses[analysis].method
+        end
+        formula = FormulaFormula(String(name), parse_math(String(text)))
+        _evaluate_research_operation!(editor, study, :analyses,
+            make_insert_elements_operation(Reference(FieldReferenceStep("formulas")),
+                                           length(sheet.formulas) + 1, Any[formula]; root = sheet),
+            "Add the formula " * repr(String(name)))
+        wire_result!(formula, sheet)
+        # The sheet shows the value of the new formula once it computes: on the
+        # formula task of the editor while its loop runs, and at once with no loop.
+        evaluate_operation(editor, ComputeFormulasOperation(sheet, FormulaFormula[formula]))
+        formula
+    end
+end
+
+# ── Reading ──────────────────────────────────────────────────────────────
+
+function find_study_item(study::ReferencedDocument, id::AbstractString)
+    item = find_study_item(get_document(study), id)
+    item === nothing ? nothing : _make_study_item_part(study, item)
+end
+
+"""
+    describe_study(study) -> String
+
+The outline of `study` as text: its title, then one line for each item, with its
+id, its status, its text, its links, its author and its time, and a line under it
+for each of its elements, with the kind and the first line of the element.
+
+Use it to read a study before you add to it, or to say what it holds.
+
+# Example
+
+    describe_study(study_1)
+
+See also `find_study_item`, `StudyItems`.
+
+For the assistant.
+"""
+function describe_study end
+
+function describe_study(study)
+    document = get_document(study)
+    lines = String[_format_plain_text(document.title)]
+    for item in collect_study_items(document)
+        status = has_research_status(item) ? " [" * string(item.status) * "]" : ""
+        links = [describe_research_link(item, name, linked) for (name, linked) in collect_research_links(item)]
+        push!(lines, item.id * status * " " * _format_plain_text(get_research_item_text(item)) *
+                     (isempty(links) ? "" : " (" * join(links, "; ") * ")") *
+                     " — " * string(item.author) * ", " * item.time)
+        for element in item.elements
+            push!(lines, "  element: " * _describe_research_element(element))
+        end
+    end
+    join(lines, "\n")
+end
+
+# The kind of an element by the shortest name that completes it, and its first line
+# of text, cut to a short note.
+function _describe_research_element(element)
+    aliases = get_insertion_aliases(typeof(element))
+    names = get_insertion_names(typeof(element))
+    kind = !isempty(aliases) ? first(aliases) : isempty(names) ? string(nameof(typeof(element))) :
+           names[min(2, length(names))]
+    text = try
+        print_natural_text(element)
+    catch
+        _format_plain_text(element)
+    end
+    parts = split(text, '\n'; keepempty = false)
+    line = isempty(parts) ? "" : String(strip(first(parts)))
+    length(line) > 60 && (line = first(line, 59) * "…")
+    isempty(line) ? kind : kind * " " * repr(line)
+end

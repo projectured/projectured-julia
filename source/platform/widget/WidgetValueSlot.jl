@@ -18,18 +18,19 @@
 # document: the print would make the widget again, without end.
 
 """
-    WidgetValueIoMap(projection, input, output, value_iomap)
+    WidgetValueIoMap(projection, input, output, value_iomap, box)
 
 The IO map of a value widget. `value_iomap` is the IO map of the document in the
 value slot, printed as the child of the slot, or `nothing` when the slot holds a
 plain value. It is no child IO map of the drawing, so a walk of the drawing does
-not see it.
+not see it. `box` is the shape of the box of the widget, which its reader reads.
 """
 @iomap struct WidgetValueIoMap
     projection::Any
     input::Any
     output::Any
     value_iomap::Any
+    box::Any
 end
 
 # The child of the value slot `name` of `w`: a cell that holds the IO map of the
@@ -37,7 +38,7 @@ end
 # `nothing` when the slot holds a plain value when the widget prints.
 function _print_value_slot(recursion, w, name::Symbol, ctx)
     getproperty(w, name) isa Document || return nothing
-    child_ctx = ctx === nothing ? nothing : make_child_context(ctx, FieldReferenceStep(String(name)))
+    child_ctx = ctx === nothing ? nothing : make_child_context(_with_no_space(ctx), FieldReferenceStep(String(name)))
     make_reconciled_child_iomap_cell(() -> getproperty(w, name),
                                      value -> print_child(recursion, value, child_ctx))
 end
@@ -93,7 +94,7 @@ const _VALUE_WIDGET_TYPES = (WidgetCheckbox, WidgetSwitch, WidgetToggle, WidgetS
 
 A table for a form whose fields are `ObjectField`s: the row of a bare field,
 `ObjectField => ObjectFieldToWidget(; make_widget)`, then the rows of `dispatch`,
-a table of widget projections such as `WidgetToGraphics(font).dispatch`, with the
+a table of widget projections such as `WidgetToGraphics(; measure).dispatch`, with the
 row of each value widget nested so that a document in its value slot prints
 through `ObjectFieldToValue`:
 
@@ -110,7 +111,7 @@ in its slot, and only the nesting keeps that slot from making a widget again.
 
     RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        make_object_field_widget_dispatch(WidgetToGraphics(font).dispatch),
+        make_object_field_widget_dispatch(WidgetToGraphics(; measure).dispatch),
         Pair{Type,Any}[TextBlock => TextToGraphics()])))
 """
 make_object_field_widget_dispatch(dispatch; make_widget = make_object_field_widget) =

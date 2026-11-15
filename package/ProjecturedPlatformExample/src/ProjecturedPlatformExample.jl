@@ -56,7 +56,7 @@ end
 include("../../../example/platform/GestureMapDocumentExample.jl")
 include("../../../example/platform/SyntaxDocumentExample.jl")
 include("../../../example/platform/TextDocumentExample.jl")
-include("../../../example/platform/TextViewDocumentExample.jl")
+include("../../../example/platform/TextViewPlacesDocumentExample.jl")
 include("../../../example/platform/SyntaxLeafViewDocumentExample.jl")
 include("../../../example/platform/SyntaxNodeViewDocumentExample.jl")
 include("../../../example/platform/TextLayoutDocumentExample.jl")
@@ -72,14 +72,16 @@ include("../../../example/platform/WordWrappingDocumentExample.jl")
 include("../../../example/platform/TextFilteringDocumentExample.jl")
 include("../../../example/platform/FindBarViewDocumentExample.jl")
 include("../../../example/platform/TextHighlightingDocumentExample.jl")
+include("../../../example/platform/TextMarkingDocumentExample.jl")
 include("../../../example/platform/WidgetDocumentExample.jl")
 include("../../../example/platform/LayoutDocumentExample.jl")
+include("../../../example/platform/LayoutCaseDocumentExample.jl")
 include("../../../example/platform/CollectionDocumentExample.jl")
 include("../../../example/platform/PrimitiveDocumentExample.jl")
 include("../../../example/platform/AppearanceDocumentExample.jl")
 include("../../../example/platform/LazyDocumentExample.jl")
 include("../../../example/platform/PaneDocumentExample.jl")
-include("../../../example/platform/FilePageDocumentExample.jl")
+include("../../../example/platform/FileViewDocumentExample.jl")
 include("../../../example/platform/RosterDocumentExample.jl")
 include("../../../example/platform/TaskDocumentExample.jl")
 include("../../../example/platform/TerminalDocumentExample.jl")
@@ -87,6 +89,8 @@ include("../../../example/platform/NavigatorDocumentExample.jl")
 include("../../../example/platform/TreeDocumentExample.jl")
 include("../../../example/platform/WorkPlanDocumentExample.jl")
 include("../../../example/platform/SystemProcessDocumentExample.jl")
+include("../../../example/platform/ExplorerDocumentExample.jl")
+include("../../../example/platform/BackgroundWorkDocumentExample.jl")
 include("../../../example/platform/FaultDocumentExample.jl")
 include("../../../example/platform/ProjectionDocumentExample.jl")
 include("../../../example/platform/MessageLogDocumentExample.jl")
@@ -96,6 +100,7 @@ include("../../../example/platform/StatisticsDocumentExample.jl")
 include("../../../example/platform/SettingsDocumentExample.jl")
 include("../../../example/platform/SettingsManagingDocumentExample.jl")
 include("../../../example/platform/HelpDocumentExample.jl")
+include("../../../example/platform/LinkDocumentExample.jl")
 include("../../../example/platform/InspectorDocumentExample.jl")
 include("../../../example/platform/TooltipDocumentExample.jl")
 include("../../../example/platform/DragTrackingDocumentExample.jl")
@@ -105,7 +110,7 @@ include("../../../example/platform/RotatingVectorDocumentExample.jl")
 
 include("../../../example/platform/SyntaxProjectionExample.jl")
 include("../../../example/platform/TextProjectionExample.jl")
-include("../../../example/platform/TextViewProjectionExample.jl")
+include("../../../example/platform/TextViewPlacesProjectionExample.jl")
 include("../../../example/platform/SyntaxLeafViewProjectionExample.jl")
 include("../../../example/platform/SyntaxNodeViewProjectionExample.jl")
 include("../../../example/platform/TextLayoutProjectionExample.jl")
@@ -121,6 +126,7 @@ include("../../../example/platform/WordWrappingProjectionExample.jl")
 include("../../../example/platform/TextFilteringProjectionExample.jl")
 include("../../../example/platform/FindBarViewProjectionExample.jl")
 include("../../../example/platform/TextHighlightingProjectionExample.jl")
+include("../../../example/platform/TextMarkingProjectionExample.jl")
 include("../../../example/platform/WidgetProjectionExample.jl")
 include("../../../example/platform/LayoutProjectionExample.jl")
 include("../../../example/platform/CollectionProjectionExample.jl")
@@ -155,7 +161,7 @@ export make_filtering_projection_example, make_flow_layout_document_example
 export make_graphics_canvas_document_example, make_grid_layout_document_example
 export make_graphics_rect_document_example, make_scroll_layout_document_example,
        make_text_gutter_atom_document_example, make_roster_document_example,
-       make_file_page_document_example, make_closed_task_group_document_example,
+       make_file_view_document_example, make_closed_task_group_document_example,
        make_terminal_document_example, make_task_document_example,
        make_task_group_document_example, make_task_group_list_document_example,
        make_task_execution_document_example, make_task_stream_document_example,
@@ -166,15 +172,18 @@ export make_fault_log_document_example, make_fault_report_document_example,
        make_frame_time_series_document_example, make_settings_document_example,
        make_settings_document_document_example, make_about_page_document_example,
        make_selection_inspector_document_example, make_tooltip_content_document_example,
+       make_tooltip_note_document_example,
        make_tooltip_window_state_document_example, make_drag_tracking_state_document_example,
        make_gesture_tracking_state_document_example, make_arrangement_document_example,
        make_arrangement_chips_document_example, make_text_spacing_atom_document_example,
        make_text_graphics_atom_document_example, make_pane_group_document_example,
        make_pane_split_document_example, make_appearance_document_document_example,
-       make_command_palette_document_example, make_widget_toolbar_item_atom_document_example,
+       make_widget_toolbar_item_atom_document_example,
        make_widget_highlight_document_example, make_context_menu_window_state_document_example
 export make_horizontal_layout_document_example, make_layout_constraint_document_example
 export make_layout_document_example, make_layout_projection_example
+export make_layout_text_above_table_document_example, make_layout_scroll_area_in_page_document_example, make_layout_fill_in_scroll_area_document_example, make_layout_shares_document_example, make_layout_row_edge_document_example, make_layout_rows_in_slot_and_page_document_example
+export layout_text_above_table_example, layout_scroll_area_in_page_example, layout_fill_in_scroll_area_example, layout_shares_example, layout_row_edge_example, layout_rows_in_slot_and_page_example
 export make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example
 export make_lazy_document_example, make_lazy_projection_example
 export make_line_numbering_document_example, make_line_numbering_projection_example
@@ -201,6 +210,7 @@ export make_highlighted_filtered_text_document_example, make_highlighted_filtere
 export make_find_bar_document, make_find_bar_projection, make_find_bar_document_example,
        make_filter_bar_document_example
 export make_text_highlighting_document_example, make_text_highlighting_projection_example
+export make_text_marking_document_example, make_text_marking_projection_example
 export make_text_line_atom_document_example
 export make_text_projection_example, make_text_string_atom_document_example
 export make_text_layout_projection_example, make_text_baseline_document_example
@@ -212,10 +222,11 @@ export text_spacing_exactly_example, text_spacing_at_least_example
 export text_layout_examples, text_spacing_examples
 export make_text_to_string_document_example, make_text_to_string_projection_example
 export make_text_with_image_example, make_tooltip_source_document_example
-export make_text_view_document_example, make_text_view_projection_example
+export make_text_view_places_document_example, make_text_view_places_projection_example
 export make_syntax_leaf_view_document_example, make_syntax_leaf_view_projection_example
 export make_syntax_node_view_document_example, make_syntax_node_view_projection_example
 export make_vertical_layout_document_example, make_widget_accordion_document_example
+export make_widget_fact_group_document_example, widget_fact_group_example
 export make_widget_alert_atom_document_example, make_widget_alert_document_example
 export make_widget_avatar_document_example, make_widget_badge_atom_document_example
 export make_widget_badge_document_example, make_widget_button_action_document_example
@@ -260,10 +271,10 @@ export plain_server_copy_form_example, plain_server_cell_form_example, object_fi
 export object_field_form_chosen_widgets_example, plain_server_mutable_form_example
 export plain_text_example, print_example, reversing_example, rotating_vector_example
 export searching_example, sieve, sieve_bidirectional, sieve_prev, sorting_example
-export syntax_example, text_example, text_filtering_example, text_highlighting_example
+export syntax_example, text_example, text_filtering_example, text_highlighting_example, text_marking_example
 export find_bar_example, filter_bar_example, highlighted_filtered_text_example
 export text_with_image_example, widget_accordion_example, widget_alert_example
-export text_view_example
+export text_view_places_example
 export syntax_leaf_view_example
 export syntax_node_view_example
 export widget_avatar_example, widget_badge_example, widget_button_action_example
@@ -284,6 +295,9 @@ export widget_toolbar_item_example
 export widget_tooltip_example, widget_transform_pane_example, widget_tree_example
 export word_wrapping_example, write_example_pdf
 export OutlineItem, make_document_tree_document_example, document_tree_example
+export make_explorer_document_example, make_explorer_section_document_example,
+       make_explorer_search_document_example, make_dashboard_document_example
+export make_background_work_log_document_example
 export make_work_plan_document_example, make_work_plan_step_document_example, work_plan_example
 export make_system_process_tree_document_example, make_system_process_document_example,
        system_process_tree_example
@@ -336,7 +350,8 @@ export make_filesystem_document_example, make_filesystem_file_document_example, 
 export make_filesystem_chooser_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_files_document_example, make_files_projection_example
-export make_workspace_folder_document_example, make_workspace_document_example
+export make_workspace_folder_document_example, make_workspace_document_example,
+       make_workspace_explorer_document_example
 end # module FileSystemExamples
 
 for _part in (FileSystemExamples,)

@@ -64,17 +64,26 @@ end
 """
 A numeric axis. `min`/`max` are `nothing` for auto-ranging from the data (with
 the usual padding), a number to pin that end. `grid` is `:none`, `:major` or
-`:all`.
+`:all`. `names` is `nothing`, or a name for each whole number from 1: the axis
+then puts its ticks at the whole numbers that have a name, each with its name, as
+many as fit, and a readout gives the name of the nearest whole number.
 
-Use it to set the range, the title and the grid of a numeric axis of a chart.
+Use it to set the range, the title and the grid of a numeric axis of a chart, and
+to name the places of a line, such as the files or the runs that its points
+follow.
 
 # Example
 
     chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))];
                     y_axis = ChartAxis(title = "units", min = 0, max = 1))
     open_pane!(chart_1; title = "Sales")
+    chart_2 = Chart("Runs", [ChartLineSeries("time", 1:3, [4.0, 3.5, 3.6])];
+                    x_axis = ChartAxis(names = ["first", "second", "third"], min = 0.5, max = 3.5))
+    open_pane!(chart_2; title = "Runs")
 
 See also `Chart`, which holds it, and `ChartCategoryAxis`.
+
+For the assistant.
 """
 @document struct ChartAxis <: ChartDocument
     title::String = ""
@@ -84,6 +93,7 @@ See also `Chart`, which holds it, and `ChartCategoryAxis`.
     grid::Symbol = :major
     show_title::Bool = true
     show_labels::Bool = true
+    names::Any = nothing
 end
 
 """
@@ -100,6 +110,8 @@ Use it to name the groups on the axis of a chart of bars.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartCategoryAxis <: ChartDocument
     title::String = ""
@@ -115,7 +127,8 @@ end
 The legend box. `position` is `:inside`, `:above`, `:below`, `:left` or
 `:right`; `anchor` is one of the eight compass points, placing the box within
 whichever strip `position` reserved. `sort` switches item order from the series
-order to a dictionary sort of the labels.
+order to a dictionary sort of the labels. The rows of a chart of only strips or of
+only a matrix fill its plot, so an `:inside` legend of such a chart goes below it.
 
 Use it to place the box that names the series of a chart.
 
@@ -126,6 +139,8 @@ Use it to place the box that names the series of a chart.
     open_pane!(chart_1; title = "Sales")
 
 See also `Chart`, which holds it, and `ChartAxis`.
+
+For the assistant.
 """
 @document struct ChartLegend <: ChartDocument
     visible::Bool = true
@@ -146,14 +161,27 @@ visible index range instead of scanning the column. `draw_style` is `:none`,
 `:solid`, `:dotted` or `:dashed`. A `nothing` `color` takes the next entry of the
 chart's color cycle.
 
-Use it to draw a value that changes along x: a trend, a measure over time.
+`lower` and `upper` are an interval around each value, such as a confidence
+interval of a mean: columns as long as `y`, or `nothing` for none. A value with
+no interval holds `NaN` in both. `interval_style` says how it draws: `:whisker`,
+a vertical line with caps at each point, or `:band`, a lighter area under the
+line between the two bounds. The range of the y axis holds the intervals.
+
+Use it to draw a value that changes along x: a trend, a measure over time, a
+mean with its interval.
 
 # Example
 
     chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12); symbol = :circle)])
     open_pane!(chart_1; title = "Sales")
 
+    means = [0.10, 0.17, 0.18, 0.14]
+    chart_2 = Chart("Throughput", [ChartLineSeries("pure", [0.1, 0.3, 0.5, 1.0], means;
+                                                   lower = means .- 0.01, upper = means .+ 0.01)])
+
 See also `Chart`, which holds it, and `ChartScatterSeries`.
+
+For the assistant.
 """
 @document struct ChartLineSeries <: ChartSeries
     label::String
@@ -167,7 +195,19 @@ See also `Chart`, which holds it, and `ChartScatterSeries`.
     symbol_size::Int = 4
     color::Any = nothing
     visible::Bool = true
+    lower::Any = nothing
+    upper::Any = nothing
+    interval_style::Symbol = :whisker
+    links::Any = nothing
 end
+
+"""
+    CHART_INTERVAL_STYLES
+
+How the interval of a value of a `ChartLineSeries` draws: `:whisker`, a vertical
+line with caps at each point, and `:band`, a lighter area between the bounds.
+"""
+const CHART_INTERVAL_STYLES = (:whisker, :band)
 
 # The columns positional, the styling by keyword — the shape anyone actually
 # writes. The macro generates either all-positional or all-keyword, never the
@@ -177,15 +217,23 @@ function ChartLineSeries(label::AbstractString, x::AbstractVector, y::AbstractVe
                          sorted::Bool=issorted(x), draw_style::Symbol=:linear,
                          line_style::Symbol=:solid, line_width::Integer=1,
                          symbol::Symbol=:none, symbol_size::Integer=4,
-                         color=nothing, visible::Bool=true)
+                         color=nothing, visible::Bool=true,
+                         lower=nothing, upper=nothing, interval_style::Symbol=:whisker,
+                         links=nothing)
+    interval_style in CHART_INTERVAL_STYLES ||
+        throw(ArgumentError("an interval draws as one of $(CHART_INTERVAL_STYLES), not $(repr(interval_style))"))
     ChartLineSeries(String(label), x, y, sorted, draw_style, line_style,
-                    Int(line_width), symbol, Int(symbol_size), color, visible, nothing)
+                    Int(line_width), symbol, Int(symbol_size), color, visible,
+                    lower, upper, interval_style, links, nothing)
 end
 
 """
 A scatter series over paired `x`/`y` columns: markers only, no connecting line.
 Above the style's `scatter_fold_threshold` visible points the projection folds
 the cloud into a density grid instead of drawing one marker per point.
+
+`lower` and `upper` are an interval around each value, drawn as a whisker at
+each point, as for a `ChartLineSeries`.
 
 Use it to draw a cloud of points: it shows how two measures relate.
 
@@ -195,6 +243,8 @@ Use it to draw a cloud of points: it shows how two measures relate.
     open_pane!(chart_1; title = "Delay")
 
 See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
 """
 @document struct ChartScatterSeries <: ChartSeries
     label::String
@@ -204,12 +254,72 @@ See also `Chart`, which holds it, and `ChartLineSeries`.
     symbol_size::Int = 4
     color::Any = nothing
     visible::Bool = true
+    lower::Any = nothing
+    upper::Any = nothing
+    links::Any = nothing
 end
 
 function ChartScatterSeries(label::AbstractString, x::AbstractVector, y::AbstractVector;
                             symbol::Symbol=:circle, symbol_size::Integer=4,
-                            color=nothing, visible::Bool=true)
-    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, nothing)
+                            color=nothing, visible::Bool=true, lower=nothing, upper=nothing,
+                            links=nothing)
+    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, lower, upper,
+                       links, nothing)
+end
+
+"""
+    ChartFunctionSeries(label, callable; x_range = nothing, sample_count = 200,
+                        line_style = :solid, line_width = 1, color = nothing, visible = true)
+
+A function drawn as a line: `callable` is anything that takes one number and
+answers one, a Julia function, a formula of a sheet or a callable object. The
+chart calls it at `sample_count` points, evenly spaced over the x window that the
+plot shows, in each print, and again at each new window such as a zoom, so a zoom
+shows more detail.
+
+The x window comes from the other visible series, and a series with an `x_range`,
+a pair `(lower, upper)`, draws only the part of the window inside it. A function
+series alone needs an `x_range`. The y range of the chart holds the curve.
+
+A call that raises, or a value that is no real number, stops the samples: the
+series then draws no line and keeps its legend entry, which says why after the
+label. A function series has no sample to select.
+
+Use it to draw a closed form against measured points.
+
+# Example
+
+    chart_1 = Chart("Sine", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))])
+    open_pane!(chart_1; title = "Sine")
+
+See also `Chart`, which holds it, and `ChartLineSeries`.
+
+For the assistant.
+"""
+@document struct ChartFunctionSeries <: ChartSeries
+    label::String
+    callable::Any
+    x_range::Any = nothing
+    sample_count::Int = 200
+    line_style::Symbol = :solid
+    line_width::Int = 1
+    color::Any = nothing
+    visible::Bool = true
+end
+
+function ChartFunctionSeries(label::AbstractString, callable; x_range=nothing, sample_count::Integer=200,
+                             line_style::Symbol=:solid, line_width::Integer=1,
+                             color=nothing, visible::Bool=true)
+    range = nothing
+    if x_range !== nothing
+        (length(x_range) == 2 && all(bound -> bound isa Real, x_range) && x_range[1] < x_range[2]) ||
+            throw(ArgumentError("x_range is a pair (lower, upper) of numbers with lower below upper, " *
+                                "not $(repr(x_range))"))
+        range = (Float64(x_range[1]), Float64(x_range[2]))
+    end
+    sample_count >= 2 || throw(ArgumentError("a function series needs at least 2 samples, not $sample_count"))
+    ChartFunctionSeries(String(label), callable, range, Int(sample_count), line_style,
+                        Int(line_width), color, visible, nothing)
 end
 
 """
@@ -225,6 +335,8 @@ Use it to draw one bar for each category: it compares a value between groups.
     open_pane!(chart_1; title = "Fruit")
 
 See also `Chart`, `ChartCategoryAxis` and `ChartHistogramSeries`.
+
+For the assistant.
 """
 @document struct ChartBarSeries <: ChartSeries
     label::String
@@ -250,6 +362,8 @@ Use it to draw the share of each part in a whole.
     open_pane!(chart_1; title = "Share")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartPieSeries <: ChartSeries
     label::String
@@ -281,6 +395,8 @@ Use it to draw how the values of a sample spread over equal bins.
     open_pane!(chart_1; title = "Delays")
 
 See also `Chart`, which holds it, and `ChartBarSeries`.
+
+For the assistant.
 """
 @document struct ChartHistogramSeries <: ChartSeries
     label::String
@@ -351,6 +467,7 @@ generated all-positional form is the caller's responsibility.
     draw_edges::Bool = false
     color::Any = nothing
     visible::Bool = true
+    links::Any = nothing
 end
 
 """
@@ -364,7 +481,7 @@ raw samples.
 function ChartStripSeries(label::AbstractString, x::AbstractVector, values::AbstractVector;
                           states=nothing, x_end=nothing, state_colors=nothing,
                           show_labels::Bool=true, draw_edges::Bool=false,
-                          color=nothing, visible::Bool=true)
+                          color=nothing, visible::Bool=true, links=nothing)
     issorted(x) || throw(ArgumentError("ChartStripSeries needs an ascending x column"))
     if x_end !== nothing && !isempty(x) && x_end < last(x)
         throw(ArgumentError("ChartStripSeries x_end must not precede the last sample"))
@@ -373,7 +490,7 @@ function ChartStripSeries(label::AbstractString, x::AbstractVector, values::Abst
     ChartStripSeries(String(label), x, codes,
                      states === nothing ? pooled : states,
                      x_end, state_colors, show_labels, draw_edges,
-                     color, visible, nothing)
+                     color, visible, links, nothing)
 end
 
 # A named column pools; a code column is handed through untouched, so a
@@ -425,6 +542,138 @@ function strip_state_color(series::ChartStripSeries, code, cycle)
     get_series_color(nothing, c, cycle)
 end
 
+"""
+A matrix series: a grid of cells, one row for each entry of `rows` and one column
+for each category of the chart's `ChartCategoryAxis`. The shade of a cell gives
+its value: a light tint of the series colour at `min`, the full colour at `max`.
+`min` and `max` are `nothing` to fit the values; `log` shades by the logarithm
+of the value.
+
+`values` holds one vector for each row, with one value for each column. A value
+that is `nothing`, `missing` or not finite is an empty cell: it draws nothing and
+a click there selects no cell. `labels`, when given, holds a text for each cell in
+the same shape, which the cell shows when it fits, and `links` a link for each
+cell (see `find_chart_sample_link`). A matrix can also be given as an
+`AbstractMatrix`, which the constructor turns into rows.
+
+The first row is on top, and the y axis names the rows. A chart draws its first
+visible matrix series.
+
+Use it to show a value for each pair of two categories, such as a count for each
+test and each group of results.
+
+# Example
+
+    chart_1 = Chart("Moved values",
+                    [ChartMatrixSeries("count", ["test a", "test b"], [[3, nothing], [12, 1]])];
+                    x_axis = ChartCategoryAxis(categories = ["nav", "queueLength"]))
+    open_pane!(chart_1; title = "Moved values")
+
+See also `Chart`, `ChartCategoryAxis` and `ChartBarSeries`.
+
+For the assistant.
+"""
+@document struct ChartMatrixSeries <: ChartSeries
+    label::String
+    rows::Any
+    values::Any
+    labels::Any = nothing
+    min::Any = nothing
+    max::Any = nothing
+    log::Bool = false
+    show_labels::Bool = true
+    color::Any = nothing
+    visible::Bool = true
+    links::Any = nothing
+end
+
+function ChartMatrixSeries(label::AbstractString, rows::AbstractVector, values;
+                           labels = nothing, min = nothing, max = nothing, log::Bool = false,
+                           show_labels::Bool = true, color = nothing, visible::Bool = true,
+                           links = nothing)
+    ChartMatrixSeries(String(label), rows, _get_matrix_rows(values),
+                      labels === nothing ? nothing : _get_matrix_rows(labels),
+                      min, max, log, show_labels, color, visible,
+                      links === nothing ? nothing : _get_matrix_rows(links), nothing)
+end
+
+# The rows of a matrix: a vector of rows as it is, and an `AbstractMatrix` as one
+# vector for each of its rows.
+_get_matrix_rows(values::AbstractMatrix) = [collect(values[r, :]) for r in axes(values, 1)]
+_get_matrix_rows(values) = values
+
+# The value of the cell at `row` and `column` as a finite `Float64`, or `nothing`
+# for an empty cell or a place outside the matrix.
+function _find_matrix_value(series::ChartMatrixSeries, row::Integer, column::Integer)
+    values = series.values
+    (1 <= row <= length(values)) || return nothing
+    line = values[row]
+    (line isa AbstractVector && 1 <= column <= length(line)) || return nothing
+    value = line[column]
+    value isa Real || return nothing
+    number = Float64(value)
+    isfinite(number) ? number : nothing
+end
+
+# The text of the cell at `row` and `column`, or `""` when it has none.
+function _get_matrix_label(series::ChartMatrixSeries, row::Integer, column::Integer)
+    labels = series.labels
+    (labels === nothing || !(1 <= row <= length(labels))) && return ""
+    line = labels[row]
+    (line isa AbstractVector && 1 <= column <= length(line)) || return ""
+    text = line[column]
+    text === nothing ? "" : string(text)
+end
+
+# A cell of a matrix is one sample. Its index counts down the rows first, as a
+# `Matrix` of Julia does, so the series alone decodes it: `rows` gives the stride.
+_get_matrix_sample_index(series::ChartMatrixSeries, row::Integer, column::Integer) =
+    (column - 1) * length(series.rows) + row
+
+function _get_matrix_cell(series::ChartMatrixSeries, index::Integer)
+    count = length(series.rows)
+    (count >= 1 && index >= 1) || return nothing
+    (mod(index - 1, count) + 1, div(index - 1, count) + 1)
+end
+
+# The values that the shades span: `min` and `max` of the series, or else the
+# least and the greatest value of the cells. A log scale spans the positive
+# values only. `nothing` when no cell has such a value.
+function _compute_matrix_range(series::ChartMatrixSeries)
+    lower = series.min === nothing ? Inf : Float64(series.min)
+    upper = series.max === nothing ? -Inf : Float64(series.max)
+    if series.min === nothing || series.max === nothing
+        for line in series.values
+            line isa AbstractVector || continue
+            for value in line
+                value isa Real || continue
+                number = Float64(value)
+                (isfinite(number) && (!series.log || number > 0)) || continue
+                series.min === nothing && (lower = Base.min(lower, number))
+                series.max === nothing && (upper = Base.max(upper, number))
+            end
+        end
+    end
+    (isfinite(lower) && isfinite(upper)) || return nothing
+    series.log && lower <= 0 && return nothing
+    (lower, Base.max(lower, upper))
+end
+
+# The shade of `value`, from 1 (the tint at the lower end) to `levels` (the full
+# colour). A value at or below the lower end, or not positive on a log scale,
+# takes 1.
+function _get_matrix_level(value::Float64, range, log::Bool, levels::Integer)
+    lower, upper = range
+    upper > lower || return levels
+    if log
+        value <= 0 && return 1
+        fraction = (log10(value) - log10(lower)) / (log10(upper) - log10(lower))
+    else
+        fraction = (value - lower) / (upper - lower)
+    end
+    clamp(1 + floor(Int, fraction * levels), 1, levels)
+end
+
 # ── Chart ────────────────────────────────────────────────────────────────
 
 """
@@ -443,6 +692,8 @@ Use it to draw data for the person: it shows one or more series with a title, ax
     open_pane!(Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))]); title = "Sales")
 
 See also `ChartLineSeries`, `ChartBarSeries` and `ChartAxis`.
+
+For the assistant.
 """
 @document struct Chart <: ChartDocument
     title::String
@@ -465,6 +716,25 @@ function Chart(title::AbstractString, series::AbstractVector;
           bar_placement, Float64(bar_baseline), bar_baseline_color, nothing)
 end
 
+# A chart is data that a person reads and changes, so its duplicate is a copy of
+# it: a chart of its own, with its axes, its legend, its style and its series. A
+# function series holds a function, which a copy can not own, so a duplicate shares
+# the series and draws the same function. The plot that draws a chart is no data,
+# and has no duplicate.
+has_document_duplicate(::Union{Chart, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
+                               ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartPieSeries,
+                               ChartHistogramSeries, ChartStripSeries}) = true
+
+# The title of a chart is its name, so a tab that shows the chart has that name.
+get_document_title(chart::Chart) = isempty(chart.title) ? nothing : chart.title
+
+# What a chart holds now: the number of its series, which a reader needs first, and
+# its title.
+function describe_document(chart::Chart)
+    count = length(chart.series)
+    "a chart of " * string(count) * " series" * (isempty(chart.title) ? "" : ", " * chart.title)
+end
+
 # ── Family traits ────────────────────────────────────────────────────────
 
 """
@@ -477,9 +747,11 @@ rather than throwing.
 get_chart_series_family(::Any) = :unknown
 get_chart_series_family(::ChartLineSeries) = :xy
 get_chart_series_family(::ChartScatterSeries) = :xy
+get_chart_series_family(::ChartFunctionSeries) = :xy
 get_chart_series_family(::ChartHistogramSeries) = :xy
 get_chart_series_family(::ChartStripSeries) = :xy
 get_chart_series_family(::ChartBarSeries) = :category
+get_chart_series_family(::ChartMatrixSeries) = :category
 get_chart_series_family(::ChartPieSeries) = :pie
 
 """
@@ -531,6 +803,59 @@ function get_chart_sample(s::ChartStripSeries, index::Integer)
     upper = index < n ? Float64(s.x[index + 1]) :
             (s.x_end === nothing ? lower : Float64(s.x_end))
     (lower, upper, strip_state_name(s, s.values[index]))
+end
+
+# A cell is `(row, column, value)`; an empty cell is no sample.
+function get_chart_sample(s::ChartMatrixSeries, index::Integer)
+    cell = _get_matrix_cell(s, index)
+    cell === nothing && return nothing
+    value = _find_matrix_value(s, cell...)
+    value === nothing ? nothing : (cell[1], cell[2], value)
+end
+
+"""
+    find_chart_sample_link(series, index) -> String | nothing
+
+The link of the `index`-th sample of a series, or `nothing` when it has none. The
+`links` of a line, scatter or strip series hold one text or `nothing` for each
+sample; the `links` of a matrix series hold one row of them for each row, as its
+`values` do. A link is the target of a Markdown link: an absolute address such as
+`file:///home/me/report.pred` or `git+file:///home/me/project#3fa2c1d`, or a path
+that the page resolves. Ctrl+click on the sample follows it, and Ctrl+Shift+click
+opens it in a new tab.
+
+Use it to read where a sample of a chart leads.
+
+# Example
+
+    chart_1 = Chart("Steps", [ChartScatterSeries("step", [1, 2], [31, 1];
+                                                 links = ["file:///tmp/step-1.pred", nothing])])
+    find_chart_sample_link(chart_1.series[1], 1)   # "file:///tmp/step-1.pred"
+
+See also `Chart`, `ChartScatterSeries` and `ChartMatrixSeries`.
+
+For the assistant.
+"""
+function find_chart_sample_link end
+
+find_chart_sample_link(::Any, ::Integer) = nothing
+
+function find_chart_sample_link(s::Union{ChartLineSeries,ChartScatterSeries,ChartStripSeries},
+                                index::Integer)
+    _find_link_text(s.links, index)
+end
+
+function find_chart_sample_link(s::ChartMatrixSeries, index::Integer)
+    cell = _get_matrix_cell(s, index)
+    (cell === nothing || s.links === nothing || !(1 <= cell[1] <= length(s.links))) && return nothing
+    _find_link_text(s.links[cell[1]], cell[2])
+end
+
+# The text at `index` of `links` when it is a text that is not empty.
+function _find_link_text(links, index::Integer)
+    (links isa AbstractVector && 1 <= index <= length(links)) || return nothing
+    link = links[index]
+    (link isa AbstractString && !isempty(link)) ? String(link) : nothing
 end
 
 # The step type is domain-agnostic; what a sample *is* depends on the series
@@ -597,7 +922,20 @@ _chart_series_reference(chart::Chart, index::Integer) =
 Every selectable part of a chart, in reading order: the title, the x axis, the
 y axis, the legend, then each series. Navigation walks this list, and the
 projection draws whichever entry is selected.
+
+Use it to list the parts of a chart that a person can select or that an edit can act on.
+
+# Example
+
+    chart_1 = Chart("Sales", [ChartLineSeries("2025", 1:12, rand(12))])
+    parts_1 = collect_chart_parts(chart_1)
+
+See also `Chart` and `ChartAxis`.
+
+For the assistant.
 """
+function collect_chart_parts end
+
 function collect_chart_parts(chart::Chart)
     parts = Reference[_chart_field_reference(chart, "title"),
                       _chart_field_reference(chart, "x_axis"),
@@ -608,6 +946,8 @@ function collect_chart_parts(chart::Chart)
     end
     parts
 end
+
+collect_chart_parts(chart::ReferencedDocument) = collect_chart_parts(get_document(chart))
 
 """
     get_chart_part_index(chart, reference) -> Int
@@ -677,17 +1017,23 @@ Reordering *is* the ordering feature: the list order decides both which series
 draws on top and the order the legend lists them in.
 """
 function move_series(chart::Chart, from::Integer, to::Integer)
+    move = _make_series_move(chart, from, to)
+    move === nothing && return nothing
+    landing = concat_references(_chart_field_reference(chart, "series"),
+        ConcreteReference(ElementReferenceStep(to),
+                          EmptyReference(get_reference_node_type(chart.series[from]))))
+    CompoundOperation(Any[move.operations..., ReplaceSelectionOperation(landing)])
+end
+
+# The move of a series in the list, as a delete paired with an insert, or
+# `nothing` when `from` and `to` are not two places of the list.
+function _make_series_move(chart::Chart, from::Integer, to::Integer)
     n = length(chart.series)
     (1 <= from <= n && 1 <= to <= n && from != to) || return nothing
-    moved = chart.series[from]
     field_path = _chart_field_reference(chart, "series")
-    landing = concat_references(field_path,
-        ConcreteReference(ElementReferenceStep(to),
-                          EmptyReference(get_reference_node_type(moved))))
     CompoundOperation(Any[
         make_delete_elements_operation(field_path, from; root=chart),
-        make_insert_elements_operation(field_path, to, Any[moved]; root=chart),
-        ReplaceSelectionOperation(landing)])
+        make_insert_elements_operation(field_path, to, Any[chart.series[from]]; root=chart)])
 end
 
 """
@@ -701,6 +1047,99 @@ function remove_series(chart::Chart)
     index == 0 && return nothing
     make_delete_elements_operation(_chart_field_reference(chart, "series"), index;
                                    root=chart)
+end
+
+# ── The verbs of a chart ────────────────────────────────────────────────────
+
+"""
+    move_series!(chart, from, to; editor = get_evaluation_editor()) -> chart
+
+Move the series at the place `from` of the list of `chart` to the place `to`, and
+answer `chart`. The order of the list decides which series draws on top and the
+order in which the legend names them. `chart` is a chart of the window, as a
+part. It is an edit of the editor, so Ctrl+Z undoes it.
+
+Use it to draw a series above the others, or to change the order of the legend.
+
+# Example
+
+    move_series!(chart_1, 3, 1)
+
+See also `remove_series!`, `make_change`.
+
+For the assistant.
+"""
+function move_series! end
+
+move_series!(chart::ReferencedDocument, from::Integer, to::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "move_series!") do
+        apply_change!(make_change(move_series!, chart, from, to; editor); editor)
+        chart
+    end
+
+make_change(::typeof(move_series!), chart::ReferencedDocument, from::Integer, to::Integer;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_chart_document(chart)
+        move = _make_series_move(document, from, to)
+        move === nothing &&
+            throw(ArgumentError(string("A move of a series takes two places of the list, 1 to ",
+                                       length(document.series), ", and not ", from, " and ", to, ".")))
+        _make_chart_change(editor, chart, move, string("Move the series ", from, " of the chart to ", to))
+    end
+
+"""
+    remove_series!(chart, index; editor = get_evaluation_editor()) -> chart
+
+Remove the series at the place `index` of the list of `chart`, and answer `chart`.
+`chart` is a chart of the window, as a part. It is an edit of the editor, so
+Ctrl+Z undoes it.
+
+Use it to take a series out of a chart.
+
+# Example
+
+    remove_series!(chart_1, 2)
+
+See also `move_series!`, `make_change`.
+
+For the assistant.
+"""
+function remove_series! end
+
+remove_series!(chart::ReferencedDocument, index::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "remove_series!") do
+        apply_change!(make_change(remove_series!, chart, index; editor); editor)
+        chart
+    end
+
+make_change(::typeof(remove_series!), chart::ReferencedDocument, index::Integer;
+            editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = _get_chart_document(chart)
+        n = length(document.series)
+        1 <= index <= n ||
+            throw(ArgumentError(string("The chart has ", n, " series, so it has no series ", index, ".")))
+        _make_chart_change(editor, chart,
+                           make_delete_elements_operation(_chart_field_reference(document, "series"), index;
+                                                          root = document),
+                           string("Remove the series ", index, " of the chart"))
+    end
+
+function _get_chart_document(chart::ReferencedDocument)
+    document = get_document(chart)
+    document isa Chart ||
+        throw(ArgumentError("The part is a " * string(nameof(typeof(document))) * ", not a chart."))
+    document
+end
+
+# The change of `operation`, which holds the chart of the part `chart`, from the
+# root of the editor's document.
+function _make_chart_change(editor, chart::ReferencedDocument, operation, description)
+    reference = extend_reference(get_reference(chart), FieldReferenceStep("series"))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+    rooted === nothing && throw(ArgumentError("No reader of the window carries an edit of the chart."))
+    RootedOperation(rooted, description)
 end
 
 # Navigation owns the arrow keys, as it does everywhere else in the editor: the

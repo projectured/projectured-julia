@@ -164,6 +164,31 @@ scope's own insertion from its candidate list.
 get_domain_insertion(::Type) = nothing
 
 """
+    is_domain_placeholder(type) -> Bool
+
+Whether `type` is a placeholder that the editor makes and a person or a model
+does not write: the insertion buffer of a domain (`JsonInsertion`), the empty
+placeholder that it aborts to (`JsonNothing`), or one of the two that belong to no
+domain (`DocumentInsertion`, `DocumentNothing`). The domain of `type` is the first
+supertype that names an insertion with [`get_domain_insertion`](@ref). An insertion
+cursor that a slice writes by hand, such as `MarkdownInsertion`, is one too: its
+name ends in "Insertion", as the completion of the domains reads it.
+"""
+function is_domain_placeholder(type::Type)
+    (type === DocumentNothing || type === DocumentInsertion) && return true
+    type isa Union && return false
+    endswith(String(nameof(type)), "Insertion") && return true
+    above = Base.unwrap_unionall(type)
+    while above isa DataType && above !== Any
+        insertion = Base.invokelatest(get_domain_insertion, above)
+        insertion === nothing ||
+            return type === insertion || type === Base.invokelatest(get_nothing_document, insertion)
+        above = supertype(above)
+    end
+    false
+end
+
+"""
     get_domain_prefix(root::Type) -> String
 
 The type-name prefix stripped for prefix-free matching inside a domain scope
@@ -185,6 +210,25 @@ for `JuliaInsertion`). `@domain` emits the lowercase domain name as its
 insertion's alias; anything else is a hand-written method.
 """
 get_insertion_aliases(::Type) = String[]
+
+"""
+    get_insertion_icon(::Type) -> Union{Symbol, Nothing}
+
+The glyph that a list of the kinds that a person can add shows before a kind,
+such as `:code` for a piece of code, or `nothing`, the default, for none. A domain
+adds a method for the types that it offers.
+"""
+get_insertion_icon(::Type) = nothing
+
+"""
+    is_element_type(::Type) -> Bool
+
+Whether a document of the type stands on its own as an element of a record, such
+as a piece of code, a page of text, a table or a chart that a research item or a
+workflow step holds. `false` by default; a domain says `true` for the documents
+that it offers so, and names them with `get_insertion_aliases`.
+"""
+is_element_type(::Type) = false
 
 # ── Text at the write of an operation ─────────────────────────────────────────
 
@@ -237,8 +281,8 @@ const _MAKE_FALLBACK = which(make_insertion_document, Tuple{Type{Document}})
 # `@document` type with a non-defaulted field still has a zero-positional-arg
 # keyword constructor that throws `UndefKeywordError` (`JsonString()`). So
 # probe the constructor once; the probe only runs from the world-age-memoized
-# candidate enumeration.
-function _zero_arg_constructible(::Type{T}) where {T}
+# candidate enumeration. One method body serves every type, as for `insertable`.
+function _zero_arg_constructible(@nospecialize(T::Type))
     hasmethod(T, Tuple{}) || return false
     try
         T()
@@ -248,15 +292,18 @@ function _zero_arg_constructible(::Type{T}) where {T}
     end
 end
 
+# The candidate list asks this of every document type that a session has loaded,
+# hundreds of them, so one method body serves every type: a copy compiled for
+# each type is a wait at the first key of a name.
 """
-    insertable(::Type{T}) -> Bool
+    insertable(T::Type) -> Bool
 
 Whether `T` belongs in a completion candidate list: it is zero-arg
 constructible or has a specific `make_insertion_document` method. `@domain`
 opts its `*Nothing` placeholders out; anything else opts out with a one-line
 method.
 """
-insertable(::Type{T}) where {T} =
+insertable(@nospecialize(T::Type)) =
     which(make_insertion_document, Tuple{Type{T}}) !== _MAKE_FALLBACK ||
     _zero_arg_constructible(T)
 
@@ -323,6 +370,17 @@ _is_layout_variant(T::Type) =
     isconcretetype(T) && get_document_family(T) !== Base.typename(T).wrapper
 
 """
+    compute_document_types(root::Type) -> Vector{Type}
+
+Every document type under `root` in the loaded modules, one for each schema: the
+types of [`compute_concrete_subtypes`](@ref) without a layout variant that
+`@document` makes of another schema, such as `MFoo` of `Foo`. A type that an
+empty tab can create with no argument is also one of
+[`get_insertion_candidates`](@ref).
+"""
+compute_document_types(root::Type) = filter(T -> !_is_layout_variant(T), compute_concrete_subtypes(root))
+
+"""
     get_insertion_candidates(root::Type) -> Vector{Type}
 
 Every insertable concrete document type under `root`, computed by reflection
@@ -339,9 +397,8 @@ function get_insertion_candidates(root::Type)
     cached !== nothing && cached[1] == world && return cached[2]
     own = Base.invokelatest(get_domain_insertion, root)
     # `insertable` goes last: it probes the constructor and compiles a method for
-    # each type, and a layout variant or a stray insertion cursor needs neither.
-    result = filter(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),
-                    compute_concrete_subtypes(root))
+    # each type, and a stray insertion cursor needs none.
+    result = filter(T -> T !== own && _is_domain_entry(T) && insertable(T), compute_document_types(root))
     _CANDIDATE_CACHE[root] = (world, result)
     result
 end
@@ -378,17 +435,30 @@ end
 # Candidates (with their matching names) whose lowercase name starts with the
 # lowercase typed text. No stripping: the typed buffer is matched verbatim, so
 # a trailing space participates ("json " matches "json string" but not
-# "JsonString").
+# "JsonString"). Where no whole name starts so, a name of which a word starts with
+# the typed text matches, as "chart" matches "sequence chart"; the second answer
+# says which of the two the matches are.
 function _matching(root::Type, typed::AbstractString; place::Type = Any)
     key = lowercase(typed)
+    candidates = Type[T for T in get_insertion_candidates(root) if T <: place]
+    matches = _matching_names(candidates, root, name -> startswith(lowercase(name), key))
+    isempty(matches) || return (matches, :whole)
+    (_matching_names(candidates, root, name -> _has_word_prefix(name, key)), :word)
+end
+
+function _matching_names(candidates, root::Type, accept)
     matches = Tuple{Type, Vector{String}}[]
-    for T in get_insertion_candidates(root)
-        T <: place || continue
-        ns = [n for n in get_insertion_names(T; root) if startswith(lowercase(n), key)]
+    for T in candidates
+        ns = [n for n in get_insertion_names(T; root) if accept(n)]
         isempty(ns) || push!(matches, (T, ns))
     end
     matches
 end
+
+# Whether a word of `name` after its first starts with `key`, with no case: a word
+# follows a space.
+_has_word_prefix(name::AbstractString, key::AbstractString) =
+    !isempty(strip(key)) && any(word -> startswith(word, key), split(lowercase(name))[2:end])
 
 # The case-insensitive longest common prefix of `names` beyond the first `k`
 # characters, rendered in the first name's own case. Names are derived from
@@ -427,10 +497,11 @@ several of its names).
 """
 function complete_insertion(root::Type, typed::AbstractString; place::Type = Any)
     isempty(strip(typed)) && return (state = :empty, continuation = "", matches = Type[])
-    ms = _matching(root, typed; place)
+    ms, kind = _matching(root, typed; place)
     isempty(ms) && return (state = :invalid, continuation = "", matches = Type[])
     allnames = String[n for (_, ns) in ms for n in ns]
-    continuation = _common_continuation(allnames, length(typed))
+    # A match by a word has no continuation: its name does not start with the text.
+    continuation = kind === :whole ? _common_continuation(allnames, length(typed)) : ""
     (state = length(ms) == 1 ? :unambiguous : :ambiguous,
      continuation = continuation,
      matches = Type[T for (T, _) in ms])
@@ -480,6 +551,26 @@ function resolve_insertion(root::Type, typed::AbstractString; place::Type = Any)
     end
     c = complete_insertion(root, typed; place)
     c.state === :unambiguous ? c.matches[1] : nothing
+end
+
+"""
+    find_insertion_choices(root, typed; place = Any, include = T -> true) -> Vector{Type}
+
+The candidates of `root` that `typed` names, for a list that a person picks from
+while typing: first those of which a whole name starts with `typed`, then those
+of which a word of a name does, as "chart" finds "Chart" before "Sequence chart",
+each part in the order of the candidates. `place` is the declared type of the
+place, and `include` keeps a type, such as `is_element_type`. An empty `typed`
+gives every candidate that `include` keeps.
+"""
+function find_insertion_choices(root::Type, typed::AbstractString; place::Type = Any, include = T -> true)
+    key = lowercase(strip(typed))
+    candidates = Type[T for T in get_insertion_candidates(root) if T <: place && include(T)]
+    isempty(key) && return candidates
+    names(T) = get_insertion_names(T; root)
+    whole = Type[T for T in candidates if any(n -> startswith(lowercase(n), key), names(T))]
+    word = Type[T for T in candidates if !(T in whole) && any(n -> _has_word_prefix(n, key), names(T))]
+    vcat(whole, word)
 end
 
 """
@@ -718,7 +809,8 @@ macro domain(name, opts...)
         push!(out.args, :(abstract type $root <: $Document end))
         # The root is what a reader looks for first — "the documents of this
         # domain" — so it says what it is, as the placeholder and the insertion
-        # below do.
+        # below do. Its mark offers every document type of the domain to the
+        # assistant, apart from the two placeholders.
         push!(out.args, esc(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__,
             "    $root_sym\n\n" *
             "Every document of the $prefix domain.\n\n" *
@@ -727,8 +819,11 @@ macro domain(name, opts...)
             "this domain.\n\n" *
             "# Example\n\n" *
             "    is_$(lowercase(prefix))(document) = document isa $root_sym\n\n" *
-            "See also `$nothing_sym`, the empty one, and `$insertion_sym`, the one a " *
-            "person types a name into.",
+            "The editor makes two documents of the domain for its own use: " *
+            "`$nothing_sym`, the empty one, and `$insertion_sym`, the one a person " *
+            "types a name into.\n\n" *
+            "See also `search_documents`, which finds the documents of the domain in a tab.\n\n" *
+            "For the assistant.",
             root_sym)))
     end
     # The root is the domain's public name, so it is exported either way —

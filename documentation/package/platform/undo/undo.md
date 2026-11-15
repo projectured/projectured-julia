@@ -1,6 +1,6 @@
 # Undo
 
-> **Kind:** design · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
 
 The undo slice of `ProjecturedPlatform` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
 
@@ -34,7 +34,7 @@ Three questions have three separate mechanisms:
 | Can this step be taken back? | `make_inverse_operation`, when the operation is evaluated |
 | What happens when it can not? | a **barrier** entry, whose `inverse` is `nothing`; undo stops at it |
 
-`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation`, a move of the selection or of the part under the pointer (`ReplacePathOperation`, `SelectNextInsertionOperation`), a fold (`ToggleCollapseOperation`), a write marked `ReplaceViewStateOperation`, and a compound of nothing else. A caret move follows almost every key, and a hover follows almost every move of the pointer, so a history full of them is not usable. A compound that holds one write stays. An operation that changes no document, such as a file write or a zoom of the window, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
+`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation`, a move of the selection or of the part under the pointer (`ReplacePathOperation`, `SelectNextInsertionOperation`), a fold (`ToggleCollapseOperation`), a write marked `ReplaceViewStateOperation`, a write of a whole field that the type of its document declares view state (`get_view_state_fields`), such as the view of a study that a switch writes, a selection or a part to show (`SelectDocumentOperation`, `ShowSelectionOperation`, `RevealPartOperation`), and a compound of nothing else. A caret move follows almost every key, and a hover follows almost every move of the pointer, so a history full of them is not usable. A compound that holds one write stays. An operation that changes no document, such as a file write or a zoom of the window, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
 
 **The reader that reads a gesture decides whether its write is view state.** A field is not view state by its type. When the widget renderer draws a tree, a click on a chevron uses the tree as a control, and the write of `collapsed` is view state; a projection that shows the same tree as data writes `collapsed` as an edit. So the mark is made where the gesture is read:
 
@@ -57,7 +57,7 @@ A buffer above a buffer keeps a copy of each step below. A run joins in both or 
 
 ### The reader wraps and never records
 
-`PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
+`PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!`, keeps its way back without the moves of the selection (see the keys below), and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
 
 `RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `is_self_contained_operation` is `true` for both and they need no rerooting.
 
@@ -79,7 +79,7 @@ Four rules make the two work together, and a run of typing keeps them (see above
 
 ### The history of an opened file
 
-`make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the menu Open, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
+`make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the command Open file… of the File menu, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
 
 So every editor that has settings can hold a history, and every editor must draw one. The slice registers the row `UndoBuffer => UndoBufferToAnyProjection()` with the natural renderer when it loads, and each `NaturalToGraphics` draws a history as what it holds. A renderer that does not draw through the natural renderer needs the row in its own table.
 
@@ -91,6 +91,8 @@ So every editor that has settings can hold a history, and every editor must draw
 | Ctrl+Y, Ctrl+Shift+Z | put the last step back |
 
 A key with an empty list returns `nothing`, so the key goes on to the next reader. After a step, the caret goes back to the place saved in the entry. A saved path that no longer matches the document is ignored.
+
+**The way back holds the edits and no move of the selection.** The selection is view state, as the filter says, and the entry keeps the selection from before the step. So `RecordUndoOperation` replaces each `ReplaceSelectionOperation` and `SelectNextInsertionOperation` in the way back with `DoNothingOperation()`, and a way back with no edit left does nothing, so it adds no entry. The undo takes the edits back in reverse order, and then puts the selection back, when the place that it names exists again. For example, a step deletes the selected third element of a list and selects the second. A move of the selection in its way back would select the third element before the element comes back, and fail. The pivot makes the same kind of step when it moves a field: it moves the field, and selects it at its new place.
 
 ### What is not recorded
 
@@ -125,6 +127,8 @@ fills them with `get_undo_style`, from an `UndoTheme` scaled or not, or the defa
 
 The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, the natural slice for its row, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. The file system slice and the application depend on it: the open of a file and the application put a buffer into the document.
 
+A walk of the documents does not enter the two lists of a buffer: `is_field_walked(::UndoBuffer, name)` keeps `undo_entries` and `redo_entries` out. The steps hold the old versions of the content, which share their parts with it, so a search of a window would find a value that the content no longer holds, and a search of places would find a shared part once for each step. A search of the old versions starts at a list itself, `search_documents(buffer.undo_entries, query)`. A load clears the mouse targets with a walk that enters every field, the steps too.
+
 At load time it registers one row with the natural renderer, `UndoBuffer => UndoBufferToAnyProjection()`. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 
 ## Design decisions
@@ -134,7 +138,7 @@ At load time it registers one row with the natural renderer, `UndoBuffer => Undo
 - **The inverse is taken before the change.** It must read the state that the change starts from, and a compound is inverted member by member for the same reason.
 - **A barrier stops the history.** Stepping over a step that has no inverse would make a state that never existed.
 - **An outer buffer undoes through the inner one.** The chain of inverses from record to undo to redo lets a buffer record another buffer without a special case.
-- **The reader that reads a gesture marks view state.** A field can be view state under one projection and content under another, so no list of fields exists. See [plan/done/the-history-records-edits-and-not-view-state.md](../../../../plan/done/the-history-records-edits-and-not-view-state.md).
+- **The reader that reads a gesture marks view state.** A field can be view state under one projection and content under another, so no list of fields exists. See [plan/done/the-history-records-edits-and-not-view-state.md](../../../../plan/done/the-history-records-edits-and-not-view-state.md). A field that the type of its document declares view state is the one exception: the file and the search leave it out too, so a write of it is no edit under any projection, and a control such as a switch writes it with no mark (plan/done/a-study-and-a-workflow-read-as-one-quiet-outline.md, D9).
 - **A run of typing is one step, in each buffer on the path.** Otherwise typing pushes every other step out, and an outer copy would no longer name exactly one inner step.
 - **The inner buffer takes the key first.** This is the reverse of the reader order of versioning, and the comment at the head of `source/platform/undo/UndoBufferToAny.jl` says so.
 

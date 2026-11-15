@@ -114,9 +114,14 @@ function evaluate_operation(editor, op::LoadDocumentOperation)
 end
 
 # A load gives no mouse target: the saved one is where the pointer was when the
-# document was saved, which says nothing about where it is now.
+# document was saved, which says nothing about where it is now. The walk enters
+# every field, also one that a document keeps out of a search, such as the steps of
+# an undo buffer, so no node that the file holds keeps a mouse target.
+const _EVERY_FIELD_WALK = DocumentWalk(; enter_field = (node, name) -> name !== :mouse_target && name !== :selection)
+
 function _clear_mouse_targets!(document)
-    for node in search_documents(document, node -> hasproperty(node, :mouse_target); limit = nothing)
+    for node in search_documents(document, node -> hasproperty(node, :mouse_target); limit = nothing,
+                                 walk = _EVERY_FIELD_WALK)
         cell = getfield(node, :mouse_target)
         cell isa AbstractCell && cell[] !== nothing && (cell[] = nothing)
     end

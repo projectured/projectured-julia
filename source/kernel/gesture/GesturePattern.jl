@@ -188,7 +188,9 @@ function _get_key_label(key::Symbol)
     special = Dict(:period => ".", :space => "Space", :tab => "Tab", :return => "Return",
                    :home => "Home", :end => "End", :backspace => "Backspace",
                    :delete => "Delete", :escape => "Esc", :up => "↑", :down => "↓",
-                   :left => "←", :right => "→", :page_up => "PgUp", :page_down => "PgDn")
+                   :left => "←", :right => "→", :page_up => "PgUp", :page_down => "PgDn",
+                   :comma => ",", :left_bracket => "[", :right_bracket => "]", :backslash => "\\",
+                   :slash => "/", :asterisk => "*", :equals => "=", :minus => "-")
     get(special, key, uppercasefirst(string(key)))
 end
 

@@ -1,0 +1,13 @@
+name = "ProjecturedPrecompileTest"
+uuid = "da73c6bf-4c95-4d6a-96ed-aa5aa7e33491"
+version = "0.1.0"
+authors = []
+
+[deps]
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}

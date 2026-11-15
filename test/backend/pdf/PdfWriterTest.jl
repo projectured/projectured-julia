@@ -179,7 +179,7 @@ end
     font = StyleModule.StyleFont("Ubuntu Mono", 20)
     # A font's size already holds the font scale of the appearance by the time a
     # printer sees it, so a larger font here is a font scaled by an `Appearance`.
-    appearance = Appearance(font_scale = 1.5)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.5))
     scaled_font = scale_theme_value(font, appearance)
     canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10; font = scaled_font, color = color_black)])
     filename = tempname() * ".pdf"

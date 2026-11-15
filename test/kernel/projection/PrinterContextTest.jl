@@ -9,6 +9,9 @@ Confirms:
   `nothing` otherwise;
 - `with_free_axis` takes the axis `:x` or `:y`, and throws for any other;
 - a child context, a new clock and a new property keep the ranges;
+- the space of an offer is 0 at the root, a function that makes an offer states
+  it and gives 0 where it states none, and a child context, a new clock and a
+  new property keep it;
 - `with_inner_size` keeps the state of each axis and reduces each extent, and
   `with_size_range` sets both ends of an axis;
 - `get_property` reads a property with a default, and `with_property` copies;
@@ -88,6 +91,27 @@ function test_printer_context_range()
             @test derived.minimum_width === nothing
             @test derived.maximum_width === edge
         end
+    end
+
+    @testset "the function that makes an offer states its space, and a child context keeps it" begin
+        root = PrinterContext(EmptyReference(), Cell(500), Cell(300), Dict{Symbol,Any}())
+        @test root.space == (0, 0, 0, 0)
+        space = (8, 4, 8, 2)
+        given = with_exact_size(root; width = Cell(200), space)
+        @test given.space == space
+        for derived in (make_child_context(given, FieldReferenceStep("children")),
+                        with_clock(given, Clock()), with_property(given, :theme, :dark))
+            @test derived.space == space
+        end
+        for offer in (with_exact_size(given; width = Cell(100)), with_bounded_size(given; width = Cell(100)),
+                      with_size_range(given; width = (nothing, Cell(100))),
+                      with_inner_size(given; width = 16), with_free_axis(given, :y))
+            @test offer.space == (0, 0, 0, 0)
+        end
+        @test with_bounded_size(root; width = Cell(100), space).space == space
+        @test with_size_range(root; space).space == space
+        @test with_inner_size(root; width = 16, space).space == space
+        @test with_free_axis(root, :x; space).space == space
     end
 
     # A container passes its range on to its content less its margin: each axis

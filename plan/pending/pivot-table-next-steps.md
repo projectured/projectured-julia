@@ -32,9 +32,10 @@ owner did not choose among them.
 - **P5. A pivot of a database query.** The cross table of a SQL source is
   computed with `GROUP BY` on the server, so the rows do not come to the
   editor. It needs a table kind of the table interface for a query.
-- **P6. Tools for the assistant.** The assistant moves a dimension, sets a
-  measure and chooses a view through the operations of the pivot, so undo and
-  the gesture log see each step.
+- **P6. Tools for the assistant.** Done 2026-10-21, by
+  [the-assistant-reads-and-changes-a-pivot.md](../done/the-assistant-reads-and-changes-a-pivot.md).
+  The assistant moves a dimension, sets a measure and chooses a view through the
+  operations of the pivot, so undo and the gesture log see each step.
 
 ## 2. A question that the work found
 

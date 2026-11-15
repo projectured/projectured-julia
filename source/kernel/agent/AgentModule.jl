@@ -23,16 +23,17 @@ Eight fragments share this namespace:
   start in time, and how long that wait is by default.
 - [`AgentConnectionInterface.jl`](AgentConnectionInterface.jl) — the
   external-agent contract: `make_agent_connection`, `start_agent_connection!`,
-  `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`,
-  `cancel_agent_prompt!`, `cancel_agent_subagent!`,
+  `open_agent_session!`, `fork_agent_session!`, `set_agent_option!`,
+  `send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`,
   `stop_agent_background_task!`, `close_agent_session!`,
-  `stop_agent_connection!`, `has_agent_sign_out`, `sign_out_agent!`,
-  `has_agent_steering` and `steer_agent_prompt!`, each a body-less generic.
+  `stop_agent_connection!`, `sign_in_agent!`, `has_agent_sign_out`,
+  `sign_out_agent!`, `has_agent_steering` and `steer_agent_prompt!`, each a
+  body-less generic.
 - [`AgentConnectionDefaults.jl`](AgentConnectionDefaults.jl) — the fallback
   behaviours for that contract.
 - [`AgentConnectionEvent.jl`](AgentConnectionEvent.jl) — the events an external
   agent reports: `AgentToolCallUpdate`, `AgentPlanUpdate`,
-  `AgentPermissionRequest`, `AgentQuestionRequest` with its
+  `AgentPermissionRequest`, `AgentTerminalRequest`, `AgentQuestionRequest` with its
   `AgentQuestionField`s, `AgentOptionsUpdate`, `AgentUsageUpdate`,
   `AgentSessionInfoUpdate`, `AgentCommandsUpdate`, and the work of the agent:
   `AgentSubagentUpdate`, `AgentBackgroundTaskUpdate`, `AgentNoticeUpdate` and
@@ -72,13 +73,14 @@ export make_agent_server, start_agent_server!, stop_agent_server!, stop_agent_se
        run_on_editor_task!, is_editor_loop_running,
        EditorCallTimeoutException, EDITOR_CALL_TIMEOUT_SECONDS
 export get_agent_server_names, get_agent_server_access
-export make_agent_connection, start_agent_connection!, open_agent_session!,
+export make_agent_connection, start_agent_connection!, open_agent_session!, fork_agent_session!,
        set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, cancel_agent_subagent!,
        stop_agent_background_task!, close_agent_session!,
-       stop_agent_connection!, get_agent_connection_names, has_agent_sign_out, sign_out_agent!,
-       has_agent_steering, steer_agent_prompt!
+       stop_agent_connection!, get_agent_connection_names, sign_in_agent!, has_agent_sign_out,
+       sign_out_agent!, has_agent_steering, steer_agent_prompt!
 export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
-       AgentPermissionOption, AgentPermissionRequest, AgentQuestionField, AgentQuestionRequest,
+       AgentPermissionOption, AgentPermissionRequest, AgentTerminalRequest, AGENT_TERMINAL_METHODS,
+       AgentQuestionField, AgentQuestionRequest,
        AgentOptionValue, AgentOption, AgentOptionsUpdate, AgentUsageUpdate,
        AgentSessionInfoUpdate, AgentCommand, AgentCommandsUpdate,
        AgentSubagentUpdate, AgentBackgroundTaskUpdate, AgentNoticeUpdate, AgentCompactionUpdate,

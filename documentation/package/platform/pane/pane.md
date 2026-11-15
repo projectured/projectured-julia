@@ -1,6 +1,6 @@
 # Pane
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
 
 The pane slice of `ProjecturedPlatform` holds the pane tree: tab groups, the splits between them, and the edits that rearrange them. It draws the tree with the split panes and tabbed panes of the widget slice, and it gives a program, such as a language model, a set of verbs over the tree. This document says how the focus, the edits, the drags and the verbs work, and how the whole editor saves to one file.
 
@@ -17,17 +17,17 @@ A fresh layout is one empty group. A person builds the rest with the keyboard an
 | `make_pane_tab_title(document, name)` | the title that `open_pane!` gives a new tab of `document` when the caller gives a string; the default is the name alone, and a slice adds a method for its document |
 | `PaneGroup(tabs)` | a tab group, which can be empty: `PaneGroup(PaneTab[])` |
 | `PaneSplit(orientation, elements; weights)` | two or more groups or splits, and one weight for each; an empty `weights` means equal weights |
-| `PaneTree(root, drag)` | the whole layout, and `drag`, the state of a tab drag |
+| `PaneTree(root, drag, maximized)` | the whole layout, `drag`, the state of a tab drag, and `maximized`, the group that fills the window or `nothing` |
 
 A `:vertical` split has a vertical divider, so its children are side by side. A `:horizontal` split stacks them. This is the meaning of the two words in Vim. The `orientation` of `WidgetSplitPane` names the axis that the children follow, which is the opposite word. `get_pane_split_axis` is the one translation, and `PaneToWidget` is its only caller.
 
 ### Focus is the selection
 
-No node has a focus field or an active-tab field. The selection of the tree names the focused tab, for example `root.elements[2].tabs[3]`, or an empty group, `root.elements[2]`. The tab that a group shows is the tab that the `selection` of the group names. So every focus move and every tab switch is one `ReplaceSelectionOperation`. The part of the selection after `content` of the focused tab is the place in the document of that tab; `find_pane_content_selection(tree)` gives it, or `nothing` when the selection is not inside the document of a tab, and the status bar of the shell slice shows it.
+No node has a focus field or an active-tab field. The selection of the tree names the focused tab, for example `root.elements[2].tabs[3]`, or an empty group, `root.elements[2]`. The tab that a group shows is the tab that the `selection` of the group names, and a group with no selection shows its first tab. So a focus move is one `ReplaceSelectionOperation` of the root. A tab switch that leaves the focus, a show, writes the dormant selection of the group (`make_pane_show_operation`); in the focused group a show is the focus move, because that group shows the tab that the focus names. The part of the selection after `content` of the focused tab is the place in the document of that tab; `find_pane_content_selection(tree)` gives it, or `nothing` when the selection is not inside the document of a tab, and the status bar of the shell slice shows it.
 
 `has_dormant_selection` is `true` for `PaneGroup`, `PaneTab` and `PaneSplit`. When the focus leaves a node, the node keeps its selection as a dormant one: stored and drawn, but not used for routing. So a group that loses the focus still shows its tab, a tab keeps its caret, and a nested split keeps the side that had the focus.
 
-A new tab takes the focus. The focus goes on the content as a whole when the content is the empty placeholder, so a paste fills it. It goes along the content's own selection when the content holds one, such as the caret in the first form of a new evaluator, so the root holds the selection that the document had and a key or a paste reaches that place with no click. Otherwise it goes on the tab.
+A new tab takes the focus when its opener asks for it with `focus = true`, as a person who opens a file or a page does. The focus goes on the content as a whole when the content is the empty placeholder, so a paste fills it. It goes along the content's own selection when the content holds one, such as the caret in the first form of a new evaluator, so the root holds the selection that the document had and a key or a paste reaches that place with no click. Otherwise it goes on the tab. With `focus = false`, which `open_pane!` uses, the focus and the tab that each group shows stay. A selection names a tab or an element of a split by its index, so each selection that the insert passes names the same node one element on, and a split that takes the slot of a group gives the focus its path through the split. A new group shows its one tab.
 
 ### The edits are generic operations
 
@@ -35,15 +35,16 @@ A new tab takes the focus. The focus goes on the content as a whole when the con
 
 | Builder | Generic form |
 | --- | --- |
-| `make_pane_open_tab_operation` | `make_insert_elements_operation` and the focus move |
+| `make_pane_open_tab_operation` | `make_insert_elements_operation` and, with `focus`, the focus move; without it, the moves of the selections that the insert passes |
 | `make_pane_duplicate_tab_operation` | the open of the duplicate, after the original |
 | `make_pane_close_tab_operation` | `make_delete_elements_operation`, or a collapse write, and the focus move; then `ReleaseDocumentOperation` of the document of the tab |
+| `make_pane_close_other_tabs_operation`, `make_pane_close_tabs_to_the_right_operation` | `make_delete_elements_operation` of the run after the tab, then of the run before it, and the focus move or the write of the shown tab; then `ReleaseDocumentOperation` of each closed tab |
 | `make_pane_split_operation` | `ReplaceReferencedValueOperation` of a new `PaneSplit` at the slot of the group |
 | `make_pane_move_tab_operation` | `MoveRangeOperation` and the focus move |
 | `make_pane_drop_split_operation` | the split write, the move, and the focus move |
 | `make_pane_resize_operation` | one write of the weights |
 | `make_pane_focus_operation` | `ReplaceSelectionOperation` |
-| `make_pane_retarget_title_operation` | an edit of the name in the title, re-rooted |
+| `make_pane_show_operation` | `ReplaceViewStateOperation` of a `ReplaceReferencedValueOperation` that writes a dormant `SelectionDocument` into the `selection` of the group; in the focused group, the focus move |
 
 Two rules hold for all of them:
 
@@ -56,8 +57,8 @@ Two rules hold for all of them:
 
 `PaneGeometry.jl` gives each group a rectangle in the unit square. One walk of the tree divides the square by the normalized weights. No font, no measure and no backend takes part, so the functions are pure:
 
-- `get_pane_rectangles(tree)`, `get_pane_rectangle(tree, group)` and `get_pane_group_at_point(tree, x, y)`;
-- `get_pane_neighbour_group(tree, group, direction)`: a candidate is wholly past the edge and overlaps on the other axis. The nearest wins, then the one that overlaps most;
+- `get_pane_rectangles(tree)`, `get_pane_rectangle(tree, group)` and `get_pane_group_at_point(tree, x, y)`: the groups that the window shows, so while a group fills the window it is the one group, and its rectangle is the whole square;
+- `get_pane_neighbour_group(tree, group, direction)`: a candidate is wholly past the edge and overlaps on the other axis. The nearest wins, then the one that overlaps most. It reads the layout, also while a group fills the window;
 - `get_pane_next_group(tree, group; backward)`: the depth-first order, which wraps at both ends;
 - `get_pane_drop_zone(tree, x, y; strip, band)`: the group under a point, and `:strip`, `:center` or one of four edge bands.
 
@@ -71,11 +72,11 @@ The rectangles ignore the pixels of a border and a divider. They are exact enoug
 ChainingProjection(RecursiveProjection(PaneToWidget(; new_tab = default_new_pane_tab)), renderer)
 ```
 
-A tab content passes through the first stage unchanged, so `renderer` draws each content. `PaneTreeToWidget` prints the tree as a `WidgetComposite`: slot 1 holds the layout and slot 2 holds the drop indicator. `PaneSplitToWidgetSplitPane` wraps each element in a `LayoutConstraint` whose weight is the normalized weight of the element. When the parent gives an available extent, each slot also has a preferred extent of 0, so the allocator divides the extent by the weights only. `PaneGroupToWidgetTabbedPane` makes a `WidgetTabbedPane` with `closable`, `new_tab`, `draggable` and `duplicable` set, and sets the `duplicable` flag of each page from `has_document_duplicate` of the content.
+A tab content passes through the first stage unchanged, so `renderer` draws each content. `PaneTreeToWidget` prints the tree as a `WidgetComposite`: slot 1 holds the layout and slot 2 holds the drop indicator. `PaneSplitToWidgetSplitPane` wraps each element in a `LayoutConstraint` whose weight is the normalized weight of the element. The weight is a computed cell of the constraint, and the list of slots reads only the elements, so a drag of a divider of the tree prints no group again, and the view state inside a tab, such as the place of a divider of an Explorer, stays. When the parent gives an available extent, each slot also has a preferred extent of 0, so the allocator divides the extent by the weights only. `PaneGroupToWidgetTabbedPane` makes a `WidgetTabbedPane` with `closable`, `new_tab` and `draggable` set. The header of a tab is the view of its title: the backward map gives a caret in the name of the header as a caret in `title.name`, and any other part of the header as `title`, and the forward map gives each back. So the mouse target of the tree is in the title while the pointer is on the header, and the strip gets it on the header. A part of the page that the content does not claim gives the tab itself, and a selection of the whole tab maps to its page.
 
 Every edit reaches the screen through the IO maps that stand, with no new print of the tree. `test_pane_construct` checks this: after each structural edit, it compares the standing render with a fresh print of the same tree. A test that checks only the tree passes while the screen is stale.
 
-**The widget layer reports; the pane makes the edit.** The tab strip returns `CloseTabOperation`, `OpenTabOperation`, `DragTabOperation` and `DuplicateTabOperation`, which say only that a button was pressed. The reader of `PaneTreeToWidget` has one method for each. It finds the pane node that printed the widget with `_pane_node_for` and calls a surgery builder. `_pane_node_for` looks at the children before the node, because a tree prints as its root and shares the widget of the root. A press that no widget answers focuses the group under the pointer, because most of a pane is empty space beside its content.
+**The widget layer reports; the pane makes the edit.** The tab strip returns `CloseTabOperation`, `OpenTabOperation` and `DragTabOperation`, which say only that a button was pressed, or that a tab got a middle click. The reader of `PaneTreeToWidget` has one method for each. It finds the pane node that printed the widget with `_pane_node_for` and calls a surgery builder. `_pane_node_for` looks at the children before the node, because a tree prints as its root and shares the widget of the root. A press that no widget answers focuses the group under the pointer, because most of a pane is empty space beside its content.
 
 **The drag of a tab.** `DragTabOperation` keeps the tab and the point of the press in `PaneTree.drag`, `(group, index, target, zone, origin, started)`, with `started` false. A move of the pointer 5 pixels from the press starts the drag: the tree answers `StartDragOperation`, so the dragtracking slice keeps the path of the tree and sends it `DragMove`, `DragEnd` and `DragCancel` from then on, wherever the pointer is ([dragtracking.md](../dragtracking/dragtracking.md)). A release before that move is a plain click, and selects the tab as any other press does. `DragMove` sets `target` and `zone` with `find_drop_zone(tree, dragged, point)`, only when either changes; `DragEnd` drops the tab there and clears `drag`; `DragCancel` clears `drag` with no drop. The pointer is resolved against the unit square, with a tab strip of 32 pixels. A drop on the strip or the middle moves the tab to the end of the group. A drop on an edge band splits the group.
 
@@ -105,6 +106,7 @@ The `@gestures PaneTree` table is in `PaneGestures.jl`:
 | `Ctrl+Alt+Left/Right/Up/Down` | move the focus to the group in that direction |
 | `Ctrl+Tab` and `Ctrl+Shift+Tab` | focus the next or the previous group |
 | `Ctrl+PageDown` and `Ctrl+PageUp` | focus the next or the previous tab |
+| `Ctrl+M` | make the focused group fill the window, and give back the layout |
 | `Alt+Left` and `Alt+Right` | from a whole tab, select the tab beside it |
 | `Alt+Down` | from a whole tab, select its content as a whole |
 | `F2` and `Escape` | put the caret in the tab name, and take it out |
@@ -114,13 +116,33 @@ The command "Add the tab to the explorer" is a rule with no key. It adds the doc
 
 Every chord has a modifier, because a plain key belongs to the content of the focused tab. Plain Alt and an arrow walk the structure of a document, so the moves between groups take Ctrl+Alt. Ctrl+Tab is an `override`, because the widget split pane answers every Tab with its own focus traversal.
 
-With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and the `+` above the `x` duplicates it. The button after the last tab opens a tab. A drag of a divider writes the weights of that split, at any depth. A drag of a tab onto a strip or a middle moves it, and onto an edge band splits the group.
+With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and so does a middle click on the tab. The open tab of each group always shows its `x`, and another tab shows it only while the pointer is on the tab. The `x` is a toolbar button: it shows the surface of a button while the pointer is on it, and a press beside it in the tab opens the tab. The button after the last tab opens a tab.
+
+**The `x` in the tree.** The `x` is the `close` field of the tab page in the strip, and it has no place in the group. So the backward map of the group gives a path to it as `tabs[i]` and a `ProjectionReferenceStep` of the group projection whose output path is `close`, and the forward map gives that path back. The routing of the mouse target of a group keeps such a path whole, as it keeps a path into a title. The strip is the output of the group projection, so `_make_tab_page` wires the paths of each button from the paths of the strip with `set_output_path_computations!`: the button reads its own mouse target to show its surface.
+
+**The menu of a tab.** A right click on the header of a tab opens its menu: Duplicate, Rename, Split right, Split down, Maximize group (Restore layout while a group is maximized), Add to explorer, Close, Close others and Close to the right. Each item acts on the tab under the pointer, also when another tab has the focus, and the right click does not focus the tab. Each item shows the keys that do the same to the focused tab, which it reads from the table of the tree with `find_bound_keys`; Close others and Close to the right have no keys. An item that can not act is greyed: Duplicate when the kind of the content has no duplicate, Maximize group when the window has one group, Close others when the group has one tab, and Close to the right on the last tab of a group. The rule is in the table of `PaneTree` (`PaneTabMenu.jl`), because Close and Split need the group of the tab and the focus of the tree. It applies only when the mouse target of the tree goes into the title of a tab or to its `x`, so a right click in the page opens the menu of the content, and not this menu.
+
+The items make their operations when the menu opens, except Duplicate. Its item holds a `DuplicatePaneTabOperation`, which names the tab itself and the place of the tree, so the readers carry it to the root. When it runs, it finds the tab where it is, makes the copy with `make_pane_duplicate_tab_operation`, and gives the undo the way back of that edit. A tab that closed while the menu was open gives no copy, and a copy that fails logs the reason, as Ctrl+Shift+D does.
+
+Close others and Close to the right close their tabs in one step, which one undo takes back. The focus moves to the tab of the menu only when a closed tab has the focus, and a group with no focus that showed a closed tab then shows the tab of the menu.
+
+A drag of a divider writes the weights of that split, at any depth. A drag of a tab onto a strip or a middle moves it, and onto an edge band splits the group.
+
+### Maximize a group
+
+Ctrl+M makes the focused group fill the window, with its tab strip, and Ctrl+M again gives back the layout. The layout does not change: `maximized` of the tree names the group, and the splits and their weights stay, so the restore gives back the same layout. `make_pane_maximize_operation(tree, group)` and `make_pane_restore_operation(tree)` write the field as view state, so the undo records no maximize. `pred_arguments` of the tree writes only `root`, so a save does not write it. `is_field_walked` of the tree answers `false` for `maximized`, so a search finds the group only under `root`. Ctrl+M does nothing when the root is a group, because no other group exists.
+
+`find_pane_maximized_group(tree)` answers the group that fills the window, or `nothing`. It answers the group of the field only while the tree holds the group and while the focus is in that group or outside the layout, such as in a menu of the shell. Every view reads this function and not the field, so the window never hides the group that has the focus.
+
+**A focus move to a different group ends the maximize.** Each builder of the surgery that moves the focus to a group gives its operation to `_with_focus_restore`, with the group that takes the focus as an object. When a different group is maximized, it adds the write of `nothing`. So Ctrl+Tab, Ctrl+Alt and an arrow, a split, a close of the last tab of the group, `focus_pane!`, and an open with `focus = true` give back the layout, and the maximize does not come back when the focus comes back. A move that keeps the focus in the group, such as Ctrl+T or Ctrl+PageDown, keeps the maximize, and so does an edit that keeps the focus where it is along a new path, such as an open with `focus = false` or a split beside the group. The test is by object and not by path, because one operation can change the path of the group and move the focus.
+
+**The view closes the slots of the other groups.** The tree printer gives the splits the tree in the print property `:pane_tree`. `PaneSplitToWidgetSplitPane` makes the maximum extent of each slot a computed cell: 0 while `find_pane_maximized_group` answers a group that the element of the slot does not hold, and `nothing` otherwise. The widget split pane closes a slot whose maximum is 0: no extent, no drawing, and no divider beside it ([widget.md](../widget/widget.md)). The split pane reads the maximum in its allocation and its drawing, so a toggle prints no tab again: the carets, the scroll positions and the IO maps stay.
 
 ### Selecting inside a page
 
 A click on the content of a tab gives the press to the page, and the tabbed pane adds the tab to the path that comes back. So the path runs `tabs[i].content` and then into the domain of the content.
 
-An Alt+click inside a page selects the object under the pointer. [widget.md](../widget/widget.md#selecting-a-whole-widget) describes the rule. When the content projection maps the object back to a whole document, the selection is that document. When it maps back a caret or a place that it introduced, `_select_page_content` selects the innermost document on that path. When it maps back nothing, the selection is the whole content of the tab. So the content of any tab can be selected, whatever its projection maps.
+An Alt+double click inside a page selects the object under the pointer, and an Alt+click puts the caret in the text there. [widget.md](../widget/widget.md#selecting-a-whole-widget) describes the rule. When the content projection maps the object back to a whole part, a document or a value that a field or one element holds, the selection is that part. When it maps back a caret or a place that it introduced, `_select_page_content` selects the innermost document on that path. When it maps back nothing, the selection is the whole content of the tab. So the content of any tab can be selected, whatever its projection maps.
 
 The pane answers the Alt arrows at a tab itself. The generic walk steps from the content of a tab to its title, and a title is not an object of the content. A whole tab is the top of the walk, and the root of a content has no sibling.
 
@@ -132,7 +154,7 @@ A paste never replaces a pane node, and a pane node is never pasted: `accepts_pa
 
 ### Renaming is not a mode
 
-The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The table gives each typed key, Backspace and Delete to `read_gesture` of the name, and the `@gestures` table of `PrimitiveString` makes the edit. `make_pane_retarget_title_operation` roots the answer at the tree, at `get_pane_tab_name_path`. The package has no code that edits text and no rename operation.
+The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The tab bar draws the name through a text view and gives each key in the name to it, so the text domain edits the name as it edits every text: typing, Backspace and Delete, the motion of the caret, and a range with Shift. Its answer comes back as a place in the text of the label, `selector_element_pairs[i].selector.text{s:e}`, which the pane maps to `tabs[i].title.name.value{s:e}`, a caret or a range in both directions. A name with no text shows a stand-in, the title of its document or "untitled"; the pane maps back only a place inside the name, so in an empty name only a typed key edits. The package has no code that edits text and no rename operation.
 
 A rename edits the name only. The icon, its role, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose text, icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A title with an empty name shows the title of the document of its tab, which can follow a state too: a navigator tab shows the title of its page. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
 
@@ -148,7 +170,7 @@ A duplicate of a tab is a second pane that the person controls alone. `make_docu
 2. The duplicate shares what the pane reads: the project, the result files, the model backend.
 3. The duplicate does not copy a process. A run or a stream stays with the original, and the duplicate starts idle.
 
-A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its name gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". It keeps the icon that the title shows, and it has no badges and no tooltip, because those say what the original content does. [document.md](../../kernel/document.md#the-duplicate) describes the copy.
+The menu of a tab whose content has no duplicate greys Duplicate, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its name gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". It keeps the icon that the title shows, and it has no badges and no tooltip, because those say what the original content does. [document.md](../../kernel/document.md#the-duplicate) describes the copy.
 
 A duplicate is not a mirror. Each node stores its own `selection`, so two panes that hold one document share one caret.
 
@@ -158,16 +180,19 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 
 | Verb | What it does | Returns |
 | --- | --- | --- |
-| `show_layout()` | prints the layout as a tree of reference steps | a `Text` |
-| `get_referenced_value(reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
+| `show_layout()` | prints the layout as a tree of reference steps | a `String` |
+| `get_referenced_value(reference)` | reads the node at a reference | the part, the node with its place, or an `ArgumentError` that names the path |
 | `replace_referenced_value!(reference, value)` | writes a value at a reference, as one undo step | the new layout |
-| `focus_pane!(reference)` | shows a tab and gives it the focus | the new layout |
-| `open_pane!(document; title, group, target, side)` | puts a document in a new tab | the new tab, as a `ReferencedDocument` |
+| `open_pane!(document; title, group, target, side)` | places a document in a new tab, behind the tab that its group shows; the focus stays | the new tab, as a `ReferencedDocument` |
+| `show_pane!(reference)` | brings a tab to the front of its group; the focus stays, unless it is in that group | the new layout |
+| `focus_pane!(reference)` | shows a tab and gives it the focus: a step of a person | the new layout |
 | `duplicate_pane!(reference)` | duplicates a tab | the duplicate, as a `ReferencedDocument` |
 | `close_pane!(reference)` | closes a tab | the new layout |
 | `move_pane!(reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
 
-Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`. The menu and toolbar actions, and `OpenFileOperation`, post this way. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
+Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`; `make_show_pane_operation` is the companion of `show_pane!`. The menu and toolbar actions, and `OpenFileOperation`, post this way, with `focus = true` on `make_open_pane_operation`, because a person who opens a tab looks at it and types there. Each verb, `replace_referenced_value!` too, also has a method of `make_change` (see [editor.md](../../kernel/editor.md#a-change-as-a-value)), which answers the change as a value; the verb applies it with `apply_change!`, and the companion answers the operation that the change holds.
+
+**Place, show and focus are three steps.** A verb that places or changes a pane shows nothing, so the tab that a person looks at changes only when someone asks for it. A program, such as an assistant, places with `open_pane!` and shows with `show_pane!` what the person must look at; it does not call `focus_pane!`, which moves the focus of the person. A verb whose name says that it shows, such as `show_document!` and the `show_…` verbs over it, opens a tab when none shows its document and then shows the tab. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
 
 `find_pane_reference(title)` answers the complete reference of the pane whose title is `title`, in any window, and `nothing` when no pane has it; when two panes have it, an `ArgumentError` names both. It descends only into the documents that can hold a pane (`is_pane_search_step`, the default of its `descend` keyword). `find_pane_tree_reference()` answers the complete reference of the pane tree that holds the focus — the nearest tree on the path of the root's selection, else the one tree of the window, else `nothing`.
 
@@ -198,17 +223,17 @@ tree = evaluate_reference(editor.document, tree_reference)
 reference = concat_references(tree_reference, @reference(tree, root.elements[1].tabs[1]))
 ```
 
-A path to a node that the tree does not hold is not fully typed, and every verb throws an `ArgumentError` for it. `replace_referenced_value!` also throws for an empty reference, for a range outside its collection, and for a value that its slot can not hold. `tabs` holds `PaneTab`, and `elements` and `root` hold `PaneGroup` and `PaneSplit`. After the write, it finds the focused tab and the shown tab of each group again by object identity, wherever they are now.
+A path to a node that the tree does not hold is not fully typed, and every verb throws an `ArgumentError` for it. `replace_referenced_value!` also throws for an empty reference, for a range outside its collection, and for a value that its slot can not hold. `tabs` holds `PaneTab`, and `elements` and `root` hold `PaneGroup` and `PaneSplit`. With the write, it makes the operations that keep the focused tab and the tab that each group shows: it finds them by object identity in the tree as the write leaves it, with a walk that reads the replaced node or list as its new value, and it adds a dormant selection write for each group that would show another tab and a focus operation when the focused tab gets another path.
 
-`open_pane!` puts the tab in the focused group. When that is the group that `pane_group_to_avoid(tree)` names and another group exists, it takes the first other group. The default is `nothing`, and an application adds a method, so that a new pane does not cover a conversation. Of the groups that remain, `open_pane!` takes only a group in which every tab content answers `true` to `accepts_opened_file`, while such a group exists. `get_pane_file_group` uses the same test. So a tool that opens while the focus is in an explorer or an assistant goes beside the files, and not into the group of the explorer. A title that another tab has gets a number. `duplicate_pane!` puts the duplicate after the original, or where `open_pane!` would put it when the original is in the group to avoid. `move_pane!` takes a reference and a `target`: a target that names a group puts the pane at its end, a target that names a tab puts it before that tab, and `side` (`:left`, `:right`, `:above` or `:below`) puts it beside the target's group in a new split.
+`open_pane!` puts the tab in a group of documents: a group that is empty or holds a tab whose content answers `true` to `accepts_opened_file`, and never the group that `pane_group_to_avoid(tree)` names while another group exists. Of these, the focused group, else the first in the order of the tree. So a pane that a program opens while the focus is in a side area, such as an explorer or a plan of work, goes to the documents. The default of `pane_group_to_avoid` answers the first group that holds a tab whose content answers `true` to `avoids_new_panes(document)`, so that a new pane does not cover a conversation. `avoids_new_panes` is `false` by default, and `Assistant` answers `true`. An application with another rule can still write a method of `pane_group_to_avoid` for `PaneTree`. With no group of documents, `open_pane!` takes the focused group, and of the groups that remain only one in which every tab content answers `true` to `accepts_opened_file`, while such a group exists. `get_pane_file_group` uses that test. A split happens only when the caller gives `side`. A title that another tab has gets a number. `duplicate_pane!` puts the duplicate after the original, or where `open_pane!` would put it when the original is in the group to avoid. `move_pane!` takes a reference and a `target`: a target that names a group puts the pane at its end, a target that names a tab puts it before that tab, and `side` (`:left`, `:right`, `:above` or `:below`) puts it beside the target's group in a new split.
 
-`open_pane!` takes the same `target` and `side` as `move_pane!`, in place of the focused group: a group as `target` sends the tab to its end, a tab as `target` puts the new tab before it, and `side` puts the tab in a new group beside the target's group, as `make_pane_split_operation` splits a group: in a new split that takes the place of the target's group, or in the parent split when it already has that orientation; the new tab gets the focus. `open_pane!` throws an `ArgumentError` for a call that gives both `group` and `target`, and for a `side` that is not one of the four.
+`open_pane!` takes the same `target` and `side` as `move_pane!`, in place of the focused group: a group as `target` sends the tab to its end, a tab as `target` puts the new tab before it, and `side` puts the tab in a new group beside the target's group, as `make_pane_split_operation` splits a group: in a new split that takes the place of the target's group, or in the parent split when it already has that orientation; the new group shows the new tab, and the focus stays. `open_pane!` throws an `ArgumentError` for a call that gives both `group` and `target`, and for a `side` that is not one of the four.
 
 `find_pane(title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` and `duplicate_pane!` answer the tab they made as a `ReferencedDocument` too; `get_reference` gives its reference. `get_parent(editor, x)` answers the group that holds a tab, or the document around any other part, one step up `x`'s reference and past every collection on the way: `get_parent(editor, find_pane("items.json"))` answers the group of the tab named `"items.json"`.
 
 To find a tab again after the layout changes, keep a `DocumentLocator` instead of a `ReferencedDocument`: `DocumentLocator(editor, find_pane_reference("items.json"))` is not resolved yet, and `find_referenced_document` resolves it again at each call, so it still finds the tab after a pane moves, after an unrelated sibling closes, or after `replace_referenced_value!` replaces the tab itself.
 
-`make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
+The names that a model may write carry the mark `For the assistant.` in their docstrings: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. The mark offers a name and not its module; a declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
 ### The shape of the pointer during the drag of a tab
 
@@ -224,17 +249,17 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 ### Save and load of the whole editor
 
-`save_user_interface(path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.
+`save_user_interface(path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`. The function finds each reachable file with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file, so the save writes each of those files too. `load_user_interface(path)` returns the document, and each file tab holds its file document again, read back from its file.
 
 `pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. A `.pred` file builds `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` by their names, as it builds any loaded document type. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
 
-`get_pane_file_group()` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system slice pairs `OpenFileOperation` with this answer when it evaluates the open, because it reads the file into the document of its type.
+`get_pane_file_group()` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`. Among the groups that hold a file, and among the free groups, the focused group comes first. The file-system slice pairs `OpenFileOperation` with this answer when it evaluates the open, because it reads the file into the document of its type.
 
 ## How it fits
 
 The pane slice depends on the kernel and on the widget, layout, clipboard, domain, dragging, focus, primitive, collection, projection and serialization slices. It adds methods to `find_clipboard_document`, `accepts_pasted_replacement`, `has_dormant_selection`, `pred_arguments` and `make_pred_document`.
 
-The shell slice puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system slice opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
+The shell slice puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system slice opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and marks the names of its own domain for its assistant.
 
 ## Design decisions
 
@@ -244,6 +269,7 @@ The shell slice puts a pane tree in the content of a window; see [shell.md](../s
 - **A program writes values at references.** A layout is a document, and a reference names any part of it, so one write verb covers every level. `source/platform/pane/PaneProgram.jl` states the rule in its header.
 - **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../../plan/done/declared-api-is-a-list-of-names.md).
 - **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../../plan/done/duplicate-a-pane.md).
+- **A maximize is a view of the layout.** The tree keeps the maximized group in a field and the layout stays, so a restore is exact and costs one layout. A split pane closes a slot whose maximum is 0, so the other groups keep their IO maps. See [plan/done/maximize-a-pane.md](../../../../plan/done/maximize-a-pane.md).
 - **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
@@ -253,7 +279,7 @@ run_example(pane_example)         # three groups, four tabs
 run_example(empty_pane_example)   # one empty group
 
 reference = open_pane!(WidgetLabel("The delay of every run"); title = "Note")
-focus_pane!(reference)
+show_pane!(reference)
 show_layout()
 tree_reference = find_pane_tree_reference()
 tree = evaluate_reference(editor.document, tree_reference)
@@ -270,6 +296,8 @@ save_user_interface("session.pred")
 
 ## Limits
 
-- The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
-- An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
+- An Alt+double click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
 - The geometry is proportional. It is not a model of the pixels of the drawing.
+- A terminal sends the same byte for Ctrl+M and Return, so the console backend can not see Ctrl+M.
+- A press on a link that selects a document in a different group by identity (`SelectDocumentOperation`) does not pass a builder of the surgery. The window shows the layout, because the focus is not in the maximized group, but the field stays until the next Ctrl+M, so the maximize comes back when the focus comes back to that group.
+- The window shows no sign that a group fills it, other than the absence of the other groups.

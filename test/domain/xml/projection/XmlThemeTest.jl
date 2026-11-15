@@ -8,9 +8,9 @@ function test_xml_theme()
     document = parse_xml("""<note id="1"><to>Ann</to></note>""")
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     @test XmlTextToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), XmlTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), XmlTheme)
     leaf = XmlTextToSyntaxLeaf(; style = get_xml_style(theme, :content_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(XmlTheme(), :content_text).color)

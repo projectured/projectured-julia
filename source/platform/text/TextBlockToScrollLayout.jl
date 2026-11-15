@@ -113,11 +113,15 @@ function print_document(p::TextBlockToScrollLayout, recursion, block::TextBlock,
         isempty(entries) ? Int32(0) : Int32(_get_printed_size(first(entries).iomap)[1])
     end))
     gutter_h = getfield(lines_canvas, :h)
-    # A press on the gutter puts no caret, so the pointer is an arrow over it.
+    # The rows go down the gutter with no overlap, so a walk and a paint stop at the
+    # edges of the view. A press on the gutter puts no caret, so the pointer is an
+    # arrow over all the rows, beside their canvas.
+    rows_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), gutter_w, gutter_h,
+                                 CellVector(Computation(() -> Any[e.row for e in gutter_rows[]])),
+                                 layout_vertical, false, Cell(nothing))
     arrow = GraphicsPointerShape(0, 0, () -> gutter_w[], () -> gutter_h[], :arrow)
     gutter_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), gutter_w, gutter_h,
-                                   CellVector(Computation(() -> vcat(Any[e.row for e in gutter_rows[]],
-                                                                    Any[arrow]))),
+                                   CellVector(Cell[Cell(rows_canvas), Cell(arrow)]),
                                    layout_none, true, Cell(nothing))
     output = ScrollLayout(; center = lines_canvas, left = gutter_canvas)
     TextBlockToScrollLayoutIoMap(p, block, output, lines_iomap, gutter_rows)
@@ -170,9 +174,11 @@ function map_reference_forward(p::TextBlockToScrollLayout, iomap::TextBlockToScr
         inner === nothing && return nothing
         return ConcreteReference(FieldReferenceStep("left"),
             ConcreteReference(FieldReferenceStep("elements"),
-                ConcreteReference(RangeReferenceStep(index - 1, index),
+                ConcreteReference(RangeReferenceStep(0, 1),
                     ConcreteReference(FieldReferenceStep("elements"),
-                        ConcreteReference(RangeReferenceStep(0, 1), inner)))))
+                        ConcreteReference(RangeReferenceStep(index - 1, index),
+                            ConcreteReference(FieldReferenceStep("elements"),
+                                ConcreteReference(RangeReferenceStep(0, 1), inner)))))))
     end
     lines = iomap.lines_iomap
     _prefix_reference(FieldReferenceStep("center"), map_reference_forward(lines.projection, lines, reference))
@@ -236,7 +242,14 @@ function map_reference_backward(p::TextBlockToScrollLayout, iomap::TextBlockToSc
     head isa FieldReferenceStep || return nothing
     head.name == "center" && return map_reference_backward(lines.projection, lines, reference.tail)
     head.name == "left" || return nothing
-    rest = reference.tail
+    # The left edge holds the canvas of the rows first, and the arrow after it.
+    rows = reference.tail
+    (rows isa ConcreteReference && rows.head isa FieldReferenceStep && rows.head.name == "elements") ||
+        return nothing
+    first_element = rows.tail
+    (first_element isa ConcreteReference && first_element.head isa RangeReferenceStep &&
+     first_element.head.start == 0) || return nothing
+    rest = first_element.tail
     (rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "elements") ||
         return nothing
     indexed = rest.tail

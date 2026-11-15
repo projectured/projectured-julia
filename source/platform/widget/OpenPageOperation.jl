@@ -58,3 +58,70 @@ function describe_operation(operation::OpenPageOperation)
     target === nothing && return operation.place === :new_tab ? "Open in a new tab" : "Open as a page"
     operation.place === :new_tab ? "Open $(target) in a new tab" : "Follow the link to $(target)"
 end
+
+# The gestures that open a page, each with the place where the page opens: a
+# click and Return here, and Ctrl and a click and a middle click in a new tab.
+# `open(part, place)` makes the open of the part that answers the gesture.
+function _make_open_page_bindings(open; domain::AbstractString)
+    at(place) = (part, _) -> open(part, place)
+    GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), at(:here);
+                                  description = "Open as a page", domain),
+                   GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), at(:new_tab);
+                                  description = "Open in a new tab", domain),
+                   GestureBinding(MouseClickPattern(:middle; modifiers = Symbol[]), at(:new_tab);
+                                  description = "Open in a new tab", domain),
+                   GestureBinding(KeyPressPattern('\n'; modifiers = Symbol[]), at(:here);
+                                  description = "Open as a page", domain)]
+end
+
+"""
+    make_open_page_gestures(document, reference; domain) -> Vector{GestureBinding}
+
+The gestures of a button that opens the part at `reference` from `document`: a
+click or Return opens its page here, and Ctrl and a click or a middle click open
+it in a new tab, each with an [`OpenPageOperation`](@ref). With `document ===
+nothing`, `reference` is a path from the part that answers, so
+`EmptyReference()` opens the part itself. `domain` names the slice of the button
+in a listing of the bindings.
+
+Use it for a button whose label is a command that opens a page, such as "Open
+stdout". A text that names what it opens is a [`WidgetLink`](@ref), which has
+these gestures of its own.
+
+# Example
+
+    WidgetButton("Open stdout"; gestures = make_open_page_gestures(task, reference; domain = "task"))
+"""
+make_open_page_gestures(document, reference::Reference; domain::AbstractString) =
+    _make_open_page_bindings((_, place) -> OpenPageOperation(document, reference, place); domain)
+
+"""
+    make_target_open_operation(target, place) -> Operation
+
+The open that a link makes of `target`, at `place`, `:here` or `:new_tab`: any
+object opens as its page, a `DocumentLocator` as the page of the part at its
+reference, and a `Reference` as the part at that path from the link. A locator
+with an empty reference opens as the object that it names would, so a kind of
+target that opens in its own way does so also behind a locator.
+
+Use it to add a kind of target to a link: a method for the type of the target,
+such as an address outside the editor.
+
+# Example
+
+    make_target_open_operation(DocumentLocator(folder, reference), :new_tab)
+"""
+function make_target_open_operation end
+
+make_target_open_operation(target, place::Symbol) = OpenPageOperation(target, EmptyReference(), place)
+make_target_open_operation(target::DocumentLocator, place::Symbol) =
+    target.reference isa EmptyReference ? make_target_open_operation(target.start, place) :
+                                          OpenPageOperation(target.start, target.reference, place)
+make_target_open_operation(target::Reference, place::Symbol) = OpenPageOperation(nothing, target, place)
+
+# The open of a link: the open of its target.
+_make_link_open(link::WidgetLink, place::Symbol) = make_target_open_operation(link.target, place)
+
+const _WIDGET_LINK_BINDINGS = _make_open_page_bindings(_make_link_open; domain = "widget")
+
+get_document_gesture_bindings_own(::Type{WidgetLink}) = _WIDGET_LINK_BINDINGS

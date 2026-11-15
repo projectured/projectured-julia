@@ -11,7 +11,7 @@ const syntax_example         = Example("syntax",         make_syntax_document_ex
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
 const plain_text_example     = Example("plain_text",     make_plain_text_document_example,     make_plain_text_projection_example)
 const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
-const text_view_example      = Example("text_view",      make_text_view_document_example,      make_text_view_projection_example)
+const text_view_places_example = Example("text_view_places", make_text_view_places_document_example, make_text_view_places_projection_example)
 const syntax_leaf_view_example = Example("syntax_leaf_view", make_syntax_leaf_view_document_example, make_syntax_leaf_view_projection_example)
 const syntax_node_view_example = Example("syntax_node_view", make_syntax_node_view_document_example, make_syntax_node_view_projection_example)
 
@@ -66,6 +66,7 @@ const syntax_folding_example = Example("syntax_folding", make_syntax_folding_doc
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
+const text_marking_example = Example("text_marking", make_text_marking_document_example, make_text_marking_projection_example)
 const find_bar_example = Example("find_bar", make_find_bar_document_example, make_find_bar_projection)
 const filter_bar_example = Example("filter_bar", make_filter_bar_document_example, make_find_bar_projection)
 const highlighted_filtered_text_example = Example("highlighted_filtered_text", make_highlighted_filtered_text_document_example, make_highlighted_filtered_text_projection_example)
@@ -110,6 +111,7 @@ const widget_toggle_group_example = Example("widget_toggle_group", make_widget_t
 const widget_select_example      = Example("widget_select",      make_widget_select_document_example,      make_widget_projection_example)
 const widget_textarea_example    = Example("widget_textarea",    make_widget_textarea_document_example,    make_widget_projection_example)
 const widget_accordion_example   = Example("widget_accordion",   make_widget_accordion_document_example,   make_widget_projection_example)
+const widget_fact_group_example   = Example("widget_fact_group",   make_widget_fact_group_document_example,  make_widget_projection_example)
 const widget_table_example       = Example("widget_table",       make_widget_table_document_example,       make_widget_projection_example)
 const widget_table_offered_example = Example("widget_table_offered", make_widget_table_offered_document_example, make_widget_projection_example)
 const widget_table_frozen_example = Example("widget_table_frozen", make_widget_table_frozen_document_example, make_widget_projection_example)
@@ -119,6 +121,12 @@ const widget_focus_example       = Example("widget_focus",       make_widget_foc
 const widget_popup_example       = Example("widget_popup",       make_widget_popup_document_example,       make_widget_popup_projection_example)
 const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
 const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
+const layout_text_above_table_example = Example("layout_text_above_table", make_layout_text_above_table_document_example, make_widget_projection_example)
+const layout_scroll_area_in_page_example = Example("layout_scroll_area_in_page", make_layout_scroll_area_in_page_document_example, make_widget_projection_example)
+const layout_fill_in_scroll_area_example = Example("layout_fill_in_scroll_area", make_layout_fill_in_scroll_area_document_example, make_widget_projection_example)
+const layout_shares_example = Example("layout_shares", make_layout_shares_document_example, make_widget_projection_example)
+const layout_row_edge_example = Example("layout_row_edge", make_layout_row_edge_document_example, make_widget_projection_example)
+const layout_rows_in_slot_and_page_example = Example("layout_rows_in_slot_and_page", make_layout_rows_in_slot_and_page_document_example, make_widget_projection_example)
 const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
 const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
 const filtering_example      = Example("filtering",      make_collection_document_example,     make_filtering_projection_example)
@@ -140,7 +148,7 @@ const platform_examples = Example[
     text_example,
     plain_text_example,
     text_with_image_example,
-    text_view_example,
+    text_view_places_example,
     syntax_leaf_view_example,
     syntax_node_view_example,
     text_layout_examples...,
@@ -164,6 +172,7 @@ const platform_examples = Example[
     word_wrapping_example,
     text_filtering_example,
     text_highlighting_example,
+    text_marking_example,
     find_bar_example,
     filter_bar_example,
     highlighted_filtered_text_example,
@@ -208,6 +217,7 @@ const platform_examples = Example[
     widget_select_example,
     widget_textarea_example,
     widget_accordion_example,
+    widget_fact_group_example,
     widget_table_example,
     widget_table_offered_example,
     widget_table_frozen_example,
@@ -217,6 +227,12 @@ const platform_examples = Example[
     widget_popup_example,
     layout_example,
     constraint_layout_example,
+    layout_text_above_table_example,
+    layout_scroll_area_in_page_example,
+    layout_fill_in_scroll_area_example,
+    layout_shares_example,
+    layout_row_edge_example,
+    layout_rows_in_slot_and_page_example,
     collection_example,
     reversing_example,
     filtering_example,
@@ -259,6 +275,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:text, "bare_line",    make_text_line_atom_document_example),
     # The views of a text that hold a text, and the gutter of a line on its own.
     AtomicDocument(:text, "highlighted",  make_text_highlighting_document_example),
+    AtomicDocument(:text, "marked",       make_text_marking_document_example),
     AtomicDocument(:text, "filtered",     make_text_filtering_document_example),
     AtomicDocument(:text, "gutter",       make_text_gutter_atom_document_example),
     # Widget atoms: one bare instance per widget type with a printer and no
@@ -273,6 +290,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "button",                make_widget_button_document_example),
     AtomicDocument(:widget, "card",                  make_widget_card_document_example),
     AtomicDocument(:widget, "checkbox",              make_widget_checkbox_document_example),
+    AtomicDocument(:widget, "choice_list",           make_widget_choice_list_document_example),
     AtomicDocument(:widget, "composite",             make_widget_composite_document_example),
     AtomicDocument(:widget, "context_menu",          make_widget_context_menu_document_example),
     AtomicDocument(:widget, "dialog",                make_widget_dialog_document_example),
@@ -308,6 +326,9 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "tooltip",               make_widget_tooltip_document_example),
     AtomicDocument(:widget, "transform_pane",        make_widget_transform_pane_document_example),
     AtomicDocument(:widget, "tree",                  make_widget_tree_document_example),
+    AtomicDocument(:widget, "link",                  make_widget_link_document_example),
+    AtomicDocument(:widget, "icon",                  make_widget_icon_document_example),
+    AtomicDocument(:widget, "fact_group",            make_widget_fact_group_atom_document_example),
     AtomicDocument(:widget, "tooltip_source",        make_tooltip_source_document_example),
     AtomicDocument(:widget, "clipboard_collection",  make_clipboard_collection_document_example),
     AtomicDocument(:widget, "clipboard_slice",       make_clipboard_slice_document_example),
@@ -334,10 +355,9 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:collection, "vector",    make_collection_document_example),
     AtomicDocument(:collection, "table",     make_cell_table_document_example),
     AtomicDocument(:collection, "list_node", make_list_node_document_example),
-    # A navigator, the copy of its address in the path view, and its list of choices.
-    AtomicDocument(:navigator, "navigator",   make_navigator_document_example),
-    AtomicDocument(:navigator, "address",     make_navigator_address_document_example),
-    AtomicDocument(:navigator, "choice_list", make_navigator_choice_list_document_example),
+    # A navigator, and the copy of its address in the path view.
+    AtomicDocument(:navigator, "navigator", make_navigator_document_example),
+    AtomicDocument(:navigator, "address",   make_navigator_address_document_example),
     # A tree of documents, a plan and one of its steps, and the processes of an
     # agent and one of them.
     AtomicDocument(:tree, "tree", make_document_tree_document_example),
@@ -345,8 +365,15 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:workplan, "step", make_work_plan_step_document_example),
     AtomicDocument(:systemprocess, "tree", make_system_process_tree_document_example),
     AtomicDocument(:systemprocess, "process", make_system_process_document_example),
-    # The page of a file that is not on disk.
-    AtomicDocument(:fileformat, "page", make_file_page_document_example),
+    # The explorer of a section, the section, a search below its root, and a
+    # dashboard of cards; and the log of the background work of a session.
+    AtomicDocument(:explorer, "explorer",  make_explorer_document_example),
+    AtomicDocument(:explorer, "section",   make_explorer_section_document_example),
+    AtomicDocument(:explorer, "search",    make_explorer_search_document_example),
+    AtomicDocument(:explorer, "dashboard", make_dashboard_document_example),
+    AtomicDocument(:backgroundwork, "log", make_background_work_log_document_example),
+    # The view of a file that is not on disk.
+    AtomicDocument(:fileformat, "view", make_file_view_document_example),
     # A roster of a collection, and a terminal that has not started its program.
     AtomicDocument(:roster, "roster",     make_roster_document_example),
     AtomicDocument(:terminal, "terminal", make_terminal_document_example),
@@ -379,6 +406,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:dragtracking, "state",        make_drag_tracking_state_document_example),
     AtomicDocument(:gesturetracking, "state",     make_gesture_tracking_state_document_example),
     AtomicDocument(:tooltip, "content",           make_tooltip_content_document_example),
+    AtomicDocument(:tooltip, "note",              make_tooltip_note_document_example),
     AtomicDocument(:tooltip, "window_state",      make_tooltip_window_state_document_example),
     # The logs and the tables of the tools of an editor.
     AtomicDocument(:log, "message_log",           make_message_log_document_example),
@@ -388,10 +416,14 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:projection, "fault_report",   make_fault_report_document_example),
     AtomicDocument(:statistics, "frame_statistics", make_frame_statistics_document_example),
     AtomicDocument(:statistics, "frame_time_series", make_frame_time_series_document_example),
-    # The pages and the views of an editor: the page about the program, the command palette,
-    # the inspector of a selection and the arrangement of a collection.
+    # The pages and the views of an editor: the page about the program, the inspector of a
+    # selection and the arrangement of a collection.
     AtomicDocument(:help, "about_page",           make_about_page_document_example),
-    AtomicDocument(:gesturehelp, "command_palette", make_command_palette_document_example),
+    AtomicDocument(:help, "entry",                make_help_entry_document_example),
+    AtomicDocument(:link, "url",                  make_link_url_document_example),
+    AtomicDocument(:link, "url_view",             make_link_url_view_document_example),
+    AtomicDocument(:fileformat, "open_file_list", make_open_file_list_document_example),
+    AtomicDocument(:text, "view",                 make_text_view_document_example),
     AtomicDocument(:inspector, "selection",       make_selection_inspector_document_example),
     AtomicDocument(:arrangement, "document",      make_arrangement_document_example),
     AtomicDocument(:arrangement, "chips",         make_arrangement_chips_document_example),

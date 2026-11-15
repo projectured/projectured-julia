@@ -38,6 +38,8 @@ Use it to show a document and the documents under it as a tree.
     open_pane!(tree_1; title = "People tree")
 
 See also `Roster` and `open_pane!`.
+
+For the assistant.
 """
 @document struct DocumentTree <: Document
     root::Any
@@ -134,8 +136,12 @@ function _collect_path_node_documents(root, steps)
     (document, at) = (root, 1)
     while at <= length(steps)
         found = nothing
-        for (collection_steps, _) in _collect_tree_collections(document)
+        for (collection_steps, collection) in _collect_tree_collections(document)
             index_at = at + length(collection_steps)
+            if _is_single_child_path(steps, at, collection_steps, collection)
+                found = (collection, index_at)
+                break
+            end
             index_at <= length(steps) || continue
             all(steps[at + j - 1] == collection_steps[j] for j in eachindex(collection_steps)) || continue
             index = steps[index_at]
@@ -201,7 +207,9 @@ function _collect_first_lazy_children(tree::DocumentTree)
             # not walked.
             for (_, collection) in _collect_tree_collections(document)
                 (collection === nothing || collection isa ListNode) && continue
-                foreach(child -> visit(child, below, above), collection)
+                for i in 1:_get_collection_length(collection)
+                    visit(_get_collection_child(collection, i), below, above)
+                end
             end
         end
         pop!(above)

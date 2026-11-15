@@ -72,6 +72,21 @@ const toy_limit = 3
 _toy_inside() = "inside"
 end
 
+"""
+Toys that an index lists. A second sentence that the index leaves out.
+"""
+module ToyIndexed
+export toy_index_verb, ToyIndexedBox, ToyIndexedCrate
+"""
+    toy_index_verb(toy)
+
+Index a toy. Then put it back.
+"""
+toy_index_verb(toy) = toy
+struct ToyIndexedBox end
+struct ToyIndexedCrate end
+end
+
 # A docstring shaped the way this repository writes one: an indented signature
 # block, a blank line, then the sentence that says what the thing does. Julia
 # strips a docstring's common indentation before storing it, so that block
@@ -131,6 +146,24 @@ struct Action
 end
 end
 
+# A document type whose bare name is an alias of its native struct: the docstring
+# stands on the native struct, as `@document [M, C]` writes it.
+module ToyAliased
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.CellStructModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.ReferenceModule: Reference, EmptyReference
+export ToyAliasedBox
+"""
+    ToyAliasedBox(; lid)
+
+A box that a document holds under an alias.
+"""
+@document [M, C] struct ToyAliasedBox
+    lid::Bool = false
+end
+end
+
 # A module with a verb of its own under a name another module also gives. This
 # is the collision a declaration must refuse.
 module ToyRival
@@ -149,6 +182,119 @@ module ToyLookalike
 export search_api
 """A search of toys only."""
 search_api(query) = "toys"
+end
+
+# A module whose docstrings offer two of its names with the mark. The mark on the
+# docstring of one method offers nothing, because a model reads the docstring of
+# the generic function.
+module ToyMarked
+export toy_offered, toy_hidden, toy_on_method, ToyOffered
+"""
+    toy_offered(x)
+
+A verb that a model may write.
+
+Use it to answer what it is given.
+
+# Example
+
+    toy_offered(1)
+
+See also `ToyOffered`.
+
+For the assistant.
+"""
+function toy_offered end
+toy_offered(x) = x
+"""A verb that no docstring offers."""
+toy_hidden() = 1
+"""
+    toy_on_method(x)
+
+The generic function, with no mark.
+"""
+function toy_on_method end
+"""
+    toy_on_method(x::Int)
+
+A method whose docstring has the mark.
+
+For the assistant.
+"""
+toy_on_method(x::Int) = x
+"""
+    ToyOffered
+
+A type that a model may write.
+
+Use it to make a toy.
+
+# Example
+
+    ToyOffered()
+
+See also `toy_offered`.
+
+For the assistant.
+"""
+struct ToyOffered end
+"""
+    ToyFamily
+
+The root of a family of types: its mark offers each member.
+
+Use it to ask whether a value is a toy of the family.
+
+# Example
+
+    ToyMember() isa ToyFamily
+
+See also `ToyMember`.
+
+For the assistant.
+"""
+abstract type ToyFamily end
+struct ToyMember <: ToyFamily end
+struct ToyLeftOut <: ToyFamily end
+export ToyFamily, ToyMember, ToyLeftOut
+# A `@document` layout family keeps its docstring on a layout, such as `ACToyLayout`,
+# and the mark there offers the name of the family.
+struct ToyLayout end
+"""
+    ToyLayout
+
+A family of layouts that a model writes by its family name.
+
+Use it to make a toy of the family.
+
+# Example
+
+    ToyLayout()
+
+See also `ToyOffered`.
+
+For the assistant.
+"""
+struct ACToyLayout end
+export ToyLayout, ACToyLayout
+end
+
+# A value whose `show` takes a keyword, as the `show` of a data frame takes
+# `allrows`.
+module ToyShown
+export ToyLoud
+"""A value that shows itself loud or quiet."""
+struct ToyLoud end
+Base.show(io::IO, ::ToyLoud; loud::Bool = false) = print(io, loud ? "LOUD" : "quiet")
+end
+
+# Two verbs whose names share words: the longer one says them more often.
+module ToySpelled
+export find_toy_pane, find_toy_pane_reference
+"""Find the toy pane."""
+find_toy_pane() = 1
+"""Find the reference of the toy pane: the toy pane, the pane of the toy, any toy pane."""
+find_toy_pane_reference() = 2
 end
 
 function test_declared_api()
@@ -192,6 +338,17 @@ function test_declared_api()
         api = ToolModule._api_entries(Module[ToyDocumented])
         @test occursin("numbered toy", read_function_documentation("ToyDocumented", "toy_shape", "Int"; api))
         @test occursin("named toy", read_function_documentation("ToyDocumented", "toy_shape", "String"; api))
+    end
+
+    @testset "a document type whose name is an alias shows the docstring of its native struct" begin
+        @test nameof(ToyAliased.ToyAliasedBox) !== :ToyAliasedBox
+        doc = ToolModule._binding_doc(ToyAliased, :ToyAliasedBox)
+        @test !isempty(doc)
+        set = ToolSet(; api = Module[ToyAliased])
+        entry = only(filter(entry -> entry.kind == "type", ToolModule._api_index(set.api)))
+        @test entry.qualname == "ToyAliased.ToyAliasedBox"
+        @test entry.signature == "ToyAliasedBox(; lid)"
+        @test entry.summary == "A box that a document holds under an alias."
     end
 
     @testset "a function's documentation is reachable as a tool" begin
@@ -374,7 +531,7 @@ function test_declared_api()
     # lines are what a search hit shows anyway, so a prompt that carries them
     # spends no round on the lookup.
     @testset "the declaration renders as the lines a prompt carries" begin
-        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)])
+        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)]; signatures = true)
         @test occursin("ToyApi", text)
         # The name the MODEL writes, with its signature on one line.
         @test occursin("say_toy", text)
@@ -386,6 +543,29 @@ function test_declared_api()
 
         # A name the declaration left out is not in it either.
         @test !occursin("toy_count", describe_api(Any[ToyApi => (:toy_verb,)]))
+    end
+
+    # The index of a window: each part is a switch, and a preset sets the parts
+    # that a caller does not set.
+    @testset "the index has a part for each kind of line, and two presets" begin
+        api = Any[ToyIndexed => (:toy_index_verb, :ToyIndexedBox, :ToyIndexedCrate), ToyApi => (:toy_count,)]
+        full = describe_api(api)
+        @test split(full, "\n") == ["ToyIndexed — Toys that an index lists.",
+                                     "  toy_index_verb",
+                                     "  types: ToyIndexedBox, ToyIndexedCrate",
+                                     "ToyApi",
+                                     "  toy_count"]
+        @test describe_api(api; preset = :compact) ==
+              "ToyIndexed: toy_index_verb (2 types)\nToyApi: toy_count"
+        @test describe_api(api; preset = :compact, types = :names) ==
+              "ToyIndexed: toy_index_verb; types: ToyIndexedBox, ToyIndexedCrate\nToyApi: toy_count"
+        @test occursin("  toy_index_verb — Index a toy.", describe_api(api; function_sentences = true))
+        @test describe_api(api; preset = :compact, function_names = false, types = :none) == ""
+        # Two entries of one module are one group.
+        @test describe_api(Any[ToyApi => (:toy_count,), ToyApi => (:toy_verb,)]; preset = :compact) ==
+              "ToyApi: toy_count, toy_verb"
+        @test_throws ArgumentError describe_api(api; preset = :small)
+        @test_throws ArgumentError describe_api(api; types = :all)
     end
 
     @testset "a name its module does not have is refused" begin
@@ -653,7 +833,8 @@ function test_declared_api()
     @testset "a guide root that an application registers is read" begin
         directory = mktempdir()
         write(joinpath(directory, "toy-guide.md"),
-              "# Toy guide\n\nA toy box keeps its zephyrquartz lid shut.\n")
+              "# Toy guide\n\n> **Kind:** procedure · **For:** user · **Status:** current\n\n" *
+              "A toy box keeps its zephyrquartz lid shut.\n")
         register_guide_root!(directory; prefix = "toyroot/")
         @test occursin("zephyrquartz", read_guide("toyroot/toy-guide"))
         set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
@@ -728,6 +909,36 @@ function test_declared_api()
         set = ToolSet()
         @test_throws KeyError call_tool(set, "toy_missing_tool";
                                         args = Dict{String,Any}(), target = nothing)
+    end
+
+    @testset "keywords that spell a name in words find that name first" begin
+        set = declare_api!(ToolSet(), [ToySpelled])
+        # The name is a clear answer, so the search answers its whole docstring.
+        hits = string(search_api(set, "find toy pane"; detail = "names"))
+        @test occursin("Find the toy pane.", hits)
+        @test !occursin("Find the reference of the toy pane", hits)
+    end
+
+    @testset "the show of the code passes its keywords on" begin
+        set = declare_api!(ToolSet(), [ToyShown])
+        @test occursin("LOUD", execute_julia_code!(set, nothing, "show(ToyLoud(); loud = true)"))
+        @test occursin("LOUD", execute_julia_code!(set, nothing, "show(stdout, ToyLoud(); loud = true)"))
+        @test occursin("quiet", execute_julia_code!(set, nothing, "show(ToyLoud())"))
+    end
+
+    @testset "the mark in a docstring offers a name" begin
+        @test has_assistant_mark("A verb.\n\n" * ASSISTANT_MARK)
+        @test !has_assistant_mark("A verb for the assistant.")
+        toy = only(entry for entry in collect_marked_api(; exclude = type -> type === ToyMarked.ToyLeftOut)
+                   if entry.module_ === ToyMarked)
+        @test sort(get_api_entry_names(toy)) == [:ToyFamily, :ToyLayout, :ToyMember, :ToyOffered, :toy_offered]
+        # One mark on the root of the kernel's documents would offer every type of
+        # the editor, so the root never carries it.
+        @test !any(entry -> entry.module_ === parentmodule(ToolModule).DocumentModule &&
+                            :Document in get_api_entry_names(entry), collect_marked_api())
+        set = declare_api!(ToolSet(), [toy])
+        @test strip(execute_julia_code!(set, nothing, "toy_offered(5)")) == "5"
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "toy_hidden()"))
     end
 
 end

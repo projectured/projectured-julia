@@ -14,7 +14,8 @@ The group a newly opened file belongs in, in the pane tree that holds the focus
 ([`find_pane_tree_reference`](@ref)): a group that already holds a file — any
 tab that shows a file, as its content or through a layer such as a scroll pane,
 which [`is_file_document`](@ref) answers `true` for — else a group
-every one of whose tabs [`accepts_opened_file`](@ref), focused first. `nothing`
+every one of whose tabs [`accepts_opened_file`](@ref), the focused one first in
+both cases. `nothing`
 leaves the choice to [`open_pane!`](@ref). A file must not cover the explorer it
 was opened from, nor a running conversation.
 """
@@ -24,15 +25,17 @@ function get_pane_file_group(; editor = get_evaluation_editor())
         found === nothing && return nothing
         tree = last(found)
         groups = get_pane_groups(tree)
-        for group in groups
-            any(tab -> _find_tab_file(tab.content) !== nothing, group.tabs) && return group
-        end
+        focused = get_pane_focused_group(tree)
+        holding = [group for group in groups if any(tab -> _find_tab_file(tab.content) !== nothing, group.tabs)]
+        isempty(holding) || return _find_focused_first(holding, focused)
         free = [group for group in groups if _is_free_group(group)]
         isempty(free) && return nothing
-        focused = get_pane_focused_group(tree)
-        focused in free ? focused : first(free)
+        _find_focused_first(free, focused)
     end
 end
+
+# `focused` when it is one of `groups`, else the first of them.
+_find_focused_first(groups, focused) = any(group -> group === focused, groups) ? focused : first(groups)
 
 # The file a tab shows, through the layers it keeps it in, such as a scroll pane;
 # `nothing` when it shows no file.

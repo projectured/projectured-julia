@@ -1,7 +1,8 @@
 """
     ArrangementModule
 
-What a person arranges in how a document shows, apart from the document: the
+Filters and sorts of a collection that a person sets in a view, apart from the
+document, and the verbs that set them from code. The module holds the
 `ArrangementDocument` that holds a document and the projections that a person
 placed at its parts, such as a filter or a sort of a collection, the projection
 that prints it, the dispatch that puts those projections at their places in a
@@ -33,17 +34,20 @@ using ..ToolModule
 import ..DocumentModule: get_document_title, get_wrapped_document, get_edited_field, replace_wrapped_document!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
+import ..EditorModule: make_change
 import ..OperationModule: operation_reference, retarget_operation
 
 import ..DomainModule: get_document_decoration
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
        is_quick_text_condition, ArrangementSort, ArrangementSortKey, ArrangementFind,
        ArrangementGroup, ArrangementAggregate, ArrangementFirst, ArrangementGroupRow
-export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
+export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit,
+       keep_held_arrangement
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, find_arrangement_key_value, compute_filter_rows,
        is_condition_holding, compute_sort_rows, compare_arrangement_values
+export parse_filter_text, parse_name_pattern, make_value_list_text, is_value_listed
 export GroupingProjection, GroupingIoMap, compute_group_rows, compute_arrangement_aggregate
 export ArrangementBarProjection, ArrangementBarIoMap
 export compute_shown_rows, make_field_caret_reference, find_arranged_place, is_in_find_field,
@@ -54,14 +58,18 @@ export get_arrangement_parts, describe_arrangement_part, describe_arranged_colle
        make_limit_collection_operation, make_arrangement_entry, get_arranged_collection_steps,
        find_arranged_collection
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
+export is_arranged_place, find_arranged_entry, find_column_filter_text, make_column_filter,
+       get_column_sort_keys, make_column_sort, collect_column_values
 
 include("ArrangementDocument.jl")
+include("FilterLanguage.jl")
 include("ArrangeCollectionOperation.jl")
 include("Arranging.jl")
 include("Picking.jl")
 include("Grouping.jl")
 include("ArrangementBar.jl")
 include("Finding.jl")
+include("ArrangementColumns.jl")
 include("ArrangementProgram.jl")
 include("ArrangementMenu.jl")
 

@@ -1,0 +1,376 @@
+# A roster and its arrangement cost what changed
+
+Status: done. Written 2026-10-29. Started 2026-10-29 on the branch
+`lazy-arrangement` (worktree `projectured-julia-lazy-arrangement`). Landed on
+main on 2026-10-29.
+
+Applies to projectured-julia. omnet-julia uses it for the views of its tasks.
+
+## The ask
+
+The plan `a-runner-for-each-kind-of-test.md` of omnet-julia (step 5) measured
+the arrangement of the platform over a roster of 22,731 tasks: a filter of
+13.9 ms, a sort of 45.9 ms, a quick text of 66.5 ms, and 2.08 s for the rows of
+the roster the first time. A frame at 60 Hz is 16.7 ms.
+
+The owner, 2026-10-29:
+
+- "Let's wait with the data table change until we are sure we can't make it fast
+  otherwise." The data table change is a table of typed columns, with the filter
+  language of the data frame table moved to the platform.
+- "My instinct tells me it could be fast enough easily if it would be lazy and
+  incremental, which are the first principles. I also don't know why does a
+  roster make one row for each task eagerly, that's bad."
+- To the proposal below, which uses the cells as they are and measures before
+  and after: "Yes, I agree with these changes and measurements".
+
+## What the code does now
+
+- **A roster makes a row for each item eagerly.** `_compute_roster_slots`
+  (`RosterDocument.jl`) walks every item of the source and makes a `RosterRow`
+  for each, with one cell for each column. The value cells of a row are lazy,
+  but the row objects are not. The table of a roster is lazy: it makes the
+  widgets of a row only when the row comes into view.
+- **A filter is one computation over all items.** `compute_filter_rows`
+  (`Picking.jl`) checks every item. When one value that it read changes, the
+  next read checks every item again.
+- **A sort is one computation over all items.** `compute_sort_rows` reads the
+  keys of every item into a `Vector{Any}` and sorts all of them. When one key
+  changes, the next read sorts all items again.
+- **Each value takes the general path.** A condition and a sort key find the
+  column of a key from its path, for each item, and compare values of type
+  `Any`.
+
+## The design
+
+Lazy: nothing computes what no reader reads. Incremental: a change of one item
+computes the cells of that item, and the picks move only its row. Both use the
+cells as they are: no new kernel mechanism, no new event, no new channel through
+the projections. The cells are pull-based, so a computation that reads many
+cells runs again as a whole. The pick therefore still walks one cell for each
+item, but each of those cells holds its value already.
+
+**D0. The gather stops at each item that it finds** (added after step 1; the
+owner, 2026-10-29: "Yes"). The search of a part reports each item of the type and
+reads nothing inside it: `walk_document` takes `enter_matches = false`. The inside
+of each found item is a part of its own, with a computed cell of its own: the
+roster asks the source for it with a new generic of the roster slice,
+`get_roster_item_inside(source, entry)`, which answers `nothing` by default, and
+keeps the cell by the identity of the item. `ItemsWithin` answers the inside of
+each document that it finds. So the start of one task walks the inside of that one
+task again, and no other. The search of an inside does not enter the item of the
+outer source, which a document can name, and a `TaskDocument` no longer lets a
+walk enter its field `group`: that `Ref` names the group that holds the task, and
+its docstring already said that a walk must not go round through it.
+
+**D1. A roster makes a row when a reader first reads it. Dropped.** The slot of
+an item was to be a computed cell that makes the row at its first read. A filter
+or a sort reads every row, so it would still make every row, and a profile after
+step 5 showed that the rows are not the large cost of the first open of a view.
+The owner, 2026-10-29: "ignore my previous lazy rows comment then, it doesn't
+help here".
+
+**D2. A filter keeps one cell for each item.** The stage of a filter over a
+`CellVector` keeps, for each element cell of its input, a computed cell that
+says whether the conditions hold for that item. It keeps them from one
+computation to the next by the identity of the element cell, as the roster
+keeps its rows by the identity of the item. The rows of the filter read these
+cells. When one task starts, only the cell of that task computes again; the
+others answer the value they hold. A change of the conditions computes all of
+them, as a new filter must. The quick text is a condition, so it gets the same.
+
+**D3. A sort keeps one key cell for each item and its last order.** The stage of
+a sort over a `CellVector` keeps a computed cell of the keys of each item, by the
+identity of the element cell, and the order and the keys that it sorted last.
+When the input holds the same element cells in the same order, the sort compares
+the keys with the keys it sorted, takes out the rows whose keys changed, and puts
+each back at its place with a binary search. Items with equal keys keep the
+order of the input, as now. When the input changed, or many keys changed, it
+sorts all items again.
+
+**What stays.** The pick keeps its last final rows while a value is
+provisional (`make_final_holding_cell`). The IO map, the maps of the paths and
+the output stay. A stage over a plain `AbstractVector` has no element cells, so
+it stays as it is.
+
+The cells of D2 and D3 are local state of a stage, as the memo of the roster and
+the held value of `make_final_holding_cell` are. A computation that runs twice
+over the same values answers the same.
+
+**D4. A column finds its facet or its field once** (added after step 5). A value
+of a roster now splits its key, searches the facets of the type of its item with
+`collect_item_facets`, and builds the path of its fields, for each item and each
+column: about 105 ms of the first filter of 22,731 tasks. The roster makes one
+object for each column when its columns change, which holds the names of the
+key, its path, and for each type of item whether the first name is a facet. The
+value cells of all rows of one roster share it. `compute_roster_value(row, key)`
+keeps its signature and makes such an object for one call.
+
+**D5. An inside walk costs less** (added after step 5). One walk of the inside
+of a task costs about 10 µs, about 230 ms for 22,731 tasks, and about half of it
+is outside the walk of the fields: the keywords, the scoped value of the
+background work, the dictionaries and the vectors of each walk. The step
+measures one walk alone first, and it removes what costs most there.
+
+## The steps
+
+- [ ] **Step 1 — Measure now.** The script
+  `/var/tmp/claude-julia/lazy-arrangement/measure.jl` builds a roster of 22,731
+  tasks in `ProjecturedPlatform` alone. It reads the real cells of the stages,
+  and it counts the computations. It measures the rows of a roster (cold, and
+  warm on a second roster), a new filter, a new sort and a quick text, and the
+  start of one task while each is on.
+
+  **Done, 2026-10-29** (Julia 1.13.1, `ProjecturedPlatformTest` environment, a
+  load average of about 2):
+
+  | Work | Time | Computations |
+  | --- | --- | --- |
+  | rows of a roster, first (cold) | 1793 ms | 45,464 |
+  | rows of a second roster (warm) | 382 ms | 45,464 |
+  | filter `status == :running`, first | 462 ms | 22,733 |
+  | the same filter after one task starts | 479 ms | 9 |
+  | sort by status after one task starts | 449 ms | 9 |
+  | sort by name after one task starts | 455 ms | 8 |
+  | quick text after one task starts | 511 ms | 11 |
+
+  The case "a filter, then a sort" of the script read the IO map field
+  `output` as a cell holding the vector, so it measured nothing. The script
+  must read `iomap.output`.
+
+  A profile (`profile.jl`, ten task starts, each read of the filter cell after
+  one start) shows where the 400 to 480 ms go:
+  - About 65 % is the gather of the roster: `ItemsWithin` searches the whole
+    group of 22,731 tasks again with `search_documents`. The walk read cells
+    inside each task (`running`, `executions`, the task, the shadows), so the
+    start of one task invalidates the items of the whole part.
+  - About 9 % is the filter itself: 16 ms as a direct call, about 40 ms inside
+    a computation that reads 22,731 cells.
+  - About 6 % is the slots of the roster, which rebuild their dictionaries.
+  - The rest is the bookkeeping of a computation with 22,731 dependencies: the
+    removal of repeats in an `IdSet` at the end of each run
+    (`_remove_repeated_dependencies!`) and the record of each read.
+
+  The estimate of omnet, "about 60 ms" for the end of one task, was wrong: the
+  omnet script called `compute_filter_rows` directly, and it did not start a
+  task. Step 2 of this plan (lazy rows) does not touch the main cost. The
+  gather is the first cost to fix; the owner decides how.
+- [x] **Step 2 — D0, the gather stops at each item.**
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - A computed cell stops its readers only when it gives the same plain value
+    (`isbits`, a `String` or a `Symbol`, `===` to the old one). A vector never
+    stops them. So the first form of the change still made every reader of the
+    rows compute again: the inside cell of the task that started gave a new empty
+    vector, the slots gave a new vector of the same slots, and a sort by name
+    sorted again. The cell of an inside now gives `nothing` when the item holds no
+    items (`_collect_inside_items`), so a change inside such an item stops at that
+    cell. A change inside an item that holds items still gathers the slots again.
+  - `collect_roster_parts(::ItemsWithin)` gathers the items of the inner source
+    with their insides (`_collect_items_and_insides`), so an `ItemsWithin` of an
+    `ItemsWithin` still finds the documents inside documents.
+  - The index of the roster reads the places of the parts and of the insides.
+  - The numbers, with the same script (median of five, after one task starts):
+
+    | Work | Before | After |
+    | --- | --- | --- |
+    | filter `status == :running` | 479 ms | 120 ms |
+    | sort by status | 449 ms | 118 ms |
+    | sort by name | 455 ms | 8 ms |
+    | quick text | 511 ms | 187 ms |
+    | a filter, then a sort by status | (not measured) | 126 ms |
+
+    The rows the first time stay the same: 2.05 s cold, 395 ms warm. Each item has
+    one more computation now, the cell of its inside: 68,195 in place of 45,464.
+    What remains after one start is the filter or the sort over every row: steps 4
+    and 5.
+  - Tests: `test_document_contract` 151, `test_roster` 69, `test_roster_table` 34,
+    `test_roster_sources` 19, `test_roster_facets` 30, `test_roster_program` 21,
+    `test_arrangement` 10, `test_arrangement_filter_sort` 18,
+    `test_task_document` 126, `test_task_views` 70 and `test_task_group` 84 pass.
+    The new tests: a walk with `enter_matches = false` reads nothing inside a
+    match, and `ItemsWithin` finds the steps inside a step, keeps the rows when a
+    step changes, and places a new inner step.
+- [x] **Step 3 — D1, lazy rows of a roster. Dropped** (see D1).
+- [x] **Step 4 — D2, a filter keeps one cell for each item.**
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - The stage of a filter takes a callable `_FilterRows <: Function` in place of
+    a closure, so that `_make_rows_computation` gives a filter over a
+    `CellVector` its own computation with `_ItemCells`: the description that the
+    cells were made for, the element cells that they follow, and one cell for
+    each. A stage over a plain vector, and the first items of a group, keep the
+    computation of their function.
+  - The conditions are read as plain values (`_read_conditions`: the key, the
+    operator and the value of each), so the cells of the items capture no cell of
+    a condition. A new description makes new cells for every item.
+  - The cell of an item gives a `Bool`, which is a plain value, so a change of an
+    item that keeps its answer stops at the cell of that item, and the rows stay
+    the same vector.
+  - The numbers (after one task starts): the filter 120 ms -> 6.4 ms, the quick
+    text 187 ms -> 2.7 ms, a filter of the running tasks and then a sort by
+    status 126 ms -> 4.9 ms. A filter the first time takes 476 ms: it computes
+    one cell for each item.
+  - Tests: the new testset "a change of one item computes the rows of a filter
+    only when its answer changes"; `test_arrangement_filter_sort` 21,
+    `test_arrangement` 10, `test_arrangement_quick_text` 24,
+    `test_arrangement_group` 24, `test_arrange_collection_operation` 20,
+    `test_roster` 69, `test_roster_table` 34 and `test_task_views` 70 pass.
+- [x] **Step 5 — D3, a sort keeps one key cell for each item.**
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - The stage of a sort takes `_SortRows <: Function`, and over a `CellVector`
+    its computation keeps `_SortedItems`: the cell of the key values of each item
+    (through `_ItemCells`), and the keys, the cells of the items, the key values
+    and the order of the last sort.
+  - The cell of an item gives the value of the key when the sort has one key, so a
+    `Symbol` or a `String` that stays the same stops there; with more keys it gives
+    a tuple.
+  - When the items are those of the last sort, the computation compares each key
+    value with the last one. If at most `max(32, n ÷ 16)` changed, it takes those
+    rows out and puts each back with `searchsortedfirst`, by the order of the keys
+    and then of the index. That is the order of the stable sort of every item. Else
+    it sorts every item again.
+  - `compute_sort_rows` and the stage share `_read_sort_keys`, `_find_key_values`
+    and `_is_sorted_before`.
+  - The numbers (after one task starts): a sort by status 121 ms -> 8.4 ms, a sort
+    by name 8 ms -> 1.7 ms (it only checks its cells). A sort the first time takes
+    272 to 342 ms.
+  - Tests: the new testset "a change of one item moves its row in a sort, to the
+    order of a sort of every item", with one key and with two;
+    `test_arrangement_filter_sort` 27, and the other suites of step 4 pass.
+- [x] **Step 6 — D4, a column finds its facet or its field once.** Added after
+  step 5 (the owner, 2026-10-29: "yes").
+
+  **Done, 2026-10-29.** What the work found and decided:
+  - `_RosterKey` holds one key of a column: whether it starts at `within`, its
+    first name and that name as a `Symbol`, the path of the names from the first
+    one on and the path after it, and for each type of item whether the first
+    name is a facet. The memo of the roster makes the keys when its columns
+    change, and every row of the roster shares them (`_make_roster_row`).
+    `make_roster_row(item, within, columns)` and `compute_roster_value(row, key)`
+    keep their signatures and make keys for their one call.
+  - The search of the facets of a type runs once for each type of item in a
+    column, at the first value of that type. A facet that a package loaded later
+    declares shows in a roster after its columns, its source or its link change.
+  - The number: the first filter over the tasks with a shared project (the
+    script `measure-shared.jl`, see step 7) takes 181 ms on the branch, and
+    381 ms on main.
+  - Tests: `test_roster` 69, `test_roster_table` 34, `test_roster_sources` 19,
+    `test_roster_facets` 30, `test_roster_program` 21,
+    `test_arrangement_filter_sort` 27, `test_arrangement_quick_text` 24,
+    `test_arrangement_group` 24 and `test_task_views` 70 pass.
+- [x] **Step 7 — D5, an inside walk costs less.** Added after step 5 (the owner,
+  2026-10-29: "yes"). **Done in projectured, 2026-10-29**; the omnet task views
+  pass `enter_field = is_task_search_field` after this branch lands, because the
+  omnet branch builds against projectured main.
+
+  What the work found so far:
+  - One inside walk alone, outside a cell, costs 3.6 µs (82 ms for 22,731
+    tasks; a read of each field is 19 ms). Inside a cell it costs about 10 µs,
+    because the cell records each read.
+  - **The inside walks make the first open slower than on main when the tasks
+    name a shared value.** A task of omnet holds its configuration, which holds
+    the whole project. The single walk of a group on main visited the project one
+    time, because the walk visits each object once. One walk for each task visits
+    it again for each task. The script
+    `/var/tmp/claude-julia/lazy-arrangement/measure-shared.jl` gives each of
+    22,731 tasks one shared project of about 250 values. The rows of the first
+    open (warm) take 796 ms on main and 2986 ms on the branch.
+  - A trial with `is_walk_opaque(::AbstractTask) = true`, as the runtime of a task
+    already is, removed it: 514 ms for the rows and 112 ms for the first filter
+    with the shared project; 250 ms for the rows of `measure.jl` (390 ms before).
+    It also means that a search no longer finds a document or a text inside the
+    value of a task. The trial is not committed.
+  - **Decided by the owner, 2026-10-29.** Not the opaque task: "no, let's not
+    limit the search functionality this way for now". Not a task source of the
+    task slice either; the owner: "we already have a generic way of walking
+    documents in the kernel which can take various functional arguments, why not
+    use that for rosters?", "can a function be saved with its name if it has one
+    and looked up when loaded?", and "can we fix the walk so that it can decide
+    before the field is read?". To the design that follows: "yes".
+  - The design:
+    - `walk_document` takes `enter_field(parent, name) -> Bool`, which it asks
+      where it asks `is_field_walked`, before it reads the field. A refused field
+      is not read, so a computed field is not computed. `descend` stays as it is.
+    - `ItemsWithin(source, type; descend, enter_field)` holds the two functions of
+      the walk, `nothing` by default, and gives them to each search of a part and
+      of an inside. A file writes them only when they are given.
+    - A pred file names a function as it names a type: by its bare name, looked up
+      among the loaded modules, for a function whose package marks it with
+      `is_pred_constructible(::typeof(f)) = true`. The reader builds a value from
+      a call only for a name with an upper-case first letter, so a file never
+      calls a function that it names. A closure is refused, as before.
+    - The task slice gives `is_task_search_field(parent, name)`: from a task, only
+      `inner_group`; from anything else, every field. The omnet task views pass it
+      as `enter_field`.
+  - What the work found and decided:
+    - The walk also gives `enter_field` the positions of the fields of a tuple, so
+      the function takes any name, not only a `Symbol`.
+    - A group document holds its task documents in `tasks` and in `preparation`
+      (the task of its preparation), and its model and its shadow hold the task
+      values. So `is_task_search_field` reads only `tasks` and `preparation` of a
+      group, and the search of a part no longer walks every task value either.
+    - The grammar of a marker took a bare name only with a capital. It now also
+      takes the name of a function that a file may name
+      (`_is_marker_function_name`). The serialization document said "a file still
+      can not name a function"; it now says that a file names such a function as
+      a value and never calls it.
+    - `describe_roster_sources` reads the signature of the docstring, so it now
+      shows `ItemsWithin(source, type; descend = nothing, enter_field = nothing)`.
+    - The numbers, one thread and no compile workloads (a job of another session
+      held most of the memory), first open, warm, 22,731 tasks that name one
+      project of about 250 values: with no function, the rows 1999 ms and the
+      first filter 118 ms; with `enter_field = is_task_search_field`, the rows
+      216 ms and the first filter 109 ms. Main took 796 ms and 381 ms in an
+      earlier run. After one task starts, every case stays below 10 ms.
+    - An `ItemsWithin` with no function still walks a shared value once for each
+      item, which costs more than main when the items share a large value.
+    - Tests: the new testsets "a walk decides about a field before it reads the
+      field", the save and read of a source with a function and the refusal of a
+      closure, and a roster of a group of groups with `is_task_search_field` that
+      computes no result document. `test_document_contract` 154, `test_roster` 69,
+      `test_roster_table` 37, `test_roster_sources` 19, `test_roster_program` 21,
+      `test_task_document` 128, `test_task_views` 70, `test_task_group` 84,
+      `test_arrangement_filter_sort` 27, `test_pred_file` 45 and
+      `test_marker_language` 22 pass.
+- [x] **Step 8 — Measure again.** The same script, the numbers to the owner, and
+  the cost section of `documentation/package/platform/roster/roster.md`.
+
+  **Done, 2026-10-29.** The numbers are in steps 2 to 7, and the roster document
+  has a paragraph "A large roster".
+
+  **Landed on main, 2026-10-29, before the full suites.** The owner: "land it on
+  main test can be done later". The branch landed by a fast-forward.
+  omnet-julia and inet-julia define none of the new methods, and the omnet call
+  `ItemsWithin(source, TaskDocument)` keeps its meaning.
+
+  **omnet follows, 2026-10-29.** omnet main `cd3bf6974`: the task views
+  (`_make_task_view` in `source/ide/CampaignExplorer.jl`) pass
+  `enter_field = is_task_search_field`. Its `test_campaign_explorer` passes 47,
+  and its precompile gives no warning.
+
+  **The full suites after the landing.** `test_kernel` passes 4974. In one call,
+  `test_platform` is OOM-killed at a 10 GB cap before its first test: Julia
+  compiles the whole suite function in one step. Its 229 parts, called one by
+  one in one process, give 173,719 pass, 3 fail and 7 broken. The 3 failures are
+  on main before this plan: the layering guard names `FileChangeModule.jl` and
+  `ShellModule.jl` for a `using` with a list of names, and `test_interface_api`
+  counts 33 widget names and finds no "Use it to" in the docstring of
+  `WidgetLink`.
+
+## Tests
+
+`test_roster`, `test_roster_table`, `test_roster_sources`, `test_roster_facets`,
+`test_roster_program`, `test_arrangement`, `test_arrangement_filter_sort`,
+`test_arrangement_quick_text`, `test_arrangement_group` and
+`test_arrange_collection_operation`. Steps 3 and 4 add a test that a change of
+one item computes the cell of one item, and moves one row.
+
+## Not in this plan
+
+- The table of typed columns and the filter language of the data frame table in
+  the platform. It waits until the steps here are measured.
+- A kernel mechanism that tells a computation which of its inputs changed. It is
+  a new mechanism, and it needs the owner's answer first.
+- The filter and sort of the table of a run in omnet-julia (step 5 of its plan).

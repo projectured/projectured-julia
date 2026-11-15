@@ -79,6 +79,31 @@ struct CancelAssistantTurnOperation <: Operation
 end
 
 """
+    SetAssistantWakesOperation(assistant, count)
+
+Set `wakes_left` of `assistant` to `count`, at least 0: the person allows the wakes
+that a long work needs, or stops them with 0. When the count rises while no turn
+runs and the conversation ends with a note of a held wake, a turn starts with the
+note, and it takes no wake: the raise is the act of the person.
+"""
+struct SetAssistantWakesOperation <: Operation
+    assistant::Assistant
+    count::Int
+end
+
+OperationModule.is_self_contained_operation(::SetAssistantWakesOperation) = true
+
+function evaluate_operation(editor, operation::SetAssistantWakesOperation)
+    a = operation.assistant
+    before = a.wakes_left
+    a.wakes_left = max(0, operation.count)
+    a.wakes_left > before && !is_assistant_turn_running(a) || return nothing
+    turns = collect(a.conversation.turns)
+    !isempty(turns) && _is_held_wake_turn(last(turns)) && _send_user_turn!(editor, a, last(turns))
+    nothing
+end
+
+"""
     is_assistant_turn_running(assistant) -> Bool
 
 Whether a turn of `assistant` runs now, with a model or with an external agent.
@@ -146,6 +171,8 @@ _text_to_string(d) = _content_to_string(d)
 # A document the seam can render answers with its own source text, which is what
 # the editor shows and therefore what the model should see.
 _content_to_string(t::TextBlock) = _text_to_string(t)
+_content_to_string(s::PrimitiveString) = _text_to_string(s)
+_content_to_string(n::ConversationNote) = n.text
 function _content_to_string(d)
     make_natural_projection(d, :string) === nothing || return _doc_source(d)
     hasproperty(d, :name) ? String(d.name) : string(d)
@@ -175,6 +202,8 @@ end
 # The fence names the document's own natural extension, so a domain says what it
 # is called rather than this file listing them.
 _block_text(c::TextBlock) = _content_to_string(c)
+# A note is the editor's line, and the model reads it as it reads the person.
+_block_text(c::ConversationNote) = c.text
 function _block_text(c)
     extension = get_natural_extension(c)
     extension === nothing && return _content_to_string(c)
@@ -256,6 +285,7 @@ function evaluate_operation(editor, op::ResetConversationOperation)
     a.agent_session_id = ""
     a.agent_session_directory = ""
     a.agent_session_turn_count = 0
+    a.agent_fork = nothing
     a.agent_title = ""
     nothing
 end
@@ -365,6 +395,7 @@ function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
     is_assistant_turn_running(a) || return nothing
     control = a.turn_control
     control isa AssistantTurnControl && (control.is_cancelled = true)
+    a.wakes_left = 0
     a.backend === :acp ? _cancel_external_agent_turn!(a) : _decline_open_questions!(a)
     # The stop of the work of the turn stops the work of its tool call.
     control isa AssistantTurnControl && _stop_turn_work!(control)
@@ -377,6 +408,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
     isempty(strip(text)) && return nothing
     turn = _make_instant_turn(:user, [ConversationPart(text)])
     push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
     _set_input!(a, "")
     _send_user_turn!(editor, a, turn)
 end
@@ -402,6 +434,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     _make_part_pictures!(draft)
     turn = _make_instant_turn(:user, collect(draft.parts))
     push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
     _send_user_turn!(editor, a, turn)
@@ -419,10 +452,12 @@ function _send_user_turn!(editor, a::Assistant, turn::ConversationTurn)
 end
 
 # Whether the conversation ends with a message that the turn of `control` did not
-# take: a user turn after the turns that it read.
+# take: a user turn after the turns that it read. A note of a held wake is no such
+# message: the model reads it with the next message.
 function _has_waiting_message(a::Assistant, control::AssistantTurnControl)
     turns = collect(a.conversation.turns)
-    !isempty(turns) && last(turns).role === :user && length(turns) > control.seen_turn_count
+    index = findlast(turn -> !_is_held_wake_turn(turn), turns)
+    index !== nothing && turns[index].role === :user && index > control.seen_turn_count
 end
 
 
@@ -469,6 +504,7 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     evaluate_operation(editor, ComposerEvaluateOperation(draft))
     finalize_draft!(draft) || return nothing
     push!(a.conversation.turns, _make_instant_turn(:user, collect(draft.parts)))
+    _raise_wakes_left!(a)
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
 end
@@ -693,8 +729,10 @@ function _emit_assistant_turn!(out, parts)
     for part in parts
         c = part.content
         # A request for the person is no content of the model: the answer to a
-        # question reaches the model in the result of its tool.
-        c isa Union{ConversationQuestionRequest,ConversationPermissionRequest,ConversationSignInRequest} && continue
+        # question reaches the model in the result of its tool. A note under an
+        # answer is the editor's line to the person, not the model's text.
+        c isa Union{ConversationQuestionRequest,ConversationPermissionRequest,ConversationSignInRequest,
+                    ConversationNote} && continue
         if c isa EvaluatorForm
             push!(evals, c)
             prev_was_eval = true
@@ -724,13 +762,28 @@ _thinking_block(c::ConversationThinking) =
     format_conversation(conversation) -> String
 
 A plain, human-readable rendering of the whole conversation (for logging and as a
-non-API fallback): each turn labelled by role, each part rendered with its kind
+non-API fallback): each turn labelled by role, an answer also by its backend and
+model, each part rendered with its kind
 (prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
+
+Use it to write a conversation as plain text, such as for a log.
+
+# Example
+
+    text_1 = format_conversation(assistant_1.conversation)
+
+See also `find_first_prompt` and `describe_assistant_activity`.
+
+For the assistant.
 """
+function format_conversation end
+
 function format_conversation(conversation::ConversationConversation)
     io = IOBuffer()
     for t in conversation.turns
-        println(io, uppercasefirst(string(t.role)), ":")
+        writer = t.backend === :none ? "" :
+                 string(" (", t.backend, isempty(t.model) ? "" : ", " * t.model, ")")
+        println(io, uppercasefirst(string(t.role)), writer, ":")
         for part in t.parts
             c = part.content
             if c isa EvaluatorForm
@@ -739,6 +792,8 @@ function format_conversation(conversation::ConversationConversation)
                 println(io, "= ", _eval_result(c))
             elseif c isa ConversationThinking
                 println(io, "∴ ", c.redacted ? "[redacted thinking]" : _content_to_string(c.text))
+            elseif c isa ConversationNote
+                println(io, "※ ", c.text)
             else
                 println(io, _block_text(c))
             end
@@ -748,14 +803,17 @@ function format_conversation(conversation::ConversationConversation)
     String(take!(io))
 end
 
+format_conversation(conversation::ReferencedDocument) = format_conversation(get_document(conversation))
+
 """
     write_conversation(assistant_or_conversation, path) -> path
 
 Write the assistant's chat history to `path` as a readable transcript (the same
-rendering as `format_conversation`: `Role:` headers, prose / fenced source
-blocks, `> code` / `= result` for tool calls, `∴` for thinking). Accepts a
-`Assistant` (uses its `.conversation`) or a `ConversationConversation`
-directly. Returns `path`.
+rendering as `format_conversation`: `Role:` headers, with the backend and the
+model of an answer as `Assistant (anthropic, a-model):`, prose / fenced source
+blocks, `> code` / `= result` for tool calls, `∴` for thinking, `※` for a
+note of the editor). Accepts a `Assistant` (uses its `.conversation`) or a
+`ConversationConversation` directly. Returns `path`.
 """
 write_conversation(a::Assistant, path::AbstractString) =
     write_conversation(a.conversation, path)
@@ -768,12 +826,6 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 # Streaming agent loop
 # ═══════════════════════════════════════════════════════════════════════
-
-# Resource reads (`list_resources` / `read_resource`) collapse by default —
-# they are lookup chatter, secondary to the answer, like thinking. Evaluations
-# (`execute_julia_code`) and other tool calls stay expanded. Keyed off
-# `get_evaluation_kind_label` so the resource/eval/tool classification stays single-sourced.
-_collapse_tool_default(tool_name::AbstractString) = get_evaluation_kind_label(tool_name) == "resource"
 
 # Build the backend this assistant names. Every real backend lives in an opt-in
 # package that the core stack does not depend on, so no type can be named here —
@@ -855,12 +907,22 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
     # below — so the conversation stays strictly alternating user/assistant, with
     # this single turn holding every part in order. `build_messages` re-expands it
-    # into the tool_use/tool_result message shape.
-    turn = ConversationTurn(:assistant; start_time = time())
-    run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
+    # into the tool_use/tool_result message shape. The turn names the backend and
+    # the model of the assistant, so a transcript says what answered.
+    turn = ConversationTurn(:assistant; start_time = time(), backend, model)
 
     # The blocks currently being streamed into (one text part, one thinking part).
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing)
+
+    # The events of the turn go into a queue that the feed of the window applies
+    # in each frame, as it applies the events of an external agent: a stream of
+    # many small parts costs the window no call for each part. The queue joins the
+    # feed in the call that puts the turn into the conversation.
+    source = _TurnEventSource(a, turn, state, set)
+    run_on_editor_task!(editor; wait = false) do
+        _add_agent_event_source!(editor, source)
+        push!(a.conversation.turns, turn)
+    end
 
     # The loop itself is the kernel's. What is left here is the two things that are
     # genuinely this domain's: how a conversation becomes messages, and how an event
@@ -870,43 +932,68 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # the tool results the previous round appended to it are exactly the continuation
     # prompt — so the conversation stays the single source of truth rather than a
     # view of some message list held elsewhere. It is read on the editor's task,
-    # after every part this turn posted before it.
-    #
-    # An event changes the conversation, so its part is posted to the editor's
-    # task and not waited for: a stream of many small parts is applied in few
-    # frames. The posts of this task keep their order.
-    agent = Agent(llm, set; system, thinking = true)
-    stop_reason = try
-        run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
-            on_stop = _make_turn_stop_step(editor, a),
-            messages = () -> begin
-                control.is_cancelled && throw(TurnCancelledException())
-                run_on_editor_task!(() -> build_messages(a.conversation; until = turn), editor)
-            end,
-            on_event = ev -> begin
-                control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
-                observe === nothing || observe(ev)
-                run_on_editor_task!(editor; wait = false) do
-                    _handle_agent_event!(ev, a, turn, state, set)
-                end
-                control.is_cancelled && throw(TurnCancelledException())
-            end)
-    catch exception
-        is_fault_exception(exception) || rethrow()
-        # A backend can wrap what a callback threw, so the flag tells a stop
-        # from a failure.
-        control.is_cancelled || rethrow()
-        # The blocks that streamed close, so their text is drawn as an answer.
-        run_on_editor_task!(editor; wait = false) do
-            state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, set)
-            state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, set)
+    # after every part this turn posted before it. It keeps the time limit of a call:
+    # a turn that can not read its conversation in time fails with a message, and
+    # nothing that it streamed is lost.
+    try
+        # The text of the window, then what every model of the pane learns about
+        # its answer.
+        system = isempty(system) ? ASSISTANT_ANSWER_INSTRUCTIONS :
+                 system * "\n\n" * ASSISTANT_ANSWER_INSTRUCTIONS
+        agent = Agent(llm, set; system, thinking = true, max_rounds = a.max_rounds)
+        stop_reason = try
+            run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
+                on_stop = _make_turn_stop_step(editor, a),
+                # The code of a tool call runs with the assistant and the id of the
+                # call as its starter, so a row that it starts names both.
+                call_starter = call -> make_assistant_starter(a; tool_call = call.id),
+                messages = () -> begin
+                    control.is_cancelled && throw(TurnCancelledException())
+                    _run_turn_call!(() -> build_messages(a.conversation; until = turn), editor, source)
+                end,
+                on_event = ev -> begin
+                    control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
+                    observe === nothing || observe(ev)
+                    # The end of a text block, the end of a round and the result of a
+                    # tool apply in a call that waits, after the events before them: the
+                    # end of a block parses its text in a code unit, so the window shows
+                    # that it is busy; a tool of the round runs after every part that the
+                    # round streamed; and the next tool after the result of the one
+                    # before it. Such a call has no time limit, because a result that the
+                    # call drops is lost, and the end of the editor loop answers a call
+                    # that waits.
+                    if ev isa Union{LlmTextStop, LlmTurnEnd, AgentToolResult}
+                        _run_turn_call!(() -> _handle_turn_event!(source, ev), editor, source;
+                                        timeout = Inf)
+                    else
+                        _post_turn_event!(editor, source, ev)
+                    end
+                    control.is_cancelled && throw(TurnCancelledException())
+                end)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            # A backend can wrap what a callback threw, so the flag tells a stop
+            # from a failure.
+            control.is_cancelled || rethrow()
+            # The blocks that streamed close, so their text is drawn as an answer.
+            _run_turn_call!(editor, source; wait = false) do
+                state[:current_block] === nothing || _handle_turn_event!(source, LlmTextStop())
+                state[:current_thinking] === nothing || _handle_turn_event!(source, LlmThinkingStop())
+            end
+            :cancelled
         end
-        :cancelled
+
+        @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
+
+        _run_turn_call!(editor, source; wait = false) do
+            _finish_turn!(a, turn, stop_reason)
+            _watch_turn_task_groups!(editor, a, turn)
+        end
+    finally
+        # The events that wait apply before the posts after the turn, such as its
+        # status and the error of a turn that failed, and the queue leaves the feed.
+        _run_turn_call!(() -> _remove_agent_event_source!(editor, source), editor, source; wait = false)
     end
-
-    @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
-
-    run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
     nothing
 end
 
@@ -976,8 +1063,46 @@ end
 # A turn ends with its stop reason and the time of its end. A turn that produced
 # nothing (an immediate stop, or an error before any content) is dropped, so it
 # does not render as a bare "assistant:" line.
-_finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol) =
+# A turn that used its budget of rounds ends with a note that says so. With wakes
+# left the turn goes on by itself and takes one; with none, the button of the note
+# tells the model to go on.
+function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
+    goes_on = stop_reason === :round_limit && a.wakes_left > 0
+    goes_on && (a.wakes_left -= 1)
+    stop_reason === :round_limit &&
+        push!(turn.parts, Cell(ConversationPart(_make_round_limit_note(a, goes_on))))
     _finish_turn!(a.conversation, turn, stop_reason)
+    # The user turn after it is a message that waits, and the next turn starts with it.
+    goes_on && push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(GO_ON_PROMPT)]))
+    nothing
+end
+
+# What the button under a turn that used its rounds sends as the person.
+const GO_ON_PROMPT = "Go on."
+
+# The note under a turn that used its rounds: a turn that goes on says how many
+# wakes are left, and a turn that stops offers the button.
+function _make_round_limit_note(a::Assistant, goes_on::Bool)
+    text = "The turn reached its " * string(a.max_rounds) * " rounds."
+    goes_on && return ConversationNote(string(text, " Wakes left: ", a.wakes_left, "."); kind = :round_limit)
+    ConversationNote(text; kind = :round_limit, action_label = "Go on",
+                     action = editor -> send_go_on!(editor, a))
+end
+
+"""
+    send_go_on!(editor, assistant) -> nothing
+
+Send "Go on." to `assistant` as the person, and start a turn with it. It does
+nothing while a turn runs. The note under a turn that used its rounds calls it.
+"""
+function send_go_on!(editor, a::Assistant)
+    is_assistant_turn_running(a) && return nothing
+    turn = _make_instant_turn(:user, [ConversationPart(GO_ON_PROMPT)])
+    push!(a.conversation.turns, turn)
+    _raise_wakes_left!(a)
+    _send_user_turn!(editor, a, turn)
+    nothing
+end
 
 function _finish_turn!(conversation::ConversationConversation, turn::ConversationTurn,
                        stop_reason::Symbol)
@@ -1047,8 +1172,7 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
                       is_error    = ev.is_error,
                       tool_use_id = call.id,
                       tool_name   = call.name,
-                      input       = call.input);
-        collapsed = _collapse_tool_default(call.name))))
+                      input       = call.input))))
     nothing
 end
 
@@ -1060,7 +1184,8 @@ end
 # and what this module wants is the *result*, which arrives as an `AgentToolResult`.
 function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     if ev isa LlmTextStart
-        part = ConversationPart(make_text_block(""))
+        # The raw text of the model while it streams, a plain text until it ends.
+        part = ConversationPart(PrimitiveString(""))
         push!(turn.parts, Cell(part))
         state[:current_block] = part
 
@@ -1078,9 +1203,7 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
         state[:current_block] = nothing
 
     elseif ev isa LlmThinkingStart
-        # Collapsed by default — reasoning is verbose and secondary — unless the
-        # assistant opts to keep thinking expanded (`collapse_thinking = false`).
-        part = make_conversation_thinking_part(""; collapsed = a.collapse_thinking)
+        part = make_conversation_thinking_part("")
         push!(turn.parts, Cell(part))
         state[:current_thinking] = part
 
@@ -1101,26 +1224,24 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     nothing
 end
 
-function _append_text_delta!(part::ConversationPart, s::AbstractString)
-    # Append to the part's TextBlock content. Simplest reliable approach:
-    # rebuild the lines of the TextBlock from the accumulated content.
-    current = _content_to_string(part.content)
-    part.content = make_text_block(current * String(s))
-    nothing
-end
+# A delta adds its text at the end of the plain text of its part, which
+# `LlmTextStart` made. The view of a plain text keeps each line that did not
+# change, so it lays out the last line again and keeps the print of the others.
+_append_text_delta!(part::ConversationPart, s::AbstractString) =
+    _append_plain_text!(part.content::PrimitiveString, s)
 
 _append_text_delta!(_, _) = nothing
 
-# Accumulate a thinking_delta into the thinking part's text (rebuild the lines
-# of the TextBlock from the accumulated reasoning, mirroring
-# `_append_text_delta!`).
+# A thinking delta adds its text at the end of the thinking part, as
+# `_append_text_delta!` does.
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
-    current = _content_to_string(c.text)
-    c.text = make_text_block(current * String(s))
-    nothing
+    _append_plain_text!(c.text::PrimitiveString, s)
 end
+
+_append_plain_text!(text::PrimitiveString, s::AbstractString) =
+    (text.value = something(text.value, "") * s; nothing)
 
 _append_thinking_delta!(_, _) = nothing
 
@@ -1150,7 +1271,8 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 # A fenced code block → a part whose content is the parsed domain document, with
-# a graceful fallback to fenced text when the language is unknown or won't parse.
+# a graceful fallback to a Markdown code block when the language is unknown or
+# won't parse.
 function _code_part(lang::AbstractString, body::AbstractString)
     kind = _fence_extension(lang)
     if has_natural_parser(kind)
@@ -1161,7 +1283,7 @@ function _code_part(lang::AbstractString, body::AbstractString)
         end
         doc === nothing || return ConversationPart(doc)
     end
-    ConversationPart("```" * lang * "\n" * body * "\n```")
+    _prose_part("```" * lang * "\n" * body * "\n```")
 end
 
 # A run of prose → one real markdown part, so headings / lists / **bold** /

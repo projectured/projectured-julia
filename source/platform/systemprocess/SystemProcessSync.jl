@@ -144,7 +144,13 @@ function drain_system_process_tree!(tree::SystemProcessTree; now::Real = time(),
     end
     if sampler.reading === nothing && now - sampler.started_at >= interval
         sampler.started_at = Float64(now)
-        root_process_ids = collect(Int, tree.root_process_ids)
+        # The read of the field gives no type, and a collect of a value of no type
+        # compiles a call that a package loaded later can make invalid, so the loop
+        # fills a vector of a concrete type.
+        root_process_ids = Int[]
+        for id in tree.root_process_ids
+            push!(root_process_ids, id)
+        end
         sampler.reading = Threads.@spawn :default _read_into_sampler!(sampler, root_process_ids)
     end
     synced
@@ -185,8 +191,8 @@ end
 The feed of a window that shows trees of processes: each drain samples each of
 `trees` with [`drain_system_process_tree!`](@ref), and the window wakes for the
 nearest sample of a tree that a view reads. A tree that no view reads costs one
-check in each drain. [`show_system_process_tree!`](@ref) adds the feed to the
-editor, and the tree to it.
+check in each drain. The wrapper `system_process` of `build_editor` gives the
+feed, and is on by default; [`show_system_process_tree!`](@ref) adds a tree to it.
 """
 struct SystemProcessFeed <: Feed
     trees::Vector{Any}
@@ -205,3 +211,18 @@ function compute_wake_deadline(feed::SystemProcessFeed, editor)
     deadlines = (compute_system_process_tree_deadline(tree; now, interval = feed.interval) for tree in feed.trees)
     reduce((a, b) -> b === nothing ? a : a === nothing ? b : min(a, b), deadlines; init = nothing)
 end
+
+"""
+    system_process = true
+
+The wrapper of `build_editor` that gives the editor a
+[`SystemProcessFeed`](@ref), so a tree of processes that a tab shows follows the
+processes. It is on by default: a feed with no tree asks for no frame.
+"""
+function wrap_editor!(::Val{:system_process}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.feeds, SystemProcessFeed())
+    parts
+end
+
+get_wrapper_layers(::Val{:system_process}) = (:screen => 20,)
+is_wrapper_default(::Val{:system_process}) = true

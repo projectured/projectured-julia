@@ -27,7 +27,8 @@ function make_tabs_projection(projection; appearance::Appearance = Appearance(),
     rows = Pair{Type,Any}[LayoutToGraphics(; theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch;
                           WidgetToGraphics(; measure = measure,
                                            theme = get_scaled_theme!(appearance, WidgetTheme),
-                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch;
+                                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                           text_theme = get_scaled_theme!(appearance, TextTheme)).dispatch;
                           Any => NestingProjection(projection; recursion = IdentityProjection())]
     ChainingProjection(
         RecursiveProjection(FaultCatchingProjection(inner = PaneToWidget(),
@@ -74,8 +75,9 @@ is_wrapper_default(::Val{:tabs}) = true
 """
     show_document!(editor, content::PaneTree, document; title) -> nothing
 
-Show `document` in a tab of the pane tree: the tab that shows it already, with
-the focus, or a new tab named `title`. A tab shows `document` when its content
+Show `document` in a tab of the pane tree: the tab that shows it already, or a
+new tab named `title`, comes to the front, and the focus of the person stays where
+it is. A tab shows `document` when its content
 or a layer that the content holds is `document` ([`find_pane_tab_layer`](@ref)),
 whatever its title, so two tabs with the same title are no problem.
 """
@@ -83,11 +85,8 @@ function show_document!(editor::Editor, ::PaneTree, document; title::AbstractStr
     found = search_references(_get_root_document(editor),
                               node -> node isa PaneTab &&
                                       find_pane_tab_layer(node, layer -> layer === document) !== nothing;
-                              descend = is_pane_search_step)
-    if isempty(found)
-        open_pane!(document; title = String(title), editor)
-    else
-        focus_pane!(first(found); editor)
-    end
+                              walk = DocumentWalk(; descend = is_pane_search_step))
+    tab = isempty(found) ? open_pane!(document; title = String(title), editor) : first(found)
+    show_pane!(tab; editor)
     nothing
 end

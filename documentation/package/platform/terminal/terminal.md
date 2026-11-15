@@ -1,6 +1,6 @@
 # Terminal
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [agent.md](../../kernel/agent.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [agent.md](../../kernel/agent.md)
 
 The terminal slice of `ProjecturedPlatform` runs one program and shows it as a document: the lines that the program writes, a line that the person types and sends with Return, the status of the program, and a stop button. The first use is the sign-in of an agent, whose program prints a URL, reads a code, and ends with the status 0 when the sign-in worked.
 
@@ -30,13 +30,13 @@ A key reaches the input line by selection. The view maps `input.<rest>` to the p
 
 ### The theme
 
-`TerminalTheme` holds the font (Ubuntu Mono), the texts of the four kinds of line, the height of the pane of the lines and of the pane of the input line, and the gap between the parts. `make_terminal_projection(; theme)` fills the styles of the projection with `get_terminal_style`.
+`TerminalTheme` holds the font (Ubuntu Mono), the texts of the four kinds of line, and the height of the pane of the lines and of the pane of the input line. The gap between the parts is `form_row_gap` of the widget theme. `make_terminal_projection(; theme, widget_theme)` fills the styles of the projection with `get_terminal_style`.
 
 ## How it fits
 
 The slice depends on the domain, layout, natural, primitive, projection, style and widget slices, and on the kernel for `run_on_editor_task!` and the events. Its `__init__` registers the view with `register_natural_graphics!(:terminal, …)`, so a tab, or a card that embeds a terminal, draws it.
 
-The assistant uses it for the sign-in of an agent: an `AgentSignInMethod` holds the `Cmd` of the sign-in, and a terminal runs it inside the sign-in card of the conversation, the live field of that part. `is_terminal_stopped(terminal)` says that a person stopped the program, with the stop button or the close of its tab, so the assistant does not take the exit status of a stopped sign-in for a sign-in that worked.
+The assistant uses it for the sign-in of an agent: an `AgentSignInMethod` with a command holds the `Cmd` of the sign-in, and a terminal runs it inside the sign-in card of the conversation, the live field of that part. `is_terminal_stopped(terminal)` says that a person stopped the program, with the stop button or the close of its tab, so the assistant does not take the exit status of a stopped sign-in for a sign-in that worked.
 
 ## Tests
 

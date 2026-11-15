@@ -1,8 +1,8 @@
 """
     SerializationModule
 
-Exact, lossless binary persistence for documents — `save_document` /
-`load_document` — independent of any domain's text format.
+The functions `save_document` and `load_document` write a document to a binary file
+and read it back without loss, independent of any text format of a domain.
 
 A document is written with Julia's `Serialization` stdlib. The only
 customization is that a [`Cell`](@ref) serializes as **just its value**: a cell's
@@ -30,24 +30,26 @@ using ..ReferenceModule
 using Serialization
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_edited_field
+import ..DocumentModule: get_edited_field, get_view_state_fields, is_field_walked
 import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
-       get_filename, get_file_content, emit_text,
+       FileDiskState, FileBand, get_file_disk_state,
+       get_filename, format_home_path, get_file_content, emit_text,
        save_project!, load_project,
        register_file_document_type!, get_file_document_type, has_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
        get_pred_type, is_pred_constructible,
        parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text, load_file, parse_file_content,
+       find_file_extension,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text, is_own_content, make_file, is_editable_file_type, read_file_content,
-       is_written_in_file
+       is_written_in_file, is_written_inline, make_inline_leaf, find_held_file, splice_held_files!
 export TextFile
 export parse_path_text, print_path_text
-export PredFile, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
+export PredFile, PredText, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
        is_pred_document
 
 

@@ -20,26 +20,22 @@ theme scaled or not; a projection built with no styles holds the plain values
 of the default theme.
 """
 @theme struct BookTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 14)
-    "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a book."
-    title_text::ThemeText          = TextRole(:heading; weight = 700, relative_size = 1.8)
+    title_text::ThemeText          = TextRole(:heading; font_role = :heading_1)
     "The \"Written by \" that introduces the author."
-    author_prefix_text::ThemeText  = TextRole(:text_muted; italic = true)
+    author_prefix_text::ThemeText  = TextRole(:text_muted; font_role = :document_text, italic = true)
     "The author of a book."
-    author_text::ThemeText         = TextRole(:text; italic = true)
+    author_text::ThemeText         = TextRole(:text; font_role = :document_text, italic = true)
     "The title of a chapter."
-    chapter_title_text::ThemeText  = TextRole(:heading; weight = 700, relative_size = 1.2)
+    chapter_title_text::ThemeText  = TextRole(:heading; font_role = :heading_2)
     "The numbering of a chapter."
-    numbering_text::ThemeText      = TextRole(:text_muted; weight = 700, relative_size = 1.2)
+    numbering_text::ThemeText      = TextRole(:text_muted; font_role = :heading_2)
     "A paragraph, and the blank line between the elements of a book or a chapter."
-    paragraph_text::ThemeText      = TextRole(:text; base = :code_font)
+    paragraph_text::ThemeText      = TextRole(:text; font_role = :document_text)
     "The insertion leaf, and a picture with no path yet."
-    placeholder_text::ThemeText    = TextRole(:text_faint; base = :code_font)
+    placeholder_text::ThemeText    = TextRole(:text_faint; font_role = :document_text)
     "The bullet of a list item."
-    bullet_text::ThemeText         = TextRole(:markup; base = :code_font)
+    bullet_text::ThemeText         = TextRole(:markup; font_role = :document_text)
     "The caption of a picture."
-    picture_text::ThemeText        = TextRole(:text_muted; base = :code_font)
+    picture_text::ThemeText        = TextRole(:text_muted; font_role = :quiet)
 end

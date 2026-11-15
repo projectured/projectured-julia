@@ -1,6 +1,6 @@
 # Set up and start
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 What you need, how to start the application, and how to open the same views from a Julia session. It also says what a first start costs and what to do when a load fails.
 

@@ -1,6 +1,6 @@
 # The means of communication
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [architecture-invariants.md](../rule/architecture-invariants.md), [editor.md](../package/kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [architecture-invariants.md](../rule/architecture-invariants.md), [editor.md](../package/kernel/editor.md)
 
 This document names the parts of the editor that run at the same time, and the means by which they give data to each other. It is a map: each means has one section here, and the guide of its slice holds the detail. Read it before you add a part that runs on a task of its own, or that reads the disk, a process or the network.
 
@@ -108,13 +108,14 @@ A feed is one registered inflow of the editor. Its producer writes a plain store
 | `MessageLogFeed` | Any task that logs | The wake | The `MessageLog` of the editor |
 | `McpLogFeed` | The MCP server, for each call | The wake | The `McpLog` of the editor |
 | `FrameStatisticsFeed` | The loop itself | A deadline, never a wake | The table and the plot of the frames |
+| `BackgroundWorkFeed` | The loop itself, at the start and at the end of each work of a background cell | A deadline while the log is due, never a wake | The log of the background work |
 | `FileChangeFeed` | A watcher task for each watched folder | The wake | The file document, or the folder document |
 | `TaskFeed` | The tasks of a task group | A deadline of 0.25 s while entries change | The rows of the task groups |
 | `ReflectionFeed` | A read of a value on a task of the default pool | The wake and a deadline | The reflected tree of the value |
 | `SystemProcessFeed` | A sampler of `/proc`, at most once a second | A deadline | The tree of processes |
-| `AgentEventFeed` | The connection to an agent over ACP | The wake and a deadline | The transcript of the assistant |
+| `AgentEventFeed` | The connection to an agent over ACP, and a turn of the built-in assistant | The wake and a deadline | The transcript of the assistant |
 
-The application gives most feeds when it makes the editor. The system process slice and the assistant add their feed to a running editor at the first use.
+Each feed meets its editor when the editor is made, and the list of the feeds does not change after that. A slice gives its feed through a wrapper of `build_editor`; the wrappers of the tasks, the trees of processes and the events of the agents are on by default.
 
 ### The background cell
 
@@ -185,9 +186,9 @@ A post during a frame shows in the next frame. A demand that the print records s
 | The person presses a key | The SDL queue, `take_from_devices!`, `read_intent`, `evaluate_operation`, the print, the paint |
 | The pointer rests | A motion gives a deadline, the loop sets a timer, the wait ends at the timer, and `TimerExpire` becomes `MouseDwell` |
 | A folder opens in the tree | `AcquireDocumentOperation` starts a watch. The print reads the listing cell, which records a demand. Background work reads the folder and posts the answer, and the next print shows the entries |
-| A file changes on disk | The watcher task waits until the file settles, then hashes and parses it. It stores the result and wakes the editor. The drain calls `receive_file_change!`, which evaluates `ReloadFileOperation` |
+| A file changes on disk | The watcher task sees another time or size and wakes the editor. The drain calls `receive_file_change!`, which adds one to the count of the file. The print of a view of the file reads the cell of its text, which records a demand. Background work waits until the file settles, hashes and parses it, and `ApplyFileTextOperation` loads the answer |
 | An MCP client calls a tool | The server task calls `run_on_editor_task!`. The drain runs the tool in a code unit, and the server task sends the answer. `McpLogFeed` copies the call into the MCP log |
-| The assistant answers | A turn runs as background work and streams from the model. It posts each part with `run_on_editor_task!(...; wait = false)` |
+| The assistant answers | A turn runs as background work and streams from the model. It puts each event into the queue of the turn and wakes the editor. `AgentEventFeed` applies the events in order, and each call of the turn applies them first |
 | An agent over ACP answers | The connection task puts each event into an `AgentEventQueue` and wakes the editor. `AgentEventFeed` applies the events in order |
 | A process of a task group writes a line | A reader task writes the execution under the lock of the runtime. A listener marks the entry in the store, and `TaskFeed` copies it at its next deadline |
 | A terminal writes text | A reader task posts the text with `run_on_editor_task!(...; wait = false)` |
@@ -206,13 +207,13 @@ A post during a frame shows in the next frame. A demand that the print records s
 | A child process | Pipes, a process group of its own, and signals | The reader tasks of a terminal or of a task |
 | The disk | The notification of a folder, or a poll of its files | The watcher task of the folder; background work for a read |
 | `/proc` | A read of files | The sampler task |
-| The clipboard | A clipboard tool that the editor starts | The owner task: a copy runs the tool in `evaluate_operation`, and a paste runs it in the reader. The frame waits for the tool |
+| The clipboard | A clipboard tool that the editor starts, with a time limit of 2 s | A task of its own: a copy starts the write in `evaluate_operation`, after the writes before it, and a paste reads in the evaluation of `PasteOsClipboardOperation` through `start_document_read!`. The frame waits at most 50 ms |
 
 ## Two editors in one process
 
 One process can run many editors (`PAR-PER-EDITOR-STATE`). Each editor has its own inbox, feeds, fault store and session documents (`get_session_document!`). No document is owned, read or written by two editors. When two editors show the same data, a feed copies it into a document of each editor.
 
-Three producer stores are constants of the process: the store of the log, the store of the MCP log, and the store of the task feed. Each store keeps numbered entries, and each feed reads from its own cursor, so each editor gets its own copy. The store of the MCP log takes the calls of every MCP server of the process, so the MCP log of each editor shows all of them. The list of owner tasks that the cell writer check reads holds the owner tasks of all editors.
+Three producer stores are constants of the process: the store of the log, the store of the MCP log, and the store of the task feed. The store of the log and the store of the MCP log keep numbered entries, and each feed reads from its own cursor, so each editor gets its own copy. Each execution in the store of the task feed records the editor that started it, and the `TaskFeed` of an editor copies only the executions of its editor. The store of the MCP log takes the calls of every MCP server of the process, so the MCP log of each editor shows all of them. The list of owner tasks that the cell writer check reads holds the owner tasks of all editors.
 
 ## Choose a means for a new part
 

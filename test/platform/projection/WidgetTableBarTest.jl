@@ -1,7 +1,7 @@
 # A table draws the bars of its cells: the pane of the cells draws them, so the
 # vertical bar starts under the header row, and the headers have none. The table
-# gives a press on a bar and the drag of a thumb to that pane, and a point on a
-# bar maps to the field of the bar in the table.
+# gives a press on a bar and the drag of a thumb to that pane, a point on a bar
+# maps to the field of the bar in the table, and the field maps to the bar.
 
 # A table of sixty rows in a slot of 300 by 200 pixels.
 function _print_bar_test_table(projection; vertical_scroll_bar = :auto)
@@ -35,8 +35,8 @@ The pane of the cells of a `WidgetTable` draws its bars: the vertical bar starts
 under the header row, and the panes of the headers draw none. A click on the
 track scrolls the table, the drag of the thumb comes to the table and scrolls it,
 and a point on the bar maps to `vertical_scroll_bar` of the table, so the pointer
-there lights the bar. A `WidgetScrollBar` of an owner is drawn as it is and keeps
-its writes.
+there lights the bar. That field maps forward to the bar. A `WidgetScrollBar` of
+an owner is drawn as it is and keeps its writes.
 """
 function test_widget_table_bar()
     projection = _scroll_pane_projection()
@@ -91,10 +91,18 @@ function test_widget_table_bar()
 
     @testset "the pointer on the bar names it in the table and lights it" begin
         table, iomap = _print_bar_test_table(projection)
-        _, _, bar = _find_table_test_bar(iomap)
+        _, place, bar = _find_table_test_bar(iomap)
         x, y = _get_table_test_bar_point(iomap, 100)
         path = ConcreteReference(FieldReferenceStep("vertical_scroll_bar"), EmptyReference())
         @test strip_reference_types(compute_part_at_point(iomap, x, y)) == path
+        # The path maps forward to the canvas that the bar prints, at its place in
+        # the table.
+        image = map_reference_forward(projection, iomap, path)
+        node = evaluate_reference(iomap.output, image)
+        @test unwrap_cell(node) === bar.iomap.output
+        box = find_reference_box(iomap.output, image)
+        @test (box.x, box.y, box.width, box.height) ==
+              (place[1] + Int(bar.place.x), place[2] + Int(bar.place.y), Int(bar.place.w), Int(bar.place.h))
         replace_mouse_target!(table, compute_part_at_point(iomap, x, y))
         @test get_mouse_target(bar.document) == EmptyReference()
         replace_mouse_target!(table, nothing)

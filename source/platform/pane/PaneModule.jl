@@ -1,8 +1,7 @@
 """
     PaneModule
 
-The **pane tree** — a layout of tab groups and splits, and the generic way to
-organize documents on the screen.
+The pane tree: tab groups and splits that place documents on the screen.
 
 A pane tree has four node kinds:
 
@@ -55,7 +54,9 @@ using ..SelectionModule
 using ..ScreenModule
 using ..SerializationModule
 using ..StyleModule
+using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -63,10 +64,10 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SelectionModule: has_dormant_selection
 import ..ClipboardModule: find_clipboard_document
 import ..DomainModule: accepts_pasted_replacement, acquire_document!, release_document!
-import ..DocumentModule: get_document_title, get_edited_field
+import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
-import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_change
 import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
 import ..GestureBindingModule: get_document_gesture_bindings_own
@@ -81,22 +82,25 @@ export get_pane_path, get_pane_collection_path,
        get_pane_focus, get_pane_focus_title, find_pane_content_selection, get_pane_focused_group,
        get_pane_focused_tab_index,
        get_pane_shown_tab_index,
-       get_pane_tab_reference, make_pane_focus_operation,
-       get_pane_tab_name_path, get_pane_content_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
-       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
+       get_pane_tab_reference, make_pane_focus_operation, make_pane_show_operation,
+       find_pane_maximized_group, make_pane_maximize_operation, make_pane_restore_operation,
+       get_pane_tab_name_path, get_pane_content_path, make_pane_title_caret_operation,
+       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_close_other_tabs_operation,
+       make_pane_close_tabs_to_the_right_operation, make_pane_split_operation,
        make_pane_duplicate_tab_operation,
        make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,
        apply_pane_operation!
 export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
        get_pane_group_at_point, get_pane_drop_zone, get_pane_zone_orientation
 export show_layout, get_referenced_value, replace_referenced_value!,
-       open_pane!, make_open_pane_operation, focus_pane!, make_focus_pane_operation,
+       open_pane!, make_open_pane_operation, show_pane!, make_show_pane_operation,
+       focus_pane!, make_focus_pane_operation,
        close_pane!, make_close_pane_operation, duplicate_pane!, make_duplicate_pane_operation,
        move_pane!, make_move_pane_operation, is_layout_line,
        find_pane, find_focused_pane, find_pane_reference, find_pane_tree_reference, is_pane_search_step,
        post_pane_operation!,
        get_window_tree, describe_document,
-       pane_group_to_avoid, make_pane_api, make_interface_api
+       pane_group_to_avoid, avoids_new_panes
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
@@ -110,6 +114,7 @@ include("PaneDocument.jl")
 include("PaneSurgery.jl")
 include("PaneGeometry.jl")
 include("PaneProgram.jl")
+include("PaneTabMenu.jl")
 include("PaneGestures.jl")
 include("PaneToWidget.jl")
 include("PaneArrangement.jl")

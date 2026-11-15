@@ -16,4 +16,10 @@ for _n in names(BuilderModule)
     _n === :BuilderModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
+# The calls of the command that a reactive rebuild compiles, in
+# `precompile/rebuild.txt`, so that a rebuild compiles none of them. There is no
+# workload: a build can not run while the package precompiles.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead
+
 end # module ProjecturedBuilder

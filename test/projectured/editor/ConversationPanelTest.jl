@@ -157,8 +157,18 @@ function test_assistant_composer_panel()
             press(KeyPress('q'; time = 0.0))
             at("q", (1, 1))
 
-            # A structured part: the kind chooser takes the selection.
+            # Tab and Shift+Tab indent the line of the draft, and the caret keeps
+            # its place in the text.
+            press(KeyDown(:home, none; time = 0.0))
+            at("q", (0, 0))
             press(KeyPress('\t'; time = 0.0))
+            at("    q", (4, 4))
+            press(KeyPress('\t', ModifierKeys(shift = true); time = 0.0))
+            at("q", (0, 0))
+
+            # A structured part: Insert opens the kind chooser, which takes the
+            # selection.
+            press(KeyDown(:insert, none; time = 0.0))
             @test active() isa DocumentInsertion
             at("", (0, 0))
             foreach(c -> press(KeyPress(c; time = 0.0)), "jul")
@@ -212,6 +222,31 @@ function test_assistant_composer_panel()
             press(KeyPress('\n'; time = 0.0))
             @test frames_until(() -> request.state == "Signed in.")
             @test "right" in [line.text for line in request.terminal.lines]
+            @test frames_until(() -> length(connection.sessions) == 1)
+        end
+
+        # A sign-in that the agent runs itself, such as in the browser, is one
+        # press on the button of its method; no terminal opens.
+        @testset "a person signs in with a sign-in that the agent runs itself" begin
+            method = AgentSignInMethod("chat-gpt", "ChatGPT", "Use ChatGPT to authenticate", nothing)
+            connection = ScriptedAgentConnection(Any[]; is_signed_in = false, sign_in_methods = [method])
+            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+            (editor, backend) = _tr_editor(a, _make_panel_card_projection())
+            frames_until(condition) =
+                timedwait(() -> (run_frame!(editor); condition()), 10.0; pollint = 0.02) === :ok
+            requests() = [part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                          if part.content isa ConversationSignInRequest]
+            find_drawn(text) = (found = [entry for entry in _panel_texts(_tr_window(backend)) if entry[3] == text];
+                                isempty(found) ? nothing : first(found))
+            evaluate_operation(editor, StartExternalAgentOperation(a))
+            @test frames_until(() -> length(requests()) == 1)
+            request = only(requests())
+            @test frames_until(() -> find_drawn("ChatGPT") !== nothing)
+            (x, y, _) = find_drawn("ChatGPT")
+            _tr_press!(editor, backend, MouseClick(:left, x + 4, y + 6, ModifierKeys(); time = 0.0))
+            @test frames_until(() -> find_drawn("Signed in.") !== nothing)
+            @test request.terminal === nothing
+            @test connection.agent_sign_ins == ["chat-gpt"]
             @test frames_until(() -> length(connection.sessions) == 1)
         end
 

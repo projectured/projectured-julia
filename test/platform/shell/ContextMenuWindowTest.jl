@@ -16,7 +16,9 @@ _cm_parts(; menu = _cm_menu("Cut", "Copy")) = WidgetComposite(Any[
     WidgetLabel("has none"; position = Point2D(0, 40)),
 ])
 
-# The window `W` at (100, 100) holds `document`, drawn with `projection`.
+# The window `W` at (100, 100) holds `document`, drawn with `projection`. A bare
+# Escape that nothing took quits, as in an example window, so a test sees whether
+# the window takes the Escape.
 function _cm_editor(document = _cm_parts();
                     projection = make_widget_projection_example(measure = _cm_measure()))
     scene = make_window_scene(document, "W"; width = 400, height = 300)
@@ -26,7 +28,7 @@ function _cm_editor(document = _cm_parts();
     document, projection = make_tracking_screen(scene, composed;
         inner_wrappers = [wrap_context_menu_window])
     backend = HeadlessBackend()
-    editor = Editor(document, projection; backend = backend,
+    editor = Editor(document, EscapeQuittingProjection(inner = projection); backend = backend,
                     devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend, scene)
@@ -63,6 +65,18 @@ function _cm_drawn_window(editor, scene, id::Symbol)
     _cm_force(windows[index].content)
 end
 
+# The output window `id`, as the editor printed it, with the place that a
+# placement computes.
+function _cm_output_window(editor, scene, id::Symbol)
+    windows = _cm_force(_cm_force(get_iomap_output(editor.iomap)).windows)
+    index = findfirst(window -> window.id === id, collect(scene.windows))
+    _cm_force(windows[index])
+end
+
+# Where the window `window` of `scene` stands on the screen.
+_cm_shown_place(editor, scene, window) =
+    (shown = _cm_output_window(editor, scene, window.id); (Int(shown.x), Int(shown.y)))
+
 # Where `text` is drawn in `node`, in the frame of `node`, or `nothing`.
 function _cm_place_of(node, text, ox = 0, oy = 0)
     node = _cm_force(node)
@@ -76,7 +90,20 @@ function _cm_place_of(node, text, ox = 0, oy = 0)
             found === nothing || return found
         end
     end
+    # A viewport, such as the pane of the rows of a list, holds its canvas.
+    node isa GraphicsViewport && return _cm_place_of(node.content, text, x, y)
     nothing
+end
+
+# The innermost canvas of `node` that draws every one of `texts`, or `nothing`.
+function _cm_canvas_holding(node, texts)
+    node = _cm_force(node)
+    hasproperty(node, :elements) || return nothing
+    for element in _cm_force(node.elements)
+        inner = _cm_canvas_holding(element, texts)
+        inner === nothing || return inner
+    end
+    all(text -> _cm_place_of(node, text) !== nothing, texts) ? node : nothing
 end
 
 function test_context_menu_window()
@@ -88,7 +115,7 @@ function test_context_menu_window()
     window = only(_cm_menus(scene))
     # At the point of the click, in the coordinates of the screen: the window is
     # at (100, 100).
-    @test (window.x, window.y) == (100 + 20, 100 + 10)
+    @test _cm_shown_place(editor, scene, window) == (100 + 20, 100 + 10)
     @test window.auto_dismiss
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # The state of the wrapper keeps what the window shows.
@@ -152,7 +179,7 @@ end
     @test count(element -> element isa WidgetSeparator, elements) == 1
     @test !first(item for item in elements if item isa WidgetMenuItem).enabled
     # The window stays where it opened.
-    @test (window.x, window.y) == (100 + x + 2, 100 + y + 2)
+    @test _cm_shown_place(editor, scene, window) == (100 + x + 2, 100 + y + 2)
     # With every layer shown, F2 changes nothing.
     _cm_send!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 1.3))
     @test state.shown == 2
@@ -256,7 +283,136 @@ end
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # With no point, the window stands below the wrapper, with the left edges
     # aligned and a gap of 2 pixels.
-    @test (window.x, window.y) == (100, 100 + height + 2)
+    @test _cm_shown_place(editor, scene, window) == (100, 100 + height + 2)
+end
+
+@testset "a menu with no room below the pointer opens above it" begin
+    editor, backend, scene = _cm_editor()
+    _cm_click!(editor, backend, :right, 20, 10, 1.0)
+    window = only(_cm_menus(scene))
+    # The backend fits the size, and writes the areas of the displays. The point
+    # is at (120, 110) on the screen.
+    window.width, window.height = 80, 60
+    scene.display_areas = [(0, 0, 500, 150)]
+    @test _cm_shown_place(editor, scene, window) == (120, 110 - 60)
+    # No room on the right: it slides left.
+    scene.display_areas = [(0, 0, 150, 150)]
+    @test _cm_shown_place(editor, scene, window) == (70, 50)
+end
+
+@testset "a list with the top placement opens at the top center of its part, and keeps its width" begin
+    button = WidgetButton("Run"; size = Point2D(300, 24))
+    twin = WidgetButton("Run"; size = Point2D(300, 24))
+    alone = print_document(make_widget_projection_example(measure = _cm_measure()), twin)
+    width = Int(unwrap_cell(get_iomap_output(alone)).w[])
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[button]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    @test evaluate_reference(editor.document, place) === button
+    names = ["alpha", "beta", "gamma"]
+    list = WidgetChoiceList(; find = query -> WidgetChoice[WidgetChoice(name) for name in names
+                                                           if occursin(query, name)],
+                            choose = value -> nothing)
+    placement = part -> make_part_top_placement(part; width_share = 0.5, minimum_width = 100,
+                                                maximum_height = 200, gap = 8)
+    operation = read_rooted_operation(editor, place, make_choice_list_operation("Find", list; placement))
+    @test operation !== nothing
+    evaluate_operation(editor, operation)
+    run_frame!(editor)
+    window = _cm_output_window(editor, scene, :widget_popup)
+    @test is_window_placed(window)
+    # The button is at the top left of the window at (100, 100): the list is half
+    # as wide as it, in its middle, 8 below its top edge.
+    listed = max(100, round(Int, width * 0.5))
+    @test window.minimum_size == (listed, 0)
+    @test window.maximum_size == (listed, 200)
+    @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
+    # A typed letter narrows the list, and the width stays.
+    _cm_send!(editor, backend, KeyPress('a'; time = 1.0))
+    @test list.query == "a"
+    window = _cm_output_window(editor, scene, :widget_popup)
+    @test window.maximum_size == (listed, 200)
+    @test (window.x, window.y) == (100 + (width - listed) ÷ 2, 108)
+end
+
+@testset "a list that fills its offer is as wide as the minimum width that its placement sets" begin
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[WidgetButton("Run"; size = Point2D(300, 24))]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    list = WidgetChoiceList(; find = query -> WidgetChoice[WidgetChoice(name) for name in ("alpha", "beta")],
+                            choose = value -> nothing, fills_offer = true)
+    # The window fits its content, so its minimum width reaches the list as the
+    # minimum of a range, and not as a slot.
+    placement = part -> make_part_top_placement(part; width_share = 0.5, minimum_width = 250,
+                                                maximum_height = 200, gap = 8)
+    evaluate_operation(editor, read_rooted_operation(editor, place, make_choice_list_operation("Find", list; placement)))
+    run_frame!(editor)
+    @test _cm_output_window(editor, scene, :widget_popup).minimum_size == (250, 0)
+    menu = _cm_canvas_holding(_cm_drawn_window(editor, scene, :widget_popup), ("alpha", "beta"))
+    @test Int(_cm_force(menu.w)) == 250
+end
+
+@testset "the first key of an insertion opens its kinds under it, the next keys type into the field, and Return makes one" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    editor, backend, scene = _cm_editor(insertion; projection = NaturalToGraphics(; measure = _cm_measure()))
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test insertion.value == "t"
+    list = only(_cm_menus(scene)).content
+    @test list isa WidgetChoiceList && list.query == "t"
+    # The next key goes to the field, which keeps the selection, and its edit
+    # opens the list again with the text of the field.
+    _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
+    @test insertion.value == "te"
+    list = only(_cm_menus(scene)).content
+    @test list.query == "te"
+    @test !occursin("query", string(strip_reference_types(editor.document.selection)))
+    expected = list.find("te")
+    @test !isempty(expected)
+    _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))
+    @test isempty(_cm_menus(scene))
+    @test scene.windows[1].content isa expected[1].value
+end
+
+@testset "Escape closes the kinds of an insertion and keeps its text" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    editor, backend, scene = _cm_editor(insertion; projection = NaturalToGraphics(; measure = _cm_measure()))
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test length(_cm_menus(scene)) == 1
+    _cm_send!(editor, backend, KeyDown(:escape, ModifierKeys(); time = 1.1))
+    @test isempty(_cm_menus(scene))
+    @test scene.windows[1].content === insertion && insertion.value == "t"
+end
+
+# The undo buffer of an editor records the key as one step, with the list inside
+# the record: the window takes the list out of it, and the step keeps the text.
+@testset "the kinds of an insertion in an undo buffer open, and the buffer records the text" begin
+    insertion = with_value_caret(DocumentInsertion(""), 0)
+    buffer = UndoBuffer(insertion)
+    set_selection!(buffer, annotate_reference_types(buffer,
+        ConcreteReference(FieldReferenceStep("content"), strip_reference_types(get_selection(insertion)))))
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        UndoBuffer => UndoBufferToAnyProjection(), Any => NaturalToGraphics(; measure = _cm_measure())))
+    editor, backend, scene = _cm_editor(buffer; projection)
+    _cm_send!(editor, backend, KeyPress('t'; time = 1.0))
+    @test insertion.value == "t"
+    @test length(buffer.undo_entries) == 1
+    list = only(_cm_menus(scene)).content
+    @test list isa WidgetChoiceList && list.query == "t"
+    _cm_send!(editor, backend, KeyPress('e'; time = 1.1))
+    list = only(_cm_menus(scene)).content
+    @test list.query == "te" && insertion.value == "te"
+    expected = list.find("te")
+    _cm_send!(editor, backend, KeyPress('\n'; time = 1.2))
+    @test isempty(_cm_menus(scene))
+    @test buffer.content isa expected[1].value
 end
 
 end # @testset

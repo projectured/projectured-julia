@@ -18,7 +18,7 @@ Covers:
 using Test
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCell,
-                                    ReactiveCell, AbstractCell, is_cell_valid
+                                    ReactiveCell, AbstractCell, is_cell_valid, set_cell_computation!
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
@@ -136,8 +136,53 @@ function ProjecturedKernel.DocumentModule.replace_wrapped_document!(
     holder
 end
 
+# A document whose field `target` refers to a node that lives elsewhere, so the
+# walk does not enter that field.
+@document struct ContractReferrer
+    label::String
+    target::Any
+end
+ProjecturedKernel.DocumentModule.is_field_walked(::ContractReferrer, name::Symbol) = name !== :target
+
 function test_document_contract()
 @testset "DocumentContract" begin
+
+    @testset "the walk leaves out a field that a document does not walk" begin
+        far = ToyNode("far", nothing, nothing)
+        referrer = ContractReferrer("near", far, nothing)
+        @test is_field_walked(referrer, :label) && !is_field_walked(referrer, :target)
+        @test isempty(search_documents(referrer, node -> node === far))
+        @test !isempty(search_documents(ContractPair(far, nothing, nothing), node -> node === far))
+        @test !isempty(search_documents(referrer, "near"))
+        # A tuple names its fields by position, and the walk still enters them.
+        @test !isempty(search_documents(ContractPair((far, 1), nothing, nothing), node -> node === far))
+    end
+
+    @testset "a walk that does not enter a match reads nothing inside it" begin
+        inner = ToyNode("inner", nothing, nothing)
+        outer = ToyNode("outer", inner, nothing)
+        root = ContractPair(outer, nothing, nothing)
+        @test collect(search_documents(root, node -> node isa ToyNode)) == [outer, inner]
+        @test collect(search_documents(root, node -> node isa ToyNode; enter_matches = false)) == [outer]
+        # A computation that walks so reads no cell of the match, so a change
+        # inside the match leaves the computation valid.
+        count = Cell(Computation(() -> length(search_documents(root, node -> node isa ToyNode; enter_matches = false))))
+        @test count[] == 1
+        outer.label = "changed"
+        @test is_cell_valid(count)
+    end
+
+    @testset "a walk decides about a field before it reads the field" begin
+        computes = Ref(0)
+        pair = ContractPair(ToyNode("first", nothing, nothing), nothing, nothing)
+        set_cell_computation!(getfield(pair, :second), () -> (computes[] += 1; ToyNode("second", nothing, nothing)))
+        skip_second = (parent, name) -> !(parent isa ContractPair && name === :second)
+        walk = DocumentWalk(; enter_field = (node, name) -> is_field_entered(node, name) && skip_second(node, name))
+        @test [node.label for node in search_documents(pair, node -> node isa ToyNode; walk)] == ["first"]
+        # The field that the walk refused is not read, so its value is not computed.
+        @test computes[] == 0
+        @test length(search_documents(pair, node -> node isa ToyNode)) == 2 && computes[] == 1
+    end
 
     @testset "@document constructs and unwraps cells" begin
         n = ToyNode("root", nothing, nothing)

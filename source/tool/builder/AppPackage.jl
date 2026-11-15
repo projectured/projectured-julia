@@ -26,6 +26,21 @@ get_app_module_name(name::AbstractString) =
     replace(titlecase(replace(String(name), "-" => " ", "_" => " ")), " " => "") * "App"
 
 """
+    prepare_program_start!(build; name) -> NamedTuple
+
+Prepare what a script that starts the program `name` from the checkout runs,
+and answer it as `(path, module_name)`: the package of the binary, which
+`build(; compile = false, resolve = true)` writes, and its module. The script
+loads that package as Julia does and starts `julia_main`. With the reactive
+Julia, the first start after a small change compiles a patch of the changed
+package on top of its compiled file, and the packages above it keep theirs.
+"""
+function prepare_program_start!(build; name::AbstractString)
+    project = build(; compile = false, resolve = true)
+    (path = String(project), module_name = get_app_module_name(name))
+end
+
+"""
     LOG_LEVEL_NAMES
 
 The levels a binary logs from, least first.
@@ -37,13 +52,16 @@ a real answer to want.
 const LOG_LEVEL_NAMES = ("debug", "info", "warn", "error", "none")
 
 """
-    write_app_package(context; name, packages, imports, init, main, workload,
+    write_app_package(context; name, packages, imports, init, main,
                        info, usage, log_level, stand_ins) -> String
 
 Write the package this build compiles, and answer its directory.
 
 - `packages` — the names of what goes in. They become `[deps]`, `[sources]` and
-  the `using` list, in that one place, so the three cannot disagree.
+  the `using` list, in that one place, so the three cannot disagree. A package
+  that no other of `packages` and `imports` depends on loads first, so the
+  package of an application loads the others in the order its image compiled
+  them in.
 - `imports` — packages the generated module imports and does not use: a
   dependency of the build's own generated code (`init`, below) rather than of a
   program in `packages`. They join `[deps]` and `[sources]` beside `packages`,
@@ -55,7 +73,6 @@ Write the package this build compiles, and answer its directory.
 - `main` — an `Expr` whose value is the exit code. It becomes the body of
   `julia_main`. An `Expr` and not a string, so Julia's parser checks it while the
   build function is still running rather than minutes later.
-- `workload` — an `Expr` run under `@compile_workload`, or `nothing`.
 - `info` — what went in, as text. It becomes a constant read at module scope, so
   it is compiled into the image and cannot be separated from the binary.
 - `usage` — a [`Usage`](@ref), and then this module answers `--help` and
@@ -74,7 +91,6 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
                             main::Expr,
-                            workload::Union{Expr,Nothing} = nothing,
                             info::AbstractString = "",
                             usage::Union{Usage,Nothing} = nothing,
                             log_level::Symbol = :warn,
@@ -87,13 +103,12 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     # as comments pointing at the builder, which is where a reader of a build
     # artefact should not be sent.
     main = Base.remove_linenums!(copy(main))
-    workload = workload === nothing ? nothing : Base.remove_linenums!(copy(workload))
     init isa Expr && (init = Base.remove_linenums!(copy(init)))
     directory = joinpath(context.root, "build", "app", String(name))
     mkpath(joinpath(directory, "src"))
     module_name = get_app_module_name(name)
 
-    deps = Dict{String,Any}("PrecompileTools" => "aea7be01-6a6a-4083-8856-8a6e6704d82a")
+    deps = Dict{String,Any}()
     sources = Dict{String,Any}()
     for package in (packages..., imports...)
         package_dir = get_package_directory(context, package)
@@ -121,12 +136,8 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         println(io, "# write the same thing again leaves it alone, so that its cache holds.")
         println(io, "module ", module_name)
         println(io)
-        println(io, "using PrecompileTools")
-        for package in imports
-            println(io, "import ", package)
-        end
-        for package in packages
-            println(io, "using ", package)
+        for (keyword, package) in _compute_app_load_order(context, packages, imports)
+            println(io, keyword, " ", package)
         end
         println(io)
         println(io, "const BUILD_INFO = \"\"\"\n", info, "\"\"\"")
@@ -224,18 +235,29 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         end
         println(io, "    ", string(main))
         println(io, "end")
-        if workload !== nothing
-            println(io)
-            println(io, "@compile_workload begin")
-            println(io, "    ", string(workload))
-            println(io, "end")
-        end
         println(io)
         println(io, "end # module ", module_name)
     end
     write_if_changed(joinpath(directory, "src", module_name * ".jl"), source;
                      ignoring = _BUILD_TIMESTAMP)
     directory
+end
+
+# The load lines of the written module, `"import" => name` and `"using" => name`.
+# A package that no other named package depends on loads first: the package of
+# an application, which loads all the others. Its image holds the calls that it
+# compiled with the others loaded in its own order, and a load in that order
+# keeps them valid. In another order a package can load after an image and add a
+# method that makes calls of that image invalid, and a session compiles them
+# again. The other lines keep their order, and they load nothing new.
+function _compute_app_load_order(context::BuildContext, packages, imports)
+    loads = Pair{String,String}[["import" => String(package) for package in imports];
+                                ["using" => String(package) for package in packages]]
+    dependencies = Dict(name => setdiff(_collect_local_dependencies(context, (name,)), (name,))
+                        for (_, name) in loads)
+    is_loaded_by_another(name) = any(name in needs for needs in values(dependencies))
+    [filter(load -> !is_loaded_by_another(last(load)), loads);
+     filter(load -> is_loaded_by_another(last(load)), loads)]
 end
 
 """

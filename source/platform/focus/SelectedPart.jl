@@ -20,7 +20,7 @@ end
     find_selected_part(; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
 
 The part that the person selected: the document that the selection of the
-window names as a whole after an Alt+click, or the document that holds the caret.
+window names as a whole after an Alt+double click, or the document that holds the caret.
 The answer acts like the document and carries its complete reference from the
 root, so a verb that takes a part takes it. `nothing` when nothing below the root
 of the window is selected.
@@ -35,6 +35,8 @@ the text of the part, to say what it is, or to change it.
     println(print_natural_text(part_1))
 
 See also `find_part_under_pointer`, `select_part!`, `print_natural_text`.
+
+For the assistant.
 """
 function find_selected_part end
 
@@ -63,6 +65,8 @@ this?" when nothing is selected.
     part_1 === nothing || println(describe_document(part_1))
 
 See also `find_selected_part`, `describe_document`.
+
+For the assistant.
 """
 function find_part_under_pointer end
 
@@ -78,7 +82,7 @@ end
 """
     select_part!(part; editor = get_evaluation_editor()) -> part
 
-Select `part` as a whole, as an Alt+click on it does: the window shows it
+Select `part` as a whole, as an Alt+double click on it does: the window shows it
 selected, the tab that holds it gets the focus, and the keys of the person act on
 it. `part` is a `ReferencedDocument` that a verb answered, such as a value read
 from `get_edited_document(tab)`. It is the one verb that moves the selection of
@@ -92,6 +96,8 @@ Use it to show the person the part that you talk about.
     select_part!(people_1[2])
 
 See also `find_selected_part`, `focus_pane!`.
+
+For the assistant.
 """
 function select_part! end
 

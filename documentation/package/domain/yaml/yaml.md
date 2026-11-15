@@ -1,6 +1,6 @@
 # YAML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
 
 The YAML domain, `ProjecturedYAML`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
 
@@ -49,6 +49,10 @@ not, or the default styles for `nothing`; the insertion and the empty
 placeholder take `syntax_theme`. The natural registration gives the scaled
 theme of the `Appearance` of the editor, so the view follows its scales, and
 the appearance tab shows a section for `YamlTheme`.
+
+### The tooltip of a part
+
+A YAML file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)).
 
 ## How it fits
 

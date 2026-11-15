@@ -23,8 +23,10 @@ function test_external_agent_turn()
             _submit_to_agent!(a, "What is 1 + 1?")
             @test a.status === :idle
             @test only(connection.sessions).mcp_servers == Any[]
-            # The agent learns that it runs inside the editor.
-            @test only(connection.sessions).instructions == DEFAULT_AGENT_INSTRUCTIONS
+            # The agent learns that it runs inside the editor, and reads the text of
+            # its window, as the built-in loop does.
+            @test only(connection.sessions).instructions == DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * a.system
+            @test occursin(ASSISTANT_ANSWER_INSTRUCTIONS, only(connection.sessions).instructions)
             @test only(connection.prompts) == Any[LlmText("What is 1 + 1?")]
             turns = collect(a.conversation.turns)
             @test [turn.role for turn in turns] == [:user, :assistant]
@@ -45,13 +47,59 @@ function test_external_agent_turn()
                   findfirst(part -> part.content isa EvaluatorForm, parts)
         end
 
+        @testset "a call that fails folds its result once" begin
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", title = "Run",
+                                    kind = :execute, status = :pending,
+                                    input = Dict{String,Any}("code" => "error(\"x\")")),
+                AgentToolCallUpdate("t1"; status = :failed, output = "ERROR: x")]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Throw an error.")
+            turn = collect(a.conversation.turns)[2]
+            form = only(part.content for part in collect(turn.parts) if part.content isa EvaluatorForm)
+            # The form was made while the call was pending, and the failure folds it.
+            @test form.is_error && form.result_collapsed
+            # A person opens the result, and a later update of the call keeps it open.
+            form.result_collapsed = false
+            state = AssistantModule._make_agent_turn_state(turn)
+            state[:tool_forms]["t1"] = form
+            AssistantModule._apply_tool_call_update!(turn, state,
+                AgentToolCallUpdate("t1"; status = :failed, output = "ERROR: x"), nothing)
+            @test form.is_error && !form.result_collapsed
+        end
+
+        @testset "a warm-up gives the feed one turn with each kind of part, and no agent" begin
+            a = Assistant(; backend = :acp)
+            editor = Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                            feeds = Feed[AgentEventFeed(), TaskFeed()])
+            @test warm_assistant_turn!(editor, a) === a
+            # The events wait in the queue of the session until the feed applies them.
+            @test a.agent_session.connection === nothing
+            @test editor.wake_pending[]
+            @test length(collect(a.conversation.turns)) == 1
+            drain_feeds!(editor)
+            turns = collect(a.conversation.turns)
+            @test [turn.role for turn in turns[end - 1:end]] == [:user, :assistant]
+            @test turns[end].stop_reason === :end_turn
+            parts = collect(turns[end].parts)
+            @test parts[1].content isa ConversationThinking
+            forms = [part.content for part in parts if part.content isa EvaluatorForm]
+            @test [form.tool_name for form in forms] == ["search_api", "Bash", "execute_julia_code"]
+            @test forms[3].source == AssistantModule._WARM_CODE
+            @test forms[3].output == AssistantModule._WARM_CODE_OUTPUT
+            # The request stays open, so a workload can draw its options and click one.
+            request = only(part.content for part in parts if part.content isa ConversationPermissionRequest)
+            @test is_permission_request_open(request)
+            texts = [AssistantModule._part_text(part) for part in parts]
+            @test any(text -> occursin("33.5", text), texts)
+        end
+
         @testset "the turn says that the agent starts until its session is open" begin
             gate = Channel{Nothing}(1)
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
                                                  on_start = connection -> take!(gate))
             a = _make_agent_assistant(connection)
-            is_starting() = any(part -> part.content isa TextBlock &&
-                                        get_flat_string(part.content) == "Starting Claude Code…",
+            is_starting() = any(part -> AssistantModule._part_text(part) == "Starting Claude Code…",
                                 [part for turn in collect(a.conversation.turns) for part in collect(turn.parts)])
             _submit_to_agent!(a, "Hello"; wait = false)
             @test timedwait(is_starting, 10.0; pollint = 0.01) === :ok
@@ -137,8 +185,18 @@ function test_external_agent_turn()
             @test label isa WidgetLabel && label.content isa ImageFile
             height = ConversationPartToWidget().picture_height
             @test constraint.max_height == height
-            # A file that can not be decoded keeps the box of a picture of 4:3.
-            @test constraint.max_width == 4 * height ÷ 3
+            # A picture that is not read yet is a box of the shape 4:3 that fits the height.
+            @test constraint.max_width === nothing
+            images = GraphicsImage[]
+            find_images!(node) = node isa GraphicsImage ? push!(images, node) :
+                                 node isa GraphicsCanvas ? foreach(e -> find_images!(e isa Cell ? e[] : e), node.elements) :
+                                 node isa GraphicsViewport ? find_images!(node.content) : nothing
+            find_images!(print_document(
+                RecursiveProjection(TypeDispatchingProjection(
+                    WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)),
+                nothing, card, with_exact_size(PrinterContext(); width = Cell(Int32(800)),
+                                               height = Cell(Int32(600)))).output)
+            @test length(images) == 1 && (Int(images[1].w), Int(images[1].h)) == (4 * height ÷ 3, height)
         end
 
         @testset "an agent that needs a sign-in gives a request, and a retry starts it" begin
@@ -193,6 +251,62 @@ function test_external_agent_turn()
             @test timedwait(() -> !connection.is_signed_in, 10.0; pollint = 0.01) === :ok
             @test timedwait(() -> any(part -> AssistantModule._part_text(part) == "Signed out. The next message needs a sign-in.",
                                       collect(last(collect(a.conversation.turns)).parts)), 10.0; pollint = 0.01) === :ok
+        end
+
+        @testset "an agent that runs its own sign-in signs in from the request" begin
+            browser = AgentSignInMethod("chat-gpt", "ChatGPT", "Use ChatGPT to authenticate", nothing)
+            # The start of the agent waits for the test, as a sign-in in the
+            # browser waits for the person.
+            gate = Channel{Nothing}(1)
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
+                                                 is_signed_in = false, sign_in_methods = [browser])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            request = only(part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                           if part.content isa ConversationSignInRequest)
+            @test only(request.methods).command === nothing
+            # The method asks the agent and opens no terminal.
+            is_starting = Threads.Atomic{Bool}(false)
+            connection.on_start = connection -> (is_starting[] = true; take!(gate))
+            request.start((document = a,), "chat-gpt")
+            @test request.is_signing_in && request.terminal === nothing
+            @test request.state == "The agent runs the sign-in, such as in the browser. Finish it there."
+            @test timedwait(() -> is_starting[], 10.0; pollint = 0.01) === :ok
+            connection.on_start = nothing
+            # A message meanwhile waits for the sign-in, where its start would end
+            # the agent that runs the sign-in, and runs after it.
+            _submit_to_agent!(a, "Hello again"; wait = false)
+            sleep(0.2)
+            @test isempty(connection.sessions) && isempty(connection.prompts)
+            put!(gate, nothing)
+            @test timedwait(() -> length(connection.prompts) == 1, 10.0; pollint = 0.01) === :ok
+            _wait_for_idle(a)
+            @test connection.agent_sign_ins == ["chat-gpt"]
+            @test request.state == "Signed in." && !request.is_signing_in
+            @test length(connection.sessions) == 1
+            # A method that the agent does not run says so, and starts nothing.
+            push!(request.methods, AgentSignInMethod("other", "Other", "", nothing))
+            request.start((document = a,), "other")
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test request.state == "The agent can not run this sign-in."
+            @test connection.agent_sign_ins == ["chat-gpt", "other"]
+            @test length(connection.sessions) == 1
+            # A window that stops the agent ends the sign-in, which then starts nothing.
+            is_starting[] = false
+            connection.on_start = connection -> (is_starting[] = true; take!(gate))
+            request.start((document = a,), "chat-gpt")
+            @test timedwait(() -> is_starting[], 10.0; pollint = 0.01) === :ok
+            connection.on_start = nothing
+            stop_external_agent!(a)
+            put!(gate, nothing)
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test request.state == "The sign-in was stopped."
+            @test connection.agent_sign_ins == ["chat-gpt", "other"]
+            @test a.agent_session === nothing && length(connection.sessions) == 1
+            # With no agent, the sign-in makes one, and here says why it can not.
+            request.start((document = a,), "chat-gpt")
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test startswith(request.state, "The sign-in failed: The backend :acp needs the package ProjecturedACP.")
         end
 
         @testset "a question of the agent is a form, and its values go back" begin
@@ -412,6 +526,31 @@ function test_external_agent_turn()
             @test isempty(a.agent_options)
         end
 
+        @testset "a session starts in the mode of the assistant when the agent offers it" begin
+            with_auto_mode(options) = AgentOption[option.category === :mode ?
+                AgentOption(option.id, option.name, option.description, option.category, option.current_value,
+                            vcat(option.values, AgentOptionValue("auto", "Auto", ""))) :
+                option for option in options]
+            turn = Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]
+            connection = ScriptedAgentConnection([turn]; options = with_auto_mode(make_scripted_agent_options()))
+            a = _make_agent_assistant(connection)
+            @test a.agent_mode == DEFAULT_AGENT_MODE == "auto"
+            _submit_to_agent!(a, "Hello")
+            @test connection.option_sets == ["mode" => "auto"]
+            @test only(connection.prompts) == Any[LlmText("Hello")]
+            @test timedwait(() -> a.agent_options[3].current_value == "auto", 10.0; pollint = 0.01) === :ok
+            # An agent that offers no mode "auto" keeps its own mode.
+            connection = ScriptedAgentConnection([turn]; options = make_scripted_agent_options())
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            @test isempty(connection.option_sets) && length(connection.prompts) == 1
+            # An empty mode leaves the mode to the agent.
+            connection = ScriptedAgentConnection([turn]; options = with_auto_mode(make_scripted_agent_options()))
+            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection), agent_mode = "")
+            _submit_to_agent!(a, "Hello")
+            @test isempty(connection.option_sets) && length(connection.prompts) == 1
+        end
+
         @testset "an update of the options during a turn draws no part" begin
             options = make_scripted_agent_options()
             planned = AgentOption[option.id == "mode" ?
@@ -551,8 +690,7 @@ function test_external_agent_turn()
             request = ConversationPermissionRequest("Run it?",
                 [AgentPermissionOption("allow", "Allow", :allow_once),
                  AgentPermissionOption("reject", "Reject", :reject_once)]; reply = _ -> nothing)
-            card = ConversationModule._permission_card(ConversationPartToWidget(), request,
-                                                       ConversationPart(request))
+            card = ConversationModule._permission_card(ConversationPartToWidget(), request)
             buttons = _collect_buttons(card)
             @test length(buttons) == 2
             @test all(button -> button.enabled, buttons)
@@ -570,17 +708,124 @@ function test_external_agent_turn()
             @test !is_permission_request_open(duplicate)
         end
 
-        @testset "the duplicate starts a new session" begin
-            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
+        @testset "the duplicate forks the session of the agent when its tab opens" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]];
+                                                 can_fork = true, options = make_scripted_agent_options())
             a = _make_agent_assistant(connection)
             _submit_to_agent!(a, "First")
+            evaluate_operation((document = a,), SetAgentOptionOperation(a, "effort", "max"))
+            @test timedwait(() -> a.agent_options[2].current_value == "max", 10.0; pollint = 0.01) === :ok
             fork = copy_document(DuplicatePolicy(), a)
             @test fork.agent_session === nothing
             @test fork.agent_session_id == "" && fork.agent_session_directory == ""
             @test fork.agent_command == a.agent_command
-            note = collect(fork.conversation.turns)[end]
-            @test note.role === :assistant
-            @test AssistantModule._part_text(only(note.parts)) == AssistantModule.FORK_AGENT_NOTE
+            source = fork.agent_fork
+            @test (source.session_id, source.directory, source.turn_count) == ("scripted-session-1", pwd(), 1)
+            @test [option.current_value for option in source.options] == ["opus", "max", "default"]
+            # The agent of the copy gets the history, so no note says otherwise.
+            @test !any(turn -> occursin("does not have the history",
+                                        join(AssistantModule._part_text.(collect(turn.parts)))),
+                       collect(fork.conversation.turns))
+            # The acquire, as the open of its tab makes it, forks the session at
+            # once. A new session of the agent starts with the default options,
+            # and the fork takes the effort of its source; the mode follows
+            # `agent_mode`, which this agent does not offer.
+            connection.options = make_scripted_agent_options()
+            fork.agent_session = ExternalAgentSession(connection)
+            evaluate_operation((document = fork,), AcquireDocumentOperation(fork))
+            @test timedwait(() -> fork.agent_session.session_id == "scripted-fork-2", 10.0; pollint = 0.01) === :ok
+            @test connection.sessions[2].fork_session_id == "scripted-session-1"
+            @test connection.sessions[2].directory == pwd()
+            @test timedwait(() -> length(connection.option_sets) == 2, 10.0; pollint = 0.01) === :ok
+            @test connection.option_sets == ["effort" => "max", "effort" => "max"]
+            @test length(connection.prompts) == 1
+            # The undo of the duplicate releases the copy and stops its agent.
+            # Before its first answer, the agent keeps no session of the fork, so
+            # the redo forks the source again.
+            evaluate_operation((document = fork,), ReleaseDocumentOperation(fork))
+            @test fork.agent_session === nothing
+            @test fork.agent_session_id == "" && fork.agent_fork === source
+            fork.agent_session = ExternalAgentSession(connection)
+            evaluate_operation((document = fork,), AcquireDocumentOperation(fork))
+            @test timedwait(() -> fork.agent_session.session_id == "scripted-fork-3", 10.0; pollint = 0.01) === :ok
+            @test connection.sessions[3].fork_session_id == "scripted-session-1"
+            # The next prompt of the copy sends only the new message, and the
+            # answer makes the fork a session of its own.
+            _submit_to_agent!(fork, "Second")
+            @test connection.prompts[end] == [LlmText("Second")]
+            @test (fork.agent_session_id, fork.agent_session_turn_count) == ("scripted-fork-3", 3)
+            @test fork.agent_fork === nothing
+            # The original keeps its session, and its copy of a copy forks the fork.
+            @test a.agent_session_id == "scripted-session-1"
+            @test copy_document(DuplicatePolicy(), fork).agent_fork.session_id == "scripted-fork-3"
+        end
+
+        @testset "a start of the agent in a code unit waits for the editor until the unit ends" begin
+            # The code of an agent runs in a unit, such as a call of
+            # `duplicate_pane!` whose copy forks at its acquire. The test task
+            # plays the loop. Where the process has no thread for a unit, the
+            # unit runs inline, and the start waits for no unit.
+            connection = ScriptedAgentConnection([Any[]])
+            a = _make_agent_assistant(connection)
+            editor = build_editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                                  window = false, tabs = false, appearance = false, settings = false)
+            editor.loop_task = current_task()
+            ProjecturedKernel.EditorModule.run_code_unit!(editor; parts = ["the code of an agent"]) do
+                evaluate_operation(editor, StartExternalAgentOperation(a))
+                # The start posts its first call to the editor while the unit runs.
+                timedwait(() -> isready(editor.inbox), 5.0; pollint = 0.01)
+            end
+            @test timedwait(() -> (ProjecturedKernel.EditorModule.drain_operations!(editor);
+                                   !isempty(a.agent_session.session_id)), 10.0; pollint = 0.01) === :ok
+            @test length(connection.sessions) == 1
+            editor.loop_task = nothing
+        end
+
+        @testset "a duplicate whose agent can not fork starts a new session with a note" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            has_note(assistant) = any(turn -> any(part -> AssistantModule._part_text(part) ==
+                                                          AssistantModule.FORK_AGENT_NOTE, collect(turn.parts)),
+                                      collect(assistant.conversation.turns))
+            # A copy that is not acquired forks at its first message.
+            fork = copy_document(DuplicatePolicy(), a)
+            fork.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(fork, "Second")
+            @test connection.sessions[2].fork_session_id == "" && connection.sessions[2].session_id == ""
+            @test connection.prompts[end] == [LlmText("Second")]
+            @test timedwait(() -> has_note(fork), 10.0; pollint = 0.01) === :ok
+            @test fork.agent_fork === nothing
+            # A source whose folder is gone gives a new session with the note too.
+            lost = copy_document(DuplicatePolicy(), a)
+            lost.agent_fork = AssistantModule.AgentSessionFork("scripted-session-1", joinpath(pwd(), "no-such-folder"),
+                                                               1, AgentOption[])
+            lost.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(lost, "Third")
+            @test connection.sessions[3].directory == pwd()
+            @test timedwait(() -> has_note(lost), 10.0; pollint = 0.01) === :ok
+            @test !has_note(a)
+        end
+
+        @testset "a duplicate of an assistant that answers starts a new session with a note" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]];
+                                                 can_fork = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            # The answer that streams stays with the original.
+            push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("Go on")]))
+            push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart("Half an answer")]))
+            a.status = :streaming
+            fork = copy_document(DuplicatePolicy(), a)
+            a.status = :idle
+            @test fork.agent_fork === nothing
+            turns = collect(fork.conversation.turns)
+            @test length(turns) == 4
+            @test AssistantModule._part_text(only(turns[3].parts)) == "Go on"
+            @test AssistantModule._part_text(only(turns[4].parts)) == AssistantModule.FORK_DURING_ANSWER_NOTE
         end
 
         @testset "a release, as the close of its tab makes, stops the agent" begin
@@ -592,6 +837,25 @@ function test_external_agent_turn()
             @test a.agent_session === nothing
             # A document that holds nothing outside the tree releases nothing.
             @test release_document!(nothing, Assistant()) === nothing
+        end
+
+        @testset "the end of a window stops the agent of each open session, and waits for the stop" begin
+            connection = ScriptedAgentConnection([Any[]])
+            server = _SlowStopAgentServer(false)
+            a = Assistant(; backend = :acp)
+            session = ExternalAgentSession(connection; tool_server = server)
+            a.agent_session = session
+            editor = build_editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+                                  window = false, tabs = false, appearance = false, settings = false)
+            # The queue of the session joins the feed of the window, as an open session does.
+            queue = AgentEventQueue()
+            session.events = queue
+            AssistantModule._register_agent_event_queue!(editor, a, session, queue)
+            foreach(step -> step(editor), editor.stop_steps)
+            @test a.agent_session === nothing && session.is_stopped
+            # The server takes a time to stop, and the end of the window waited for it.
+            @test server.is_stopped
+            @test istaskdone(session.stop_task)
         end
 
         @testset "after a release, the next turn resumes the session" begin
@@ -721,11 +985,11 @@ function test_external_agent_turn()
             @test occursin("The backend :acp needs the package ProjecturedACP", text)
         end
 
-        @testset "a save keeps no command and no session options" begin
-            a = Assistant(; backend = :acp, agent_command = "my-agent --flag")
+        @testset "a save keeps no command, no session options and no mode" begin
+            a = Assistant(; backend = :acp, agent_command = "my-agent --flag", agent_mode = "bypassPermissions")
             _, keywords = pred_arguments(a)
             @test (:backend => :acp) in keywords
-            @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta), keywords)
+            @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta, :agent_mode), keywords)
             @test Assistant().agent_command == DEFAULT_AGENT_COMMAND
             @test occursin("\"display\": \"summarized\"", Assistant().agent_session_meta)
             # Without a kept session, the file keeps no conversation.
@@ -781,6 +1045,17 @@ end
 
 _make_agent_assistant(connection) =
     Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+
+# An MCP server of an agent that takes a time to stop.
+mutable struct _SlowStopAgentServer
+    is_stopped::Bool
+end
+
+function AgentModule.stop_agent_server!(server::_SlowStopAgentServer)
+    sleep(0.3)
+    server.is_stopped = true
+    nothing
+end
 
 # Submit `text` as a prose turn, with the assistant as its own editor, and wait
 # for the turn to end unless `wait` is false.

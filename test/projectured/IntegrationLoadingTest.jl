@@ -15,7 +15,7 @@ const _UUIDS = Dict(
 
 const _INTEGRATION_NAMES = ("AutoIntegration", "Projectured", "ProjecturedACP", "ProjecturedAnthropic",
                             "ProjecturedDataFrames", "ProjecturedIntegrations", "ProjecturedJSON",
-                            "ProjecturedMCP",
+                            "ProjecturedLanguageServer", "ProjecturedMCP",
                             "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
                             "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo",
                             "ProjecturedWeb")
@@ -105,7 +105,7 @@ function test_umbrella_loads_integrations()
         @test _read_loaded_integrations(joinpath(repository, "environment", "all"),
             "using FFMPEG, ODBC, Tulip, ModelContextProtocol, Projectured") ==
               ["AutoIntegration", "Projectured", "ProjecturedAnthropic", "ProjecturedJSON",
-               "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
+               "ProjecturedLanguageServer", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
                "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo"]
     end
 end
@@ -181,10 +181,12 @@ end
 function test_packages_declare_triggers()
     @testset "each package of the umbrella declares its triggers" begin
         repository = normpath(joinpath(@__DIR__, "..", ".."))
-        # The domains, the console, PDF and the model adapters load with the umbrella.
+        # The domains, the console, PDF, the model adapters and the language server
+        # adapter load with the umbrella.
         alone = [setdiff(_read_project_packages(repository, "ProjecturedAll"),
                          ["ProjecturedKernel", "ProjecturedPlatform"]);
-                 ["ProjecturedAnthropic", "ProjecturedOllama", "ProjecturedOpenRouter"]]
+                 ["ProjecturedAnthropic", "ProjecturedOllama", "ProjecturedOpenRouter",
+                  "ProjecturedLanguageServer"]]
         for name in alone
             @test _read_declared_triggers(repository, name) == (["Projectured"], "auto")
         end

@@ -1,16 +1,14 @@
 # The sequence chart pipeline: SequenceChart → SequenceChartPlot → GraphicsCanvas,
-# two stages chained.
+# the view that `make_sequence_chart_projection` builds.
 #
-# A sequence chart renders straight to graphics, so like the chart domain and
-# unlike the syntax-backed ones it needs no recursion — nothing inside it is a
-# foreign document. What it does need is a size: the fallback below applies when
-# no parent layout has allocated one.
+# A sequence chart renders straight to graphics, and the view prints its buttons
+# and bars through a recursion of its own, so it needs none from its host. What it
+# does need is a size: the fallback below applies when no parent layout has
+# allocated one.
 
 make_sequencechart_pipeline_example(; measure=FontFileMeasure(),
                                     width::Integer=900, height::Integer=520) =
-    ChainingProjection(
-        SequenceChartToSequenceChartPlot(),
-        SequenceChartPlotToGraphicsCanvas(measure=measure, width=width, height=height))
+    make_sequence_chart_projection(; measure, width, height)
 
 make_sequencechart_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_pipeline_example(; measure=measure)
@@ -44,8 +42,7 @@ make_sequencechart_pair_projection_example(; measure=FontFileMeasure()) =
 # lane's own cells. Two projections over one document, which is what makes a
 # chart's properties editable without a bespoke property editor.
 function make_sequencechart_inspector_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g = WidgetToGraphics(font; measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     form = ChainingProjection(
         ObjectToWidget(fields=[:label, :visible]),
         RecursiveProjection(TypeDispatchingProjection(vcat(

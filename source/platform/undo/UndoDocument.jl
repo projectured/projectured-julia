@@ -98,6 +98,13 @@ UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
 # for the document it stands for and gets what it holds.
 get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
 
+# A walk of the documents does not enter the steps of a buffer. They hold the old
+# versions of the content, which share their parts with it, so a search would find
+# a value that the content no longer holds, and a search of places would find each
+# shared part once for each step. A search of the old versions starts at the list of
+# steps itself, `search_documents(buffer.undo_entries, query)`.
+is_field_walked(::UndoBuffer, name::Symbol) = name !== :undo_entries && name !== :redo_entries
+
 # A person edits the document that a history keeps the steps of.
 get_edited_field(::UndoBuffer) = :content
 
@@ -105,9 +112,11 @@ get_edited_field(::UndoBuffer) = :content
 get_document_title(buffer::UndoBuffer) = get_document_title(buffer.content)
 
 # A buffer survives its document being replaced, and forgets its history: the
-# steps of the old document say nothing about the new one.
+# steps of the old document say nothing about the new one. The document that it
+# holds takes the new one first, so a document that must survive the replacement
+# can, as in an arrangement.
 function replace_wrapped_document!(buffer::UndoBuffer, document)
-    buffer.content = document
+    buffer.content = replace_wrapped_document!(buffer.content, document)
     clear_undo_history!(buffer)
     buffer
 end
@@ -199,14 +208,27 @@ is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operat
 
 # An operation that edits no document: one that does nothing, a move of the
 # selection or of the part under the pointer, a fold, a write of view state, a
-# timer, and a compound of nothing else. A compound that holds one real write is
-# an edit.
+# write into a field that the type of its document declares view state, a timer, a
+# selection or a part to show, and a compound of nothing else. A compound that holds
+# one real write is an edit.
 _is_no_edit(operation) =
     operation isa Union{DoNothingOperation, ReplacePathOperation,
                         SelectNextInsertionOperation, ToggleCollapseOperation,
-                        ReplaceViewStateOperation, SetTimerOperation} ||
+                        ReplaceViewStateOperation, SetTimerOperation,
+                        SelectDocumentOperation, RevealPartOperation} ||
+    (operation isa ShowSelectionOperation && _is_no_edit(operation.operation)) ||
+    _writes_view_state_field(operation) ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&
      all(_is_no_edit, operation.operations))
+
+# Whether `operation` writes the whole of a field that the type of the document it
+# carries declares view state, such as the view of a study that a switch chooses.
+function _writes_view_state_field(operation)
+    operation isa ReplaceReferencedValueOperation && operation.document isa Document || return false
+    steps = collect(get_reference_steps(strip_reference_types(operation.reference)))
+    length(steps) == 1 && only(steps) isa FieldReferenceStep &&
+        is_view_state_field(typeof(operation.document), Symbol(only(steps).name))
+end
 
 # ── The three operations ─────────────────────────────────────────────────────
 
@@ -295,7 +317,7 @@ make_undoable_operation(buffer::UndoBuffer, operation) =
 function evaluate_operation(editor, op::RecordUndoOperation)
     label = describe_operation(op.operation)
     before = copy_reference(get_selection(editor.document))
-    inverse = evaluate_invertible_operation!(editor, op.operation)
+    inverse = _drop_selection_moves(evaluate_invertible_operation!(editor, op.operation))
     # A step whose way back is to do nothing changed no document — a file that was
     # written, a zoom. It is not a step, so the history does not grow for it.
     inverse isa DoNothingOperation && return nothing
@@ -315,6 +337,20 @@ function evaluate_operation(editor, op::RecordUndoOperation)
         push_undo_entry!(buffer, UndoEntry(label, inverse, before, caret, time()))
     end
     nothing
+end
+
+# The way back of a step without its moves of the selection. The selection is view
+# state, which the history does not record: the entry keeps the selection from
+# before the step and puts it back after the edits, when the place that it names
+# exists again. A move inside the way back would run before an edit that it
+# follows is taken back, such as the selection of the neighbour of a deleted
+# element, and name a place that does not exist yet. A way back with no edit left
+# does nothing.
+_drop_selection_moves(operation) = operation
+_drop_selection_moves(::Union{ReplaceSelectionOperation,SelectNextInsertionOperation}) = DoNothingOperation()
+function _drop_selection_moves(operation::CompoundOperation)
+    kept = Any[_drop_selection_moves(member) for member in operation.operations]
+    all(member -> member isa DoNothingOperation, kept) ? DoNothingOperation() : CompoundOperation(kept)
 end
 
 """
@@ -405,7 +441,7 @@ function find_undo_buffer(document)
 end
 
 """
-    describe_undo_history(; editor = get_evaluation_editor()) -> Text
+    describe_undo_history(; editor = get_evaluation_editor()) -> String
 
 The changes of the window that the tool `undo` and Ctrl+Z take back, and the
 changes that the tool `redo` puts back, newest last: one line each, in the words
@@ -420,13 +456,15 @@ the tool `undo` would take back before you call it.
     println(describe_undo_history())
 
 See also `find_selected_part`, `print_natural_text`.
+
+For the assistant.
 """
 function describe_undo_history end
 
 function describe_undo_history(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_undo_history") do
         buffer = find_undo_buffer(getfield(editor, :document))
-        buffer === nothing && return Text("This window keeps no history.")
+        buffer === nothing && return "This window keeps no history."
         undo = [entry.label for entry in buffer.undo_entries]
         redo = [entry.label for entry in buffer.redo_entries]
         lines = String[isempty(undo) ? "Nothing to take back." :
@@ -436,7 +474,7 @@ function describe_undo_history(; editor = get_evaluation_editor())
             push!(lines, "To put back, newest last:")
             append!(lines, "  " .* redo)
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 

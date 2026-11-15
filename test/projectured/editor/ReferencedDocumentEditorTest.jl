@@ -12,13 +12,16 @@ end
 PaneModule.make_pane_tab_title(::ReferencedTitledNote, name::AbstractString) =
     PaneTabTitle(name; icon = :loader, tooltip = "a note")
 
-function _make_referenced_application(directory; paths = nothing)
+# The window opens on the Explorer; with `focus_file`, the first file is in front
+# and has the keys, as a press on its tab gives them.
+function _make_referenced_application(directory; paths = nothing, focus_file::Bool = false)
     if paths === nothing
         write(joinpath(directory, "people.json"),
               "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}]")
         paths = [joinpath(directory, "people.json")]
     end
     document, projection = make_application_window(paths; root = directory, assistant = nothing)
+    focus_file && _app_focus_first_file!(document)
     editor = build_editor(document, projection; backend = HeadlessBackend(), tabs = false,
                           window = (; title = "ProjecturEd", width = 1280, height = 720,
                                     opened_window_projections = make_opened_window_projections(;
@@ -98,7 +101,10 @@ function test_referenced_document_editor()
 
         before = open_pane!(PrimitiveString("before"); title = "Before",
                             target = find_pane("people.json"; editor), editor)
-        @test group.tabs[index] === get_referenced_value(before; editor)
+        @test group.tabs[index] === get_document(get_referenced_value(before; editor))
+        # The read keeps the place: the answer is the tab with its reference.
+        @test get_referenced_value(before; editor) isa ReferencedDocument
+        @test get_reference(get_referenced_value(before; editor)) == get_reference(before)
         @test before isa ReferencedDocument && get_document(before) === group.tabs[index]
         @test is_fully_typed_reference(get_reference(before))
         @test group.tabs[index + 1] === people_tab
@@ -106,15 +112,20 @@ function test_referenced_document_editor()
         group_reference = concat_references(find_pane_tree_reference(; editor),
                                             only(search_references(tree, node -> node === group)))
         last_tab = open_pane!(PrimitiveString("last"); title = "Last", target = group_reference, editor)
-        @test group.tabs[end] === get_referenced_value(last_tab; editor)
+        @test group.tabs[end] === get_document(get_referenced_value(last_tab; editor))
 
         groups = length(get_pane_groups(tree))
         steps = length(history.undo_entries)
+        focused = focused_title()
         beside = open_pane!(PrimitiveString("beside"); title = "Beside",
                             target = find_pane("people.json"; editor), side = :right, editor)
         @test length(get_pane_groups(tree)) == groups + 1
-        @test !any(t -> t === get_referenced_value(beside; editor), group.tabs)
-        @test focused_title() == "Beside"
+        @test !any(t -> t === get_document(get_referenced_value(beside; editor)), group.tabs)
+        # The new group shows its one tab, and the focus stays where it was.
+        new_group = only(g for g in get_pane_groups(tree)
+                         if any(t -> t === get_document(get_referenced_value(beside; editor)), g.tabs))
+        @test new_group.tabs[get_pane_shown_tab_index(new_group)] === get_document(get_referenced_value(beside; editor))
+        @test focused_title() == focused
         @test length(history.undo_entries) == steps + 1
 
         @test_throws ArgumentError open_pane!(PrimitiveString("x");
@@ -176,12 +187,12 @@ function test_referenced_document_editor()
         @test get_pane_tab_title_string(first(beside_group.tabs)) == "Before"
         copy = duplicate_pane!(find_pane("Last"; editor); editor)
         @test copy isa ReferencedDocument
-        @test get_referenced_value(copy; editor) === get_document(copy)
-        @test startswith(get_pane_tab_title_string(get_referenced_value(copy; editor)), "Last")
+        @test get_document(get_referenced_value(copy; editor)) === get_document(copy)
+        @test startswith(get_pane_tab_title_string(get_document(get_referenced_value(copy; editor))), "Last")
         close_pane!(find_pane("Last"; editor); editor)
         @test find_pane("Last"; editor) === nothing
         beside = find_pane("Beside"; editor)
-        @test get_referenced_value(beside; editor) === get_document(beside)
+        @test get_document(get_referenced_value(beside; editor)) === get_document(beside)
         @test describe_document(beside) == describe_document(get_document(beside))
     end
 
@@ -192,15 +203,21 @@ function test_referenced_document_editor()
         @test occursin("replace_referenced_value!(part, new_value)", description)
         @test occursin("insert_elements!(collection, index, values)", description)
         @test occursin("delete_elements!(collection, index)", description)
-        first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
-            string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
+        first_names(query; mode, limit = 3) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
+            string(search_api(set, query; mode = mode, detail = "names", limit = limit)))]
         @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"
-        @test first(first_names("find pane"; mode = "keywords")) == "find_pane"
+        # Keywords that spell the name are a clear answer: the docstring of the name.
+        @test occursin("`find_pane` — the one API match",
+                       string(search_api(set, "find pane"; mode = "keywords", detail = "names")))
         @test "ReferencedDocument" in first_names("a document and where it is"; mode = "description")
         @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
-        # A domain with a parser is written as its text, so its constructors are
-        # not declared, and a search for a document from text finds the parser.
-        @test first(first_names("make a document of a domain from its text"; mode = "description")) == "parse_natural_text"
+        # A domain with a parser is written as its text, so a search for a document
+        # from text finds the parser. The root types of the domains are offered as
+        # well, with the makers of a text block and of a table, and a sentence is
+        # ranked by its words here, with no model of meaning, so the parser is among
+        # the first five.
+        @test "parse_natural_text" in first_names("make a document of a domain from its text"; mode = "description",
+                                                  limit = 5)
         @test first(first_names("open a pane under another pane"; mode = "description")) == "open_pane!"
     end
 
@@ -218,7 +235,7 @@ function test_referenced_document_editor()
         export_document(people, exported)
         @test occursin("Ada", read(exported, String))
         again = open_pane!(people; title = "People again", editor)
-        @test get_referenced_value(again; editor).content === get_document(people)
+        @test get_document(get_referenced_value(again; editor)).content === get_document(people)
     end
 
     # A referenced document that a read made, not only one that `find_pane` found,
@@ -234,7 +251,7 @@ function test_referenced_document_editor()
 
     @testset "a pane verb takes a referenced document that a read made" begin
         people = get_edited_document(find_pane("people.json"; editor))
-        @test get_referenced_value(people[1]; editor) === get_document(people[1])
+        @test get_document(get_referenced_value(people[1]; editor)) === get_document(people[1])
         tree_1 = find_referenced_document(DocumentLocator(editor.document, find_pane_tree_reference(; editor)))
         people_group_1 = only(group for group in groups_of(tree_1.root)
                               if any(tab -> title_of(tab) == "people.json", group.tabs))
@@ -268,7 +285,7 @@ function test_referenced_document_editor()
         people = get_edited_document(people_tab)
         @test get_document(get_parent(editor, people[1])) === get_document(people)
         last_tab = open_pane!(PrimitiveString("end"); title = "At the end", target = group, editor)
-        @test get_document(group).tabs[end] === get_referenced_value(last_tab; editor)
+        @test get_document(group).tabs[end] === get_document(get_referenced_value(last_tab; editor))
         found = find_referenced_document(DocumentLocator(editor, get_reference(people_tab)))
         @test get_document(found) === get_document(people_tab)
         @test find_referenced_document(DocumentLocator(editor, get_reference(people_tab))) isa ReferencedDocument
@@ -289,7 +306,7 @@ function test_referenced_document_editor()
     @testset "an operation routed into a file tab is recorded in the file's history" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))   # the history of the file of the page
+        file_history = get_file_content(get_document(people_tab).content.file)   # the history of the file of the view
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         name = extend_reference(EmptyReference(), ElementReferenceStep(2), FieldReferenceStep("entries"),
                                 ElementReferenceStep(1), FieldReferenceStep("value"))
@@ -305,7 +322,7 @@ function test_referenced_document_editor()
     @testset "the editing verbs record an edit in the history of the file, and an undo takes it back" begin
         people_tab = find_pane("people.json"; editor)
         people = get_edited_document(people_tab)
-        file_history = get_file_content(find_page_file(get_document(people_tab).content))
+        file_history = get_file_content(get_document(people_tab).content.file)
         count = length(get_document(people))
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
@@ -330,6 +347,67 @@ function test_referenced_document_editor()
         @test get_document(people)[1]["name"].value == "Cleo"
     end
 
+    @testset "a group of changes applies as one step, and one undo takes it back" begin
+        people_tab = find_pane("people.json"; editor)
+        people = get_edited_document(people_tab)
+        file_history = get_file_content(get_document(people_tab).content.file)
+        count = length(get_document(people))
+        second = get_document(people)[2]["name"].value
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
+        change = combine_changes(make_change(insert_elements!, people, count + 1, [frank]; editor),
+                                 make_change(delete_elements!, people, 1; editor))
+        @test startswith(repr(change), "a change: Insert 1 into ")
+        @test occursin("; Delete 1 from ", repr(change))
+        @test length(get_document(people)) == count
+        apply_change!(change; editor)
+        @test length(get_document(people)) == count
+        @test get_document(people)[end]["name"].value == "Frank"
+        @test get_document(people)[1]["name"].value == second
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+        evaluate_operation(editor, UndoOperation(history))
+        @test length(get_document(people)) == count
+        @test get_document(people)[1]["name"].value == "Cleo"
+    end
+
+    # The window history records the group as one step, and the history of the
+    # file records its own part of it as one step.
+    @testset "a group of a pane change and an edit of a file is one step of the window" begin
+        note = open_pane!(PrimitiveString("note"); title = "Note", editor)
+        run_frame!(editor)
+        people_tab = find_pane("people.json"; editor)
+        people = get_edited_document(people_tab)
+        file_history = get_file_content(get_document(people_tab).content.file)
+        count = length(get_document(people))
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        apply_change!(combine_changes(make_change(close_pane!, note; editor),
+                                      make_change(delete_elements!, people, 1; editor)); editor)
+        @test find_pane("Note"; editor) === nothing
+        @test length(get_document(people)) == count - 1
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+        evaluate_operation(editor, UndoOperation(history))
+        @test find_pane("Note"; editor) !== nothing
+        @test length(get_document(people)) == count
+        close_pane!(find_pane("Note"; editor); editor)
+    end
+
+    @testset "open_file! opens a file in a tab, and a save and a load act on the tab" begin
+        path = joinpath(directory, "colors.json")
+        write(path, "[\"red\", \"green\"]")
+        tab = open_file!(path; editor)
+        @test tab isa ReferencedDocument && get_document(tab) isa PaneTab
+        @test get_document(open_file!(path; editor)) === get_document(tab)
+        show_pane!(tab; editor)
+        run_frame!(editor)
+        insert_elements!(get_edited_document(tab), 3, [JsonString("blue")]; editor)
+        @test save_file_to_disk!(tab; editor)
+        @test occursin("blue", read(path, String))
+        write(path, "[\"black\"]")
+        @test reload_file_from_disk!(tab; editor) === tab
+        @test length(get_document(get_edited_document(tab))) == 1
+        close_pane!(tab; editor)
+    end
+
     @testset "a text file answers the document of its text" begin
         path = joinpath(directory, "notes.txt")
         write(path, "hello")
@@ -344,11 +422,12 @@ function test_referenced_document_editor()
         long_directory = mktempdir()
         long_path = joinpath(long_directory, "long.json")
         write(long_path, "[" * join(("{\"n\": $i}" for i in 1:60), ", ") * "]")
-        long_editor = _make_referenced_application(long_directory; paths = [long_path])
+        long_editor = _make_referenced_application(long_directory; paths = [long_path],
+                                                   focus_file = true)
         long_tab = find_pane("long.json"; editor = long_editor)
-        page = get_document(long_tab).content
-        @test page isa FilePage
-        pane = page.content
+        view = get_document(long_tab).content
+        @test view isa FileView && is_file_document(view.file)
+        pane = view.scroll
         @test pane isa WidgetScrollPane && is_file_document(pane.content)
         items = get_edited_document(long_tab)
         @test get_document(items) isa JsonArray

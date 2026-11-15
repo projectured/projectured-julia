@@ -2,6 +2,22 @@
 # `PaneDocument`, the tab that names a content document, and the containers
 # that arrange them.
 
+"""
+    PaneDocument
+
+The abstract supertype of the documents of the window layout. Its main members are `PaneTree`, `PaneSplit`, `PaneGroup`, `PaneTab`.
+
+Use it to recognise the documents of the window layout when you walk a document: a part is one of them when `part isa PaneDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneDocument)
+    found_1 = search_documents(get_edited_document(find_pane("notes.md")), part -> part isa PaneTab)
+
+See also `search_documents`, `find_pane`, `describe_document` and `PaneTab`.
+
+For the assistant.
+"""
 abstract type PaneDocument <: Document end
 
 # ── PaneTabTitle ───────────────────────────────────────────────────────────
@@ -76,7 +92,7 @@ function make_pane_tab_title(document, name::AbstractString)
     PaneTabTitle(name; icon = () -> make_decoration_icon(decoration()),
                  icon_role = () -> find_decoration_tint(decoration()),
                  badges = () -> WidgetBadge[part for part in make_decoration_badges(decoration()) if part isa WidgetBadge],
-                 tooltip = () -> (words = format_decoration_words(decoration()); isempty(words) ? nothing : words))
+                 tooltip = () -> make_decoration_note(decoration()))
 end
 
 # ── PaneTab ────────────────────────────────────────────────────────────────
@@ -98,6 +114,8 @@ and a `PaneSplit` you write by hand needs them.
     PaneTab("Delay", make_result_plot(frame))
 
 See also `PaneTabTitle`, `PaneGroup`, `open_pane!`.
+
+For the assistant.
 """
 @document struct PaneTab <: PaneDocument
     title::Any
@@ -134,7 +152,7 @@ wants something else in a fresh tab.
 
 The content is a [`DocumentNothing`](@ref), not an empty string, because a fresh
 tab has no domain yet. The placeholder is a document any other document can
-replace: Alt+click selects it whole, a paste puts the clipboard in its place, and
+replace: an Alt+double click selects it whole, a paste puts the clipboard in its place, and
 a printable key turns it into an insertion. An empty string offers none of that —
 it renders nothing, so a click in the tab body answers nothing and the selection
 stays on the tab.
@@ -207,6 +225,8 @@ See also `PaneSplit`, `PaneTab`.
 
 The tab the group shows is the tab its own `selection` names. There is no
 `active` field.
+
+For the assistant.
 """
 @document struct PaneGroup <: PaneDocument
     tabs::CellVector
@@ -241,6 +261,8 @@ reference with `replace_referenced_value!` to split the window.
         PaneSplit(:vertical, [PaneGroup([PaneTab("Plot", plot)]), tree.root]; weights = [0.4, 0.6]))
 
 See also `PaneGroup`, `PaneTab`, `replace_referenced_value!`.
+
+For the assistant.
 """
 @document struct PaneSplit <: PaneDocument
     orientation::Symbol
@@ -277,15 +299,27 @@ See also `PaneSplit`, `PaneGroup`, `show_layout`.
 
 `drag` is transient state holding a tab drag in progress, or `nothing`. It is
 not part of the layout and is not meant to be serialized.
+
+`maximized` is the group that fills the window, or `nothing`; the layout stays as
+it is. [`find_pane_maximized_group`](@ref) says when the group shows. It is a view
+state, and a save does not write it.
+
+For the assistant.
 """
 @document struct PaneTree <: PaneDocument
     root::Any
     drag::Any = nothing
+    maximized::Any = nothing
 end
 
-# A drag in progress is not layout: it is a pointer's own transient state, gone
-# the moment the button comes up, and never something a save should freeze.
+# Neither a drag in progress nor a maximize is layout. A drag is a pointer's own
+# transient state, gone the moment the button comes up, and a maximize is a view of
+# the layout; a save freezes neither.
 pred_arguments(tree::PaneTree) = (), Pair{Symbol,Any}[:root => tree.root]
+
+# `maximized` names a group that `root` holds, so a search finds the group under
+# `root` only.
+is_field_walked(::PaneTree, name::Symbol) = name !== :maximized
 
 # ── Tree walks ─────────────────────────────────────────────────────────────
 
@@ -323,7 +357,13 @@ It reads the live tree: a tab that an undo holds is not in it.
 # Example
 
     collect_pane_tab_contents(tree, Assistant)     # the assistant tabs of the window
+
+See also `get_wrapped_document` and `get_session_assistant_list`.
+
+For the assistant.
 """
+function collect_pane_tab_contents end
+
 function collect_pane_tab_contents(tree::PaneTree, T::Type)
     found = T[]
     for group in get_pane_groups(tree)
@@ -334,6 +374,8 @@ function collect_pane_tab_contents(tree::PaneTree, T::Type)
     end
     found
 end
+
+collect_pane_tab_contents(tree::ReferencedDocument, T::Type) = collect_pane_tab_contents(get_document(tree), T)
 
 """
     find_pane_tab_layer(tab, matches) -> document or nothing

@@ -1,6 +1,24 @@
 # Fragment of `CollectionModule` — `CollectionDocument`, the union of the four
 # collection shapes the sibling fragments declare.
 
+"""
+    CollectionDocument
+
+The union of the four collection shapes: `CellVector`, `CellMatrix`, `CellTable` and
+`ListNode`. A field declared `CollectionDocument` holds any of them, and a plain
+vector given to such a field becomes a `CellVector`.
+
+Use it to recognise a collection of parts in a document: a part is one when
+`part isa CollectionDocument`.
+
+# Example
+
+    collections_1 = search_documents(get_edited_document(find_pane("data")), part -> part isa CollectionDocument)
+
+See also `search_documents`, `find_pane` and `ListDocument`.
+
+For the assistant.
+"""
 const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 
 # A plain vector converts to the list of its elements, so a field declared

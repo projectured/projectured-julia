@@ -161,7 +161,7 @@ execution does not hold it.
 """
 mutable struct TaskRuntime
     lock::ReentrantLock
-    process::Union{Base.Process,Nothing}
+    process::Union{Base.Process,ImitatedProcess,Nothing}
     reader::Union{Task,Nothing}
     # Counts every write, so a reader knows whether anything changed since it
     # last looked.
@@ -210,6 +210,16 @@ brings up to date.
   which a shadow holds and the native layout does not: every line of the stream,
   with the state of its view, which stays while the shadow follows the
   execution.
+
+Use it to read one start of a task: its status, its progress and what it printed.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskExecution)
+
+See also `TaskDocument`, `TaskStream`, `find_task_group` and `list_task_groups`.
+
+For the assistant.
 """
 @document [M, C] struct TaskExecution
     task::AbstractTask
@@ -385,13 +395,27 @@ function _interrupt_process_group(process::Base.Process)
     end
 end
 
+_interrupt_process_group(process::ImitatedProcess) = kill(process, Base.SIGINT)
+
 """
     get_task_status(code) -> Symbol
 
 The status that a result code leaves a task in. A code that says the work was
 done — a run, a test that passed, an update — is `:done`; `CANCEL` is
 `:cancelled`, `SKIP` is `:skipped`, and every other code is `:error`.
+
+Use it to turn the result code of a task into its status.
+
+# Example
+
+    status_1 = get_task_status("PASS")
+
+See also `describe_task`.
+
+For the assistant.
 """
+function get_task_status end
+
 get_task_status(code::AbstractString) =
     code in ("DONE", "PASS", "KEEP", "INSERT", "UPDATE") ? :done :
     code == "CANCEL" ? :cancelled : code == "SKIP" ? :skipped : :error
@@ -446,7 +470,9 @@ with a [`TaskFinishFailure`](@ref), which goes to `on_finish`: without it the
 task would never end, and a group that waits for it would wait forever.
 
 A `Cmd` starts in a process group of its own, so a stop reaches the programs
-that it starts, and a Ctrl+C at the REPL does not reach the task.
+that it starts, and a Ctrl+C at the REPL does not reach the task. Inside
+[`run_with_process_imitation`](@ref), a function imitates the command and no
+program starts.
 """
 function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd;
                              read_line = nothing, finish, on_finish = nothing)
@@ -454,9 +480,15 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
     output = Pipe()
     error_output = Pipe()
     started = time()
-    process = run(pipeline(command; stdout = output, stderr = error_output); wait = false)
-    close(output.in)
-    close(error_output.in)
+    imitation = _PROCESS_IMITATION[]
+    process = if imitation === nothing
+        program = run(pipeline(command; stdout = output, stderr = error_output); wait = false)
+        close(output.in)
+        close(error_output.in)
+        program
+    else
+        _start_imitated_process(imitation, command, output, error_output)
+    end
     # A process that ends at once has no identifier left to ask for.
     process_id = try
         Int(getpid(process))

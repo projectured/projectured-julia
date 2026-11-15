@@ -91,10 +91,11 @@ accepts_pasted_document(::AgentWork) = false
 
 # ── The nodes of a tree ──────────────────────────────────────────────────────
 
-# The work of an agent is a node whose children are its subagents, then its
-# background tasks.
+# The work of an agent is a node whose children are its subagents, its background
+# tasks, then the turns of its conversation.
 get_tree_children_steps(::AgentWork) =
-    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),))
+    ((FieldReferenceStep("subagents"),), (FieldReferenceStep("background_tasks"),),
+     (FieldReferenceStep("conversation"), FieldReferenceStep("turns")))
 
 # The node of a subagent: its title. Its decoration says its state as its icon,
 # and as its detail its state with the time when it started while it runs, the
@@ -113,7 +114,19 @@ function get_document_decoration(work::AgentWork)
     icon = work.state === :running ? :loader : work.state === :idle ? :circle_check :
            work.state === :requires_action ? :warning : :bot
     DocumentDecoration(; icon, conditions = condition === nothing ? DocumentCondition[] : [condition],
-                       detail = join(words, " · "), work_item = true)
+                       detail = join(words, " · "), work_item = true, tooltip = () -> _make_agent_work_note(work))
+end
+
+# What a row of a subagent says when the pointer rests on it: its title and what
+# the agent reported of its work.
+function _make_agent_work_note(work::AgentWork)
+    facts = Pair{String,Any}[]
+    work.token_count === nothing || push!(facts, "Tokens" => _format_token_count(work.token_count))
+    work.tool_call_count === nothing || push!(facts, "Tool calls" => string(work.tool_call_count))
+    work.duration === nothing || push!(facts, "Duration" => _format_assistant_duration(work.duration))
+    isempty(work.last_tool) || push!(facts, "Last tool" => work.last_tool)
+    work.stop_reason === nothing || push!(facts, "Stop reason" => replace(string(work.stop_reason), '_' => ' '))
+    TooltipNote(; title = get_document_title(work), facts)
 end
 
 # The state of the work, with the time when it started while it runs, or with how
@@ -188,14 +201,16 @@ get_task_columns(::AgentBackgroundTask) = ["kind" => 2]
 format_task_column(task::AgentBackgroundTask, column::AbstractString) =
     column == "kind" ? String(task.kind) : ""
 
-function format_task_details(task::AgentBackgroundTask, result)
-    lines = String["kind: " * String(task.kind)]
-    isempty(task.tool_call_id) || push!(lines, "tool call: " * task.tool_call_id)
-    isempty(task.subagent_id) || push!(lines, "subagent: " * task.subagent_id)
-    isempty(task.output_uri) ||
-        push!(lines, "output: " * chopprefix(task.output_uri, "file://"))
-    isempty(task.summary) || push!(lines, "summary: " * _format_one_line(task.summary))
-    lines
+# The page of a background task: its kind, the tool call and the subagent that
+# started it, its output file and its summary. A fact that has no value is left
+# out.
+function make_task_kind_document(task::AgentBackgroundTask, result)
+    facts = Pair{String,String}["kind" => String(task.kind)]
+    isempty(task.tool_call_id) || push!(facts, "tool call" => task.tool_call_id)
+    isempty(task.subagent_id) || push!(facts, "subagent" => task.subagent_id)
+    isempty(task.output_uri) || push!(facts, "output" => String(chopprefix(task.output_uri, "file://")))
+    isempty(task.summary) || push!(facts, "summary" => _format_one_line(task.summary))
+    WidgetFactGroup(facts)
 end
 
 # Stop while the agent can stop the task, and a link that opens the file of its

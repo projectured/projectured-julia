@@ -2,6 +2,22 @@
 # `GraphDocument`, its insertion cursor, and the vertex and edge nodes a graph
 # holds.
 
+"""
+    GraphDocument
+
+The abstract supertype of the documents of a graph. Its main members are `GraphGraph`, `GraphVertex`, `GraphEdge`.
+
+Use it to recognise the documents of a graph when you walk a document: a part is one of them when `part isa GraphDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa GraphDocument)
+    found_1 = search_documents(get_edited_document(find_pane("graph")), part -> part isa GraphVertex)
+
+See also `search_documents`, `find_pane`, `describe_document` and `GraphVertex`.
+
+For the assistant.
+"""
 abstract type GraphDocument <: Document end
 
 """
@@ -24,6 +40,8 @@ Use it to draw one node of a graph: a box that shows its content, such as a name
     open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
 
 See also `GraphGraph`, which holds it, and `GraphEdge`.
+
+For the assistant.
 """
 @document struct GraphVertex <: GraphDocument
     content::Any          # required: keeps the 1-arg `GraphVertex(content)` ctor
@@ -32,7 +50,10 @@ end
 
 """
 An edge from `source` to `target` (both `GraphVertex`, held by identity).
-`directed` draws an end arrowhead; `label` is an optional content document.
+`directed` draws an end arrowhead; `label` is an optional content document. An
+edge that is not `visible` draws no line and no label, and still joins its
+vertices in the layout and in the light of the vertex under the pointer, as the
+items that a decision accepts light with the decision.
 
 Use it to draw a link between two nodes of a graph, with an arrow or a label.
 
@@ -44,20 +65,23 @@ Use it to draw a link between two nodes of a graph, with an arrow or a label.
     open_pane!(GraphGraph([vertex_1, vertex_2], [edge_1]); title = "Roads")
 
 See also `GraphGraph`, which holds it, and `GraphVertex`.
+
+For the assistant.
 """
 @document struct GraphEdge <: GraphDocument
     source::Document
     target::Document
     directed::Bool = true
     label::Any = nothing
+    visible::Bool = true
 end
 
 # Mixed positional+keyword form the macro can't generate (source/target are
-# positional; directed/label are keywords). Typed args keep it distinct from the
-# macro's Rule Y `GraphEdge(source, target)`.
+# positional; directed/label/visible are keywords). Typed args keep it distinct
+# from the macro's Rule Y `GraphEdge(source, target)`.
 function GraphEdge(source::GraphVertex, target::GraphVertex;
-                   directed::Bool=true, label=nothing)
-    GraphEdge(Cell(source), Cell(target), Cell(directed), Cell(label), Cell(nothing))
+                   directed::Bool=true, label=nothing, visible::Bool=true)
+    GraphEdge(Cell(source), Cell(target), Cell(directed), Cell(label), Cell(visible), Cell(nothing))
 end
 
 """
@@ -91,6 +115,8 @@ Use it to draw nodes and the links between them: a map, a network or a state mac
     open_pane!(GraphGraph([vertex_1, vertex_2], [GraphEdge(vertex_1, vertex_2)]); title = "Roads")
 
 See also `GraphVertex` and `GraphEdge`.
+
+For the assistant.
 """
 @document struct GraphGraph <: GraphDocument
     vertices::CellVector = CellVector()
@@ -106,4 +132,30 @@ function GraphGraph(vertices::Vector, edges::Vector)
     GraphGraph(CellVector(Cell[v isa Cell ? v : Cell(v) for v in vertices]),
                CellVector(Cell[e isa Cell ? e : Cell(e) for e in edges]),
                Cell(nothing), Cell(nothing), Cell(GraphConstraint[]), Cell(nothing))
+end
+
+# The graph says what the pointer is on, for a vertex that says nothing of its own:
+# how many edges leave it and how many arrive, and its label when its content is a
+# text. With no pointer on the graph, it says the selected vertex.
+function _make_graph_vertex_note(graph::GraphGraph)
+    found = find_pointed_part(graph)
+    found === nothing && return nothing
+    place = findlast(document -> document isa GraphVertex, found.documents)
+    place === nothing && return nothing
+    vertex = found.documents[place]
+    edges = collect(graph.edges)
+    facts = Pair{String,Any}["Edges out" => string(count(edge -> edge.source === vertex, edges)),
+                             "Edges in" => string(count(edge -> edge.target === vertex, edges))]
+    content = vertex.content
+    content isa PrimitiveString && content.value !== nothing && !isempty(content.value) &&
+        push!(facts, "Label" => content.value)
+    TooltipNote(; title = "Vertex", facts)
+end
+
+# The table of the graph: a dwell answers the note of the vertex under the pointer.
+const _GRAPH_GRAPH_BINDINGS = GestureBinding[
+    make_tooltip_binding(_make_graph_vertex_note; description = "Show the edges of the vertex")]
+
+@gestures GraphGraph begin
+    splice(_GRAPH_GRAPH_BINDINGS)
 end

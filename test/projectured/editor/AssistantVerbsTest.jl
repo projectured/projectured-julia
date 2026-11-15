@@ -3,6 +3,22 @@
 # the text of any part.
 
 using Test
+import ProjecturedKernel, ProjecturedPlatform
+
+# The names that only the person calls, each in the module that defines it. The
+# assistant acts at the person's request, so it never selects, clears the undo
+# history, opens a file dialog or answers a request that an agent made.
+const _PERSON_OWN_NAMES = [
+    (ProjecturedKernel.SelectionModule, :set_selection!),
+    (ProjecturedKernel.SelectionModule, :replace_selection!),
+    (ProjecturedKernel.SelectionModule, :clear_selection!),
+    (ProjecturedPlatform.UndoModule, :clear_undo_history!),
+    (ProjecturedPlatform.ShellModule, :make_file_dialog),
+    (ProjecturedPlatform.ShellModule, :open_file_dialog!),
+    (ProjecturedPlatform.ShellModule, :save_file_dialog!),
+    (ProjecturedPlatform.ConversationModule, :answer_permission_request!),
+    (ProjecturedPlatform.ConversationModule, :answer_question_request!),
+]
 
 function _make_assistant_verbs_application(directory)
     write(joinpath(directory, "people.json"),
@@ -109,11 +125,11 @@ function test_assistant_verbs()
         @test occursin("has no command", string(describe_commands(people[1]["name"]; editor)))
         @test get_selection(editor.document) == selected
         count = length(people)
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 1
         # The part is read again at each call, so a second call sees the first.
-        @test run_command!(people, "Insert a new element"; editor) isa Text
+        @test run_command!(people, "Insert a new element"; editor) isa String
         run_frame!(editor)
         @test length(people) == count + 2
         for _ in 1:2
@@ -126,16 +142,128 @@ function test_assistant_verbs()
                        _run_assistant_code(editor, "describe_commands(get_edited_document(find_pane(\"people.json\")))"))
     end
 
-    @testset "tell: a part opens as a page in a new tab with a navigator" begin
+    @testset "change: a plain field of a part, also one that holds nothing" begin
+        open_pane!(WidgetCheckbox(true); title = "Box", editor)
+        run_frame!(editor)
+        box = get_edited_document(find_pane("Box"; editor))
+        @test get_document(box).label === nothing
+        @test replace_referenced_value!(box, :enabled, false; editor) === box
+        @test replace_referenced_value!(box, :label, "Record vectors"; editor) === box
+        run_frame!(editor)
+        @test !get_document(box).enabled && get_document(box).label == "Record vectors"
+        for _ in 1:2
+            call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+            run_frame!(editor)
+        end
+        @test get_document(box).enabled && get_document(box).label === nothing
+        @test_throws ArgumentError replace_referenced_value!(box, :colour, 1; editor)
+        @test occursin("Record", _run_assistant_code(editor,
+            "box_1 = get_edited_document(find_pane(\"Box\")); replace_referenced_value!(box_1, :label, \"Record\"); get_document(box_1).label"))
+        close_pane!(find_pane("Box"; editor); editor)
+    end
+
+    @testset "change: a dashboard joins the explorer, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        @test content isa ReferencedDocument
+        @test get_document(content) === get_session_explorer_content(; editor)
+        selected = get_selection(editor.document)
+        count = length(content.entries)
+        _run_assistant_code(editor, "content_1 = find_explorer_content(); " *
+            "insert_elements!(content_1.entries, length(content_1.entries) + 1, " *
+            "[Dashboard(\"Study\", [DashboardCard(\"Notes\", ExplorerSection(\"Notes\"))])])")
+        run_frame!(editor)
+        @test length(content.entries) == count + 1
+        @test get_document(content.entries[count + 1]).title == "Study"
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test length(content.entries) == count
+    end
+
+    @testset "change: the commands of a row of the explorer, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        title_at(k) = format_tree_node_label(get_document(content.entries[k]))
+        k = findfirst(==("Dashboards"), [title_at(index) for index in 1:length(content.entries)])
+        selected = get_selection(editor.document)
+        described = split(string(describe_commands(content.entries[k]; editor)), '\n')
+        @test [first(split(line, ": ")) for line in described] ==
+              ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
+               "New section"]
+        @test run_command!(content.entries[k], "Move the entry later"; editor) isa String
+        run_frame!(editor)
+        @test title_at(k + 1) == "Dashboards"
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test title_at(k) == "Dashboards"
+        count = length(content.entries)
+        _run_assistant_code(editor, "run_command!(find_explorer_content().entries[$k], \"Remove from explorer\")")
+        run_frame!(editor)
+        @test length(content.entries) == count - 1
+        @test get_selection(editor.document) == selected
+        call_tool(editor.tools, "undo"; args = Dict{String,Any}(), target = editor)
+        run_frame!(editor)
+        @test title_at(k) == "Dashboards" && length(content.entries) == count
+    end
+
+    @testset "tell: a part opens as a page in a new tab with a navigator, and the focus stays" begin
         is_page(node) = node isa Navigator
         before = length(search_documents(editor.document, is_page))
-        @test open_page!(people[2]; editor) isa Text
-        # The open posts the new tab, which the loop of a window drains.
-        drain_operations!(editor)
+        selected = repr(get_selection(editor.document))
+        page_tab = open_page!(people[2]; editor)
+        tab = get_document(page_tab)
+        @test tab isa PaneTab
+        @test get_navigator_page(tab.content) === get_document(people[2])
+        @test length(search_documents(editor.document, is_page)) == before + 1
         run_frame!(editor)
-        pages = search_documents(editor.document, is_page)
-        @test length(pages) == before + 1
-        @test get_navigator_page(last(pages)) === get_document(people[2])
+        @test repr(get_selection(editor.document)) == selected
+        # The page goes behind the tab that its group shows, and `show_pane!` shows it.
+        group = only(g for g in get_pane_groups(get_window_tree(editor.document))
+                     if any(t -> t === tab, g.tabs))
+        @test group.tabs[get_pane_shown_tab_index(group)] !== tab
+        show_pane!(page_tab; editor)
+        run_frame!(editor)
+        @test group.tabs[get_pane_shown_tab_index(group)] === tab
+        nowhere = extend_reference(get_reference(people[2]), FieldReferenceStep("missing"))
+        @test_throws ArgumentError open_page!(ReferencedDocument(nothing, nowhere); editor)
+    end
+
+    @testset "tell: a page shows in the explorer, its row shows, and the selection stays" begin
+        content = find_explorer_content(; editor)
+        explorer = get_document(get_edited_document(find_pane("Explorer"; editor)))
+        navigator = getfield(explorer, :navigator)[]
+        selected = get_selection(editor.document)
+        titles = [format_tree_node_label(get_document(entry)) for entry in content.entries]
+        section = content.entries[findfirst(==("Editor"), titles)]
+        @test open_explorer_page!(section; editor) isa String
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(section)
+        # A node below an entry: the row of its section opens, so its row shows.
+        below = section.entries[1]
+        open_explorer_page!(below; editor)
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(below)
+        @test any(document -> document === get_document(section),
+                  collect_open_tree_documents(getfield(explorer, :tree)[]))
+        @test get_selection(editor.document) == selected
+        # A part of a document that an entry holds, reached through another tab.
+        open_pane!(get_document(section); title = "Editor section", editor)
+        run_frame!(editor)
+        held = get_edited_document(find_pane("Editor section"; editor)).entries[1]
+        open_explorer_page!(section; editor)
+        run_frame!(editor)
+        open_explorer_page!(held; editor)
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === get_document(below)
+        @test get_selection(editor.document) == selected
+        close_pane!(find_pane("Editor section"; editor); editor)
+        # A document that the explorer does not hold is refused.
+        open_pane!(WidgetCheckbox(true); title = "Box", editor)
+        run_frame!(editor)
+        @test_throws ArgumentError open_explorer_page!(get_edited_document(find_pane("Box"; editor)); editor)
+        close_pane!(find_pane("Box"; editor); editor)
+        @test occursin("The explorer shows", _run_assistant_code(editor,
+            "open_explorer_page!(find_explorer_content().entries[1])"))
     end
 
     @testset "tell: a shape that reads the clock moves with it" begin
@@ -144,7 +272,7 @@ function test_assistant_verbs()
         @test circle.cx == 80
         set_clock_time!(editor.clock, Float64(pi))
         @test circle.cx == 20
-        @test occursin("2pi * get_reactive_clock_time",
+        @test occursin("() -> 100 * get_reactive_clock_time(editor.clock)",
                        _run_assistant_code(editor, "read_function_documentation(\"ClockModule\", \"get_reactive_clock_time\")"))
     end
 
@@ -173,21 +301,123 @@ function test_assistant_verbs()
             @test any(text -> occursin(expected, text), texts)
         end
     end
+
+    @testset "tell: a picture file shows in a card and in a zoom tab, and both hold one file document" begin
+        write(joinpath(directory, "throughput.png"), "not decoded")
+        answer = _run_assistant_code(editor, """
+            throughput_1 = open_file_document!("$(joinpath(directory, "throughput.png"))")
+            charts_1 = Dashboard("Charts", Any[DashboardCard("Throughput", throughput_1)])
+            open_pane!(charts_1; title = "Charts")
+            zoom_tab_1 = open_pane!(WidgetTransformPane(throughput_1); title = "Zoom")
+            show_pane!(zoom_tab_1)
+            throughput_1
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        picture_file = find_open_file_document(joinpath(directory, "throughput.png"); editor)
+        @test picture_file isa ImageFile
+        zoom = get_document(find_pane("Zoom"; editor))
+        @test zoom.content isa WidgetTransformPane && zoom.content.content === picture_file
+        charts = get_document(find_pane("Charts"; editor)).content
+        @test charts.cards[1].content === picture_file
+        @test is_document_held(editor, picture_file)
+        # The draw of the zoom tab, a place with no view of the file, asks for the read.
+        deadline = time() + 30
+        while time() < deadline && !(get_edited_document(picture_file) isa Image)
+            drain_operations!(editor)
+            run_frame!(editor)
+            sleep(0.02)
+        end
+        @test get_edited_document(picture_file) isa Image
+    end
+
+    @testset "tell: code reads the commits of a range and a commit of it, which opens as a page" begin
+        repository = make_git_example_repository(joinpath(directory, "repository"))
+        answer = _run_assistant_code(editor, """
+            range_1 = read_git_document!(GitCommitRange("$repository", "main"))
+            commit_1 = read_git_document!(range_1.commits[3])
+            println(commit_1.header.subject)
+            println(occursin("+LINE 19", commit_1.diff.text))
+            tab_1 = open_pane!(commit_1; title = "Commit")
+            show_pane!(tab_1)
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        @test occursin("second subject continues here", answer) && occursin("true", answer)
+        # The page draws the diff that the code read.
+        focus_pane!(find_pane("Commit"; editor); editor)
+        run_frame!(editor)
+        @test any(text -> occursin("+LINE 19", text), _drawn_texts_of(editor))
+    end
+
+    @testset "tell: a table of records grows, changes a value and keeps its rows in its file" begin
+        path = joinpath(directory, "ledger.pred")
+        answer = _run_assistant_code(editor, """
+            path_1 = "$path"
+            write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
+            tab_1 = open_file!(path_1)
+            show_pane!(tab_1)
+            ledger_1 = get_edited_document(tab_1)
+            insert_elements!(ledger_1.records, 1, [(number = 1, commit = "fd436d7", state = "waiting"),
+                                                   (number = 2, commit = "0f21330", state = "waiting"),
+                                                   (number = 3, commit = "9427234", state = "waiting")])
+            replace_referenced_value!(ledger_1.records[2], :state, "equal")
+            save_file_to_disk!(tab_1)
+            length(ledger_1.records)
+            """)
+        run_frame!(editor)
+        @test !occursin("rror", answer)
+        @test occursin("3", answer)
+        texts = _drawn_texts_of(editor)
+        @test "3 records" in texts && "equal" in texts
+        # A second window opens the file and shows the three rows, with the changed state.
+        second = _make_assistant_verbs_application(mktempdir())
+        tab_2 = open_file!(path; editor = second)
+        show_pane!(tab_2; editor = second)
+        run_frame!(second)
+        ledger_2 = get_document(get_edited_document(tab_2))
+        @test ledger_2 isa RecordTable
+        @test [record.state for record in ledger_2.records] == ["waiting", "equal", "waiting"]
+        @test "3 records" in _drawn_texts_of(second) && "equal" in _drawn_texts_of(second)
+    end
 end
 end
 
-# Every text that the last frame of `editor` drew, in the order of the walk.
+# Every text that the last frame of `editor` drew, in the order of the walk. A list
+# builds a node when its layout reads the link to it, so the walk follows only the
+# links that the layout built, from the head in both directions.
 function _drawn_texts_of(editor)
     texts = String[]
     walk(node, depth) = begin
         depth > 200 && return
         node isa GraphicsText && push!(texts, String(node.text))
-        node isa GraphicsCanvas && foreach(i -> walk(node.elements[i], depth + 1), 1:length(node.elements))
+        if node isa GraphicsCanvas
+            elements = node.elements
+            if elements isa ListNode
+                for direction in (:next, :prev)
+                    item = direction === :next ? elements : _find_drawn_list_link(elements, :prev)
+                    while item !== nothing
+                        walk(item.value, depth + 1)
+                        item = _find_drawn_list_link(item, direction)
+                    end
+                end
+            else
+                foreach(i -> walk(elements[i], depth + 1), 1:length(elements))
+            end
+        end
         node isa GraphicsViewport && walk(node.content, depth + 1)
         hasproperty(node, :windows) && foreach(window -> walk(window.content, depth + 1), node.windows)
     end
     walk(last(rendered_output(editor.backend)), 0)
     texts
+end
+
+# The neighbour of the list node `node` on the side `direction` when the layout
+# built it, else `nothing`.
+function _find_drawn_list_link(node::ListNode, direction::Symbol)
+    link = getfield(node, direction)
+    link isa ReactiveCell && !is_cell_valid(link) && return nothing
+    link[]
 end
 
 # Whether `m` belongs to the editor, whose documentation this repository writes. A
@@ -215,25 +445,121 @@ _has_example_parse_error(expression) =
     expression isa Expr && (expression.head in (:error, :incomplete) ||
                             any(_has_example_parse_error, expression.args))
 
+# The names of a guide: each name in backticks in its prose, and each function that
+# its code calls.
+function _collect_guide_names(guide::AbstractString)
+    names = String[]
+    fenced = false
+    for line in split(guide, '\n')
+        if startswith(strip(line), "```")
+            fenced = !fenced
+        elseif fenced
+            for found in eachmatch(r"(?<![\w.:])(@?[A-Za-z_][A-Za-z0-9_]*!?)\(", line)
+                push!(names, String(found.captures[1]))
+            end
+        else
+            for found in eachmatch(r"`([^`]+)`", line)
+                head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
+                head === nothing || push!(names, String(head.captures[1]))
+            end
+        end
+    end
+    unique(names)
+end
+
 """
     test_assistant_documentation(api = make_editor_api())
 
 Every name of `api` from a package of the editor carries what a model reads to use
-it: a "Use it to" line, an example that parses, and a "See also" line. Every name
-that `EDITOR_SYSTEM` and the paragraph of the loaded domains write in backticks is
-a name that the model can write.
+it: a "Use it to" line, an example that parses, and a "See also" line, which names
+only what the model can write. Every name that `APPLICATION_SYSTEM` and the paragraph of
+the loaded domains write in backticks is a name that the model can write, or a tool
+or an argument of a tool, and so is every name of the orientation guide, which the
+text names. The names
+that only the person calls are not offered, and a function of `api` that takes a
+document takes a part of that document too.
 """
 function test_assistant_documentation(api = make_editor_api())
+@testset "the names that only the person calls carry no mark and are not offered" begin
+    set = declare_api!(ToolSet(), api)
+    offered = Set{String}()
+    for entry in set.api
+        union!(offered, String.(get_api_entry_names(entry)))
+    end
+    for (module_, name) in _PERSON_OWN_NAMES
+        @test isdefined(module_, name)
+        @test !ToolModule.has_assistant_mark(ToolModule._binding_doc(module_, name)) ||
+              error(string(nameof(module_), ".", name, " carries the mark, but only the person calls it"))
+        @test !(String(name) in offered) ||
+              error(string(nameof(module_), ".", name, " is offered, but only the person calls it"))
+    end
+end
+@testset "a function that the assistant calls takes each document also as a part" begin
+    # A read of the window answers a part, a document with its place, so each
+    # parameter of a document type takes a part of that type too.
+    set = declare_api!(ToolSet(), api)
+    checked = Set{Any}()
+    for entry in set.api, (name, _) in get_api_entry_bindings(entry)
+        value = getfield(entry.module_, name)
+        (value isa Function && !(value isa Type)) || continue
+        value in checked && continue
+        push!(checked, value)
+        for method in methods(value)
+            parameters = Any[parameter isa TypeVar ? parameter.ub : parameter
+                             for parameter in Base.unwrap_unionall(method.sig).parameters[2:end]]
+            # A method with a trailing Vararg takes the call that gives it no value.
+            !isempty(parameters) && last(parameters) isa Core.TypeofVararg && pop!(parameters)
+            all(parameter -> parameter isa Type, parameters) || continue
+            for (position, parameter) in enumerate(parameters)
+                parameter !== Union{} && parameter <: Document || continue
+                types = copy(parameters)
+                types[position] = ReferencedDocument{parameter}
+                @test hasmethod(value, Tuple{types...}) ||
+                      error(string(nameof(entry.module_), ".", name, " takes a ", parameter, " as argument ",
+                                   position, " and no part: ", method))
+            end
+        end
+    end
+end
 @testset "every declared name carries its use, an example and its neighbours" begin
     set = register_editor_tools!(register_default_tools!(declare_api!(ToolSet(), api)))
+    writable = Set{String}(["editor"])
+    for entry in set.api
+        push!(writable, String(nameof(entry.module_)))
+        union!(writable, String.(get_api_entry_names(entry)))
+    end
+    union!(writable, [tool.name for tool in list_tools(set)])
+    words = union(writable, [String(parameter.name) for tool in list_tools(set)
+                                                    for parameter in tool.parameters])
     for entry in set.api, (name, _) in get_api_entry_bindings(entry)
         _is_documented_module(entry.module_) || continue
         doc = ToolModule._binding_doc(entry.module_, name)
+        # A type that a mark on its supertype offers needs no form of its own.
+        ToolModule.has_assistant_mark(doc) || continue
         example = _documented_example(doc)
         complete = occursin("\nUse it to ", doc) && occursin("\nSee also ", doc) &&
                    !isempty(example) && !_has_example_parse_error(Meta.parseall(example))
         @test complete || error(string(nameof(entry.module_), ".", name,
                                        " lacks a \"Use it to\" line, a \"See also\" line or an example that parses"))
+        # The example is what a model copies, so each function that it calls is one
+        # that the model can write, a function of Base, or one that the example defines.
+        for found in eachmatch(r"(?<![\w.])(@?[A-Za-z_][A-Za-z0-9_]*!?)\(", example)
+            called = String(found.captures[1])
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(called)), set.api)
+            @test called in writable || isdefined(Base, Symbol(called)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " calls `", called,
+                               "` in its example, which no model can write"))
+        end
+        for paragraph in split(doc, "\n\n"), found in eachmatch(r"`(@?[A-Za-z_][A-Za-z0-9_]*!?)", paragraph)
+            startswith(paragraph, "See also ") || continue
+            neighbour = String(found.captures[1])
+            # A word in backticks that no module of the editor defines, such as a
+            # keyword argument, names nothing to call.
+            is_binding = any(entry -> isdefined(entry.module_, Symbol(neighbour)), set.api)
+            @test neighbour in writable || isdefined(Base, Symbol(neighbour)) || !is_binding ||
+                  error(string(nameof(entry.module_), ".", name, " names `", neighbour,
+                               "` in its \"See also\" line, which no model can write"))
+        end
         # A function that the assistant calls carries its docstring on the generic
         # function, which the search answers. A macro has no generic form.
         value = getfield(entry.module_, name)
@@ -242,17 +568,18 @@ function test_assistant_documentation(api = make_editor_api())
         @test generic || error(string(nameof(entry.module_), ".", name,
                                       " has no docstring on its generic function"))
     end
-    writable = Set{String}(["editor"])
-    for entry in set.api
-        push!(writable, String(nameof(entry.module_)))
-        union!(writable, String.(get_api_entry_names(entry)))
-    end
-    union!(writable, [tool.name for tool in list_tools(set)])
-    for found in eachmatch(r"`([^`]+)`", EDITOR_SYSTEM * make_domain_system())
+    for found in eachmatch(r"`([^`]+)`", APPLICATION_SYSTEM * make_domain_system())
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
         name = String(head.captures[1])
-        @test name in writable || error("the system text names `" * name * "`, which no model can write")
+        @test name in words || error("the system text names `" * name * "`, which no model can write")
+    end
+    # The guide that the text names. A name that no declared module defines, such as
+    # a variable of an example or a keyword, is no name of the editor.
+    for name in _collect_guide_names(ToolModule.read_guide("guide/orientation"))
+        is_binding = any(entry -> isdefined(entry.module_, Symbol(name)), set.api)
+        @test name in words || isdefined(Base, Symbol(name)) || !is_binding ||
+              error("the orientation guide names `" * name * "`, which no model can write")
     end
 end
 end

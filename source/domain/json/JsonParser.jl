@@ -160,7 +160,19 @@ end
 
 Parse a JSON string into a `JsonDocument`. Errors on malformed input or trailing
 characters.
+
+Use it to read JSON text into a document that you can open in a pane or edit.
+
+# Example
+
+    json_1 = parse_json("[1, 2, 3]")
+
+See also `parse_yaml` and `parse_xml`.
+
+For the assistant.
 """
+function parse_json end
+
 function parse_json(text::AbstractString)
     p = _Cur(collect(String(text)), 1)
     value = _value!(p)

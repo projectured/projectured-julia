@@ -227,7 +227,13 @@ const _ARGUMENT_LINE_WIDTH = 80
 # `depth` when `depth` is given. The keys of a dictionary are in key order.
 function _write_json(io::IO, value, depth::Union{Nothing,Int} = nothing)
     if value isa AbstractDict
-        items = sort!([(string(key), item) for (key, item) in value]; by = first)
+        # A vector of a concrete type: `sort!` of a comprehension over an abstract
+        # dictionary is a call that a package loaded later can make invalid.
+        items = Tuple{String,Any}[]
+        for (key, item) in value
+            push!(items, (string(key)::String, item))
+        end
+        sort!(items; by = first)
         _write_json_items(io, items, depth, '{', '}') do (key, item)
             _write_json(io, key)
             print(io, ": ")
@@ -748,8 +754,8 @@ end
 # Whether two pieces of Julia code are the same tokens on the same lines, apart
 # from the spaces between the tokens. A space inside a string is part of the
 # string's token, and a comment is a token of its own. A line break counts, so
-# code of several statements, which the Julia notation prints as an indented
-# block with an empty first and last line, keeps its string.
+# code whose print puts a token on another line, or adds an empty line, keeps its
+# string.
 _has_same_tokens(code, other) = _collect_code_tokens(code) == _collect_code_tokens(other)
 
 const _JuliaSyntax = Base.JuliaSyntax
@@ -963,5 +969,13 @@ function get_document_decoration(evaluator::EvaluatorToplevel)
     conditions = DocumentCondition[]
     any(form -> form.is_running, forms) && push!(conditions, DocumentCondition(:running))
     !isempty(forms) && last(forms).is_error && push!(conditions, DocumentCondition(:failed))
-    DocumentDecoration(; icon = :terminal, conditions)
+    DocumentDecoration(; icon = :terminal, conditions, tooltip = () -> _make_evaluator_note(evaluator))
+end
+
+# What a row of the evaluator says when the pointer rests on it: what it does,
+# and how many forms it holds and how many failed.
+function _make_evaluator_note(evaluator::EvaluatorToplevel)
+    forms = [element for element in evaluator.elements if element isa EvaluatorForm]
+    TooltipNote(; title = "Evaluator", text = "Type Julia code, and evaluate it.",
+                facts = ["Forms" => string(length(forms)), "Failed" => string(count(form -> form.is_error, forms))])
 end

@@ -1,6 +1,6 @@
 # The documentation
 
-> **Kind:** reference · **Status:** current · **Stands on:** every document in this folder
+> **Kind:** reference · **For:** user, developer · **Status:** current · **Stands on:** every document in this folder
 
 This folder holds the documents of the editor, from why it exists to how the
 code is laid out. This file is the map. It draws the chain that derives the code
@@ -46,14 +46,19 @@ In the order of the chain. The kind is the one in the document's header.
 | --- | --- | --- |
 | [product-vision.md](requirement/product-vision.md) | why | What is the long-term potential, which pain does it address, and how does it relate to other tools? |
 | [accepted-requirements.md](requirement/accepted-requirements.md) | what | What must the editor do, as capabilities observable from outside? `PR-…` |
+| [candidate-requirements.md](requirement/candidate-requirements.md) | what | Which requirements are proposed but not yet reviewed? `PR-…` |
 | [delivery-roadmap.md](requirement/delivery-roadmap.md) | what | What is delivered, what is in progress, and what is next? |
 | [architecture-decisions.md](design/architecture-decisions.md) | decision | Why is it built this way, and why not otherwise? |
+| [compile-ahead.md](design/compile-ahead.md) | decision | What is compiled ahead of time, where is it saved, and what does each preference choose? In design. |
 | [architecture-invariants.md](rule/architecture-invariants.md) | rule | What must every change respect, so the system stays tractable as it grows? `PAR-…` |
 | [architecture-rules.md](rule/architecture-rules.md) | rule | How is the code divided, and where does a new thing belong? |
 | [package-rules.md](rule/package-rules.md) | rule | What is a package for, what may it depend on, and which one do I load? |
 | [code-quality-rules.md](rule/code-quality-rules.md) | rule | How does the code read, and what keeps it readable? |
 | [naming-rules.md](rule/naming-rules.md) | rule | How is a package, a file, a module, a type or a function named? |
 | [writing-rules.md](rule/writing-rules.md) | rule | How is a document written, and what does `test_documentation()` check? |
+| [layout-rules.md](rule/layout-rules.md) | rule | How does a widget or a layout get its size? |
+| [spacing-rules.md](rule/spacing-rules.md) | rule | How much space goes where in a window, and who gives it? |
+| [type-rules.md](rule/type-rules.md) | rule | Which font does each text of a window take, and why? |
 | [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
 | [concepts.md](design/concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
 | [engineer-tour.md](design/engineer-tour.md) | design | How do the concepts combine into a system, each one with its real code? |
@@ -91,7 +96,7 @@ In the order of the chain. The kind is the one in the document's header.
 Every document starts with one block-quote line under its title:
 
 ```markdown
-> **Kind:** decision · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
+> **Kind:** decision · **For:** developer · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
 ```
 
 **A slide deck is exempt.** A file under `presentation/` that Marp renders is a
@@ -113,6 +118,13 @@ folder's own [README.md](presentation/README.md) carries the header and says wha
 
 `evidence`, `study` and `history` are three more kinds, which no document here
 carries yet. Add one when the folder that holds it arrives.
+
+**For** says who reads the document: `user`, `developer`, or `user, developer`.
+A user uses the editor, and so does the assistant in a window of the editor. A
+developer changes the code of the editor. The documents under `package/`,
+`design/`, `rule/` and `requirement/` are for developers. `search_guides`
+searches the documents for users, unless its `audience` names the developers or
+all.
 
 **Status** is `current`, `snapshot <date>`, `superseded by <document>`, or
 `generated, do not edit`. A qualifier can follow `current` after a semicolon.

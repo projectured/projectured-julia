@@ -207,14 +207,14 @@ function test_gesture_help()
     # A decorator's reader answers a collection with its own gestures *and* the
     # wrapped content's, merged — where routing one gesture would stop at the first.
     @testset "a collection descends into a clipboard's content" begin
-        content = PrimitiveString("hello")
+        content = PrimitiveBool(false)
         slice = ClipboardSlice(content)
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
         answer = read_intent(p, nothing, Intent(CollectIntents()), iomap).operation
         descs = [i.description for i in answer.intents]
         @test "Copy" in descs                # the clipboard's own gesture
-        @test "Insert character" in descs    # descended into the PrimitiveString content
+        @test "Make it true" in descs        # descended into the PrimitiveBool content
     end
 end
 end

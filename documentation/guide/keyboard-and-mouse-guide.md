@@ -1,6 +1,6 @@
 # The keyboard and the mouse
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 The keys and the clicks that work everywhere, and the two ways to see the rest: F1 lists what works where the selection is now, and Ctrl+Shift+P runs a command by its name.
 
@@ -12,22 +12,32 @@ A key press goes to the view under the selection, and each view says which keys 
 
 | Key | What it does |
 | --- | --- |
-| arrow keys | move the selection by one position |
+| arrow keys | move the selection by one position; Left and Right on a part that is selected as a whole put the caret at the start or at the end of its text, or move to the part before or after it where the part has no text; in a table, the arrow keys move the selection over its cells, rows, columns and headers |
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
-| Alt + arrow keys | move the selection over whole parts, not positions |
-| Alt + click | select the part under the pointer as a whole |
+| Home, End | in a text, the start and the end of the line; Home goes first to the first character that is not a space, and a second press goes to the start of the line |
+| Page Up, Page Down | in a text, move the caret by the height that shows; the view scrolls as far, so the caret keeps its place on the screen |
+| Shift + a key that moves the caret | select from the caret to where the key moves it |
+| Ctrl + A | in a text, select the whole text; in code, select the whole document |
+| Alt + Up, Alt + Down | widen the selection to the part that holds it, or narrow it to the first part inside |
+| Alt + Left, Alt + Right | move the selection to the part before or after it |
+| Alt + click | put the caret at the character under the pointer, in any text; it never acts, so a button does not press |
+| Alt + double click | select the innermost part under the pointer as a whole: a value, a cell, a header, a row, a file; it never acts; where the pointer is on no part, it selects the container around it |
 | right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
 | F2, while a menu is open | add the menu of the part around it |
 | Shift + F2, while a menu is open | show one menu fewer |
 | rest the pointer | a tooltip says what the thing under it is |
-| click | put the selection where you click |
+| click | do what the part under the pointer does: a button presses, a tab opens its page, a checkbox or a switch toggles, a link opens its target, a menu item runs, a chevron opens or closes its group, the text of a table header selects its column or row, a row of a list or a tree selects its row; on a text with no such use, put the caret where you click; on a part with no text and no use, select the part as a whole; on the padding of a row, a cell or a card, select that row, cell or card |
 | double click on a file in the Files pane | open that file |
+
+A click does what the part is for. Alt + click is always the caret, so you can put a caret into any text, for example to copy it. Alt + double click always selects the part as a whole. Alt with an arrow key then moves that selection: up to the part that holds it, down into it, or to the part beside it. For example, an Alt + double click on the text `Alice` in a JSON string selects the value. One Alt + Up selects the JSON string, and more Alt + Up go out to the object and the file.
+
+**Select in a text that the editor shows.** A text such as a path in a card, a label or the text of a button is read-only, but you can select in it and copy it. Click it to put the caret; on a button, Alt+click it, because a click presses the button. Move the caret with the arrow keys, Home and End. Hold Shift with them, or drag over the text, to select a range; on a button, drag with Alt. Ctrl+C copies the range. Typing, Delete and Ctrl+V change nothing there.
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
 Only a left click moves the selection. A right click opens the menu of the lit part, and leaves the selection where it was. See [the context menu](context-menu-guide.md) for the steps, the keys that add more menus, and the command that opens one with no pointer.
 
-The part under the pointer is lit. In the text of a tree, such as a JSON document, the brackets around the part under the pointer are lit too: the innermost pair is orange, and each pair further out is grayer. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves. See [the pointer](pointer-guide.md) for more, [the tooltip](tooltip-guide.md) for the window a rest of the pointer opens, and [gestures](gestures-guide.md) for a double click, a sequence of keys and the rest of them in one place. A menu, a dropdown list, a dialog, a tooltip and a context menu each stand and close the same way; see [the popup window](popup-window-guide.md). See [drag and drop](dragging-guide.md) for how to drag a slider, a divider, a tab or a list element.
+The part under the pointer is lit. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves. See [the pointer](pointer-guide.md) for more, [the tooltip](tooltip-guide.md) for the window a rest of the pointer opens, and [gestures](gestures-guide.md) for a double click, a sequence of keys and the rest of them in one place. A menu, a dropdown list, a dialog, a tooltip and a context menu each stand and close the same way; see [the popup window](popup-window-guide.md). See [drag and drop](dragging-guide.md) for how to drag a slider, a divider, a tab or a list element.
 
 ## Change
 
@@ -35,10 +45,12 @@ The part under the pointer is lit. In the text of a tree, such as a JSON documen
 | --- | --- |
 | a character key | type into the selected string, number or name |
 | Backspace, Delete | remove the character before or after the caret |
-| Ctrl + Delete | remove the selected part |
+| Ctrl + Backspace, Ctrl + Delete | remove the word before or after the caret, in its line |
+| Tab, Shift + Tab | in a text of many lines, such as a text file or the chat draft, indent the line or the selected lines, or take one step of indentation away; in a field or in code, Tab keeps the meaning of the place, such as the next field |
+| Alt + Delete | remove the selected part, where a domain takes it, such as a part of a chart or a version |
 | Insert | insert a new element beside the selected one |
 | Enter | finish the part you are typing |
-| Escape | leave what you are typing, or close the window |
+| Escape | leave what you are typing; in an example window of the REPL it also closes the window |
 | Ctrl + Z | take the last change back |
 | Ctrl + Y, Ctrl + Shift + Z | put it back |
 
@@ -62,6 +74,9 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | --- | --- |
 | Ctrl + T | a new tab |
 | Ctrl + W | close the focused tab |
+| Ctrl + O | open the Open dialog, in the folder of the file of the focused tab |
+| Ctrl + P | find a file of the folders of the Explorer by its name, and open it |
+| Ctrl + Q | quit the program (File > Exit) |
 | Ctrl + Shift + D | duplicate the focused tab |
 | Ctrl + Page Down, Ctrl + Page Up | the next or the previous tab |
 | Ctrl + Tab, Ctrl + Shift + Tab | the next or the previous group of tabs |
@@ -86,6 +101,7 @@ every page, also where the page uses the same key.
 | click on **Names**, **Path** or **Types** in the bar | show the address as the next of the three views; Shift + click shows the one before |
 | Ctrl + click on a link in a markdown or rst source view | follow the link; Ctrl + Shift + click opens it in a new tab |
 | click on a link in a rendered markdown or rst page | follow the link; Ctrl + click opens it in a new tab |
+| click on a link of a page, such as a name in the first column of a table or a title in the Tasks pane | open its page here; Ctrl + click or a middle click opens it in a new tab; Return on a link that has the focus opens it here |
 | Ctrl + L, or click on the path in the path view | edit the path in place; Tab takes the hint of a field name, Enter opens the path, Escape ends the edit |
 | right click on a part of a page | **Open as a page** or **Open in a new tab** |
 | double click on the number of a row of a data frame | open the row as a page: a form of its columns |
@@ -95,7 +111,7 @@ every page, also where the page uses the same key.
 | Key | What it does |
 | --- | --- |
 | Ctrl + S | save the file of the focused tab |
-| Ctrl + O | read that file again from disk |
+| F5 | read that file again from disk; in a data frame view, read the frame again |
 | Enter on a file in the Files pane | open it |
 | **Open** and **Save As** in the menu bar | a file outside the directory the Files pane lists |
 
@@ -140,10 +156,36 @@ The appearance tab opens with Ctrl + comma, with the palette button of the toolb
 
 A change shows at once. Ctrl + Z in the window takes back a change of a theme; a step of the zoom or of a scale has its reset button instead. Save keeps the appearance for the next start, and Load reads the saved one back.
 
+## Move through a chart
+
+A chart shows a window of its data. The keys and the mouse move that window; they change no data.
+
+| Key or mouse | What it does |
+| --- | --- |
+| Ctrl + wheel over the plot | zoom in or out about the pointer |
+| Ctrl + wheel over an axis | zoom that axis alone |
+| wheel, Shift + wheel | scroll up and down, scroll across |
+| drag in the plot | zoom to the box that you draw; a flat box zooms across alone, a narrow box up and down alone |
+| Shift + drag, drag with the middle button | move the window with the pointer |
+| drag an axis | move that axis alone |
+| double click in the plot | show all the data |
+| double click an axis | fit that axis: the y axis fits the data that shows across |
+| Ctrl + plus, Ctrl + minus, Ctrl + 0 | zoom in, zoom out, show all the data |
+| plus, minus, 0 | the same |
+| Page Up, Page Down | scroll a page up or down |
+| Alt + Page Up, Alt + Page Down | scroll a page to the left or to the right |
+| Shift + arrows | move the window a little |
+| Escape during a drag | stop it, and put back the window |
+| right click | a menu of these actions, with their keys |
+
+While the pointer is over a chart, three buttons show in its top-right corner: zoom in, zoom out, and show all the data. A zoomed chart has a scroll bar along the bottom or the right edge of its plot, which shows where the window is in the data; a click on its track scrolls a page, and a drag of its thumb moves the window. The window stops at the edges of the data, so a zoom out stops at all the data. A chart that shows all its data leaves the wheel to the page around it, and Ctrl + 0 to the zoom of the window. The arrows still move the selection between the parts of the chart.
+
+A sequence chart moves the same way along its time. A drag in it zooms the time alone, across all the lanes. In a horizontal sequence chart, Page Up and Page Down scroll the lanes, and Alt + Page Up and Alt + Page Down scroll the time; in a vertical one the two swap. Its buttons and its menu show the whole trace in place of all the data. Shift + left and Shift + right still move to the previous or the next event on the lane.
+
 ## The two lists
 
 - **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open. Help > Gestures opens it too.
-- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. It finds a command that has no key of its own. Help > Command palette opens it too.
+- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. The letters must come in the order of the name, and they need not touch. It finds a command that has no key of its own. The list opens at the top of the window. Escape closes it. Help > Command palette opens it too.
 
 ## The settings
 

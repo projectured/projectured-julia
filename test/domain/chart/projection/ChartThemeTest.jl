@@ -19,7 +19,7 @@ function test_chart_theme()
     @test !isempty(plain)
     @test sort(unique(plain)) == [12, 14]
 
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), ChartTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), ChartTheme)
     large = draw(theme)
     @test large == round.(Int, plain .* 1.5)
     @test sort(unique(large)) == [18, 21]
@@ -30,7 +30,7 @@ end
     light = get_scaled_theme!(Appearance(), ChartTheme)
     # The solid step of a Radix scale is the same in both modes, so the palette
     # shows the change: the series of a chart follow it.
-    other = get_scaled_theme!(Appearance(color_palette = "tailwind"), ChartTheme)
+    other = get_scaled_theme!(Appearance(colors = AppearanceColors(color_palette = "tailwind")), ChartTheme)
     @test light.series_colors[1] == resolve_theme_color(ColorRole(:series_1), Appearance())
     @test light.series_colors != other.series_colors
     chart = _line_chart()
@@ -51,7 +51,7 @@ end
     @test unwrap_cell(p.style).padding == 8
 
     scaled = ChartPlotToGraphicsCanvas(measure = FixedMeasure(8, 12, 4, 0),
-                                       theme = get_scaled_theme!(Appearance(spacing_scale = 2.0),
+                                       theme = get_scaled_theme!(Appearance(scale = AppearanceScale(spacing_scale = 2.0)),
                                                                  ChartTheme))
     @test unwrap_cell(scaled.style).padding == 16
 end

@@ -42,7 +42,7 @@ end
 _format_work_item_line(group::TaskGroupDocument) = _format_group_line(group)
 
 """
-    list_task_groups(; editor = get_evaluation_editor()) -> Text
+    list_task_groups(; editor = get_evaluation_editor()) -> String
 
 **Every open group of tasks of this session, newest first**, one line each: the
 identifier, the title, the kind, the state, the finished tasks over all of them,
@@ -57,14 +57,16 @@ Use it to find a group that another person or another conversation started.
     list_task_groups()
 
 See also `find_task_group`, `describe_task_group`.
+
+For the assistant.
 """
 function list_task_groups end
 
 function list_task_groups(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "list_task_groups") do
         items = reverse(collect_work_items(get_session_task_group_list(; editor)))
-        isempty(items) && return Text("No group of tasks is open in this session.")
-        Text(join((_format_work_item_line(item) for item in items), "\n"))
+        isempty(items) && return "No group of tasks is open in this session."
+        join((_format_work_item_line(item) for item in items), "\n")
     end
 end
 
@@ -83,6 +85,8 @@ started is the value its start verb answered.
     t3 = find_task_group("T3")
 
 See also `list_task_groups`.
+
+For the assistant.
 """
 function find_task_group end
 
@@ -114,7 +118,7 @@ function _format_task_line(group::TaskGroupDocument, index::Integer)
 end
 
 """
-    describe_task_group(group; tasks = :unexpected, limit = 20, editor = get_evaluation_editor()) -> Text
+    describe_task_group(group; tasks = :unexpected, limit = 20, editor = get_evaluation_editor()) -> String
 
 **What a group of tasks did**: the summary line of `opp_repl` (how many tasks, of
 each result, expected or not, and the time), the reason of what was not
@@ -131,6 +135,8 @@ Use it to tell the person how a group of tasks went, and which tasks failed.
     describe_task_group(t1; tasks = :all, limit = 10)
 
 See also `describe_task`, `get_task_output`, `list_task_groups`.
+
+For the assistant.
 """
 function describe_task_group end
 
@@ -162,24 +168,33 @@ function _describe_task_group(group::TaskGroupDocument, tasks::Symbol, limit::In
         push!(lines, _format_task_line(group, index))
     end
     length(indices) > limit && push!(lines, string("… and ", length(indices) - limit, " more"))
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 """
-    describe_task(group, index; editor = get_evaluation_editor()) -> Text
+    describe_task(group, index; editor = get_evaluation_editor()) -> String
 
-**Everything of one task of a group**: its state and its result, what its kind
-says of it (`format_task_details`, such as its command line, its exit code and
-its error), its process, its time, how many executions ran and what the earlier
-ones ended with, and the last lines of its output and of its errors.
+**What every task of a group has**: its state and its result, its process, its
+time, how many executions ran and what the earlier ones ended with, and the last
+lines of its output and of its errors.
+
+What the kind of the task says of it, such as its command line, its exit code or
+its statistics, is not in the text. It is in the result and in the page of the
+kind, which you read as Julia values: `document = group.tasks[3]` is the
+document of the task, `get_task_document_result(document)` is its result, with
+its fields, and `document.kind_document` is the page of its kind
+([`make_task_kind_document`](@ref)), or `nothing` for a kind with no page.
 
 Use it to tell the person why one task failed.
 
 # Example
 
     describe_task(t1, 3)
+    get_task_document_result(t1.tasks[3])
 
 See also `get_task_output`, `describe_task_group`.
+
+For the assistant.
 """
 function describe_task end
 
@@ -187,12 +202,28 @@ function describe_task(group::TaskGroupDocument, index::Integer; editor = get_ev
     run_on_editor_task!(() -> _describe_task(group, index), editor; description = "describe_task")
 end
 
+describe_task(group::ReferencedDocument, index::Integer; keywords...) =
+    describe_task(get_document(group), index; keywords...)
+
 function _describe_task(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
-    task = getfield(document, :task)[]
+    _describe_task_facts(String[_format_task_line(group, index)], document)
+end
+
+# What a task alone did: its title and its state, then what every task has, at
+# most `limit` lines.
+function _describe_task_document(document::TaskDocument, limit::Integer)
+    result = get_task_document_result(document)
+    state = result === nothing ? String(get_task_document_status(document)) : format_task_result(result)
+    first_line = string(get_document_title(document), " — ", state)
+    lines = split(_describe_task_facts(String[first_line], document), "\n")
+    join(first(lines, limit), "\n")
+end
+
+# The facts of a task after its first line: its process, its time, its executions
+# and the last lines of its streams.
+function _describe_task_facts(lines::Vector{String}, document::TaskDocument)
     current = get_current_task_execution(document)
-    result = current === nothing ? nothing : current.result
-    lines = String[_format_task_line(group, index), format_task_details(task, result)...]
     if current !== nothing
         current.process_id === nothing || push!(lines, "process: " * string(current.process_id))
         started = current.start_time
@@ -212,14 +243,16 @@ function _describe_task(group::TaskGroupDocument, index::Integer)
         push!(lines, label * ":")
         append!(lines, last(output, 10))
     end
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 """
-    get_task_output(group, index; stream = :stdout, lines = 50, editor = get_evaluation_editor()) -> Text
+    get_task_output(group, index; stream = :stdout, lines = 50, editor = get_evaluation_editor()) -> String
+    get_task_output(task; stream = :stdout, lines = 50, editor = get_evaluation_editor()) -> String
 
 **The last `lines` lines that one task of a group printed** on `stream`,
-`:stdout` or `:stderr`.
+`:stdout` or `:stderr`, or that a task alone printed, as `run_tasks!(task)`
+answered it.
 
 Use it to read what a task printed, such as the error of a task that failed.
 
@@ -228,6 +261,8 @@ Use it to read what a task printed, such as the error of a task that failed.
     get_task_output(t1, 3; stream = :stderr)
 
 See also `describe_task`.
+
+For the assistant.
 """
 function get_task_output end
 
@@ -237,41 +272,163 @@ function get_task_output(group::TaskGroupDocument, index::Integer;
     run_on_editor_task!(editor; description = "get_task_output") do
         document = _get_task_documents(group)[index]
         output = collect_task_document_lines(document, stream === :stdout ? :output : :error_output)
-        isempty(output) && return Text("(nothing printed)")
-        Text(join(last(output, lines), "\n"))
+        isempty(output) && return "(nothing printed)"
+        join(last(output, lines), "\n")
+    end
+end
+
+get_task_output(group::ReferencedDocument, index::Integer; keywords...) =
+    get_task_output(get_document(group), index; keywords...)
+
+# The output of a task alone, which `run_tasks!(task)` answered, or a part that
+# holds it.
+get_task_output(task::ReferencedDocument; keywords...) = get_task_output(get_document(task); keywords...)
+
+function get_task_output(document::TaskDocument; stream::Symbol = :stdout, lines::Integer = 50,
+                         editor = get_evaluation_editor())
+    stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")
+    run_on_editor_task!(editor; description = "get_task_output") do
+        output = collect_task_document_lines(document, stream === :stdout ? :output : :error_output)
+        isempty(output) && return "(nothing printed)"
+        join(last(output, lines), "\n")
     end
 end
 
 # ── Acting on a group ───────────────────────────────────────────────────────
 
 """
-    wait_for_task_group!(editor, group) -> group
+    run_tasks!(group; title = group.name, editor = get_evaluation_editor()) -> TaskGroupDocument
+    run_tasks!(task; title = format_task_parameters(task), editor = get_evaluation_editor()) -> TaskDocument
+
+**Start a group of tasks, or one task alone,** and answer its document at once.
+The group joins the list of the session, so the Tasks pane shows it with its
+progress, each task has its log, exit status and stop, and a person can stop it.
+The answer goes to `describe_task_group`, `get_task_output`, `wait_for_tasks!`,
+`stop_tasks!`, `stop_task!`, `rerun_tasks!` and `close_task_group!`. It places no
+tab and moves no selection: `open_pane!(answer)` places one when the person asks.
+A group that started before throws an `ArgumentError`: run it again with
+`rerun_tasks!`.
+
+The group is a `TaskGroup` of `ProgramTask`s, or of any kind of task, and a task
+of a group can be a group. **For a chain, pass `jobs = 1` and
+`stop_at_failure = true`**: each step then starts only after the step before it
+ended as expected, and the steps after a failed one end `CANCEL` with
+`Not started: …`. The default of `jobs` is the count of processor threads, so
+the steps would run at once. End the turn after the start when the group runs for
+minutes: the assistant starts a turn when the group ends, while it has wakes left.
+
+**One task alone**, such as one command, is a row of its own, with an identifier
+`T…` as a group has, and no group around it. Use it when the next command depends
+on what this one printed. A program in a folder that does not exist throws, and
+no row is added. Each row records who started it.
+
+Use it to run programs, such as a checkout, a build and an export, as tasks
+that the person sees and can stop.
+
+# Example
+
+    w = "/work/inet"
+    g = run_tasks!(TaskGroup([ProgramTask(`git checkout --detach 3fa2c1d`; working_directory = w,
+                                          name = "checkout"),
+                              ProgramTask(`make -j8`; working_directory = w,
+                                          environment = Dict("MODE" => "release"), name = "build")];
+                             name = "commit 3fa2c1d", jobs = 1, stop_at_failure = true);
+                   title = "commit 3fa2c1d")
+    t = run_tasks!(ProgramTask(`make -j8`; working_directory = w, name = "build"))
+
+See also `wait_for_tasks!`, `describe_task_group`, `stop_tasks!`, `rerun_tasks!`.
+
+For the assistant.
+"""
+function run_tasks! end
+
+# A task alone is a row of its own, and its start is an operation of the editor.
+function run_tasks!(task::AbstractTask; title::AbstractString = format_task_parameters(task),
+                    editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "run_tasks!") do
+        document = TaskDocument(task; identifier = make_task_group_identifier(), title = String(title))
+        evaluate_operation(editor, StartTaskOperation(document))
+        document
+    end
+end
+
+function run_tasks!(group::TaskGroup; title::AbstractString = group.name, editor = get_evaluation_editor())
+    lock(() -> group.start_time, group.runtime.lock) === nothing ||
+        throw(ArgumentError("the group " * repr(group.name) * " started before: run it again with rerun_tasks!"))
+    run_on_editor_task!(editor; description = "run_tasks!") do
+        document = wrap_task_group_document(group; title = String(title))
+        evaluate_operation(editor, StartTaskGroupOperation(document))
+        document
+    end
+end
+
+"""
+    wait_for_task_group!(editor, group; timeout = nothing) -> group
 
 Wait for `group` to end, and then copy what its tasks said into their documents.
 The wait is on the calling task, so a person at the REPL waits while the window
 draws, and the copy runs on the task of the editor. Called on the task of the
 editor, it holds the window until the group ends.
 
+With a `timeout` in seconds, the wait also ends when that time has passed, and
+the group goes on; what its tasks said so far is copied, and
+[`is_task_group_running`](@ref) tells the two ends apart. A model that waits
+for a long group waits in steps shorter than the time limit of its client.
+
 In a code unit, a stop of the unit ends the wait and throws `InterruptException`;
 the group goes on, and its own stop stops it.
 """
-function wait_for_task_group!(editor, group::TaskGroupDocument)
+function wait_for_task_group!(editor, group::TaskGroupDocument; timeout::Union{Real,Nothing} = nothing)
     task_group = get_task_group(group)
+    deadline = timeout === nothing ? Inf : time() + Float64(timeout)
+    scheduler = task_group.runtime.scheduler
     if get_current_code_unit() === nothing
-        wait_task_group(task_group)
+        if timeout === nothing
+            wait_task_group(task_group)
+        elseif scheduler !== nothing
+            timedwait(() -> istaskdone(scheduler), max(0.0, deadline - time()); pollint = 0.1)
+        end
     else
-        scheduler = task_group.runtime.scheduler
-        while scheduler !== nothing && !istaskdone(scheduler)
-            wait_in_code_unit(0.1)
+        while scheduler !== nothing && !istaskdone(scheduler) && time() < deadline
+            wait_in_code_unit(min(0.1, max(0.0, deadline - time())))
         end
     end
-    run_on_editor_task!(() -> wait_task_group_document(group), editor)
+    if is_task_group_running(group)
+        run_on_editor_task!(() -> _sync_task_group_shadow!(group), editor)
+    else
+        run_on_editor_task!(() -> wait_task_group_document(group; editor), editor)
+    end
     group
 end
 
+"""
+    is_task_group_running(group) -> Bool
+
+Whether the tasks of `group` still run: its scheduler started and has not
+ended.
+
+Use it to tell whether a group of tasks still runs.
+
+# Example
+
+    is_task_group_running(find_task_group("S1"))
+
+See also `describe_task_group` and `stop_tasks!`.
+
+For the assistant.
+"""
+function is_task_group_running end
+
+function is_task_group_running(group::TaskGroupDocument)
+    scheduler = get_task_group(group).runtime.scheduler
+    scheduler !== nothing && !istaskdone(scheduler)
+end
+
+is_task_group_running(group::ReferencedDocument) = is_task_group_running(get_document(group))
+
 
 """
-    stop_tasks!(group; editor = get_evaluation_editor()) -> Text
+    stop_tasks!(group; editor = get_evaluation_editor()) -> String
 
 **Stop every task of a group.** A task that runs is interrupted, so it can end
 in order and still write what it writes at its end, and a task that waits does
@@ -285,18 +442,21 @@ Use it to stop, cancel or abort a group of tasks.
     stop_tasks!(t1)
 
 See also `stop_task!` for one task, `rerun_tasks!`.
+
+For the assistant.
 """
 function stop_tasks! end
 
 function stop_tasks!(group; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_tasks!") do
-        stop_work_item!(group)
-        Text(string("Stopping the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), "."))
+        group isa TaskGroupDocument ? evaluate_operation(editor, StopTaskGroupOperation(group)) :
+                                      stop_work_item!(group)
+        string("Stopping the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), ".")
     end
 end
 
 """
-    stop_task!(group, index; editor = get_evaluation_editor()) -> Text
+    stop_task!(group, index; editor = get_evaluation_editor()) -> String
 
 **Stop one task of a group**, the task at `index`, and let the others go on.
 
@@ -307,23 +467,29 @@ Use it to stop one task of a group and let the others run.
     stop_task!(t1, 3)
 
 See also `stop_tasks!`.
+
+For the assistant.
 """
 function stop_task! end
 
 function stop_task!(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "stop_task!") do
-        run = get_task_group(group).runs[index]
-        run === nothing && return Text("Task $(index) has not started.")
-        stop_task_execution!(run)
-        Text("Stopping task $(index).")
+        get_task_group(group).runs[index] === nothing && return "Task $(index) has not started."
+        evaluate_operation(editor, StopTaskOperation(group, index))
+        "Stopping task $(index)."
     end
 end
 
+stop_task!(task::ReferencedDocument, arguments...; keywords...) =
+    stop_task!(get_document(task), arguments...; keywords...)
+
 """
     rerun_tasks!(group; which = :unexpected, wait = false, editor = get_evaluation_editor()) -> TaskGroupDocument
+    rerun_tasks!(task; editor = get_evaluation_editor()) -> TaskDocument
 
 **Run tasks of a group again, in place**: `:unexpected` (the default), `:failed`,
-`:unfinished`, `:all`, or a vector of their places.
+`:unfinished`, `:all`, or a vector of their places. A task alone runs again as a
+whole, and its row comes back into its place when it was closed.
 
 Use it to repeat the tasks that failed after a fix.
 
@@ -336,18 +502,97 @@ Use it to repeat the tasks that failed after a fix.
 ends. A person at the REPL can: there the call waits, and the window draws.
 
 See also `stop_task!` and `describe_task_group`.
+
+For the assistant.
 """
 function rerun_tasks! end
 
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
-    run_on_editor_task!(() -> rerun_task_group_document!(group, which; editor), editor;
+    run_on_editor_task!(() -> evaluate_operation(editor, RerunTaskGroupOperation(group, which)), editor;
                         description = "rerun_tasks!")
     wait && wait_for_task_group!(editor, group)
     group
 end
 
+rerun_tasks!(group::ReferencedDocument; keywords...) =
+    rerun_tasks!(get_document(group); keywords...)
+
+# A task alone runs again as a whole, with no group, and its row goes back into its
+# place. A task that runs goes on as it is.
+function rerun_tasks!(document::TaskDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(() -> evaluate_operation(editor, StartTaskOperation(document)), editor;
+                        description = "rerun_tasks!")
+    document
+end
+
 """
-    close_task_group!(group; editor = get_evaluation_editor()) -> Text
+    wait_for_tasks!(group; timeout = 30, editor = get_evaluation_editor()) -> String
+
+**Wait a short while for a group of tasks, or a task alone, to end**, at most
+`timeout` seconds, and say how it stands: ended, with the line that sums it up, or
+still running, with what is done so far.
+
+**The wait holds the window**, as every call of `execute_julia_code` does, so
+keep it short. For a group that runs for minutes, say how long it takes and end
+the turn: the assistant starts a turn of its own when a group that its turn
+started ends. For work of many groups, tell the person how many wakes it needs;
+the person allows them under the message box.
+
+Use it to wait for runs, a build or a test that end within seconds, before you
+read what they wrote.
+
+# Example
+
+    wait_for_tasks!(t1; timeout = 20)
+
+See also `describe_task_group`, `stop_tasks!`.
+
+For the assistant.
+"""
+function wait_for_tasks! end
+
+function wait_for_tasks!(group::TaskGroupDocument; timeout::Real = 30, editor = get_evaluation_editor())
+    started = time()
+    wait_for_task_group!(editor, group; timeout)
+    run_on_editor_task!(editor; description = "wait_for_tasks!") do
+        summary = compute_task_group_summary(get_task_group(group)).summary
+        waited = format_elapsed_time(time() - started; precision = 0)
+        is_task_group_running(group) ?
+            string("Still running after ", waited, ": ", summary, ".") :
+            string("Ended: ", summary, ".")
+    end
+end
+
+wait_for_tasks!(group::ReferencedDocument; keywords...) =
+    wait_for_tasks!(get_document(group); keywords...)
+
+# A task alone ends with its current execution: "Ended: DONE in 0.4" or "Still
+# running after 30: …" with its line.
+function wait_for_tasks!(document::TaskDocument; timeout::Real = 30, editor = get_evaluation_editor())
+    started = time()
+    execution = getfield(document, :running)[]
+    deadline = started + Float64(timeout)
+    # The execution goes on until its result is written, after its process ended.
+    is_running() = execution !== nothing && lock(() -> execution.result, execution.runtime.lock) === nothing
+    if get_current_code_unit() === nothing
+        is_running() && timedwait(() -> !is_running(), max(0.0, deadline - time()); pollint = 0.1)
+    else
+        while is_running() && time() < deadline
+            wait_in_code_unit(min(0.1, max(0.0, deadline - time())))
+        end
+    end
+    run_on_editor_task!(editor; description = "wait_for_tasks!") do
+        drain_task_feed!(; editor)
+        waited = format_elapsed_time(time() - started; precision = 0)
+        result = get_task_document_result(document)
+        is_running() ? string("Still running after ", waited, ": ", get_document_decoration(document).detail, ".") :
+        result === nothing ? string("Not started: ", get_document_title(document), ".") :
+                             string("Ended: ", format_task_result(result), ".")
+    end
+end
+
+"""
+    close_task_group!(group; editor = get_evaluation_editor()) -> String
 
 **Close the pane of a group and its row in the Tasks tab.** A group that runs
 goes on; stop it first with `stop_tasks!(group)` when it must end. Another work
@@ -360,6 +605,8 @@ Use it to close a group when its work is over.
     close_task_group!(t1)
 
 See also `stop_task!` and `list_task_groups`.
+
+For the assistant.
 """
 function close_task_group! end
 
@@ -367,27 +614,12 @@ function close_task_group!(group; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "close_task_group!") do
         found = search_references(getfield(editor, :document),
                                   node -> node isa PaneTab && node.content === group;
-                                  descend = is_pane_search_step, limit = nothing)
+                                  walk = DocumentWalk(; descend = is_pane_search_step), limit = nothing)
         for reference in found
             close_pane!(reference; editor)
         end
-        remove_task_group!(get_session_task_group_list(; editor), group)
-        Text(string("Closed the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), "."))
+        evaluate_operation(editor, CloseTaskGroupOperation(get_session_task_group_list(; editor), group))
+        string("Closed the ", describe_work_item_kind(group, 1), " ", get_work_item_identifier(group), ".")
     end
 end
 
-# ── The verbs a model may call ─────────────────────────────────────────────
-
-"""
-    make_task_api() -> Vector
-
-The verbs of tasks that a model may call, as the module and the names: list,
-find and describe the groups of the session and their tasks, read the output of
-a task, stop, run again and close, and the title of the tab of a group. A window
-declares them beside the verbs of its domain, which start the groups.
-"""
-make_task_api() = Any[
-    TaskModule => (:list_task_groups, :find_task_group, :describe_task_group, :describe_task,
-                   :get_task_output, :stop_tasks!, :stop_task!, :rerun_tasks!,
-                   :close_task_group!, :make_task_group_tab_title),
-]

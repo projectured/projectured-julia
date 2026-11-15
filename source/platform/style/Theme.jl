@@ -147,6 +147,15 @@ is a variant of that name; an `Appearance` keeps its themes by the declared name
 """
 function get_theme_type end
 
+# A tab that shows a theme, and its card and its node in a tree, name it by the
+# words of the name of its type without `Theme`: `GestureHelpTheme` is "Gesture
+# help".
+function get_document_title(theme::Theme)
+    name = replace(string(nameof(get_theme_type(theme))), r"Theme$" => "")
+    words = [m.match for m in eachmatch(r"[A-Z][a-z0-9]*|[a-z0-9]+", name)]
+    uppercasefirst(lowercase(join(words, " ")))
+end
+
 """
     get_theme_presets(T) -> Vector{Pair{String,Any}}
 
@@ -296,7 +305,8 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
   `LineWidth`, `ControlSize` or `IconSize`. Any other value takes no scale. A bare
   number in a field declared with a kind of length takes that kind, so
   `T(radius = 2)` scales as a radius. A `FontRole` or a `TextRole` takes the font
-  that it gives over its base font in `T`, so its cell follows the base too.
+  that its role gives in the font theme of the appearance, so its cell follows the
+  font theme too.
 - `make_scaled_theme(theme::T, appearance)` makes a `ScaledT`,
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.
@@ -323,7 +333,7 @@ is.
         "The indent of a nested value."
         indent::Spacing     = Spacing(16)
     end
-    scaled = make_scaled_theme(JsonTheme(), Appearance(spacing_scale = 1.5))
+    scaled = make_scaled_theme(JsonTheme(), Appearance(scale = AppearanceScale(spacing_scale = 1.5)))
     scaled.indent                      # 24
     scaled.key_text.font               # StyleFont("Ubuntu Mono", 20; weight = 700)
 """
@@ -376,8 +386,9 @@ macro theme(definition)
     scaled_fields = [:($f::$Cell) for f in fields]
     document = Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")),
                     __source__, definition)
-    esc(quote
-        $document
+    # Each method that the macro writes names the line of the declaration, as each
+    # method of `@document` does.
+    parts = set_cell_struct_source!(quote
         struct $scaled_name <: $ScaledTheme
             theme::$name
             appearance::$Appearance
@@ -396,5 +407,6 @@ macro theme(definition)
                      $StyleModule.make_style_field($name, theme; name = field))))
         export $style_name
         $name
-    end)
+    end, __source__)
+    esc(Expr(:block, document, parts.args...))
 end

@@ -28,7 +28,7 @@ end
 _proj() = ChainingProjection(
     FocusCyclingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(
-            WidgetToGraphics(_font; measure=_stub).dispatch))))
+            WidgetToGraphics(; measure=_stub).dispatch))))
 
 # A lone button with a side-effecting action over a captured counter.
 function _button_doc()
@@ -419,7 +419,7 @@ end
     tab  = KeyPress('\t'; time = 0.0)
     stab = KeyPress('\t', ModifierKeys(shift=true); time = 0.0)
     _renderer() = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(_font; measure=_stub).dispatch))
+        WidgetToGraphics(; measure=_stub).dispatch))
     _read(proj, c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
 
     comp = WidgetComposite(Any[_btn("A"), _btn("B")])
@@ -445,7 +445,7 @@ end
     lproj = ChainingProjection(FocusCyclingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(_font; measure=_stub).dispatch)))))
+            WidgetToGraphics(; measure=_stub).dispatch)))))
     tab = KeyPress('\t'; time = 0.0)
     _read(c, ev) = read_intent(lproj, print_document(lproj, nothing, c, PrinterContext()), ev)
 
@@ -470,7 +470,7 @@ end
     proj = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(_font; measure=_stub).dispatch))))
+            WidgetToGraphics(; measure=_stub).dispatch))))
     iomap = print_document(proj, nothing, layout, PrinterContext())
 
     dn = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0))
@@ -490,7 +490,7 @@ end
     card = WidgetCard(; title = "T", content = button, width = 240)
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(_font; measure=_stub).dispatch)))
+        WidgetToGraphics(; measure=_stub).dispatch)))
     iomap = print_document(proj, nothing, card, PrinterContext())
 
     # Absolute centre of the button, read back from the card's child entries.
@@ -526,7 +526,7 @@ end
     group = WidgetToggleGroup(Any["one", "two", "three"])
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(_font; measure=_stub).dispatch)))
+        WidgetToGraphics(; measure=_stub).dispatch)))
     offered = with_exact_size(PrinterContext(); width = Cell(Int32(900)),
                               height = Cell(Int32(60)))
     iomap = print_document(proj, nothing, group, offered)
@@ -575,7 +575,7 @@ function test_widget_button_labels()
 @testset "a button is as wide as its widest label" begin
     measure = FixedMeasure(10, 18, 6, 0)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = measure).dispatch))
+        WidgetToGraphics(; measure = measure).dispatch))
     width_of(button) = Int(print_document(projection, nothing, button, PrinterContext()).output.w[])
     plain_pause = WidgetButton("Pause"; size = Point2D(0, 30))
     plain_resume = WidgetButton("Resume"; size = Point2D(0, 30))

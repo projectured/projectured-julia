@@ -4,7 +4,7 @@ end
 
 function make_scrolling_projection(projection; measure=FontFileMeasure(),
                                     font=StyleFont("Ubuntu Mono", 20))
-    theme = make_widget_theme(font = font)
+    theme = WidgetTheme()
     NestingProjection(
         WidgetScrollPaneToGraphicsCanvas(theme; measure = measure, font = font, content_color = color_transparent);
         recursion=projection,
@@ -24,9 +24,8 @@ end
 # widgets, and the content slot defers to the example's projection. This is the
 # introspection dispatch, with a shell in place of the tabbed pane. Pairs with
 # `make_shell_document`.
-function make_shell_projection(projection; measure=FontFileMeasure(),
-                               font=StyleFont("Ubuntu", 20))
-    w2g = WidgetToGraphics(font; measure=measure)
+function make_shell_projection(projection; measure=FontFileMeasure())
+    w2g = WidgetToGraphics(; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
@@ -35,20 +34,15 @@ function make_shell_projection(projection; measure=FontFileMeasure(),
     )))
 end
 
-# Wrap a pipeline in the command type-in overlay: Ctrl+Shift+P opens a field over
-# the content that runs a named operation on it.
-#
-# Each call mints its own `CommandPaletteState`, so every window gets its own
-# palette. The help window is a *sibling window* and can share one flag across
-# windows; the palette is drawn INTO its window, so a shared flag would draw it
-# over every window at once.
-make_command_palette_decorator_projection(projection; measure=FontFileMeasure()) =
-    CommandPaletteDecoratorProjection(inner = projection, measure = measure)
+# Wrap a pipeline in the command palette: Ctrl+Shift+P opens the list of the
+# commands that work where the selection is, in the context menu window at the top
+# of the window, and Return runs the chosen one on the content.
+make_command_palette_decorator_projection(projection) =
+    CommandPaletteDecoratorProjection(inner = projection)
 
 function make_introspection_projection(projection; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
     fg   = (0xee, 0xee, 0xee, 0xff)
-    w2g  = WidgetToGraphics(font; measure=measure)
+    w2g  = WidgetToGraphics(; measure=measure)
     object_chain = ChainingProjection(
         RecursiveProjection(ObjectToSyntax()),
         RecursiveProjection(SyntaxToText()),

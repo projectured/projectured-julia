@@ -56,6 +56,11 @@ A chart together with how it is currently being looked at.
   in progress, cleared when it commits or cancels. The anchor holds the point of
   the press, the mode, the window and the two axis scales at the press, and the
   `view` that the plot held at the press, which a cancelled pan puts back.
+- `toolbar` — the buttons that show while the pointer is over the chart, a
+  `WidgetToolbar`, or `nothing` for a plot with no buttons.
+- `horizontal_scroll_bar`, `vertical_scroll_bar` — the bars along the bottom and
+  the right edge of the plot area, which show where the window is in the data
+  while the chart is zoomed, or `nothing` for a plot with no bars.
 """
 @document struct ChartPlot <: ChartDocument
     chart::Any
@@ -63,6 +68,9 @@ A chart together with how it is currently being looked at.
     cursor::Any = nothing
     drag_anchor::Any = nothing
     drag_rect::Any = nothing
+    toolbar::Any = nothing
+    horizontal_scroll_bar::Any = nothing
+    vertical_scroll_bar::Any = nothing
 end
 
 """

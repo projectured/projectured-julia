@@ -1,15 +1,21 @@
 """
 `ReferencedDocument` and `DocumentLocator` over a test-local tree of toy documents:
-a referenced document acts like its document, and every document or collection it
-answers holds the reference to its place.
+a referenced document acts like its document, every document or collection it
+answers holds the reference to its place, and a document that is given one keeps
+its document.
 """
 
 using Test
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.DocumentModule: @document, Document
+using ProjecturedKernel.DocumentModule: @document, Document, get_document
 
 @document struct ReferencedLeaf
     name::String
+end
+
+# A document with a field of any value, which its constructor and a write fill.
+@document struct ReferencedHolder
+    content::Any
 end
 
 @document struct ReferencedBranch
@@ -28,6 +34,9 @@ end
 end
 
 Base.iterate(bag::ReferencedBag, state...) = iterate(bag.items, state...)
+
+# A function that takes a part and nothing else.
+_take_referenced_part(part::ReferencedDocument; mark = 1) = mark
 
 function _make_referenced_tree()
     ReferencedBranch("root",
@@ -140,6 +149,22 @@ function test_referenced_document()
         @test length(root.children) == 2
     end
 
+    @testset "a document keeps the document of a referenced value, from its constructor and from a write" begin
+        root = _make_referenced_tree()
+        first_child = ReferencedDocument(root, EmptyReference()).children[1]
+        holder = ReferencedHolder(first_child, nothing)
+        @test holder.content === root.children[1]
+        holder.content = ReferencedDocument(root, EmptyReference())
+        @test holder.content === root
+        holder.content = 42
+        @test holder.content == 42
+        @test ReferencedHolder("plain", nothing).content == "plain"
+        # A list field takes the elements of the vector that a referenced read answers.
+        branch = ReferencedBranch("copy", ReferencedDocument(root, EmptyReference()).children, nothing)
+        @test !(branch.children isa ReferencedDocument) && length(branch.children) == 2
+        @test branch.children[1] === root.children[1]
+    end
+
     @testset "the display says what and where" begin
         root = _make_referenced_tree()
         first_child = ReferencedDocument(root, EmptyReference()).children[1]
@@ -182,6 +207,72 @@ function test_referenced_document()
         @test get_document(found) === root.children[1]
         gone = extend_reference(EmptyReference(), FieldReferenceStep("missing"))
         @test find_referenced_document(DocumentLocator(root, gone)) === nothing
+    end
+
+    @testset "a constructor and a write store the documents of the parts in a list" begin
+        root = _make_referenced_tree()
+        whole = ReferencedDocument(root, EmptyReference())
+        a, b = whole.children[1], whole.children[2]
+        @test a isa ReferencedDocument && b isa ReferencedDocument
+        made = ReferencedBranch("made", [a, b])
+        @test made.children[1] === get_document(a) && made.children[2] === get_document(b)
+        holder = ReferencedHolder(nothing, nothing)
+        holder.content = [a, b]
+        @test holder.content[1] === get_document(a) && holder.content[2] === get_document(b)
+        # A list with no part is stored as it is.
+        plain = Any[get_document(a)]
+        holder.content = plain
+        @test holder.content === plain
+    end
+
+    @testset "a record, a named tuple, is a part, and a document stores the documents of its fields" begin
+        records = ReferencedHolder(Any[(number = 1, state = "waiting"), (number = 2, state = "waiting")], nothing)
+        whole = ReferencedDocument(records, EmptyReference())
+        second = whole.content[2]
+        @test second isa ReferencedDocument
+        @test get_document(second) === records.content[2]
+        @test strip_reference_types(get_reference(second)) == strip_reference_types(@reference(records, content[2]))
+        # A field of a record is a leaf.
+        @test second.state == "waiting"
+        # The write of a field of a record copies the record into its slot, and the
+        # other records stay the same objects.
+        first_record = records.content[1]
+        ProjecturedKernel.OperationModule.evaluate_operation((; document = records),
+            ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation(nothing,
+                @reference(records, content[2].state), "equal"))
+        @test records.content[2] == (number = 2, state = "equal")
+        @test records.content[1] === first_record
+        # A record that holds a part stores the document of the part.
+        root = _make_referenced_tree()
+        part = ReferencedDocument(root, EmptyReference()).children[1]
+        holder = ReferencedHolder((number = 3, leaf = part), nothing)
+        @test holder.content.leaf === root.children[1]
+        @test holder.content.number == 3
+        # A record with no part is stored as it is.
+        plain = (number = 4, state = "equal")
+        holder.content = plain
+        @test holder.content === plain
+    end
+
+    @testset "a plain document has no place, and the error says how to get a part" begin
+        leaf = ReferencedLeaf("a", nothing)
+        refusal = try get_reference(leaf); "" catch exception; sprint(showerror, exception) end
+        @test occursin("A ReferencedLeaf has no place", refusal)
+        @test occursin("places = true", refusal)
+        hint(call) = try call(); "" catch exception; sprint(showerror, exception) end
+        @test occursin("The argument 1 is a plain document, a ReferencedLeaf, and `_take_referenced_part` takes a part there.",
+                       hint(() -> _take_referenced_part(leaf)))
+        @test occursin("takes a part there", hint(() -> _take_referenced_part(leaf; mark = 2)))
+        # An argument that is no document gets no hint.
+        @test !occursin("takes a part there", hint(() -> _take_referenced_part(1)))
+        @test _take_referenced_part(ReferencedDocument(leaf, EmptyReference())) == 1
+    end
+
+    @testset "a walk stops at a locator: a holder of an address holds no document" begin
+        root = _make_referenced_tree()
+        is_leaf(node) = node isa ReferencedLeaf
+        @test length(search_references(ReferencedHolder(root, nothing), is_leaf)) == 2
+        @test isempty(search_references(ReferencedHolder(DocumentLocator(root, EmptyReference()), nothing), is_leaf))
     end
 end
 end # test_referenced_document

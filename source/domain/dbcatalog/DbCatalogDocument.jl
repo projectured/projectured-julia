@@ -2,6 +2,22 @@
 # abstract `DbCatalogDocument` and the server, database, table and column nodes
 # a catalog tree holds.
 
+"""
+    DbCatalogDocument
+
+The abstract supertype of the documents of a database catalog. Its main members are `DbCatalogRdbms`, `DbCatalogDatabase`, `DbCatalogSchema`, `DbCatalogTable`, `DbCatalogColumn`.
+
+Use it to recognise the documents of a database catalog when you walk a document: a part is one of them when `part isa DbCatalogDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("catalog")), part -> part isa DbCatalogDocument)
+    found_1 = search_documents(get_edited_document(find_pane("catalog")), part -> part isa DbCatalogTable)
+
+See also `search_documents`, `find_pane`, `describe_document` and `DbCatalogTable`.
+
+For the assistant.
+"""
 abstract type DbCatalogDocument <: Document end
 
 @document struct DbCatalogRdbms <: DbCatalogDocument

@@ -1,6 +1,6 @@
 # Tulip constraint solver
 
-> **Kind:** design · **Status:** current · **Stands on:** [layout.md](../../platform/layout/layout.md), [package-rules.md](../../../rule/package-rules.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [layout.md](../../platform/layout/layout.md), [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedTulip` is an opt-in package that solves the relations of a `ConstraintLayout`. It adds one method to the solver seam of the layout slice, and it brings the linear programming packages `Tulip` and `MathOptInterface`. This document says how a layout problem becomes a linear program.
 
@@ -22,7 +22,7 @@ If the solve is not optimal, has no feasible point, or raises an error, the solv
 
 The code is the slice `TulipModule`, in `source/adapter/tulip/`: `TulipModule.jl` holds its imports and its exports, and `ProjecturedTulip` includes that file and exports the same names.
 
-`ProjecturedTulip` depends on `ProjecturedPlatform`'s layout slice, and on `Tulip` and `MathOptInterface`. It declares the triggers `Projectured` and `Tulip` with the default `auto`, so AutoIntegration loads it when both are loaded; see [autointegration.md](../../autointegration/autointegration.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md). No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../../domain/graph/graph.md).
+`ProjecturedTulip` depends on `ProjecturedPlatform`'s layout slice, and on `Tulip` and `MathOptInterface`. It declares the triggers `Projectured` and `Tulip` with the default `auto`, so AutoIntegration loads it when both are loaded; see [autointegration.md](../../autointegration/autointegration.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md). No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. `ProjecturedAdaptagrams` works the same way: a projection names `AdaptagramsLayout`; see [adaptagrams.md](../adaptagrams/adaptagrams.md).
 
 ## Design decisions
 

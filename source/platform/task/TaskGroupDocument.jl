@@ -18,16 +18,18 @@ entry stands for one task, in the order the group was made.
 
 # Example
 
-    document = wrap_task_group_document(TaskGroup(tasks; name = "builds", jobs = 4))
-    start_task_group_document!(document)
-    get_task_group_document_status(document)       # :running, then :finished
+    group_1 = find_task_group("T3")
+    group_1 isa TaskGroupDocument
+    tasks_1 = search_documents(group_1, part -> part isa TaskDocument)
 
-See also `start_task_group_document!`, `stop_task_group_document!` and
-`build_task_group_document_counts`.
+See also `find_task_group`, `list_task_groups`, `TaskDocument` and `TaskGroupList`.
 
 # Fields
 - `title::String` — what the pane is called, such as the words that chose the
   tasks, or the name of the group.
+- `description::String` — the words that chose the tasks, such as the selection
+  of a run, or an empty string. The summary card shows it beside the number of
+  jobs.
 - `jobs::Int` — how many tasks go at once.
 - `status::Symbol` — `:pending`, `:running`, `:stopping` or `:finished`.
 - `tasks::CellVector` — one [`TaskDocument`](@ref) for each task, in the order
@@ -55,9 +57,25 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `preparation` — the document of the preparation of the group: a
   `TaskGroupDocument` when it is a group, a [`TaskDocument`](@ref) when it is
   one task, or `nothing` when the group has none.
+- `shown` — the tasks that `row_filter` shows, in the order of the group: the
+  `tasks` collection itself for `"all"`, else a collection of the task documents
+  that the choice keeps. The source of the roster of `table`.
+- `table` — an `ArrangementDocument` around a [`Roster`](@ref) of the tasks in
+  `shown`, which the pane draws as its table. The roster marks the task at
+  `selected`, and starts its list at the task of `anchor`.
+- `is_detail_alone::Bool` — whether the pane shows the detail of the selected task
+  alone, in the whole place of the table and the split. Return on the table sets
+  it, and Escape clears it. While it is set, Up and Down select the previous or
+  the next task in the order of the table.
+- `started_by` — who started the group, a [`WorkStarter`](@ref) that its first
+  start records: the person, an assistant and its tool call, or a client over MCP;
+  `nothing` before the start and for an inner group, whose outer group records it.
+
+For the assistant.
 """
 @document struct TaskGroupDocument <: Document
     title::String
+    description::String
     jobs::Int
     status::Symbol
     tasks::CellVector
@@ -68,6 +86,10 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     anchor::Int
     row_filter::Any
     preparation::Any
+    shown::Any
+    table::Any
+    is_detail_alone::Bool
+    started_by::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -89,8 +111,21 @@ get_document_title(doc::TaskGroupDocument) = getfield(doc, :title)[]
 # The facet of a group in a roster of tasks, which the tasks reach as `within.kind`:
 # the name of the group, which the list of groups shows as its kind.
 get_item_facets(::Type{TaskGroupDocument}) = [
-    "kind" => "the kind of the group, its name, such as smoke test or fingerprint test"]
+    "kind" => "the kind of the group, its name, such as smoke test or fingerprint test",
+    "state" => "the word of the state of the group: not started, running, stopping, cancelled, or the worst code " *
+               "that its tasks ended with",
+    "counts" => "the count of each code that its tasks ended with, and of the tasks that run and wait, in a line",
+    "progress" => "the fraction of the tasks of the group that ended, between 0 and 1",
+    "elapsed" => "the time in seconds from the start of the group, or nothing before it"]
 compute_item_facet(doc::TaskGroupDocument, ::Val{:kind}) = get_task_group(doc).name
+compute_item_facet(doc::TaskGroupDocument, ::Val{:state}) = first(_get_group_state_role(doc, get_task_group(doc)))
+compute_item_facet(doc::TaskGroupDocument, ::Val{:counts}) = _format_group_counts(get_task_group_document_counts(doc))
+compute_item_facet(doc::TaskGroupDocument, ::Val{:progress}) = get_task_group_document_summary(doc).progress
+compute_item_facet(doc::TaskGroupDocument, ::Val{:elapsed}) = get_task_group_document_summary(doc).elapsed
+
+# A group holds its task documents in its tasks and its preparation; its model and
+# its shadow hold the task values, which hold no task document.
+is_task_search_field(parent::TaskGroupDocument, name) = name === :tasks || name === :preparation
 
 """The `TaskGroupSummary` of the group at the last sync of its shadow."""
 get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)[].summary
@@ -100,12 +135,14 @@ get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)
 get_task_group_document_counts(doc::TaskGroupDocument) = getfield(doc, :shadow)[].counts
 
 """
-    wrap_task_group_document(group; title = group.name, identifier = make_task_group_identifier())
+    wrap_task_group_document(group; title = group.name, description = "",
+                             identifier = make_task_group_identifier())
 
 Wrap a `TaskGroup` as a document, with one [`TaskDocument`](@ref) for each of
-its tasks. Nothing runs yet.
+its tasks. `description` is the words that chose the tasks. Nothing runs yet.
 """
 function wrap_task_group_document(group::TaskGroup; title::AbstractString = group.name,
+                                  description::AbstractString = "",
                                   identifier::AbstractString = make_task_group_identifier())
     documents = TaskDocument[TaskDocument(task) for task in group.tasks]
     # An inner group is a document of its own, which its task holds, named by its
@@ -121,11 +158,13 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                       wrap_task_group_document(group.preparation; title = group.preparation.name,
                                                identifier = string(identifier, ".0")) :
                       TaskDocument(group.preparation)
-    doc = TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
+    doc = TaskGroupDocument(Cell(String(title)), Cell(String(description)), Cell(group.jobs), Cell(:pending),
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(make_task_group_shadow(group)),
                             Cell(String(identifier)), Cell(0), Cell(1),
-                            Cell(PrimitiveString("all")), Cell(preparation))
+                            Cell(PrimitiveString("all")), Cell(preparation), Cell(nothing), Cell(nothing),
+                            Cell(false), Cell(nothing))
+    _make_task_group_table!(doc)
     group.runtime.on_start = _make_task_group_wiring(doc)
     # Each task knows its group and its place, so its page acts through the group.
     for (index, document) in enumerate(documents)
@@ -147,6 +186,74 @@ function find_task_group_document(doc::TaskGroupDocument, index::Integer)
     documents = getfield(doc, :tasks)[]
     1 <= index <= length(documents) || return nothing
     getfield(documents[index], :inner_group)[]
+end
+
+# The columns of the table of a group, in the order a reader wants them, with the
+# weights that divide the width: the prose most, a number least. The columns of
+# the kind of the tasks (`get_task_columns`) stand between the state and the
+# progress, and are those of the first task.
+const _LEADING_COLUMNS = ["state" => 1]
+const _TRAILING_COLUMNS = ["progress" => 2, "elapsed" => 1, "process" => 1, "processor" => 1,
+                           "memory" => 1, "result" => 1, "expected" => 1, "reason" => 4]
+
+_get_table_columns(group) = vcat(_LEADING_COLUMNS,
+    isempty(group.tasks) ? Pair{String,Int}[] : get_task_columns(first(group.tasks)), _TRAILING_COLUMNS)
+
+# Whether the choice `word` of rows shows the task `document`.
+function _is_task_shown(word, document::TaskDocument)
+    word == "running" && return get_task_document_status(document) in (:running, :cancelling)
+    word == "unexpected" && return (result = get_task_document_result(document)) !== nothing &&
+                                   result.result != result.expected_result
+    true
+end
+
+_get_row_word(doc::TaskGroupDocument) = something(getfield(doc, :row_filter)[].value, "all")
+
+# The tasks that the choice shows: the collection of the tasks itself for all of
+# them, so a roster of it computes again only when a task comes or goes.
+function _compute_shown_tasks(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    word = _get_row_word(doc)
+    word == "all" && return documents
+    CellVector(Any[document for document in documents if _is_task_shown(word, document)])
+end
+
+# The task whose row is marked: the task at `selected`, or `nothing`.
+function _find_selected_task(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    index = getfield(doc, :selected)[]
+    1 <= index <= length(documents) ? documents[index] : nothing
+end
+
+# The task whose row is at the head of the list: the first task at or after
+# `anchor` that the choice shows, else the last one it shows before it.
+function _find_head_task(doc::TaskGroupDocument)
+    documents = getfield(doc, :tasks)[]
+    isempty(documents) && return nothing
+    word = _get_row_word(doc)
+    first_index = clamp(getfield(doc, :anchor)[], 1, length(documents))
+    word == "all" && return documents[first_index]
+    for index in first_index:length(documents)
+        _is_task_shown(word, documents[index]) && return documents[index]
+    end
+    for index in (first_index - 1):-1:1
+        _is_task_shown(word, documents[index]) && return documents[index]
+    end
+    nothing
+end
+
+# The table of a group: an arrangement of a roster of the tasks that the choice
+# shows, linked to the group.
+function _make_task_group_table!(doc::TaskGroupDocument)
+    set_cell_computation!(getfield(doc, :shown), () -> _compute_shown_tasks(doc))
+    columns = _get_table_columns(get_task_group(doc))
+    roster = Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("shown")));
+                    columns = first.(columns), title = getfield(doc, :title)[], shares = last.(columns))
+    set_cell_computation!(getfield(roster, :marked), () -> _find_selected_task(doc))
+    set_cell_computation!(getfield(roster, :anchor), () -> _find_head_task(doc))
+    link_roster!(roster, doc)
+    setproperty!(doc, :table, ArrangementDocument(roster, ArrangementEntry[]))
+    doc
 end
 
 # The task documents, in the order the group was made. The field holds a
@@ -324,14 +431,20 @@ function _refresh_status!(doc::TaskGroupDocument)
 end
 
 """
-    start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing) -> doc
+    start_task_group_document!(doc; editor = find_evaluation_editor(), end_operation = nothing,
+                               started_by = get_work_starter()) -> doc
 
 Start every task of the group, `doc.jobs` at a time, and answer at once. Each
-task reports into its own document while it goes. The group joins the end of the
-list of the session of `editor`, which the Tasks pane shows
-([`get_session_task_group_list`](@ref)); with no editor, it joins no list. A verb
-that names its editor passes it, because a call that runs at once binds no
-editor of the evaluation.
+task reports into its own document while it goes, through the feed of `editor`.
+The group joins the end of the list of the session of `editor`, which the Tasks
+pane shows ([`get_session_task_group_list`](@ref)); with no editor, it joins no
+list, and a caller with no window drains the feed itself
+([`wait_task_group_document`](@ref)). A verb that names its editor passes it,
+because a call that runs at once binds no editor of the evaluation.
+
+The first start records `started_by`, who started the group: by default the
+starter of the evaluation, the person for a press of a button, an assistant and
+its tool call for the code of a tool call. A later start keeps it.
 
 `end_operation` is an operation that `editor` evaluates when the group ends:
 its tasks ended, or it stopped. A build passes the operation that reads again
@@ -340,19 +453,27 @@ own waits for the group and posts the operation, so no document holds the
 editor; with no editor, nothing is posted.
 """
 function start_task_group_document!(doc::TaskGroupDocument; editor = find_evaluation_editor(),
-                                    end_operation = nothing)
+                                    end_operation = nothing, started_by = get_work_starter())
     group = get_task_group(doc)
     # A group that runs goes on as it is: its Run is off while it goes.
     group.runtime.scheduler !== nothing && !istaskdone(group.runtime.scheduler) && return doc
+    starter = getfield(doc, :started_by)
+    starter[] === nothing && set_cell_value!(starter, started_by)
     group.jobs = max(1, getfield(doc, :jobs)[])
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, eachindex(group.tasks))
-    start_task_group!(group)
+    _run_with_task_group_editor(() -> start_task_group!(group), editor)
     _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(; editor), doc)
     _post_at_group_end!(editor, group, end_operation)
     doc
 end
+
+# Run `f`, which starts tasks of a group, as an evaluation of `editor`. The
+# scheduler of the group and each task that it starts inherit the editor, so each
+# execution registers for the feed of `editor`, at any depth of the group.
+_run_with_task_group_editor(f, editor) =
+    editor === nothing ? f() : run_with_evaluation_editor(f, editor)
 
 # Post `operation` to `editor` when the scheduler of `group` ends: its tasks
 # ended, or it stopped. A waiter task waits for the scheduler, so nothing stores
@@ -376,6 +497,7 @@ function _post_at_group_end!(editor, group, operation)
     nothing
 end
 
+# @optional: which follows the document, as what a rerun command names next.
 """
     rerun_task_group_document!(doc, which = :failed; editor = find_evaluation_editor()) -> doc
 
@@ -392,7 +514,7 @@ function rerun_task_group_document!(doc::TaskGroupDocument, which = :failed; edi
     isempty(indices) && return doc
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, indices)
-    rerun_task_group!(group, indices)
+    _run_with_task_group_editor(() -> rerun_task_group!(group, indices), editor)
     _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(; editor), doc)
     doc
@@ -411,14 +533,15 @@ function stop_task_group_document!(doc::TaskGroupDocument)
 end
 
 """
-    wait_task_group_document(doc) -> doc
+    wait_task_group_document(doc; editor = find_evaluation_editor()) -> doc
 
 Wait for the group to end, and copy what its tasks said into their documents.
-For a caller with no window, on the task that reads the documents.
+For a caller with no window, on the task that reads the documents; `editor` is
+the editor that started the group, if any.
 """
-function wait_task_group_document(doc::TaskGroupDocument)
+function wait_task_group_document(doc::TaskGroupDocument; editor = find_evaluation_editor())
     wait_task_group(get_task_group(doc))
-    drain_task_feed!()
+    drain_task_feed!(; editor)
     _sync_task_group_shadow!(doc)
     doc
 end
@@ -473,6 +596,109 @@ end
 
 """The state of the whole group, as its own cell holds it."""
 get_task_group_document_status(doc::TaskGroupDocument) = getfield(doc, :status)[]
+
+# ── The actions of a group as operations ─────────────────────────────────────
+
+# The press of a button of a group and each verb of a group make one of these
+# operations, and the editor evaluates it, so the person and the assistant act on
+# a group through one path. A process that ran can not be undone, so the inverse
+# of each is `DoNothingOperation`, and each names its documents, so each goes up
+# through every projection as it is.
+
+"""
+    StartTaskGroupOperation(document)
+
+Start every task of the group of `document`, as [`start_task_group_document!`](@ref)
+does it for the editor that evaluates the operation: the group joins the list of
+the session of that editor. A group that runs goes on as it is.
+"""
+struct StartTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+end
+
+evaluate_operation(editor, operation::StartTaskGroupOperation) =
+    (start_task_group_document!(operation.document; editor); nothing)
+
+describe_operation(operation::StartTaskGroupOperation) =
+    string("Start the tasks of ", getfield(operation.document, :title)[])
+
+"""
+    StopTaskGroupOperation(document)
+
+Stop every task of the group of `document` and start no more
+([`stop_task_group_document!`](@ref)).
+"""
+struct StopTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+end
+
+evaluate_operation(editor, operation::StopTaskGroupOperation) =
+    (stop_task_group_document!(operation.document); nothing)
+
+describe_operation(operation::StopTaskGroupOperation) =
+    string("Stop the tasks of ", getfield(operation.document, :title)[])
+
+"""
+    StopTaskOperation(document, index)
+
+Stop the task at `index` of the group of `document`, and let the others go on. A
+task that did not start, or has ended, is left as it is.
+"""
+struct StopTaskOperation <: Operation
+    document::TaskGroupDocument
+    index::Int
+end
+
+function evaluate_operation(editor, operation::StopTaskOperation)
+    run = get_task_group(operation.document).runs[operation.index]
+    run === nothing || stop_task_execution!(run)
+    nothing
+end
+
+describe_operation(operation::StopTaskOperation) =
+    string("Stop task ", operation.index, " of ", getfield(operation.document, :title)[])
+
+"""
+    RerunTaskGroupOperation(document, which)
+
+Run part of the group of `document` again, in place: `which` is what
+[`rerun_task_group_document!`](@ref) understands, a word or the places of the
+tasks.
+"""
+struct RerunTaskGroupOperation <: Operation
+    document::TaskGroupDocument
+    which::Any
+end
+
+evaluate_operation(editor, operation::RerunTaskGroupOperation) =
+    (rerun_task_group_document!(operation.document, operation.which; editor); nothing)
+
+describe_operation(operation::RerunTaskGroupOperation) =
+    string("Run tasks of ", getfield(operation.document, :title)[], " again")
+
+"""
+    CloseTaskGroupOperation(list, item)
+
+Close the row of the work item `item`, a group or a search, in the task list
+`list`. A group that runs goes on, and its panes stay: the verb that closes the
+panes closes them first.
+"""
+struct CloseTaskGroupOperation <: Operation
+    list::Any
+    item::Any
+end
+
+evaluate_operation(editor, operation::CloseTaskGroupOperation) =
+    (remove_task_group!(operation.list, operation.item); nothing)
+
+describe_operation(::CloseTaskGroupOperation) = "Close the row of a task group"
+
+const _TaskGroupOperation = Union{StartTaskGroupOperation,StopTaskGroupOperation,StopTaskOperation,
+                                  RerunTaskGroupOperation,CloseTaskGroupOperation}
+
+make_inverse_operation(document, ::_TaskGroupOperation) = DoNothingOperation()
+
+is_self_contained_operation(::_TaskGroupOperation) = true
 
 # A group drives a pool of processes. A pasted document replaces neither the
 # group nor anything in it.

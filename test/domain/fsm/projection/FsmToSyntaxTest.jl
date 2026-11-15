@@ -13,22 +13,46 @@ _render(doc) = print_document(
 
     # Declarations, one keyword each.
     @test occursin("component Toggle", text)
-    @test occursin("variable blinks::Int = 0", text)
-    @test occursin("timer blink_timer", text)
+    @test occursin("variable switch_ons::Int = 0", text)
+    @test occursin("timer off_timer", text)
     @test occursin("event PRESSED", text)
     @test occursin("machine Toggle initial OFF", text)
     @test occursin("state OFF", text)
+    # A helper prints as Julia after the machines.
+    @test occursin("const AUTO_OFF_TIME = 60.0", text)
 
-    # Transition grammar: trigger, guard, ending, action.
+    # Transition grammar: trigger, ending, action.
     @test occursin("on PRESSED -> ON", text)
-    @test occursin("on timeout(blink_timer) when m.blinks > 3 -> OFF", text)
+    @test occursin("on PRESSED -> OFF / cancel_timer!(ctx, m.off_timer)", text)
+    @test occursin("on timeout(off_timer) -> OFF", text)
+    # An entry of two statements prints as indented lines under `entry /`.
+    @test occursin(r"entry / *\n +m\.switch_ons = m\.switch_ons \+ 1\n +schedule_timer!\(", text)
+
+    crossing = _render(make_fsm_crossing_document_example())
     # A stay has no target and keeps its action.
-    @test occursin("on PRESSED stay / m.blinks = m.blinks + 1", text)
-    # An entry action is its own indented line under the state.
-    @test occursin("entry / m.blinks = m.blinks + 1", text)
+    @test occursin("on BUTTON stay / m.requested = true", crossing)
+    # A condition-only transition has no trigger, so its line starts at `when`.
+    @test occursin("when m.requested && !is_scheduled(m.min_green_timer) -> CARS_YELLOW", crossing)
+    # With no guard either, the line is the target alone.
+    @test occursin(r"state START\n +-> CARS_GREEN\n", crossing)
+    # A one-statement entry stays on the line of `entry /`.
+    @test occursin("entry / start_timer!(ctx, m, m.yellow_timer, YELLOW_TIME, expire_yellow_timer!)", crossing)
+
+    protocol = _render(make_fsm_alternating_bit_document_example())
+    # All four parts of a transition: trigger, guard, target, action.
+    @test occursin("on ACK when payload == 0 -> WAIT_SEND_1 / cancel_timer!(ctx, m.retransmit_timer)", protocol)
+    # An ignore has no target and no action.
+    @test occursin("on ACK ignore", protocol)
+    @test occursin("on timeout(retransmit_timer) stay / send_frame!(ctx, m, 0)", protocol)
+    # The statements of a `;` line stay on the line of their transition.
+    @test occursin("on SEND -> WAIT_ACK_0 / m.buffer = payload; send_frame!(ctx, m, 0)", protocol)
+    # Each machine of the component prints its own header.
+    @test occursin("machine Sender initial WAIT_SEND_0", protocol)
+    @test occursin("machine Receiver initial WAIT_FRAME_0", protocol)
 
     # `:error` is the default policy and stays unwritten; `:ignore` is spelled.
     @test !occursin("ignoring unhandled", text)
+    @test occursin("machine Light initial START ignoring unhandled", crossing)
     @test occursin("ignoring unhandled", _render(make_fsm_tcp_document_example()))
 end
 

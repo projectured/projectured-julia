@@ -1,6 +1,6 @@
 # Tasks
 
-> **Kind:** design · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [systemprocess.md](../systemprocess/systemprocess.md), [tree.md](../tree/tree.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md), [systemprocess.md](../systemprocess/systemprocess.md), [tree.md](../tree/tree.md)
 
 The task slice of `ProjecturedPlatform` holds what every kind of work shares
 when it runs as a task, in the words of `opp_repl` (`common/task.py`): a piece of
@@ -24,8 +24,10 @@ are plain values:
 - `get_task_columns(task)` names its columns, each the word of its header and
   its share of the width, such as `"directory" => 4`;
 - `format_task_column(task, column)` gives the text of one;
-- `format_task_details(task, result)` gives its facts, one a line, such as the
-  command, the exit code and the error line, from what the task ended with;
+- `get_task_column_value(task, result, column)` gives the value of one when the
+  execution has a result, so a column can show a number that a test found. A table
+  filters and sorts that value as a number. The default is the text of
+  `format_task_column`;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
   press calls with the editor that evaluates the press and the task;
 - `get_task_links(task)` gives its links, each `(label, text, document,
@@ -39,16 +41,24 @@ are plain values:
   alone;
 - `get_task_output_folder(task)` gives the folder of the files of its streams, or
   `nothing` for the folder of the process;
-- `get_task_result_document(task, result)` gives a document that shows the
-  result in more than lines of text, such as the table of the scalars that a
-  statistical test compared. The task document holds it in `result_document`,
-  made when a view first reads it after the result came, and the same document
-  until the result changes. The detail of the task shows it below its facts, in
-  the card of an embedded document. It draws by the method of
-  `make_graphics_projection` for its type, as it draws in any document, so the
-  renderer of the views reads that seam too. A path reaches it,
-  `tasks[i].result_document`, and the pane maps that path to the card and back,
-  as a page maps an embedded file: a person edits the document where it shows.
+- `make_task_kind_document(task, result)` gives the document of the kind of the
+  task: its facts, its verdict, its tables and its command. It exists from the
+  start of the task, so `result` is `nothing` before the task ended, and the
+  frame calls it again when the result changes. The task document holds it in
+  `kind_document`, made when a view first reads it, and the same document until
+  the result changes. The detail of the task shows it below its header and its
+  buttons, in a place of its own that takes its content height. It draws by the method of `make_graphics_projection` for its type, as it
+  draws in any document, so the renderer of the views reads that seam too. A path
+  reaches it, `tasks[i].kind_document`, and the pane maps that path to the card
+  and back, as a page maps an embedded file: a person edits the document where
+  it shows. A kind with no document answers `nothing`, and then the frame shows
+  only its header, its buttons, its `Process` card and its streams. The build
+  steps (`BuildCommandTask`, `BuildCopyTask`, `BuildRemoveTask`) and the
+  background task of an agent give a `WidgetFactGroup`: the command, the exit code
+  and the error line of a step; the kind, the tool call, the subagent, the output
+  and the summary of a background task. A fact with no value is left out;
+- `get_task_kind_name(task)` gives the name of the kind, such as `"statistical
+  test"`, which the header shows in muted text; the default is an empty string.
 
 The defaults answer nothing, so a task of a kind that adds nothing shows what
 every task has. A run of a simulation, for example, can add its directory, its
@@ -60,6 +70,11 @@ own.
 holds the fields `task`, `result`, `expected_result`, `reason` and
 `elapsed_wall_time`, named as `opp_repl` names them. A result is expected when
 `result == expected_result`.
+
+`find_error_message(result)` gives what a result that is `ERROR` says about the
+error, such as the error line of its process, or `nothing` when it says nothing;
+a kind of result adds a method to it. `get_error_message(result)` gives the same
+message as `opp_repl` writes it, with `"<No error message>"` for `nothing`.
 
 `ResultCodes` is a family of codes in the order of `opp_repl`, the colour role of
 each code and the code that a result takes when nothing says otherwise. Three
@@ -143,6 +158,21 @@ A `Cmd` starts in a process group of its own. `stop_task_execution!` sends
 the compilers of `make`, for example — and a program that catches the signal
 can still finish its work. The status says `:cancelling` until the process
 ends. A Ctrl+C at the REPL does not reach the group.
+
+**A function can imitate the program.** Inside
+`run_with_process_imitation(f, imitation)`, `start_process_task!` starts no
+program: it calls `imitation(command, output, error_output)` on a task of its
+own, and gives the execution an `ImitatedProcess`. The function writes the lines
+of the program into the two streams and answers the exit code; an exception
+that it throws goes into `error_output` and ends it with the code 1. The readers,
+`read_line`, `finish`, the stop and the group see what they see of a program:
+`wait`, `process_running`, `exitcode`, `termsignal` and `process_signaled`. An
+imitated process has no identifier, so the sampler skips it, and a stop records
+the signal that the end reports, because a function runs to its end. A task
+that starts inside `f`, such as the loop of an editor that `f` starts, imitates
+too, because the function is a scoped value. A compile workload uses it, so that
+the gestures of a task compile and a build starts no program.
+
 A sampler of each process that runs calls `sample_task_usage!` four times a
 second, on a task of the default pool, off the loop. It reads the processor time
 and the resident memory of the process with `read_system_process_usage`, which
@@ -171,7 +201,8 @@ sync. A `TaskGroupRuntime` holds what no view shows: the lock of the tally, the
 scheduler, `finish`, `on_start`, `on_preparation` and `preparation_run`. The
 `TaskGroupTally` counts the tasks of the group that are no groups: the finished
 ones, the places that run, the counts of each code, the unexpected details by
-place, the durations and the slowest. The construction and each start build it
+place, the unexpected leaf results by place (below), the durations and the
+slowest. The construction and each start build it
 once from the executions; the scheduler adds each start and each end. So
 `compute_task_group_summary` costs the codes, the inner groups and the running
 tasks, and not a walk of every task. `make_task_group_shadow` makes the shadow
@@ -202,6 +233,22 @@ expected and unexpected, and the worst case. `format_task_group_summary` and
 like at one moment for a reader of the screen: the counts, the progress, the
 time that went and an estimate of the time left, the rate and the slowest task.
 
+**The leaf results.** `get_inner_task_results(result)` answers the results that a
+result is made of, and an empty vector by default: a `TaskGroupResult` answers
+its `results`, and the result of a fingerprint test answers the results of its
+fingerprints. A leaf is a result with no inner results, so a result that is
+made of none is its own leaf. The tally keeps, for each task whose result is
+unexpected, its unexpected leaves, each as `(reason, name)`: the reason of the
+leaf, or its code when it gives none, and `format_task_parameters` of the task
+of the leaf, or of the task that ended with the result when the leaf has no
+task. The summary counts them in `reasons`, a row `(reason, count, names)` for
+each reason: the leaves that gave it, and the names of their tasks, each once,
+in the order of the tasks, the most frequent reason first and reasons of equal
+count in the order they came in. `reasons` is also a field of
+`get_task_group_counts`, so the card changes only when a task starts or ends.
+The `reason` of the summary keeps the words of `opp_repl`, counted over the
+results of the tasks, because the text for the assistant reads it.
+
 A start that throws ends its task as `ERROR`, a `TaskStartFailure` with the
 exception in its reason, and the group goes on with its other tasks, so one bad
 task does not leave a group that never ends.
@@ -217,6 +264,19 @@ the group holds a document of the preparation (`get_task_group_preparation`),
 the card of the pane says in one line how it went
 (`describe_task_group_preparation`), and its button Show puts the preparation
 in the detail, the pane of a preparation that is a group.
+
+A group can stop at a failure (`stop_at_failure`, false by default). It says that
+a task needs the tasks before it: `jobs` limits how many tasks run at a time, and
+`stop_at_failure` says whether a task waits for the success of the ones before
+it. When a task ends with a result that is not expected, including a `CANCEL`
+from a stop of that task, `_drive!` starts no more task. The tasks that run go on
+to their end, and each task that did not start ends `CANCEL` with a
+`TaskNotStarted` result, at every depth, whose reason carries the name and the
+code of the task that failed: `Not started: checkout ended ERROR`. With one job
+the group is a chain; with more jobs it stops as `make` stops without `-k`. A run
+again of `:unexpected` runs the failed task and the tasks that did not start, in
+their order, under the same rule. The card says it:
+`commit 3fa2c1d (4 sequential, stops at a failure)`. The shadow holds the field.
 
 ## The steps of a build
 
@@ -238,12 +298,41 @@ command ends `ERROR` with what it printed on stderr as its error message. A
 domain computes the command lines and puts the steps in groups: a build of a
 project is a sequential group of phases, each a concurrent group of steps.
 
+## A program as a task
+
+`ProgramTask(command; working_directory, environment, time_limit, name)` is one
+program that a person or a model starts: it has its folder, the variables that it
+adds, a log, an exit status and a stop. It is no step of a build: it has no input
+files and no output files, and no check of what is up to date, so it runs each
+time. `command` is a `Cmd` or a vector of strings; a `Cmd` that carries a folder
+or an environment of its own throws an `ArgumentError`, because the keywords say
+them. `environment` adds its variables to the environment of the editor process
+(`addenv`), so the program keeps `PATH` and `HOME`; a `BuildCommandTask` takes a
+full environment instead. `start_task` starts the words with `start_process_task!`.
+
+The result is a `ProgramResult`: the five fields of a result and `exit_code`.
+It is `DONE` on exit code 0, `CANCEL` after a stop, and else `ERROR` with the
+reason `Non-zero exit code: 3` or `Ended by signal 15`. With `time_limit` seconds,
+a timer stops the process as a stop does, the task ends `ERROR` with the reason
+`Time limit of 1800 s`, and the end of the process closes the timer. No check reads
+the disk before the start: a folder that does not exist makes `run` throw, and the
+group ends the task as a `TaskStartFailure`.
+
+The views of the kind: the columns `name` and `command`, a page of the facts
+`command`, `folder`, `environment` (the added variables only) and `exit code`
+(`make_task_kind_document`), and the
+marks of a line: `error:` or `fatal:` in any case is `:error`, `warning:` is
+`:warning`, so the button First error of the stream page and the counts of the
+marks work.
+
 ## The documents and the feed
 
 `TaskDocument` is one task on the screen: the task, the native layout of its
 current execution in `running`, and the shadow of every execution of the task in
 `executions`, the newest last, a `CellVector`, so a selection goes into the page
-of an execution. It holds nothing that a kind of task knows: a view asks the task
+of an execution. A task with no group and an `identifier` is a task alone, a row
+of the task list of its own (below): `identifier` is `T…` from the counter of the
+groups, `title` is what its row calls it, and `started_by` is who started it. It holds nothing that a kind of task knows: a view asks the task
 for its columns, its facts and its buttons. `group` holds, in a `Ref`, the group
 document of the task and its place in it, which `wrap_task_group_document` sets
 (`find_task_document_group`); a walk and a copy of the documents do not go round
@@ -256,7 +345,7 @@ current execution. A view reads the shadow of the current execution
 `get_task_document_result` and `collect_task_document_lines` read its status, its
 result and its lines.
 
-`process_tree` is a computed field of `TaskDocument`, as `result_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the step of the tree for each execution that changed, when a view read its tree; a `TaskDocument` and the slot of a group of tasks both answer the step. The sampler writes the execution of a process that runs four times a second, so the tree of a running task takes its step at each drain, and the feed of the tasks already wakes the window then; the tree needs no wake of its own. The read of the tree runs off the loop, as for any tree. So a build or a simulation run shows its compilers or its workers with no code in its domain.
+`process_tree` is a computed field of `TaskDocument`, as `kind_document` is. It is the `SystemProcessTree` of the process of the current execution, made when a view first reads it, while the execution has a process and no result; after the result it is `nothing`. A tree that no view read is never made, so a task that nobody looked at costs no read of `/proc`. `drain_task_feed!` takes the step of the tree for each execution that changed, when a view read its tree; a `TaskDocument` and the slot of a group of tasks both answer the step. The sampler writes the execution of a process that runs four times a second, so the tree of a running task takes its step at each drain, and the feed of the tasks already wakes the window then; the tree needs no wake of its own. The read of the tree runs off the loop, as for any tree. So a build or a simulation run shows its compilers or its workers with no code in its domain.
 
 A start again, or a run again of a group, adds an execution and replaces none
 (`add_task_execution!`). The earlier executions keep their own results
@@ -269,22 +358,37 @@ adds at most those lines for each task that ran again, until the group is
 closed.
 
 No reader of a process writes a cell. A `TaskFeedStore` holds each execution
-that runs with its shadow and its owner, the document that shows it, and
-`drain_task_feed!` syncs each shadow whose execution changed, on the task that
-reads the documents. After a sync it calls `record_task_execution_sync!` with the
-owner: a group counts the change of the state there, and a document adds a
-shadow that the drain made. A window gives its editor a `TaskFeed`, which drains
-at most once in its interval and asks for a frame only while an execution runs.
-A caller with no window drains the store itself: `wait_task_document` and
-`wait_task_group_document` do.
+that runs with its shadow, its owner, the document that shows it, and its
+editor. `drain_task_feed!(store; editor)` syncs each shadow of `editor` whose
+execution changed, on the task that reads the documents of that editor. After a
+sync it calls `record_task_execution_sync!` with the owner: a group counts the
+change of the state there, and a document adds a shadow that the drain made.
+
+The editor of an execution is the editor of the evaluation that starts it. A
+start of a group runs its start as an evaluation of its editor, so the scheduler
+of the group and each task that it starts, at any depth, inherit the editor and
+register with it. The store is one for the process, and each editor copies only
+its own executions into its own documents. A drain also lets go the executions
+of an editor whose loop ended.
+
+The wrapper `task` of `build_editor` gives the editor a `TaskFeed`, and is on by
+default. The feed drains at most once in its interval, and asks for a frame only
+while an execution of its editor runs. A caller with no window drains the
+executions of no editor itself: `wait_task_document` and
+`wait_task_group_document` do. A caller that waits for a group that an editor
+started names that editor: `wait_task_group_document(doc; editor)`.
 
 `TaskGroupDocument` is a group on the screen: the native `TaskGroup`, its
 shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
-never changes. A roster reads the group and its tasks by facets. A task has the
+never changes, a `title` that the tab shows, and a `description`, the words that
+chose the tasks (`wrap_task_group_document(group; description)`, an empty string
+by default). A roster reads the group and its tasks by facets. A task has the
 facets `name`, `status`, `result`, `expected` and `reason`; a group has `kind`,
-the name of its `TaskGroup`. The `:tasks` source of the roster slice lists the
-tasks of the open groups of the session, each with its group as `within`
-([roster.md](../roster/roster.md)). The slot of each task syncs the shadow of the group after the
+the name of its `TaskGroup`, and `state`, `counts`, `progress` and `elapsed`, which
+the Tasks pane shows; a task has `kind` too, the column `kind` of its kind of task,
+or "task" for a task alone. The `:tasks` source of the roster slice lists the
+tasks of the open groups of the session, each with its group as `within`, and each
+open task alone, with no `within` ([roster.md](../roster/roster.md)). The slot of each task syncs the shadow of the group after the
 task (`get_task_group_document_summary`, `get_task_group_document_counts`). Each task that is
 a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …, which its
 `TaskDocument` holds in the field `inner_group`
@@ -302,9 +406,9 @@ shadow, not the documents, so a group of 18,500 tasks costs the same at each
 change as a group of five.
 
 `TaskGroupList` is the work items of the session of an editor, in the order of
-their starts, which the Tasks pane shows newest first. It holds groups, closed
-groups, and any other work item, such as a search below a node of an explorer
-([explorer.md](../explorer/explorer.md)). It is a session document of the
+their starts, which the Tasks pane shows newest first. It holds groups, tasks
+alone, closed rows, and any other work item, such as a search below a node of an
+explorer ([explorer.md](../explorer/explorer.md)). It is a session document of the
 editor (`get_session_task_group_list(; editor = find_evaluation_editor())`), and
 no module constant holds it. The first call with an editor takes the list that a
 tab of its window shows, or that the content of a tab holds a few documents down,
@@ -314,36 +418,70 @@ it reads no lazy part of a content. A group adds itself at the end of the
 list of the editor of the evaluation when it starts. A group that starts outside
 every editor, such as from a script, joins no list.
 
-A work item answers four generics (`TaskWorkItem.jl`). A group answers them too.
+A work item answers four generics (`TaskWorkItem.jl`). A group and a task alone
+answer them too.
 
 | Generic | Answers |
 | --- | --- |
-| `get_work_item_identifier(item)` | the identifier that never changes, `T3` for a group and `S1` for a search |
-| `describe_work_item_kind(item, count)` | the word for `count` items of the kind: "group" or "groups", "search" or "searches" |
-| `stop_work_item!(item)` | stops the item and keeps its row: a group stops its tasks, a search keeps what it found and reads nothing more |
+| `get_work_item_identifier(item)` | the identifier that never changes, `T3` for a group or a task alone and `S1` for a search |
+| `describe_work_item_kind(item, count)` | the word for `count` items of the kind: "group" or "groups", "task" or "tasks", "search" or "searches" |
+| `stop_work_item!(item)` | stops the item and keeps its row: a group stops its tasks, a task alone its process, a search keeps what it found and reads nothing more |
 | `describe_work_item(item; limit = 20)` | what the item did, in at most `limit` lines |
+
+**Who started a row.** Each row records who started it in its field
+`started_by`, a `WorkStarter`: the person (`:person`), an assistant (`:assistant`)
+with its identifier, the name that the pane shows, such as "Assistant 2", and the
+id of the tool call that started the row, or a client over MCP (`:client`). It is
+a plain value, with no editor and no document. `get_work_item_starter(item)` reads
+it, and `describe_work_starter(starter)` gives its words: "the person", "Assistant
+2", "MCP client". A table shows the words, and an arrangement filters and sorts by
+them (`format_roster_value`, `get_arrangement_value`).
+
+The start of a row takes the starter as the default of its keyword `started_by`,
+`get_work_starter()`, so no verb names it: `start_task_group_document!`, the
+`start_task!` of a task alone, and an `ExplorerSearch`. The first start records
+it, and a later start keeps it. `get_work_starter()` reads the starter of the
+evaluation, a `ScopedValue` of the kernel (`find_evaluation_starter`,
+[agent.md](../../kernel/agent.md)), and answers the person when none is bound.
+These bind it: a tool call of the built-in assistant (`run_turn!` with
+`call_starter`), a tool call of the agent of an assistant (its MCP server, with
+the id `claudecode/toolUseId` of the call), and a call of any other client over
+MCP. A call that such code posts to the loop of the editor keeps its starter
+there, because the door of the editor carries it, and the loop binds none for
+the operations that it reads from the gestures of the person.
+
+**A task alone.** `run_tasks!(task)` makes a `TaskDocument` with an identifier
+and starts it with `StartTaskOperation`, which the editor evaluates: `start_task!`
+starts it, records who started it, and puts its row at the end of the list of the
+session, or back into its place when a person closed it. A group of one task is
+not a task alone: its table, its row filter, its jobs and its run again mean
+nothing for one command. A start that throws, such as a program in a folder that
+does not exist, adds no row. `rerun_tasks!`, `wait_for_tasks!`, `get_task_output`,
+`stop_tasks!`, `describe_task_group` and `close_task_group!` take a task alone.
 
 The state and the line of a work item come from its decoration (`get_document_decoration`, with `work_item = true`). `collect_work_items(list)` gives the open items. `collect_task_group_documents(list)` gives the groups only. `add_task_group!`, `remove_task_group!` and `find_navigator_address(list, item)` take any work item. `list_task_groups`, `find_task_group`, `describe_task_group`, `stop_tasks!` and `close_task_group!` take any work item too.
 
 `TaskGroupList` has the insertion alias "tasks", and its insertion gives the list of the session (`make_insertion_document`). It is a kind of the explorer (`is_explorer_entry_type`). `pred_arguments` writes no field, and a loaded list is the list of the session of the editor that loads it, so a window file and the file of the explorer keep that a tab or an entry shows the list, and no group.
 
 A group keeps its place, so a path `groups[k]` names the same group for the whole
-session. A close of its row puts a `ClosedTaskGroup` in the place: the
-identifier, the title and the line that sums the item up: for a group its kind,
+session, and a task alone keeps its place too. A close of its row puts a `ClosedTaskGroup` in the place: the
+identifier, the title, the line that sums the item up (for a group its kind,
 its counts and its time, and for another item its kind and the line of its
-decoration. The tasks and their
+decoration), and the word for its kind, "group", "task" or "search". The tasks and their
 executions go with the group, so their memory goes. The Tasks pane and the
 records of the tasks hide a closed group, `collect_task_group_documents` gives the
-open groups, and the page of a closed group says that it closed. A group that
-runs again goes back into its place.
+open groups, and the page of a closed row says what closed: "This group is closed.
+Its tasks and their output are gone.", "This task is closed. Its output is gone.",
+or "This search is closed.". A row that runs again goes back into its place.
 
 ## The views
 
-`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card with the
-counts of each code, a bar of the progress, the time, the reason of what was not
-expected and the actions on the whole group; a table with one row for each task;
+`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card (below) and the line of its buttons; a table with one row for each task;
 and the detail of the task whose row a person pressed, with its facts, its
-buttons and its two streams. While the current execution of that task has a process, the detail shows the tree of its processes in a card, after the buttons and before the card of the result ([tree.md](../tree/tree.md) says how a tree draws). A task that ended has no tree, so the card of the result follows the buttons at once. The detail of a task that is a group is the pane of
+buttons and its two streams. The table and the detail stand in a split that a
+person can drag. The table takes its rows up to half of the split, and the
+detail takes the rest, so a group of a few tasks gives the detail the height
+that its rows leave. The detail has one header line: a badge with the result code in the role of the code, or with the state word before the result (the accent role while the task runs), then the name of the task, then a muted text that joins the name of the kind, `unexpected` (or `expected` when an expected code is not a success) and the reason, one line cut with "…" and whole in its tooltip, with the code word nowhere else; the error message of an `ERROR`, when its result has one, is a line in the error colour under it, at most two lines cut with "…". The header line, the error line and the buttons stand at the top of the detail. The whole detail is one column in a scroll area that grows down: each part takes the height of its content, no part has a weight, and the column scrolls when it is taller than its place. After the buttons come the document of the kind, in a place of its own, and while the current execution of that task has a process, the tree of its processes in a card after it ([tree.md](../tree/tree.md) says how a tree draws). Then come the cards `Process` (the `process` fact and `elapsed`, which counts on while the task runs; a fact with no value is left out, and a task with no fact has no card), `Earlier executions` (only when there are any), `stdout · 22 lines` and `stderr`. A stream card holds a box of the last lines of the stream, at most `stream_box_height` of `TaskTheme` high (ten lines of the widget font), which follows the end of the stream and scrolls back inside the box; a stream with no line is the muted word `stdout · empty` and no card. The first line builds the parts of the detail once and a later line builds nothing again. The detail of a task that is a group is the pane of
 that group: its card, with no actions of its own, its table and its detail. The
 columns of the table are the state, the columns of the kind of the first task, and then the progress, the elapsed time,
 the process, the processor, the memory and the result. The progress is a
@@ -356,13 +494,38 @@ the list is the task that the `anchor` of the group names. A scroll far from the
 head writes the head of the list of the table, and the pane writes the anchor
 instead, as the owner of a list does; the list then starts again from that task.
 
+**The card of a group** folds. The pane makes it one time, so it keeps its fold
+while the person selects rows. It reads top to bottom: the title, the name of
+the group with a capital first letter, with the identifier as an outline badge, a
+badge of the state (the word of the state in the accent role while the group runs
+or stops, no role before it started, the warning role after a stop, else the worst
+code in the role of the code), and a badge for each count, `2 FAIL unexpected` in
+the role of its code, `1 running` in the accent role and `3 waiting` with no role,
+so the counts show when the card is folded; the words that chose the tasks (`description` of
+the document) and `4 at a time`, joined by ` · ` in muted text; the line of the
+preparation; the bar of the progress; the time facts in two groups side by side, `finished`, `elapsed` and
+`left`, then `slowest` and `rate` (`72 a minute`, `2.5 a minute`, or `12 an
+hour` when fewer than one a minute finish), a fact with no value left out; a
+table of the reasons of the unexpected results with the columns `count`,
+`reason` and `tasks` (five rows at most, then a muted `+3 more reasons`), which
+is not shown while no result is unexpected. The actions on the whole group, Run
+all, Stop, Run unexpected again and the choice of rows (all, running,
+unexpected), stand in a line between the card and the table, outside the card, so
+they stay when the card is folded.
+A row of the table is one line: the reason and the names are cut with "…", and
+the tooltip holds the whole text; the names are the first three, then `and 197
+more`. The badges and
+the table read the counts of the group, so they are not built again at each
+tick of the clock; the time facts follow the summary. The line of `opp_repl` is
+no part of the card, and the text for the assistant keeps it.
+
 **The links.** The row is what a person presses, and no cell of it. The table
 gives a press on a row back as the selection of the row, and the pane turns it
 into what the press does to the task of the row, at the place of the anchor: a
 press shows the task in the detail, a double press opens the page of the task,
 and Ctrl+press opens it in a new tab. A double press opens the page in the
 navigator around the pane, or in a new tab when no navigator is there. The press writes `selected` of the group as
-view state, so the undo does not record it. The table selects the
+view state, so the undo does not record it, and puts the caret on the group, so the keys of the group reach it. The table selects the
 row of the task of the detail, and its tooltip says what a press does. The row
 takes no key: the walk of the selection leaves the table out. The detail has
 Open the task page, and in the Tasks pane the title of a group
@@ -371,21 +534,46 @@ that holds the part and a path from it, `tasks[i]` of a group or `groups[k]` of
 the list, so the navigator around the pane opens the page where its content
 holds it, and an open that no navigator takes opens a tab.
 
+**A picture in a column.** A cell of a kind column shows the value that `get_task_column_value` gives. When the value is an `ImageFile` or another picture, the cell shows a small picture of the file, as a cell of any roster table does (`make_roster_value_cell`, [roster.md](../roster/roster.md)): at most `table_picture_height` high (a field of `WidgetTheme`, 120 by default), in its shape, and the row is as high as its highest cell. Any other value shows as text.
+
+**A card keeps its fold.** The pane draws a different detail for each row, but it makes each card of the detail one time, outside the computations that read the selected row: only the content of a card, its title and whether it is visible read the selected task. So a card keeps its own flag, folded or open, when the person selects another row, and no field of the group stores it. The column of the detail keeps its parts while the person selects tasks: the header line, the error line, the buttons, the document of the kind, the tree of the processes and the two streams each stand in a slot of their own, a column that is the only reader of what it holds, so a part that changes prints again alone. The document of the kind shows as a following copy (`make_following_document`, [domain.md](../domain/domain.md)): for each type of document, one copy whose fields follow the document of the selected task, so a page of a task type, such as the pages of omnet-julia, is printed one time for each type, and the cards that it makes keep their fold. The page of a task in a navigator shows its document of the kind the same way, so its cards keep their fold when the result comes. A document whose fields are not cells (`is_followable_document`) shows as it is, and prints again for each task. A page of a task type makes its cards in its print and reads its document only in computations, so the print runs one time for a copy.
+
+**The detail alone.** The detail of a task can have the whole place of the table and the split, as the full-size view of a chart has it. The field `is_detail_alone` of the group says so. Return, read as `KeyPress('\n')`, shows the detail alone when a task is selected, and Escape shows the table and the detail again. While the detail is alone, Up and Down select the previous or the next task in the order of the table, so the filter and the sort of the table count, and the detail follows. They stop at the first and at the last row. Return and Up and Down also put the caret in the document of the kind of the task that the detail shows, so Left and Right reach that document first, and Escape puts the caret back on the group. A task with no document of its kind keeps the caret on the group. The keys are the `@gestures` table of the group, so a document in the detail reads a key first, such as Left and Right, and the group gets only what that document leaves. The three writes are view state, so the undo does not record them. While the detail is alone the pane draws no table, and a path into the table maps to nothing. The detail is one column in a scroll area that grows down, whose parts take the height of their content. While the detail is alone and the selected task has a document of its kind, the place below the line of buttons of the group holds that document in a scroll area that grows down, and nothing else: the header, the buttons and the cards of the task are not drawn. A task with no document of its kind, and a row that is an inner group, show their detail. A path into the document is the path below its place, which is the place of the group in the alone view.
+
 In a tree, the text of a task is its name and its status with the time when it started while it runs (`running since 14:02:11`), or the code of its result and how long it ran, with an icon of its status. The text reads no clock, so it changes only when the task does. A task is a leaf, but a task that is a group has the tasks of its inner group under its node. A group has its tasks under its node, and its text says its identifier, its title, how many of its tasks finished and each code that came back unexpected (`T3 fingerprint tests · 37/40 · 2 FAIL`), with the icon of its tab. The list of groups has a node for each group, and a closed group says that it closed.
 
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group
 is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
-pane, one row for each open group of the session, newest first, with Stop, Run
-unexpected again and Close. The title of a row is a link to the page of the group.
+pane: a heading, one line of buttons, and the table of the list.
 
-The pane draws a row for each other open work item. The row shows its identifier, its title as a link to its page, its kind, the word and the color of the first condition of its decoration, the line of its decoration, and Stop and Close. The first column header is "item". The heading counts each kind: "2 groups · 1 search · 1 running". A list of groups only reads "2 groups · 1 running". The decoration of the list counts the running items. For a group it reads the status only.
+**The table** is the field `table` of the list, an `ArrangementDocument` around a
+`Roster` of the open rows, newest first, as the page of the open files has one, so
+a person filters, sorts and finds in its bar. The source of the roster gives each
+row its place `groups[j]`, so the title of a row, its first column, is a link that
+opens the page of the item at that place. The columns are `title`, `identifier`,
+`kind`, `started_by` ("started by"), `state`, `counts`, `progress` and `elapsed`:
+the fields and the facets of a group, a task alone and a search, so a filter of
+"started by" keeps the rows of the person, and a sort orders them by who started
+them. The cells of the state, the progress and the time follow the item; a work
+item of another kind says its kind, its state and its line as its decoration says
+them. The rules of a press are those of every table: a click on the text of a cell
+puts the caret there, and a click on the padding chooses the row.
+
+**The line of buttons** acts on the selected row: the field `selected` of the list,
+the identifier of a row, which a press that puts the selection into a row writes as
+view state, and which the roster marks. Stop stops it while it runs; Run again
+runs the unexpected tasks of a group again, or a task alone as a whole; Close
+closes its row while it does not run. The heading counts each kind: "2 groups · 1
+search · 1 running". A list of groups only reads "2 groups · 1 running". The
+decoration of the list counts the running items. For a group it reads the status
+only.
 
 `make_task_group_list_tab_title` is the title of the Tasks tab, and the
 `make_pane_tab_title` of a list: the icon of a list, and a badge with the count of
 the work items that run. So a navigator whose page is the list gives its tab the same
 icon and badge. `ClosedTaskGroupToWidgetPane` draws the page of a
-closed group.
+closed row.
 
 The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
 the natural renderer for both panes, each with a widget renderer of its own so
@@ -399,19 +587,30 @@ a row of the natural renderer for each. A part that leads to another page answer
 `OpenPageOperation` with the document that holds it and a path from it, so the
 navigator around the page opens it, and Ctrl+press opens it in a new tab.
 
-- **The page of a task** (`TaskDocumentToWidgetPane`): its name, its state, and a
-  link to its group; the facts of its kind, its process and its time; Stop, Run
-  again and the buttons of its kind, which act through the group of the task, so
-  the counts of the group follow, or on the task itself when it has no group; a
+- **The page of a task** (`TaskDocumentToWidgetPane`): the header line of the
+  detail (the badge, the name, the muted text) with a link to its group, or for a
+  task alone its identifier and who started it, and the
+  error line of an `ERROR`; Stop, Run again
+  and the buttons of its kind, which act through the group of the task, so
+  the counts of the group follow, or on the task itself when it has no group,
+  whose Run again is a `StartTaskOperation`, so a task alone goes back into its row; a
   kind that the editor does not start (`start_task`), such as a background task
   of an agent ([assistant.md](../assistant/assistant.md)), has only the buttons of
-  its kind; a link to the page of the group of a task that is a group; its executions, the
-  newest first, each a link to its page; and the last lines of each stream of its
-  current execution, with a link to the page of the stream.
+  its kind; a link to the page of the group of a task that is a group; the
+  document of the kind, drawn in the page by the recursion, when the kind gives
+  one; and the cards `Links` (the links of the kind, when it has any),
+  `Process`, `Executions` (the newest first, each a link to its page), and
+  `stdout` and `stderr`: each stream of its current execution, as the last
+  lines with a link to the page of the stream, or `stdout · empty` when it has no
+  line. The page is a column in a scroll area that grows down, and each card
+  folds and keeps its own state, because a page in a navigator has no group around
+  it. The page of an execution is the same column, with the cards `Links`,
+  `stdout` and `stderr`.
 - **The page of an execution** (`TaskExecutionToWidgetPane`), the page of a
-  shadow: its time, its verdict, the facts of the kind of its task, its process,
-  its times, its use of the machine and its reason, and a link to the page of
-  each stream.
+  shadow: its time, its verdict, its process,
+  its times, its use of the machine and its reason, the page of the kind of its
+  task for the result of that execution (`make_task_kind_document(task,
+  shadow.result)`), and a link to the page of each stream.
 - **The page of a stream** (`TaskStreamToWidget`): each shadow holds a
   `TaskStream` for each stream, `stdout_page` and `stderr_page`, which keeps the
   state of its view while the shadow follows its execution. A grid holds the bar
@@ -439,21 +638,59 @@ search of a stream of many megabytes holds the editor task while it reads.
 A person at the REPL and a model through `execute_julia_code` read and act on
 the groups of the session with the verbs of the slice: `list_task_groups`,
 `find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
-`stop_tasks!`, `stop_task!`, `rerun_tasks!`, `wait_for_task_group!` and
-`close_task_group!`. Each but `wait_for_task_group!` takes the keyword
+`wait_for_tasks!`, `stop_tasks!`, `stop_task!`, `rerun_tasks!`,
+`wait_for_task_group!`, `close_task_group!` and `run_tasks!`, which starts a
+group or one task alone. Each but `wait_for_task_group!` takes the keyword
 `editor = get_evaluation_editor()`, so the code of a model names no editor;
 `wait_for_task_group!` takes `editor` first. Each does its document work on the
 task of the editor through `run_on_editor_task!`, so a person at the REPL, who
-passes `editor`, calls it while the window runs. `describe_task` writes the facts that the kind
-of the task gives (`format_task_details`).
+passes `editor`, calls it while the window runs. `describe_task` writes what every task has: its line, its process, its time, its
+executions and the last lines of its streams. What the kind says is the result,
+`get_task_document_result(group.tasks[index])`, and the page of the kind,
+`group.tasks[index].kind_document`, which the model reads as Julia values.
 
 **A client of `execute_julia_code` never passes `wait = true`.** The call runs
 in a frame of the window, so a verb that waits holds the window until the group
 ends.
 
-`make_task_api()` is what a window declares that a model may call of the slice,
-as a `TaskModule => names` pair, beside the verbs of its domain that start the
-groups.
+**A wait has a deadline.** `wait_for_task_group!(editor, group; timeout)` ends
+when the group ends or when `timeout` seconds have passed, and the group goes
+on; `is_task_group_running(group)` tells the two ends apart. `wait_for_tasks!(group;
+timeout = 30)` is the wait that a model may call: it waits a short while and
+answers how the group stands, "Ended: …" or "Still running after …: …". For a
+group that runs for minutes, a model ends its turn, and the assistant starts a turn
+when the group ends, as long as it has wakes left ([assistant.md](../assistant/assistant.md)).
+For a work of many groups, the model tells the person how many wakes it needs, and
+the person allows them in the spin box under the message box.
+
+**The actions of a group are operations.** A start, a stop of the group, a stop of
+one task, a rerun and a close are `StartTaskGroupOperation`,
+`StopTaskGroupOperation`, `StopTaskOperation`, `RerunTaskGroupOperation` and
+`CloseTaskGroupOperation`, in `TaskGroupDocument.jl`, and the start of a task
+alone is `StartTaskOperation`, in `TaskWorkItem.jl`. The buttons of the card, of
+the table and of the Tasks list, and the verbs `stop_tasks!`, `stop_task!`,
+`rerun_tasks!` and `close_task_group!`, make them, and the editor evaluates them
+(`evaluate_operation(editor, operation)`), so the person and the assistant act on
+a group through one path, and the editor that evaluates a start is the editor
+whose list the group joins. The inverse of each is `DoNothingOperation`, because a
+process that ran can not be undone. A close removes the row from the list only;
+`close_task_group!` closes the panes of the group first.
+
+**`run_tasks!(group; title, editor)` starts a group.** It wraps the `TaskGroup` with
+`wrap_task_group_document`, makes a `StartTaskGroupOperation` and has the editor
+evaluate it, so the group joins the list of the session, the Tasks pane shows it,
+and `_find_turn_task_groups` finds it at the end of a turn for the wake. It
+answers the document at once, places no tab and moves no selection;
+`open_pane!(answer)` places one. A group that started before throws an
+`ArgumentError` that names `rerun_tasks!`. It takes a group of any kind of task,
+and the answer goes to the other verbs as it is. It has no `wait` keyword:
+`wait_for_tasks!` waits a short time, and a person at the REPL calls
+`wait_for_task_group!(editor, group)`. A chain of programs is
+`TaskGroup([ProgramTask(…), …]; jobs = 1, stop_at_failure = true)`; the default of
+`jobs` is the count of processor threads.
+
+The verbs of the slice that a model may call carry the mark `For the assistant.`
+in their docstrings, beside the verbs of the domain that start the groups.
 
 ## Add a kind of task
 
@@ -467,10 +704,13 @@ A domain adds a kind of task in five steps. The example is a build that runs
    with `start_process_task!`, and in `finish` makes the result and calls
    `finish_task_execution!` with `on_finish`.
 4. If the views must show more than every task has, answer the functions of the
-   views: `get_task_columns`, `format_task_column`, `format_task_details`,
-   `get_task_actions`, `get_task_links` and `get_task_result_document`.
-5. Give a model the verbs: the verbs of the domain that start a group, and
-   `make_task_api()` for the rest.
+   views: `get_task_columns`, `format_task_column`,
+   `get_task_actions`, `get_task_links` and `make_task_kind_document`.
+5. Give a model the kind and the verbs: the kind itself carries the mark
+   `For the assistant.` in its docstring (with "Use it to", an example and "See
+   also"), as `ProgramTask` and `TaskGroup` do, when a model builds it into a
+   group that `run_tasks!` starts; a domain whose verbs start the group of its
+   own kind marks those verbs; the verbs of the slice carry it already.
 
 ```julia
 struct BuildTask <: AbstractTask
@@ -507,5 +747,5 @@ open_pane!(group; title = "Builds")
 ```
 
 The group then reports into its pane, its tab says how far it is, the Tasks pane
-lists it, and when it ends, the card of its pane starts with `Built builds` and
-the summary line of `opp_repl`.
+lists it, and when it ends, the card of its pane shows its
+counts, its time and the reasons of what was not expected.

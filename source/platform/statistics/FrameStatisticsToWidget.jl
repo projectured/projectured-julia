@@ -1,21 +1,34 @@
 # Fragment of `FrameStatisticsModule` — the projection of a
 # [`FrameStatistics`](FrameStatisticsDocument.jl) onto widgets: a head line with
-# the frame counts and a Pause toggle, a table of the summary of each
-# measurement, and a table of the recent frames, newest first.
+# the frame counts and a Pause toggle, a table of the parts of a frame, a table of
+# the other measurements, and a table of the recent frames, newest first.
 
 """
-    FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0,
-                              measure = nothing, row_step = 0)
+    FrameStatisticsToWidget(; header_text, section_text, count_text, row_text, empty_text, slow_text,
+                              gap, row_height = 0, measure = nothing, row_step = 0)
 
 Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
 - a head line with the number of frames since the start and the number that the
   tables cover, and a Pause toggle that holds the cell of `paused`;
-- "Summary": one row for each measurement, with its unit, the number of frames
-  that it covers, its minimum, maximum, mean, standard deviation and total;
+- "Parts of a frame": one row for each part of `FRAME_PARTS` that the frames
+  measured, in the order of the loop, and one column for each measure of
+  `FRAME_PART_MEASURES` that they measured. A choice above it says which
+  statistic of the recent frames each cell shows: the mean, the minimum, the
+  maximum, the deviation or the total. It writes `summary_statistic`;
+- "Other measurements": one row for each measurement of no part, with its unit,
+  the number of frames that it covers, its minimum, maximum, mean, standard
+  deviation and total. With no part, it is the only summary, "Summary";
 - "Frames, newest first": one row for each recent frame, with the frame number
-  as the row header and one column for each measurement, and a scroll bar
-  over the right edge of its rows.
+  as the row header, and a scroll bar over the right edge of its rows. A choice
+  above it says what its columns show: one measure of each part, the whole
+  frame first, or the other measurements. It writes `frame_measure`, and a
+  choice of one option does not show.
+
+The editor gives the parts and the measures, and the page finds each by the name
+that `get_frame_part_measurement_name` gives, so it reads no shape from the
+spelling of a name. The whole frame is called "whole frame", so its column is not
+the column of the frame number.
 
 A time shows in milliseconds with two decimals, and the total of a time with
 none. A count shows as a whole number, and its mean and deviation with one
@@ -25,13 +38,13 @@ slow: its frame number and its cells draw in `slow_text`.
 
 Every column of the table of the frames is as wide as its header and its
 widest value, as `measure` gives them, and takes no share of the width; with no
-measure it is as wide as its header. The table builds only the rows that it
-shows: its rows are a list
+measure it is as wide as its header. A new choice of its columns builds the page
+again. The table builds only the rows that it shows: its rows are a list
 whose head is the row `anchor`, counted from the newest frame, and it shares the
 cells of `top_row` and `scroll_position` of the document. When the table moves
 the head of its list, the reader writes `anchor` instead, and the list starts
-again from there. A press on Pause writes `paused` as view state, so the undo
-does not record it.
+again from there. A press on Pause and a pick of a choice write the document as
+view state, so the undo does not record them.
 
 The scroll bar shows where the top row is among the frames, and its thumb is
 the share of the frames that the table shows: the offered height divided by
@@ -46,10 +59,12 @@ Read only: no caret goes into a table.
 """
 @projection UntrackedCell struct FrameStatisticsToWidget <: Projection
     header_text::StyleText = get_frame_statistics_style(nothing, :header_text)
+    section_text::StyleText = get_frame_statistics_style(nothing, :section_text)
+    count_text::StyleText = get_frame_statistics_style(nothing, :count_text)
     row_text::StyleText = get_frame_statistics_style(nothing, :row_text)
     empty_text::StyleText = get_frame_statistics_style(nothing, :empty_text)
     slow_text::StyleText = get_frame_statistics_style(nothing, :slow_text)
-    gap::Int = get_frame_statistics_style(nothing, :gap)
+    gap::Int = get_widget_style(nothing, :form_row_gap)
     row_height::Int = 0
     measure::Any = nothing
     row_step::Int = 0
@@ -73,8 +88,8 @@ The projection of the statistics, with the styles of `theme`: a
 With a `measure`, the rows of the table of the frames are a line of the font of
 the rows tall, its columns are as wide as their content, and both follow the
 scale of the theme. `widget_theme`, the widget theme of the appearance, gives
-the padding of a cell, which the step of a row adds, and the width of the
-scroll bar.
+the gap between the parts, the padding of a cell, which the step of a row adds,
+and the width of the scroll bar.
 """
 function make_frame_statistics_projection(; theme = nothing, measure = nothing,
                                           widget_theme = nothing)
@@ -87,9 +102,10 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing,
     row_step = (measure === nothing || widget_theme === nothing) ? 0 :
         UntrackedCell{Int}(@computation row_height[] + Int(widget_theme.control_padding.top[]) +
                                         Int(widget_theme.control_padding.bottom[]) + 1)
-    FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
+    FrameStatisticsToWidget(; header_text = get_style(:header_text),
+                            section_text = get_style(:section_text), count_text = get_style(:count_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
-                            gap = get_style(:gap), row_height, measure, row_step)
+                            gap = get_widget_style(widget_theme, :form_row_gap), row_height, measure, row_step)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.
@@ -107,27 +123,168 @@ const _FRAME_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 0.0)
 
 function print_document(p::FrameStatisticsToWidget, recursion, statistics::FrameStatistics, ctx)
     head = HorizontalLayout(Any[
-            WidgetLabel(() -> _format_head_line(statistics); text_style = p.header_text),
+            WidgetLabel(() -> _format_head_line(statistics); text_style = p.count_text),
             _make_pause_toggle(statistics)];
         vertical_align = :center, gap = 4 * p.gap)
-    bar = _make_frame_scroll_bar(p, statistics, ctx === nothing ? nothing : get_exact_height(ctx))
+    bar = _make_frame_scroll_bar(p, statistics, get_visible_height(ctx))
     root = VerticalLayout(Any[]; horizontal_align = :left, gap = p.gap)
-    # The parts are built again only when a measurement appears: this reads the
-    # count of the rows, each row, and its name and its unit, and a flush writes
-    # none of these. A flush changes the labels of the numbers and the rows of
-    # the table of the frames, which read their own cells.
-    set_cell_computation!(getfield(root.children, :elements), () -> begin
-        rows = statistics.rows
-        isempty(rows) && return Cell[Cell(head), Cell(WidgetLabel("no frame yet"; text_style = p.empty_text))]
-        summary = [rows[index] for index in 1:length(rows)]
-        Cell[Cell(head),
-             Cell(WidgetLabel("Summary"; text_style = p.header_text)),
-             Cell(_make_summary_table(p, summary)),
-             Cell(WidgetLabel("Frames, newest first"; text_style = p.header_text)),
-             Cell(LayoutConstraint(_make_frame_table(p, statistics, summary, bar);
-                                   width = Fill, height = Fill))]
-    end)
-    FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
+    # The parts are built again only when a measurement appears or the choice of
+    # the columns of the frames changes: this reads the count of the rows, each
+    # row, its name and its unit, and `frame_measure`, and a flush writes none of
+    # these. A flush changes the labels of the numbers and the rows of the table
+    # of the frames, which read their own cells, and so does the choice of the
+    # statistic of the parts.
+    set_cell_computation!(getfield(root.children, :elements),
+                          () -> _build_page_children(p, statistics, head, bar))
+    follow_built_children!(root)
+    iomap = FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
+    follow_widget_output!(root, statistics, path -> map_reference_forward(p, iomap, path))
+    iomap
+end
+
+# The children of the page: the head line, and the tables with their titles.
+function _build_page_children(p::FrameStatisticsToWidget, statistics::FrameStatistics, head, bar)
+    rows = statistics.rows
+    isempty(rows) && return Cell[Cell(head), Cell(WidgetLabel("no frame yet"; text_style = p.empty_text))]
+    layout = _get_page_layout(statistics)
+    children = Cell[Cell(head)]
+    if !isempty(layout.parts)
+        choice = _make_table_choice(statistics, :summary_statistic, _SUMMARY_STATISTICS,
+                                    _SUMMARY_STATISTIC_LABELS, _SUMMARY_CHOICE_NOTE)
+        push!(children, Cell(_make_title_line(p, "Parts of a frame", choice)),
+              Cell(_make_part_table(p, statistics, layout)))
+    end
+    if !isempty(layout.other)
+        title = isempty(layout.parts) ? "Summary" : "Other measurements"
+        push!(children, Cell(WidgetLabel(title; text_style = p.section_text)),
+              Cell(_make_summary_table(p, [rows[k] for k in layout.other])))
+    end
+    choices = _collect_frame_measures(layout)
+    frame_title = length(choices) < 2 ?
+        WidgetLabel("Frames, newest first"; text_style = p.section_text) :
+        _make_title_line(p, "Frames, newest first",
+                         _make_table_choice(statistics, :frame_measure, choices,
+                                            map(_format_measure_name, choices),
+                                            _FRAME_CHOICE_NOTE))
+    columns = _collect_frame_columns(statistics, layout,
+                                     _get_frame_measure(statistics, choices))
+    push!(children, Cell(frame_title),
+          Cell(LayoutConstraint(_make_frame_table(p, statistics, columns,
+                                                  get(layout.index, "frame_time", nothing),
+                                                  bar);
+                                width = Fill, height = Fill)))
+    children
+end
+
+# ── The shape of the page ───────────────────────────────────────────────────
+
+# The statistics that the table of the parts shows, as the field of a row that
+# each one reads, and what its choice says for each.
+const _SUMMARY_STATISTICS = (:mean, :minimum, :maximum, :standard_deviation, :total)
+const _SUMMARY_STATISTIC_LABELS = ("mean", "minimum", "maximum", "deviation", "total")
+
+const _SUMMARY_CHOICE_NOTE = TooltipNote(; title = "Statistic",
+    text = "Which number of the recent frames each cell of the parts shows.")
+const _FRAME_CHOICE_NOTE = TooltipNote(; title = "Columns",
+    text = "What the columns show for each frame: one measure of each part, or the other measurements.")
+
+# The shape of the page, from the names of the rows and the parts and the
+# measures that the editor gives: `index`, the row of each name; `parts`, the
+# parts that the frames measured, in the order of `FRAME_PARTS`; `measures`, the
+# measures that some part has, in the order of `FRAME_PART_MEASURES`; and
+# `other`, the rows of no part, in their order.
+function _get_page_layout(statistics::FrameStatistics)
+    rows = statistics.rows
+    index = Dict{String,Int}(rows[k].name => k for k in 1:length(rows))
+    part_names = Set{String}()
+    parts = Symbol[]
+    measures = Symbol[]
+    for part in FRAME_PARTS, measure in FRAME_PART_MEASURES
+        name = String(get_frame_part_measurement_name(part, measure))
+        haskey(index, name) || continue
+        push!(part_names, name)
+        part in parts || push!(parts, part)
+        measure in measures || push!(measures, measure)
+    end
+    sort!(measures; by = measure -> findfirst(==(measure), FRAME_PART_MEASURES))
+    other = [k for k in 1:length(rows) if !(rows[k].name in part_names)]
+    (; index, parts, measures, other)
+end
+
+# What a part is called in the tables. The whole frame is "whole frame", so its
+# column is not the column of the frame number.
+_format_part_name(part::Symbol) = part === :frame ? "whole frame" : String(part)
+
+# What a measure is called in a choice and in a header: "time", "reads" and so
+# on, and "other" for the measurements of no part.
+_format_measure_name(measure::Symbol) = replace(String(measure), "cell_" => "")
+
+# A title of a table with the choice of what the table shows beside it.
+_make_title_line(p::FrameStatisticsToWidget, title::AbstractString, choice) =
+    HorizontalLayout(Any[WidgetLabel(title; text_style = p.section_text), choice];
+                     vertical_align = :center, gap = 4 * p.gap)
+
+# A choice of what a table shows: one segment for each value, which a pick writes
+# into `field` of the statistics. The pressed segment is the value of the field,
+# or the first one for a value that the choice does not hold.
+function _make_table_choice(statistics::FrameStatistics, field::Symbol, values, labels, note)
+    choice = WidgetToggleGroup(Any[labels...]; values = Any[values...], target = statistics,
+                               field = String(field), tooltip = note)
+    set_cell_computation!(getfield(choice, :selected),
+                          () -> something(findfirst(==(getproperty(statistics, field)), values), 1))
+    choice
+end
+
+# The table of the parts: one row for each part, and one column for each measure.
+# Each number is a label that reads its row and the chosen statistic, so a flush
+# or a new choice changes only the labels whose numbers changed.
+function _make_part_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, layout)
+    headers = Any[WidgetLabel("part"; text_style = p.header_text);
+                  [WidgetLabel(measure === :time ? "time (ms)" : _format_measure_name(measure);
+                               text_style = p.header_text) for measure in layout.measures]]
+    rows = Any[Any[_make_cell_label(p, _format_part_name(part));
+                   [_make_part_value_label(p, statistics, layout, part, measure)
+                    for measure in layout.measures]]
+               for part in layout.parts]
+    WidgetTable(headers, rows;
+                columns = Any[WidgetTableColumn(; align = :left);
+                              [WidgetTableColumn(; align = :right) for _ in layout.measures]])
+end
+
+function _make_part_value_label(p::FrameStatisticsToWidget, statistics::FrameStatistics, layout,
+                                part::Symbol, measure::Symbol)
+    k = get(layout.index, String(get_frame_part_measurement_name(part, measure)), nothing)
+    k === nothing && return _make_cell_label(p, "-")
+    row = statistics.rows[k]
+    _make_cell_label(p, () -> _format_summary_value(row, statistics.summary_statistic))
+end
+
+# What the table of the frames can show: each measure of the parts, and the other
+# measurements when there are any.
+_collect_frame_measures(layout) =
+    Symbol[layout.measures; isempty(layout.other) ? Symbol[] : [:other]]
+
+# The measure that the table of the frames shows: the choice of the document, or
+# the first that it can show when it can not show that one.
+function _get_frame_measure(statistics::FrameStatistics, choices::Vector{Symbol})
+    measure = statistics.frame_measure
+    measure in choices ? measure : first(choices)
+end
+
+# The columns of the table of the frames for `measure`, each as the row that it
+# shows, its header and its unit: for a measure of the parts, the whole frame and
+# then each part in the order of the loop; for `:other`, each row of no part.
+function _collect_frame_columns(statistics::FrameStatistics, layout, measure::Symbol)
+    rows = statistics.rows
+    make_column(k, name) = (index = k, header = _format_frame_header(name, rows[k].unit),
+                            unit = rows[k].unit)
+    measure === :other && return [make_column(k, rows[k].name) for k in layout.other]
+    columns = NamedTuple[]
+    for part in (:frame, filter(!=(:frame), FRAME_PARTS)...)
+        k = get(layout.index, String(get_frame_part_measurement_name(part, measure)), nothing)
+        k === nothing || push!(columns, make_column(k, _format_part_name(part)))
+    end
+    columns
 end
 
 # "1234 frames, the tables cover the last 1000": the frames since the start, and
@@ -144,10 +301,10 @@ end
 _make_pause_toggle(statistics::FrameStatistics) =
     WidgetToggle(Cell(Point2D(0, 0)), Cell("Pause"), getfield(statistics, :paused), Cell(true),
                  Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
-                 Cell(nothing), Cell(nothing))
+                 Cell(TooltipNote(; title = "Pause", text = "Stop adding frames; the tables keep their rows.")),
+                 Cell(nothing))
 
-_make_cell_label(p::FrameStatisticsToWidget, content; slow::Bool = false) =
-    WidgetLabel(content; text_style = slow ? p.slow_text : p.row_text)
+_make_cell_label(p::FrameStatisticsToWidget, content) = WidgetLabel(content; text_style = p.row_text)
 
 # A frame is slow when its frame time is more than this many times the median.
 const _SLOW_FRAME_FACTOR = 2
@@ -164,9 +321,30 @@ function _compute_slow_frame_limit(columns, column::Union{Int,Nothing})
     _SLOW_FRAME_FACTOR * median
 end
 
-# Whether the frame at the place `i` of `columns` is slow.
-_is_slow_frame(columns, column::Union{Int,Nothing}, limit::Float64, i::Int) =
-    column !== nothing && column <= length(columns) && columns[column][i] > limit
+# The value of the column `c` for the frame with the number `frame`, or `NaN`
+# when the document holds no such frame or column.
+function _find_frame_value(statistics::FrameStatistics, c::Int, frame::Int)
+    i = _find_frame_place(statistics.frames, frame)
+    columns = statistics.columns
+    (i === nothing || c > length(columns)) ? NaN : columns[c][i]
+end
+
+# The place of the frame with the number `frame` among `frames`, which are oldest
+# first, or `nothing`: a binary search.
+function _find_frame_place(frames, frame::Int)
+    low, high = 1, length(frames)
+    while low <= high
+        middle = (low + high) >>> 1
+        number = frames[middle]
+        number == frame && return middle
+        number < frame ? (low = middle + 1) : (high = middle - 1)
+    end
+    nothing
+end
+
+# Whether the frame with the number `frame` is slow.
+_is_slow_frame(statistics::FrameStatistics, column::Union{Int,Nothing}, limit::Float64, frame::Int) =
+    column !== nothing && _find_frame_value(statistics, column, frame) > limit
 
 # The unit of a row as its column shows it.
 _format_unit(row::FrameStatisticsRow) = row.unit === :second ? "ms" : ""
@@ -203,39 +381,37 @@ function _make_summary_table(p::FrameStatisticsToWidget, summary::Vector)
 end
 
 # The header of a column of the frames: its name, and `(ms)` for a time.
-_format_frame_header(row::FrameStatisticsRow) =
-    row.unit === :second ? string(row.name, " (ms)") : row.name
+_format_frame_header(name::AbstractString, unit::Symbol) =
+    unit === :second ? string(name, " (ms)") : name
 
 # The table of the frames. Its rows and its row headers are lists from `anchor`,
-# counted from the newest frame, and every flush builds them again from the
-# frames of the document; the table builds only the rows that it shows. A list
-# keeps the frames and the columns that it was built from, so a row that a walk
-# builds later shows the same flush. The columns are those of `summary`, so the
-# headers and the cells agree while a new measurement reaches the parts.
-function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, summary::Vector,
-                           bar::WidgetScrollBar)
-    units = [row.unit for row in summary]
-    slow_column = findfirst(row -> row.name == "frame_time", summary)
-    headers = CellVector(Cell[Cell(WidgetLabel(_format_frame_header(row); text_style = p.header_text))
-                              for row in summary])
-    policies = Cell(@computation _make_frame_column_policies(p, summary, units, statistics.columns))
-    columns = Any[_make_frame_column(policies, c) for c in eachindex(units)]
+# counted from the newest frame, and the table builds only the rows that it shows.
+# The page keeps one row and one row header for each frame that the document
+# holds, by the number of the frame. A flush makes new lists over the same rows,
+# and the grid keeps the print of a row that it printed under the list before, so
+# a flush prints only the rows of the new frames. A cell reads the value of its
+# frame and the slow limit in the document, so a kept row follows a new value and
+# a new median. `columns` are the columns that the table shows, from
+# `_collect_frame_columns`, and `slow_column` is the column of the document that
+# holds the frame time.
+function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, columns::Vector,
+                           slow_column::Union{Int,Nothing}, bar::WidgetScrollBar)
+    headers = CellVector(Cell[Cell(WidgetLabel(column.header; text_style = p.header_text))
+                              for column in columns])
+    policies = Cell(@computation _make_frame_column_policies(p, columns, statistics.columns))
+    table_columns = Any[_make_frame_column(policies, c) for c in eachindex(columns)]
+    limit = Cell(@computation _compute_slow_frame_limit(statistics.columns, slow_column))
+    kept = Dict{Int,Any}()
+    get_kept_row(frame) = get!(() -> _make_frame_row(p, statistics, columns, slow_column, limit, frame),
+                               kept, frame)
     rows = Cell(@computation begin
-        columns = statistics.columns
-        limit = _compute_slow_frame_limit(columns, slow_column)
-        _make_frame_list(statistics, i -> begin
-            slow = _is_slow_frame(columns, slow_column, limit, i)
-            make_widget_table_row(Any[
-                _make_cell_label(p, _format_frame_value(units[c], c <= length(columns) ? columns[c][i] : NaN);
-                                 slow)
-                for c in eachindex(units)])
-        end)
+        frames = statistics.frames
+        _forget_left_frames!(kept, frames)
+        _make_frame_list(statistics, i -> get_kept_row(frames[i]).row)
     end)
     row_headers = Cell(@computation begin
-        frames, columns = statistics.frames, statistics.columns
-        limit = _compute_slow_frame_limit(columns, slow_column)
-        _make_frame_list(statistics, i -> _make_cell_label(p, string(frames[i]);
-                                                           slow = _is_slow_frame(columns, slow_column, limit, i)))
+        frames = statistics.frames
+        _make_frame_list(statistics, i -> get_kept_row(frames[i]).header)
     end)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns, border_width,
@@ -244,11 +420,51 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
     # horizontal_scroll_bar, open_cells, tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers,
                 Cell(WidgetLabel("frame"; text_style = p.header_text)), rows,
-                Cell(:row_major), Cell(WidgetTableRows(nothing)), Cell(columns), Cell(1),
+                Cell(:row_major), Cell(WidgetTableRows(nothing)), Cell(table_columns), Cell(1),
                 Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
                 Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto), Cell(nothing), Cell(nothing))
+end
+
+# The row and the row header of the frame with the number `frame`, which the page
+# keeps while the document holds the frame. A cell reads the value of the frame,
+# and every label of the row takes the slow style while the frame is slower than
+# `limit`. Whether it is slow is a cell of its own: a flush computes it again, and
+# a flag that stays the same leaves the style, and so the print, of each label.
+function _make_frame_row(p::FrameStatisticsToWidget, statistics::FrameStatistics, columns::Vector,
+                         slow_column::Union{Int,Nothing}, limit::Cell, frame::Int)
+    slow = Cell(@computation _is_slow_frame(statistics, slow_column, limit[], frame))
+    function make_label(content)
+        label = WidgetLabel(content; tooltip = () -> _make_slow_frame_note(statistics, slow_column, limit, frame))
+        set_cell_computation!(getfield(label, :text_style), () -> slow[] ? p.slow_text : p.row_text)
+        label
+    end
+    row = make_widget_table_row(Any[
+        make_label(() -> _format_frame_value(column.unit,
+                                             _find_frame_value(statistics, column.index, frame)))
+        for column in columns])
+    (row = row, header = make_label(string(frame)))
+end
+
+# What a row of a slow frame says when the pointer rests on it: the frame time and
+# the median it is over; nothing for a frame that is not slow.
+function _make_slow_frame_note(statistics::FrameStatistics, slow_column::Union{Int,Nothing}, limit::Cell,
+                               frame::Int)
+    _is_slow_frame(statistics, slow_column, limit[], frame) || return nothing
+    milliseconds(seconds) = string(round(1000 * seconds; digits = 1), " ms")
+    TooltipNote(; title = string("Frame ", frame),
+                text = string("Slow: ", milliseconds(_find_frame_value(statistics, slow_column, frame)), ", over ",
+                              _SLOW_FRAME_FACTOR, " times the median."),
+                facts = ["Median" => milliseconds(limit[] / _SLOW_FRAME_FACTOR)])
+end
+
+# Drop the kept rows of the frames that the document no longer holds: the frames
+# that left the ring, and every frame of a store that started again.
+function _forget_left_frames!(kept::Dict{Int,Any}, frames)
+    isempty(frames) && return empty!(kept)
+    oldest, newest = first(frames), last(frames)
+    filter!(entry -> oldest <= first(entry) <= newest, kept)
 end
 
 # The data of column `c` of the frames, aligned right, whose width reads entry
@@ -263,15 +479,15 @@ end
 # widest value, as the measure of the projection gives them. A column holds no
 # negative number, so its widest value is its largest. With no measure, each
 # column keeps the policy of the table.
-function _make_frame_column_policies(p::FrameStatisticsToWidget, summary::Vector,
-                                     units::Vector{Symbol}, columns)
+function _make_frame_column_policies(p::FrameStatisticsToWidget, columns::Vector, data)
     measure = p.measure
     measure === nothing && return Any[]
     header_font, row_font = p.header_text.font, p.row_text.font
-    Any[Fixed(max(compute_line_box(measure, _format_frame_header(row), header_font).width,
-                  compute_line_box(measure, _format_widest_frame_value(units[c],
-                      c <= length(columns) ? columns[c] : Float64[]), row_font).width))
-        for (c, row) in enumerate(summary)]
+    Any[Fixed(max(compute_line_box(measure, column.header, header_font).width,
+                  compute_line_box(measure, _format_widest_frame_value(column.unit,
+                      column.index <= length(data) ? data[column.index] : Float64[]),
+                      row_font).width))
+        for column in columns]
 end
 
 # The widest text of a column of the frames: its largest value, or the dash of a
@@ -284,11 +500,10 @@ end
 # The scroll bar that the table of the frames draws. Its value is the place of the
 # row at the top among the frames, and its thumb the share of the frames that
 # the table shows: the offered height `height` in rows, less the rows above the
-# table, which are the head line, two titles, the header and the rows of the
-# summary, and the header of the frames.
+# table.
 function _make_frame_scroll_bar(p::FrameStatisticsToWidget, statistics::FrameStatistics, height)
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
-                                max(1, Int(height[]) ÷ p.row_step - (length(statistics.rows) + 5)))
+                                max(1, Int(height[]) ÷ p.row_step - _count_rows_above_frames(statistics)))
     count = Cell(@computation length(statistics.frames))
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection.
@@ -298,6 +513,17 @@ function _make_frame_scroll_bar(p::FrameStatisticsToWidget, statistics::FrameSta
                     Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
                     Cell(nothing), Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
                     Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+end
+
+# The rows above the table of the frames: the head line, the title and the header
+# of the frames, and the title, the header and the rows of each summary table.
+function _count_rows_above_frames(statistics::FrameStatistics)
+    isempty(statistics.rows) && return 3
+    layout = _get_page_layout(statistics)
+    count = 3
+    isempty(layout.parts) || (count += 2 + length(layout.parts))
+    isempty(layout.other) || (count += 2 + length(layout.other))
+    count
 end
 
 # A jump of the table of the frames to the row `row`, counted from the newest
@@ -328,16 +554,17 @@ _get_head_place(statistics::FrameStatistics) =
     clamp(statistics.anchor, 1, max(1, length(statistics.frames)))
 
 # No caret goes into a table. The default backward mapping names a part of a
-# table by an introduced reference, so a point names the cell under it, and only
-# such a reference maps forward again.
-map_reference_forward(p::FrameStatisticsToWidget, iomap, reference) = find_introduced_path(p, reference)
+# table by an introduced reference, so a point names the cell under it; the default
+# forward mapping takes such a reference to its place, and the whole frame to the
+# whole widget, so a selection of the frame is drawn.
 
-# A write of the widgets passes on through the default reader, but four. A
+# A write of the widgets passes on through the default reader, but five. A
 # table that moves the head of its list of frames writes its `cells`, which
 # becomes a write of `anchor`, so the list starts again from there, and its
 # `row_headers`, which the same anchor builds again, so that write does nothing.
-# A press on Pause becomes view state, so the undo does not record it. A write
-# of the value of the scroll bar becomes a jump to the row at that value.
+# A press on Pause and a pick of a choice become view state, so the undo does not
+# record them. A write of the value of the scroll bar becomes a jump to the row
+# at that value.
 function read_intent(p::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap, operation::Operation)
     started = _convert_bar_drag_start(iomap, operation)
     started === nothing || return started
@@ -410,6 +637,8 @@ function _convert_widget_write(statistics::FrameStatistics, operation)
     document, field = written
     document isa WidgetScrollBar && field == "value" &&
         return _convert_scroll_bar_write(statistics, document, operation.value)
+    document === statistics && field in ("summary_statistic", "frame_measure") &&
+        return ReplaceViewStateOperation(operation)
     (document isa WidgetToggle && field == "pressed") || return nothing
     ReplaceViewStateOperation(operation)
 end

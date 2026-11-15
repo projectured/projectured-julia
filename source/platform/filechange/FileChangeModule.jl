@@ -9,11 +9,12 @@ git, a task that writes a store. A receiver that watches a folder
 ([`watch_folder!`](@ref)) learns that an entry of the folder came, went or
 changed, and reads the folder itself. A watcher task for each folder takes the
 notifications of the system, or polls the times of the files where no
-notification works, and stores the paths that changed. The editor drains the
-store on its own task ([`FileChangeFeed`](@ref)), and the drain reports each
-change to the receiver of its file, which decides what the change means. The
-watcher knows nothing of editing: the page of a file in a tab knows its own save
-and the edits of its file.
+notification works, and stores the paths that changed. It reads no text and
+computes no hash. The editor drains the store on its own task
+([`FileChangeFeed`](@ref)), and the drain reports each change to the receiver of
+its file, which decides what the change means. The watcher knows nothing of
+editing: the file document knows its own save and its edits, and reads its text when
+a view of it is drawn.
 """
 module FileChangeModule
 
@@ -30,12 +31,13 @@ using ..FeedModule
 # that enters or leaves the window starts or stops its watch.
 import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..DomainModule: acquire_document!, release_document!
+using ..DomainModule: hold_documents!, release_held_documents!
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
-export FileChangeStore, get_session_file_change_store, find_file_change_store, watch_document_file!,
-       unwatch_document_file!, is_document_file_watched, close_file_change_store!,
-       drain_file_changes!, watch_folder!, unwatch_folder!, is_folder_watched, receive_folder_change!,
-       FOLDER_WATCH_LIMIT
+export FOLDER_WATCH_LIMIT, FileChangeStore, get_session_file_change_store, find_file_change_store,
+       watch_document_file!, unwatch_document_file!, is_document_file_watched,
+       receive_folder_change!, watch_folder!, unwatch_folder!, is_folder_watched,
+       close_file_change_store!, drain_file_changes!
 export FileChangeFeed, make_file_change_feeds
 
 include("FileChangeStore.jl")

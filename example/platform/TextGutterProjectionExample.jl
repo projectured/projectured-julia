@@ -8,5 +8,5 @@ function make_text_gutter_projection_example(; measure = FontFileMeasure())
             TextGutter => TextGutterToGraphics(),
             PrimitiveNumber => ChainingProjection(PrimitiveNumberToText(), TextToGraphics(; measure)),
             GraphicsCanvas => GraphicsToGraphics()],
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure).dispatch)))
+        WidgetToGraphics(; measure).dispatch)))
 end

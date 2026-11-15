@@ -5,7 +5,7 @@
 # the node in the navigator around the page.
 
 """
-    AssistantWorkToWidget(theme)
+    AssistantWorkToWidget(theme; widget_theme)
 
 Draw an [`AssistantWork`](@ref) as a column of cards, in a scroll pane:
 
@@ -16,8 +16,9 @@ Draw an [`AssistantWork`](@ref) as a column of cards, in a scroll pane:
   uses. The time reads the clock of the editor only while a turn runs, so an
   idle page draws no frame.
 - **The plans**: each other plan of the agent, with the view of a plan.
-- **Work**: the tree of the work: the session, its subagents and their
-  background tasks, at every depth. A double click on a node opens its page.
+- **Work**: the tree of the work: the session, its subagents, their
+  background tasks and the turns of each subagent, at every depth, and the rows
+  of the task list that the assistant started. A double click on a node opens its page.
 - **Processes**: the tree of the processes of the session, or a line that says
   that the agent gives none.
 - **Notices**: the notices of the agent, the newest first, each with its time
@@ -27,12 +28,12 @@ Each value reads the cells of the assistant and of its work, so the page follows
 the agent. With no theme it takes the values of the default theme.
 """
 @projection UntrackedCell struct AssistantWorkToWidget
-    stack_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     muted_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
 end
 
-AssistantWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AssistantWorkToWidget(; stack_gap = get_conversation_style(theme, :section_gap),
+AssistantWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}; widget_theme = nothing) =
+    AssistantWorkToWidget(; section_gap = get_widget_style(widget_theme, :section_gap),
                           muted_color = get_conversation_style(theme, :placeholder_color))
 
 # The steps from the root of a page to its column of cards: the scroll pane stands
@@ -64,8 +65,8 @@ end
 # A root that holds a scroll pane over a column, which fill the page; the column
 # and the root.
 function _make_page_column(p)
-    column = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
-    scroll = LayoutConstraint(WidgetScrollPane(column); width = Fill, height = Fill)
+    column = VerticalLayout(Any[]; gap = p.section_gap, child_width = Fill)
+    scroll = LayoutConstraint(WidgetScrollPane(column; grows = (width = false, height = true)); width = Fill, height = Fill)
     (VerticalLayout(Any[scroll]; child_width = Fill), column)
 end
 
@@ -122,7 +123,7 @@ function _build_work_page_card(p, work::AssistantWork, part, clock)
                  Any[WidgetLabel("The agent gives no process.";
                                  text_style = p.muted_color)] :
              Any[_build_notice_lines(p, work)]
-    WidgetCard(; title = WidgetLabel(_WORK_CARD_TITLES[kind]),
+    WidgetCard(; title = _WORK_CARD_TITLES[kind],
                content = VerticalLayout(labels; child_width = Fill))
 end
 
@@ -237,7 +238,8 @@ function _map_into_work_tree(kind::Symbol, path::ConcreteReference)
     root = FieldReferenceStep("root")
     if kind === :work
         is_work = steps[1] in (FieldReferenceStep("subagents"),
-                               FieldReferenceStep("background_tasks"))
+                               FieldReferenceStep("background_tasks"),
+                               FieldReferenceStep("work_items"))
         return is_work ? extend_reference(EmptyReference(), root, steps...) : nothing
     end
     steps[1] == FieldReferenceStep("processes") || return nothing

@@ -81,6 +81,36 @@ end
     @test length(group.tabs) == 3
 end
 
+@testset "the text domain moves the caret in the name and selects in it" begin
+    tree, group, editor = _seeded()
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    _press!(editor, KeyDown(:left, ModifierKeys(); time = 0.0))
+    _press!(editor, KeyDown(:left, ModifierKeys(); time = 0.0))
+    _type!(editor, "X")
+    @test get_pane_tab_title_string(group.tabs[1]) == "notXes"
+    # Shift with a motion key selects a range in the name, and a typed key
+    # replaces it.
+    _press!(editor, KeyDown(:home, ModifierKeys(ctrl = true); time = 0.0))
+    _press!(editor, KeyDown(:right, ModifierKeys(shift = true); time = 0.0))
+    _press!(editor, KeyDown(:right, ModifierKeys(shift = true); time = 0.0))
+    _type!(editor, "N")
+    @test get_pane_tab_title_string(group.tabs[1]) == "NtXes"
+    @test group.tabs[1].content.value == "body"
+end
+
+@testset "an empty name takes a typed key, and no edit reaches its stand-in" begin
+    group = PaneGroup(PaneTab[PaneTab("", PrimitiveString("body"))])
+    tree = PaneTree(group)
+    editor = _PaneRenameMockEditor(tree)
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    _press!(editor, KeyDown(:delete, ModifierKeys(); time = 0.0))
+    @test something(group.tabs[1].title.name.value, "") == ""
+    _type!(editor, "P")
+    @test get_pane_tab_title_string(group.tabs[1]) == "P"
+    @test group.tabs[1].content.value == "body"
+end
+
 @testset "a fresh tab is renamed the moment it is opened" begin
     # What the empty start state does: open a tab, name it, open another.
     tree = PaneTree(PaneGroup(PaneTab[]))

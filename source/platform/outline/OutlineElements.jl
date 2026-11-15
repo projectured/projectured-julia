@@ -1,0 +1,200 @@
+# Fragment of `OutlineModule` — the elements of a record: documents of any domain,
+# such as code, a page of text, a table or a chart, that a record holds in a list
+# field named `elements` and that its row draws after its fields.
+
+const _ELEMENTS_PATH = Reference(FieldReferenceStep("elements"))
+
+"""
+    make_add_element_operation(holder, document; index = length(holder.elements) + 1) -> Operation
+
+Insert `document` among the elements of `holder`, a record with a list field
+named `elements`, at the 1-based `index`, the end by default. The operation names
+`holder`, so it acts the same from any part. The document is put in as it is, so a
+document that a note of the clipboard holds stands at two places.
+"""
+make_add_element_operation(holder, document; index::Integer = length(holder.elements) + 1) =
+    make_insert_elements_operation(_ELEMENTS_PATH, index, Any[document]; root = holder)
+
+"""
+    make_remove_element_operation(holder, index) -> Operation
+
+Remove the element at the 1-based `index` from the elements of `holder`.
+"""
+make_remove_element_operation(holder, index::Integer) =
+    make_delete_elements_operation(_ELEMENTS_PATH, index; root = holder)
+
+"""
+    make_new_element_operation(holder) -> Operation
+
+The add of a new element of a kind that the person types: an empty
+`DocumentInsertion` at the end of the elements of `holder`, with the caret in it.
+It shows "Type a kind" until the first key, and Escape there removes it again
+(`make_element_cancel_operation`).
+"""
+function make_new_element_operation(holder)
+    insertion = DocumentInsertion("")
+    CompoundOperation(Any[make_add_element_operation(holder, insertion),
+                          SelectDocumentOperation(insertion, Reference(FieldReferenceStep("value"),
+                                                                       RangeReferenceStep(0, 0)))])
+end
+
+"""
+    make_element_cancel_operation(input, operation) -> Operation
+
+The answer of the reader of an outline of `input` to `operation`, an operation
+that the reader read: the write of the empty document of an element over the
+element, which the type-in of a new element answers to Escape, becomes the
+removal of the element from its list, with the selection on its holder. So an
+element that a person starts to add and leaves goes away. Any other operation is
+itself.
+"""
+function make_element_cancel_operation(input, operation)
+    (operation isa CompoundOperation && !isempty(operation.operations)) || return operation
+    write = operation.operations[1]
+    (write isa ReplaceReferencedValueOperation && write.document === nothing) || return operation
+    steps = collect(get_reference_steps(strip_reference_types(write.reference)))
+    length(steps) >= 2 || return operation
+    place, field = steps[end], steps[end - 1]
+    (place isa RangeReferenceStep && place.stop == place.start + 1 &&
+     field isa FieldReferenceStep && field.name == "elements") || return operation
+    holder_path = _make_outline_reference(steps[1:(end - 2)])
+    holder = try_evaluate_reference(input, holder_path, missing)
+    (holder !== missing && hasproperty(holder, :elements) && place.stop <= length(holder.elements)) ||
+        return operation
+    empty = get_nothing_document(typeof(holder.elements[place.stop]))
+    (write.value isa empty && !(holder.elements[place.stop] isa empty)) || return operation
+    CompoundOperation(Any[make_remove_element_operation(holder, place.stop), ReplaceSelectionOperation(holder_path)])
+end
+
+"""
+    make_move_element_operation(holder, index, to) -> Operation
+
+Move the element at the 1-based `index` of the elements of `holder` so that it is
+the element at `to`: a removal and an insertion of the same document, in one edit.
+"""
+function make_move_element_operation(holder, index::Integer, to::Integer)
+    document = holder.elements[index]
+    CompoundOperation(Any[make_remove_element_operation(holder, index),
+                          make_add_element_operation(holder, document; index = to)])
+end
+
+"""
+    make_element_choice_list(holder; place = Any) -> WidgetChoiceList
+
+The list of the kinds of document that can stand as an element, which a person
+types into to add a new, empty element to `holder`: the kinds of `is_element_type`,
+named by `get_insertion_names`, with the icon of `get_insertion_icon` and the
+summary of the docstring of each kind as its note. A choice adds the document
+that `make_insertion_document` makes of the kind.
+"""
+function make_element_choice_list(holder; place::Type = Any)
+    find = query -> WidgetChoice[make_insertion_choice(T)
+                                 for T in find_insertion_choices(Document, query; place, include = is_element_type)]
+    WidgetChoiceList(; prompt = "Add", placeholder = "type a kind", empty = "No kind matches", find,
+                     choose = T -> make_add_element_operation(holder, make_insertion_document(T)))
+end
+
+"""
+    make_outline_element(outline; content, menu = nothing, revealed = ()) -> WidgetCard
+
+The block of an element in the row of its record: `content`, the document drawn
+through the view of its own domain, in a light inset, with the "⋯" of the element
+beside it, which shows while the pointer is on the element or the caret is in it.
+The block is a `:row` card, so it lights as a row does.
+"""
+function make_outline_element(outline; content, menu = nothing, revealed = ())
+    inset = WidgetCard(; variant = :muted, content, margin = inset_default, border = inset_default,
+                       padding = outline.inset_padding)
+    parts = Any[LayoutConstraint(inset; width = Fill)]
+    menu === nothing || push!(parts, menu)
+    block = WidgetCard(; variant = :row, content = HorizontalLayout(parts; gap = outline.item_gap, vertical_align = :top),
+                       margin = inset_default, border = inset_default, padding = inset_default)
+    for control in revealed
+        _reveal_in_row!(control, block)
+    end
+    block
+end
+
+"""
+    get_outline_element_steps() -> Vector
+
+The steps from the block of an element, as `make_outline_element` makes it, to the
+element itself, so a domain maps the place of the element in its slots.
+"""
+get_outline_element_steps() =
+    Any[FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(0, 1),
+        FieldReferenceStep("child"), FieldReferenceStep("content")]
+
+"""
+    make_element_menu(holder, index; open) -> WidgetMenu
+
+The menu of the element at `index` of the elements of `holder`: Open in a tab,
+Move up and Move down where it can move, and Remove. `open` is the operation of
+Open in a tab, by default an `OpenPageOperation` that shows the element itself
+in a new tab; with `nothing` the menu has no Open in a tab.
+"""
+function make_element_menu(holder, index::Integer;
+                           open = OpenPageOperation(holder.elements[index], EmptyReference(), :new_tab))
+    count = length(holder.elements)
+    items = Any[]
+    open === nothing || push!(items, WidgetMenuItem("Open in a tab"; operation = open), WidgetSeparator())
+    push!(items, WidgetMenuItem("Move up"; operation = index > 1 ? make_move_element_operation(holder, index, index - 1) : nothing,
+                                enabled = index > 1))
+    push!(items, WidgetMenuItem("Move down"; operation = index < count ? make_move_element_operation(holder, index, index + 1) : nothing,
+                                enabled = index < count))
+    push!(items, WidgetSeparator())
+    push!(items, WidgetMenuItem("Remove"; operation = make_remove_element_operation(holder, index)))
+    WidgetMenu(items)
+end
+
+"""
+    add_element!(holder, document; editor = get_evaluation_editor()) -> holder
+
+Add `document` to the elements of `holder`, any record with a list field named
+`elements`, such as a research item or a workflow step: code, a page of text, a
+table or a chart, which the outline of the record draws through its own view.
+The document is put in as it is, so a document that another part holds stands at
+two places. Answer `holder`.
+
+The edit goes through the readers of the editor when `holder` is a part of a
+window, so the history of the tab records it, and Ctrl+Z takes it back.
+
+Use it to keep a document that the work needs beside the record it belongs to.
+
+# Example
+
+    add_element!(step_1, PrimitiveString("a note"))
+
+See also `add_workflow_entry!` and `add_study_section!`.
+
+For the assistant.
+"""
+function add_element! end
+
+function add_element!(holder, document; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "add_element!") do
+        operation = make_add_element_operation(get_document(holder), get_document(document))
+        change = _find_element_change(editor, holder, operation)
+        evaluate_operation(editor, change === nothing ? operation : change)
+        holder
+    end
+end
+
+make_change(::typeof(add_element!), holder, document; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        operation = make_add_element_operation(get_document(holder), get_document(document))
+        change = _find_element_change(editor, holder, operation)
+        change === nothing &&
+            throw(ArgumentError("The holder is no part of a window that the editor printed, so no history " *
+                                "can record a change of it; call `add_element!`, which changes it at once."))
+        change
+    end
+
+# The operation as a change from the root of the editor's document; `nothing` when
+# `holder` is no part of a window that the editor printed.
+function _find_element_change(editor, holder, operation)
+    holder isa ReferencedDocument && editor isa Editor && editor.iomap !== nothing || return nothing
+    reference = extend_reference(get_reference(holder), FieldReferenceStep("elements"))
+    rooted = find_rooted_operation(editor, reference, relative -> operation; description = "Add an element")
+    rooted === nothing ? nothing : RootedOperation(rooted, "Add an element")
+end

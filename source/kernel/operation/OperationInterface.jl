@@ -199,8 +199,9 @@ function with_object_field end
     child_reference_steps(node) -> iterable of (step, child) pairs
 
 Open traversal seam. The default enumerates struct fields as
-`FieldReferenceStep` steps, skipping `selection` and any field whose (unwrapped)
-value is not a `Document`. Override for container documents whose children
+`FieldReferenceStep` steps, skipping the fields of view state
+(`is_view_state_field`) and any field whose (unwrapped) value is not a
+`Document`. Override for container documents whose children
 are addressed by index (an element collection), by position, etc.
 """
 function child_reference_steps end

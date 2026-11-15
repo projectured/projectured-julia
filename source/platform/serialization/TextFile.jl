@@ -17,6 +17,7 @@ loads as.
 @document struct TextFile <: FileDocument
     filename::String
     content::Union{String, Document} = ""
+    disk::FileDiskState = FileDiskState()
 end
 
 emit_text(f::TextFile) = get_file_content(f)

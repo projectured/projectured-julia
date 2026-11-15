@@ -20,10 +20,10 @@ function test_process_theme()
 
     plain = draw(Appearance())
     @test !isempty(plain)
-    @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw(Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test ProcessModelToSyntaxNode().keyword.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), ProcessTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), ProcessTheme)
     node = ProcessModelToSyntaxNode(; keyword = get_process_style(theme, :keyword_text))
     @test node.keyword.font.size == 21
     @test is_color_equal(node.keyword.color, get_theme_value(ProcessTheme(), :keyword_text).color)

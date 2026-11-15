@@ -4,9 +4,10 @@
 #
 # `DeferredLayout` decides **when the layout runs**, not when the projection is
 # built. With nothing registered it is `FruchtermanReingoldLayout`. A package
-# with an engine of its own registers a factory and takes over; the factory may
+# with an engine of its own can register a factory and take over; the factory may
 # answer an engine that decides by the size of the graph, which is why the
-# vertex count travels with the choice.
+# vertex count travels with the choice. `ProjecturedAdaptagrams` registers
+# nothing: a projection that wants its engine names `AdaptagramsLayout`.
 #
 # This module sits above the engines rather than beside the interface, because
 # choosing between them means naming them.
@@ -21,8 +22,8 @@ const _PREFERRED_ENGINE = Ref{Any}(nothing)
     register_layout_engine!(factory)
 
 Make `factory(; orthogonal)` the engine [`make_deferred_layout_engine`](@ref) returns.
-`ProjecturedAdaptagrams` calls this from its `__init__`, so a native layout
-costs a `using` and no rewiring. `nothing` restores the pure-Julia choice.
+`nothing` restores the pure-Julia choice. No package of this repository calls
+it, so loading a package changes no default.
 """
 register_layout_engine!(factory) = (_PREFERRED_ENGINE[] = factory; nothing)
 

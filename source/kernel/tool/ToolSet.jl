@@ -107,7 +107,11 @@ function _refuse_missing_names(entries::Vector{ApiEntry})
 end
 
 function _refuse_declared_twice(entries::Vector{ApiEntry})
-    seen = Dict{Symbol,Tuple{Module,Any}}()
+    # The module and the value that each name got first. The values go into a
+    # `Dict{Symbol,Any}`, whose `setindex!` does not specialize on the value: a
+    # declaration gives hundreds of functions, each of a type of its own.
+    modules = Dict{Symbol,Module}()
+    values = Dict{Symbol,Any}()
     # The name the MODEL writes is what can collide. Two modules may both own a
     # `describe`; only one of them may arrive under that word.
     #
@@ -118,14 +122,15 @@ function _refuse_declared_twice(entries::Vector{ApiEntry})
     # every wide declaration.
     for entry in entries, (name, alias) in get_api_entry_bindings(entry)
         value = isdefined(entry.module_, name) ? getfield(entry.module_, name) : nothing
-        first_one = get(seen, alias, nothing)
-        if first_one === nothing
-            seen[alias] = (entry.module_, value)
+        first_module = get(modules, alias, nothing)
+        if first_module === nothing
+            modules[alias] = entry.module_
+            values[alias] = value
             continue
         end
-        first_one[2] === value && continue
+        values[alias] === value && continue
         error("Two modules give the name " * repr(alias) * " to one model: " *
-              String(nameof(first_one[1])) * " and " * String(nameof(entry.module_)) *
+              String(nameof(first_module)) * " and " * String(nameof(entry.module_)) *
               ". Declare the name from one of them.")
     end
     entries

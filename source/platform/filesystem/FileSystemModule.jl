@@ -1,9 +1,9 @@
 """
     FileSystemModule
 
-This slice of `ProjecturedPlatform` holds the documents of the file system —
-`FileSystemFile` (leaf) and `FileSystemDirectory` (node holding `elements` in
-a `CellVector`). Both carry their `pathname` as identity.
+File and folder documents: `FileSystemFile` for a file, and `FileSystemDirectory`
+for a folder that holds `elements` in a `CellVector`. Both carry their `pathname` as
+identity.
 
 `Workspace` groups one or more named folder roots (`WorkspaceFolder`) into a
 single container; `WorkspaceToFileSystem` projects it onto a file-system tree.
@@ -13,6 +13,7 @@ file into the document of its type and opens it in a new tab.
 """
 module FileSystemModule
 
+using ..AgentModule: run_on_editor_task!
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -41,15 +42,19 @@ using ..SettingsManagingModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..ToolModule: get_evaluation_editor
+using ..TooltipModule
 using ..UndoModule
 using ..TreeModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, has_document_duplicate, copy_document
+import ..DocumentModule: get_document_title, has_document_duplicate, copy_document, get_view_state_fields,
+                         is_field_walked
 import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file,
                        acquire_document!, release_document!, get_document_decoration
 import ..FileChangeModule: receive_folder_change!
+import ..FileFormatModule: open_file_document!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..WidgetModule: make_graphics_projection
@@ -65,15 +70,21 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 export FileSystemToWidgetTree, FileSystemToWidget
 export FileSystemFile, FileSystemDirectory
 export FileSystemChooser, make_filesystem_chooser, get_chosen_path
+export open_file!
 export FileSystemChooserToWidget, WriteChosenNameOperation
 export FileSystemDirectoryToWidget
 export FileSystemFileToWidget
 export WorkspaceDocument, Workspace, WorkspaceFolder, WorkspaceExplorer
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
+export GitIgnoreRule, read_gitignore_rules, is_gitignored
+export WORKSPACE_FILE_LIMIT, WorkspaceFiles, WorkspaceFileList, get_session_workspace_file_list,
+       read_workspace_files_again!, make_workspace_file_search
 
 
 include("FileSystemDocument.jl")
 include("Workspace.jl")
+include("GitIgnore.jl")
+include("WorkspaceFileList.jl")
 include("WorkspaceToFileSystem.jl")
 include("FileSystemTheme.jl")
 include("FileSystemToSyntax.jl")

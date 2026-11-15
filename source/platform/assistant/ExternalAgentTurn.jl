@@ -46,7 +46,14 @@ The live link of an assistant to its external agent:
                   end of the next prompt cancels those that nobody answered;
 - `subagent_turns` — the state of the open turn of each subagent, by its
                   `AgentWork`;
-- `prompt_end_time` — when the last prompt ended, in seconds of `time()`.
+- `prompt_end_time` — when the last prompt ended, in seconds of `time()`;
+- `stop_task`   — the task that stops the agent and its MCP server after
+                  `stop_external_agent!`, which the end of the window waits for;
+                  `nothing` before a stop;
+- `terminals`   — the terminals that the agent asked the editor to run, by
+                  their ids: the identifier of the row of each task alone. A
+                  release takes one out, and the end of the connection stops and
+                  forgets them all; the rows stay.
 
 It is no data: a save does not write it, a duplicate of the assistant does not
 share it, and a walk of the documents does not enter it.
@@ -69,12 +76,14 @@ mutable struct ExternalAgentSession
     waiting_requests::Vector{Any}
     subagent_turns::IdDict{Any,Any}
     prompt_end_time::Float64
+    stop_task::Union{Nothing,Task}
+    terminals::Dict{String,Any}
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
                          false, ReentrantLock(), nothing, nothing, nothing, Any[],
-                         IdDict{Any,Any}(), -Inf)
+                         IdDict{Any,Any}(), -Inf, nothing, Dict{String,Any}())
 
 is_walk_opaque(::ExternalAgentSession) = true
 
@@ -114,8 +123,8 @@ end
 # agent makes the assistant keep the session and that count.
 function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnControl = AssistantTurnControl())
     session = _make_external_agent_session!(editor, a)
-    conversation = run_on_editor_task!(() -> a.conversation, editor)
-    turn = ConversationTurn(:assistant; start_time = time())
+    conversation, model = run_on_editor_task!(() -> (a.conversation, _find_agent_model(a)), editor)
+    turn = ConversationTurn(:assistant; start_time = time(), backend = :acp, model)
     state = _make_agent_turn_state(turn)
     state[:control] = control
     # The start of an agent takes seconds, and its first turn in a process takes
@@ -187,8 +196,18 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             is_closed && _end_agent_work!(a, session)
         end
     end
-    run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
+    run_on_editor_task!(editor; wait = false) do
+        _finish_turn!(a, state[:turn], stop_reason)
+        _watch_turn_task_groups!(editor, a, state[:turn])
+    end
     nothing
+end
+
+# The model of the session of the agent, as its options last named it: the value
+# of its option of the category `:model`, or the model of the assistant.
+function _find_agent_model(a::Assistant)
+    index = findfirst(option -> option.category === :model, collect(a.agent_options))
+    index === nothing ? a.model : a.agent_options[index].current_value
 end
 
 # What the part of a turn says while its agent starts: the name of the built-in
@@ -239,40 +258,65 @@ end
 # The agent started, with the MCP server of the editor when its package is
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
-# that the transcript shows. The options of the session reach `agent_options`.
-# The session gets a queue of its own for its events, which the feed of the
-# window drains, and a session that is not the one of the work of the assistant
-# starts an empty work.
+# that the transcript shows. A duplicate with no kept session forks the session
+# of `agent_fork` in its folder, with the count of the turns that that session
+# saw, and a fork that the agent can not make opens a new session with a note.
+# The options of the session reach `agent_options`. The session starts in the
+# mode of `agent_mode` before its first prompt, and a fork sets the other
+# options of its source. The session gets a queue of its own for its events,
+# which the feed of the window drains, and a session that is not the one of the
+# work of the assistant starts an empty work.
 #
 # The lock of the start holds no wait for the editor: the kept session is read
 # through the door before it, and the editor forgets a kept session after it.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
-    conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
-        a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
+    conversation, kept_id, kept_directory, kept_count, fork, system, mode = run_on_editor_task!(editor) do
+        a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count,
+        a.agent_fork, a.system, a.agent_mode
     end
     is_kept_session_lost = false
+    is_fork_lost = false
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
             server = _start_agent_tool_server!(editor, a, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
             is_resumable = !isempty(kept_id) && isdir(kept_directory)
-            session.directory = is_resumable ? kept_directory : pwd()
+            is_forkable = !is_resumable && fork !== nothing && isdir(fork.directory)
             session.is_resumed = false
             session.has_answered = false
             queue = _make_agent_event_queue!(editor, a, session)
-            session_id = Base.invokelatest(open_agent_session!, session.connection;
-                directory = session.directory, mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
-                session_id = is_resumable ? kept_id : "",
-                on_event = event -> _post_agent_options!(editor, a, event),
-                events = queue)
+            opened_options = Ref(AgentOption[])
+            instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system
+            on_event = event -> begin
+                event isa AgentOptionsUpdate && (opened_options[] = event.options)
+                _post_agent_options!(editor, a, event)
+            end
+            session_id = is_forkable ?
+                Base.invokelatest(fork_agent_session!, session.connection; session_id = fork.session_id,
+                                  directory = fork.directory, mcp_servers = servers, instructions, on_event,
+                                  events = queue) : nothing
+            is_forked = session_id !== nothing
+            if is_forked
+                session.directory = fork.directory
+            else
+                session.directory = is_resumable ? kept_directory : pwd()
+                session_id = Base.invokelatest(open_agent_session!, session.connection;
+                    directory = session.directory, mcp_servers = servers, instructions,
+                    session_id = is_resumable ? kept_id : "", on_event, events = queue)
+                is_fork_lost = !is_resumable && fork !== nothing
+            end
             session.session_id = session_id
+            _set_agent_mode!(editor, a, session, opened_options[], mode)
+            is_forked && _set_fork_options!(editor, a, session, opened_options[], fork.options)
             run_on_editor_task!(editor; wait = false) do
                 _start_agent_work!(a, session, session_id)
             end
             session.is_resumed = is_resumable && session_id == kept_id
             if session.is_resumed
                 session.sent_turn_count = kept_count
+            elseif is_forked
+                session.sent_turn_count = fork.turn_count
             elseif !isempty(kept_id)
                 is_kept_session_lost = true
             end
@@ -280,17 +324,31 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
     end
     is_kept_session_lost &&
         run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
+    is_fork_lost &&
+        run_on_editor_task!(() -> _forget_agent_session_fork!(a, conversation), editor; wait = false)
     session
 end
 
 # The assistant keeps the session in which the agent answered, and how many turns
-# that session saw. A write for a conversation that a reset replaced does nothing.
+# that session saw. A fork is then a session of its own: before its first answer,
+# the agent can keep no file of it, so a start again forks its source again. A
+# write for a conversation that a reset replaced does nothing.
 function _keep_agent_session!(a::Assistant, conversation::ConversationConversation,
                               session::ExternalAgentSession)
     a.conversation === conversation || return nothing
     a.agent_session_id = session.session_id
     a.agent_session_directory = session.directory
     a.agent_session_turn_count = session.sent_turn_count
+    a.agent_fork = nothing
+    nothing
+end
+
+# A fork that the agent could not make is a new session with none of the
+# history: the assistant forgets the source, and a note says so.
+function _forget_agent_session_fork!(a::Assistant, conversation::ConversationConversation)
+    a.conversation === conversation || return nothing
+    a.agent_fork = nothing
+    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(FORK_AGENT_NOTE))]))
     nothing
 end
 
@@ -302,7 +360,7 @@ function _forget_agent_session!(a::Assistant, conversation::ConversationConversa
     a.agent_session_directory = ""
     a.agent_session_turn_count = 0
     a.agent_title = ""
-    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(NEW_SESSION_AGENT_NOTE)]))
+    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(NEW_SESSION_AGENT_NOTE))]))
     nothing
 end
 
@@ -318,11 +376,63 @@ _post_agent_options!(editor, a::Assistant, event) =
     event isa AgentOptionsUpdate &&
         run_on_editor_task!(() -> a.agent_options = event.options, editor; wait = false)
 
+# The session that opened with `options` changes to `mode` when its agent offers
+# that mode and holds another. The agent answers with its options, which reach
+# `agent_options`. An agent that offers no such mode, an empty `mode`, and a set
+# that fails leave the mode that the agent chose.
+function _set_agent_mode!(editor, a::Assistant, session::ExternalAgentSession,
+                          options::Vector{AgentOption}, mode::String)
+    option = _find_agent_mode_option(options, mode)
+    option === nothing && return nothing
+    try
+        Base.invokelatest(set_agent_option!, session.connection, session.session_id, option.id, mode;
+                          on_event = event -> _post_agent_options!(editor, a, event))
+    catch exception
+        @warn "The agent did not start in the mode of the assistant." mode exception
+    end
+    nothing
+end
+
+# The fork that opened with `options` takes the value of each option of its
+# source, `source_options`, that the agent offers and that differs, such as the
+# model and the effort. The mode follows `agent_mode`, as in every session. A set
+# that fails leaves the value that the agent chose.
+function _set_fork_options!(editor, a::Assistant, session::ExternalAgentSession,
+                            options::Vector{AgentOption}, source_options::Vector{AgentOption})
+    for source in source_options
+        source.category === :mode && continue
+        index = findfirst(option -> option.id == source.id, options)
+        index === nothing && continue
+        option = options[index]
+        option.current_value != source.current_value &&
+            any(value -> value.value == source.current_value, option.values) || continue
+        try
+            Base.invokelatest(set_agent_option!, session.connection, session.session_id, option.id,
+                              source.current_value; on_event = event -> _post_agent_options!(editor, a, event))
+        catch exception
+            @warn "The fork did not take an option of its source." option = option.id exception
+        end
+    end
+    nothing
+end
+
+# The option of the category `:mode` of `options` when it offers `mode` and holds
+# another value, or `nothing`.
+function _find_agent_mode_option(options::Vector{AgentOption}, mode::String)
+    isempty(mode) && return nothing
+    index = findfirst(option -> option.category === :mode, options)
+    index === nothing && return nothing
+    option = options[index]
+    option.current_value != mode && any(value -> value.value == mode, option.values) ? option : nothing
+end
+
 """
     StartExternalAgentOperation(assistant)
 
 Start the external agent of `assistant` and open its session, with no prompt,
-so its options show before the first message. A failure shows in the
+so its options show before the first message. The acquire of the duplicate of
+an assistant posts it, so the duplicate forks the session of its original at
+once. A failure shows in the
 conversation, as the failure of a turn does. It does nothing for an assistant
 whose backend is not `:acp`, or whose session is open.
 """
@@ -353,9 +463,7 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
             end
         end
     end
-    # The start of an agent runs the agent of this process too, so with a running
-    # loop it runs on a thread of the default pool, as a turn does.
-    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, start()) : @async(start()))
+    _start_agent_task(start, editor)
     nothing
 end
 
@@ -426,7 +534,8 @@ function _add_agent_sign_in_request!(a::Assistant, exception::AgentSignInExcepti
     nothing
 end
 
-# Run the sign-in of the method `method_id` in a terminal. When it ends with the
+# Run the sign-in of the method `method_id`: in a terminal for a method with a
+# command, else in the agent. When the program in the terminal ends with the
 # status 0, the agent starts again; the line of the request says how it went. A
 # sign-in that a person stopped did not sign in, whatever its status: a program
 # such as `claude auth login` ends with 0 at Ctrl+C.
@@ -434,7 +543,9 @@ function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignIn
                                method_id::AbstractString)
     index = findfirst(method -> method.id == method_id, request.methods)
     index === nothing && return nothing
-    terminal = TerminalDocument(request.methods[index].command; on_exit = (editor, status) -> begin
+    command = request.methods[index].command
+    command === nothing && return _start_agent_own_sign_in!(editor, a, request, method_id)
+    terminal = TerminalDocument(command; on_exit = (editor, status) -> begin
         request.is_signing_in = false
         is_stopped = is_terminal_stopped(terminal)
         request.state = is_stopped ? "The sign-in was stopped." :
@@ -448,6 +559,61 @@ function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignIn
     terminal.status === :failed && (request.is_signing_in = false; request.state = "The sign-in could not start.")
     nothing
 end
+
+# Ask the agent to run its own sign-in of the method `method_id`, such as in the
+# browser. The wait for the person runs on a task, so the editor does not wait.
+# A sign-in that worked starts the agent again, as a terminal sign-in does. An
+# assistant whose agent stopped with its tab makes a new session for it.
+function _start_agent_own_sign_in!(editor, a::Assistant, request::ConversationSignInRequest,
+                                   method_id::AbstractString)
+    request.is_signing_in = true
+    request.state = "The agent runs the sign-in, such as in the browser. Finish it there."
+    _start_agent_task(editor) do
+        session = nothing
+        is_signed_in, state = try
+            session = _make_external_agent_session!(editor, a)
+            _run_agent_own_sign_in!(session, method_id)
+        catch exception
+            (false, session isa ExternalAgentSession && session.is_stopped ? "The sign-in was stopped." :
+                    "The sign-in failed: " * sprint(showerror, exception))
+        end
+        run_on_editor_task!(editor; wait = false) do
+            request.is_signing_in = false
+            request.state = state
+            is_signed_in && evaluate_operation(editor, StartExternalAgentOperation(a))
+        end
+    end
+    nothing
+end
+
+# The sign-in of the agent, under the start lock of the session: the error that
+# asked for the sign-in stopped the agent, so the sign-in starts it, and a turn
+# or a start that comes meanwhile waits for the sign-in, where its start would
+# end the process that runs it. A window that stopped the agent ends the
+# sign-in, and an agent that started after that stop stops again. Answers
+# whether the agent signed in, and the line of the request.
+function _run_agent_own_sign_in!(session::ExternalAgentSession, method_id::AbstractString)
+    lock(session.start_lock) do
+        session.is_stopped && return (false, "The sign-in was stopped.")
+        Base.invokelatest(start_agent_connection!, session.connection)
+        if session.is_stopped
+            Base.invokelatest(stop_agent_connection!, session.connection)
+            return (false, "The sign-in was stopped.")
+        end
+        is_signed_in = Base.invokelatest(sign_in_agent!, session.connection, method_id)
+        session.is_stopped && return (false, "The sign-in was stopped.")
+        is_signed_in ? (true, "Signed in.") : (false, "The agent can not run this sign-in.")
+    end
+end
+
+# Run `work` on a task of its own. The start of an agent runs the agent of this
+# process too, so with a running loop the task runs on a thread of the default
+# pool. No code unit waits for the start, so it belongs to none: an operation in
+# the code of an agent, such as the acquire of the copy that `duplicate_pane!`
+# opens, starts it, and its calls to the editor wait for the end of that unit.
+_start_agent_task(work::Function, editor) =
+    errormonitor(start_background_work(work; description = "the start of an agent", editor, parent = nothing,
+                                       is_sticky = !is_editor_loop_running(editor)).task)
 
 # The sign-ins that run in the conversation of `a` end with it.
 function _release_agent_sign_ins!(editor, a::Assistant)
@@ -488,7 +654,7 @@ function evaluate_operation(editor, operation::SignOutAgentOperation)
             "The sign-out failed: " * sprint(showerror, exception)
         end
         run_on_editor_task!(editor; wait = false) do
-            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(note)]))
+            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(ConversationNote(note))]))
         end
     end)
     nothing
@@ -544,7 +710,9 @@ Stop the external agent of `assistant` and its MCP server. The assistant keeps
 the id, the folder and the title of the session, so the next turn starts the
 agent again and resumes that session. The work that ran in the session ends: a
 background task as cancelled, a subagent as idle, and a question as cancelled.
-It does nothing for an assistant with no agent. Call it on the editor task.
+The agent and its MCP server stop on a task of their own, which `stop_task` of
+the session holds. It does nothing for an assistant with no agent. Call it on
+the editor task.
 """
 function stop_external_agent!(a::Assistant)
     session = a.agent_session
@@ -556,7 +724,7 @@ function stop_external_agent!(a::Assistant)
     a.agent_options = AgentOption[]
     a.agent_usage = nothing
     a.agent_commands = AgentCommand[]
-    errormonitor(@async begin
+    session.stop_task = errormonitor(@async begin
         _close_external_agent_session!(session)
         session.tool_server === nothing || Base.invokelatest(stop_agent_server!, session.tool_server)
     end)
@@ -568,17 +736,35 @@ end
 # its next turn starts the agent again and resumes the session.
 release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); stop_external_agent!(a))
 
+# The duplicate of an assistant forks the session of its original when its tab
+# opens, so a later answer of the original does not reach its agent. The fork
+# opens as `StartExternalAgentOperation` opens a session, on a task.
+function acquire_document!(editor, a::Assistant)
+    a.agent_fork === nothing || evaluate_operation(editor, StartExternalAgentOperation(a))
+    nothing
+end
+
+# What the MCP server of an agent says about itself. The system prompt of the
+# session holds the text of the window, so the server does not send it a second
+# time.
+const _AGENT_SERVER_INSTRUCTIONS =
+    "The tools of this server act on the running editor of the person. The system " *
+    "prompt of the session says how to use them, and which names the code can write."
+
 # The MCP server through which the agent reaches the tools of this editor: on a
 # free port, with a secret that only this agent gets. With no MCP package loaded
 # the agent has its own tools only.
 # The server of the tools of the agent of `a`. A stop of a code unit in which one of
-# its calls runs cancels the turn of `a`.
+# its calls runs cancels the turn of `a`. The code of a call runs with `a` and the
+# id that the agent gives the call as its starter, so a row that it starts names
+# both.
 function _start_agent_tool_server!(editor, a::Assistant, session::ExternalAgentSession)
     session.tool_server === nothing || return session.tool_server
     :mcp in Base.invokelatest(get_agent_server_names) || return nothing
+    call_starter = call_id -> make_assistant_starter(a; tool_call = something(call_id, ""))
     server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true,
-                               instructions = DEFAULT_AGENT_INSTRUCTIONS,
-                               stop = _make_turn_stop_step(editor, a))
+                               instructions = _AGENT_SERVER_INSTRUCTIONS,
+                               stop = _make_turn_stop_step(editor, a), call_starter)
     Base.invokelatest(start_agent_server!, server)
     session.tool_server = server
 end
@@ -638,6 +824,7 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         _handle_agent_event!(event, a, turn, state, nothing)
     elseif event isa AgentToolCallUpdate
         _apply_tool_call_update!(turn, state, event, tools)
+        event.terminal_ids === nothing || isempty(event.terminal_ids) || _show_agent_terminals!(a, state, event)
     elseif event isa AgentPlanUpdate
         _apply_plan_update!(turn, state, event)
     elseif event isa Union{AgentPermissionRequest,AgentQuestionRequest}
@@ -699,7 +886,7 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
                              is_error = update.status === :failed,
                              tool_use_id = update.id, tool_name = name, input)
         forms[update.id] = form
-        push!(turn.parts, Cell(ConversationPart(form; collapsed = _collapse_tool_default(name))))
+        push!(turn.parts, Cell(ConversationPart(form)))
         return nothing
     end
     # An update can name the tool that an earlier update left unnamed.
@@ -729,7 +916,13 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
                                                    mime_type = update.output_mime_type,
                                                    uri = update.output_uri))
     end
-    update.status === :failed && (form.is_error = true)
+    # The result folds when an update first marks the call as failed, as the
+    # result of an error starts folded. A later update keeps the fold that a
+    # person chose.
+    if update.status === :failed && !form.is_error
+        form.is_error = true
+        form.result_collapsed = true
+    end
     nothing
 end
 

@@ -56,13 +56,16 @@ to the screen.
 [`OpenContextMenuOperation`](@ref) from its own gesture table
 ([`make_context_menu_binding`](@ref)), and each part around it adds its menu.
 This projection takes that operation out of the answer and opens a popup window
-with the nearest menu at the point of the click, in screen coordinates. A
-command that runs the binding answers with no point, and the window opens below
-the part, with the left edges aligned (`find_part_place`), so it does not cover
-the part, `item_gap` below it. The window takes the extent of the menu, up to
+with the nearest menu below and right of the point of the click, in screen
+coordinates. A command that runs the binding answers with no point, and the
+window opens below the part, with the left edges aligned, so it does not cover
+the part, `popup_gap` below it. A menu with a placement of its own opens where
+that placement puts it. Each place is a placement (`compute_anchored_place`), so
+a menu with no room below goes above, and slides inside the area of the display.
+The window takes the extent of the menu, up to
 the `context_menu_maximum_size` of the widget theme. `theme` is a `WidgetTheme`,
 scaled or not, or `nothing` for the default theme; the projection holds the
-maximum size and the item gap that it reads from it, and reads them each time it
+maximum size and the popup gap that it reads from it, and reads them each time it
 opens a window.
 
 **Closing.** The window is a popup that dismisses itself, with the id of the
@@ -79,7 +82,11 @@ both keys in its gesture table, so the gesture help lists them.
 **Keys.** The window is a popup, so the window under it keeps the focus. While
 the window is open, a key of that window goes first to the content of the
 menu, after F2 and Shift+F2: a menu that answers a key, such as a list that a
-person types into, takes it, and a key that the menu does not answer goes on.
+person types into, takes it, and a key that the menu does not answer goes on. A
+list that a person types into, and that edits no part, opens its window with the
+selection at the end of its typed text (`selection` of `OpenWindowOperation`), so
+the text domain edits the typed text; the window manager gives the selection back
+when the window closes.
 
 Sit it around the screen, inside the gesture tracker, as the tooltip window
 sits. The screen gives the right click to the part at its point.
@@ -88,13 +95,13 @@ struct ContextMenuWindowProjection <: Projection
     inner::Projection
     id::Symbol
     maximum_size::Any       # the largest size of a menu, a `Point2D` or a cell of one
-    item_gap::Any           # between the part and a menu below it, a number or a cell
+    popup_gap::Any          # between the part and a menu below it, a number or a cell
 end
 
 ContextMenuWindowProjection(; inner::Projection, id::Symbol = :widget_popup,
                               theme = nothing) =
     ContextMenuWindowProjection(inner, id, get_widget_style(theme, :context_menu_maximum_size),
-                                get_widget_style(theme, :item_gap))
+                                get_widget_style(theme, :popup_gap))
 
 # `output` forwards the output of the content reactively, so the IoMap keeps its
 # identity while the content re-derives, and a swap of the content rebuilds the
@@ -251,9 +258,13 @@ end
 
 # The menu in `answer`, and what is left of `answer` without it.
 _take_context_menu(answer::OpenContextMenuOperation) = (answer, nothing)
-_take_context_menu(answer::ReplaceViewStateOperation) =
-    get_wrapped_operation(answer) isa OpenContextMenuOperation ?
-        (get_wrapped_operation(answer), nothing) : (nothing, answer)
+# A wrapper, such as a write of view state or the record of an undo step: the menu
+# inside it, and the wrapper around what is left.
+function _take_context_menu(answer::WrappingOperation)
+    menu, left = _take_context_menu(get_wrapped_operation(answer))
+    menu === nothing && return (nothing, answer)
+    (menu, left === nothing ? nothing : rewrap_operation(answer, left))
+end
 function _take_context_menu(answer::CompoundOperation)
     menu, rest = nothing, Any[]
     for operation in answer.operations
@@ -265,31 +276,47 @@ function _take_context_menu(answer::CompoundOperation)
 end
 _take_context_menu(answer) = (nothing, answer)
 
-# Open the window of `menu`, and keep what it shows. It stands at the point of
-# the click; with no point, below the part with the left edges aligned and
-# `item_gap` between them; with neither, at the corner of the screen.
+# Open the window of `menu`, and keep what it shows. Its placement puts it, and
+# while the placement answers no place, the window stands at the point of the
+# click, or at the corner of the screen.
 function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap,
                            menu::OpenContextMenuOperation)
     state = iomap.input
     size = unwrap_cell(p.maximum_size)
     maximum_size = (Int(size.x[]), Int(size.y[]))
-    x, y = if menu.point !== nothing
-        menu.point
-    else
-        below = find_part_place(p, iomap, menu.source)
-        below === nothing ? (0, 0) : (below[1], below[2] + unwrap_cell(p.item_gap))
-    end
+    x, y = menu.point === nothing ? (0, 0) : menu.point
+    content = _make_context_menu_content(menu.layers, 1)
     window = OpenWindowOperation(; id = p.id, title = "context menu", x = x, y = y,
                                    width = maximum_size[1], height = maximum_size[2],
                                    maximum_size, style = :popup,
                                    auto_dismiss = true,
-                                   content = _make_context_menu_content(menu.layers, 1))
+                                   placement = _make_menu_placement(p, state, menu),
+                                   content, selection = _find_window_selection(content))
     CompoundOperation(Any[_write_menu_state(state, "layers", menu.layers),
                           _write_menu_state(state, "shown", 1),
                           _write_menu_state(state, "source",
                                             strip_reference_types(menu.source)),
                           _write_menu_state(state, "window", window),
                           window])
+end
+
+# The placement of the window of `menu`: its own placement function applied to
+# the reference of the part from the screen; else below and right of the point of
+# the click; else below the part, `popup_gap` under it. `nothing` when the menu has
+# no point and its part is on no screen. The source of the menu is a path from the
+# state, through the wrappers between the state and the screen.
+function _make_menu_placement(p::ContextMenuWindowProjection, state::ContextMenuWindowState,
+                              menu::OpenContextMenuOperation)
+    if menu.placement === nothing && menu.point !== nothing
+        anchor = (x = menu.point[1], y = menu.point[2], width = 0, height = 0)
+        return context -> compute_anchored_place(context, anchor)
+    end
+    part = find_screen_reference(state, menu.source)
+    part === nothing && return nothing
+    menu.placement === nothing || return menu.placement(part)
+    gap = Int(unwrap_cell(p.popup_gap))
+    context -> (box = find_window_part_box(context, part);
+                box === nothing ? nothing : compute_anchored_place(context, box; gap))
 end
 
 # The window is gone, so the state forgets what it showed.

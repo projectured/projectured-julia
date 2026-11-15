@@ -191,4 +191,44 @@ end
                                  PointReferenceStep(15, 12)) == expected
 end
 
+@testset "an arrowhead points along the last pixels of its line, and the line stops at it" begin
+    # A straight line: the base of the triangle is `size` back from the tip, and
+    # the line stops at the middle of the base.
+    @test build_polyline_arrowhead([(0, 0), (100, 0)], 10) == [(100.0, 0.0), (90.0, 5.0), (90.0, -5.0)]
+    @test compute_polyline_before_arrowheads([(0, 0), (100, 0)], 10; end_arrow = true) ==
+          [(0.0, 0.0), (90.0, 0.0)]
+    @test compute_polyline_before_arrowheads([(0, 0), (5, 5)], 10) == [(0.0, 0.0), (5.0, 5.0)]
+
+    # A line that turns 4 px before its tip: the axis goes from the point 10 px
+    # back along the line, (34, 0), to the tip, and not along the last segment.
+    bent = [(0, 0), (40, 0), (40, 4)]
+    triangle = build_polyline_arrowhead(bent, 10)
+    axis = (6.0, 4.0) ./ hypot(6.0, 4.0)
+    @test triangle[1] == (40.0, 4.0)
+    @test all(isapprox.((triangle[2] .+ triangle[3]) ./ 2, (40.0, 4.0) .- 10 .* axis; atol = 1e-9))
+    @test compute_polyline_before_arrowheads(bent, 10; end_arrow = true) == [(0.0, 0.0), (34.0, 0.0)]
+
+    # A curve that leaves to the right and arrives downward bends under its
+    # arrowhead. The line stops on the axis of the arrowhead, which is tilted from
+    # the direction of the last sample.
+    cross(u, v) = u[1] * v[2] - u[2] * v[1]
+    unit(v) = v ./ hypot(v...)
+    path = tessellate_spline([(0, 0), (30, 0), (40, 0), (40, 12)], :bezier, 24)
+    triangle = build_polyline_arrowhead(path, 10)
+    tip, base = triangle[1], (triangle[2] .+ triangle[3]) ./ 2
+    stop = last(compute_polyline_before_arrowheads(path, 10; end_arrow = true))
+    @test abs(cross(tip .- stop, tip .- base)) < 1e-9
+    @test 0 < hypot((tip .- stop)...) < 10
+    @test abs(cross(unit(tip .- path[end - 1]), unit(tip .- base))) > sind(5)
+
+    # Both ends, and a line that the two arrowheads cover.
+    line = compute_polyline_before_arrowheads([(0, 0), (100, 0)], 10; start_arrow = true, end_arrow = true)
+    @test all(isapprox.(line[1], (10.0, 0.0))) && line[end] == (90.0, 0.0) && length(line) == 2
+    start = build_polyline_arrowhead([(0, 0), (100, 0)], 10; at_end = false)
+    @test start[1] == (0.0, 0.0) && all(isapprox.((start[2] .+ start[3]) ./ 2, (10.0, 0.0)))
+    @test isempty(compute_polyline_before_arrowheads([(0, 0), (15, 0)], 10; start_arrow = true, end_arrow = true))
+    # A line shorter than its arrowhead points from its other end.
+    @test build_polyline_arrowhead([(0, 0), (4, 0)], 10) == [(4.0, 0.0), (-6.0, 5.0), (-6.0, -5.0)]
+end
+
 end # test_graphics

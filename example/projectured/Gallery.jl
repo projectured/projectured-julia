@@ -21,7 +21,9 @@ end
                 command_palette=false, gesture_log=false,
                 fault_tolerant=true, profile=false)
 
-Open one window per example, side by side. Each example contributes a
+Open one window per example, side by side. A bare Escape that nothing in the
+windows took quits, through an `EscapeQuittingProjection` around everything, and
+so does the close button of a window. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
 composed projection dispatches each window's content to that example's
 own projection by **reference path** (so two examples with the same
@@ -97,10 +99,9 @@ When `gesture_help=true`, each example's projection is wrapped in a
 pipeline. One shared state backs every window, so `F1` toggles one window.
 
 When `command_palette=true`, each example's projection is wrapped in the command
-type-in overlay: `Ctrl+Shift+P` opens a field over the content, typing narrows the
-list of commands available where the user is, and Enter runs the selected one.
-Escape or the same key closes it. Each window gets its own palette, because the
-palette is drawn into its window rather than opened beside it.
+palette: `Ctrl+Shift+P` opens the list of the commands that work where the user
+is, in a popup window at the top of the window, typing narrows it, and Enter runs
+the selected one. Escape closes it.
 
 When `gesture_log=true`, a panel in the top-right corner of each window shows
 what the editor did: the last gestures and the operation each one made. One
@@ -429,7 +430,11 @@ end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
 # put the gesture tracker around both, and make the editor on `backend`, printed
-# once. The shared start of `make_example_editor` and `run_file_editor`.
+# once. The shared start of `make_example_editor` and `run_file_editor`. A bare
+# Escape that nothing took quits an example window, so the projection is an
+# `EscapeQuittingProjection` around everything. The editor gets the feeds that the
+# default wrappers of `build_editor` give a window: the events of the agents, the
+# trees of processes and the tasks, before the feeds of the caller.
 function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
                                    content_unwrap::Vector{Symbol}=Symbol[],
                                    feeds::Vector{Feed}=Feed[])
@@ -437,7 +442,8 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
         compose(projs, backend);
         inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])
-    make_editor(screen, composed; backend = backend, feeds = feeds,
+    make_editor(screen, EscapeQuittingProjection(inner = composed); backend = backend,
+                feeds = Feed[AgentEventFeed(), SystemProcessFeed(), TaskFeed(), feeds...],
                 fault_policy = FaultPolicy())
 end
 
@@ -628,7 +634,7 @@ Keywords:
   - `interactive` — when `true`, run the read-eval-print loop: poll the
                     keyboard, apply operations, repaint. `Home` selects the root
                     node, arrows navigate the tree, `Ctrl+Space` toggles
-                    structural ⇄ text selection, `Ctrl+C` quits. Character-level
+                    structural ⇄ text selection, `Ctrl+C` and Escape quit. Character-level
                     text editing works too: it is in the `@gestures TextBlock`
                     table (`source/platform/text/TextDocument.jl`), geometry-free and so
                     available even though this pipeline omits `TextToGraphics`.
@@ -644,7 +650,8 @@ function run_console_example(; document=make_json_document_example(),
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            run_editor!(make_editor(document, projection; backend = backend,
+            run_editor!(make_editor(document, EscapeQuittingProjection(inner = projection);
+                                     backend = backend,
                                      devices = Device[Keyboard()],
                                      fault_policy = FaultPolicy()))
         end

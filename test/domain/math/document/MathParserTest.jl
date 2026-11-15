@@ -84,11 +84,33 @@ function test_math_parser()
         @test parse_math("f(x)") isa MathFunction
         @test parse_math("f (x)") isa MathRow
         @test parse_math("log_{2}(1 + x)") isa MathFunction && parse_math("log_{2}(1 + x)").base !== nothing
+        # A name of any spelling directly before `(` is the one neutral node and prints the same line.
+        for line in ("ρ(1 - ρ)", "S_{pure}(0.5)", "f(2)", "exp(1)", "\\rho_{a}(x)")
+            tree = parse_math(line)
+            @test tree isa MathFunction
+            @test _linear(parse_math(_linear(tree))) == _linear(tree)
+        end
+        @test _linear(parse_math("ρ(1 - ρ)")) == "ρ(1 - ρ)"
+        @test _linear(parse_math("S_{pure}(0.5)")) == "S_{pure}(0.5)"
+        @test parse_math("S_{pure}(0.5)").name == "S" && parse_math("S_{pure}(0.5)").base !== nothing
+        @test parse_math("ρ (1 - ρ)") isa MathRow
+        @test parse_math("S_{pure} (0.5)") isa MathRow
+        @test parse_math("S_{pure}") isa MathScript
         # The printer's own parentheses read back as a node.
         @test parse_math("(a + b)^{2}").base isa MathParenthesized
         # A negative number is a number.
         @test parse_math("-2") isa PrimitiveNumber && parse_math("-2").value == -2
         @test parse_math("-x") isa MathUnaryOperation
+        # A comma in braces lists the parts of a script, from the left.
+        script = parse_math("U_{slotted,5}")
+        @test script isa MathScript && script.subscript isa MathBinaryOperation
+        @test script.subscript.operator === :comma
+        @test _linear(script.subscript.left) == "slotted" && script.subscript.right isa PrimitiveNumber
+        @test parse_math("x_{i,j,k}").subscript.left.operator === :comma
+        @test parse_math("U_{slotted,5}(G)") isa MathFunction
+        for line in ("U_{slotted,5}", "U_{slotted,5}(G)", "x_{i,j,k}")
+            @test _linear(parse_math(_linear(parse_math(line)))) == _linear(parse_math(line))
+        end
     end
 
     @testset "a read is wider than a print" begin
@@ -135,6 +157,15 @@ function test_math_parser()
         @test _math_equal(get_file_content(loaded), tree)
         @test emit_text(loaded) == "W = 1/(μ - λ)\n"
         rm(directory; recursive = true, force = true)
+    end
+
+    @testset "a symbol says its name, its glyph and how it is typed" begin
+        symbol = parse_math("λ")
+        @test symbol isa MathSymbol
+        opened = get_wrapped_operation(read_gesture(symbol, MouseDwell(0, 0; time = 0.0)))
+        (_, content) = only(opened.layers)
+        @test content isa TooltipNote && content.title == "lambda"
+        @test content.facts == ["Glyph" => "λ", "Typed as" => "\\lambda"]
     end
 end
 end

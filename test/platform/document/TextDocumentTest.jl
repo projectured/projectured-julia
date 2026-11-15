@@ -220,6 +220,31 @@ code[] = ""
 
 end # @testset "make_text_block gives a line for each line of a string"
 
+@testset "append_text! adds a text at the end of a block and keeps its lines" begin
+
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+runs(block) = [[span.content for span in line.elements] for line in block.elements]
+
+# The text up to the first newline goes into the last run; each line after a
+# newline is a new line in the style of that run.
+block = make_text_block("Hello", style)
+first_line = block.elements[1]
+@test append_text!(block, ", world\nand\n") === block
+@test runs(block) == [["Hello, world"], ["and"], [""]]
+@test get_flat_string(block) == "Hello, world\nand\n"
+@test block.elements[1] === first_line
+@test block.elements[2].elements[1].font == style.font
+@test block.elements[2].elements[1].font_color == style.color
+
+# An empty text changes nothing, and a block of an empty string grows as a stream
+# of deltas grows the string.
+@test runs(append_text!(block, "")) == [["Hello, world"], ["and"], [""]]
+streamed = make_text_block("")
+foreach(delta -> append_text!(streamed, delta), ["one ", "two\nthr", "ee", "\n", "four"])
+@test get_flat_string(streamed) == "one two\nthree\nfour"
+@test runs(streamed) == [["one two"], ["three"], ["four"]]
+end # @testset "append_text! adds a text at the end of a block and keeps its lines"
+
 @testset "get_flat_caret and get_flat_range read the flat and the structural form" begin
     # "ab" and "cd" on two lines: "cd" starts at flat offset 3.
     block = TextBlock(TextLine(TextString("ab")), TextLine(TextString("cd")))
@@ -231,6 +256,10 @@ end # @testset "make_text_block gives a line for each line of a string"
     @test get_flat_range(block, TextModule.make_flat_caret_reference(2)) == (2, 2)
     @test get_flat_range(block, structural(2, 0, 2)) == (3, 5)
     @test get_flat_range(block, structural(2, 1, 1)) == (4, 4)
+    # A place right on the block, as a document whose field holds the block hands
+    # a caret down, is a place of the flat text.
+    @test get_flat_range(block, ConcreteReference(RangeReferenceStep(4, 4), EmptyReference())) == (4, 4)
+    @test get_flat_range(block, ConcreteReference(RangeReferenceStep(1, 4), EmptyReference())) == (1, 4)
     @test get_flat_caret(block, structural(2, 1, 1)) == 4
     @test get_flat_caret(block, structural(2, 0, 2)) === nothing
     @test get_flat_range(block, EmptyReference()) === nothing
@@ -253,11 +282,26 @@ end # @testset "get_flat_caret and get_flat_range read the flat and the structur
     @test pair(read_bound_gesture(at(caret), KeyDown(:home, ctrl_shift; time = 0.0))) == (0, 5)
     @test pair(read_bound_gesture(at(caret), KeyDown(:end, ctrl_shift; time = 0.0))) == (5, 11)
 
-    # A range stays ordered: the left keys move its start, the right keys its stop.
-    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift; time = 0.0))) == (2, 5)
+    direction(op) = op.path.head.direction
+    @test direction(read_bound_gesture(at(caret), KeyDown(:left, shift; time = 0.0))) === :backward
+    @test direction(read_bound_gesture(at(caret), KeyDown(:right, shift; time = 0.0))) === :forward
+
+    # A key moves the moving end and keeps the anchor: a forward range grows and
+    # shrinks at its stop, and a backward range at its start.
     @test pair(read_bound_gesture(at(range), KeyDown(:right, shift; time = 0.0))) == (3, 6)
-    # The ends stop at the ends of the text.
-    @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11)),
+    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift; time = 0.0))) == (3, 4)
+    backward = TextModule.make_flat_range_reference(3, 5; direction = :backward)
+    @test pair(read_bound_gesture(at(backward), KeyDown(:left, shift; time = 0.0))) == (2, 5)
+    @test pair(read_bound_gesture(at(backward), KeyDown(:right, shift; time = 0.0))) == (4, 5)
+    @test direction(read_bound_gesture(at(backward), KeyDown(:right, shift; time = 0.0))) === :backward
+    # A range of one character that shrinks is a caret again.
+    shrunk = read_bound_gesture(at(TextModule.make_flat_range_reference(3, 4)), KeyDown(:left, shift; time = 0.0))
+    @test shrunk.path == TextModule.make_flat_caret_reference(3)
+    # When the moving end passes the anchor, the direction turns.
+    turned = read_bound_gesture(at(range), KeyDown(:home, ctrl_shift; time = 0.0))
+    @test (pair(turned), direction(turned)) == ((0, 3), :backward)
+    # The moving end stops at the ends of the text.
+    @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11; direction = :backward)),
                                   KeyDown(:left, shift; time = 0.0))) == (0, 11)
     # A plain arrow collapses the range to its near end, as before.
     @test read_bound_gesture(at(range), KeyDown(:left, ModifierKeys(); time = 0.0)).path.head.start == 3
@@ -265,6 +309,84 @@ end # @testset "get_flat_caret and get_flat_range read the flat and the structur
     @test read_bound_gesture(at(ConcreteReference(TextSpanReferenceStep(0, 5), EmptyReference())),
                              KeyDown(:left, shift; time = 0.0)) === nothing
 end # @testset "Shift and a motion key select a range"
+
+@testset "Ctrl+Backspace and Ctrl+Delete remove a word" begin
+    ctrl = ModifierKeys(; ctrl = true)
+    lines(texts...; indentation = 0) =
+        TextBlock(TextLine(TextString(texts[1])),
+                  (TextLine(TextString(text); indentation) for text in texts[2:end])...)
+    # Press the key at `selection` and answer the flat string and the caret after it.
+    function press(block, selection, key)
+        set_selection!(block, selection)
+        operation = read_bound_gesture(block, KeyDown(key, ctrl; time = 0.0))
+        operation === nothing && return nothing
+        evaluate_operation((document = block,), operation)
+        (get_flat_string(block), get_flat_selection(block)[1])
+    end
+    at(k) = TextModule.make_flat_caret_reference(k)
+    over(s, e) = TextModule.make_flat_range_reference(s, e)
+    one_line(text) = TextBlock(TextLine(TextString(text)))
+
+    # The key removes what Ctrl+Shift+Left or Ctrl+Shift+Right selects.
+    @test press(one_line("foo bar baz"), at(8), :backspace) == ("foo baz", 4)
+    @test press(one_line("foo bar baz"), at(7), :backspace) == ("foo  baz", 4)
+    @test press(one_line("foo bar baz"), at(4), :delete) == ("foo baz", 4)
+    @test press(one_line("foo bar baz"), at(7), :delete) == ("foo barbaz", 7)
+    # A range is removed as it is.
+    @test press(one_line("foo bar baz"), over(4, 7), :backspace) == ("foo  baz", 4)
+    @test press(one_line("foo bar baz"), over(4, 7), :delete) == ("foo  baz", 4)
+    # At the start of the text of a line and at the end of a line, the lines join.
+    @test press(lines("first", "second"; indentation = 2), at(8), :backspace) == ("firstsecond", 5)
+    @test press(lines("first", "second"), at(5), :delete) == ("firstsecond", 5)
+    # A removal stays in the line of the caret: spaces at the start of a line are
+    # a word of their own, and the word of the line above stays.
+    @test press(lines("first", "  x"), at(8), :backspace) == ("first\nx", 6)
+    @test press(lines("first", "second"), at(0), :backspace) === nothing
+    @test press(lines("first x", "second"), at(6), :delete) == ("first \nsecond", 6)
+    # At the ends of the text, there is nothing to remove.
+    @test press(one_line("foo"), at(3), :delete) === nothing
+end # @testset "Ctrl+Backspace and Ctrl+Delete remove a word"
+
+@testset "Ctrl+A selects the whole text" begin
+    block = set_selection!(TextBlock(TextLine(TextString("foo")), TextLine(TextString("bar"))),
+                           TextModule.make_flat_caret_reference(2))
+    operation = read_bound_gesture(block, KeyDown(:a, ModifierKeys(; ctrl = true); time = 0.0))
+    @test operation isa ReplaceSelectionOperation
+    @test operation.path == TextModule.make_flat_range_reference(0, 7)
+end # @testset "Ctrl+A selects the whole text"
+
+@testset "Tab and Shift+Tab change the indentation of the lines" begin
+    shift = ModifierKeys(; shift = true)
+    # Press the key at `selection` and answer the flat string and the selection after it.
+    function press(content, selection, modifiers = ModifierKeys())
+        block = set_selection!(make_text_block(content), selection)
+        operation = read_bound_gesture(block, KeyPress('\t', modifiers; time = 0.0))
+        operation === nothing && return nothing
+        # The edit is an edit of the lines, which a producer of one line declines.
+        @test changes_lines(operation)
+        evaluate_operation((document = block,), operation)
+        selected = get_flat_selection(block)
+        (get_flat_string(block), selected[1], selected[2])
+    end
+    at(k) = TextModule.make_flat_caret_reference(k)
+    over(s, e) = TextModule.make_flat_range_reference(s, e)
+    # With a caret, Tab inserts spaces up to the next stop of 4 columns.
+    @test press("foobar", at(3)) == ("foo bar", 4, 4)
+    @test press("x", at(0)) == ("    x", 4, 4)
+    # The spaces to the next stop replace a range in one line.
+    @test press("foo", over(1, 3)) == ("f   ", 4, 4)
+    # Over more lines, each line takes 4 spaces at its start, and the range stays on
+    # the lines; a range that ends at the start of a line leaves that line as it is.
+    @test press("a\nb", over(0, 3)) == ("    a\n    b", 4, 11)
+    @test press("a\nb", over(0, 2)) == ("    a\nb", 4, 6)
+    # Shift+Tab removes up to 4 spaces at the start of the line of the caret, or of
+    # each line of the range.
+    @test press("    x", at(4), shift) == ("x", 0, 0)
+    @test press("      x", at(7), shift) == ("  x", 3, 3)
+    @test press("    a\n  b", over(5, 9), shift) == ("a\nb", 1, 3)
+    # With no space to remove, the key goes on.
+    @test press("x", at(1), shift) === nothing
+end # @testset "Tab and Shift+Tab change the indentation of the lines"
 
 @testset "a text step hashes as it compares" begin
     for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,

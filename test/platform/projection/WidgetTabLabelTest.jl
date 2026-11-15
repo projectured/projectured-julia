@@ -100,7 +100,7 @@ end
 end
 
 @testset "a caret in the text of a label is a caret in the name" begin
-    find_caret = WidgetModule._find_tab_name_caret
+    find_caret = WidgetModule._find_tab_name_range
     in_label = Reference(FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(2),
                          FieldReferenceStep("selector"), FieldReferenceStep("text"),
                          RangeReferenceStep(3, 3))
@@ -109,8 +109,8 @@ end
     elsewhere = Reference(FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(2),
                           FieldReferenceStep("selector"), FieldReferenceStep("badges"),
                           RangeReferenceStep(0, 1))
-    @test find_caret(in_label) == (2, 3)
-    @test find_caret(in_string) == (2, 3)
+    @test find_caret(in_label) == (index = 2, start = 3, stop = 3, direction = :forward)
+    @test find_caret(in_string) == (index = 2, start = 3, stop = 3, direction = :forward)
     @test find_caret(elsewhere) === nothing
 end
 
@@ -123,13 +123,13 @@ end
     @test operation !== nothing
     open = get_wrapped_operation(operation)
     @test open isa OpenTooltipOperation
-    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "37 of 40 finished",
+    @test any(layer -> last(layer) isa TooltipNote && last(layer).text == "37 of 40 finished",
               open.layers)
     # A tab with no tooltip says nothing of its own.
     plain = print_document(projection, pane_of("Tests"))
     name = _find_label_text(_collect_label_texts(plain.output), "Tests")
     quiet = read_intent(projection, plain, MouseDwell(name[2] + 2, name[3] + 2; time = 0.0))
-    @test quiet === nothing || !any(layer -> last(layer) isa PrimitiveString,
+    @test quiet === nothing || !any(layer -> last(layer) isa TooltipNote,
                                     get_wrapped_operation(quiet).layers)
 end
 

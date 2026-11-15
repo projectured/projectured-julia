@@ -1,7 +1,16 @@
+# The editor that an operation of the diagram runs on: the machine alone.
+mutable struct _FsmDiagramTestEditor
+    document::Any
+end
+
 function test_fsm_diagram()
 @testset "FsmDiagram" begin
 
 _count(canvas, T) = count(e -> e isa T, canvas.elements)
+# The boxes whose border has the color of the highlight.
+_count_highlighted(canvas) =
+    count(e -> e isa GraphicsRect && is_color_equal(e.border_color, get_theme_value(GraphTheme(), :highlight)),
+          canvas.elements)
 
 # ── the pipeline ─────────────────────────────────────────────────────────
 @testset "a machine draws as a graph" begin
@@ -10,16 +19,16 @@ _count(canvas, T) = count(e -> e isa T, canvas.elements)
     canvas = iomap.output
     @test canvas isa GraphicsCanvas
 
-    # The toggle machine: two states, two transitions with a target (the stay
-    # has none), so two node boxes and two edges.
+    # The traffic light: six states and eight transitions, of which the two
+    # stays on BUTTON have no target, so six node boxes and six edges.
     diagram = iomap.step_iomaps[1][].output
     @test diagram isa FsmDiagram
     @test diagram.machine === machine
     graph = iomap.step_iomaps[2][].output
-    @test length(graph.vertices) == 2
-    @test length(graph.edges) == 2
+    @test length(graph.vertices) == 6
+    @test length(graph.edges) == 6
     # A stay contributes no edge — it is visible in the notation, not here.
-    @test length(get_fsm_transitions(machine)) == 3
+    @test length(get_fsm_transitions(machine)) == 8
 
     # Each vertex holds the real state by identity, so a click on a node
     # reaches the document the notation edits.
@@ -41,16 +50,18 @@ end
     boxes = _count(canvas, GraphicsRect)
     lines = _count(canvas, GraphicsPolyline)
 
-    # The current state adds a ring behind its box.
+    # The current state paints the border of its box, and adds no element.
+    @test _count_highlighted(canvas) == 0
     diagram.live_state = 2
-    @test _count(canvas, GraphicsRect) == boxes + 1
+    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 1
     diagram.live_state = 1
-    @test _count(canvas, GraphicsRect) == boxes + 1
-    # Out-of-range (and 0, "not running") means no ring.
+    @test _count_highlighted(canvas) == 1
+    # Out-of-range (and 0, "not running") means no highlight.
     diagram.live_state = 0
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
     diagram.live_state = 99
-    @test _count(canvas, GraphicsRect) == boxes
+    @test _count_highlighted(canvas) == 0
 
     # The last transition re-strokes its edge.
     diagram.live_transition = 1
@@ -58,6 +69,7 @@ end
     diagram.live_transition = 0
     @test _count(canvas, GraphicsPolyline) == lines
     # A stay has no edge, so highlighting it draws nothing — and does not throw.
+    # Transition 2 is the stay on BUTTON in CARS_GREEN.
     diagram.live_transition = 2
     @test _count(canvas, GraphicsPolyline) == lines
 
@@ -88,6 +100,26 @@ end
     back2 = map_reference_backward(stage2, io2, forward2)
     @test back2 !== nothing
     @test is_reference_equal(strip_reference_types(back2), strip_reference_types(forward1))
+end
+
+# ── an edit in the diagram ───────────────────────────────────────────────
+# The key reaches the label of the selected state, and the insert of the state
+# goes back through the graph stages with the selection of the new transition.
+@testset "`,` on a selected state inserts a transition into it" begin
+    machine = make_fsm_diagram_document_example()
+    projection = make_fsm_diagram_projection_example()
+    state = machine.states[1]
+    count = length(state.transitions)
+    replace_selection!(machine, @reference(machine, states[1]))
+    iomap = print_document(projection, machine)
+    operation = read_intent(projection, iomap, KeyPress(','; time = 0.0))
+    @test operation isa CompoundOperation
+    evaluate_operation(_FsmDiagramTestEditor(machine), operation)
+    @test length(state.transitions) == count + 1
+    @test state.transitions[end] isa FsmInsertion
+    @test try_evaluate_reference(machine, get_selection(machine), missing) === state.transitions[end]
+    # The diagram prints the machine with the new transition.
+    @test print_document(projection, machine).output isa GraphicsCanvas
 end
 
 # ── the graph slice's highlight fields ───────────────────────────────────

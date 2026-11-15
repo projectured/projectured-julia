@@ -6,7 +6,8 @@
 # filter starts one.
 
 """
-    ExplorerSearch(root, steps, text; depth = 10, limit = 100, identifier = "")
+    ExplorerSearch(root, steps, text; depth = 10, limit = 100, identifier = "",
+                   started_by = get_work_starter())
 
 The search for `text` below the node at `steps` from `root`, the root section of
 an explorer: each node below it whose label holds every word of the text, in any
@@ -28,6 +29,8 @@ stop keeps the matches, and the search reads nothing more.
 - `depth`, `limit` — how many levels down it looks, and how many matches it keeps.
 - `identifier` — `S1`, `S2`, …: its name in the task list of its session.
 - `started` — the time of its start, in seconds.
+- `started_by` — who started it, a `WorkStarter`: by default the starter of the
+  evaluation that makes it, the person for Return in the field of the filter.
 - `stopped` — whether a stop ended it, and `kept`, the result at the stop.
 - `result` — computed: the matches, each a document with its steps from the node
   and the labels of the nodes above it, the count of the nodes that it waits for,
@@ -53,6 +56,7 @@ See also `Explorer` and `ExplorerFilter`.
     stopped::Bool
     kept::Any
     result::Any
+    started_by::Any
 end
 
 # The entry of the walk of a search for one node: its steps from the node of the
@@ -71,9 +75,11 @@ struct _SearchEntry
 end
 
 function ExplorerSearch(root, steps::AbstractVector, text::AbstractString;
-                        depth::Integer = 10, limit::Integer = 100, identifier::AbstractString = "")
+                        depth::Integer = 10, limit::Integer = 100, identifier::AbstractString = "",
+                        started_by = get_work_starter())
     search = ExplorerSearch(Cell(root), Cell(Any[steps...]), Cell(String(text)), Cell(Int(depth)), Cell(Int(limit)),
-                            Cell(String(identifier)), Cell(time()), Cell(false), Cell(nothing), Cell(nothing))
+                            Cell(String(identifier)), Cell(time()), Cell(false), Cell(nothing), Cell(nothing),
+                            Cell(started_by))
     node = evaluate_reference(root, extend_reference(EmptyReference(), steps...))
     words = split(lowercase(text))
     top = _make_search_entry(search, words, node, Any[], String[format_tree_node_label(node)], 0, Any[])
@@ -173,10 +179,37 @@ function get_document_decoration(search::ExplorerSearch)
     result = search.result
     condition = search.stopped ? :stopped : is_cell_provisional(getfield(search, :result)) ? :running : :done
     DocumentDecoration(; icon = :search, conditions = [DocumentCondition(condition)],
-                       detail = _format_search_line(search, result), work_item = true)
+                       detail = _format_search_line(search, result), work_item = true,
+                       tooltip = () -> _make_search_note(search))
+end
+
+# What a row of a search says when the pointer rests on it: what it looks for
+# and below which node, and what it found so far.
+function _make_search_note(search::ExplorerSearch)
+    result = search.result
+    facts = Pair{String,Any}["Matches" => string(length(result.matches)), "Waiting" => string(result.waiting),
+                             "Depth" => string(search.depth), "Limit" => string(search.limit),
+                             "Started" => Libc.strftime("%H:%M:%S", search.started)]
+    result.elapsed === nothing || push!(facts, "Took" => format_elapsed_time(result.elapsed; precision = 1))
+    TooltipNote(; title = "Search", text = get_document_title(search) * ".", facts)
 end
 
 get_work_item_identifier(search::ExplorerSearch) = search.identifier
+get_work_item_starter(search::ExplorerSearch) = search.started_by
+
+# The facets of a search as a row of the task list, which the table of the Tasks
+# pane filters and sorts by.
+get_item_facets(::Type{ExplorerSearch}) = [
+    "title" => "what the search looks for, as its row calls it",
+    "kind" => "\"search\"",
+    "state" => "the word of its state: running or stopped",
+    "counts" => "what it found, in a line"]
+compute_item_facet(search::ExplorerSearch, ::Val{:title}) = get_document_title(search)
+compute_item_facet(search::ExplorerSearch, ::Val{:kind}) = describe_work_item_kind(search, 1)
+compute_item_facet(search::ExplorerSearch, ::Val{:state}) =
+    (conditions = get_document_decoration(search).conditions;
+     isempty(conditions) ? "" : get_condition_look(Val(first(conditions).name)).words)
+compute_item_facet(search::ExplorerSearch, ::Val{:counts}) = get_document_decoration(search).detail
 describe_work_item_kind(::ExplorerSearch, count::Integer) = count == 1 ? "search" : "searches"
 
 # A stop keeps the result as it is, and the search reads nothing more.
@@ -194,7 +227,7 @@ function describe_work_item(search::ExplorerSearch; limit::Integer = 20)
         push!(lines, string(format_tree_node_label(match.document), " — ", join(match.labels, " / ")))
     end
     length(result.matches) > limit && push!(lines, string("… and ", length(result.matches) - limit, " more"))
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 """

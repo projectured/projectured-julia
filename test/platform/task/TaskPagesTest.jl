@@ -44,6 +44,30 @@ function TaskModule.start_task(task::_TaskPageProbeTask; on_finish = nothing)
     start_process_task!(execution, `sh -c $(task.script)`; finish)
 end
 
+# A kind of task whose document, from the start of the task, is a button.
+struct _TaskPageKindProbeTask <: AbstractTask
+    name::String
+    script::String
+end
+TaskModule.get_result_codes(::_TaskPageKindProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskPageKindProbeTask) = task.name
+TaskModule.get_task_kind_name(::_TaskPageKindProbeTask) = "page kind"
+const _TASK_PAGE_KIND_PRESSES = String[]
+TaskModule.make_task_kind_document(task::_TaskPageKindProbeTask, result) =
+    WidgetButton("kind " * (result === nothing ? "waits" : result.result);
+                 action = _ -> push!(_TASK_PAGE_KIND_PRESSES, task.name))
+# Its executions belong to the kind itself, so the page of an execution finds the
+# page of the kind in its task.
+function TaskModule.start_task(task::_TaskPageKindProbeTask; on_finish = nothing)
+    execution = TaskExecution(task)
+    finish = function (process, cancelled, elapsed)
+        code = cancelled ? "CANCEL" : process.exitcode == 0 ? "DONE" : "ERROR"
+        finish_task_execution!(execution, _TaskPageProbeResult(_TaskPageProbeTask(task.name, task.script), code,
+                                                               "DONE", nothing, elapsed); finish = on_finish)
+    end
+    start_process_task!(execution, `sh -c $(task.script)`; finish)
+end
+
 # A group of two tasks, run to the end: the first prints 300 lines, an error line
 # and a progress line.
 function _make_task_page_group()
@@ -90,15 +114,70 @@ function test_task_pages()
             @test opened isa OpenPageOperation && opened.document === _TASK_PAGE_LINKED
         end
 
+        @testset "the page is a column in a scroll area, and its cards keep their own state" begin
+            projection, iomap = _print_task_view(document; height = 300)
+            texts = _collect_task_view_texts(iomap.output)
+            words = [t[3] for t in texts]
+            # The column is taller than the window and the first parts stand at its top.
+            @test maximum(t[2] for t in texts) > 300
+            @test any(v -> v[4] <= 300 && v[3] >= 1000, _collect_task_view_viewports(iomap.output))
+            # The preview of a stream shows its last eight lines, over the link to its page.
+            @test "line 300" in words && "line 295" in words && !("line 294" in words)
+            # A card of a page that has no group around it folds by its own state.
+            cards = search_documents(iomap.step_iomaps[1][].output, node -> node isa WidgetCard && node.collapsible)
+            @test length(cards) == 4
+            @test Set(card.title for card in cards if card.title isa AbstractString) == Set(["Links", "Process", "Executions"])
+            executions = only(card for card in cards if card.title == "Executions")
+            @test executions.collapsible && !executions.collapsed
+            evaluate_operation(nothing, read_intent(projection, iomap, ToggleCollapseOperation(executions)))
+            @test executions.collapsed
+        end
+
+        @testset "the page shows the header, the document of the kind, the process and the streams in order" begin
+            kind_group = wrap_task_group_document(
+                TaskGroup([_TaskPageKindProbeTask("kinded", "echo hi")]; name = "kinds", jobs = 1); title = "kind tasks")
+            kinded = only(getfield(kind_group, :tasks)[])
+            projection, iomap = _print_task_view(kinded)
+            words = [t[3] for t in _collect_task_view_texts(iomap.output)]
+            @test "kind waits" in words && "pending" in words && "page kind" in words
+            @test !("Process" in words)
+            wait_task_group_document(start_task_group_document!(kind_group))
+            projection, iomap = _print_task_view(kinded)
+            texts = _collect_task_view_texts(iomap.output)
+            words = [t[3] for t in texts]
+            @test !("kind waits" in words) && "kind DONE" in words && count(==("DONE"), words) == 1
+            @test !any(w -> occursin("kinded — ", w), words)
+            y(text) = _find_task_page_text(iomap, text)[2]
+            badge, name, note, link = (_find_task_page_text(iomap, w) for w in ("DONE", "kinded", "page kind", "in kind tasks"))
+            @test badge[2] == name[2] == note[2] == link[2] && badge[1] < name[1] < note[1] < link[1]
+            @test y("Stop") > badge[2]
+            @test y("Stop") < y("kind DONE") < y("Process") < y("Executions") < y("stdout · 1 line")
+            @test "stderr · empty" in words && !("Open stderr" in words) && "Open stdout" in words
+            @test y("stdout · 1 line") < y("hi") < y("stderr · empty")
+            # A press on the button of the kind document reaches its action.
+            empty!(_TASK_PAGE_KIND_PRESSES)
+            operation = _press_task_page(projection, iomap, _find_task_page_text(iomap, "kind DONE"))
+            @test operation isa InvokeActionOperation
+            operation.action.callback(nothing)
+            @test _TASK_PAGE_KIND_PRESSES == ["kinded"]
+            # The page of an earlier execution shows the page of the kind for the
+            # result of that execution.
+            wait_task_document(start_task!(kinded))
+            earlier = first(get_earlier_task_executions(kinded))
+            words = [t[3] for t in _collect_task_view_texts(last(_print_task_view(earlier)).output)]
+            @test "kind DONE" in words && !("kind waits" in words)
+        end
+
         @testset "the page of an execution links to its streams" begin
             shadow = only(getfield(document, :executions)[])
             @test startswith(get_document_title(shadow), "execution ")
             projection, iomap = _print_task_view(shadow)
             words = [t[3] for t in _collect_task_view_texts(iomap.output)]
-            @test "printer" in words && "stderr · 0 lines" in words && "the part of printer" in words
-            opened = _press_task_page(projection, iomap, _find_task_page_text(iomap, "Open stderr"))
+            @test "printer" in words && "stderr · empty" in words && "the part of printer" in words
+            @test !("Open stderr" in words)
+            opened = _press_task_page(projection, iomap, _find_task_page_text(iomap, "Open stdout"))
             @test opened isa OpenPageOperation && opened.document === shadow
-            @test evaluate_reference(shadow, opened.reference) === shadow.stderr_page
+            @test evaluate_reference(shadow, opened.reference) === shadow.stdout_page
         end
 
         @testset "the page of a stream shows the lines that fit, and follows the end" begin
@@ -144,6 +223,11 @@ function test_task_pages()
             @test lines.follow
             _nav_apply!(holder, read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(), 0.0)))
             @test !lines.follow && lines.top_row < 298
+            # Ctrl and the wheel zoom, and move no line.
+            top = lines.top_row
+            answer = read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0))
+            answer === nothing || _nav_apply!(holder, answer)
+            @test lines.top_row == top
         end
 
         # The pages in a window, as a person reaches them: the page of the group in

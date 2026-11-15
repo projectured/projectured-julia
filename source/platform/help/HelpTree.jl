@@ -1,0 +1,264 @@
+# Fragment of `HelpModule` — the groups of a tree of the help, built from the
+# loaded modules, and the nodes that the tree slice draws.
+#
+# A tree stores its groups. The acquire of a tree builds them, and builds them
+# again after a change of the loaded program, because no computation may read
+# the loaded modules (`PAR-PURE-THUNK`). A build keeps the object of a group and
+# of an entry that stays, so the open nodes of a tree and the address of a
+# navigator stay too.
+
+const _HelpList = Union{DocumentTypeList, ProjectionList}
+
+# The types of a tree: every document type, or every concrete projection.
+_collect_help_types(::DocumentTypeList) = compute_document_types(Document)
+_collect_help_types(::ProjectionList) = compute_concrete_subtypes(Projection)
+
+"""
+    update_help_groups!(list) -> list
+
+Build the groups of a [`DocumentTypeList`](@ref) or a [`ProjectionList`](@ref)
+from the modules that are loaded now, and store them in `list.children`. An entry
+of a document type records whether an empty tab can create it without
+arguments:
+
+- one [`HelpGroup`](@ref) for each package that defines a type of the list, the
+  kernel first, then the platform, then the other packages by name;
+- in a package with more than one module that defines such a type, one group for
+  each module, by name, and in any other group the entries of its types, by
+  name with no regard to case.
+
+A group and an entry that a build before made keep their object, and a field
+that has the same value is not written. The acquire of the list calls it when
+the world counter moved after the last build. Call it for a script or a test
+that shows a list with no editor. It reads the loaded modules, so it never runs
+in a print.
+"""
+function update_help_groups!(list::_HelpList)
+    old_groups, old_entries = _index_help_nodes(list)
+    typed = list isa DocumentTypeList
+    creatable = typed ? Set{Any}(get_insertion_candidates(Document)) : Set{Any}()
+    packages = Dict{Module, Dict{Module, Vector{Any}}}()
+    for T in _collect_help_types(list)
+        defining = parentmodule(T)
+        modules = get!(() -> Dict{Module, Vector{Any}}(), packages, Base.moduleroot(defining))
+        push!(get!(() -> Any[], modules, defining), T)
+    end
+    groups = Any[]
+    for package in _sort_help_packages(collect(keys(packages)))
+        modules = packages[package]
+        title = _get_help_package_title(package)
+        children = if length(modules) == 1
+            _build_help_entries(only(values(modules)), old_entries; creatable)
+        else
+            Any[_update_help_group!(old_groups, string(title, "/", _get_help_module_title(m)),
+                                    _get_help_module_title(m), compute_docstring_summary(m),
+                                    _build_help_entries(modules[m], old_entries; creatable))
+                for m in _sort_help_modules(collect(keys(modules)))]
+        end
+        description = compute_docstring_summary(package)
+        isempty(description) && length(modules) == 1 &&
+            (description = compute_docstring_summary(only(keys(modules))))
+        push!(groups, _update_help_group!(old_groups, title, title, description, children))
+    end
+    _write_help_children!(list, groups)
+    list.world = Base.get_world_counter()
+    list
+end
+
+# The groups of a list by their path of names, such as "Platform/Widget", and the
+# entries by their type.
+function _index_help_nodes(list::_HelpList)
+    groups = Dict{String, Any}()
+    entries = IdDict{Any, Any}()
+    function visit(node, path)
+        if node isa HelpGroup
+            place = isempty(path) ? node.name : string(path, "/", node.name)
+            groups[place] = node
+            foreach(child -> visit(child, place), node.children)
+        elseif node isa HelpEntry
+            entries[node.type] = node
+        end
+    end
+    foreach(child -> visit(child, ""), list.children)
+    (groups, entries)
+end
+
+# The group at `place`, with the fields of a new build: the one a build before
+# made, or a new one.
+function _update_help_group!(old_groups, place, name, description, children)
+    count = sum((child isa HelpGroup ? child.count : 1 for child in children); init = 0)
+    group = get(old_groups, place, nothing)
+    group === nothing && return HelpGroup(name, count, description, CellVector(Any[children...]))
+    group.count == count || (group.count = count)
+    group.description == description || (group.description = description)
+    _write_help_children!(group, children)
+    group
+end
+
+# A new collection only when the children are other objects, so the readers of a
+# collection that stays compute nothing.
+function _write_help_children!(holder, children)
+    current = holder.children
+    (length(current) == length(children) && all(k -> current[k] === children[k], eachindex(children))) ||
+        (holder.children = CellVector(Any[children...]))
+    nothing
+end
+
+# The entries of `types`, by name with no regard to case. A permutation of plain
+# strings, because a sort of the entries by a key compiles the sort for their
+# type at the first build.
+function _build_help_entries(types, old_entries; creatable::Set{Any})
+    names = [String(nameof(T)) for T in types]
+    order = sortperm([lowercase(name) for name in names])
+    Any[_update_help_entry!(old_entries, types[k], names[k]; creatable = types[k] in creatable) for k in order]
+end
+
+function _update_help_entry!(old_entries, @nospecialize(T), name; creatable::Bool)
+    words = creatable ? join(_get_typed_names(T), ", ") : ""
+    description = compute_docstring_summary(T)
+    text = something(find_docstring_text(T), "")
+    supertypes = _format_help_supertypes(T)
+    fields = _collect_help_fields(T)
+    entry = get(old_entries, T, nothing)
+    entry === nothing && return HelpEntry(name, T, creatable, words, description, text, supertypes, fields)
+    entry.creatable == creatable || (entry.creatable = creatable)
+    entry.typed == words || (entry.typed = words)
+    entry.description == description || (entry.description = description)
+    entry.text == text || (entry.text = text)
+    entry.supertypes == supertypes || (entry.supertypes = supertypes)
+    entry.fields == fields || (entry.fields = fields)
+    entry
+end
+
+# The supertypes of `T`, nearest first, as a person reads them: without the
+# family type `A<Name>` that `@document` makes for a document, and without `Any`.
+function _format_help_supertypes(@nospecialize(T))
+    body = Base.unwrap_unionall(T)
+    body isa DataType || return ""
+    family = Symbol("A", nameof(body))
+    names = String[]
+    S = supertype(body)
+    while S !== Any
+        nameof(S) === family || push!(names, String(nameof(S)))
+        S = supertype(S)
+    end
+    join(names, " <: ")
+end
+
+# The fields of `T` that a person can set, each `(name, type, description)`. The
+# view state that every document holds, its selection and the part under the
+# pointer, is left out, and any other field of view state says so.
+function _collect_help_fields(@nospecialize(T))
+    body = Base.unwrap_unionall(T)
+    body isa DataType || return ()
+    texts = collect_field_docstrings(T)
+    fields = NamedTuple{(:name, :type, :description), Tuple{String, String, String}}[]
+    for name in fieldnames(body)
+        is_view_state_field(name) && continue
+        declared = body <: Document ? find_declared_field_type(T, name) : nothing
+        type = declared === nothing ? _get_help_value_type(fieldtype(body, name)) : declared
+        text = replace(get(texts, name, ""), r"\s*\n\s*" => " ")
+        is_view_state_field(T, name) && (text = strip("View state, which a save does not keep. " * text))
+        push!(fields, (name = String(name), type = _format_help_type(type), description = String(text)))
+    end
+    Tuple(fields)
+end
+
+# The type of the value that a field holds: a projection keeps each field in a
+# cell of that type.
+function _get_help_value_type(@nospecialize(F))
+    S = F
+    while S isa DataType && S !== Any
+        S.name === Base.unwrap_unionall(AbstractCell).name && return S.parameters[1]
+        S = supertype(S)
+    end
+    F
+end
+
+# A type as a person reads it: as Julia prints it, which names an alias such as
+# `ThemeText`, with no module path before a name, unless that text shows the cell
+# layout of a document type, `AC<Name>{…}`. The layout then shows as the
+# document `<Name>`, also inside a union or the parameters of a type.
+function _format_help_type(@nospecialize(T))
+    text = _remove_module_paths(string(T))
+    names = _collect_cell_layout_names(T)
+    any(name -> occursin(name * "{", text), names) ? _build_help_type_text(T, 0) : text
+end
+
+# "ProjecturedPlatform.CollectionModule.CellVector" is "CellVector".
+_remove_module_paths(text::AbstractString) = replace(text, r"(?:\b[A-Za-z_][A-Za-z0-9_]*\.)+(?=[A-Za-z_])" => "")
+
+# The names of the cell layouts inside `T`: a type `AC<Name>` whose module
+# defines `<Name>`, as `@document` makes it.
+function _collect_cell_layout_names(@nospecialize(T), found = String[], depth::Int = 0)
+    depth > 4 && return found
+    if T isa Union
+        foreach(U -> _collect_cell_layout_names(U, found, depth + 1), Base.uniontypes(T))
+    elseif T isa DataType
+        _is_cell_layout(T) && push!(found, String(nameof(T)))
+        foreach(P -> P isa Type && _collect_cell_layout_names(P, found, depth + 1), T.parameters)
+    end
+    found
+end
+
+function _is_cell_layout(T::DataType)
+    name = String(nameof(T))
+    startswith(name, "AC") && isdefined(T.name.module, Symbol(name[3:end]))
+end
+
+function _build_help_type_text(@nospecialize(T), depth::Int)
+    depth > 4 && return "…"
+    T isa Union && return "Union{" * join((_build_help_type_text(U, depth + 1) for U in Base.uniontypes(T)), ", ") * "}"
+    T isa DataType || return _remove_module_paths(string(T))
+    _is_cell_layout(T) && return String(nameof(T))[3:end]
+    isempty(T.parameters) && return String(nameof(T))
+    T <: AbstractVector && T.name === Vector.body.name &&
+        return "Vector{" * _build_help_type_text(eltype(T), depth + 1) * "}"
+    parameters = (parameter isa Type ? _build_help_type_text(parameter, depth + 1) : repr(parameter)
+                  for parameter in T.parameters)
+    String(nameof(T)) * "{" * join(parameters, ", ") * "}"
+end
+
+# The names a person types into an empty tab to make a `T`, without the name of
+# the type itself: the words of the name, and the aliases. `T` is not
+# specialized on, so one method serves every type of the list.
+function _get_typed_names(@nospecialize(T::Type))
+    own = String(nameof(T))
+    filter(!=(own), get_insertion_names(T))
+end
+
+# The kernel and the platform first, because every other package builds on them;
+# then the others by name.
+function _sort_help_packages(packages)
+    first_names = ("ProjecturedKernel", "ProjecturedPlatform")
+    rank(package) = something(findfirst(==(String(nameof(package))), first_names), length(first_names) + 1)
+    names = [string(rank(package), " ", lowercase(String(nameof(package)))) for package in packages]
+    packages[sortperm(names)]
+end
+
+_sort_help_modules(modules) = modules[sortperm([lowercase(_get_help_module_title(m)) for m in modules])]
+
+# "ProjecturedJSON" is JSON, and "WidgetModule" is Widget: the names that the
+# loaded program holds, also in a binary, and that the folders of the source need
+# not match.
+_get_help_package_title(package::Module) = _remove_name_part(String(nameof(package)), "Projectured", true)
+_get_help_module_title(m::Module) = _remove_name_part(String(nameof(m)), "Module", false)
+
+function _remove_name_part(name::String, part::String, at_start::Bool)
+    length(name) > length(part) || return name
+    at_start ? (startswith(name, part) ? name[(length(part) + 1):end] : name) :
+               (endswith(name, part) ? name[1:(end - length(part))] : name)
+end
+
+# The acquire builds the groups when the program changed after the last build,
+# such as when a package loaded or a session defined a type.
+function acquire_document!(editor, list::_HelpList)
+    list.world == Base.get_world_counter() || update_help_groups!(list)
+    nothing
+end
+
+# A tree has groups once its acquire built them, so its row shows a chevron and
+# reads nothing before.
+get_tree_children_steps(::_HelpList) = ((FieldReferenceStep("children"),),)
+get_tree_children_steps(::HelpGroup) = ((FieldReferenceStep("children"),),)
+has_tree_children(::_HelpList) = true

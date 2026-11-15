@@ -90,6 +90,16 @@ state of that view.
 - `index` — where each line of the file starts, as the page read it so far.
 
 All but the execution and the field is view state.
+
+Use it to read the lines of one stream of an execution, and the state of the page that shows them.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskStreamLines)
+
+See also `TaskStream`, `TaskExecution` and `find_task_group`.
+
+For the assistant.
 """
 @document struct TaskStreamLines <: Document
     execution::Any
@@ -110,6 +120,16 @@ widgets that find a text, keep the lines that hold a text, follow the end, go to
 the first error and open the file; and `lines`, the [`TaskStreamLines`](@ref) of
 the stream. The shadow of each execution holds one for each of its streams
 ([`make_task_stream`](@ref)).
+
+Use it to reach the page of the standard output or the standard error of an execution.
+
+# Example
+
+    found_1 = search_documents(find_task_group("T3"), part -> part isa TaskStream)
+
+See also `TaskStreamLines`, `TaskExecution` and `find_task_group`.
+
+For the assistant.
 """
 @document struct TaskStream <: Document
     name::String
@@ -134,21 +154,23 @@ end
 # The bar of a stream page: each button answers an operation on the lines, so the
 # readers carry it up as any answer.
 function _make_task_stream_bar(lines::TaskStreamLines)
-    button(text, make) = WidgetButton(text; gestures = GestureBinding[
+    button(text, make; tooltip = nothing) = WidgetButton(text; tooltip, gestures = GestureBinding[
         GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> something(make(), DoNothingOperation());
                        description = text, domain = "stream")])
     matches = WidgetLabel(() -> _format_stream_matches(lines))
-    WidgetCard(; title = WidgetLabel("Find"), collapsible = false,
+    WidgetCard(; title = "Find", collapsible = false,
                content = HorizontalLayout(Any[
                    ObjectField(lines, "find_text"),
-                   button("‹", () -> make_task_stream_find_operation(lines, -1)),
-                   button("›", () -> make_task_stream_find_operation(lines, 1)),
+                   button("‹", () -> make_task_stream_find_operation(lines, -1);
+                          tooltip = TooltipNote(; title = "Previous match", text = "Go to the previous match.")),
+                   button("›", () -> make_task_stream_find_operation(lines, 1);
+                          tooltip = TooltipNote(; title = "Next match", text = "Go to the next match.")),
                    matches,
                    WidgetLabel("Only lines with"), ObjectField(lines, "filter_text"),
                    WidgetLabel("Follow the end"), ObjectField(lines, "follow"),
                    button("First error", () -> make_task_stream_first_error_operation(lines)),
                    button("Open as a file", () -> _make_stream_file_operation(lines))];
-                   vertical_align = :center, gap = get_task_style(nothing, :inline_gap)))
+                   vertical_align = :center, gap = get_widget_style(nothing, :label_gap)))
 end
 
 # ── What the lines read ──────────────────────────────────────────────────────

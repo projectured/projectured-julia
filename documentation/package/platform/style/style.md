@@ -1,6 +1,6 @@
 # Style
 
-> **Kind:** design · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [graphics.md](../graphics/graphics.md)
 
 The style slice of `ProjecturedPlatform` holds the values that everything drawn shares: colours, fonts, styled text, strokes, geometry and images. It also holds a TrueType parser that measures text with no display. It has no projection and registers nothing; this document says why its types have the form they have.
 
@@ -13,7 +13,9 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | `StyleText` | a `StyleFont` and a `StyleColor`, the pair that every text needs |
 | `StyleStroke` | a colour, a width and a `dash` |
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
-| `ImageFile`, `ImageMemory` | an image from a file or from memory |
+| `ImageMemory` | an image from memory |
+| `Image` | the picture that a file holds: its path, and pixels that a task reads after the frame that paints them |
+| `ImageFile` | the file document of a picture file: `content` is its `Image` |
 
 The package also defines about 80 colour constants, in curated ramps: `color_black`, `color_solarized_blue`, the Tailwind `color_zinc_*`, `color_slate_*` and `color_indigo_*` ramps. These are fixed colours for a document or a theme field that no colour setting follows; the palette that a role or a step of a ramp draws from is a separate set of ramps, under ["Colours"](#colours) below. A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
@@ -68,7 +70,7 @@ field says which scale applies to it:
 | Type of the field | Scale |
 | --- | --- |
 | `StyleFont`, and the font of a `StyleText` | font scale |
-| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its base |
+| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its font from the font theme |
 | `StyleStroke`, its width | line scale |
 | `Spacing` | spacing scale |
 | `Radius` | radius scale |
@@ -84,34 +86,47 @@ kind: a write of a bare number into a field declared `Radius` converts it to a
 check off, so it scales as a radius. `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
 
-**Base fonts and roles.** A theme holds its fonts as base fonts and roles. A base
-font is a `StyleFont` field, usually `font`, and `code_font` in a theme that draws
-both prose and code. Every other font of the theme is a role over a base: a
-[`FontRole`](../../../../source/platform/style/FontRole.jl) names the field of its
-base, and sets only what differs from it: a family, a weight, a slant, and a size
-relative to the base. A `TextRole` is a font role and a color.
+**Font roles.** A font field of a theme names a role of the font theme, as a
+colour field names a role of the colour theme. The
+[`FontTheme`](../../../../source/platform/style/FontTheme.jl) holds the roles: two
+families, `sans_family` and `mono_family`, and one `FontStep` for each role, which
+gives a kind of family (`:sans` or `:mono`), a size, a weight and a slant. The
+appearance holds one font theme for every colour mode, and `get_font_theme(appearance)`
+gives it. A [`FontRole`](../../../../source/platform/style/FontRole.jl) names a role,
+and can set its own weight and slant over those of the step: `FontRole(:quiet)`,
+`FontRole(:document_code; weight = 700)`. A `TextRole` is a font role and a colour.
+[type-rules.md](../../../rule/type-rules.md) says which text takes which role.
 
 ```julia
 @theme struct JsonTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The key of an object member, with its quotes."
-    key_text::ThemeText = TextRole(:field)
+    key_text::ThemeText = TextRole(:field; font_role = :document_code)
     "The brackets of an array and the braces of an object."
-    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; font_role = :document_code, weight = 700)
 end
 ```
 
-`TextRole(:field)` is `TextRole(ColorRole(:field))`: the colour of the role `field` of the colour theme, under ["Colours"](#colours) below. A field of a theme can also hold a fixed colour, such as a constant of [Color.jl](../../../../source/platform/style/Color.jl), for a colour that no colour setting changes.
+`TextRole(:field; font_role = :document_code)` is
+`TextRole(ColorRole(:field); font_role = :document_code)`: the colour of the role
+`field` of the colour theme, under ["Colours"](#colours) below, and the font of
+the role `document_code`. With no `font_role`, the font is the role `text`. A field
+of a theme can also hold a fixed colour, such as a constant of
+[Color.jl](../../../../source/platform/style/Color.jl), for a colour that no colour
+setting changes.
 
-The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
-`apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
-so a person who changes the family or the size of the base changes every role of
-the theme, and a heading of `relative_size = 1.8` stays 1.8 times the body. A
-role field can also hold a `StyleFont` or a `StyleText` as it is, which takes the
-font scale; the appearance tab and an appearance file accept both forms. So a
-field that holds a text role declares the union `ThemeText`, a `StyleText` or a
-`TextRole`, a field that holds a font role declares `ThemeFont`, a `StyleFont` or a
+The scaled theme holds the `StyleFont` or the `StyleText` that each role gives.
+`resolve_font_role(role, appearance)` takes the family, the size, the weight and the
+slant from the font theme, and puts the weight and the slant of the field over
+them. The font scale then multiplies the size, and the size rounds once. The cell
+reads the font theme, so a change of a step or of a family in the appearance tab
+changes every text that names that role. A role never changes its size.
+
+A field that needs another size or another family holds an exact `StyleFont`,
+which takes only the font scale. An icon in Lucide is such a text:
+`TextRole(:warning_text; font = StyleFont("Lucide", 13))` keeps the font and takes
+the colour from the role. The appearance tab and an appearance file accept both
+forms. So a field that holds a text declares the union `ThemeText`, a `StyleText`
+or a `TextRole`, a field that holds a font declares `ThemeFont`, a `StyleFont` or a
 `FontRole`, and a colour field declares `ThemeColor`. The check of declared types
 then admits both forms.
 
@@ -133,10 +148,23 @@ appearance whose scales it follows (`get_theme_appearance`). A projection never
 reads it: every length that a projection draws is a value of its theme, of a kind
 that a scale scales.
 
-An **`Appearance`** holds what a person sets about the look of one editor: the
-`zoom`, the six scales (`font_scale`, `icon_scale`, `spacing_scale`, `control_scale`,
-`radius_scale`, `line_scale`), and for each domain its theme and its scaled theme,
-found by the type that the declaration names (`get_theme_type`).
+An **`Appearance`** holds what a person sets about the look of one editor: its
+`scale`, an `AppearanceScale` with the `zoom` and the six scales (`font_scale`,
+`icon_scale`, `spacing_scale`, `control_scale`, `radius_scale`, `line_scale`), its
+`colors`, an `AppearanceColors` with the five colour settings and the colours of the
+system, and for each domain its theme and its scaled theme, found by the type that
+the declaration names (`get_theme_type`). Three `ThemeGroup` documents,
+`editor_themes`, `tool_themes` and `document_themes`, hold the themes under the
+headings of the appearance tab, "Editor", "Tools" and "Documents"; `set_theme!`
+puts each theme into its heading at the place that `get_theme_place(T)` gives, a
+heading and a rank. The default places a theme of `ProjecturedPlatform` under
+"Tools" and any other under "Documents"; the appearance slice places the six themes
+that every view draws with under "Editor". The heading "Editor" holds the font
+theme first, and its `color_theme` is a computed cell: the colour theme of the
+present mode and contrast. The keyword default of `editor_themes` makes it from the
+fields before it, `colors` and `color_themes`, so it follows the colour settings
+and the colours of the system. Each part and each heading is a document, so a tree
+shows them as nodes and a reference names them.
 `get_scaled_theme!(appearance, JsonTheme)` answers the scaled theme, and makes and
 stores the default theme at the first request; a projection calls it while it is
 built, never while it prints. `set_theme!(appearance, theme)` puts another theme in
@@ -238,7 +266,7 @@ in eleven groups:
 | Accent | `accent`, `accent_text`, `accent_tint`, `focus_ring` |
 | The layers of a state | `hover`, `pressed`, `selection_band`, `selection_ring`, `caret` |
 | Status | `error_fill`, `error_text`, `warning_text`, `success_text`, `info_text` |
-| Tokens | `keyword`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| Tokens | `keyword`, `link`, `operator`, `punctuation`, `comment`, `markup`, `heading` |
 | The names of the tokens | `function_name`, `macro_name`, `event`, `field`, `type_name`, `type_parameter`, `module_name`, `variable`, `parameter`, `enum_member`, `tag` |
 | The values of the tokens | `string_literal`, `character_literal`, `number_literal`, `boolean_literal`, `null_literal`, `symbol_literal`, `constant` |
 | The series of a chart | `series_1` … `series_8` |
@@ -263,7 +291,7 @@ hues: `macro_name` and `event` take the colour of `function_name`,
 Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
 such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
 A field of every theme other than `ColorTheme` names a role with a `ColorRole`,
-so it follows the colour settings: `key_text::ThemeText = TextRole(:field)` of
+so it follows the colour settings: `key_text::ThemeText = TextRole(:field; font_role = :document_code)` of
 `JsonTheme` draws with the colour that the role `field` gives,
 `PaletteColor(:blue, 11; minimum_contrast = 4.5)` by default, which resolves to
 step 11 of the blue ramp of the palette of the appearance, in its mode — Radix
@@ -302,8 +330,9 @@ whose step 9 has the nearest OKLCH hue angle (`find_nearest_accent_hue`); a grey
 accent, or none, gives blue. With no answer of a backend, as in a test or a PDF
 file, the system is light and normal.
 
-The `appearance` wrapper fills `system_colors` in a start step, from
-`find_system_colors(editor.backend)`, before the first print. A backend that
+The `appearance` wrapper fills `system_colors` from
+`find_system_colors(parts.backend)` before the editor exists, because the editor
+makes its first print when it is made. A backend that
 finds a change later reports it as a `SystemColorsChange`, which
 `AppearanceManagingProjection` writes into `system_colors` as view state: the
 view prints again, and the undo list does not record it. The SDL backend asks
@@ -334,16 +363,40 @@ table that names it, and a step of a ramp as a table of its hue and its step,
 each with its alpha when it is below 1 (`save_appearance!`,
 `load_appearance!`).
 
+### A picture of a file
+
+`Image(path)` is the picture that a file holds. Making it reads nothing and runs no work. It has eight fields: `filename`, `read_count`, `pixels`, `head_size`, `decoded_count`, `natural_size`, `failure` and `source`. All but `filename` are view state: a save writes the path only (`pred_arguments`), a load makes a picture that reads nothing, and undo records no change of them.
+
+`pixels` is a background cell (`make_background_cell`). Its input is the path and `read_count`. The work of its `source` decodes the file with `decode_image` and answers `(bytes, width, height)`, or the exception of a file that is missing or does not decode, as a value, so a read of the cell never throws. Each `Image` makes a `BackgroundSource` of its own, so the pictures that one frame paints decode in parallel, each on a task of the default pool. The `apply` of the cell returns an `ApplyImageAnswerOperation`, which writes the size into `natural_size`, or the exception into `failure`, and writes a cell only when its value changes. The operation drops the answer of a `read_count` that a newer count follows.
+
+`head_size` is a second background cell with the same input. Its work reads the size from the head of the file with `read_image_size`, with no decode, and answers `(width, height)`, `nothing` for a file whose head says none, or the exception of a file that can not be opened. The head cells of all pictures share one source (`_IMAGE_SIZE_SOURCE`, "the sizes of pictures"), so the sizes that one frame asks for are read on one task. `decoded_count` is the `read_count` whose decode answered, and −1 until the first decode answers. `ApplyImageAnswerOperation` has one more field, `is_pixel_answer`: for one read the decode wins over the head, a size answer for a read whose decode answered is dropped, a size answer of `nothing` writes nothing, and a size clears `failure`.
+
+`get_image_natural_size(image)` is the call of a print for the size. It reads the head cell only while the decode of this read has not answered, so a picture whose decode answered asks for no head. A file that is missing shows its failure without a paint, and one more `read_count` reads the head again.
+
+A print reads `failure` and `get_image_natural_size`, which are `nothing` until the first answer, and never `pixels`. A label (`_push_content!`) and a text span (`_extract_image_data`) put the pixel cell itself into the `data` of their `GraphicsImage`. `GraphicsImage` keeps a cell as it is, so only the paint of a backend reads `data`, and only that read records the demand for the task. A picture with no size measures 320 by 240 pixels, which the slot of the label fits, and a picture whose pixels have not come (`decoded_count` below 0) or with a `failure` shows a box under its pixels. One more `read_count` gives the cell a new input: it answers its last pixels until the new ones come, and the next paint asks again.
+
+A copy of a picture (`copy_document`, with the plain policy or the policy of a copy gesture) is a new `Image` of the same path that reads nothing, as a load makes. A field-by-field copy would share the `source` and keep a pixel cell that nothing feeds. A policy that stops the copy at a document that it does not own (`is_descendable_for_copy`) gets the placeholder, as for any document.
+
+### A picture file
+
+`ImageFile(path)` is the file document of a picture file. It has the three fields of every file type: `filename`, `content` and `disk`. `content` is the `Image` that the file holds, and `get_edited_document` reaches it through a history. A person does not edit it (`is_editable_file_type` answers `false`), so Ctrl+S writes nothing and the decoration says "read only". `StyleModule.__init__` registers the extensions `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif`, so `read_document_file`, `make_file_tab` and the open of a file make one. `read_file_content(ImageFile, path)` answers `Image(path)` and reads no byte of the file, not even its time or its size. `ImageFile(path)` makes a new file document that no other place shares; a holder that must follow the file asks the editor for its one file document of the path with `open_file_document!`.
+
+A change of the file is a change of every file that a person does not edit. The file counts it in its `disk`, a task reads the file when a place draws the file, the hash of the time and the size decides whether the file loads, and the load gives the new `Image` to the history. `replace_wrapped_document!(::Image, document)` keeps the old picture when the new one has the same path, adds one to its `read_count` and drops the new picture, which nothing read. So the file keeps one picture with its pixels, and the pixel cell gets a new input. A picture of another path, and the seed of a file that is gone, replace the picture. F5 does the same: for a file that a person does not edit, `ReloadFileOperation` takes the hash of the time and the size, and reads no byte of the file.
+
+`get_shown_picture(content)` is what a holder draws for `content`: the `Image` that a picture file holds, and `content` itself for anything else. A label, a text span and the picture cell of a roster draw the picture through it. A roster cell shows a picture for a value for which it answers an `ImageDocument`, at most `table_picture_height` high in its shape, and a box 4 by 3 before the pixels come. The picture of a conversation, the image spans of Markdown, Book and RST, and the example documents make an `Image` and read no pixel on the loop.
+
+A script with no editor reads the pixels with `wait_for_cell!(getfield(picture, :pixels); editor = nothing)`. Make a picture where a document is built, never inside a computation, because a computation that makes one makes a new pixel cell at each run. A test gives a picture a source of its own with `_make_image(path, source)`; no public maker takes a source.
+
 ### The zoom and the scales
 
-The size of things on the screen comes from the `Appearance` of an editor: its
-`zoom` and its six scales (`font_scale`, `icon_scale`, `spacing_scale`,
-`control_scale`, `radius_scale`, `line_scale`). `AdjustZoomOperation` and
+The size of things on the screen comes from the `Appearance` of an editor: the
+`zoom` and the six scales of its `scale` (`font_scale`, `icon_scale`,
+`spacing_scale`, `control_scale`, `radius_scale`, `line_scale`). `AdjustZoomOperation` and
 `AdjustScaleOperation`, and the keys that reach them, are bindings of the
 `appearance` wrapper of `build_editor`; an editor built with no `Appearance` has
 no zoom keys.
 
-- **The zoom.** `AdjustZoomOperation` steps `appearance.zoom` and copies it into
+- **The zoom.** `AdjustZoomOperation` steps `appearance.scale.zoom` and copies it into
   the `zoom` of the `Display` of the editor. The backend multiplies it with the
   `density` of the hardware into the device pixel ratio. Layout does not read
   it, so a change needs a repaint and no reactive update. Each editor has its
@@ -379,7 +432,7 @@ width, ascent, descent = compute_text_extent("hello", StyleFont("Ubuntu Mono", 2
 font_logical_size(StyleFont("Ubuntu Mono", 20))   # 20, the font's own size
 ```
 
-- Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
+- Test: no package suite exists. `test_image()` covers `Image`, and `test_image_file_read()` of the SDL package reads real files. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
 
 ## Limits
 

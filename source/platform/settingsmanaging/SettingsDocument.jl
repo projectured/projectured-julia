@@ -64,7 +64,7 @@ function make_pred_document(::Type{<:Settings}, positional, keywords)
 end
 
 """
-    describe_settings(; editor = get_evaluation_editor()) -> Text
+    describe_settings(; editor = get_evaluation_editor()) -> String
 
 The settings of the window, one line each: the group, the name, the value now,
 and the sentence that says what the setting does, with the values it can take
@@ -78,13 +78,15 @@ Use it to find the name of a setting before you change it with
     println(describe_settings())
 
 See also `change_setting!`.
+
+For the assistant.
 """
 function describe_settings end
 
 function describe_settings(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_settings") do
         settings = find_editor_settings(; editor)
-        settings === nothing && return Text("This window has no settings.")
+        settings === nothing && return "This window has no settings."
         lines = String[]
         for group in get_settings_groups(settings)
             T = get_settings_group_type(group)
@@ -96,7 +98,7 @@ function describe_settings(; editor = get_evaluation_editor())
                              description.text * values)
             end
         end
-        Text(join(lines, "\n"))
+        join(lines, "\n")
     end
 end
 
@@ -118,6 +120,8 @@ Use it to change how the window looks or works when the person asks for it.
     change_setting!(:partial_render, false)
 
 See also `describe_settings`.
+
+For the assistant.
 """
 function change_setting! end
 
@@ -151,7 +155,7 @@ with no group of `T` gives `DoNothingOperation`.
 """
 function make_toggle_setting_operation(settings::Settings, T::Type{<:SettingsGroup},
                                        name::Symbol)
-    group = get(settings.groups, T, nothing)
+    group = find_settings_group(settings, T)
     group === nothing && return DoNothingOperation()
     ApplySettingOperation(group, name, !getproperty(group, name))
 end
@@ -168,4 +172,20 @@ end
         make_toggle_setting_operation(doc.settings, RenderSettings, :debug_dirty)
 end
 
-get_document_decoration(::Union{SettingsDocument, Settings}) = DocumentDecoration(; icon = :settings)
+get_document_decoration(::Union{SettingsDocument, Settings}) =
+    DocumentDecoration(; icon = :settings, tooltip = () -> TooltipNote(; title = "Settings",
+                                                                        text = "Change how this editor works."))
+
+# A group has the icon of the settings, and the summary of its type as its note.
+get_document_decoration(group::SettingsGroup) =
+    DocumentDecoration(; icon = :settings,
+                       tooltip = () -> TooltipNote(; title = get_document_title(group),
+                                                    text = strip_code_marks(compute_docstring_summary(
+                                                        get_settings_group_type(group)))))
+
+# The settings of an editor are a tool: a paste or a cut writes into no group, as
+# into no part of a tool. A text paste into a field of the tab pastes its text.
+accepts_pasted_document(::Settings) = false
+
+# In a tree, the settings have a node for each group, in the order of the tab.
+get_tree_children_steps(::Settings) = ((FieldReferenceStep("groups"),),)

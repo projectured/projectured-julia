@@ -1,6 +1,6 @@
 # SQL domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [syntax.md](../../platform/syntax/syntax.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [syntax.md](../../platform/syntax/syntax.md)
 
 The SQL domain, `ProjecturedSQL`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the adapter interface, and [odbc.md](../../adapter/odbc/odbc.md) the adapter that runs a statement. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
 

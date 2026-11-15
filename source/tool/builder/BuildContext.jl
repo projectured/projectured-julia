@@ -8,7 +8,7 @@
 # each, and neither repository's name appears in the code that does the writing.
 
 """
-    BuildContext(root; package_roots, log_variable, statements, version)
+    BuildContext(root; package_roots, log_variable, version)
 
 Where a build writes, and where it looks up a package's directory and uuid.
 
@@ -21,8 +21,6 @@ Where a build writes, and where it looks up a package's directory and uuid.
 - `log_variable` — the environment variable that sets the log level of a
   binary this context builds, read behind `--log-level` on the command line and
   ahead of the baked default. Defaults to `"PROJECTURED_LOG_LEVEL"`.
-- `statements` — a precompile statements file [`compile_app!`](@ref) passes to
-  `create_app`, or `nothing`.
 - `version` — the text `--version` prints after the binary's name. Defaults to
   `"0.1.0"`.
 """
@@ -30,17 +28,15 @@ struct BuildContext
     root::String
     package_roots::Vector{String}
     log_variable::String
-    statements::Union{String,Nothing}
     version::String
 end
 
 function BuildContext(root::AbstractString;
                        package_roots = [joinpath(root, "package")],
                        log_variable::AbstractString = "PROJECTURED_LOG_LEVEL",
-                       statements::Union{AbstractString,Nothing} = nothing,
                        version::AbstractString = "0.1.0")
     BuildContext(String(root), String[String(p) for p in package_roots], String(log_variable),
-                 statements === nothing ? nothing : String(statements), String(version))
+                 String(version))
 end
 
 """
@@ -48,15 +44,12 @@ end
 
 Where the package called `name` lives, searched in `context.package_roots` in
 order. This is why a build function names no package's directory itself: it
-names the package as a string, and this resolves it. A root holds packages in
-folders of their names, or is the folder of one package itself, as the
-repository of a package of another repository is.
+names the package as a string, and this resolves it.
 """
 function get_package_directory(context::BuildContext, name::AbstractString)
     for root in context.package_roots
         here = joinpath(root, String(name))
         isdir(here) && return here
-        _is_package_root(root, name) && return root
     end
     error("get_package_directory: no package called $(repr(name)) in " *
           join(context.package_roots, " or "))
@@ -68,14 +61,7 @@ end
 Whether a folder of `context.package_roots` holds the package called `name`.
 """
 has_package_directory(context::BuildContext, name::AbstractString) =
-    any(root -> isfile(joinpath(root, String(name), "Project.toml")) || _is_package_root(root, name),
-        context.package_roots)
-
-# Whether `root` is itself the folder of the package called `name`.
-function _is_package_root(root::AbstractString, name::AbstractString)
-    project = joinpath(root, "Project.toml")
-    isfile(project) && get(TOML.parsefile(project), "name", nothing) == name
-end
+    any(root -> isfile(joinpath(root, String(name), "Project.toml")), context.package_roots)
 
 """
     collect_missing_sources(context, packages) -> Vector{Pair{String,String}}
@@ -102,6 +88,21 @@ function collect_missing_sources(context::BuildContext, packages)
         end
     end
     sort!(missing_sources)
+end
+
+# The packages of `context.package_roots` in the dependency tree of `packages`,
+# `packages` among them.
+function _collect_local_dependencies(context::BuildContext, packages)
+    seen = Set{String}()
+    pending = String[String(package) for package in packages]
+    while !isempty(pending)
+        name = pop!(pending)
+        (name in seen || !has_package_directory(context, name)) && continue
+        push!(seen, name)
+        project = TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
+        append!(pending, keys(get(project, "deps", Dict{String,Any}())))
+    end
+    seen
 end
 
 "The uuid a package answers to, read from its own `Project.toml`."

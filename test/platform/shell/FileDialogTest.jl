@@ -74,6 +74,13 @@ end
     helpers._nav_press!(editor, backend, MouseClick(:left, field_x + 1, field_y + 2, 1, ModifierKeys(); time = 0.0))
     helpers._nav_press!(editor, backend, KeyPress('x'; time = 0.0))
     @test occursin("x", chooser.name) && length(chooser.name) == 5
+    # A double press on a file in the open folder writes its path from the
+    # directory, so the chosen path is the path of that file.
+    click = helpers._nav_click(backend, "b.jl")
+    @test click !== nothing
+    helpers._nav_press!(editor, backend, click, MouseClick(click.button, click.x, click.y, 2, ModifierKeys(); time = 0.0))
+    @test chooser.name == joinpath("sub", "b.jl")
+    @test get_chosen_path(chooser) == joinpath(directory, "sub", "b.jl")
     evaluate_operation(editor, ReleaseDocumentOperation(chooser))
 end
 
@@ -99,6 +106,19 @@ end
     window = last(scene.windows)
     @test window.id === :file_dialog && window.style === :floating
     @test window.content isa WidgetDialog
+    # A dialog of a host gives the chosen path to its own function at the confirm:
+    # with no name typed, that is the folder that the dialog shows. It takes the
+    # window of the dialog, which has one id for every dialog.
+    chosen = String[]
+    open_path_dialog!(path -> (push!(chosen, path); nothing);
+                      directory, title = "Add a folder", confirm = "Add", editor)
+    @test length(scene.windows) == 2
+    host = last(scene.windows)
+    @test host.title == "Add a folder" && host.content isa WidgetDialog
+    confirm = last(collect(host.content.buttons))
+    @test string(confirm.action.label) == "Add"
+    confirm.action.callback(nothing)
+    @test chosen == [directory]
 end
 
 @testset "Save As gives the file its name and then writes it" begin

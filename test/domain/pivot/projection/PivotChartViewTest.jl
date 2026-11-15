@@ -82,5 +82,55 @@ end
 count_slices(io.output)
 @test slices[] == 3 * 3 * 4 - 1
 
+# ── A drag in a chart zooms it ──────────────────────────────────────────────
+
+# The parts of the drag come back to the chart in its cell by the path of the
+# chart. So the band grows from the point of the press to the pointer, and the
+# release zooms the chart to the band.
+charted = make_pivot_table(make_pivot_sales_rows(); rows = ["region", "country"], columns = ["year"],
+                           cells = ["quarter"], measures = [PivotMeasure("amount", :sum)])
+getfield(charted, :cell_view)[] = PivotLineChartView()
+editor, backend = _pz_editor(charted)
+window_root() = _pz_force(_pz_force(_pz_force(get_iomap_output(editor.iomap)).windows)[1].content)
+top, bottom = _pz_place(editor, "DE")[2], _pz_place(editor, "FR")[2]
+lines_of_row() = [points for points in _pivot_lines(window_root()) if all(p -> top <= p[2] < bottom, points)]
+before = argmin(points -> points[1][1], lines_of_row())
+x, y = before[1][1] + 10, before[1][2] - 20
+_pz_send!(editor, backend, MouseMove(x, y, MouseButtons(), _PZ_NONE; time = 6.0))
+_pz_send!(editor, backend, MouseDown(:left, x, y, _PZ_NONE; time = 6.01))
+_pz_send!(editor, backend, MouseMove(x + 20, y + 15, MouseButtons(:left), _PZ_NONE; time = 6.1))
+@test (x, y, 20, 15) in _pivot_boxes(window_root())
+_pz_send!(editor, backend, MouseUp(:left, x + 20, y + 15, _PZ_NONE; time = 6.2))
+@test !((x, y, 20, 15) in _pivot_boxes(window_root()))
+@test !(before in lines_of_row())
+
 end
+end
+
+# The points of each line under `node`, and the box of each rectangle, in the
+# coordinates of the window.
+_pivot_lines(node) = [[(x + Int(p[1]), y + Int(p[2])) for p in line.points]
+                      for (x, y, line) in _pivot_nodes(node, GraphicsPolyline) if !isempty(line.points)]
+_pivot_boxes(node) = [(x + Int(box.x), y + Int(box.y), Int(box.w), Int(box.h))
+                      for (x, y, box) in _pivot_nodes(node, GraphicsRect)]
+
+# Each node of type `T` under `node`, with the place in the window of the canvas
+# that holds it.
+function _pivot_nodes(node, T, ox = 0, oy = 0, found = Any[])
+    node isa T && push!(found, (ox, oy, node))
+    if node isa GraphicsCanvas
+        x, y = ox + Int(node.x), oy + Int(node.y)
+        elements = node.elements
+        if elements isa ListNode
+            n = elements
+            while n !== nothing
+                _pivot_nodes(n.value, T, x, y, found); n = n.next
+            end
+        else
+            foreach(element -> _pivot_nodes(element, T, x, y, found), elements)
+        end
+    elseif node isa GraphicsViewport
+        _pivot_nodes(node.content, T, ox + Int(node.x), oy + Int(node.y), found)
+    end
+    found
 end

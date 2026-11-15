@@ -180,6 +180,33 @@ end
     @test get_formula_dependencies(cells.formulas[2], cells) == [cells.formulas[1]]
 end
 
+@testset "keys that turn the name of a formula into a function name compute it" begin
+    platform = ProjecturedPlatformTest
+    sheet = FormulaEnvironment([
+        FormulaFormula("f", parse_julia("3")),
+        FormulaFormula("g", parse_julia("f(2)")),
+    ])
+    f, g = sheet.formulas
+    _compute_formula_sheet!(sheet)
+    backend = HeadlessBackend()
+    projection = make_formula_projection_example(; measure = FixedMeasure(8, 12, 4, 0))
+    editor = build_editor(sheet, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false,
+                          undo = true)
+    run_frame!(editor)
+    @test g.result isa FormulaError
+    for (index, key) in enumerate(('(', 'x', ')'))
+        set_selection!(sheet, @reference(sheet, formulas[1].name{index}))
+        run_frame!(editor)
+        platform._nav_press!(editor, backend, KeyPress(key; time = 0.0))
+        # The use keeps its key on the way: `f(` reads as no name.
+        @test print_natural_text(g.code) == "f(2)"
+    end
+    @test f.name == "f(x)"
+    @test get_formula_value(g) == 3
+    @test g.result == 3
+end
+
 @testset "math code prints in its linear form, and the keys walk past it" begin
     sheet = FormulaEnvironment([FormulaFormula("C", parse_julia("55")),
                                 FormulaFormula("D", parse_math("C/2")),
@@ -190,6 +217,19 @@ end
     walk = ProjecturedPlatformTest.explore_position_selections(sheet, make_formula_projection_example())
     @test walk.state_count > 0
     @test isempty(walk.errors)
+end
+
+@testset "a function formula shows its equation and no value" begin
+    sheet = FormulaEnvironment([FormulaFormula("T", parse_julia("2")),
+                                FormulaFormula("S_{pure}(G)", parse_math("G exp(-2 G)"))])
+    _compute_formula_sheet!(sheet)
+    show_sheet() = render(print_document(RecursiveProjection(FormulaToSyntax()), sheet).output)
+    rendered = show_sheet()
+    @test occursin("S_{pure}(G) = G exp(-2 G)", rendered)
+    @test !occursin("⇒ ", split(rendered, '\n')[2]) && !occursin("generic function", rendered)
+    @test occursin("T = 2 ⇒ 2", rendered)
+    sheet.formulas[2].is_computing = true
+    @test occursin("G exp(-2 G) ⋯", show_sheet())
 end
 
 @testset "FormulaFormula view modes (code / result / both)" begin

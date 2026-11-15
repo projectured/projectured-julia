@@ -8,18 +8,18 @@
     compute_formula_key(formula, env) -> UInt64
 
 The key of the code and the inputs that the value of `formula` comes from now:
-the hash of the text of its code, and of the key of the stored value of each
+the hash of the text of its code, of its parameter, and of the key of the stored value of each
 formula of `env` that the code names. A stored value whose `result_key` is this
 key belongs to the code and the inputs now; a new value of an input makes it
 stale.
 """
 function compute_formula_key(formula::FormulaFormula, env::FormulaEnvironment)
     inputs = Pair{String,Any}[]
-    for name in _find_readable_names(formula.code)
+    for name in _find_readable_names(formula)
         dependency = resolve(env, name)
         push!(inputs, name => (dependency === nothing ? nothing : dependency.result_key))
     end
-    hash((_formula_code_text(formula.code), inputs))
+    hash((_formula_code_text(formula.code), _find_formula_parameter(formula), inputs))
 end
 
 # What the formula task needs to compute a formula, read on the loop: the key, and
@@ -42,14 +42,14 @@ function _make_formula_job(formula::FormulaFormula, env::FormulaEnvironment)
                                                            FormulaError("#CYCLE!"), true)
     try
         bindings = Pair{Symbol,Any}[]
-        for name in get_formula_names(formula.code)
+        for name in get_formula_names(formula)
             dependency = resolve(env, name)
             dependency === nothing && continue
             value = dependency.result
             value isa FormulaError && return _FormulaJob(key, nothing, Pair{Symbol,Any}[], value, true)
             push!(bindings, Symbol(name) => value)
         end
-        _FormulaJob(key, convert_formula_to_expr(formula.code, env), bindings, nothing, false)
+        _FormulaJob(key, convert_formula_to_expr(formula, env), bindings, nothing, false)
     catch e
         _FormulaJob(key, nothing, Pair{Symbol,Any}[], FormulaError("#ERROR! " * sprint(showerror, e)), true)
     end
@@ -117,6 +117,10 @@ end
 
 # The formula task: one formula after the other, until none waits. The loop
 # prepares each job and writes each value, through the door; the code runs here.
+# A call to the editor has no time limit: nothing waits for this task, a value
+# that a call drops is lost, and the end of the editor loop answers a call that
+# waits. So a long frame, such as the first print of a large document, only
+# delays the values.
 function _run_formula_task!(editor, computer::_FormulaComputer)
     while true
         item = lock(computer.lock) do
@@ -126,19 +130,18 @@ function _run_formula_task!(editor, computer::_FormulaComputer)
         item === nothing && return nothing
         (env, formula) = item
         try
-            job = run_on_editor_task!(editor; description = "prepare a formula") do
+            job = run_on_editor_task!(editor; description = "prepare a formula", timeout = Inf) do
                 job = _make_formula_job(formula, env)
                 job === nothing && (formula.is_computing = false)
                 job
             end
             job === nothing && continue
             value = _run_formula_job(computer.scratch, job)
-            run_on_editor_task!(editor; description = "store the value of a formula") do
+            run_on_editor_task!(editor; description = "store the value of a formula", timeout = Inf) do
                 evaluate_operation(editor, ReplaceFormulaResultOperation(formula, env, value, job.key))
             end
         catch exception
-            # The editor ended, or did not take the call: no formula of this queue
-            # can come back.
+            # The editor ended, or a call to it failed: the task stops.
             @warn "the formula task of the editor stops" exception
             lock(() -> (empty!(computer.queue); computer.task = nothing), computer.lock)
             return nothing

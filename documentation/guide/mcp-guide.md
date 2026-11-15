@@ -1,6 +1,6 @@
 # An external AI client over MCP
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [assistant-guide.md](assistant-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [assistant-guide.md](assistant-guide.md)
 
 How to let an external client, for example Claude Code, drive a running ProjecturEd over the Model Context Protocol (MCP). The client gets the same tools as the assistant inside the window.
 
@@ -49,7 +49,7 @@ The tools are the tool set of the kernel, so a client and the assistant in the w
 | --- | --- |
 | `search_api` | finds a module, a type or a function by name, by pattern or by description: in the API that the tool set declares, or in every loaded `Projectured` package when it declares none. The application declares its API. |
 | `read_function_documentation` | reads the documentation of one name |
-| `search_guides` | searches the guides of this repository |
+| `search_guides` | searches the guides of this repository: the guides for users by default, and the guides for developers with `audience` |
 | `list_resources`, `read_resource` | lists and reads the resources below |
 | `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor; a verb acts on that editor, so the code does not pass it |
 

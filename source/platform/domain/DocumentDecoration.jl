@@ -280,6 +280,19 @@ function collect_decoration_marks(decoration::DocumentDecoration)
 end
 
 """
+    collect_decoration_conditions(decoration) -> Vector{DocumentCondition}
+
+The conditions of `decoration` that a person reads in words, in the order of
+[`DOCUMENT_CONDITIONS`](@ref): each one whose look has words. A tooltip says
+them, each with its count when it has one.
+
+See also `format_decoration_words`.
+"""
+collect_decoration_conditions(decoration::DocumentDecoration) =
+    DocumentCondition[condition for condition in _sort_decoration_conditions(decoration)
+                      if !isempty(get_condition_look(Val(condition.name)).words)]
+
+"""
     format_decoration_words(decoration) -> String
 
 The conditions of `decoration` in words, one line each, with the count of a
@@ -292,9 +305,8 @@ function format_decoration_words end
 
 function format_decoration_words(decoration::DocumentDecoration)
     lines = String[]
-    for condition in _sort_decoration_conditions(decoration)
+    for condition in collect_decoration_conditions(decoration)
         words = get_condition_look(Val(condition.name)).words
-        isempty(words) && continue
         push!(lines, condition.count === nothing ? words : string(words, ": ", condition.count))
     end
     decoration.tooltip isa AbstractString && !isempty(decoration.tooltip) && push!(lines, decoration.tooltip)

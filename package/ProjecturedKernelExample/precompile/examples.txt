@@ -1,4 +1,0 @@
-# The recording "examples" of this repository, written by
-# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
-Tuple{typeof(ProjecturedKernelExample.force_projected), ProjecturedPlatform.CollectionModule.CellVector{Any, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Int64}
-Tuple{typeof(ProjecturedKernelExample.force_projected), ProjecturedPlatform.GraphicsModule.GraphicsArc{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Int64}

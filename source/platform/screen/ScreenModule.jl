@@ -45,7 +45,7 @@ using ..SettingsModule
 using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title
+import ..DocumentModule: get_document_title, get_view_state_fields
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
 import ..SettingsModule: get_setting_environment_names, is_settings_group_applied
@@ -56,20 +56,26 @@ export ChangeScreenPointerShapeOperation, make_screen_pointer_shape_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
+export EscapeQuittingProjection, EscapeQuittingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
-export ScreenDocument, WindowDocument
-export find_part_place, write_part_picture, write_window_picture
-export show_window_layers, make_window_layer_bindings
+export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_window_place, is_window_placed,
+       has_window_frame
+export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
+       make_top_center_place, compute_anchored_place, find_display_area, FixedPlacement, make_fixed_placement,
+       find_screen_reference, find_window_box, make_window_center_placement
+export write_part_picture, write_window_picture
+export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings
 
 
 include("ScreenDocument.jl")
+include("WindowPlacement.jl")
 include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
-include("PartPlace.jl")
+include("EscapeQuitting.jl")
 include("PartPicture.jl")
 include("WindowLayers.jl")
 include("DocumentShow.jl")

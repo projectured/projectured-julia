@@ -8,8 +8,10 @@ import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 import ProjecturedPlatform.ScreenModule: show_document!
 
+# The width of a character of the measure of the tab.
+const _STAB_CHARACTER_WIDTH = 8
 _stab_natural(; extra = Pair{Type,Any}[]) =
-    NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
+    NaturalToGraphics(; measure = FixedMeasure(_STAB_CHARACTER_WIDTH, 12, 4, 0), extra)
 
 # An editor whose content is `content`, a tab that shows `settings`, with the
 # settings wrapper over the same `settings`, after its first frame.
@@ -68,11 +70,12 @@ function _stab_find_click(editor, backend, label, name)
     nothing
 end
 
-# The click on the row of `label`, right of the label, whose answer `is_wanted`
-# takes; `nothing` when no point of the row answers so.
+# The click on the row of `label`, right of the text of the label, whose answer
+# `is_wanted` takes; `nothing` when no point of the row answers so. A click on
+# the text of the label puts the caret in the label.
 function _stab_find_click_answer(editor, backend, label, is_wanted)
     (_, lx, ly) = only(text for text in _stab_texts(backend) if text[1] == label)
-    for x in lx:2:(lx + 800)
+    for x in (lx + _STAB_CHARACTER_WIDTH * length(label)):2:(lx + 800)
         answer = read_intent(editor.projection, nothing, Intent(_stab_click(x, ly + 6)),
                              editor.iomap)
         is_wanted(answer isa Intent ? answer.operation : answer) && return _stab_click(x, ly + 6)
@@ -130,6 +133,24 @@ end
     @test !any(t -> occursin('`', t[1]), texts)
 end
 
+@testset "a group alone draws its summary and its rows, and a press on its switch applies it" begin
+    settings = make_settings()
+    fault = get_settings_group!(settings, FaultSettings)
+    editor, backend = _stab_editor(fault, settings)
+    texts = _stab_texts(backend)
+    labels = Set(first(text) for text in texts)
+    @test "Log faults" in labels && "Catch faults" in labels && "Reset" in labels
+    @test !("Double click time" in labels) && !("Reset all" in labels)
+    # The summary of the group stands above its first row.
+    summary = compute_docstring_summary(FaultSettings)
+    first_line = only(t for t in texts if length(t[1]) > 10 && startswith(summary, t[1]))
+    @test first_line[3] < only(t for t in texts if t[1] == "Catch faults")[3]
+    click = _stab_find_click(editor, backend, "Log faults", :is_console_enabled)
+    @test click !== nothing
+    _stab_press!(editor, backend, click)
+    @test !fault.is_console_enabled && !editor.fault_policy.is_console_enabled
+end
+
 @testset "a press on a switch changes its setting, and the editor applies it" begin
     settings = make_settings()
     editor, backend = _stab_editor(settings, settings)
@@ -180,9 +201,9 @@ end
     settings = make_settings()
     editor, backend = _stab_editor(settings, settings)
     # The headless backend draws no windows, so nothing applies the render group.
-    @test RenderSettings in settings.unused_types
-    @test !(FaultSettings in settings.unused_types)
-    @test !(PointerSettings in settings.unused_types)
+    @test !find_settings_group(settings, RenderSettings).is_used
+    @test find_settings_group(settings, FaultSettings).is_used
+    @test find_settings_group(settings, PointerSettings).is_used
     @test is_settings_group_applied(RenderSettings) && is_settings_group_applied(FaultSettings)
     @test !is_settings_group_applied(PointerSettings)
     # The card can wrap the note, so a piece of it is enough. The note is its text,
@@ -234,7 +255,13 @@ end
     editor, backend = _stab_editor(settings, settings; focus_cycling = true)
     fault = get_settings_group!(settings, FaultSettings)
     @test fault.is_barrier_enabled
-    _stab_press!(editor, backend, KeyPress('\t'; time = 0.0))
+    # The groups follow the order of their names, and each setting of a group before
+    # the faults is two stops: its control and its Reset.
+    stops = sum(2 * length(get_setting_descriptions(T)) for T in compute_loaded_settings_types()
+                if get_settings_name(T) < get_settings_name(FaultSettings); init = 0)
+    for _ in 1:(stops + 1)
+        _stab_press!(editor, backend, KeyPress('\t'; time = 0.0))
+    end
     # The selection of the settings is a path that the tab introduces.
     @test get_selection(settings) isa ConcreteReference
     _stab_press!(editor, backend, KeyPress(' '; time = 0.0))
@@ -271,9 +298,10 @@ end
 @testset "the tab scrolls in a window, and a change of a setting keeps its place" begin
     settings = make_settings()
     backend = HeadlessBackend()
+    height = 280
     editor = build_editor(WidgetLabel("Name"); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
-                          window = (; title = "T", width = 900, height = 300),
+                          window = (; title = "T", width = 900, height),
                           tabs = (; title = "Doc"), settings)
     run_frame!(editor)
     function send!(events...)
@@ -286,12 +314,15 @@ end
     drawn() = _stab_drawn(only(last(rendered_output(backend)).windows).content)
     place(label) = only(text for text in drawn() if text[1] == label)[3]
     bottom = place("Reset all")
-    @test bottom > 300
-    # The row of the undo steps starts below the window, which is 300 high.
-    @test place("Undo steps") > 300
-    (_, x, y) = only(text for text in drawn() if text[1] == "Catch faults")
-    # The wheel scrolls the tab until the row of the undo steps is in the window.
-    for i in 1:20
+    @test bottom > height
+    # The row of the undo steps starts below the window.
+    @test place("Undo steps") > height
+    # The wheel turns over the label of a setting inside the window, and scrolls the
+    # tab until the row of the undo steps is in the window.
+    labels = Set(description.label for T in compute_loaded_settings_types()
+                 for description in get_setting_descriptions(T))
+    (_, x, y) = first(text for text in drawn() if text[1] in labels && 0 < text[3] < height - 30)
+    for i in 1:40
         place("Undo steps") <= 250 && break
         send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 0.1 * i))
     end
@@ -309,7 +340,7 @@ end
     # flag, which a report reads from the editor: the view does not print again.
     fault = get_settings_group!(settings, FaultSettings)
     row = place("Log faults")
-    @test 0 < row < 300
+    @test 0 < row < height
     for (i, px) in enumerate(100:4:400)
         fault.is_console_enabled || break
         send!(MouseDown(:left, px, row + 6, ModifierKeys(); time = 10.0 + i),

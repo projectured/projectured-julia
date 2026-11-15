@@ -7,8 +7,10 @@
 # wakes the editor through the callback the editor attached at registration.
 #
 # The file also tests the frame performance that `record_frame_performance!` of
-# `editor/Feeds.jl` records: the frame time as a time, and, when the counters
-# are compiled in, every counter of the frame with its unit.
+# `editor/Feeds.jl` records: the frame time, the time of each part of a frame, of
+# the held frames, of the collections and of the compiles, the allocated bytes,
+# and, when the counters are compiled in, the cell counts of each part and every
+# other counter of the frame with its unit.
 
 using Test
 using ProjecturedKernel.ProjectionModule
@@ -18,11 +20,15 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
 using ProjecturedKernel.FeedModule
 using ProjecturedKernel.PerformanceModule
+using ProjecturedKernel.CellModule: Cell, @computation
+import ProjecturedKernel.BackendModule
+import ProjecturedKernel.BackendModule: Backend
 import ProjecturedKernel.FeedModule: drain_changes!, compute_wake_deadline,
                                      attach_wake_callback!
 import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, InboxFeed, post_operation!,
-                                       drain_feeds!, wake_editor!, run_editor!
+                                       drain_feeds!, wake_editor!, run_editor!,
+                                       FRAME_PARTS, get_frame_part_measurement_name
 import ProjecturedKernel.OperationModule: QuitEditorOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.FaultModule: record_fault!, FaultPolicy, get_fault_records
@@ -182,8 +188,152 @@ function drain_changes!(feed::SlowFrameProbeFeed, editor)
     0
 end
 
+# A feed whose drain runs `work`, so a frame does that work in its feed stage.
+struct FrameWorkProbeFeed <: Feed
+    work::Function
+end
+
+drain_changes!(feed::FrameWorkProbeFeed, editor) = (feed.work(); 0)
+
+# The store of an editor that ran one measured frame, whose feed stage runs `work`.
+function _measure_probe_frame(work)
+    editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                    backend = HeadlessBackend(), devices = Device[],
+                    feeds = Feed[FrameWorkProbeFeed(work)])
+    EditorModule.run_measured_frame!(editor, 0.0)
+    editor.frame_measurements
+end
+
+_get_frame_total(store, name) = compute_frame_measurement_summary(store, name).total
+
+const _FRAME_RECORD_TIMES = (:frame_time, :feed_time, :report_time, :input_time,
+                             :reader_time, :evaluate_time, :print_time, :paint_time,
+                             :held_time, :garbage_collection_time, :compile_time)
+
+# A backend whose read from the devices and whose write to them run work of their
+# own, so a frame spends a known time, or known cell operations, in its input and
+# in its paint. Its read gives no input.
+struct DevicePartProbeBackend <: Backend
+    read_work::Function
+    write_work::Function
+end
+BackendModule.take_from_devices!(backend::DevicePartProbeBackend, devices) =
+    (backend.read_work(); nothing)
+BackendModule.write_to_devices!(backend::DevicePartProbeBackend, devices, output) =
+    (backend.write_work(); nothing)
+
+# The store of an editor that ran one measured frame over a `DevicePartProbeBackend`.
+function _measure_device_part_frame(; read_work = () -> nothing,
+                                    write_work = () -> nothing)
+    editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                    backend = DevicePartProbeBackend(read_work, write_work),
+                    devices = Device[])
+    EditorModule.run_measured_frame!(editor, 0.0)
+    editor.frame_measurements
+end
+
 function test_editor_frame_performance()
 @testset "the frame performance of the editor" begin
+    @testset "a measured frame records its stages, its held frames, its collections, its compile and its allocations" begin
+        store = _measure_probe_frame(() -> nothing)
+        for name in _FRAME_RECORD_TIMES
+            summary = compute_frame_measurement_summary(store, name)
+            @test (name, summary.unit, summary.count) == (name, :second, 1)
+            @test summary.total >= 0
+        end
+        @test compute_frame_measurement_summary(store, :allocated_bytes).unit === :count
+        @test _get_frame_total(store, :feed_time) <= _get_frame_total(store, :frame_time)
+    end
+
+    @testset "the time of a drain is in the feed time" begin
+        store = _measure_probe_frame(() -> sleep(0.05))
+        @test _get_frame_total(store, :feed_time) >= 0.045
+        for name in (:input_time, :reader_time, :print_time, :paint_time)
+            @test _get_frame_total(store, name) < 0.045
+        end
+    end
+
+    @testset "the time of the read from the devices is in the input time and not in the reader time" begin
+        store = _measure_device_part_frame(read_work = () -> sleep(0.05))
+        @test _get_frame_total(store, :input_time) >= 0.045
+        for name in (:reader_time, :print_time, :paint_time)
+            @test _get_frame_total(store, name) < 0.045
+        end
+    end
+
+    @testset "the time of the write to the devices is in the paint time and not in the print time" begin
+        store = _measure_device_part_frame(write_work = () -> sleep(0.05))
+        @test _get_frame_total(store, :paint_time) >= 0.045
+        for name in (:print_time, :input_time, :reader_time)
+            @test _get_frame_total(store, name) < 0.045
+        end
+    end
+
+    @testset "the parts of a frame do not overlap, so they add up to no more than the frame" begin
+        store = _measure_device_part_frame(read_work = () -> sleep(0.02),
+                                           write_work = () -> sleep(0.02))
+        parts = sum(_get_frame_total(store, get_frame_part_measurement_name(part, :time))
+                    for part in FRAME_PARTS if part !== :frame)
+        @test parts >= 0.04
+        @test parts <= _get_frame_total(store, :frame_time)
+    end
+
+    @testset "each part has its name, and the cell counts only when the counters are compiled in" begin
+        @test get_frame_part_measurement_name(:reader, :time) === :reader_time
+        @test get_frame_part_measurement_name(:paint, :cell_computes) === :paint_cell_computes
+        @test_throws KeyError get_frame_part_measurement_name(:read, :time)
+        names = get_frame_measurement_names(_measure_device_part_frame())
+        @test all(get_frame_part_measurement_name(part, :time) in names for part in FRAME_PARTS)
+        @test (:input_cell_reads in names) == PERFORMANCE_COUNTERS_ENABLED
+        @test (:frame_cell_computes in names) == PERFORMANCE_COUNTERS_ENABLED
+        @test :reads ∉ names
+    end
+
+    @testset "a collection in a frame is in its garbage collection time" begin
+        store = _measure_probe_frame(() -> GC.gc())
+        @test _get_frame_total(store, :garbage_collection_time) > 0
+    end
+
+    @testset "a compile in a frame is in its compile time" begin
+        store = _measure_probe_frame() do
+            scratch = Module()
+            Core.eval(scratch, :(compiled_in_frame(x) = x * 2.5 + 1))
+            Base.invokelatest(scratch.compiled_in_frame, 3)
+        end
+        @test _get_frame_total(store, :compile_time) > 0
+    end
+
+    @testset "a frame turns off the compile timer that it turned on" begin
+        # The compile time of a new method, outside a frame.
+        function measure_compile_ns(name)
+            before = first(Base.cumulative_compile_time_ns())
+            scratch = Module()
+            Core.eval(scratch, :($name(x) = x * 3.5 + 1))
+            Base.invokelatest(getfield(scratch, name), 3)
+            first(Base.cumulative_compile_time_ns()) - before
+        end
+        # Another switch of this process can have the timer on already.
+        if measure_compile_ns(:compiled_before_frame) == 0
+            _measure_probe_frame(() -> nothing)
+            @test measure_compile_ns(:compiled_after_frame) == 0
+        end
+    end
+
+    @testset "the bytes that a frame allocates are its allocated bytes" begin
+        kept = Ref{Any}(nothing)
+        store = _measure_probe_frame(() -> (kept[] = zeros(UInt8, 10_000_000)))
+        @test _get_frame_total(store, :allocated_bytes) >= 10_000_000
+    end
+
+    @testset "the yielded time is recorded where the process keeps the running time of its tasks" begin
+        store = _measure_probe_frame(() -> sleep(0.05))
+        if Base.Experimental.task_running_time_ns(current_task()) === nothing
+            @test :yielded_time ∉ get_frame_measurement_names(store)
+        else
+            @test _get_frame_total(store, :yielded_time) >= 0.045
+        end
+    end
+
     @testset "a slow frame is reported with its slowest stage" begin
         feed = SlowFrameProbeFeed(1.1, 0)
         editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
@@ -214,7 +364,27 @@ function test_editor_frame_performance()
             end
             store = editor.frame_measurements
             @test compute_frame_measurement_summary(store, :probe_time).unit === :second
-            @test compute_frame_measurement_summary(store, :reads).unit === :count
+            @test compute_frame_measurement_summary(store, :frame_cell_reads).unit === :count
+        end
+
+        @testset "the cell counts of each part are in the record of the frame" begin
+            source = Cell(1)
+            derived = Cell(@computation source[] + 1)
+            store = _measure_device_part_frame(read_work = () -> (source[] = 2),
+                                               write_work = () -> derived[])
+            @test compute_frame_measurement_summary(store, :paint_cell_reads).unit === :count
+            @test _get_frame_total(store, :input_cell_writes) >= 1
+            @test _get_frame_total(store, :input_cell_computes) == 0
+            @test _get_frame_total(store, :paint_cell_computes) >= 1
+            @test _get_frame_total(store, :paint_cell_reads) >= 1
+            @test _get_frame_total(store, :paint_cell_writes) == 0
+            # A computation in the paint counts in the paint and in the frame only.
+            for part in (:feed, :report, :input, :reader, :evaluate, :print)
+                name = get_frame_part_measurement_name(part, :cell_computes)
+                @test _get_frame_total(store, name) == 0
+            end
+            @test _get_frame_total(store, :paint_cell_computes) ==
+                  _get_frame_total(store, :frame_cell_computes)
         end
     end
 end

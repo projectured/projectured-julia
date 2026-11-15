@@ -18,7 +18,7 @@ press, and `DragCancel` puts that value back.
 function test_widget_scroll_bar()
 @testset "a scroll bar takes its length, and the pointer moves its thumb" begin
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     bar_clock = Clock()
     set_bar_time!(seconds) = ProjecturedKernel.ClockModule.set_clock_time!(bar_clock, seconds)
     offer = ProjecturedKernel.ProjectionModule.with_clock(

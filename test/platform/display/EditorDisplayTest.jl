@@ -77,7 +77,7 @@ function test_editor_display()
                 @test shell.content isa ProjecturedPlatform.UndoModule.UndoBuffer
                 @test shell.content.content isa PaneTree
                 @test [string(item.action.label) for item in shell.toolbar.elements] ==
-                      ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log", "Statistics",
+                      ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log", "Frame statistics",
                        "Frame times", "Selection", "Appearance", "Settings"]
 
                 # The same value again: the same document, and no new tab.

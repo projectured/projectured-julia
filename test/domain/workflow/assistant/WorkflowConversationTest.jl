@@ -39,7 +39,7 @@ function test_workflow_conversation()
             project = FileProject(directory, Any[PredFile("work.pred", workflow),
                                                  PredFile("assistant.pred", assistant)])
             @test save_project!(project) === true
-            @test occursin("file(\"work.pred\")", read(joinpath(directory, "assistant.pred"), String))
+            @test occursin("node(file(\"work.pred\"), \"\")", read(joinpath(directory, "assistant.pred"), String))
             loaded = load_project(directory, ["work.pred", "assistant.pred"])
             loaded_workflow = get_file_content(loaded.files[1])
             loaded_assistant = get_file_content(loaded.files[2])

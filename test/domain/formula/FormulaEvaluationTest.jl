@@ -34,6 +34,94 @@ function test_formula_evaluation()
         @test get_formula_value(G) == 4
     end
 
+    @testset "a formula with a parameter in its name is a function" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("T", parse_julia("2")),
+            FormulaFormula("S_{pure}(G)", parse_math("G exp(-2G)")),
+            FormulaFormula("S_{peak}", parse_math("S_{pure}(0.5)")),
+            FormulaFormula("ρ", parse_julia("0.8")),
+            FormulaFormula("B", parse_math("ρ(1 - ρ)")),
+            FormulaFormula("f", parse_julia("3")),
+            FormulaFormula("g", parse_math("f(2)")),
+            FormulaFormula("G", parse_julia("100")),
+            FormulaFormula("H(u)", parse_math("u T")),
+            FormulaFormula("K", parse_math("H(5)")),
+        ])
+        T, S_pure, S_peak, rho, B, f, g, G, H, K = sheet.formulas
+        @test get_formula_value(S_pure) isa Function
+        @test Base.invokelatest(get_formula_value(S_pure), 0.5) ≈ 0.5 * exp(-1)
+        @test get_formula_value(S_peak) ≈ 0.5 * exp(-1)
+        order = ProjecturedFormula.FormulaModule._order_formulas(sheet, [S_peak, S_pure])
+        @test findfirst(==(S_pure), order) < findfirst(==(S_peak), order)
+        @test get_formula_value(B) ≈ 0.16
+        @test get_formula_value(g) == 6
+        f.name = "f(x)"; f.code = parse_julia("x^2")
+        @test get_formula_value(g) == 4
+        # A formula named like the parameter changes nothing.
+        @test Base.invokelatest(get_formula_value(S_pure), 0.5) ≈ 0.5 * exp(-1)
+        # A new value of an input computes the function and its caller again.
+        @test get_formula_value(K) == 10
+        T.code = parse_julia("3")
+        @test get_formula_value(K) == 15
+    end
+
+    @testset "a comma in the subscript of a function name is part of its name" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("U_{slotted,5}(G)", parse_math("G (1 - G/5)^{4}")),
+            FormulaFormula("U_{peak}", parse_math("U_{slotted,5}(1)")),
+            FormulaFormula("V_{slotted;5}(G)", parse_math("2G")),
+        ])
+        U, U_peak, V = sheet.formulas
+        @test Base.invokelatest(get_formula_value(U), 1) ≈ (1 - 1 / 5)^4
+        @test get_formula_value(U_peak) ≈ (1 - 1 / 5)^4
+        # A name that does not read says why, and not that its parameter is not defined.
+        failure = get_formula_value(V)
+        @test failure isa FormulaError
+        @test startswith(failure.text, "#ERROR! the name \"V_{slotted;5}(G)\" does not read as a function of G: math:")
+    end
+
+    @testset "a function formula is callable, in code and in a computation" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("S_{pure}(G)", parse_math("G e^{-2G}")),
+            FormulaFormula("A", parse_julia("5")),
+            FormulaFormula("E", parse_julia("1 + Z")),
+        ])
+        S_pure, A, E = sheet.formulas
+        # In code, with no loop and no stored value, the call computes the formula.
+        @test S_pure(0.5) ≈ 0.5 * exp(-1)
+        @test_throws ArgumentError A(1)
+        @test_throws ErrorException E(1)
+        @test startswith(try E(1) catch e sprint(showerror, e) end, "#ERROR!")
+        # A referenced formula calls the formula it refers to.
+        part = ReferencedDocument(S_pure, @reference(sheet, formulas[1]))
+        @test part(0.5) ≈ 0.5 * exp(-1)
+        @test get_formula_value(part) === get_formula_value(S_pure)
+        # In a computation the call reads the stored value only.
+        read_in_cell() = Cell(@computation(try S_pure(0.5) catch error sprint(showerror, error) end))
+        @test read_in_cell()[] == "S_{pure}(G) has no value yet"
+        _compute_formula_sheet!(sheet)
+        cell = read_in_cell()
+        @test cell[] ≈ 0.5 * exp(-1) && !is_cell_provisional(cell)
+        S_pure.is_computing = true
+        cell = read_in_cell()
+        @test cell[] ≈ 0.5 * exp(-1) && is_cell_provisional(cell)
+        S_pure.is_computing = false
+        # A new stored value draws the cell again.
+        cell = read_in_cell()
+        @test cell[] ≈ 0.5 * exp(-1)
+        S_pure.code = parse_math("2 G")
+        _compute_formula_sheet!(sheet)
+        @test cell[] == 1.0
+    end
+
+    @testset "e is Euler's number, and a formula named e wins" begin
+        sheet = FormulaEnvironment([FormulaFormula("E1", parse_math("e^{1}"))])
+        @test get_formula_value(sheet.formulas[1]) ≈ ℯ
+        sheet = FormulaEnvironment([FormulaFormula("e", parse_julia("2")),
+                                    FormulaFormula("E1", parse_math("e^{3}"))])
+        @test get_formula_value(sheet.formulas[2]) == 8
+    end
+
     @testset "a local name does not refer to the formula of that name" begin
         sheet = _formula_sheet("A" => "42", "x" => "1000", "S" => "sum(x -> x * A, 1:3)")
         @test get_formula_value(sheet.formulas[3]) == 252
@@ -164,6 +252,41 @@ function test_formula_task()
         @test value[2] isa Task && value[2] !== loop
         @test run_on_editor_task!(() -> get_formula_result(A), editor) == 2
     finally
+        post_operation!(editor, QuitEditorOperation())
+        wait(loop)
+    end
+end
+end
+
+# The formula task waits for an editor that is busy longer than the time limit of
+# a call, as with the first print of a large document, and the values still come
+# back. The test waits past that limit, so it takes more than 30 seconds.
+function test_formula_task_waits_for_a_busy_editor()
+@testset "the formula task waits for a busy editor" begin
+    sheet = _formula_sheet("A" => "(sleep(1.0); 2)", "B" => "A + 1")
+    A, B = sheet.formulas
+    editor = run_editor!(() -> Editor(sheet, RecursiveProjection(FormulaToSyntax());
+                                      backend = HeadlessBackend(), devices = Device[]); wait = false)
+    loop = editor.loop_task
+    gate = Channel{Nothing}(1)
+    try
+        run_on_editor_task!(() -> evaluate_operation(editor, ComputeFormulasOperation(sheet)), editor)
+        # A long unit holds the editor while the code of A runs, so the next call
+        # of the formula task waits for it.
+        run_on_editor_task!(() -> take!(gate), editor; wait = false)
+        sleep(EDITOR_CALL_TIMEOUT_SECONDS + 2)
+        put!(gate, nothing)
+        read_stored() = run_on_editor_task!(() -> (get_formula_result(B), B.is_computing), editor)
+        deadline = time() + 30
+        while time() < deadline
+            (value, computing) = read_stored()
+            value !== nothing && !computing && break
+            sleep(0.05)
+        end
+        @test read_stored() == (3, false)
+        @test run_on_editor_task!(() -> get_formula_result(A), editor) == 2
+    finally
+        isready(gate) || put!(gate, nothing)
         post_operation!(editor, QuitEditorOperation())
         wait(loop)
     end

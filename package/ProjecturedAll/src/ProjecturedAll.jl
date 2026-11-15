@@ -36,8 +36,10 @@ import ProjecturedDBCatalog
 import ProjecturedFormula
 import ProjecturedFSM
 import ProjecturedProcess
+import ProjecturedGit
 import ProjecturedPivot
 import ProjecturedWorkflow
+import ProjecturedResearch
 
 include("../../../source/all/ProjecturedAll.jl")
 

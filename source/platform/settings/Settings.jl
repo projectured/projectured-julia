@@ -3,8 +3,8 @@
 """
     Settings()
 
-The settings of one editor: one group of each type, found by the type of the
-group, as an `Appearance` holds the themes of an editor.
+The settings of one editor: one group of each type, in `groups` in the order of
+their names in a settings file. A part finds a group by its type.
 
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `settings` wrapper of `build_editor`. A part that acts on a setting
@@ -17,17 +17,12 @@ caller that gives none, the start step first reads each group from the editor
 and its backend with [`read_settings!`](@ref), so a value that the caller gave a
 target directly stays.
 
-`unused_types` holds the group types that no target of the editor applies,
-which the start step finds with [`is_settings_group_used`](@ref), so a view can
-show them as not used.
-
 `file` is the settings file that Save and Load of a view use, or empty for
 settings with no file, such as those of a test.
 """
 @document struct Settings
-    groups::Dict{Type,Any} = Dict{Type,Any}()
+    groups::CellVector = CellVector(Any[])
     is_read_from_targets::Bool = false
-    unused_types::Vector{Any} = Any[]
     file::String = ""
 end
 
@@ -82,17 +77,38 @@ Call it while a part of the editor is built, never while it prints: it writes
 into `settings`.
 """
 function get_settings_group!(settings::Settings, T::Type{<:SettingsGroup})
-    group = get(settings.groups, T, nothing)
+    group = find_settings_group(settings, T)
     group === nothing ? set_settings_group!(settings, T()) : group
+end
+
+"""
+    find_settings_group(settings, T) -> SettingsGroup or nothing
+
+The group of the type `T` in `settings`, or `nothing` when `settings` holds no
+group of `T`.
+"""
+function find_settings_group(settings::Settings, T::Type)
+    for group in settings.groups
+        get_settings_group_type(group) === T && return group
+    end
+    nothing
 end
 
 """
     set_settings_group!(settings, group) -> SettingsGroup
 
-Put `group` into `settings` in place of the group of its type, and answer it.
+Put `group` into `settings` in place of the group of its type, or at the place
+of its name when `settings` holds no group of its type, and answer it.
 """
 function set_settings_group!(settings::Settings, group::SettingsGroup)
-    settings.groups[get_settings_group_type(group)] = group
+    groups = settings.groups
+    name = get_settings_name(get_settings_group_type(group))
+    for i in eachindex(groups)
+        other = get_settings_name(get_settings_group_type(groups[i]))
+        other == name && return (groups[i] = group; group)
+        other > name && return (insert!(groups, i, group); group)
+    end
+    push!(groups, group)
     group
 end
 
@@ -101,9 +117,7 @@ end
 
 The groups of `settings`, in the order of their names in a settings file.
 """
-get_settings_groups(settings::Settings) =
-    sort!(collect(values(settings.groups::Dict{Type,Any}));
-          by = group -> get_settings_name(get_settings_group_type(group)))
+get_settings_groups(settings::Settings) = Any[group for group in settings.groups]
 
 """
     is_settings_group(settings, document) -> Bool
@@ -112,7 +126,7 @@ Whether `document` is one of the groups of `settings`.
 """
 is_settings_group(settings::Settings, document) =
     document isa SettingsGroup &&
-        any(group -> group === document, values(settings.groups))
+        any(group -> group === document, settings.groups)
 
 """
     get_setting_cell(group, name) -> AbstractCell

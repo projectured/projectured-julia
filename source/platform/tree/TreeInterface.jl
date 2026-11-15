@@ -10,10 +10,15 @@ The paths from `document` to each collection of its children, in order, each a
 tuple of `ReferenceStep`s: `((FieldReferenceStep("children"),),)` for a node with
 one collection in its field `children`. The children of a node are the elements
 of its collections, one collection after the other, so a node can show two kinds
-of children, such as the parts that it holds and the work that it started.
+of children, such as the parts that it holds and the work that it started. A
+path that reaches one document, which no collection holds, such as a part in a
+field, reaches one child: that document.
 
 It runs inside a computation of the tree, so it can read cells. A path that
-reaches nothing gives no children. The default is `()`: a document is a leaf.
+reaches nothing gives no children. The default is `()`, a leaf, for a document
+that is no layer. A layer, a document whose `get_edited_field` names the field of
+the document that it shows, such as a file page, a file or a history, has by
+default the children of that document, each path after the step of that field.
 """
 function get_tree_children_steps end
 
@@ -24,7 +29,18 @@ The text of the node of `document` in a tree, in one line: the node draws a line
 break as a space. It runs inside the computation of the node, so it reads cells,
 and the node draws again when what it reads changes, and no other node does. The
 default is the title of the document, or the name of its type that a person
-sees.
+sees. A part that a verb answered has the label of its document.
+
+Use it to name an entry of the explorer or a node of a tree as the person sees it.
+
+# Example
+
+    content_1 = find_explorer_content()
+    [format_tree_node_label(entry) for entry in content_1.entries]
+
+See also `find_explorer_content`, `show_document_tree!`.
+
+For the assistant.
 """
 function format_tree_node_label end
 
@@ -39,6 +55,16 @@ the disk or a process answers it from its stored state, such as a folder whose
 emptiness the read of its parent found. It runs inside the computation of the
 row, so it reads cells. The default reads the children: `true` when a collection
 of the children has an element.
+
+Use it to tell whether a node of a tree has children to open.
+
+# Example
+
+    has_tree_children(document_1)
+
+See also `collect_tree_children` and `format_tree_node_label`.
+
+For the assistant.
 """
 function has_tree_children end
 
@@ -74,3 +100,19 @@ insertion alias. A slice that owns a kind adds a method that answers `true`, so 
 package that loads adds its kinds to the list at once. The default is `false`.
 """
 function is_explorer_entry_type end
+
+"""
+    is_session_explorer_entry_type(type) -> Bool
+
+Whether the first content of the explorer of a window holds the session document
+of `type`: the document that `type()` makes, once for each editor, as
+`get_session_document!(type, editor, type)` gives it. `type()` runs with the
+editor as the editor of the evaluation (`run_with_evaluation_editor`), so it can
+hold the other session documents of that editor. The first content puts it
+after the lists of the session, such as the task list. A slice or a package that
+owns such a kind adds a method for its type that answers `true`, so the packages
+that are loaded give these entries, and no table names them. The session getter
+of the kind makes the same call, so both give one document. The default is
+`false`.
+"""
+function is_session_explorer_entry_type end

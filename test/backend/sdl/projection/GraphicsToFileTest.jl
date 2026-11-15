@@ -26,14 +26,14 @@ end
         (le(19), abs(Int32(le(23) % UInt32)), bytes)
     end
     make_projection(appearance) = NaturalToGraphics(; measure = FontFileMeasure(), appearance)
-    started = export_image(make_projection(Appearance(font_scale = 1.5)))
+    started = export_image(make_projection(Appearance(scale = AppearanceScale(font_scale = 1.5))))
     live = Appearance()
     projection = make_projection(live)
     before = export_image(projection)
     @test before[1:2] != started[1:2]
-    live.font_scale = 1.5
+    live.scale.font_scale = 1.5
     @test export_image(projection) == started
-    @test export_image(make_projection(Appearance(font_scale = 1.5, zoom = 2.0))) == started
+    @test export_image(make_projection(Appearance(scale = AppearanceScale(font_scale = 1.5, zoom = 2.0)))) == started
 end
 
 @testset "write_image(canvas, filename)" begin

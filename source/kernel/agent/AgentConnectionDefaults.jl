@@ -13,6 +13,9 @@ function make_agent_connection(::Val{K}; kwargs...) where {K}
           "Load the opt-in package that provides :$(K).")
 end
 
+# A connection that does not say how to fork a session can not.
+fork_agent_session!(connection; kwargs...) = nothing
+
 # A connection that does not say how to take a prompt into a turn that runs can not.
 has_agent_steering(connection) = false
 steer_agent_prompt!(connection, session_id, prompt) = false
@@ -22,7 +25,8 @@ steer_agent_prompt!(connection, session_id, prompt) = false
 cancel_agent_subagent!(connection, session_id, subagent_id) = nothing
 stop_agent_background_task!(connection, session_id, task_id) = false
 
-# A connection that does not say how to sign out can not.
+# A connection that does not say how to sign in or out can not.
+sign_in_agent!(connection, method_id) = false
 has_agent_sign_out(connection) = false
 sign_out_agent!(connection) = false
 

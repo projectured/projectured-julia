@@ -1,6 +1,6 @@
 # The relevance model on OpenRouter
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md)
 
 `ProjecturedOpenRouter` gives a `ToolSet` a `RelevanceModel` that asks a decision model through the Decisions API of OpenRouter. A decision model reads a text and typed questions about it, and answers each question with probabilities instead of words. Jev of TypeSafe is such a model, and it is the default. This document says what the package sends, what it reads back, and what it does not do.
 

@@ -81,6 +81,17 @@ function test_undo_buffer()
         @test length(buffer.redo_entries) == 0
     end
 
+    @testset "a search does not enter the steps of a buffer, and a search of the steps finds them" begin
+        buffer = UndoBuffer(_make_list(["now"]))
+        gone = UndoLeaf("gone", nothing)
+        push!(buffer.undo_entries, UndoEntry("remove", gone, nothing))
+        is_gone(node) = node isa UndoLeaf && node.value == "gone"
+        @test isempty(search_documents(buffer, is_gone))
+        @test isempty(search_references(buffer, is_gone))
+        @test only(search_documents(buffer.undo_entries, is_gone)) === gone
+        @test length(search_documents(buffer, node -> node isa UndoLeaf && node.value == "now")) == 1
+    end
+
     @testset "the default filter drops what changes nothing and a bare caret move" begin
         @test !is_undo_step(nothing, nothing)
         @test !is_undo_step(nothing, DoNothingOperation())
@@ -165,6 +176,35 @@ function test_undo_buffer()
         # A path that does not go through the content has no pre-image.
         @test map_reference_forward(projection, iomap,
                   Reference(FieldReferenceStep("undo_entries"))) === nothing
+    end
+
+    @testset "the printer follows a replacement of the document that the buffer holds" begin
+        old = _make_list(["a"])
+        buffer = UndoBuffer(old)
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
+        @test iomap.output === old
+        replacement = _make_list(["x", "y"])
+        @test replace_wrapped_document!(buffer, replacement) === buffer
+        @test buffer.content === replacement
+        @test iomap.output === replacement
+        @test iomap.content_iomap.input === replacement
+        inner = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+        back = map_reference_backward(projection, iomap, inner)
+        @test get_reference_steps(back)[1] == FieldReferenceStep("content")
+        @test map_reference_forward(projection, iomap, back) == inner
+        # The same document keeps its print.
+        child = iomap.content_iomap
+        @test replace_wrapped_document!(buffer, replacement) === buffer
+        @test iomap.content_iomap === child
+        # The natural renderer draws the new document.
+        renderer = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
+        held = UndoBuffer(PrimitiveString("old"))
+        drawn = print_document(renderer, nothing, held, offer)
+        @test first.(_drawn_texts(drawn.output)) == ["old"]
+        replace_wrapped_document!(held, PrimitiveString("new"))
+        @test first.(_drawn_texts(drawn.output)) == ["new"]
     end
 
     @testset "an edit through the buffer is recorded, taken back and put back" begin
@@ -311,6 +351,28 @@ function test_undo_buffer()
         evaluate_operation(editor, UndoOperation(buffer))
         @test get_reference_steps(strip_reference_types(get_selection(buffer))) ==
               get_reference_steps(before)
+    end
+
+    # A step that deletes the selected element and selects the one before it. The
+    # undo puts the element back first, and then the caret on it: the element does
+    # not exist before that, so the way back holds no move of the caret.
+    @testset "the caret of a step goes back after its edits" begin
+        list = _make_list(["a", "b", "c"])
+        buffer = UndoBuffer(list)
+        editor = _UndoEditor(buffer)
+        items = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"))
+        third = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"), RangeReferenceStep(2, 3))
+        second = Reference(FieldReferenceStep("content"), FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+        replace_selection!(buffer, third)
+        evaluate_operation(editor, RecordUndoOperation(buffer, CompoundOperation(Any[
+            make_delete_elements_operation(items, 3), ReplaceSelectionOperation(second)])))
+        @test _texts(list) == ["a", "b"]
+        evaluate_operation(editor, UndoOperation(buffer))
+        @test _texts(list) == ["a", "b", "c"]
+        @test get_reference_steps(strip_reference_types(get_selection(buffer))) == get_reference_steps(third)
+        evaluate_operation(editor, RedoOperation(buffer))
+        @test _texts(list) == ["a", "b"]
+        @test get_reference_steps(strip_reference_types(get_selection(buffer))) == get_reference_steps(second)
     end
 
     # A run of typed characters is one step. A caret move, a key that is not a

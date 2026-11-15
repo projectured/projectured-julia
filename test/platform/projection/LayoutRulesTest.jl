@@ -1,0 +1,623 @@
+# The rules of `documentation/rule/layout-rules.md`, checked for every widget type
+# and every layout type, and the worked cases of its §5.
+#
+# Each type has a small sample with no authored size and no position, and a kind
+# on each axis. The kind says what the type is, and the rule of the kind says what
+# it draws in a range `(minimum, maximum)`; `N` is what it draws with no range:
+#
+# | kind         | exact (S, S) | bounded (0, L) | at least (M, ∅) | bounded (0, l), l < N | exact (l, l), l < N |
+# | ------------ | ------------ | -------------- | --------------- | --------------------- | ------------------- |
+# | `:rigid`     | S            | N              | M               | N, and an ancestor cuts | l, and it cuts    |
+# | `:reflowing` | S            | N              | M               | at most l: it wraps   | l: it wraps         |
+# | `:scrolls`   | S            | N              | M               | l, and it scrolls     | l, and it scrolls   |
+# | `:fills`     | S            | N              | M               | N, and an ancestor cuts | l, and it cuts    |
+# | `:places`    | S            | N              | M               | N, and an ancestor cuts | N, and its giver cuts |
+# | `:authored`  | N            | N              | N               | N                     | N                   |
+# | `:overlay`   | N            | N              | N               | l: it caps            | l: it caps          |
+#
+# where S, L and M are more than N. A widget takes an exact size less than its
+# content and cuts its content at its box; a layout, `:places`, only places its
+# children, and the place where the size is written cuts. A type that is not
+# placed alone has a reason instead of a sample, and a guard fails for a type that
+# has neither.
+
+_rules_projection() = RecursiveProjection(TypeDispatchingProjection(
+    WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+
+_rules_cell(value) = value === nothing ? nothing : Cell(Int32(value))
+
+# The range `(minimum, maximum)` on `axis`, and no range on the other axis. An
+# exact range is one cell for both ends, which is what `get_exact_width` and
+# `get_exact_height` read as a slot.
+function _rules_context(axis::Symbol, minimum, maximum)
+    if minimum !== nothing && minimum == maximum
+        slot = _rules_cell(minimum)
+        return axis === :width ? with_exact_size(PrinterContext(); width = slot) :
+                                 with_exact_size(PrinterContext(); height = slot)
+    end
+    range = (_rules_cell(minimum), _rules_cell(maximum))
+    axis === :width ? with_size_range(PrinterContext(); width = range) :
+                      with_size_range(PrinterContext(); height = range)
+end
+
+# What `document` draws on `axis` in the range `(minimum, maximum)`.
+function _rules_drawn(document, axis::Symbol, minimum, maximum)
+    output = print_document(_rules_projection(), nothing, document, _rules_context(axis, minimum, maximum)).output
+    axis === :width ? Int(output.w[]) : Int(output.h[])
+end
+
+# Words short enough that a text wraps at half of its width.
+const _RULES_TEXT = join(fill("word", 12), " ")
+_rules_lines(count) = VerticalLayout(Any[WidgetLabel("line $i") for i in 1:count])
+
+# The sample and the kind on the width and on the height of each type, or the
+# reason why the type is not placed alone.
+const _RULES_KINDS = Dict{Symbol,Any}(
+    :WidgetLabel        => (() -> WidgetLabel(_RULES_TEXT), :reflowing, :rigid),
+    :WidgetText         => (() -> WidgetText("abc"), :rigid, :rigid),
+    :WidgetSpinBox      => (() -> WidgetSpinBox(3), :rigid, :rigid),
+    :WidgetList         => (() -> WidgetList(Any["a", "b", "c"]), :rigid, :scrolls),
+    :WidgetCheckbox     => (() -> WidgetCheckbox("Check"), :authored, :authored),
+    :WidgetButton       => (() -> WidgetButton("Go"), :rigid, :rigid),
+    :WidgetLink         => (() -> WidgetLink("Link", EmptyReference()), :rigid, :rigid),
+    :WidgetTooltip      => (() -> WidgetTooltip("Tip"), :overlay, :overlay),
+    :WidgetContextMenu  => (() -> WidgetContextMenu(WidgetLabel("Target"), WidgetMenu(Any[WidgetMenuItem("Cut")])),
+                            :overlay, :overlay),
+    :WidgetDialog       => "a dialog is a window of its own",
+    :WidgetMenu         => (() -> WidgetMenu(Any[WidgetMenuItem("Cut"), WidgetMenuItem("Copy")]), :overlay, :overlay),
+    :WidgetMenuItem     => (() -> WidgetMenuItem("Cut"), :rigid, :rigid),
+    :WidgetToolbarItem  => (() -> WidgetToolbarItem("Save"), :rigid, :rigid),
+    :WidgetComposite    => (() -> WidgetComposite(Any[WidgetLabel("Inside")]), :rigid, :rigid),
+    :WidgetToolbar      => (() -> WidgetToolbar(Any[WidgetToolbarItem("Save")]), :rigid, :rigid),
+    :WidgetStatusBar    => (() -> WidgetStatusBar(Any["Ready"]), :rigid, :rigid),
+    :WidgetShell        => (() -> WidgetShell(WidgetLabel("Inside")), :fills, :fills),
+    :WidgetTitlePane    => (() -> WidgetTitlePane("Title", WidgetLabel("Inside")), :rigid, :rigid),
+    :WidgetSplitPane    => (() -> WidgetSplitPane(:horizontal, Any[WidgetLabel("Left"), WidgetLabel("Right")]),
+                            :fills, :fills),
+    :WidgetTabLabel     => "a tab label is a part of a tabbed pane",
+    :WidgetTabPage      => "a tab page is a part of a tabbed pane",
+    :WidgetTabbedPane   => (() -> WidgetTabbedPane(Any[("One", WidgetLabel("Inside"))]), :fills, :fills),
+    :WidgetScrollPane   => (() -> WidgetScrollPane(_rules_lines(6)), :scrolls, :scrolls),
+    :WidgetTransformPane => (() -> WidgetTransformPane(_rules_lines(6); size = Point2D(0, 0)), :scrolls, :scrolls),
+    :WidgetScrollBar    => (() -> WidgetScrollBar(:vertical), :fills, :fills),
+    :WidgetBadge        => (() -> WidgetBadge("3"), :rigid, :rigid),
+    :WidgetIconMark     => "an icon mark is a corner of an icon",
+    :WidgetIcon         => (() -> WidgetIcon(:folder), :authored, :authored),
+    :WidgetSeparator    => (() -> WidgetSeparator(), :authored, :authored),
+    :WidgetCard         => (() -> WidgetCard(; title = "Title", content = _RULES_TEXT), :reflowing, :rigid),
+    :WidgetSwitch       => (() -> WidgetSwitch(), :authored, :authored),
+    :WidgetProgressBar  => (() -> WidgetProgressBar(0.5), :authored, :authored),
+    :WidgetProgressRing => (() -> WidgetProgressRing(0.5), :rigid, :rigid),
+    :WidgetSlider       => (() -> WidgetSlider(0.5), :authored, :authored),
+    :WidgetRadioGroup   => (() -> WidgetRadioGroup(Any["a", "b"]), :rigid, :rigid),
+    :WidgetAvatar       => (() -> WidgetAvatar("AB"), :authored, :authored),
+    :WidgetAlert        => (() -> WidgetAlert("Title"; description = _RULES_TEXT), :reflowing, :rigid),
+    :WidgetSkeleton     => (() -> WidgetSkeleton(), :authored, :authored),
+    :WidgetSwatch       => (() -> WidgetSwatch(StyleColor(0.5, 0.5, 0.5, 1.0)), :authored, :authored),
+    :WidgetHighlight    => (() -> WidgetHighlight(), :authored, :authored),
+    :WidgetToggle       => (() -> WidgetToggle("B"), :rigid, :rigid),
+    :WidgetToggleGroup  => (() -> WidgetToggleGroup(Any["a", "b"]), :rigid, :rigid),
+    :WidgetSelect       => (() -> WidgetSelect("Apple"; options = Any["Apple", "Banana"]), :rigid, :rigid),
+    :WidgetOption       => "an option is a row of the popup of a select",
+    :WidgetTextarea     => (() -> WidgetTextarea("text"), :rigid, :authored),
+    :WidgetAccordionItem => "an accordion item is a part of an accordion",
+    :WidgetFact         => "a fact is a row of a fact group",
+    :WidgetFactGroup    => (() -> WidgetFactGroup(["Name" => "Value"]; title = "Title"), :rigid, :rigid),
+    :WidgetAccordion    => (() -> WidgetAccordion(Any[("Question", "Answer")]), :rigid, :rigid),
+    :WidgetTable        => (() -> WidgetTable(Any["a", "b"], Any[Any["1", "2"], Any["3", "4"]]), :scrolls, :scrolls),
+    :WidgetTree         => (() -> WidgetTree(Any[WidgetTreeNode(:file, "one"), WidgetTreeNode(:file, "two")]),
+                            :scrolls, :scrolls),
+    :WidgetInsertion    => "an insertion is a mark that a text puts between its characters",
+    :HorizontalLayout   => (() -> HorizontalLayout(Any[WidgetLabel("Left"), WidgetLabel("Right")]; gap = 8), :places, :places),
+    :VerticalLayout     => (() -> VerticalLayout(Any[WidgetLabel("Top"), WidgetLabel("Bottom")]; gap = 8), :places, :places),
+    :GridLayout         => (() -> GridLayout(Any[WidgetLabel("R$(r)C$(c)") for r in 1:2 for c in 1:2], 2), :places, :places),
+    :FlowLayout         => (() -> FlowLayout(Any[WidgetLabel(word) for word in split(_RULES_TEXT)]), :reflowing, :places),
+    :StackLayout        => (() -> StackLayout(Any[WidgetLabel("Back"), WidgetLabel("Front")]), :places, :places),
+    :ScrollLayout       => (() -> ScrollLayout(; center = WidgetLabel("Center"), left = WidgetLabel("1")), :fills, :places),
+    :AnchoredLayout     => "an anchored layout places its entries by the points of its content",
+    :ConstraintLayout   => "a constraint layout sizes its children by its solver",
+)
+
+# Every concrete type of the platform below `root`, by name. A `@document` type
+# `Foo` has a native twin `MFoo`, which is the same type and is left out; so is a
+# style, a `…Style`, which holds the colors of a widget and is not placed.
+function _rules_leaf_types(root)
+    names = Set{Symbol}(nameof(Base.unwrap_unionall(type)) for type in compute_concrete_subtypes(root)
+                        if Base.moduleroot(parentmodule(type)) === ProjecturedPlatform)
+    filter(name -> !(startswith(String(name), "M") && Symbol(String(name)[2:end]) in names) &&
+                   !endswith(String(name), "Style"), names)
+end
+
+# The drawn extents of one sample on one axis, by the name of the check.
+function _rules_measure(make, axis::Symbol)
+    natural = _rules_drawn(make(), axis, nothing, nothing)
+    more = natural + 200
+    less = max(natural ÷ 2, 1)
+    (natural = natural, more = more, less = less,
+     exact_more = _rules_drawn(make(), axis, more, more),
+     bounded_more = _rules_drawn(make(), axis, 0, more),
+     at_least_more = _rules_drawn(make(), axis, more, nothing),
+     bounded_less = _rules_drawn(make(), axis, 0, less),
+     exact_less = _rules_drawn(make(), axis, less, less))
+end
+
+# What the rule of `kind` expects for each check, from the drawn extent with no range.
+function _rules_expected(kind::Symbol, m)
+    n = m.natural
+    kind === :authored && return (exact_more = ==(n), bounded_more = ==(n), at_least_more = ==(n),
+                                  bounded_less = ==(n), exact_less = ==(n))
+    kind === :overlay && return (exact_more = ==(n), bounded_more = ==(n), at_least_more = ==(n),
+                                 bounded_less = ==(m.less), exact_less = ==(m.less))
+    stretched = (exact_more = ==(m.more), bounded_more = ==(n), at_least_more = ==(m.more))
+    kind === :rigid && return (; stretched..., bounded_less = ==(n), exact_less = ==(m.less))
+    kind === :places && return (; stretched..., bounded_less = ==(n), exact_less = ==(n))
+    kind === :reflowing && return (; stretched..., bounded_less = <=(m.less), exact_less = ==(m.less))
+    kind === :scrolls && return (; stretched..., bounded_less = ==(m.less), exact_less = ==(m.less))
+    kind === :fills && return (; stretched..., bounded_less = ==(n), exact_less = ==(m.less))
+    error("no rule for the kind $kind")
+end
+
+# The widget types, each with an axis, that draw their content, and not the exact
+# size, in an exact range less than their content.
+# @broken: a widget does not yet take an exact size less than its content; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
+const _RULES_EXACT_BROKEN = Set{Tuple{Symbol,Symbol}}([])
+
+function _rules_check_type(name::Symbol, make, kinds)
+    for (axis, kind) in zip((:width, :height), kinds)
+        m = _rules_measure(make, axis)
+        for (check, expected) in pairs(_rules_expected(kind, m))
+            drawn = getfield(m, check)
+            @testset "$name $axis $kind $check" begin
+                expected(drawn) || @info "layout rule" name axis kind check drawn m.natural m.more m.less
+                if check === :exact_less && (name, axis) in _RULES_EXACT_BROKEN
+                    # @broken: the widget draws its content in an exact range; see _RULES_EXACT_BROKEN.
+                    @test_broken expected(drawn)
+                else
+                    @test expected(drawn)
+                end
+            end
+        end
+    end
+end
+
+# The box of the ink that `node` draws, as `(x0, y0, x1, y1)` from the origin of its
+# canvas, or `nothing` for no ink. A canvas gives no box of its own here: only its
+# leaves count, so ink past the extent that a canvas reports shows. A viewport clips
+# its content, so its box is its ink.
+function _rules_ink_box(node, measure)
+    bounds = ContentBounds()
+    _rules_extend_ink!(bounds, node, (0, 0), measure)
+    get_content_box(bounds)
+end
+
+function _rules_extend_ink!(bounds, node, origin, measure)
+    node = unwrap_cell(node)
+    if node isa GraphicsCanvas
+        elements = unwrap_cell(getfield(node, :elements))
+        elements isa ListNode && return
+        inner = (origin[1] + Int(node.x), origin[2] + Int(node.y))
+        for element in elements
+            _rules_extend_ink!(bounds, element, inner, measure)
+        end
+    else
+        extend_element_bounds!(bounds, node, origin; measure)
+    end
+end
+
+# Whether the ink of `document` lies inside the extent that its output reports, in
+# the range `(minimum, maximum)` on `axis`.
+_rules_is_ink_inside(document, axis::Symbol, minimum, maximum) =
+    _rules_is_ink_inside(print_document(_rules_projection(), nothing, document,
+                                        _rules_context(axis, minimum, maximum)).output)
+
+# Whether the ink of `output` lies inside the extent that it reports.
+function _rules_is_ink_inside(output)
+    # The widgets measure a text with the fixed measure of the projection, and a plain
+    # string inside a widget with the font files, so a text is inside when its box is
+    # inside under one of the two.
+    any((FixedMeasure(10, 18, 6, 0), FontFileMeasure())) do measure
+        box = _rules_ink_box(output, measure)
+        box === nothing && return true
+        (x0, y0, x1, y1) = box
+        x0 >= 0 && x1 <= Int(output.w[]) && y0 >= 0 && y1 <= Int(output.h[])
+    end
+end
+
+# The types whose sample draws past the extent that it reports in some state: the
+# border or the ring of a button, a radio group, a progress ring and an accordion, a
+# bar of no height, a tabbed pane and a menu that its giver cuts, and a tooltip
+# that caps.
+# @broken: ink past the reported extent; the fault is in the widget, and a plan of its own fixes each one where it lies; plan/done/a-layout-paints-only-what-the-screen-shows.md.
+const _RULES_INK_BROKEN = Set{Symbol}([
+    :WidgetAccordion, :WidgetButton, :WidgetContextMenu, :WidgetMenu, :WidgetProgressRing,
+    :WidgetRadioGroup, :WidgetScrollBar, :WidgetTabbedPane,
+    :WidgetTooltip])
+
+# Each state of a sample: no range, and the five ranges of `_rules_measure`, on each axis.
+function _rules_check_ink(name::Symbol, make)
+    inside = true
+    failing = Tuple{Symbol,Any,Any}[]
+    for axis in (:width, :height)
+        m = _rules_measure(make, axis)
+        for (minimum, maximum) in ((nothing, nothing), (m.more, m.more), (0, m.more), (m.more, nothing),
+                                   (0, m.less), (m.less, m.less))
+            _rules_is_ink_inside(make(), axis, minimum, maximum) && continue
+            inside = false
+            push!(failing, (axis, minimum, maximum))
+        end
+    end
+    inside || @info "ink past the extent" name failing
+    if name in _RULES_INK_BROKEN
+        # @broken: the sample draws past the extent that it reports; see _RULES_INK_BROKEN.
+        @test_broken inside
+    else
+        @test inside
+    end
+end
+
+# A word that no width breaks, and ten lines.
+const _RULES_LONG_WORD = "Averyveryverylongwordthatcannotwrap"
+const _RULES_LONG_LINES = join(["line $i of a long text" for i in 1:10], "\n")
+
+# A sample of each widget type that sets a size of its own: a maker with a short
+# content, a maker with a long content that is larger than the size, and the axes
+# on which the type sets its size.
+const _RULES_CUT_SAMPLES = Dict{String,Any}(
+    "WidgetText width" => (() -> WidgetText("a"; width = 40),
+                           () -> WidgetText(_RULES_LONG_WORD; width = 40), (:width,)),
+    "WidgetSpinBox width" => (() -> WidgetSpinBox(1; width = 30),
+                              () -> WidgetSpinBox(1234567890123; width = 30), (:width,)),
+    "WidgetList width" => (() -> WidgetList(Any["a", "b"]; width = 40),
+                           () -> WidgetList(Any[_RULES_LONG_WORD, "b"]; width = 40), (:width,)),
+    # The bottom margin holds the shadow of a button, which lies below its border
+    # box (see `_RULES_INK_BROKEN`), so the sample checks the cut of the caption.
+    "WidgetButton size" => (() -> WidgetButton("a"; size = Point2D(40, 14), margin = Inset(0, 4, 0, 0)),
+                            () -> WidgetButton(_RULES_LONG_WORD; size = Point2D(40, 14), margin = Inset(0, 4, 0, 0)),
+                            (:width, :height)),
+    "WidgetSelect width" => (() -> WidgetSelect("a"; options = Any["a"], width = 40),
+                             () -> WidgetSelect(_RULES_LONG_WORD; options = Any[_RULES_LONG_WORD], width = 40),
+                             (:width,)),
+    "WidgetTextarea width rows" => (() -> WidgetTextarea("a"; width = 40, rows = 2),
+                                    () -> WidgetTextarea(_RULES_LONG_LINES; width = 40, rows = 2), (:width, :height)),
+    "WidgetAccordion width" => (() -> WidgetAccordion(Any[("a", "b")]; width = 60),
+                                () -> WidgetAccordion(Any[(_RULES_LONG_WORD, _RULES_LONG_WORD)]; width = 60), (:width,)),
+    "WidgetAlert width" => (() -> WidgetAlert("a"; description = "b", width = 60),
+                            () -> WidgetAlert(_RULES_LONG_WORD; description = _RULES_LONG_WORD, width = 60), (:width,)),
+    "WidgetCard width title" => (() -> WidgetCard(; title = "a", content = "b", width = 60),
+                                 () -> WidgetCard(; title = _RULES_LONG_WORD, content = "b", width = 60), (:width,)),
+    "WidgetCard width footer" => (() -> WidgetCard(; title = "a", content = "b", footer = "c", width = 60),
+                                  () -> WidgetCard(; title = "a", content = "b", footer = _RULES_LONG_WORD, width = 60),
+                                  (:width,)),
+    "WidgetCard height" => (() -> WidgetCard(; title = "a", content = WidgetLabel("b"), width = 60, height = 80),
+                            () -> WidgetCard(; title = "a", content = WidgetLabel(_RULES_LONG_LINES), width = 60, height = 80),
+                            (:width, :height)),
+    "WidgetAvatar size" => (() -> WidgetAvatar("A"; size = 16), () -> WidgetAvatar("ABCDEFGH"; size = 16), (:width, :height)),
+    "WidgetShell size" => (() -> WidgetShell(WidgetLabel("a"); size = Point2D(60, 40)),
+                           () -> WidgetShell(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)), (:width, :height)),
+    "WidgetScrollPane size" => (() -> WidgetScrollPane(WidgetLabel("a"); size = Point2D(60, 40)),
+                                () -> WidgetScrollPane(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)),
+                                (:width, :height)),
+    "WidgetTransformPane size" => (() -> WidgetTransformPane(WidgetLabel("a"); size = Point2D(60, 40)),
+                                   () -> WidgetTransformPane(WidgetLabel(_RULES_LONG_LINES); size = Point2D(60, 40)),
+                                   (:width, :height)),
+)
+
+# The samples whose long content draws past the box or makes the box larger.
+# @broken: a widget does not yet cut its content at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 2.
+const _RULES_CUT_BROKEN = Set{String}([])
+
+# With no range, the long content of a sample draws no ink past the box, and on each
+# axis on which the type sets its size the box is as large as with the short content.
+function _rules_check_cut(name, make_short, make_long, axes)
+    print_free(make) = print_document(_rules_projection(), nothing, make(), PrinterContext()).output
+    short = print_free(make_short)
+    long = print_free(make_long)
+    get_extent(output, axis) = axis === :width ? Int(output.w[]) : Int(output.h[])
+    kept = all(axis -> get_extent(long, axis) == get_extent(short, axis), axes)
+    inside = _rules_is_ink_inside(long)
+    (kept && inside) || @info "a size that does not cut" name kept inside
+    if name in _RULES_CUT_BROKEN
+        # @broken: the sample draws past its box or grows; see _RULES_CUT_BROKEN.
+        @test_broken kept && inside
+    else
+        @test kept && inside
+    end
+end
+
+# A layout that is wider and taller than the size that a constraint gives it.
+_rules_wide_layout() = VerticalLayout(Any[WidgetLabel(_RULES_LONG_WORD), WidgetLabel("line 2"), WidgetLabel("line 3")])
+
+# A constraint that sets a size on a layout, in each kind of container: the maker of
+# the container, the axis and the range that the container gets on it, and what the
+# first child, the constraint, draws on that axis.
+const _RULES_CONSTRAINT_CASES = Dict{String,Any}(
+    "a Fixed width in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed height in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); height = Fixed(30)), WidgetLabel("next")]),
+         :height, nothing, nothing, ==(30)),
+    "a Fixed width in a column" =>
+        (() -> VerticalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed height in a column" =>
+        (() -> VerticalLayout(Any[LayoutConstraint(_rules_wide_layout(); height = Fixed(30)), WidgetLabel("next")]),
+         :height, nothing, nothing, ==(30)),
+    "a share of a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fill), WidgetLabel("next")]; gap = 8),
+         :width, 200, 200, <=(192)),
+    "a maximum in a row" =>
+        (() -> HorizontalLayout(Any[LayoutConstraint(_rules_wide_layout(); max_width = 40), WidgetLabel("next")]),
+         :width, nothing, nothing, <=(40)),
+    "a Fixed width in a stack" =>
+        (() -> StackLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+    "a Fixed width in a flow" =>
+        (() -> FlowLayout(Any[LayoutConstraint(_rules_wide_layout(); width = Fixed(40)), WidgetLabel("next")]),
+         :width, nothing, nothing, ==(40)),
+)
+
+# The cases whose constraint draws its child, and not its size.
+# @broken: a constraint does not yet cut its child at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 4.
+const _RULES_CONSTRAINT_BROKEN = Set{String}([])
+
+# The constraint, the first child of the container, draws `expected` on `axis`, and
+# draws no ink past its box.
+function _rules_check_constraint(name, make, axis, minimum, maximum, expected)
+    iomap = print_document(_rules_projection(), nothing, make(), _rules_context(axis, minimum, maximum))
+    output = last(first(getfield(iomap, :child_iomaps)[])).output
+    drawn = axis === :width ? Int(output.w[]) : Int(output.h[])
+    inside = _rules_is_ink_inside(output)
+    (expected(drawn) && inside) || @info "a constraint that does not cut" name drawn inside
+    if name in _RULES_CONSTRAINT_BROKEN
+        # @broken: the constraint draws its child; see _RULES_CONSTRAINT_BROKEN.
+        @test_broken expected(drawn) && inside
+    else
+        @test expected(drawn) && inside
+    end
+end
+
+# A scroll area of `width × height` whose content grows on its height.
+_rules_growing_area(content; width = 600, height = 300) =
+    WidgetScrollPane(content; size = Point2D(width, height), grows = (width = false, height = true))
+
+# What each child of the layout inside `area` draws, as (width, height).
+function _rules_inner_extents(area)
+    ctx = PrinterContext(EmptyReference(), Cell(Int32(1000)), Cell(Int32(1000)), Dict{Symbol,Any}())
+    inner = print_document(_rules_projection(), nothing, area, ctx).content_iomap
+    [(Int(last(e).output.w[]), Int(last(e).output.h[])) for e in getfield(inner, :child_iomaps)[]]
+end
+
+# What each child of `layout` draws on `axis` in the range `(minimum, maximum)` there.
+function _rules_child_extents(layout, axis::Symbol, minimum, maximum)
+    iomap = print_document(_rules_projection(), nothing, layout, _rules_context(axis, minimum, maximum))
+    [axis === :width ? Int(last(e).output.w[]) : Int(last(e).output.h[])
+     for e in getfield(iomap, :child_iomaps)[]]
+end
+
+# A lazy list of `count` rows of three labels, counting the rows that a walk builds.
+function _rules_lazy_rows(count::Int, built::Ref{Int})
+    function make_node(i)
+        built[] += 1
+        node = ListNode(Any[WidgetLabel("r$(i) c$(c)") for c in 1:3])
+        set_cell_computation!(getfield(node, :next), () -> begin
+            i < count || return nothing
+            following = make_node(i + 1)
+            set_cell_value!(getfield(following, :prev), node)
+            following
+        end)
+        node
+    end
+    make_node(1)
+end
+
+"""
+    test_layout_rules()
+
+Every widget type and every layout type draws by the rule of its kind in each
+range, and a guard fails for a type with no kind. The worked cases: a window that
+cuts or scrolls, a column and a row that share a maximum alike and a minimum
+alike, a grid that shares both on both axes, a part that fills in a scroll area, the detail of a task, a table of a
+list in an area that grows, and a lazy grid in an area that grows.
+"""
+function test_layout_rules()
+@testset "layout rules" begin
+@testset "every widget type and every layout type has a kind" begin
+    types = union(_rules_leaf_types(WidgetDocument), _rules_leaf_types(LayoutDocument))
+    without_kind = setdiff(types, keys(_RULES_KINDS))
+    without_type = setdiff(keys(_RULES_KINDS), types)
+    isempty(without_kind) || @info "types with no kind: " * join(sort!(collect(without_kind)), " ")
+    isempty(without_type) || @info "kinds with no type: " * join(sort!(collect(without_type)), " ")
+    @test isempty(without_kind)
+    @test isempty(without_type)
+end
+
+@testset "each type draws by the rule of its kind" begin
+    for name in sort!(collect(keys(_RULES_KINDS)))
+        entry = _RULES_KINDS[name]
+        entry isa String && continue
+        (make, width_kind, height_kind) = entry
+        _rules_check_type(name, make, (width_kind, height_kind))
+    end
+end
+
+@testset "what each type draws lies inside the extent that it reports" begin
+    for name in sort!(collect(keys(_RULES_KINDS)))
+        entry = _RULES_KINDS[name]
+        entry isa String && continue
+        @testset "$name" begin
+            _rules_check_ink(name, first(entry))
+        end
+    end
+end
+
+@testset "a widget with a size less than its content cuts the content at its box" begin
+    for name in sort!(collect(keys(_RULES_CUT_SAMPLES)))
+        (make_short, make_long, axes) = _RULES_CUT_SAMPLES[name]
+        @testset "$name" begin
+            _rules_check_cut(name, make_short, make_long, axes)
+        end
+    end
+end
+
+@testset "a constraint with a size cuts a layout at that size, and a layout only places" begin
+    for name in sort!(collect(keys(_RULES_CONSTRAINT_CASES)))
+        (make, axis, minimum, maximum, expected) = _RULES_CONSTRAINT_CASES[name]
+        @testset "$name" begin
+            _rules_check_constraint(name, make, axis, minimum, maximum, expected)
+        end
+    end
+end
+
+# A fixed part A of 192 (8 lines) and a part B that can scroll, with 384 (16 lines).
+window_parts() = Any[_rules_lines(8), WidgetScrollPane(_rules_lines(16))]
+
+@testset "a window that cuts: B takes what A leaves, and scrolls" begin
+    for (window, expected) in ((300, 108), (250, 58))
+        (a, b) = _rules_child_extents(VerticalLayout(window_parts()), :height, window, window)
+        @test a == 192
+        @test b == expected
+    end
+end
+
+@testset "a window that scrolls: B keeps its content, and the window scrolls" begin
+    for window in (300, 250)
+        (a, b) = _rules_inner_extents(_rules_growing_area(VerticalLayout(window_parts()); height = window))
+        @test (a[2], b[2]) == (192, 384)
+    end
+end
+
+@testset "a column and a row share a range with a maximum alike" begin
+    part(policy) = LayoutConstraint(WidgetScrollPane(WidgetLabel("part")); policy...)
+    row = HorizontalLayout(Any[part((; width = Fixed(100))), part((; width = Fill))])
+    @test _rules_child_extents(row, :width, 0, 300) == [100, 200]
+    column = VerticalLayout(Any[part((; height = Fixed(100))), part((; height = Fill))])
+    @test _rules_child_extents(column, :height, 0, 300) == [100, 200]
+end
+
+@testset "a grid shares a maximum and a minimum on both axes, as a stack does" begin
+    # Two columns and two rows of parts: the first `Fixed(100)`, the second `Fill`.
+    parts = Any[WidgetScrollPane(WidgetLabel("part")) for _ in 1:4]
+    grid = GridLayout(parts, 2; column_policies = Any[Fixed(100), Fill], row_policies = Any[Fixed(100), Fill])
+    for (minimum, maximum) in ((300, 300), (0, 300), (300, nothing))
+        @test _rules_child_extents(grid, :width, minimum, maximum)[1:2] == [100, 200]
+        @test _rules_child_extents(grid, :height, minimum, maximum)[[1, 3]] == [100, 200]
+    end
+end
+
+@testset "a column and a row share a minimum alike" begin
+    part(policy) = LayoutConstraint(WidgetScrollPane(WidgetLabel("part")); policy...)
+    row(policies...) = HorizontalLayout(Any[part(policy) for policy in policies])
+    column(policies...) = VerticalLayout(Any[part(policy) for policy in policies])
+    # Less content than the minimum: the part that fills takes the rest of it.
+    @test _rules_child_extents(row((; width = Fixed(100)), (; width = Fill)), :width, 300, nothing) == [100, 200]
+    @test _rules_child_extents(column((; height = Fixed(100)), (; height = Fill)), :height, 300, nothing) == [100, 200]
+    # More content than the minimum: the part that fills keeps its content.
+    content = (_rules_drawn(part((;)), :width, nothing, nothing), _rules_drawn(part((;)), :height, nothing, nothing))
+    @test _rules_child_extents(row((; width = Fixed(400)), (; width = Fill)), :width, 300, nothing) == [400, content[1]]
+    @test _rules_child_extents(column((; height = Fixed(400)), (; height = Fill)), :height, 300, nothing) == [400, content[2]]
+    # On the cross axis, a part that fills takes at least the minimum.
+    @test _rules_child_extents(row((; height = Fill)), :height, 300, nothing) == [300]
+    @test _rules_child_extents(column((; width = Fill)), :width, 300, nothing) == [300]
+end
+
+@testset "a part that fills, in a scroll area" begin
+    function column(lines)
+        VerticalLayout(Any[_rules_lines(lines),
+                           LayoutConstraint(WidgetScrollPane(WidgetLabel("fills")); height = Fill),
+                           WidgetLabel("footer")])
+    end
+    # Short content: the part fills the rest of the view of 300.
+    short = _rules_inner_extents(_rules_growing_area(column(2)))
+    @test sum(e[2] for e in short) == 300
+    # Long content: the column is as tall as its content, so the area scrolls to the footer.
+    long = _rules_inner_extents(_rules_growing_area(column(40)))
+    @test long[1][2] == 960
+    @test sum(e[2] for e in long) >= 960 + 24
+end
+
+@testset "the detail of a task: the text gives up height, and the table keeps its minimum" begin
+    table = WidgetTable(Any["a", "b"], Any[Any["$i", "$(i * i)"] for i in 1:30])
+    detail = VerticalLayout(Any[WidgetScrollPane(_rules_lines(12)),
+                                LayoutConstraint(table; height = Fill, min_height = 120)]; gap = 6)
+    (text, rows) = _rules_child_extents(detail, :height, 400, 400)
+    @test text == 400 - 6 - 120
+    @test text + 6 + rows <= 400
+end
+
+@testset "a table of a list is as tall as the view of an area that fits or grows" begin
+    columns = Any[WidgetTableColumn(; policy = Fixed(120)), WidgetTableColumn(; policy = Fixed(80))]
+    for grows in (false, true)
+        table = WidgetTable(; column_headers = Any["name", "value"],
+                            cells = ListNode(make_widget_table_row(Any["a", "b"])), columns)
+        area = WidgetScrollPane(table; size = Point2D(400, 200), grows = (width = false, height = grows))
+        ctx = PrinterContext(EmptyReference(), Cell(Int32(1000)), Cell(Int32(1000)), Dict{Symbol,Any}())
+        @test Int(print_document(_rules_projection(), nothing, area, ctx).content_iomap.output.h[]) == 200
+    end
+end
+
+@testset "a scroll area with no offer measures a list up to the maximum of its range, and keeps the extent of a finite or empty content" begin
+    columns = Any[Fixed(90), Fixed(90), Fixed(90)]
+    lazy_grid(count) = GridLayout(_rules_lazy_rows(count, Ref(0)), 3; column_policies = columns)
+    drawn(content, minimum, maximum) = _rules_drawn(WidgetScrollPane(content), :height, minimum, maximum)
+    empty_grid() = (grid = lazy_grid(1); set_cell_value!(getfield(grid, :children), nothing); grid)
+    # A list that ends within the maximum is as tall as its rows, and not less than
+    # the minimum; a list that reaches the maximum stops there.
+    three = drawn(lazy_grid(3), nothing, 300)
+    @test 0 < three < 300
+    @test three < drawn(lazy_grid(4), nothing, 300) < 300
+    @test drawn(lazy_grid(3), three + 50, 300) == three + 50
+    @test drawn(lazy_grid(10_000_000), nothing, 300) == 300
+    # With no maximum there is no edge to take.
+    @test drawn(lazy_grid(3), nothing, nothing) == 0
+    @test drawn(lazy_grid(3), 50, nothing) == 50
+    # A finite content keeps its own height, and an empty one has none.
+    lines = drawn(_rules_lines(3), nothing, nothing)
+    @test 0 < lines < 300 && drawn(_rules_lines(3), nothing, 300) == lines
+    @test drawn(_rules_lines(0), nothing, 300) == 0
+    @test drawn(empty_grid(), nothing, 300) == 0
+    table = WidgetTable(Any["a", "b"], Any[])
+    header = drawn(table, nothing, nothing)
+    @test header < 300 && drawn(table, nothing, 300) == header
+    # The rows of an empty list give the pane their height, and the loss of the last
+    # row gives it back.
+    grid = empty_grid()
+    pane = print_document(_rules_projection(), nothing, WidgetScrollPane(grid), _rules_context(:height, nothing, 300)).output
+    @test Int(pane.h[]) == 0
+    set_cell_value!(getfield(grid, :children), _rules_lazy_rows(3, Ref(0)))
+    @test Int(pane.h[]) == three
+    set_cell_value!(getfield(grid, :children), nothing)
+    @test Int(pane.h[]) == 0
+end
+
+@testset "a table of a list takes its rows up to an edge with no slot" begin
+    columns = Any[WidgetTableColumn(; policy = Fixed(120)), WidgetTableColumn(; policy = Fixed(80))]
+    table(count) = WidgetTable(; column_headers = Any["name", "value"], columns,
+                               cells = make_index_list(count, 1, k -> make_widget_table_row(Any["a$k", "b$k"])))
+    # A list that ends before the edge: the table is its header and its rows.
+    two = _rules_drawn(table(2), :height, nothing, 300)
+    @test 0 < two < _rules_drawn(table(3), :height, nothing, 300) < 300
+    # A list that reaches the edge: the table stops there and scrolls the rest.
+    @test _rules_drawn(table(100), :height, nothing, 300) == 300
+    # A slot: the table fills it.
+    @test _rules_drawn(table(2), :height, 300, 300) == 300
+end
+
+@testset "a Content row of a grid gives its cells its edge, as a Content column does" begin
+    # A scroll pane in the second `Content` row stops at the edge less the first row.
+    grid = GridLayout(Any[WidgetLabel("title"), WidgetScrollPane(_rules_lines(40))], 1; vertical_gap = 0)
+    (title, pane) = _rules_child_extents(grid, :height, nothing, 300)
+    @test title > 0
+    @test pane == 300 - title
+end
+
+@testset "a lazy grid in an area that grows builds the rows that show" begin
+    built = Ref(0)
+    grid = GridLayout(_rules_lazy_rows(10_000_000, built), 3;
+                      column_policies = Any[Fixed(90), Fixed(90), Fixed(90)])
+    print_document(_rules_projection(), nothing, _rules_growing_area(grid; width = 400, height = 200),
+                   PrinterContext(EmptyReference(), Cell(Int32(1000)), Cell(Int32(1000)), Dict{Symbol,Any}()))
+    @test built[] < 30
+end
+end
+end

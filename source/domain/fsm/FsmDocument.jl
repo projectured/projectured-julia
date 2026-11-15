@@ -158,7 +158,25 @@ FsmComponent(name::AbstractString; variables = FsmVariable[], timers = FsmTimer[
 # a new state looks like mid-commit), and a helper that assumed otherwise would
 # throw on a field the placeholder does not have.
 
-"Find a state of `machine` by name; `nothing` when absent."
+"""
+    find_state(machine::FsmMachine, name::AbstractString) -> Union{FsmState, Nothing}
+
+The state of `machine` called `name`; `nothing` when there is none.
+
+Use it to look up a state of a machine by its name.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    machine_1 = find_fsm(component_1, "Main")
+    state_1 = find_state(machine_1, "IDLE")
+
+See also `get_fsm_states` and `find_fsm`.
+
+For the assistant.
+"""
+function find_state end
+
 function find_state(machine::FsmMachine, name::AbstractString)
     for s in machine.states
         s isa FsmState && s.name == name && return s
@@ -166,7 +184,26 @@ function find_state(machine::FsmMachine, name::AbstractString)
     nothing
 end
 
-"Find an event of `component` by name; `nothing` when absent."
+find_state(machine::ReferencedDocument, name::AbstractString) = find_state(get_document(machine), name)
+
+"""
+    find_event(component::FsmComponent, name::AbstractString) -> Union{FsmEvent, Nothing}
+
+The event of `component` called `name`; `nothing` when there is none.
+
+Use it to look up an event of a component by its name.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    event_1 = find_event(component_1, "Tick")
+
+See also `find_timer` and `find_fsm`.
+
+For the assistant.
+"""
+function find_event end
+
 function find_event(component::FsmComponent, name::AbstractString)
     for e in component.events
         e isa FsmEvent && e.name == name && return e
@@ -174,7 +211,26 @@ function find_event(component::FsmComponent, name::AbstractString)
     nothing
 end
 
-"Find a timer of `component` by name; `nothing` when absent."
+find_event(component::ReferencedDocument, name::AbstractString) = find_event(get_document(component), name)
+
+"""
+    find_timer(component::FsmComponent, name::AbstractString) -> Union{FsmTimer, Nothing}
+
+The timer of `component` called `name`; `nothing` when there is none.
+
+Use it to look up a timer of a component by its name.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    timer_1 = find_timer(component_1, "Blink")
+
+See also `find_event` and `find_fsm`.
+
+For the assistant.
+"""
+function find_timer end
+
 function find_timer(component::FsmComponent, name::AbstractString)
     for t in component.timers
         t isa FsmTimer && t.name == name && return t
@@ -182,7 +238,26 @@ function find_timer(component::FsmComponent, name::AbstractString)
     nothing
 end
 
-"Find a machine of `component` by name; `nothing` when absent."
+find_timer(component::ReferencedDocument, name::AbstractString) = find_timer(get_document(component), name)
+
+"""
+    find_fsm(component::FsmComponent, name::AbstractString) -> Union{FsmMachine, Nothing}
+
+The machine of `component` called `name`; `nothing` when there is none.
+
+Use it to look up a machine of a component by its name.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    machine_1 = find_fsm(component_1, "Main")
+
+See also `find_state`, `find_event` and `find_timer`.
+
+For the assistant.
+"""
+function find_fsm end
+
 function find_fsm(component::FsmComponent, name::AbstractString)
     for m in component.machines
         m isa FsmMachine && m.name == name && return m
@@ -190,15 +265,50 @@ function find_fsm(component::FsmComponent, name::AbstractString)
     nothing
 end
 
-"The states of `machine` as a plain `Vector{FsmState}` (document order)."
+find_fsm(component::ReferencedDocument, name::AbstractString) = find_fsm(get_document(component), name)
+
+"""
+    get_fsm_states(machine::FsmMachine) -> Vector{FsmState}
+
+The states of `machine` as a plain `Vector{FsmState}`, in document order.
+
+Use it to list the states of a machine.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    machine_1 = find_fsm(component_1, "Main")
+    states_1 = get_fsm_states(machine_1)
+
+See also `find_state` and `get_fsm_transitions`.
+
+For the assistant.
+"""
+function get_fsm_states end
+
 get_fsm_states(machine::FsmMachine) = FsmState[s for s in machine.states if s isa FsmState]
+get_fsm_states(machine::ReferencedDocument) = get_fsm_states(get_document(machine))
 
 """
 All transitions of `machine` flattened in document order (states in order,
 each state's transitions in order). This global order is the transition-index
 vocabulary shared by `get_fsm_transition_index`, the generated `last_transition`
 recording, and the diagram's live edge highlight.
+
+Use it to list every transition of a machine in the order that the generated code and the diagram use.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    machine_1 = find_fsm(component_1, "Main")
+    transitions_1 = get_fsm_transitions(machine_1)
+
+See also `get_fsm_states`.
+
+For the assistant.
 """
+function get_fsm_transitions end
+
 function get_fsm_transitions(machine::FsmMachine)
     result = FsmTransition[]
     for s in machine.states
@@ -209,6 +319,8 @@ function get_fsm_transitions(machine::FsmMachine)
     end
     result
 end
+
+get_fsm_transitions(machine::ReferencedDocument) = get_fsm_transitions(get_document(machine))
 
 "The 1-based global index of `transition` in `machine`'s flattened order; 0 when absent."
 function get_fsm_transition_index(machine::FsmMachine, transition::FsmTransition)

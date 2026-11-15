@@ -175,7 +175,8 @@ domain, at the size of its cell and at least 24 × 16 pixels, in the chart theme
 of `appearance`.
 """
 make_pivot_chart_cell_projection(; measure::TextMeasure, appearance::Appearance = Appearance()) =
-    ChainingProjection(PivotChartCellToChart(), ChartToChartPlot(),
-                       ChartPlotToGraphicsCanvas(; measure, width = 160, height = 90, minimum_width = 24,
-                                                 minimum_height = 16,
-                                                 theme = get_scaled_theme!(appearance, ChartTheme)))
+    ChainingProjection(PivotChartCellToChart(),
+                       make_chart_projection(; measure, width = 160, height = 90, minimum_width = 24,
+                                             minimum_height = 16,
+                                             theme = get_scaled_theme!(appearance, ChartTheme),
+                                             widget_theme = get_scaled_theme!(appearance, WidgetTheme)))

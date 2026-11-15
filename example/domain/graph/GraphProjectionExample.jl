@@ -6,11 +6,13 @@
 # Defaults to the engine that defers its choice to the time of the layout:
 # FruchtermanReingoldLayout, or an engine that a package registered. Pass an engine to swap it
 # (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
-# behind the same interface.
+# behind the same interface. `edge_shape = :curved` draws each edge as a curve. The
+# graph is in a scroll pane of its own, which scrolls only a graph larger than its
+# view.
 
 function make_graph_projection_example(; measure=FontFileMeasure(),
                                        engine=make_deferred_layout_engine(),
-                                       content=nothing)
+                                       content=nothing, edge_shape=:straight)
     # A vertex's content can be any domain. Dispatch on the root content type to a
     # complete per-domain pipeline to GraphicsCanvas: tables render directly via
     # TableToGraphics; Json/Xml go through Syntax → Text → Graphics. Each branch is
@@ -27,13 +29,18 @@ function make_graph_projection_example(; measure=FontFileMeasure(),
 
     graph_stages = ChainingProjection(
         GraphGraphToGraphLayout(engine),
-        GraphLayoutToGraphicsCanvas(),
+        GraphLayoutToGraphicsCanvas(; edge_shape),
     )
 
-    NestingProjection(graph_stages; recursion=content)
+    NestingProjection(make_scrolling_graph_projection(graph_stages; measure); recursion=content)
 end
 
 # The native AdaptagramsLayout graph projections (graph_adaptagrams,
 # dvdrental_relationship) live in the opt-in `ProjecturedAdaptagramsExample` package so
 # the base example package does not depend on the native ProjecturedAdaptagrams
 # shim. They reuse `make_graph_projection_example` with the engine swapped in.
+
+# The view of the graph of the services: curved edges, and the text of a vertex and
+# of a label, which the natural renderer draws.
+make_graph_services_projection_example(; measure = FontFileMeasure()) =
+    make_graph_projection_example(; measure, content = NaturalToGraphics(; measure), edge_shape = :curved)

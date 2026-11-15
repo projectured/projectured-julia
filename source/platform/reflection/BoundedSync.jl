@@ -150,6 +150,8 @@ everything has nothing left for the bound to withhold — the depth governs
 """
 copy_document(K::Type{<:AbstractCell}, doc::Document, policy::SyncPolicy) =
     copy_document(K, doc, policy, 0)
+copy_document(kind::Type{<:AbstractCell}, document::ReferencedDocument, policy::SyncPolicy) =
+    copy_document(kind, get_document(document), policy)
 
 # What stands where the walk stopped. `current` is what is in the slot now, so an
 # already-placed marker is handed straight back and the shadow keeps its identity

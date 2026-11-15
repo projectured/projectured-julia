@@ -1,8 +1,10 @@
 """
     MarkdownModule
 
-The Markdown document domain — blocks (headings, paragraphs, code blocks,
-quotes, lists) and inlines (text, code, emphasis, strong, link, image).
+Markdown documents: headings, paragraphs, code blocks, quotes and lists, with text,
+code, emphasis, links and images inside them. They hold blocks (headings,
+paragraphs, code blocks, quotes, lists) and inlines (text, code, emphasis, strong,
+link, image).
 """
 module MarkdownModule
 
@@ -15,8 +17,10 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
 import ..ProjectionAlgebraModule: make_content_view
+import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export MarkdownDocument, set_cell_computation!
 export parse_markdown, parse_markdown_file, compute_markdown_heading_slug
@@ -81,5 +85,9 @@ function __init__()
         MarkdownList      => make_natural_prose_graphics(; measure, appearance),
     ])
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{MarkdownFile}) =
+    (; name = "a.md", text = "# Title\n\nAlice writes a text.\n", shown = r"Alice")
 
 end # module

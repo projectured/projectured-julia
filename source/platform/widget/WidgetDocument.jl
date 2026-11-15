@@ -10,6 +10,75 @@ abstract type WidgetDocument <: Document end
 # function, such as a validator, refuses the duplicate.
 has_document_duplicate(::WidgetDocument) = true
 
+"""
+    is_widget_or_layout(node) -> Bool
+
+Is `node` a widget, a layout, a layout constraint or a vector of cells that holds
+them, such as the row of a table: a part that a view builds to show its input, and
+not a document of a domain that the view puts into one of its widgets? It is the
+rule of [`follow_widget_output!`](@ref), so the walk gives a part of the selection
+to each widget and layout that the view built, and leaves the document of a domain,
+which holds its own selection.
+"""
+is_widget_or_layout(node) =
+    node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint || node isa CellVector
+
+"""
+    follow_widget_output!(root, input, map_forward; is_followed = is_widget_or_layout) -> root
+
+Make each widget and layout of the output tree `root`, which a view built from
+`input`, hold its part of the forward image of each kind of path of `input`: the
+selection and the part under the pointer, as `follow_output_selection!` does.
+`map_forward(path)` answers the path from `root` of a path of `input`, or
+`nothing`. A dormant selection gives no part. So the container that holds a part
+that the view drew marks it.
+
+A view calls it once in its printer. A child that a computation of the view builds
+later is not in the tree at the print, and [`follow_built_children!`](@ref) gives
+it its part.
+"""
+follow_widget_output!(root, input, map_forward::Function; is_followed = is_widget_or_layout) =
+    follow_output_selection!(root, () -> map_selection_forward(input, map_forward);
+                             forward_mouse_target = () -> map_mouse_target_forward(input, map_forward),
+                             is_followed)
+
+"""
+    follow_built_children!(holder; is_followed = is_widget_or_layout) -> holder
+
+Make each child that the computation of the children of `holder`, a layout, builds
+hold its part of each kind of path of `holder`, as [`follow_widget_output!`](@ref)
+makes the output of the print do. The walk of the print reaches only the children
+that are there at the print, so a view calls it on a layout whose children a
+computation builds, after it sets that computation and before a read of the
+children. The walk reads no cell for the computation.
+"""
+function follow_built_children!(holder; is_followed = is_widget_or_layout)
+    elements = getfield(holder.children, :elements)
+    build = get_cell_computation(elements)
+    build === nothing && return holder
+    set_cell_computation!(elements, () -> begin
+        built = build()
+        for (k, child) in enumerate(built)
+            steps = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k))
+            run_without_cell_tracking(() ->
+                follow_widget_output!(unwrap_cell(child), holder, path -> _find_path_below_steps(path, steps);
+                                      is_followed))
+        end
+        built
+    end)
+    holder
+end
+
+# The part of `path` below `steps`, or `nothing` when `path` does not begin with them.
+function _find_path_below_steps(path, steps::Tuple)
+    path = strip_reference_types(path)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return nothing
+        path = path.tail
+    end
+    path
+end
+
 # ── WidgetInsertion ─────────────────────────────────────────────────────
 
 @document struct WidgetInsertion <: WidgetDocument
@@ -24,7 +93,8 @@ end
 # ── WidgetLabel ────────────────────────────────────────────────────────────
 
 """
-    WidgetLabel(content; position, <base kwargs>)
+    WidgetLabel(content; position, max_lines = 0, line_spacing = nothing, corner_radius = 0,
+                gestures = GestureBinding[], <base kwargs>)
 
 A line of text a person reads and does not edit.
 
@@ -34,12 +104,22 @@ one, or a function of no arguments. A function makes a live label: it shows what
 the function answers now, and an answer that is neither a string nor a document
 shows as its text.
 
+A text longer than the width that the parent gives breaks into lines. With
+`max_lines` above 0, the label shows at most that many lines, and the last one
+ends with "…" where the text goes on. `line_spacing`, a `LineSpacing`, sets the
+height of each line, with the half of its leading above the text, so labels of
+several sizes keep one rhythm; `nothing` keeps the lines of the font. `corner_radius` rounds the box of the label, as for a chip.
+`gestures` are the bindings of the label itself: a press on a chip can select
+what the chip names.
+
 # Example
 
     open_pane!(WidgetLabel("The delay of every run"); title = "Note")
 
 See also `WidgetText`, which a person edits, `WidgetBadge` for one status word,
 and `WidgetAlert` for a message with a title.
+
+For the assistant.
 """
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
@@ -56,6 +136,10 @@ and `WidgetAlert` for a message with a title.
     # severity still follows the window's theme. It wins over `style`.
     text_style::ImmutableCell{Union{StyleText, StyleFont, StyleColor, Nothing}}
     visible::Bool
+    max_lines::Int
+    line_spacing::Any
+    corner_radius::Int
+    gestures::Any
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -87,12 +171,17 @@ _make_value_cell(value) = Cell(value)
 function WidgetLabel(content; position::Point2D=Point2D(0, 0),
                      text_style=nothing,
                      visible::Bool=true,
+                     max_lines::Integer=0, line_spacing=nothing, corner_radius::Integer=0,
+                     gestures=GestureBinding[],
                      margin=nothing, border=nothing, padding=nothing,
                      style=nothing, tooltip=nothing)
     WidgetLabel(Cell(position), _make_shown_cell(content), Cell(text_style),
-                Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                Cell(visible), Cell(Int(max_lines)), Cell(line_spacing), Cell(Int(corner_radius)),
+                Cell(gestures), Cell(margin), Cell(border), Cell(padding),
                 Cell(style), Cell(tooltip), Cell(nothing))
 end
+
+get_instance_gesture_bindings(w::WidgetLabel) = w.gestures
 
 set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
@@ -110,11 +199,13 @@ or beside a button that uses it.
 
     open_pane!(WidgetText("name =~ *delay*"; width = 240); title = "Filter")
 
-`width` is a floor and not a size: the box is at least that many pixels wide and
-grows with what is typed into it. It is `0` by default, which is the box that
-fits its content exactly — and which is a box of nothing at all when the content
-is empty. A form gives its fields a width so that an empty one can still be
-clicked. `WidgetSpinBox` carries the same field for the same reason.
+`width` is the width of the box in pixels. A text that is wider is cut at the
+box, and the field scrolls its text so that the caret stays in view;
+`scroll_position` is that offset, view state that no undo records. `width` is
+`0` by default, which is the box that fits its content exactly — and which is a
+box of nothing at all when the content is empty. A form gives its fields a width
+so that an empty one can still be clicked. `WidgetSpinBox` carries the same field
+for the same reason.
 
 `language` names the language of a field of code, such as `:julia`, or is
 `nothing`. The field colors its text by [`compute_code_pieces`](@ref), which
@@ -125,8 +216,22 @@ package is loaded. The text, its caret and its edits are the same either way.
 empty, such as an example of what it takes, or `nothing`. It is no part of the
 content: the caret, a key and a save see an empty field.
 
+`text_style` is the text of the field instead of the text of the theme: a
+`StyleText`, a bare `StyleFont` or a bare `StyleColor`, as for a `WidgetLabel`.
+The placeholder takes its font.
+
+`wrap = true` breaks a plain text into lines at the width that the parent gives,
+so a field of prose, such as a statement in an outline, grows down and not past
+its column. A break is no character: the caret and an edit see the same text.
+`line_spacing`, a `LineSpacing`, sets the distance of its lines, as for a label.
+
+A `quiet` field draws its box only while it holds the caret, so a page of fields,
+such as the rows of an outline, reads as text and shows where the person types.
+
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
+
+For the assistant.
 """
 @document struct WidgetText <: WidgetDocument
     position::Point2D
@@ -135,6 +240,10 @@ only read, and `WidgetSpinBox` for a number.
     validator::Any
     language::Any
     placeholder::Any
+    text_style::Any
+    wrap::Bool
+    line_spacing::Any
+    quiet::Bool
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -142,6 +251,7 @@ only read, and `WidgetSpinBox` for a number.
     padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
+    scroll_position::Point2D   # view state: the offset of a text that the box cuts
 end
 
 function WidgetText(content; position::Point2D=Point2D(0, 0),
@@ -149,14 +259,18 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
                     validator=nothing,
                     language::Union{Nothing,Symbol}=nothing,
                     placeholder::Union{Nothing,AbstractString}=nothing,
+                    text_style=nothing,
+                    wrap::Bool=false,
+                    line_spacing=nothing,
+                    quiet::Bool=false,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
-                    style=nothing, tooltip=nothing)
+                    style=nothing, tooltip=nothing, scroll_position::Point2D=Point2D(0, 0))
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
-               Cell(placeholder), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
-               Cell(style), Cell(tooltip), Cell(nothing))
+               Cell(placeholder), Cell(text_style), Cell(wrap), Cell(line_spacing), Cell(quiet), Cell(visible), Cell(enabled), Cell(margin), Cell(border),
+               Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position), Cell(nothing))
 end
 
 """
@@ -214,6 +328,8 @@ The `validator` is a hook for typed entry; a step is always numeric.
 
 See also `WidgetSlider` for a share between zero and one, and `WidgetText` for
 a value typed as text.
+
+For the assistant.
 """
 @document struct WidgetSpinBox <: WidgetDocument
     position::Point2D
@@ -274,6 +390,8 @@ rows. `scroll_position` is the offset of the rows, and `vertical_scroll_bar` and
 
 See also `WidgetTable` for rows with columns, `WidgetSelect` for a list that
 opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
+
+For the assistant.
 """
 @document struct WidgetList <: WidgetDocument
     position::Point2D
@@ -358,6 +476,8 @@ operation.
 
 See also `WidgetSwitch`, which is the same choice drawn as a slide, and
 `WidgetToggleGroup` for one choice among several.
+
+For the assistant.
 """
 @document struct WidgetCheckbox <: WidgetDocument
     position::Point2D
@@ -403,8 +523,8 @@ pixels.
 # Example
 
     open_pane!(WidgetButton("Run again";
-                                    action = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")));
-               title = "Runner")
+                            action = editor -> rerun_tasks!(find_task_group("T1"; editor); editor));
+               title = "Run again")
 
 `action` is that command. Pass an `Action` to bind a shared one: the button
 shows its `label`/`icon`, follows its `enabled`, and fires its callback (the
@@ -443,6 +563,8 @@ document's content and is not meant to be serialised.
 
 See also `Action`, `WidgetSwitch` for a state that stays, and `WidgetToggleGroup`
 for one choice among several.
+
+For the assistant.
 """
 @document struct WidgetButton <: WidgetDocument
     position::Point2D
@@ -505,6 +627,82 @@ same keywords (`action`, `enabled`, `border`, …). Stage 5.
 """
 WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
     WidgetButton(label; size = size, icon=icon, kwargs...)
+
+# ── WidgetLink ─────────────────────────────────────────────────────────────
+
+"""
+    WidgetLink(content, target; icon, tooltip, enabled, position, visible, margin, border, padding, style)
+
+The face and the behaviour of a link, as a link in a browser shows: what it
+draws, and what a click opens. A click opens the target here, in the nearest
+navigator around the link, or in a new tab when no navigator is around it. Ctrl
+and a click, or a middle click, open it in a new tab. Return opens it here while
+the link has the focus. A press selects nothing.
+
+`content` is the face: a string, a document that the renderer draws, a cell that
+holds one, or a function of no arguments for a face that follows a value. A text
+breaks at the edge of the range that the parent gives, as the text of a label
+does. `target` is what a click opens, by `make_target_open_operation`:
+
+- a document: its page;
+- a `DocumentLocator(document, reference)`: the part at `reference` from
+  `document`;
+- a `Reference`: a path from the link itself, so `EmptyReference()` opens the
+  part that the link shows, and each reader on the way up maps the path.
+
+A domain adds a kind of target with a method of `make_target_open_operation`.
+
+`icon` names an icon that stands before the text. A text face is in the link
+color of the theme, with no frame, so the link is as tall as a label. A line
+shows under the face while the pointer is on the link. With `enabled = false`, or
+a function that answers `false`, the link draws muted and opens nothing, as for a
+target that is gone. The link keeps a document target as a locator of it, so a
+walk over the output of a view does not go from the link into its target.
+
+Use it to give a face that names what it opens: a title, the name of a file, the id
+of a step. A label that names a command, such as "Open stdout", is a
+`WidgetButton` with the gestures of `make_open_page_gestures`.
+
+# Example
+
+    WidgetLink("notes.txt", DocumentLocator(folder, @reference(folder, elements[2])))
+    WidgetLink(() -> format_tree_node_label(page), page)
+
+See also `open_page!`, `DocumentLocator` and `WidgetButton`.
+
+For the assistant.
+"""
+@document struct WidgetLink <: WidgetDocument
+    position::Point2D
+    content::Any
+    target::Any
+    icon::Any
+    visible::Bool
+    enabled::Bool
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
+    style::Any
+    tooltip::Any
+end
+
+function WidgetLink(content, target::Union{Document, DocumentLocator, Reference};
+                    position::Point2D = Point2D(0, 0), icon = nothing, visible::Bool = true,
+                    enabled::Union{Bool, Function} = true,
+                    margin = nothing, border = nothing, padding = nothing,
+                    style = nothing, tooltip = nothing)
+    link = WidgetLink(Cell(position), _make_shown_cell(content), Cell(_make_link_target(target)), Cell(icon),
+                      Cell(visible), Cell(enabled isa Bool ? enabled : true),
+                      Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip))
+    enabled isa Function && set_cell_computation!(getfield(link, :enabled), enabled)
+    link
+end
+
+# A document that a link opens is kept as a locator of it. A walk over the output
+# of a view writes the selection and the mouse target of each node that it
+# reaches, and a document of the input must not get them from a widget.
+_make_link_target(target::Document) = DocumentLocator(target, EmptyReference())
+_make_link_target(target) = target
 
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
@@ -634,13 +832,13 @@ A `WidgetDialog` whose content is a prompt label above a `WidgetText` field, wit
 Cancel / OK buttons — the `QInputDialog` analogue. (Editing the field needs the
 text-widget projection, as for any `WidgetText`.) `theme` is the scaled widget
 theme of the place that opens the dialog, or `nothing` for the default theme:
-the field stands `item_gap` below the prompt, and each button is as large as
+the field stands `line_gap` below the prompt, and each button is as large as
 its label.
 """
 function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog,
                            theme = nothing)
     content = VerticalLayout(Any[WidgetLabel(prompt), WidgetText(value)];
-                             gap = _get_bar_item_gap(theme))
+                             gap = _get_line_gap(theme))
     WidgetDialog(title, content, Any[WidgetButton("Cancel"), WidgetButton("OK")];
                  popup_id=popup_id)
 end
@@ -648,13 +846,25 @@ end
 # ── WidgetMenu ─────────────────────────────────────────────────────────────
 
 """
-    WidgetMenu(elements; <base kwargs>)
+    WidgetMenu(elements; orientation = :vertical, highlighted = 0, minimum_width = nothing,
+               <base kwargs>)
 
-A menu containing a sequence of `WidgetMenuItem`s..
+A menu containing a sequence of `WidgetMenuItem`s.
+
+A vertical menu is as wide as its widest item, and at least `minimum_width`, its
+insets included, when that is a number: a menu in a window of a fixed width fills
+it, and a row lights across it.
+
+A vertical menu answers the keys of a list: Down and Up light the next and the
+previous enabled item, Home and End the first and the last, and Return chooses the
+lit item as a click does. `highlighted` is the index in `elements` of the lit item,
+or 0 for none. It is view state, so a key that moves it is no edit.
 """
 @document struct WidgetMenu <: WidgetDocument
     elements::CellVector = CellVector()
     orientation::Symbol = :vertical
+    highlighted::Int = 0
+    minimum_width::Union{Int, Nothing} = nothing
     visible::Bool = true
     margin::Union{Inset, Nothing} = nothing
     border::Union{Inset, Nothing} = nothing
@@ -665,11 +875,14 @@ end
 
 function WidgetMenu(elements::Vector;
                     orientation::Symbol=:vertical,
+                    highlighted::Integer=0,
+                    minimum_width::Union{Integer, Nothing}=nothing,
                     visible::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
-               Cell(orientation),
+               Cell(orientation), Cell(Int(highlighted)),
+               Cell(minimum_width === nothing ? nothing : Int(minimum_width)),
                Cell(visible), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -699,12 +912,16 @@ belongs to, relative to that part, or `nothing`. A click on an item that has one
 answers [`EditMenuPartOperation`](@ref) in place of its action, and the context
 menu window lifts it from the part through the readers around it, so a history
 records it as an edit of the person.
+`keys` are the keys that do what the item does, each a `GesturePattern` or a
+text such as `"Delete"`. The item draws them at its right edge, quiet, so a
+person learns them from the menu.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     action::Any
     gestures::Any
     submenu::Any
     operation::Any
+    keys::Any
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -720,6 +937,7 @@ function WidgetMenuItem(content;
                         icon=nothing,
                         submenu=nothing,
                         operation=nothing,
+                        keys=Any[],
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin=nothing, border=nothing, padding=nothing,
@@ -727,7 +945,7 @@ function WidgetMenuItem(content;
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
     WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu), Cell(operation),
-                   Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                   Cell(keys), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                    Cell(style), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
@@ -759,12 +977,16 @@ press.
 `pressed` is transient pointer state, as on a [`WidgetButton`](@ref): it is
 `true` while the left button is held down on the item, and the reader of the
 item writes it.
+
+An item that is not `focusable` is no stop of Tab, as a control of a row that the
+pointer shows: the keys reach what it does in another way, such as a menu.
 """
 @document struct WidgetToolbarItem <: WidgetDocument
     action::Any
     gestures::Any
     visible::Bool
     enabled::Bool
+    focusable::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -779,10 +1001,11 @@ function WidgetToolbarItem(content;
                            icon=nothing,
                            visible::Bool=true,
                            enabled::Bool=true,
+                           focusable::Bool=true,
                            margin=nothing, border=nothing, padding=nothing,
                            style=nothing, tooltip=nothing)
     WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
-                      Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                      Cell(visible), Cell(enabled), Cell(focusable), Cell(margin), Cell(border), Cell(padding),
                       Cell(style), Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
@@ -812,6 +1035,8 @@ child reach the edge; a `LayoutConstraint` gives one child its own.
                title = "Placed")
 
 See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`.
+
+For the assistant.
 """
 @document struct WidgetComposite <: WidgetDocument
     position::Point2D
@@ -967,7 +1192,7 @@ function make_filter_bar_widget(; text, place, regex, apply, theme = nothing)
     # and the reader owns them after that.
     text_box = WidgetText(text())
     place_box = WidgetText(place())
-    regex_switch = WidgetToggle(".*"; pressed = regex())
+    regex_switch = WidgetToggle(".*"; pressed = regex(), tooltip = "Match the text as a regular expression.")
     # And the press is what says "now". Applying per keystroke would run a
     # filter over the whole history for every letter of a word — the reader
     # would pay for `pack`, `packe` and `packet` to learn about `packet`.
@@ -1120,11 +1345,12 @@ documents.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
-    open_pane!(WidgetTitlePane("Delay", table); title = "Delay")
+    open_pane!(WidgetTitlePane("Delay", WidgetLabel("1.5 s")); title = "Delay")
 
 See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
 whose `title` names a tab.
+
+For the assistant.
 """
 @document struct WidgetTitlePane <: WidgetDocument
     title::Any
@@ -1164,13 +1390,16 @@ two documents in tabs of their own, use `show_layout` and the panes.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetSplitPane(:horizontal, Any[table, note]; sizes = [400, 400]); title = "Split")
 
-`active_splitter` and `drag_anchor` are **transient UI state** holding an
-in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
+`active_splitter`, `drag_anchor` and `splitter_under_pointer` are **transient UI
+state**. `splitter_under_pointer` is `0`, or `k` while the pointer is on the grab
+area of the splitter after slot `k` (see `SetSplitterUnderPointerOperation`);
+the print shows a band on that splitter after a short delay. `active_splitter`
+and `drag_anchor` hold an in-progress splitter drag (see
+`StartSplitterDragOperation`): `active_splitter`
 is `0` when no drag is in progress, or `k` while the splitter after slot `k` is
 being dragged; `drag_anchor` is `nothing` or a
 `(coord, size_a, size_b)` named tuple recording the grab origin so each motion
@@ -1181,6 +1410,8 @@ sticks instead of being undone by weighted redistribution. They are not part of
 the document's content and are not meant to be serialised.
 
 See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
+
+For the assistant.
 """
 @document struct WidgetSplitPane <: WidgetDocument
     orientation::Symbol
@@ -1192,6 +1423,7 @@ See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
     padding::Union{Inset, Nothing}
     style::Any
     active_splitter::Int
+    splitter_under_pointer::Int
     drag_anchor::Any
     pinned::CellVector
     tooltip::Any
@@ -1205,7 +1437,7 @@ function WidgetSplitPane(orientation::Symbol, elements::Vector;
     sizes_cv = sizes isa Vector ? CellVector(Cell[Cell(s) for s in sizes]) : CellVector()
     WidgetSplitPane(Cell(orientation), CellVector(Cell[Cell(x) for x in elements]), sizes_cv,
                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
-                    Cell(style), Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
+                    Cell(style), Cell(0), Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -1257,32 +1489,38 @@ WidgetTabLabel(text; icon = nothing, icon_role = nothing, badges = Any[], toolti
 _get_tab_selector_text(selector::WidgetTabLabel) = string(selector.text)
 _get_tab_selector_text(selector) = string(selector)
 
-# A single tab page: the tab `selector`, its content `element`, an optional
-# `icon`, and whether the tab offers a duplicate button (`duplicable`, drawn only
-# when the pane is `duplicable` too). The selector is a string, or a
+# A single tab page: the tab `selector`, its content `element`, and an optional
+# `icon`. The selector is a string, or a
 # `WidgetTabLabel` whose own icon wins over `icon`. A page is a Document, so the
 # selection chain descends Document→Document through a tabbed pane: the in-place
 # selection sync (`replace_selection!`) reaches the leaf and leaves the routing
 # ancestors untouched, and a caret move inside a tab does not re-point the
 # pane's active tab.
+#
+# `close` is the close button of the tab, a toolbar button that the strip of a
+# `closable` pane draws at the right end of the header. The page carries it, so the
+# button stays with its tab when the tab moves.
 @document struct WidgetTabPage <: WidgetDocument
     selector::Any
     element::Any
     icon::Any = nothing
-    duplicable::Bool = false
     tooltip::Any = nothing
+    close::Any = _make_tab_close_button()
 end
 
-# `WidgetTabPage(selector, element)`, `(selector, element, icon)` and
-# `(selector, element, icon, duplicable)` are Rule Y constructors: `icon`,
-# `duplicable` and `selection` are the trailing defaulted run.
+# The close button of a tab: the icon alone, with no padding, so the tab is as
+# wide as its name and its icon need. It is no stop of Tab, because a key closes
+# the tab in another way.
+_make_tab_close_button() =
+    WidgetToolbarItem("Close"; icon = :close, padding = Inset(0, 0, 0, 0), focusable = false)
 
-# Wrap a caller's tab entry — a `(selector, element)`, `(selector, element, icon)`
-# or `(selector, element, icon, duplicable)` tuple, or an already-built
-# `WidgetTabPage` — into a `WidgetTabPage`.
+# `WidgetTabPage(selector, element)` and `(selector, element, icon)` are Rule Y
+# constructors: `icon` and `selection` are the trailing defaulted run.
+
+# Wrap a caller's tab entry — a `(selector, element)` or `(selector, element, icon)`
+# tuple, or an already-built `WidgetTabPage` — into a `WidgetTabPage`.
 _as_tab_page(p::WidgetTabPage) = p
-_as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing,
-                                       length(p) >= 4 ? p[4] : false)
+_as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing)
 
 """
     WidgetTabbedPane(selector_element_pairs; closable, new_tab, <base kwargs>)
@@ -1298,22 +1536,26 @@ this is for tabs inside a widget.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetTabbedPane(Any[("Table", table), ("Note", note)]); title = "Results")
 
-Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` draws a close
-button on every tab, `new_tab` draws a new-tab button after the last one, and
-`draggable` makes a button down on a tab a grab. `duplicable` splits the close
-button of each page whose own `duplicable` is set: a `+` above the `x`. All four
-are off by default, and none of them decides what the gesture *means*: the strip
-answers with [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
-[`DragTabOperation`](@ref) / [`DuplicateTabOperation`](@ref), and the projection
-that owns the tabs decides.
+Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` gives every tab a
+close button, and a middle click on a tab closes it too. The close button is a
+[`WidgetToolbarItem`](@ref): flat at rest, and the surface of a button while the
+pointer is on it. The open tab always shows its close button. Another tab shows
+it only while the pointer is on that tab, and keeps its space while it is
+hidden, so no tab changes its width.
+`new_tab` draws a new-tab button after the last tab, and `draggable` makes
+a button down on a tab a grab. All three are off by default, and none of them
+decides what the gesture *means*: the strip answers with
+[`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
+[`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 
 See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
 children shown at once.
+
+For the assistant.
 """
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
@@ -1326,7 +1568,6 @@ children shown at once.
     closable::Bool = false
     new_tab::Bool = false
     draggable::Bool = false
-    duplicable::Bool = false
     tooltip::Any
 end
 
@@ -1340,13 +1581,12 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           tab_scroll::Integer=0,
                           closable::Bool=false,
                           new_tab::Bool=false,
-                          draggable::Bool=false,
-                          duplicable::Bool=false, tooltip=nothing)
+                          draggable::Bool=false, tooltip=nothing)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style),
                      Cell(Int(tab_scroll)),
-                     Cell(closable), Cell(new_tab), Cell(draggable), Cell(duplicable),
+                     Cell(closable), Cell(new_tab), Cell(draggable),
                      Cell(tooltip), Cell(nothing))
 end
 
@@ -1359,13 +1599,23 @@ set_cell_computation!(w::WidgetTabbedPane, f::Function) = (set_cell_computation!
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
 """
-    WidgetScrollPane(content; position, size,
-                     scroll_position, follow_end,
+    WidgetScrollPane(content; position, size, grows = (width = false, height = false),
+                     scroll_position, follow_end, is_selection_revealed = false,
                      vertical_scroll_bar = :auto, horizontal_scroll_bar = :auto,
                      <base kwargs>)
 
 A viewport a person scrolls over content that is taller or wider than its
 space.
+
+`grows` says for each axis whether the content fits the view or grows past it.
+On an axis that fits, the content gets the view as its exact extent: a text
+wraps there, and a part that can scroll stops there. On an axis that grows, the
+content gets the view as its minimum and no maximum: a part that fills takes at
+least the view, a part that can scroll takes its content, and the pane scrolls
+the content. On both, the content gets the view as its visible extent
+(`get_visible_height`). A page grows on its height: `grows = (width = false,
+height = true)`. A content that is larger than the view scrolls on an axis of
+either kind.
 
 The pane draws a scroll bar on each axis over the content, at the inner edge of
 its border, and the bar takes no space. A bar shows nothing at rest. It shows
@@ -1385,14 +1635,30 @@ second after a scroll. Then the thumb fades out. Each of `vertical_scroll_bar` a
 `(time, direction, distance)`, or `nothing`. A fast run of notches scrolls more
 at each notch, and the pane reads the run to know how much.
 
+`at_natural_size` is view state too, `false` by default. The place gives the
+width and the height of the view, and the content follows them: a picture shrinks
+to fit, a text wraps, a layout shares the width. While `at_natural_size` is
+`true`, the pane gives its content no limit on either axis, as an axis that grows
+does, so the content takes its natural size and the pane scrolls it. Ctrl+1 sets
+it, and Ctrl+0 clears it, when the content reads neither key. Each pane keeps its
+own choice, and `grows` stays the rule of the pane when the choice is off. A
+history does not record the choice, and a save does not write it.
+
 Use it to show a long table or a long text inside a bounded `size`. With
 `follow_end = true` the pane keeps the end of its content in view as content is
 added, which is what a log or a transcript wants.
 
+`follow_end` is `true` while a pane that follows its end shows the end, `false`
+while such a pane is scrolled away from its end, and `nothing` for a pane that
+never follows its end, which is the default. A turn of the wheel or a drag of a
+bar changes it between `true` and `false`, and never from `nothing`, so the
+content of a pane such as a table or a graph can grow under a view at its end and
+the view stays where it is.
+
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
-    open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
+    table = WidgetTable(["run", "delay"], [[n, "1.5 s"] for n in 1:100])
+    open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Runs")
 
 With `follow_end=true` the pane sticks to the *bottom* of its content — newly
 appended content (e.g. streaming chat turns) stays in view instead of scrolling
@@ -1407,15 +1673,29 @@ writes it back to bring the end into view.
 projection that makes a new pane at each print passes the cell of a field of
 its document, so the pane keeps its place across the prints.
 
+With `is_selection_revealed = true` the pane shows the selection of its content
+when it starts: while the pane holds the scroll position that it starts with, it
+scrolls so that the selected part shows in the middle of its view. A part that
+the content draws later, such as a line of a text that a read fills, shows when
+it comes. The first scroll of a person starts from that offset and writes a new
+position, and the pane then stays where the person puts it. `revealed_position`
+is the position that the pane starts with, or `nothing` for a pane that does not
+show its selection when it starts.
+
 See also `WidgetCard`, whose `height` bounds a body that scrolls.
+
+For the assistant.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
     position::Union{Point2D, Nothing}
     size::Union{Point2D, Nothing}
+    grows::NamedTuple{(:width, :height), Tuple{Bool, Bool}}
     scroll_position::Point2D
-    follow_end::Bool
+    follow_end::Union{Bool,Nothing}
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
+    at_natural_size::Bool        # view state: the content has no limit on either axis
+    revealed_position::Union{Point2D,Nothing} # the position that the pane starts with to show the selection, or nothing
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
@@ -1429,16 +1709,19 @@ end
 function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
+                          grows::NamedTuple=(width = false, height = false),
                           scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
-                          follow_end::Union{Bool,AbstractCell}=false,
+                          follow_end::Union{Bool,Nothing,AbstractCell}=nothing,
+                          is_selection_revealed::Bool=false,
                           vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
+    scroll_cell = scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position)
     WidgetScrollPane(Cell(content),
-                     Cell(position), Cell(size),
-                     scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
+                     Cell(position), Cell(size), Cell(_make_pane_grows(grows)), scroll_cell,
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end), Cell(nothing),
+                     Cell(false), Cell(is_selection_revealed ? scroll_cell[] : nothing),
                      Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))
@@ -1446,16 +1729,26 @@ end
 
 set_cell_computation!(w::WidgetScrollPane, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
+# The `grows` of a pane: whether its content grows past the view on each axis.
+_make_pane_grows(grows::NamedTuple) =
+    (width = Bool(get(grows, :width, false)), height = Bool(get(grows, :height, false)))
+
+# The `grows` of a pane whose content fits the view on both axes.
+const _PANE_FITS = (width = false, height = false)
+
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
 """
-    WidgetTransformPane(content; transform, position, size,
-                        <base kwargs>)
+    WidgetTransformPane(content; transform, position, size = Point2D(0, 0),
+                        grows = (width = false, height = false), <base kwargs>)
 
 A pane that applies a 2-D affine [`AffineTransform`](@ref) to its `content` —
 the unification of scrolling (a pure translation) and zooming (a pure scale).
 The pane projects to a clipping `GraphicsViewport` whose `transform` carries the
 matrix, so content is magnified/panned inside a fixed on-screen box.
+
+`size` is the authored size of the pane; `Point2D(0, 0)` authors none, so the pane
+takes the slot that its parent gives.
 
 `transform` is **transient view state** (like `WidgetScrollPane.scroll_position`)
 — it is not serialised. It defaults to `affine_identity`. Gestures edit it via a
@@ -1465,11 +1758,29 @@ translate+scale subset is rendered today; rotation/shear is future work.
 
 `wheel_run` is view state, as on a `WidgetScrollPane`: the last notch of a run of
 the wheel, so a fast run pans more at each notch.
+
+`grows` says for each axis whether the content fits the view or grows past it,
+as on a `WidgetScrollPane`.
+
+Use it to let the person zoom and pan a picture or a drawing that does not scroll
+on its own. A tab holds the `content` of the pane, so a picture file in a zoom tab
+follows its file.
+
+# Example
+
+    picture_1 = open_file_document!("media/throughput.png")
+    zoom_tab_1 = open_pane!(WidgetTransformPane(picture_1); title = "Throughput")
+    show_pane!(zoom_tab_1)
+
+See also `open_pane!` and `ImageFile`.
+
+For the assistant.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
     position::Union{Point2D, Nothing}
     size::Point2D
+    grows::NamedTuple{(:width, :height), Tuple{Bool, Bool}}
     transform::AffineTransform
     wheel_run::Any               # view state: the last notch of a run of the wheel, or nothing
     visible::Bool
@@ -1483,12 +1794,13 @@ end
 function WidgetTransformPane(content;
                             transform::AffineTransform=affine_identity,
                             position=nothing,
-                            size=nothing,
+                            size=Point2D(0, 0),
+                            grows::NamedTuple=(width = false, height = false),
                             visible::Bool=true,
                             margin=nothing, border=nothing, padding=nothing,
                             style=nothing, tooltip=nothing)
     WidgetTransformPane(Cell(content),
-                        Cell(position), Cell(size), Cell(transform), Cell(nothing),
+                        Cell(position), Cell(size), Cell(_make_pane_grows(grows)), Cell(transform), Cell(nothing),
                         Cell(visible), Cell(margin), Cell(border), Cell(padding),
                         Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -1611,6 +1923,8 @@ The same badge is drawn by every widget that holds badges, such as the label of
 a tab ([`WidgetTabLabel`](@ref)).
 
 See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
+
+For the assistant.
 """
 @document struct WidgetBadge <: WidgetDocument
     position::Point2D
@@ -1652,13 +1966,14 @@ See also `WidgetIcon`.
 @document struct WidgetIconMark <: WidgetDocument
     content::Any
     role::Any
+    tooltip::Any = nothing
 end
 
 WidgetIconMark(content; role = nothing) = WidgetIconMark(content, role)
 
 """
     WidgetIcon(name; role = nothing, top_left = nothing, top_right = nothing,
-               bottom_left = nothing, bottom_right = nothing)
+               bottom_left = nothing, bottom_right = nothing, size = 0)
 
 An icon with its decoration: the Lucide glyph `name`, tinted in `role`, one of
 `:success`, `:warning`, `:error`, `:info` and `:accent`, or `nothing` for the
@@ -1668,7 +1983,9 @@ glyph or a count, smaller than the icon, half outside its box, on a disc of the
 color behind it. A plain `Symbol` names an icon with no decoration.
 
 Use it to show the state of a thing on its icon, as the decoration of a document
-says it.
+says it. It also stands on its own in any layout, as tall as a line of the label
+font, or `size` pixels when `size` is above 0; a toolbar item that shows it as
+its action takes the same size, so a mark can be pressed.
 
 # Example
 
@@ -1683,11 +2000,13 @@ See also `WidgetIconMark` and `make_decoration_icon`.
     top_right::Any
     bottom_left::Any
     bottom_right::Any
+    size::Int
+    tooltip::Any = nothing
 end
 
 WidgetIcon(name::Symbol; role = nothing, top_left = nothing, top_right = nothing, bottom_left = nothing,
-           bottom_right = nothing) =
-    WidgetIcon(name, role, top_left, top_right, bottom_left, bottom_right)
+           bottom_right = nothing, size::Integer = 0) =
+    WidgetIcon(name, role, top_left, top_right, bottom_left, bottom_right, Int(size))
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -1707,6 +2026,8 @@ Use it to put a line between two groups in a column or a row. `orientation` is
                title = "Divided")
 
 See also `WidgetCard`, which frames a group instead of dividing two.
+
+For the assistant.
 """
 @document struct WidgetSeparator <: WidgetDocument
     position::Point2D
@@ -1741,7 +2062,7 @@ surface is.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
     open_pane!(WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -1755,10 +2076,23 @@ is collapsed, and the chevron is the fold target. A click on the title is a clic
 on the title. The chevron takes a column of its own, as tall as the title, and
 the title, the body and the footer all start past it, so the body lines up under
 the title's word. A card that folds without saying so is a card a person can not
-read, so a card that is not collapsible does not fold from a click. It needs a
-`Document` title, because the chevron's column is as tall as the title's own
-box. A producer whose fold state lives elsewhere — a domain node's flag — makes
-`collapsed` a computed cell that reads it.
+read, so a card that is not collapsible does not fold from a click. The
+chevron's column is as tall as the header row that the card drew, whatever the
+title is. A producer whose fold state lives elsewhere — a domain node's flag —
+makes `collapsed` a computed cell that reads it.
+
+`title` is a `String`, a `PrimitiveString` or any other document, and each draws
+as follows:
+
+| title | style | a press with Alt |
+| --- | --- | --- |
+| a `String` | the title style of the card | selects the field `title` of the card as a part, and the selected title draws the band of a selected part |
+| a `PrimitiveString` | the title style of the card, which the card gives to the print of the title only, so the content, the description and the footer keep theirs | selects the `PrimitiveString` |
+| a `WidgetLabel` or any other document | its own | selects that document |
+
+A `PrimitiveString` title is a document, so its caret and its edits work through
+its own printer, and a live title is a `PrimitiveString` whose value is a
+computed cell.
 
 `padding` is the card's own padding: an `Inset` with a number of pixels per
 side. `nothing`, the default, means the theme's. A `:plain` card with
@@ -1775,6 +2109,20 @@ and its header in every variant — only the panel behind them changes:
 | `:tinted` | the theme's accent | none |
 | `:muted` | the theme's muted color | none |
 | `:plain` | none | none |
+| `:row` | none at rest, the hover layer under the pointer, the selection band while the selection is inside it | none |
+
+A `:row` card is a row of a list that a builder makes of widgets, such as a row
+of an outline: it lights while the pointer is on it and tints while the caret
+is in it, and both colours follow its `mouse_target` and its `selection`, so a
+light draws the band again and builds nothing. A part inside it that shows only
+then, such as the menu of the row, reads the same two cells
+(`get_mouse_target(card)`, `get_selection(card)`).
+
+`gestures` are the bindings of the card itself. A right click and a dwell on the
+card read them after its content, and a key that its content does not take
+reads them while the selection is in the card, so a row can open its menu. A
+plain left click that nothing inside the card uses reads them too, before the
+card takes the click as a solid surface.
 
 A quiet variant is for a surface that groups without announcing itself — one
 band of a transcript, where a border around every message would be noise. It is
@@ -1788,6 +2136,8 @@ shared a color would draw one shape.
 
 See also `WidgetTitlePane` for a title bar alone, `WidgetAccordion` for several
 folding sections, and `VerticalLayout` to stack cards.
+
+For the assistant.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D
@@ -1801,6 +2151,7 @@ folding sections, and `VerticalLayout` to stack cards.
     collapsed::Bool
     variant::Symbol
     collapsible::Bool
+    gestures::Any
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
     padding::Union{Inset, Nothing}
@@ -1824,13 +2175,16 @@ tall content simply extends past the card.
 WidgetCard(; position::Point2D=Point2D(0, 0), title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
-           collapsible::Bool=false, margin=nothing, border=nothing, padding=nothing,
-           style=nothing, tooltip=nothing) =
+           collapsible::Bool=false, gestures=GestureBinding[], margin=nothing, border=nothing,
+           padding=nothing, style=nothing, tooltip=nothing) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
                Cell(visible), Cell(collapsed), Cell(variant),
-               Cell(collapsible), Cell(margin), Cell(border), Cell(padding), Cell(style),
+               Cell(collapsible), Cell(gestures), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(tooltip), Cell(nothing))
+
+# The bindings of the card itself, such as the menu of a row on a right click.
+get_instance_gesture_bindings(w::WidgetCard) = w.gestures
 
 # ── FindBarView ─────────────────────────────────────────────────────────────
 
@@ -1859,7 +2213,7 @@ back where it was.
 # Example
 
     text = HighlightedText(text = block, pattern = "dolor")
-    bar = WidgetCard(; title = WidgetLabel("Find"), collapsible = true,
+    bar = WidgetCard(; title = "Find", collapsible = true,
                      content = FormLayout([(WidgetLabel("Find"), ObjectField(text, "pattern"))]))
     FindBarView(; bar, content = text)
 
@@ -1894,6 +2248,8 @@ slide: a slide needs a start time on the editor's clock, and the reader of the
 switch has no context that reaches that clock.
 
 See also `WidgetCheckbox` and `WidgetToggleGroup`.
+
+For the assistant.
 """
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
@@ -1939,6 +2295,8 @@ start to its end once a second. `width` is the bar's length in pixels.
 
 See also `WidgetProgressRing`, which shows the same value in one line of text,
 `WidgetSlider`, which a person drags, and `WidgetBadge` for a state in one word.
+
+For the assistant.
 """
 @document struct WidgetProgressBar <: WidgetDocument
     position::Point2D
@@ -1987,6 +2345,8 @@ ring takes no width: its diameter is one line of the text of the theme.
     open_pane!(WidgetProgressRing(0.4); title = "Progress")
 
 See also `WidgetProgressBar`, which shows the same value as a bar.
+
+For the assistant.
 """
 @document struct WidgetProgressRing <: WidgetDocument
     position::Point2D
@@ -2023,6 +2383,8 @@ the runs. `value` is the share, and `width` is the track's length in pixels.
 
 See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgressBar` for
 a share that is only shown.
+
+For the assistant.
 """
 @document struct WidgetSlider <: WidgetDocument
     position::Point2D
@@ -2100,6 +2462,8 @@ select the next or the previous option.
 
 See also `WidgetToggleGroup` for the same choice in one row, and `WidgetSelect`
 for many choices that open on a click.
+
+For the assistant.
 """
 @document struct WidgetRadioGroup <: WidgetDocument
     position::Point2D
@@ -2124,7 +2488,11 @@ WidgetRadioGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Uni
 """
     WidgetAvatar(initials; position, size=64, <base kwargs>)
 
-A circular avatar showing initials (image-clipping is future work).
+A circular avatar `size` pixels across that shows `initials`, a text, or an icon
+when `initials` is a `Symbol` that names one, such as `:user` or `:sparkle`. The
+text and the icon scale with the size, so a small avatar beside a time reads as
+well as a large one. `style` gives the colour of the circle (`content_color`) and
+of what it shows (`label_text_color`).
 """
 @document struct WidgetAvatar <: WidgetDocument
     position::Point2D
@@ -2149,8 +2517,9 @@ WidgetAvatar(initials; position::Point2D=Point2D(0, 0), size::Integer=64, visibl
 
 A bordered message with a bold title and a muted description.
 
-`icon` names an icon drawn before the title, as tall as the title and in its
-color, such as `:warning` for a fault.
+`icon` is drawn before the title, as tall as the title: the name of an icon, in
+the color of the title, or a [`WidgetIcon`](@ref), in the color of its role, such
+as `WidgetIcon(:warning; role = :warning)` for a check that found a difference.
 
 Use it to tell a person something that needs attention: a run failed, a file
 is missing, a check passed. `variant = :destructive` draws it in the color of a
@@ -2163,6 +2532,8 @@ fault; `:default` is calm.
 
 See also `WidgetBadge` for one word of status, and `WidgetLabel` for a plain
 line.
+
+For the assistant.
 """
 @document struct WidgetAlert <: WidgetDocument
     position::Point2D
@@ -2328,6 +2699,8 @@ choice that a person seldom changes.
 
 See also `WidgetRadioGroup` for the same choice in a column, and `WidgetSwitch`
 for on or off.
+
+For the assistant.
 """
 @document struct WidgetToggleGroup <: WidgetDocument
     position::Point2D
@@ -2390,6 +2763,8 @@ box is inert (renders the closed state only).
 
 See also `WidgetRadioGroup` and `WidgetToggleGroup` for a few choices that stay
 visible, and `WidgetList` for a list that stays open.
+
+For the assistant.
 """
 @document struct WidgetSelect <: WidgetDocument
     position::Point2D
@@ -2459,7 +2834,9 @@ Several lines of text.
 
 Use it to show or take a paragraph: a note, a NED fragment, a finding.
 `content` is a string, and its newlines split the rows; `rows` is the height in
-lines and `width` a floor in pixels. A string is read only. A text document, such
+lines and `width` the width in pixels. A larger text is cut at the box, and the
+area scrolls its text so that the caret stays in view; `scroll_position` is that
+offset, view state that no undo records. A string is read only. A text document, such
 as a `TextBlock`, is edited as the content of a `WidgetText` is, and Return
 types a line break.
 
@@ -2469,6 +2846,8 @@ types a line break.
 
 See also `WidgetText` for one line, and `WidgetLabel` for text that is only
 read.
+
+For the assistant.
 """
 @document struct WidgetTextarea <: WidgetDocument
     position::Point2D
@@ -2482,12 +2861,15 @@ read.
     padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
+    scroll_position::Point2D   # view state: the offset of a text that the box cuts
 end
 WidgetTextarea(content; position::Point2D=Point2D(0, 0), width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
-               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing,
+               scroll_position::Point2D=Point2D(0, 0)) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(enabled),
-                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position),
+                   Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -2519,15 +2901,16 @@ the open one.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
+    note = WidgetLabel("The delay grows with the load.")
+    open_pane!(WidgetAccordion(Any[("Table", table), ("Note", note)]; expanded = 2, width = 600); title = "Results")
 
 Each item is wrapped in a [`WidgetAccordionItem`](@ref).
 
 See also `WidgetTabbedPane` for sections behind tabs, and `WidgetCard` for one
 section that folds.
+
+For the assistant.
 """
 @document struct WidgetAccordion <: WidgetDocument
     position::Point2D
@@ -2546,6 +2929,60 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible),
                     Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+
+# ── WidgetFactGroup ─────────────────────────────────────────────────────────
+
+# One row of a group of facts: a `label` and a `value`. A first-class Document, so
+# the selection chain descends Document→Document into a value that is a document;
+# the group draws it, so it has no printer of its own.
+@document struct WidgetFact <: WidgetDocument
+    label::Any
+    value::Any
+    tooltip::Any = nothing
+end
+
+_as_fact(fact::WidgetFact) = fact
+_as_fact(fact::Pair) = WidgetFact(fact.first, fact.second)
+
+"""
+    WidgetFactGroup(facts; title=nothing, position, <base kwargs>)
+
+An optional title over rows of aligned label and value pairs, the facts of a task
+or of a project.
+
+Use it where a page tells what something is: its configuration, its run number,
+its exit code. The labels stand in a muted column of the width of the widest
+label, and the values stand in a column beside it. A value is a string, a number
+or a document such as a `WidgetButton`, a `WidgetBadge` or a link. A string wraps
+at the width of its column. The group has no surface of its own: it sits inside
+a card or a page, and its gaps, fonts and colors come from the theme.
+
+`facts` is a `Vector` of `label => value` pairs, or of [`WidgetFact`](@ref).
+
+# Example
+
+    open_pane!(WidgetFactGroup(["configuration" => "Fifo1", "run" => "#0", "exit code" => "0"]; title = "Run");
+               title = "Facts")
+
+See also `WidgetTable` for items of one kind in columns, and `WidgetCard` for a
+section that holds a group.
+"""
+@document struct WidgetFactGroup <: WidgetDocument
+    position::Point2D
+    title::Any
+    facts::CellVector
+    visible::Bool
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
+    style::Any
+    tooltip::Any
+end
+WidgetFactGroup(facts::Vector; title=nothing, position::Point2D=Point2D(0, 0), visible::Bool=true,
+                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetFactGroup(Cell(position), Cell(title), CellVector(Cell[Cell(_as_fact(fact)) for fact in facts]),
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip),
+                    Cell(nothing))
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
@@ -2702,7 +3139,8 @@ row, each a part of its own, `column_headers` the header row, `row_headers` the
 header column, and `corner` the corner. A plain press goes to the content of a
 part first; one that the content declines selects its row or its column: a
 cell its row, a row header its row, a column header its column, and the corner
-the table. An Alt+press selects the part itself.
+the table. An Alt+double click selects the part itself, and an Alt+click puts the caret
+into its text.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
   padding inside a cell is the projection's `cell_padding`, from the theme.
 - `column_policy`, `row_policy` — the `SizePolicy` of a column and of a row
@@ -2754,6 +3192,8 @@ The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
 
 See also `make_result_table` and `WidgetList` for one column.
+
+For the assistant.
 """
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
@@ -3198,7 +3638,7 @@ get_instance_gesture_bindings(w::WidgetTree) = w.gestures
     CloseTabOperation(widget, tab_index)
 
 Signals that the close button of tab `tab_index` (1-based) of `widget` was
-clicked. It only *reports* — the strip knows a button was pressed and nothing
+clicked, or that the tab got a middle click. It only *reports* — the strip knows a button was pressed and nothing
 about what closing means, so the projection that owns the tabs answers it with an
 edit of its own document. A click on a tab itself is a `ReplaceSelectionOperation`
 of `selector_element_pairs[tab_index]`.
@@ -3227,18 +3667,6 @@ grabbed, and the projection that owns the tabs runs the drag from there, because
 only it knows where a tab may be dropped.
 """
 struct DragTabOperation <: Operation
-    widget::WidgetTabbedPane
-    tab_index::Int
-end
-
-"""
-    DuplicateTabOperation(widget, tab_index)
-
-Signals that the duplicate button of tab `tab_index` (1-based) of `widget` was
-clicked: the `+` above the close button. Reports only; see
-[`CloseTabOperation`](@ref).
-"""
-struct DuplicateTabOperation <: Operation
     widget::WidgetTabbedPane
     tab_index::Int
 end
@@ -3274,6 +3702,19 @@ struct ResizeSplitPaneOperation <: Operation
     splitter_index::Int
     new_size_a::Int
     new_size_b::Int
+end
+
+"""
+    SetSplitterUnderPointerOperation(split, splitter_index)
+
+Record that the pointer is on the grab area of the splitter after slot
+`splitter_index` of `split`, or on none when `splitter_index` is `0`: the
+print shows a band on that splitter after a delay. The field is written only
+when its value changes. Transient UI state only.
+"""
+struct SetSplitterUnderPointerOperation <: Operation
+    split::WidgetSplitPane
+    splitter_index::Int
 end
 
 """
@@ -3365,14 +3806,16 @@ with none otherwise.
 
 # Example
 
-    again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")))
-    open_pane!(WidgetButton(again); title = "Runner")
+    again = Action("Run again"; callback = editor -> rerun_tasks!(find_task_group("T1"; editor); editor))
+    open_pane!(WidgetButton(again); title = "Run again")
 
 `shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the
 name of an icon drawn before the label. A click invokes it through
 [`InvokeActionOperation`].
 
 See also `WidgetButton`, which shows one.
+
+For the assistant.
 """
 @document struct Action
     label::Any
@@ -3501,8 +3944,9 @@ end
 # page is dead while it looks and draws exactly right.
 OperationModule.is_self_contained_operation(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
-    DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation,
-    ResizeSplitPaneOperation, EndSplitterDragOperation}) = true
+    DragTabOperation, StartSplitterDragOperation,
+    ResizeSplitPaneOperation, EndSplitterDragOperation,
+    SetSplitterUnderPointerOperation}) = true
 
 """
     _write_view_state(widget, field, value) -> ReplaceViewStateOperation
@@ -3535,7 +3979,7 @@ has_dormant_selection(::FindBarView) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 
-# The four strip reports are inert when nothing claimed them. A press on a close
+# The three strip reports are inert when nothing claimed them. A press on a close
 # button with no projection above to say what closing means must do nothing — the
 # report reached the editor because no one answered it, which is not an error.
 """
@@ -3546,7 +3990,6 @@ Apply a widget operation.
 evaluate_operation(editor, op::CloseTabOperation) = nothing
 evaluate_operation(editor, op::OpenTabOperation) = nothing
 evaluate_operation(editor, op::DragTabOperation) = nothing
-evaluate_operation(editor, op::DuplicateTabOperation) = nothing
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
     split = op.split
@@ -3574,13 +4017,20 @@ function evaluate_operation(editor, op::ResizeSplitPaneOperation)
     k = op.splitter_index
     sizes[k] == op.new_size_a || (sizes[k] = op.new_size_a)
     sizes[k + 1] == op.new_size_b || (sizes[k + 1] = op.new_size_b)
-    # Pin both dragged slots so the constrained layout honours their new size
-    # exactly instead of redistributing it by weight.
+    # Pin every slot but the last. A pinned slot keeps its size exactly, and the
+    # last slot takes the rest of the total, so the drag is exact, and a later
+    # change of the total, such as a resize of the window, goes to the last slot.
     pinned = split.pinned
     if length(pinned) >= k + 1
-        pinned[k] === true     || (pinned[k] = true)
-        pinned[k + 1] === true || (pinned[k + 1] = true)
+        for i in 1:(length(pinned) - 1)
+            pinned[i] === true || (pinned[i] = true)
+        end
     end
+end
+
+function evaluate_operation(editor, op::SetSplitterUnderPointerOperation)
+    op.split.splitter_under_pointer == op.splitter_index ||
+        (op.split.splitter_under_pointer = op.splitter_index)
 end
 
 function evaluate_operation(editor, op::EndSplitterDragOperation)
@@ -3647,29 +4097,54 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
+FocusModule.is_focusable_document(w::WidgetToolbarItem) =
+    getfield(w, :focusable)[] && !(getfield(w, :enabled)[] === false)
+
+# A link is a stop while it opens something, so Return reaches it.
+FocusModule.is_focusable_document(w::WidgetLink) = !(getfield(w, :enabled)[] === false)
 
 # ── What a widget says about itself ──────────────────────────────────────────
 
 # A widget stores what it says about itself, where every other document computes
 # it: whoever places a widget knows why it is there, and the widget does not. Both
-# fields hold `nothing` until somebody sets one. A `String` is wrapped, because most
-# tooltips are one line and `tooltip = "Run the selected configurations"` is what
-# a caller wants to write.
+# fields hold `nothing` until somebody sets one. A `String` is the text of a
+# `TooltipNote`, because most tooltips are one line and
+# `tooltip = "Run the selected configurations"` is what a caller wants to write;
+# any other document, a note too, says itself. A function with no argument makes
+# the note when the pointer rests, so a part reads its facts only when a person
+# asks, and a fact that changes often costs nothing before that.
 _find_widget_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
 
 _as_tooltip_document(::Nothing) = nothing
-_as_tooltip_document(text::AbstractString) = PrimitiveString(String(text))
+_as_tooltip_document(text::AbstractString) = isempty(text) ? nothing : TooltipNote(; text = String(text))
+_as_tooltip_document(make::Function) = _as_tooltip_document(make())
 _as_tooltip_document(document) = document
 
-# A toolbar item that shows only a picture still says what it does: with no
-# tooltip of its own, it says the label of its action. An empty label says
-# nothing.
-function _find_widget_tooltip(item::WidgetToolbarItem)
-    item.tooltip === nothing || return _as_tooltip_document(item.tooltip)
-    label = item.action.label
-    label isa AbstractString || return _as_tooltip_document(label)
-    isempty(label) ? nothing : _as_tooltip_document(label)
+# A control of an action says a note: the label of the action is its title, the
+# key of the action its key cap, and the tooltip of the control its text. A
+# control that shows its label says nothing more with no tooltip of its own; a
+# control that shows only a picture says its label and its key all the same.
+function _make_action_note(action::Action, tooltip; shows_label::Bool)
+    tooltip === nothing || tooltip isa AbstractString || return _as_tooltip_document(tooltip)
+    text = tooltip === nothing || isempty(tooltip) ? nothing : String(tooltip)
+    text === nothing && shows_label && return nothing
+    label = action.label
+    title = !(label isa AbstractString) ? label : isempty(label) ? nothing : String(label)
+    keys = action.shortcut === nothing ? Any[] : Any[action.shortcut]
+    title === nothing && text === nothing && isempty(keys) && return nothing
+    TooltipNote(; title, keys, text)
 end
+
+# A toolbar item shows only a picture.
+_find_widget_tooltip(item::WidgetToolbarItem) = _make_action_note(item.action, item.tooltip; shows_label = false)
+
+_find_widget_tooltip(item::WidgetMenuItem) = _make_action_note(item.action, item.tooltip; shows_label = true)
+
+# A button with an empty label shows only its icon.
+_find_widget_tooltip(button::WidgetButton) =
+    _make_action_note(button.action, button.tooltip; shows_label = _has_action_label(button.action))
+
+_has_action_label(action::Action) = !(action.label isa AbstractString && isempty(action.label))
 
 # A widget says it when the pointer rests on it: the dwell is a gesture of every
 # widget, and a command runs it on the selected one.
@@ -3712,11 +4187,32 @@ pred_arguments(shell::WidgetShell) =
 # A saved window keeps a scroll pane whole: what it holds, its size, and where it
 # was scrolled, but not the run of the wheel. A list of the Help menu is a tab of
 # this kind.
-pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
+pred_arguments(pane::WidgetScrollPane) =
+    (pane.content,), _get_field_keywords(pane, (:wheel_run, :at_natural_size))
+
+# The size of the content is a choice of the view of a pane, and no part of what it holds.
+get_view_state_fields(::Type{<:WidgetScrollPane}) = (:at_natural_size,)
 
 # A transform pane writes what it holds first, as its constructor takes it, and
 # its other fields, but the run of the wheel.
 pred_arguments(pane::WidgetTransformPane) = (pane.content,), _get_field_keywords(pane, (:wheel_run,))
+
+# The scroll, the first row in view, the rows in view and the drag of a column
+# edge are what a person did to the view of a table, and no part of what it holds.
+get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :shown, :column_drag)
+
+# The offset of a text in a field that cuts it follows the caret, and is no part of
+# what the field holds.
+get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position,)
+get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position,)
+
+# A saved table keeps its headers and its cells. The counts of its rows and of
+# its columns, which a table without data for them derives from the cells and the
+# headers, are built again when the file loads; the data of a row or a column is
+# kept.
+pred_arguments(table::WidgetTable) =
+    (), filter(keyword -> !(last(keyword) isa Union{WidgetTableRows,WidgetTableColumns}),
+               last(invoke(pred_arguments, Tuple{Any}, table)))
 
 # The keywords that a file writes for `widget` by default, but for its content,
 # which is written as the first argument, and for the fields `left_out`.
@@ -3727,3 +4223,6 @@ _get_field_keywords(widget::WidgetDocument, left_out::Tuple) =
 # A person sees through a scroll pane to what it shows, which names the pane.
 get_edited_field(::WidgetScrollPane) = :content
 get_document_title(pane::WidgetScrollPane) = get_document_title(pane.content)
+
+# A person sees through a transform pane to what it zooms, as through a scroll pane.
+get_edited_field(::WidgetTransformPane) = :content

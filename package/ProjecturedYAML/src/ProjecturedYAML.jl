@@ -36,8 +36,13 @@ for _n in names(YamlModule)
     _n === :YamlModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
-# The natural rows of this domain, which every first window of the display builds.
-using PrecompileTools: @compile_workload
-@compile_workload run_natural_rows_workload(YamlModule)
+# The workload of this package: the natural rows of this domain, which every
+# first window of the display builds, and the open of a file of this domain in
+# the application window, a click, a key, a save, an undo and the name buffer.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    run_natural_rows_workload(YamlModule)
+    run_file_workload(YamlModule.YamlFile)
+end
 
 end # module ProjecturedYAML

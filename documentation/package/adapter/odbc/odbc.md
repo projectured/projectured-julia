@@ -1,6 +1,6 @@
 # The ODBC database adapter
 
-> **Kind:** design · **Status:** current · **Stands on:** [database.md](../../domain/database/database.md), [sql.md](../../domain/sql/sql.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [database.md](../../domain/database/database.md), [sql.md](../../domain/sql/sql.md)
 
 `ProjecturedODBC` is the one concrete database adapter, built on `ODBC.jl`. It implements the adapter interface of `ProjecturedDatabase`, keeps a pool of connections, and brings a live database into a chain of projections: a catalog that queries when a projection reads it, and the result of a query as a table. This document says how the adapter reaches a database, what a live query does, and what the package does not do. The adapter seam and the catalog tree are in [database.md](../../domain/database/database.md).
 

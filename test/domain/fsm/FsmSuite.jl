@@ -26,10 +26,11 @@ function test_fsm()
         test_fsm_document()
         test_fsm_diagram()
         test_fsm_to_julia_code()
+        test_fsm_example_run()
         test_fsm_to_syntax()
         test_fsm_theme()
     end
 end
 
 export test_fsm, test_fsm_layering, test_fsm_document, test_fsm
-export test_fsm_diagram, test_fsm_to_julia_code, test_fsm_to_syntax, test_fsm_theme
+export test_fsm_diagram, test_fsm_to_julia_code, test_fsm_example_run, test_fsm_to_syntax, test_fsm_theme

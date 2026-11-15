@@ -1,16 +1,21 @@
 # Fragment of `DocumentModule` — the default behaviours every document inherits
-# unless it overrides them: the two walk-steering traits (`is_element_collection`
-# / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
+# unless it overrides them: the walk-steering traits (`is_element_collection`,
+# `is_walk_opaque` and `is_field_walked`, declared in `DocumentInterface.jl`), the unbounded default
 # for the three sync policy hooks, the defaults of the `CopyPolicy` hooks and of
-# `has_document_duplicate`, and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
+# `has_document_duplicate`, the value that stands for itself, and the
+# depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
 # collection type — a document opts into a shape by overriding one, and the walk
 # reads the shape off the trait, so it sits below every collection it descends.
 
 is_element_collection(value) = false
 is_walk_opaque(value) = false
+is_field_walked(document, name) = true
 is_collection_field_type(::Val) = false
 # No substitution: a declared type is what the cell layout holds, unchanged.
 get_cell_layout_field_type(::Val) = nothing
+# A value is its own document; the reference layer adds the method of a
+# referenced document.
+get_document(x) = x
 
 """
     HiddenElements(source, from, to)
@@ -53,6 +58,13 @@ copy_selection_cell(policy::CopyPolicy, cell) =
 # Any name, because a walk asks it of every field name, and the fields of a tuple
 # are numbers.
 is_view_state_field(name) = name === :selection || name === :mouse_target
+# One method body for every type: a walk asks it of each type that it meets, and
+# a copy compiled for each type is a wait at the first edit of that type.
+is_view_state_field(@nospecialize(T::Type), name) = is_view_state_field(name) || name in get_view_state_fields(T)
+
+# A document holds no state of a view but its selection and its mouse target until
+# its type declares more.
+get_view_state_fields(::Type) = ()
 
 # A kind has no duplicate until it declares one.
 has_document_duplicate(document) = false

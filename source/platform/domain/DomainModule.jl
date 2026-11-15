@@ -38,22 +38,23 @@ import ..OperationModule: evaluate_operation, make_inverse_operation, describe_o
 export DocumentBase
 export compute_loaded_subtypes, var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
-       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
-       get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
-       complete_insertion, name_completion, resolve_insertion, find_declared_place_type,
+       get_domain_insertion, is_domain_placeholder, insertable, get_insertion_aliases, get_insertion_icon, is_element_type,
+       make_insertion_document, get_insertion_names, get_insertion_candidates, compute_concrete_subtypes, compute_document_types,
+       complete_insertion, name_completion, resolve_insertion, find_insertion_choices,
+       find_declared_place_type,
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
-export DocumentNothing, DocumentInsertion
+export DocumentNothing, DocumentInsertion, DOCUMENT_INSERTION_PLACEHOLDER
 export compute_context_menu
 export acquire_document!, AcquireDocumentOperation, release_document!, ReleaseDocumentOperation,
        add_document_holder!, remove_document_holder!, is_document_held, hold_documents!,
        release_held_documents!, ChangeHeldDocumentsOperation, start_document_read!, DOCUMENT_READ_WAIT
-export make_document_view, follow_content_selection!
+export make_document_view, follow_content_selection!, make_following_document, is_followable_document
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file, make_pasted_document_operation
 export DocumentCondition, DocumentCount, DocumentDecoration, get_document_decoration, ConditionLook,
        get_condition_look, DOCUMENT_CONDITIONS, find_decoration_tint, find_shared_decoration_tint,
-       collect_decoration_marks, format_decoration_words
+       collect_decoration_marks, collect_decoration_conditions, format_decoration_words
 
 
 include("DocumentCore.jl")

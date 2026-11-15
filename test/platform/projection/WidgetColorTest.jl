@@ -54,7 +54,7 @@ _has_color(colors, color) = any(c -> is_color_equal(c, color), colors)
 # and whose text styles take those colors. A color in the output that is none of
 # them, and no color that a style names, is a constant of a printer.
 function _make_probe_theme()
-    base = make_widget_theme()
+    base = WidgetTheme()
     count = Ref(0)
     probe() = (count[] += 1; StyleColor(count[] / 101, 0.37, 1 - count[] / 101, 1.0))
     values = Dict{Symbol, Any}()
@@ -117,7 +117,8 @@ end
 # the popup are left out: one needs the text domain and the other the screen
 # domain, and their colors are not the widget layer's.
 const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example,
-    make_widget_accordion_document_example, make_widget_alert_atom_document_example,
+    make_widget_accordion_document_example, make_widget_fact_group_document_example,
+    make_widget_alert_atom_document_example,
     make_widget_alert_document_example, make_widget_avatar_document_example,
     make_widget_badge_atom_document_example, make_widget_badge_document_example,
     make_widget_button_action_document_example, make_widget_button_document_example,
@@ -152,14 +153,14 @@ function test_widget_colors()
 
 render(projection, widget) = print_document(projection, nothing, widget, PrinterContext()).output
 default_projection = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure).dispatch))
-theme = make_widget_theme()
+    WidgetToGraphics(; measure = _color_test_measure).dispatch))
+theme = WidgetTheme()
 red = StyleColor(1.0, 0.0, 0.0, 1.0)
 
 @testset "every color comes from the theme or from a style" begin
     probe = _make_probe_theme()
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure, theme = probe).dispatch))
+        WidgetToGraphics(; measure = _color_test_measure, theme = probe).dispatch))
     allowed = _theme_colors(probe)
     for make in _PROBED_WIDGET_DOCUMENTS
         @testset "$(nameof(make))" begin

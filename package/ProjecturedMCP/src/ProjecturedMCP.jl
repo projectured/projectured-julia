@@ -23,10 +23,12 @@ for _src in (ProjecturedKernel,)
     end
 end
 
-# The one slice of the platform that the adapter uses: the store of the MCP log,
-# which it writes with each call that it answers.
+# The two slices of the platform that the adapter uses: the store of the MCP log,
+# which it writes with each call that it answers, and the tasks, whose rows record
+# that a client over MCP started them.
 import ProjecturedPlatform
 const McpLogModule = ProjecturedPlatform.McpLogModule
+const TaskModule = ProjecturedPlatform.TaskModule
 
 include("../../../source/adapter/mcp/McpModule.jl")
 
@@ -37,5 +39,10 @@ export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
 # A person who names this package gets the names that most users call.
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
+
+# This package has no workload of its own. It compiles the calls that an
+# application records for it, as its preferences say.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead
 
 end # module ProjecturedMCP

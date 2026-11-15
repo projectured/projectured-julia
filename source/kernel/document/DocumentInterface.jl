@@ -2,8 +2,8 @@
 # abstract type every document subtypes, and the open generics of its shared
 # value protocol and reflection walk. Nothing here carries a body — the trait
 # defaults live in `DocumentDefaults.jl`, deep copy in `DocumentCopy.jl`, the
-# record shadow-sync in `DocumentSync.jl`, the reflection walk and value-search
-# in `DocumentWalk.jl` / `DocumentSearch.jl`, and the `@document` codegen that
+# record shadow-sync in `DocumentSync.jl`, the reflection walk in
+# `DocumentWalk.jl`, and the `@document` codegen that
 # declares most concrete documents in `DocumentMacro.jl`.
 
 """
@@ -127,6 +127,29 @@ than added to.
 function get_document_title end
 
 """
+    get_document(x) -> document
+
+The document that `x` stands for: for a referenced document, the document that
+it references, as it was when a read found it; for any other value, the value
+itself. So code that unwraps works on a referenced document and on a plain one
+alike. A document keeps `get_document` of each value that its constructor or a
+write of a field gives it, so a document never holds a referenced document.
+
+Use it to get the document itself, to check its type or to hand it to a
+function that has no method for a referenced document.
+
+# Example
+
+    tab_1 = find_pane("items.json")
+    items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
+
+See also `get_reference` and `get_edited_document`.
+
+For the assistant.
+"""
+function get_document end
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are
@@ -136,6 +159,19 @@ contents are configuration or an implementation detail rather than navigable
 structure opts in with its own method.
 """
 function is_walk_opaque end
+
+"""
+    is_field_walked(document, name) -> Bool
+
+Whether the reflection walk enters the field `name` of `document`: the name of a
+field, or the position of an element of a tuple, as `fieldnames` gives them.
+Defaults to `true`. A document whose field refers to a node that lives elsewhere, as a link
+holds what it names, answers `false` for that field: a search of the document
+does not walk into the node from there, and finds it where its own document
+holds it. The walk still enters every other field. A save does not use this
+walk, and writes the field as it writes any other.
+"""
+function is_field_walked end
 
 """
     is_collection_field_type(::Val{name}) -> Bool
@@ -218,6 +254,18 @@ A hook that throws a [`DocumentCopyException`](@ref) stops the whole copy.
 
 The policy comes first, and a cell type never is a policy, so no method of one
 form is ambiguous with a method of the other.
+
+Use it to put a copy of a document in a second place, such as a new tab, so that
+an edit of one place leaves the other as it is.
+
+# Example
+
+    copy_1 = copy_document(get_document(get_edited_document(find_pane("items.json"))))
+    open_pane!(copy_1; title = "Items, a copy")
+
+See also `get_document` and `open_pane!`.
+
+For the assistant.
 """
 function copy_document end
 
@@ -297,8 +345,25 @@ its fields and a file skip such a field.
 `selection`: `Union{Nothing, Reference}`, a `Reference` inside the document or
 `nothing` when the pointer is not in it. A copy of a document starts with no mouse
 target, a load gives none, and a history does not record it.
+
+    is_view_state_field(T::Type, name) -> Bool
+
+The same for a field of a document of type `T`, and also `true` for a field that
+`T` declares as state of a view with [`get_view_state_fields`](@ref).
 """
 function is_view_state_field end
+
+"""
+    get_view_state_fields(T::Type) -> Tuple of Symbol
+
+The fields of a document of type `T` that hold the state of a view of it, beside
+its `selection` and its `mouse_target`: what a view shows of the document, such as
+the folds of an outline, and not what the document says. A file and a search leave
+them out, and a view writes them with `ReplaceViewStateOperation`, so a history
+records no change of them. A copy takes them as they are, as it takes a
+selection. The default is `()`; a type that holds such a field adds a method.
+"""
+function get_view_state_fields end
 
 """
     has_document_duplicate(document) -> Bool
@@ -415,7 +480,9 @@ for: the file holds the document, not the history of it.
 
     document = get_wrapped_document(node)   # what a save writes to the file
 
-See also `copy_document` and `replace_wrapped_document!`.
+See also `copy_document`.
+
+For the assistant.
 """
 function get_wrapped_document end
 
@@ -457,32 +524,3 @@ edits.
 """
 function get_edited_field end
 
-"""
-    search_documents(obj, predicate; include_selection=false, maxdepth=64, limit=100, raw=false,
-                     descend=(parent, child) -> true, background=false) -> DocumentMatches
-    search_documents(obj, query::Union{AbstractString,Regex}; …)  -> DocumentMatches
-
-Walk any object and return the matching nodes, **each at most once** even when a
-node is shared. A `String` (substring) or `Regex` matches leaf nodes by their
-string form. By default the result is **document-scoped**: a scalar match folds
-up to the nearest enclosing `Document`; pass `raw=true` to return the exact
-matched value. `descend(parent, child)` returns whether the walk enters `child`;
-see `walk_document`.
-
-The search has three limits, each with a default that keeps a search of a large
-document small: at most `limit = 100` matches, no deeper than `maxdepth = 64`, and
-no background work, so a value that a task still computes is taken as it is. The
-answer is a [`DocumentMatches`](@ref), a vector of the matches, whose summary says
-which limit stopped the search and the keyword that lifts it: `limit = nothing`
-finds every match, and `background = true` waits for the values still to come.
-`is_search_complete` answers whether no limit left a match out.
-
-Use it to list the documents that hold a text, or that a test accepts, anywhere in a document.
-
-# Example
-
-    matches_1 = search_documents(editor.document, "temperature")
-
-See also `get_edited_document` and `get_wrapped_document`.
-"""
-function search_documents end

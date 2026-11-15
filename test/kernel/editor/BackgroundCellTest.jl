@@ -4,10 +4,13 @@
 # through the inbox and makes the cell final. A demand that waits or runs is not
 # asked again, a cell whose inputs are provisional asks for nothing, and a work
 # that throws makes a read of its cells throw. A cell that computed where it asked
-# nobody asks when a computation of the editor reads it, and the first print of an
-# editor asks that editor. A search starts no background work by default, and
-# waits for it when it is asked to. `wait_for_cell!` computes the final value. A
-# cell can say that its work runs, and store its answer in its document.
+# nobody asks when a computation of the editor reads it, a cell that asked the
+# editor stays as it is until its answer comes, and the first print of an editor
+# asks that editor. A search starts no background work by default, and waits for
+# it when it is asked to. `wait_for_cell!` computes the final value, also of a
+# cell that asked the editor. A
+# cell can say that its work runs, and store its answer in its document. Each
+# work leaves a plain record in the store of its editor.
 
 using Test
 using ProjecturedKernel.CellModule
@@ -17,7 +20,7 @@ using ProjecturedKernel.IoMapModule
 import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, BackgroundSource, BackgroundDemands, make_background_cell,
                                        wait_for_cell!, start_background_cell_work!, drain_operations!,
-                                       make_editor
+                                       make_editor, BackgroundWorkStore, get_background_work_store
 import ProjecturedKernel.ToolModule: run_with_evaluation_editor
 import ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 using ProjecturedKernelExample
@@ -153,6 +156,47 @@ function test_editor_background_cell()
         @test wait_for_cell!(alone; editor = nothing) == 40 && other.value == 40
     end
 
+    @testset "each work leaves a record in the store of its editor, and the store keeps the last ones" begin
+        gate = Channel{Bool}(1)
+        first_cell = make_background_cell(_make_counting_source(Vector{Any}[]; gate), () -> 7; default = 0)
+        second_cell = make_background_cell(BackgroundSource(inputs -> error("no disk"); description = "a broken read"),
+                                           () -> "a path that is longer than eighty characters, so the record cuts it" ^ 2)
+        editor = _make_background_editor()
+        store = get_background_work_store(editor)
+        @test store === get_background_work_store(editor) && isempty(store.records)
+        _read_in_editor(editor, first_cell)
+        _read_in_editor(editor, second_cell)
+        changes = store.change_count
+        start_background_cell_work!(editor)
+        # Two sources are two works, and each runs until its answers are written.
+        @test [(r.number, r.description, r.value_count, r.finished) for r in store.records] ==
+              [(1, "times ten", 1, nothing), (2, "a broken read", 1, nothing)]
+        @test store.records[1].inputs == ["7"] && length(only(store.records[2].inputs)) == 80
+        @test store.change_count == changes + 2
+        put!(gate, true)
+        @test _wait_until_final(editor, first_cell)
+        deadline = time() + 10
+        while any(r -> r.finished === nothing, store.records) && time() < deadline
+            drain_operations!(editor)
+            sleep(0.01)
+        end
+        (done, failed) = store.records
+        @test done.finished >= done.started && done.failure_count == 0 && done.failure == ""
+        @test failed.failure_count == 1 && occursin("no disk", failed.failure)
+        # The records of the works that ended stay to the capacity, the oldest go
+        # first, and a record of a work that runs stays.
+        small = BackgroundWorkStore(; capacity = 2)
+        source = BackgroundSource(identity; description = "kept")
+        numbers = [EditorModule._start_background_work_record!(small, source, Any[k]) for k in 1:4]
+        foreach(number -> EditorModule._end_background_work_record!(small, number, Any[1]), numbers[2:4])
+        @test [r.number for r in small.records] == [1, 3, 4] && small.records[1].finished === nothing
+        # wait_for_cell! with an editor records the work that it runs itself.
+        alone = make_background_cell(_make_counting_source(Vector{Any}[]), () -> 2; default = 0)
+        before = length(store.records)
+        @test wait_for_cell!(alone; editor) == 20
+        @test length(store.records) == before + 1 && store.records[end].finished !== nothing
+    end
+
     @testset "a demand that waits or runs is not asked again" begin
         calls = Vector{Any}[]
         gate = Channel{Bool}(1)
@@ -218,6 +262,31 @@ function test_editor_background_cell()
         start_background_cell_work!(editor)
         @test _wait_until_final(editor, reader)
         @test reader[] == 71 && calls == [[7]]
+    end
+
+    @testset "a cell that asked the editor stays as it is at each further read, until its answer comes" begin
+        calls = Vector{Any}[]
+        value = make_background_cell(_make_counting_source(calls), () -> 5; default = 0)
+        middle_runs = Ref(0)
+        middle = Cell(@computation (middle_runs[] += 1; value[] + 1))
+        readers = [Cell(@computation middle[] + k) for k in 1:20]
+        total = Cell(@computation sum(reader[] for reader in readers))
+        editor = _make_background_editor()
+        @test _read_in_editor(editor, total) == 230 && middle_runs[] == 1
+        @test _count_waiting_demands(editor) == 1
+        start_background_cell_work!(editor)
+        @test _wait_until_final(editor, total)
+        @test total[] == 1230 && middle_runs[] == 2 && calls == [[5]]
+    end
+
+    @testset "wait_for_cell! on the task of the documents computes a value whose demand the editor keeps" begin
+        calls = Vector{Any}[]
+        value = make_background_cell(_make_counting_source(calls), () -> 6; default = 0)
+        reader = Cell(@computation value[] + 1)
+        editor = _make_background_editor()
+        @test _read_in_editor(editor, reader) == 1 && _count_waiting_demands(editor) == 1
+        # No frame starts the work that the editor keeps, so the wait asks again.
+        @test wait_for_cell!(reader; editor) == 61 && calls == [[6]]
     end
 
     @testset "the first print of an editor asks that editor" begin

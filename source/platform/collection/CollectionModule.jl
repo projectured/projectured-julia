@@ -1,12 +1,14 @@
 """
     CollectionModule
 
-Generic reactive collection document types. Four structural shapes: an indexed
+Collection documents: a vector, a matrix, a table and a linked list, in which a
+change to one slot touches only its readers. Four structural shapes: an indexed
 growable vector (each slot is a reactive Cell), a dense rectangular matrix of
 reactive Cells, a table (CellVector of CellVector rows) optimised for row
-insert/delete, and a doubly-linked list with a fixed head and two unlimited
-tails. The table interface reads any kind of table, a part of its rows too. Per-slot reactivity means a change to one element invalidates only that
-slot's dependents, not the entire collection.
+insert/delete, and a doubly-linked list with a fixed head and two unlimited tails.
+The table interface reads any kind of table, a part of its rows too. Per-slot
+reactivity means a change to one element invalidates only that slot's dependents,
+not the entire collection.
 
 # Invariants
 - **Value change vs. structural change.** `cv[i] = val` writes *into* slot `i`'s
@@ -35,8 +37,8 @@ import ..OperationModule: child_reference_steps, get_slot_at
 import ..ProjectionModule: make_children_container, get_children_container_type
 
 export CollectionDocument, ListDocument, CellVector, CellMatrix, CellTable, ListNode,
-       get_left_tail, get_right_tail, find_list_node, find_list_index, make_index_list,
-       make_mapped_list, set_lazy_link!, get_cell_at, take_first,
+       get_left_tail, get_right_tail, find_list_node, find_computed_list_node, find_list_index,
+       make_index_list, make_mapped_list, set_lazy_link!, get_cell_at, take_first,
        KeptListPrints, KeptListPrint, make_kept_list_prints, start_kept_list_head!,
        note_kept_list_link!, make_kept_list_count, take_kept_list_print!,
        record_kept_list_print!,

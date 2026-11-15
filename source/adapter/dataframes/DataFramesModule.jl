@@ -27,12 +27,13 @@ import ..OperationModule: evaluate_operation, make_inverse_operation,
 import ..DomainModule: compute_context_menu
 import ..NavigatorModule: is_navigator_stop, find_navigator_choices
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
+import ..EditorModule: make_change
 import ..CollectionModule: is_table, get_table_row_count, get_table_column_names, get_table_column_type,
                            get_table_value, find_table_column, make_table_part, make_table_document
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, DataFrameCellEdit, DataFrameViewRows, DataFrameViewRow,
-       DataFrameViewColumns, jump_to_row, make_data_frame_cell
+       DataFrameViewColumns, jump_to_row, jump_to_row!, make_data_frame_cell
 export DataFrameColumn
 export SetDataFrameValueOperation, OpenDataFrameCellOperation, CloseDataFrameCellOperation
 export InsertDataFrameRowOperation, DeleteDataFrameRowOperation
@@ -82,9 +83,8 @@ function __init__()
     register_assistant_api!(DataFrames => (:DataFrame, :select, :transform, :combine,
                                            :groupby, :subset, :ByRow, :Not, :nrow,
                                            :describe => :summarize_frame);
-        description = "A data frame is made, narrowed, grouped and counted with " *
-                      "`DataFrame`, `select`, `transform`, `combine`, `groupby`, `subset` " *
-                      "and `nrow`, and `summarize_frame` gives the statistics of each column.")
+        description = "A data frame is a `DataFrame` of the package DataFrames: a table of " *
+                      "named columns.")
 end
 
 end # module DataFramesModule

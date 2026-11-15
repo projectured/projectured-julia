@@ -31,9 +31,19 @@ function find_first_baseline(iomap::ContentIoMap)
     inner.output === iomap.output ? find_first_baseline(inner) : nothing
 end
 
-# A container keeps each child as `(x, y, iomap)`, its place and its IoMap.
-function find_first_baseline(iomap::ChildrenIoMap)
-    for entry in unwrap_cell(iomap.child_iomaps)
+# A container keeps each child as `(x, y, iomap)`, its place in the frame of the
+# container and its IoMap.
+find_first_baseline(iomap::ChildrenIoMap) = find_first_baseline_in_entries(unwrap_cell(iomap.child_iomaps))
+
+"""
+    find_first_baseline_in_entries(entries) -> Int or nothing
+
+The baseline of the first child in `entries`, each `(x, y, iomap)`, that has one,
+offset by the `y` of that child. A container of placed children whose IoMap is
+not a `ChildrenIoMap` answers `find_first_baseline` with it.
+"""
+function find_first_baseline_in_entries(entries)
+    for entry in entries
         (entry isa Tuple && length(entry) == 3) || continue
         baseline = find_first_baseline(entry[3])
         baseline === nothing || return Int(unwrap_cell(entry[2])) + baseline

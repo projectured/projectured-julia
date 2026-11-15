@@ -180,6 +180,32 @@ function get_pane_focus(tree::PaneTree)
     found === nothing ? nothing : (found[1], found[2])
 end
 
+# Whether the focus is on the tab `index` of `group`, or on `group` itself, which a
+# change that takes the tab or the group away must move.
+function _is_focus_in(tree::PaneTree, group::PaneGroup, index::Integer)
+    focus = get_pane_focus(tree)
+    focus !== nothing && focus[1] === group && focus[2] in (0, index)
+end
+
+# `operation`, and after it the operations that keep the focus and the tab that each
+# group shows, as the change leaves the tree (`_make_kept_view_operation`).
+function _with_kept_view(tree::PaneTree, operation, swaps; subs = _NO_SUBSTITUTIONS)
+    kept = _make_kept_view_operation(tree, swaps; subs)
+    kept === nothing ? operation : CompoundOperation(Any[operation, kept])
+end
+
+# The shape that the removal of the emptied `group` leaves, as `(swaps, subs)` for
+# `_make_kept_view_operation`: the root group stays, empty; a split of three or more
+# loses it; a split of two is replaced by the other element.
+function _find_removal_shape(tree::PaneTree, group::PaneGroup)
+    parent = get_pane_parent(tree, group)
+    (parent === nothing || parent[1] === tree) && return (Any[group => Any[]], _NO_SUBSTITUTIONS)
+    split, k = parent
+    survivors = Any[split.elements[i] for i in eachindex(split.elements) if i != k]
+    length(survivors) > 1 && return (Any[], Pair{Any,Any}[split => PaneSplit(split.orientation, survivors)])
+    (Any[], Pair{Any,Any}[split => only(survivors)])
+end
+
 """
     get_pane_focus_title(tree) -> (group, index) | Nothing
 
@@ -305,21 +331,6 @@ function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index
         @reference ::PrimitiveString.value::String{at}::Position))
 end
 
-"""
-    make_pane_retarget_title_operation(tree, group, index; operation) -> Operation | Nothing
-
-Re-root a title edit — an operation the title document built against its own
-vocabulary — onto the tree. This is what lets the tab name be edited by the very
-gestures that edit any other string, with no editing code of its own.
-"""
-function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer;
-                                            operation)
-    operation isa ReplaceStringRangeOperation || return nothing
-    path = get_pane_tab_name_path(tree, group, index)
-    path === nothing && return nothing
-    ReplaceStringRangeOperation(concat_references(path, operation.reference),
-                                operation.replacement)
-end
 
 function _focus_walk(node, path)
     if node isa PaneSplit
@@ -371,23 +382,163 @@ Move the focus to tab `index` of `group` — the whole of what focusing is. An
 """
 function make_pane_focus_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     reference = get_pane_tab_reference(tree, group, index)
-    reference === nothing ? nothing : ReplaceSelectionOperation(reference)
+    reference === nothing && return nothing
+    _with_focus_restore(tree, group, ReplaceSelectionOperation(reference))
+end
+
+"""
+    make_pane_show_operation(tree, group, index) -> Operation | Nothing
+
+Make `group` show its tab `index`, and leave the focus where it is. The group
+keeps a dormant selection that names the tab, because a group shows the tab that
+its selection names, and the tab keeps the place inside it that it had. When the
+focus is in `group`, the group can show only the tab that the focus names, so the
+focus moves to the tab, as `make_pane_focus_operation` moves it. A tab that shows
+is a view state, so it is no step of the undo.
+"""
+function make_pane_show_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    (1 <= index <= length(group.tabs)) || return nothing
+    focus = get_pane_focus(tree)
+    (focus !== nothing && focus[1] === group) && return make_pane_focus_operation(tree, group, index)
+    _make_dormant_selection_write(tree, group, Reference(FieldReferenceStep("tabs"), ElementReferenceStep(index)))
+end
+
+# The write of the dormant selection `path`, from `node`, into the selection of
+# `node`: what the node keeps and shows while the focus is elsewhere. `node_path`
+# is the path of a node that an edit is about to put into the tree.
+function _make_dormant_selection_write(tree::PaneTree, node, path; node_path = get_pane_path(tree, node))
+    node_path === nothing && return nothing
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
+        concat_references(node_path, Reference(FieldReferenceStep("selection"))),
+        SelectionDocument(; primary = path, live = false)))
+end
+
+# ── The maximize ───────────────────────────────────────────────────────────
+#
+# A maximize makes one group fill the window and leaves the layout as it is, so a
+# restore gives back the same splits and weights. The tree keeps the group in
+# `maximized`, and every view reads `find_pane_maximized_group`, never the field.
+
+"""
+    find_pane_maximized_group(tree) -> PaneGroup | Nothing
+
+The group that fills the window, or `nothing` when the window shows the whole
+layout. The group that `maximized` names fills the window while the tree holds it
+and while the focus is in it or outside the layout, so the window never hides the
+group that has the focus.
+"""
+function find_pane_maximized_group(tree::PaneTree)
+    group = tree.maximized
+    group isa PaneGroup || return nothing
+    get_pane_path(tree, group) === nothing && return nothing
+    selection = get_selection(tree)
+    (selection === nothing || _after_field(selection, "root") === nothing) && return group
+    get_pane_focused_group(tree) === group ? group : nothing
+end
+
+"""
+    make_pane_maximize_operation(tree, group) -> Operation | Nothing
+
+Make `group` fill the window, or `nothing` when the tree does not hold it. A
+maximize is a view state, so it is no step of the undo.
+"""
+function make_pane_maximize_operation(tree::PaneTree, group::PaneGroup)
+    get_pane_path(tree, group) === nothing && return nothing
+    _make_maximized_write(group)
+end
+
+"""
+    make_pane_restore_operation(tree) -> Operation | Nothing
+
+Give back the whole layout after a maximize, or `nothing` when no group is
+maximized.
+"""
+make_pane_restore_operation(tree::PaneTree) =
+    tree.maximized === nothing ? nothing : _make_maximized_write(nothing)
+
+_make_maximized_write(group) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing,
+        ConcreteReference(PaneTree, FieldReferenceStep("maximized"), EmptyReference()), group))
+
+# `operation`, which moves the focus to `group`, with the restore of the layout
+# when a different group is maximized. A maximize ends when the focus leaves its
+# group, so it does not come back when the focus comes back. Every builder that
+# moves the focus to a group passes here; a move that keeps the focus where it
+# is, along a new path, does not.
+function _with_focus_restore(tree::PaneTree, group, operation)
+    (operation === nothing || tree.maximized === nothing || tree.maximized === group) &&
+        return operation
+    CompoundOperation(Any[operation, _make_maximized_write(nothing)])
+end
+
+# The group that takes the focus when the focus goes into `node`: its first group
+# in the depth-first order, as `_focus_into!` walks.
+function _get_first_pane_group(node)
+    groups = get_pane_groups(node)
+    isempty(groups) ? nothing : groups[1]
+end
+
+# The path after `prefix` in `path`, both without their types, or `nothing` when
+# `path` does not start with `prefix`.
+function _find_path_after(path, prefix)
+    while prefix isa ConcreteReference
+        (path isa ConcreteReference && path.head == prefix.head) || return nothing
+        path, prefix = path.tail, prefix.tail
+    end
+    path
+end
+
+# The operations that keep a selection on the element that it names when an
+# insert puts a new element at `at` of the collection `field` of `owner`: a
+# selection names an element by its index, so each one that names the element
+# `at` or a later one names the next one after the insert. The focus moves on
+# by a selection of the root; a dormant selection of `owner` by a write of it.
+function _make_insert_selection_shifts(tree::PaneTree, owner, field::Symbol, at::Integer)
+    collection = getproperty(owner, field)
+    shifts = Any[]
+    owner_path = get_pane_path(tree, owner)
+    owner_path === nothing && return shifts
+    live = get_selection(tree)
+    inside = live === nothing ? nothing :
+        _find_path_after(strip_reference_types(live), strip_reference_types(owner_path))
+    index, tail = _head_index(_after_field(inside, String(field)))
+    if index !== nothing && at <= index <= length(collection)
+        pairs = _pairs_to(tree, owner)
+        push!(pairs, (owner, FieldReferenceStep(String(field))))
+        push!(pairs, (collection, ElementReferenceStep(index + 1)))
+        moved = _reference_from(pairs, collection[index])
+        push!(shifts, ReplaceSelectionOperation(tail isa ConcreteReference ?
+                                                concat_references(moved, copy_reference(tail)) : moved))
+        return shifts
+    end
+    stored = get_stored_selection(owner)
+    index, tail = _head_index(_after_field(stored, String(field)))
+    if index !== nothing && at <= index <= length(collection)
+        moved = Reference(FieldReferenceStep(String(field)), ElementReferenceStep(index + 1))
+        tail isa ConcreteReference && (moved = concat_references(moved, copy_reference(tail)))
+        write = _make_dormant_selection_write(tree, owner, moved)
+        write === nothing || push!(shifts, write)
+    end
+    shifts
 end
 
 # ── Open a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
+    make_pane_open_tab_operation(tree, group, tab; index, focus = true) -> Operation | Nothing
 
-Insert `tab` into `group` at the 1-based `index` (the end by default) and focus it. One
-`make_insert_elements_operation` splice with its cursor move, and the acquire of what the
-tab shows (`AcquireDocumentOperation`). A tab whose content is the
-empty placeholder takes the selection on that content, as a whole, so a paste fills it. A
-tab whose content holds a selection of its own, such as the caret of a new evaluator,
-takes the focus along that selection, so the root holds the selection the document had.
+Insert `tab` into `group` at the 1-based `index` (the end by default), and with
+`focus` focus it. One `make_insert_elements_operation` splice, and the acquire of what
+the tab shows (`AcquireDocumentOperation`). A focused tab whose content is the empty
+placeholder takes the selection on that content, as a whole, so a paste fills it. A
+focused tab whose content holds a selection of its own, such as the caret of a new
+evaluator, takes the focus along that selection, so the root holds the selection the
+document had. With `focus = false` the focus and the tab that the group shows stay:
+each selection that names a tab after the new one names the same tab after the
+insert, and an empty group shows its first tab.
 """
 function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
-                                 index = nothing)
+                                 index = nothing, focus::Bool = true)
     tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     n = length(group.tabs)
@@ -396,9 +547,13 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     pairs === nothing && return nothing
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
-    CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
-                                                         selection = _make_new_tab_cursor(pairs, tab)),
-                          AcquireDocumentOperation(tab)])
+    focus || return CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab]),
+                                          _make_insert_selection_shifts(tree, group, :tabs, at)...,
+                                          AcquireDocumentOperation(tab)])
+    _with_focus_restore(tree, group,
+        CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
+                                                             selection = _make_new_tab_cursor(pairs, tab)),
+                              AcquireDocumentOperation(tab)]))
 end
 
 # A tab holds each layer of what it shows, from its content inward, such as the
@@ -471,9 +626,11 @@ _get_refused_word(value::AbstractCell) = "cell"
 _get_refused_word(value) = String(nameof(typeof(value)))
 
 """
-    make_pane_duplicate_tab_operation(tree, group, index) -> Operation | Nothing
+    make_pane_duplicate_tab_operation(tree, group, index; focus = true) -> Operation | Nothing
 
-Put a duplicate of tab `index` of `group` right after it, and focus it. The
+Put a duplicate of tab `index` of `group` right after it, and with `focus` focus
+it; without, the focus and the tab that the group shows stay, as an open without
+the focus leaves them. The
 content is copied by `make_document_duplicate`, so what the duplicate owns and
 what it shares is for the kind of the content to say, and the title gets a
 number.
@@ -481,7 +638,8 @@ number.
 `nothing` when there is no such tab, or when the content has no duplicate; the
 refusal is logged with its reason.
 """
-function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer;
+                                           focus::Bool = true)
     (1 <= index <= length(group.tabs)) || return nothing
     tab = group.tabs[index]
     duplicate = try
@@ -491,7 +649,7 @@ function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, ind
         @warn "The pane has no duplicate" kind = nameof(typeof(tab.content)) reason = _format_duplicate_refusal(tab.content, e)
         return nothing
     end
-    make_pane_open_tab_operation(tree, group, duplicate; index = index + 1)
+    make_pane_open_tab_operation(tree, group, duplicate; index = index + 1, focus)
 end
 
 # ── Close a tab ────────────────────────────────────────────────────────────
@@ -506,13 +664,58 @@ stays, because a tree always has a root. Then the tab is released with
 `ReleaseDocumentOperation`, each layer of what it shows, so what a layer holds
 outside the tree, such as the agent of an assistant or the watch of a file, ends.
 An undo of the close acquires the tab again.
+
+The focus moves only when the closed tab has it: to the next tab of the group, or
+to the neighbouring group when the group goes. Otherwise the focus stays on its
+tab, and each group shows the tab that it showed.
 """
 function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
-    close = n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
+    close = if _is_focus_in(tree, group, index)
+        n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
+    else
+        n > 1 ? _close_unfocused_tab(tree, group, index) : _close_unfocused_group(tree, group)
+    end
     close === nothing && return nothing
     CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index])])
+end
+
+# The close of tab `index` of `group`, which does not have the focus.
+function _close_unfocused_tab(tree::PaneTree, group::PaneGroup, index::Integer)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    tabs_path === nothing && return nothing
+    after = collect(Any, group.tabs)
+    deleteat!(after, index)
+    _with_kept_view(tree, make_delete_elements_operation(tabs_path, index), Any[group => after])
+end
+
+# The close of the last tab of `group`, which does not have the focus: the group
+# goes too, unless it is the root.
+function _close_unfocused_group(tree::PaneTree, group::PaneGroup)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    parent = get_pane_parent(tree, group)
+    (tabs_path === nothing || parent === nothing) && return nothing
+    writes = Any[make_delete_elements_operation(tabs_path, 1)]
+    owner, k = parent
+    if owner !== tree
+        split = owner::PaneSplit
+        if length(split.elements) > 2
+            elements_path = get_pane_collection_path(tree, split, :elements)
+            elements_path === nothing && return nothing
+            weights = get_pane_weights(split)
+            deleteat!(weights, k)
+            append!(writes, filter(!isnothing, Any[make_delete_elements_operation(elements_path, k),
+                                                   _write_weights(tree, split, weights)]))
+        else
+            slot = _slot_write(tree, split, split.elements[k == 1 ? 2 : 1])
+            slot === nothing && return nothing
+            push!(writes, slot)
+        end
+    end
+    tree.maximized === group && push!(writes, _make_maximized_write(nothing))
+    swaps, subs = _find_removal_shape(tree, group)
+    _with_kept_view(tree, CompoundOperation(writes), swaps; subs)
 end
 
 function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Integer)
@@ -523,8 +726,9 @@ function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Int
     survivor = index < n ? index + 1 : index - 1
     at = index < n ? index : index - 1
     cursor = _element_path(tree, group, :tabs, at, group.tabs[survivor])
-    CompoundOperation(Any[make_delete_elements_operation(tabs_path, index),
-                          ReplaceSelectionOperation(cursor)])
+    _with_focus_restore(tree, group,
+        CompoundOperation(Any[make_delete_elements_operation(tabs_path, index),
+                              ReplaceSelectionOperation(cursor)]))
 end
 
 function _close_group(tree::PaneTree, group::PaneGroup)
@@ -538,7 +742,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
     # The root group stays, empty. The selection names the group itself.
     if owner === tree
         cursor = get_pane_path(tree, group)
-        return CompoundOperation(Any[drop_tab, ReplaceSelectionOperation(cursor)])
+        return _with_focus_restore(tree, group,
+            CompoundOperation(Any[drop_tab, ReplaceSelectionOperation(cursor)]))
     end
 
     split = owner::PaneSplit
@@ -559,7 +764,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
                      make_delete_elements_operation(elements_path, k),
                      _write_weights(tree, split, weights),
                      ReplaceSelectionOperation(cursor)]
-        return CompoundOperation(filter(!isnothing, writes))
+        return _with_focus_restore(tree, _get_first_pane_group(neighbour),
+            CompoundOperation(filter(!isnothing, writes)))
     end
 
     # Two elements left: the split is replaced by its sibling.
@@ -570,13 +776,79 @@ function _close_group(tree::PaneTree, group::PaneGroup)
     pairs === nothing && return nothing
     leaf = _focus_into!(sibling, pairs)
     cursor = _reference_from(pairs, leaf)
-    CompoundOperation(Any[drop_tab, slot, ReplaceSelectionOperation(cursor)])
+    _with_focus_restore(tree, _get_first_pane_group(sibling),
+        CompoundOperation(Any[drop_tab, slot, ReplaceSelectionOperation(cursor)]))
+end
+
+# ── Close the other tabs ───────────────────────────────────────────────────
+
+"""
+    make_pane_close_other_tabs_operation(tree, group, index) -> Operation | Nothing
+
+Remove each tab of `group` except tab `index`, in one step that one undo takes
+back. Each closed tab is released, as [`make_pane_close_tab_operation`](@ref)
+releases it. Tab `index` stays, so the group and the layout stay.
+
+The focus moves only when a closed tab has it, and then to tab `index`. A group
+that showed a closed tab then shows tab `index`. Otherwise the focus stays on its
+tab, and each group shows the tab that it showed.
+
+`nothing` when there is no such tab, or when it is the only tab of the group.
+"""
+function make_pane_close_other_tabs_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    n = length(group.tabs)
+    (1 <= index <= n && n > 1) || return nothing
+    _close_tabs_around(tree, group, index, index - 1, n - index)
+end
+
+"""
+    make_pane_close_tabs_to_the_right_operation(tree, group, index) -> Operation | Nothing
+
+Remove each tab of `group` after tab `index`, in one step that one undo takes
+back. The tabs, the focus and the shown tab follow the rule of
+[`make_pane_close_other_tabs_operation`](@ref).
+
+`nothing` when there is no such tab, or when it is the last tab of the group.
+"""
+function make_pane_close_tabs_to_the_right_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    n = length(group.tabs)
+    (1 <= index < n) || return nothing
+    _close_tabs_around(tree, group, index, 0, n - index)
+end
+
+# The close of the `before` tabs before tab `index` of `group` and of the `after`
+# tabs after it. The run after the tab goes first, so the index of the run before
+# it stays correct. The tab stays at index `index - before`.
+function _close_tabs_around(tree::PaneTree, group::PaneGroup, index::Integer,
+                            before::Integer, after::Integer)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
+    tabs_path === nothing && return nothing
+    is_closed(k) = k != index && index - before <= k <= index + after
+    closed = Any[group.tabs[k] for k in eachindex(group.tabs) if is_closed(k)]
+    remaining = Any[group.tabs[k] for k in eachindex(group.tabs) if !is_closed(k)]
+    kept, at = group.tabs[index], index - before
+    writes = Any[]
+    after > 0 && push!(writes, make_delete_elements_operation(tabs_path, index + 1; count = after))
+    before > 0 && push!(writes, make_delete_elements_operation(tabs_path, at; count = before))
+    focus = get_pane_focus(tree)
+    close = if focus !== nothing && focus[1] === group && (focus[2] == 0 || is_closed(focus[2]))
+        cursor = _element_path(tree, group, :tabs, at, kept)
+        cursor === nothing && return nothing
+        _with_focus_restore(tree, group, CompoundOperation(Any[writes..., ReplaceSelectionOperation(cursor)]))
+    else
+        kept_view = _with_kept_view(tree, CompoundOperation(writes), Any[group => remaining])
+        is_closed(get_pane_shown_tab_index(group)) ?
+            CompoundOperation(Any[kept_view, _make_dormant_selection_write(tree, group,
+                                      Reference(FieldReferenceStep("tabs"), ElementReferenceStep(at)))]) :
+            kept_view
+    end
+    CompoundOperation(Any[close, (ReleaseDocumentOperation(tab) for tab in closed)...])
 end
 
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """
-    make_pane_split_operation(tree, group; orientation, side, tab) -> Operation | Nothing
+    make_pane_split_operation(tree, group; orientation, side, tab, focus = true) -> Operation | Nothing
 
 Split `group` and put `tab` in the new pane. `orientation` is `:vertical` (the
 new pane sits beside) or `:horizontal` (it sits above or below); `side` is
@@ -587,9 +859,12 @@ each, so the rest of the layout does not move. When the parent split already has
 this orientation the group is not wrapped — the new group joins the parent as a
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
+
+With `focus` the new tab takes the focus. With `focus = false` the focus stays on
+what it names, along its new path, and the new group shows its one tab.
 """
 function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation::Symbol,
-                                   side::Symbol, tab::PaneTab)
+                                   side::Symbol, tab::PaneTab, focus::Bool = true)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)
@@ -611,12 +886,14 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
         push!(pairs, (owner.elements, ElementReferenceStep(at)))
         push!(pairs, (new_group, FieldReferenceStep("tabs")))
         push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-        cursor = _make_new_tab_cursor(pairs, tab)
-        return CompoundOperation(Any[
+        moves = focus ? Any[ReplaceSelectionOperation(_make_new_tab_cursor(pairs, tab))] :
+                        _make_insert_selection_shifts(tree, owner, :elements, at)
+        joined = CompoundOperation(Any[
             make_insert_elements_operation(elements_path, at, Any[new_group]),
             _write_weights(tree, owner, weights),
-            ReplaceSelectionOperation(cursor),
+            moves...,
             AcquireDocumentOperation(tab)])
+        return focus ? _with_focus_restore(tree, new_group, joined) : joined
     end
 
     elements = before ? Any[new_group, group] : Any[group, new_group]
@@ -627,14 +904,43 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
     pairs === nothing && return nothing
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
+    focus || return CompoundOperation(Any[write, _make_wrap_selection_moves(tree, group, split)...,
+                                          AcquireDocumentOperation(tab)])
     cursor = _make_new_tab_cursor(pairs, tab)
-    CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)])
+    _with_focus_restore(tree, new_group,
+        CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)]))
+end
+
+# The operations that keep the selections of `group` when `split` takes its slot
+# and holds it: the focus inside the group goes on along its new path, through the
+# split, and a dormant selection of the group gets a dormant selection of the split
+# that leads to it, so the focus that comes back finds it.
+function _make_wrap_selection_moves(tree::PaneTree, group::PaneGroup, split::PaneSplit)
+    old_path = get_pane_path(tree, group)
+    old_path === nothing && return Any[]
+    inner = _pairs_to(tree, group; from = group, to = split)
+    inner === nothing && return Any[]
+    live = get_selection(tree)
+    tail = live === nothing ? nothing :
+        _find_path_after(strip_reference_types(live), strip_reference_types(old_path))
+    if tail !== nothing
+        moved = _reference_from(inner, group)
+        return Any[ReplaceSelectionOperation(tail isa ConcreteReference ?
+                                             concat_references(moved, copy_reference(tail)) : moved)]
+    end
+    get_stored_selection(group) === nothing && return Any[]
+    slot = _pairs_to(tree, split; from = group, to = split)
+    slot === nothing && return Any[]
+    index = findfirst(element -> element === group, split.elements)
+    Any[_make_dormant_selection_write(tree, split,
+            Reference(FieldReferenceStep("elements"), ElementReferenceStep(index));
+            node_path = _reference_from(slot, split))]
 end
 
 # ── Move a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_move_tab_operation(tree, source; source_index, target, target_index) -> Operation | Nothing
+    make_pane_move_tab_operation(tree, source; source_index, target, target_index, focus = true) -> Operation | Nothing
 
 Move one tab from `source` to `target`. `target_index` names the slot the tab is
 inserted **before**, in the target's numbering as it stands now — which is what a
@@ -647,10 +953,13 @@ keeps its iomap.
 
 When the move empties the source group, the group is closed the same way
 [`make_pane_close_tab_operation`](@ref) closes it.
+
+With `focus` the moved tab takes the focus, as a drag of a person gives it. Without
+it the focus stays on its tab, at the place that the move leaves that tab.
 """
 function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
                                       source_index::Integer, target::PaneGroup,
-                                      target_index::Integer)
+                                      target_index::Integer, focus::Bool = true)
     n = length(source.tabs)
     (1 <= source_index <= n) || return nothing
     tab = source.tabs[source_index]
@@ -663,10 +972,31 @@ function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
     landed = (same && at > source_index) ? at - 1 : at
     landed = clamp(landed, 1, same ? n : length(target.tabs) + 1)
 
+    # Without the focus, the focus stays on its tab and each group shows what it
+    # showed, unless the focus is on the moved tab or on the group that the move
+    # takes away: then the focus goes with the tab, as a drag gives it.
+    if !focus && !_is_focus_in(tree, source, source_index)
+        after_source = collect(Any, source.tabs)
+        deleteat!(after_source, source_index)
+        if same
+            insert!(after_source, landed, tab)
+            return _with_kept_view(tree, move, Any[source => after_source])
+        end
+        after_target = collect(Any, target.tabs)
+        insert!(after_target, landed, tab)
+        n > 1 && return _with_kept_view(tree, move, Any[source => after_source, target => after_target])
+        collapse = _collapse_writes(tree, source, target, landed, tab)
+        collapse === nothing && return move
+        swaps, subs = _find_removal_shape(tree, source)
+        return _with_kept_view(tree,
+            CompoundOperation(Any[move, filter(write -> !(write isa ReplaceSelectionOperation), collapse)...]),
+            vcat(swaps, Any[target => after_target]); subs)
+    end
+
     if same || n > 1
         cursor = _element_path(tree, target, :tabs, landed, tab)
         cursor === nothing && return move
-        return CompoundOperation(Any[move, ReplaceSelectionOperation(cursor)])
+        return _with_focus_restore(tree, target, CompoundOperation(Any[move, ReplaceSelectionOperation(cursor)]))
     end
 
     # The source loses its last tab, so it goes away with it. The target's path
@@ -674,7 +1004,7 @@ function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
     # sibling that replaces the source's parent.
     collapse = _collapse_writes(tree, source, target, landed, tab)
     collapse === nothing && return move
-    CompoundOperation(vcat(Any[move], collapse))
+    _with_focus_restore(tree, target, CompoundOperation(vcat(Any[move], collapse)))
 end
 
 # The writes that remove an emptied `group` from the tree, plus the cursor into
@@ -732,7 +1062,7 @@ end
 # ── Drop a tab on a group's edge ───────────────────────────────────────────
 
 """
-    make_pane_drop_split_operation(tree, source; source_index, target, orientation, side) -> Operation | Nothing
+    make_pane_drop_split_operation(tree, source; source_index, target, orientation, side, focus = true) -> Operation | Nothing
 
 Split `target` and put `source`'s `source_index`-th tab in the new pane — what a
 drop on a group's edge band means. The tab keeps its identity: it is moved, not
@@ -755,10 +1085,14 @@ other leaves behind. Four shapes, and each names its paths accordingly:
 `source` and `target` can be the same group, which is a tab that takes half of
 its own pane. That is the first shape above, because a group that splits itself
 must keep a tab behind; the drop answers `nothing` when the tab is its last.
+
+With `focus` the moved tab takes the focus, as a drag of a person gives it. Without
+it the focus stays on its tab and each group shows what it showed, unless the
+focus is on the moved tab or on the group that the drop takes away.
 """
 function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
                                         source_index::Integer, target::PaneGroup,
-                                        orientation::Symbol, side::Symbol)
+                                        orientation::Symbol, side::Symbol, focus::Bool = true)
     (1 <= source_index <= length(source.tabs)) || return nothing
     # A group that drops its only tab on its own edge changes nothing: the tab
     # would take the new pane and leave the old half empty. With another tab
@@ -778,12 +1112,22 @@ function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
 
     writes, subs = _drop_split_writes(tree, source, target, split)
     writes === nothing && return nothing
+    if !focus && !_is_focus_in(tree, source, source_index)
+        swaps = Any[new_group => Any[tab]]
+        if length(source.tabs) > 1
+            after_source = collect(Any, source.tabs)
+            deleteat!(after_source, source_index)
+            push!(swaps, source => after_source)
+        end
+        return _with_kept_view(tree, CompoundOperation(vcat(writes, Any[move])), swaps; subs)
+    end
 
     pairs = _pairs_to(tree, new_group; subs)
     pairs === nothing && return CompoundOperation(vcat(writes, Any[move]))
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-    CompoundOperation(vcat(writes, Any[move, ReplaceSelectionOperation(_reference_from(pairs, tab))]))
+    _with_focus_restore(tree, new_group,
+        CompoundOperation(vcat(writes, Any[move, ReplaceSelectionOperation(_reference_from(pairs, tab))])))
 end
 
 # The structural writes a split-drop needs, and the substitutions that name the

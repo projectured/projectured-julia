@@ -61,7 +61,7 @@ of_tick = string(Char(0xe06c))
 # the row of an undo buffer.
 function _of_projection(; make_widget = make_object_field_widget)
     measure = FontFileMeasure()
-    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure)
+    w2g = WidgetToGraphics(; measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         Pair{Type,Any}[UndoBuffer => UndoBufferToAnyProjection()],
         LayoutToGraphics().dispatch,
@@ -119,7 +119,7 @@ end # @testset
 @testset "the table puts the row of a bare field before the widgets" begin
 
     table = make_object_field_widget_dispatch(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure()).dispatch)
+        WidgetToGraphics(; measure = FontFileMeasure()).dispatch)
     @test first(table).first === ObjectField
     @test first(table).second isa ObjectFieldToWidget
     rows = Dict(table)

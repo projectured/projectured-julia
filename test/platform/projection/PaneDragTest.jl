@@ -192,6 +192,24 @@ _indicator(iomap) = getfield(iomap, :step_iomaps)[][1][].output.elements[2]
     @test _indicator(iomap).visible === false
 end
 
+@testset "while a group fills the window, it takes the drop and the indicator covers the window" begin
+    tree, left, right, editor = _two_groups()
+    evaluate_operation(editor, make_pane_focus_operation(tree, left, 1))
+    evaluate_operation(editor, make_pane_maximize_operation(tree, left))
+    @test find_pane_maximized_group(tree) === left
+    proj, iomap = _grab!(editor, tree, left, 1)
+    # Where the right group stands in the layout, the left group is now.
+    _hold!(editor, proj, iomap, 300, 150)
+    @test tree.drag.target === left
+    @test tree.drag.zone === :center
+    @test _indicator(iomap).visible === true
+    @test _indicator(iomap).width == WIDTH
+    @test _indicator(iomap).height == HEIGHT
+    _release!(editor, proj, iomap, 300, 150)
+    @test tree.drag === nothing
+    @test find_pane_maximized_group(tree) === left
+end
+
 @testset "a drop in the middle moves the tab into that group" begin
     tree, left, right, editor = _two_groups()
     moved = left.tabs[1]

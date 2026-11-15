@@ -8,6 +8,13 @@
 # - `get_valid_reference_prefix` — follow as far as the document still allows
 # - `annotate_reference_types`   — follow, recording each node's type as it goes
 #
+# A walk that answers for a path that does not fit — `try_evaluate_reference`,
+# `get_valid_reference_prefix` and `annotate_reference_types` — asks
+# `has_reference_step_child` before each step, so a miss throws nothing. A throw
+# records a backtrace of the whole stack, and a print deep in a tree walks paths
+# for each child. The `catch` of each walk stays for a document that answers no
+# check and then throws.
+#
 # The type protocol around them (`get_reference_node_type`, `strip_reference_types`,
 # `fold_reference_types`, `is_fully_typed_reference`) is the same concept from the other
 # side: a path is *canonical at rest* when every node records the type of the
@@ -21,7 +28,19 @@
 
 Navigate into `document` by following each step in `path` in order.
 Returns the sub-document reached at the end of the path.
+
+Use it to read the part of a document that a reference names.
+
+# Example
+
+    part_1 = evaluate_reference(document_1, reference_1)
+
+See also `try_evaluate_reference` and `is_valid_reference`.
+
+For the assistant.
 """
+function evaluate_reference end
+
 function evaluate_reference(document, path::EmptyReference)
     # Folded terminal checkpoint: assert the landed node's recorded type.
     path.type === nothing || document isa path.type ||
@@ -57,14 +76,39 @@ resolve: an exception that is not a fault (`is_fault_exception`), and a
 method — a fault of the program. Every method of that function takes a document of
 any type, so such an error names a missing step method. A `TypeReferenceStep` left
 in a path is one: the path was never folded.
+
+Use it to read a part that a stored reference names when the part may be gone.
+
+# Example
+
+    part_1 = try_evaluate_reference(document_1, reference_1)
+
+See also `evaluate_reference` and `is_valid_reference`.
+
+For the assistant.
 """
+function try_evaluate_reference end
+
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
-        evaluate_reference(document, path)
+        _evaluate_reference_or(document, path, default)
     catch exception
         _is_walk_passthrough(exception) && rethrow()
         default
     end
+end
+
+# `evaluate_reference`, which answers `default` with no throw where a recorded type
+# does not hold or a step does not reach a place.
+function _evaluate_reference_or(document, path::EmptyReference, default)
+    path.type === nothing || document isa path.type || return default
+    document
+end
+
+function _evaluate_reference_or(document, path::ConcreteReference, default)
+    path.type === nothing || document isa path.type || return default
+    has_reference_step_child(path.head, document) || return default
+    _evaluate_reference_or(evaluate_reference_step(path.head, document), path.tail, default)
 end
 
 # Whether an exception of a step goes on to the caller of a walker that answers a
@@ -102,9 +146,9 @@ function get_valid_reference_prefix(document, path::ConcreteReference)
     path.type === nothing || document isa path.type || return EmptyReference()
     step = path.head
     rest = path.tail
-    # Descend one level. `getindex` on a range step is allowed to throw
-    # (out-of-range, non-indexable container without a length method) and simply
-    # truncates.
+    # Descend one level. A step that does not reach a place truncates, and so does
+    # a step whose evaluation throws on a document that answers no check.
+    has_reference_step_child(step, document) || return EmptyReference()
     child = try
         evaluate_reference_step(step, document)
     catch exception
@@ -120,7 +164,19 @@ end
 Document-aware validity: `true` iff every step of `path` resolves against
 `document` and every node type that it records holds there. Equivalent to
 `get_valid_reference_prefix(document, path) == path`.
+
+Use it to check that a stored reference still names a part of the document.
+
+# Example
+
+    is_valid_reference(document_1, reference_1)
+
+See also `try_evaluate_reference` and `evaluate_reference`.
+
+For the assistant.
 """
+function is_valid_reference end
+
 is_valid_reference(document, path::Reference) =
     get_valid_reference_prefix(document, path) == path
 
@@ -155,7 +211,19 @@ Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
 here — e.g. a whole-element selection mapped across a projection carries
 `get_reference_node_type(output_document)`.
+
+Use it to read the type that a reference records for a document.
+
+# Example
+
+    type_1 = get_reference_node_type(document_1)
+
+See also `is_valid_reference`.
+
+For the assistant.
 """
+function get_reference_node_type end
+
 get_reference_node_type(document) = get_document_cell_type(document)
 
 """
@@ -185,12 +253,14 @@ function annotate_reference_types(document, path::ConcreteReference)
     nodetype = get_reference_node_type(document)
     # Descend one step to type the rest. A zero-width cursor descends to a
     # `Position` (so its terminal records `::Position`); a structural step that
-    # cannot be followed throws and leaves the rest untyped.
-    child = try
-        evaluate_reference_step(step, document)
-    catch exception
-        _is_walk_passthrough(exception) && rethrow()
-        nothing
+    # cannot be followed leaves the rest untyped.
+    child = if has_reference_step_child(step, document)
+        try
+            evaluate_reference_step(step, document)
+        catch exception
+            _is_walk_passthrough(exception) && rethrow()
+            nothing
+        end
     end
     annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)
     ConcreteReference(nodetype, step, annotated_rest)
@@ -228,11 +298,14 @@ Anything that is not a reference is answered unchanged, so a caller that may hol
 
 # Example
 
-    before = copy_reference(get_selection(document))
+    before = copy_reference(reference_1)
 
-See also `get_selection`, which answers the live path, and
-`strip_reference_types`, which rebuilds a path without its type checkpoints.
+See also `is_reference_equal` and `is_valid_reference`.
+
+For the assistant.
 """
+function copy_reference end
+
 copy_reference(reference::ConcreteReference) =
     ConcreteReference(reference.type, _copy_reference_step(get_reference_head(reference)),
                       copy_reference(get_reference_tail(reference)))
@@ -240,9 +313,10 @@ copy_reference(reference) = reference
 
 # A range step is the one step that is written in place, so it is the one that is
 # rebuilt, in its own layout. Every other step is answered as it is.
-_copy_reference_step(step::RangeReferenceStep) = RangeReferenceStep(step.start, step.stop)
+_copy_reference_step(step::RangeReferenceStep) =
+    RangeReferenceStep(step.start, step.stop, step.direction)
 _copy_reference_step(step::MRangeReferenceStep) =
-    MRangeReferenceStep(step.start, step.stop)
+    MRangeReferenceStep(step.start, step.stop, step.direction)
 _copy_reference_step(step) = step
 
 """

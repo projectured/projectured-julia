@@ -28,7 +28,7 @@ end
 @projection UntrackedCell struct EvaluatorToplevelToWidgetComposite
     element_gap::Int = get_conversation_style(nothing, :element_gap)
     row_gap::Int = get_conversation_style(nothing, :row_gap)
-    option_gap::Int = get_conversation_style(nothing, :option_gap)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
 end
 
 # `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
@@ -48,16 +48,17 @@ function make_evaluator_form_projection(; theme = nothing)
 end
 
 """
-    make_evaluator_toplevel_projection(; theme = nothing) -> EvaluatorToplevelToWidgetComposite
+    make_evaluator_toplevel_projection(; theme = nothing, widget_theme = nothing) -> EvaluatorToplevelToWidgetComposite
 
-The projection of an evaluator, with the gaps of `theme`: a `ConversationTheme`,
-scaled or not, or the default values for `nothing`.
+The projection of an evaluator, with the gaps of `theme`, a `ConversationTheme`,
+and the gap of its options from `widget_theme`, a `WidgetTheme`, each scaled or
+not, or the default values for `nothing`.
 """
-function make_evaluator_toplevel_projection(; theme = nothing)
+function make_evaluator_toplevel_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_conversation_style(theme, name)
     EvaluatorToplevelToWidgetComposite(; element_gap = get_style(:element_gap),
                                        row_gap = get_style(:row_gap),
-                                       option_gap = get_style(:option_gap))
+                                       button_gap = get_widget_style(widget_theme, :button_gap))
 end
 
 # ── print_document: a bare form → a prompt column beside its code and result ──
@@ -116,7 +117,7 @@ _has_result_row(form::EvaluatorForm) = form.is_running === true || _has_result(f
 # What the `=` row shows while the evaluation of `form` runs in the background:
 # a word, and a button that stops it.
 function _make_running_row(projection, form::EvaluatorForm)
-    stop = WidgetButton("Stop"; icon = :stop, tooltip = "Stop the evaluation",
+    stop = WidgetButton("Stop"; icon = :stop, tooltip = "Stop the evaluation.",
                         action = editor -> evaluate_operation(editor, StopEvaluatorFormOperation(form)))
     HorizontalLayout(Any[WidgetLabel("Running"), stop]; vertical_align = :center,
                      gap = projection.prompt_gap)
@@ -195,7 +196,7 @@ function print_document(projection::EvaluatorToplevelToWidgetComposite,
                             Cell(:left), Cell(projection.element_gap),
                             Cell(Fill), Cell(Content), Cell(nothing))
     # The pane paints no background, so the forms stand on the page of the tab.
-    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end),
+    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end), grows = (width = false, height = true),
                             style = WidgetStyle(content_color = color_transparent))
     output = GridLayout(Any[_make_option_row(projection, t), pane], 1; vertical_gap = projection.row_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
@@ -211,20 +212,24 @@ end
 # `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
 # give ahead of its own toggle.
 function _make_option_row(projection, t::EvaluatorToplevel)
-    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms"),
-                         _make_option_checkbox(t, :type_structured_forms, "Structured forms"),
-                         _make_option_checkbox(t, :evaluate_in_background, "Background")];
-                     vertical_align = :center, gap = projection.option_gap)
+    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms",
+                                               "Turn the code of an evaluated form into a Julia document when it prints back the same."),
+                         _make_option_checkbox(t, :type_structured_forms, "Structured forms",
+                                               "Make a fresh form a hole that is typed into as Julia code, which can hold a pasted object."),
+                         _make_option_checkbox(t, :evaluate_in_background, "Background",
+                                               "Evaluate a form as background work, so the window answers while it runs.")];
+                     vertical_align = :center, gap = projection.button_gap)
 end
 
-function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString)
+function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString, text::AbstractString)
     toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
                               bind(KeyPressPattern(' '; modifiers = Symbol[])),
                               bind(KeyPressPattern('\n'; modifiers = Symbol[]))]
-    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures)
+    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures,
+                         tooltip = TooltipNote(; title = label, text))
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 
@@ -298,7 +303,8 @@ _is_options_path(steps) =
 function __init__()
     register_natural_graphics!(:evaluator, (; measure, appearance) -> Pair{Type,Any}[
         EvaluatorToplevel => ChainingProjection(
-            make_evaluator_toplevel_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            make_evaluator_toplevel_projection(theme = get_scaled_theme!(appearance, ConversationTheme),
+                                               widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
             GridLayoutToGraphicsCanvas()),
         EvaluatorForm     => ChainingProjection(
             make_evaluator_form_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),

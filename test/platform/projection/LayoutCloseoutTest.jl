@@ -3,6 +3,12 @@
 
 const _LC_Cell = CellModule.Cell
 
+# The output of a grid of a vector holds the canvas of the rows and the ring. A row is a
+# canvas at the top of the row that holds the cells of the row in the frame of the row.
+get_grid_row(output, row) = output.elements[1].elements[row]
+get_grid_cell(output, row, slot) = get_grid_row(output, row).elements[slot]
+get_place(node) = (Int(unwrap_cell(node.x)), Int(unwrap_cell(node.y)))
+
 function test_layout_closeout()
 @testset "Layout closeout (grid/form/stack)" begin
 
@@ -33,18 +39,19 @@ end
 end
 
 @testset "a stretched column fills a seeded available width" begin
-    # Two labels in a 2-col grid; column 2 stretches. With an available width far
-    # wider than the content, column 2's left edge stays put but its cell widens,
-    # so the outer width grows to fill (vs. the un-stretched, content-only width).
+    # Two cells in a 2-col grid; column 2 stretches. Both grids take the seeded
+    # width, and only the column that fills takes what the first leaves: with no
+    # policy both columns are their content.
     cells = Any[WidgetLabel("Name:"), WidgetText("x")]
     plain  = GridLayout(copy(cells), 2)
     filled = GridLayout(copy(cells), 2; column_policies=Any[Content, Fill], horizontal_gap=8)
     ctx = with_exact_size(PrinterContext(EmptyReference());
                           width=_LC_Cell(600), height=_LC_Cell(400))
-    pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
-    fw = Int(print_document(proj, nothing, filled, ctx).output.w[])
-    @test fw > pw          # the stretched grid filled the available width
-    @test fw >= 600 - 8    # ~the full seeded width (minus a gap rounding)
+    columns(grid) = [Int(w[]) for w in
+                     _at_find_iomap(print_document(proj, nothing, grid, ctx), GridLayoutIoMap).col_w[1:2]]
+    @test Int(print_document(proj, nothing, plain, ctx).output.w[]) == 600
+    @test sum(columns(plain)) < 200
+    @test sum(columns(filled)) + 8 >= 600 - 1   # the full seeded width, less the gap
 end
 
 @testset "a row takes a policy too, and Content is what a grid always meant" begin
@@ -55,42 +62,48 @@ end
                           width=_LC_Cell(600), height=_LC_Cell(400))
     plain  = GridLayout(cells(), 1)
     filled = GridLayout(cells(), 1; row_policies=Any[Content, Fill])
-    ph = Int(print_document(proj, nothing, plain,  ctx).output.h[])
-    fh = Int(print_document(proj, nothing, filled, ctx).output.h[])
-    # A grid that says nothing is its content, whatever it is offered. That is
-    # the rule a table's rows depend on: a cell must not fill an offered height.
-    @test ph < 100
-    @test fh >= 400 - 1
+    rows(grid) = [Int(h[]) for h in
+                  _at_find_iomap(print_document(proj, nothing, grid, ctx), GridLayoutIoMap).row_h[1:2]]
+    # Rows that say nothing are their content, whatever the grid is offered. That
+    # is the rule a table's rows depend on: a cell must not fill an offered
+    # height. The grid itself takes its slot.
+    @test sum(rows(plain)) < 100
+    @test sum(rows(filled)) >= 400 - 1
+    @test Int(print_document(proj, nothing, plain, ctx).output.h[]) == 400
 end
 
 @testset "a Fixed column clips what it holds, and a withheld offer draws one line" begin
     long = "a value that is far too wide for forty pixels of column"
     cells() = Any[WidgetLabel(long), WidgetLabel("b")]
-    ctx = with_exact_size(PrinterContext(EmptyReference());
-                          width=_LC_Cell(600), height=_LC_Cell(400))
+    # A seeded width and no height, so the grid is as tall as its lines.
+    ctx = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(600))
     # The column hands its forty pixels to the cell, which breaks its lines
     # there; the grid draws the cell inside a viewport of the slot, which is
     # §3b: what was handed out is clipped to.
     offered = print_document(proj, nothing,
                              GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content]), ctx)
-    first_element = offered.output.elements[1]
+    first_element = get_grid_cell(offered.output, 1, 1)
     @test first_element isa GraphicsViewport
     @test Int(first_element.w) == 40
+    @test get_place(first_element) == (0, 0)
+    @test get_place(get_grid_row(offered.output, 1)) == (0, 0)
     # The offer withheld: the cell draws the one line it measures, wider than
     # the column, and the viewport still cuts it at forty. The grid is shorter,
     # because nothing broke into lines.
-    withheld = print_document(proj, nothing,
-                              GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content],
-                                         column_offers=Bool[false]), ctx)
-    element = withheld.output.elements[1]
+    withheld_grid = GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content],
+                               column_offers=Bool[false])
+    withheld = print_document(proj, nothing, withheld_grid, ctx)
+    element = get_grid_cell(withheld.output, 1, 1)
     @test element isa GraphicsViewport
     @test Int(element.w) == 40
+    @test get_place(element) == (0, 0)
     child = element.content.elements[1]   # the viewport holds the cell's own canvas
     @test Int(child.w[]) > 40
     @test Int(withheld.output.h[]) < Int(offered.output.h[])
     # A column that is its content is drawn where it lands, in no viewport.
-    second = withheld.output.elements[2]
+    second = get_grid_cell(withheld.output, 1, 2)
     @test !(second isa GraphicsViewport)
+    @test get_place(second) == (40 + Int(unwrap_cell(withheld_grid.horizontal_gap)), 0)
 end
 
 @testset "a cell wider than its column starts at its left edge, whatever its alignment" begin
@@ -101,8 +114,9 @@ end
         grid = GridLayout(Any[WidgetLabel(long), WidgetLabel("b")], 2;
                           column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
                           column_align=Symbol[align, :left])
-        element = print_document(proj, nothing, grid, ctx).output.elements[1]
+        element = get_grid_cell(print_document(proj, nothing, grid, ctx).output, 1, 1)
         @test element isa GraphicsViewport
+        @test Int(element.w) == 40
         # The column clips the end of the cell, so its start shows: the content
         # of the slot is at its left edge.
         @test Int(element.content.x[]) == 0
@@ -111,16 +125,16 @@ end
     grid = GridLayout(Any[WidgetLabel("ab"), WidgetLabel("b")], 2;
                       column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
                       column_align=Symbol[:right, :left])
-    first_element = print_document(proj, nothing, grid, ctx).output.elements[1]
+    first_element = get_grid_cell(print_document(proj, nothing, grid, ctx).output, 1, 1)
+    @test first_element isa GraphicsViewport
     @test Int(first_element.content.x[]) == 40 - Int(first_element.content.elements[1].w[])
 end
 
 @testset "a flow breaks at the width it is offered, and its children are their content" begin
     words() = Any[WidgetBadge(w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
-    wide = with_exact_size(PrinterContext(EmptyReference());
-                           width=_LC_Cell(600), height=_LC_Cell(400))
-    narrow = with_exact_size(PrinterContext(EmptyReference());
-                             width=_LC_Cell(150), height=_LC_Cell(400))
+    # A seeded width and no height, so the flow is as tall as its lines.
+    wide = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(600))
+    narrow = with_exact_size(PrinterContext(EmptyReference()); width=_LC_Cell(150))
     flow() = FlowLayout(words(); max_width=400, horizontal_gap=4, vertical_gap=4)
     at_wide = print_document(proj, nothing, flow(), wide)
     at_narrow = print_document(proj, nothing, flow(), narrow)
@@ -129,12 +143,15 @@ end
     @test Int(at_wide.output.w[]) == 400
     @test Int(at_narrow.output.w[]) == 150
     @test Int(at_narrow.output.h[]) > Int(at_wide.output.h[])
-    # A child is as wide as its word, not as wide as the offer. The element
-    # after the five children is the selection ring, which draws nothing here.
-    drawn = collect(at_narrow.output.elements)
-    @test length(drawn) == 6
-    @test drawn[end] isa GraphicsRect && Int(drawn[end].w) == 0
-    for wrapper in drawn[1:5]
+    # A child is as wide as its word, not as wide as the offer. The output holds
+    # the canvas of the lines, a canvas for each line, and after it the selection
+    # ring, which draws nothing here.
+    parts = collect(at_narrow.output.elements)
+    @test length(parts) == 2
+    @test parts[2] isa GraphicsRect && Int(parts[2].w) == 0
+    wrappers = [wrapper for line in collect(parts[1].elements) for wrapper in collect(line.elements)]
+    @test length(wrappers) == 5
+    for wrapper in wrappers
         child = only(collect(wrapper.elements))
         @test Int(child.w) < 150
     end
@@ -146,9 +163,12 @@ end
     io = print_document(proj, nothing, g,
                         with_exact_size(PrinterContext(EmptyReference());
                                         width=_LC_Cell(600), height=_LC_Cell(400)))
-    # 40 for the first column plus whatever "b" measures — far under the 600 it
-    # was offered, because neither column asked for a share of it.
-    @test Int(io.output.w[]) < 120
+    # 40 for the first column plus whatever "b" measures — far under the 600
+    # that the grid takes, because neither column asked for a share of it.
+    columns = [Int(w[]) for w in _at_find_iomap(io, GridLayoutIoMap).col_w[1:2]]
+    @test columns[1] == 40
+    @test sum(columns) < 120
+    @test Int(io.output.w[]) == 600
 end
 
 @testset "a column is at least its minimum, and a sized row can keep its height from its cells" begin
@@ -157,7 +177,7 @@ end
     # A recursive projection, so a print answers the IO map of the grid.
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+        WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
     cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
     # A column that is its content and has a minimum is at least that wide,
     # in a grid with no weight as in one with a weight.
@@ -173,10 +193,55 @@ end
     offered = print_document(proj, nothing, GridLayout(one(), 1; row_policies=Any[Fixed(200)]), ctx)
     withheld = print_document(proj, nothing,
                               GridLayout(one(), 1; row_policies=Any[Fixed(200)], row_offers=Bool[false]), ctx)
-    cell(io) = only(e for e in io.output.elements if e isa GraphicsViewport).content.elements[1]
+    viewport(io) = only(e for e in get_grid_row(io.output, 1).elements if e isa GraphicsViewport)
+    cell(io) = viewport(io).content.elements[1]
     @test Int(withheld.row_h[1][]) == 200
+    @test Int(viewport(withheld).h) == 200
+    @test get_place(viewport(withheld)) == (0, 0)
     @test Int(cell(offered).h[]) == 200
     @test Int(cell(withheld).h[]) < 200
+end
+
+# A gap is never negative: a row, a column, a grid and a flow put their children one after the
+# other and declare no overlap.
+@testset "a gap is never negative" begin
+    cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
+    list() = ListNode(WidgetLabel("a"))
+    function names_field(make, field)
+        error = try make(); nothing catch caught; caught end
+        error isa ArgumentError && occursin(string(field), error.msg) && occursin("-3", error.msg)
+    end
+    @test names_field(() -> HorizontalLayout(cells(); gap = -3), :gap)
+    @test names_field(() -> HorizontalLayout(list(); gap = -3), :gap)
+    @test names_field(() -> VerticalLayout(cells(); gap = -3), :gap)
+    @test names_field(() -> VerticalLayout(list(); gap = -3), :gap)
+    @test names_field(() -> GridLayout(cells(), 2; horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> GridLayout(cells(), 2; vertical_gap = -3), :vertical_gap)
+    @test names_field(() -> GridLayout(list(), 2; horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> GridLayout(cells(), 2; row_gaps = Any[nothing, -3]), :row_gaps)
+    @test names_field(() -> FormLayout([(WidgetLabel("a"), WidgetLabel("b"))]; vertical_gap = -3), :vertical_gap)
+    @test names_field(() -> FlowLayout(cells(); horizontal_gap = -3), :horizontal_gap)
+    @test names_field(() -> FlowLayout(cells(); vertical_gap = -3), :vertical_gap)
+    # A gap of 0 prints, and so does an entry of `row_gaps` that is `nothing`.
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
+    for document in (HorizontalLayout(cells(); gap = 0), VerticalLayout(cells(); gap = 0),
+                     GridLayout(cells(), 2; row_gaps = Any[nothing, 0]), FlowLayout(cells()))
+        @test Int(print_document(proj, nothing, document, ctx).output.w[]) >= 0
+    end
+    # A gap set negative after the print gives the error where the print reads it.
+    row = HorizontalLayout(cells(); gap = 4)
+    io = print_document(proj, nothing, row, ctx)
+    @test Int(io.output.w[]) > 0
+    row.gap = -10
+    @test_throws ArgumentError io.output.w[]
+    row.gap = 4
+    @test Int(io.output.w[]) > 0
+    flow = FlowLayout(cells(); horizontal_gap = 4)
+    flow_io = print_document(proj, nothing, flow, ctx)
+    @test Int(flow_io.output.w[]) > 0
+    flow.horizontal_gap = -10
+    @test_throws ArgumentError flow_io.output.w[]
 end
 
 @testset "StackLayout active shows exactly one page" begin
@@ -215,8 +280,9 @@ end
 @testset "a container places a new output of a child, and prints no child again" begin
     measure = FixedMeasure(8, 12, 4, 0)
     layouts = LayoutToGraphics().dispatch
-    plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 20); measure).dispatch))
-    large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(StyleFont("Ubuntu", 40); measure).dispatch))
+    plain = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure).dispatch))
+    large = TypeDispatchingProjection(vcat(layouts, WidgetToGraphics(; measure,
+        theme = make_scaled_theme(WidgetTheme(), Appearance(scale = AppearanceScale(font_scale = 2.0)))).dispatch))
     choice = _LC_Cell(:plain)
     # Every place reads the choice, and only the second child changes with it.
     function choose(reference)

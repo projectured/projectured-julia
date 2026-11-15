@@ -177,6 +177,15 @@ _bracketed_ctors(T, n, slot) =
         length(params) == n + 1 && params[slot + 1] === AbstractVector
     end
 
+# A schema with each kind of generated method: the native layout, the keyword
+# constructors, Rule Y and Rule C. Each method that the macro writes must name the
+# line of the declaration.
+const dm_lines_line = @__LINE__() + 1
+@document struct DmLines
+    a::Int
+    items::DmCollection = DmCollection(Any[])
+end
+
 function test_document_macro()
 @testset "DocumentMacro" begin
 
@@ -440,6 +449,27 @@ end
     for name in (:MDmNative, :ACDmNative, :IDmImmutableNative, :ACDmImmutableNative)
         @test haskey(documented, Base.Docs.Binding(parentmodule(MDmNative), name))
     end
+end
+
+@testset "each generated method names the line of the declaration" begin
+    # A method without a line has the place `none:0`, and a rebuild of a binary
+    # takes it as a method outside every source file.
+    generated = Method[]
+    for T in (DmLines, ICDmLines, MCDmLines, DCDmLines, MDmLines)
+        append!(generated, methods(T))
+    end
+    push!(generated, which(Base.getproperty, (DmLines, Symbol)),
+          which(Base.setproperty!, (DmLines, Symbol, Any)),
+          which(get_document_family, (Type{DmLines},)),
+          which(get_document_cell_type, (Type{DmLines},)),
+          which(get_document_native_type, (Type{DmLines},)),
+          which(get_document_schema_name, (Type{DmLines},)))
+    @test length(generated) > 10
+    places = unique((basename(String(method.file)), Int(method.line))
+                    for method in generated)
+    @test places == [("DocumentMacroTest.jl", dm_lines_line)]
+    # The constructor of Rule C, which now names that line, still works.
+    @test DmLines(1, [2]).items == DmCollection([2])
 end
 
 @testset "a preset is @document with a fixed layout list" begin

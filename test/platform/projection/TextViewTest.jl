@@ -15,6 +15,10 @@ function _text_view_collect(x, T, found = Any[], seen = Set{UInt64}())
     x isa T && push!(found, x)
     if x isa Cell
         _text_view_collect(x[], T, found, seen)
+    elseif x isa AbstractDict
+        # A dictionary is a cache of a print, such as the blocks of the places of
+        # the lines. It can hold a cell of a place that is gone, which no drawing
+        # reads.
     elseif x isa Union{AbstractVector, Tuple, CellVector}
         foreach(element -> _text_view_collect(element, T, found, seen), x)
     else
@@ -35,6 +39,8 @@ function _text_view_cells(x, found = Cell[], seen = Set{UInt64}())
     if x isa Cell
         push!(found, x)
         _text_view_cells(x[], found, seen)
+    elseif x isa AbstractDict
+        # A cache of a print, as in `_text_view_collect`.
     elseif x isa Union{AbstractVector, Tuple, CellVector}
         foreach(element -> _text_view_cells(element, found, seen), x)
     else
@@ -167,7 +173,7 @@ end
 end
 
 @testset "A click puts the caret of the view that it hits" begin
-    place_y = Int(iomap.output.elements[2].y)
+    place_y = Int(iomap.output.elements[1].elements[2].y)
     @test press!(MouseClick(:left, 25, place_y + 5; time = 0.0)) isa ReplaceSelectionOperation
     # The click hits the first line of the second place, between "fi" and "rst".
     @test stored(view_b) == caret(2) && is_live_selection(view_b)

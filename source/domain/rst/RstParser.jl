@@ -735,7 +735,19 @@ end
     parse_rst(text) -> RstRoot
 
 Parse reStructuredText source into an `RstRoot`.
+
+Use it to read reStructuredText into a document that you can open in a pane or edit.
+
+# Example
+
+    rst_1 = parse_rst("Title\\n=====\\n\\nA paragraph.")
+
+See also `parse_markdown` and `find_rst_section`.
+
+For the assistant.
 """
+function parse_rst end
+
 function parse_rst(text::AbstractString)
     normalised = replace(String(text), "\r\n" => "\n", "\t" => "        ")
     lines = String.(split(normalised, '\n'))

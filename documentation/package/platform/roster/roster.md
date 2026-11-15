@@ -1,6 +1,6 @@
 # Roster
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [collection.md](../collection/collection.md), [natural.md](../natural/natural.md), [pane.md](../pane/pane.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [collection.md](../collection/collection.md), [natural.md](../natural/natural.md), [pane.md](../pane/pane.md), [widget.md](../widget/widget.md)
 
 The roster slice of `ProjecturedPlatform` shows the members of one kind, gathered from anywhere in a window or a session, as a table: the files with edits, the documents of each type, the errors of the log. This document says how the rows of a roster follow their items at the cost of what changed, how a slice adds a source and a key, and how code and the assistant make a roster.
 
@@ -18,17 +18,31 @@ A roster with no link has no rows. A window links a roster when it shows it, wit
 
 **The parts of a source.** A source gives its items in parts, through two generics: `collect_roster_parts(source, link)` gives the parts, such as the tabs of a window, and `collect_roster_items(source, link, part)` gives the items of one part, each as a `RosterItem(item, within)`. The roster keeps one computed cell for the items of each part, by the identity of the part. So an edit inside one file gathers the items of that file again, and of no other file. `collect_roster_parts` must read only what says which parts exist, such as the tabs, and not what is inside a part.
 
+**The inside of an item.** A source that finds items inside items answers `get_roster_item_inside(source, entry)`: the inside of the item of `entry` as a part of its own. The roster keeps one computed cell for the inside of each item, by the identity of the item, and the search of a part stops at each item that it finds and reads nothing inside it (`walk_document(...; enter_matches = false)`). So the start of one task in a group of 22,731 tasks walks the inside of that one task, and not the group. `ItemsWithin` answers it; the default is `nothing`.
+
+**Where a search goes.** `ItemsWithin(source, type; descend, enter_field)` holds the two functions of `walk_document` of the same names, and gives them to each search of a part and of an inside. `enter_field(parent, name)` decides before the walk reads a field, so a refused field is not read and a computed field is not computed. A search for tasks passes `is_task_search_field` of the task slice: from a task it reads only the inner group, and from a group only its tasks and its preparation. Without it, the search of the inside of each task walks the value of the task, so 22,731 tasks that name one large project walk that project 22,731 times. A file writes the functions by their names.
+
 **One row for each item.** The roster keeps the row of each item, by the identity of the item, so a row whose item stays keeps its cells when other items come or go. An item that two parts give is one row. A row holds one computed cell for each column, which `compute_roster_value` computes. A value cell reads only what its key reads of its item, so a change of one item computes the cells of its row and of no other row.
+
+**The place of an item.** A source gives each item with its place, when it knows it: `RosterItem(item, within, place)`, where `place` is the path of the item from the link. `CollectionItems` of a reference knows the index of each item while it walks the collection, so it gives `<reference>[j]`, such as `files[2]`. The other sources give `nothing`. The roster keeps the places where it computes its rows: its computed field `index`, a `RosterIndex`, holds the place of each item and the index of its row, by the identity of the item. It computes again after the rows do, when a reader reads it. `get_roster_item_place(roster, k)` answers the place of the item of row `k`, and `find_roster_row(roster, item)` the index of the row of an item. Neither searches. When an item before an item goes out, the part gathers again, so that item gets its new place, and its row stays the same object.
+
+**A roster that a page holds.** A page that keeps a roster of its own collection in a field, alone or in an arrangement, with the page as the link, opens the item of a row at its place. `find_held_item_path(holder, step, path)` maps `table.document.rows[k].item.<rest>` to the place of the item of row `k` with the rest after it. `retarget_held_row_open(operation, holder, step)` retargets each open of a page in an answer whose path reaches an item through a row, and the reader of the page calls it. So the open of a row, by its link or by a double click, names the place of the item, and the address of the page of the item names its place, not the arrangement, the roster and the row. The page of the open files and the page of the log of the background work open their rows so.
+
+The selection of a row stays the path of the row. Each document on the path of the selection holds its part of the path, and the printers of the table read the selection of their own documents, so a selection at the place of the item would reach no row of the table, and the table would show no selected row.
 
 **The table.** `RosterToGraphics` prints the rows through the recursion of the renderer at the path `rows`. So an entry of an arrangement at `rows` puts a filter, a sort, a group or the first items before the printer of the rows, as at any collection, and the bar shows the chips. A pick of a filter or a sort keeps the element type of a `CellVector`, so the picked rows are a `CellVector{RosterRow}` too, and `RosterRowsToWidget` prints them as a `WidgetTable`: a header with the key of each column, and one row of cells for each row. While a key of a filter or a sort is a provisional value, such as a value that a task still reads, the pick keeps its last final rows that still name items of the input, so the table keeps its order until the sort is final.
 
-**A table with a height.** Where the context gives the rows an exact height, as a tab does, the body of the table is a list of the rows from the row at its head (`_RosterTableView.anchor`), built with `make_index_list`. The table builds only the rows that it shows, fills the height and scrolls its rows. The cells of a row are the same object while the row stays, so the grid of the list keeps the print of a row that a filter or a sort keeps. Every column takes an equal share of the width, and the width of its header at least, because a table of a list measures no cell for a column. A row is as tall as its cells. Where no height is given, as in a print with no window, the body is a vector of every row, and a column is as wide as its widest cell. A filter that keeps no row gives a body of `nothing`, a list with no rows.
+**A table with a height.** Where the context gives the rows an exact height, as a tab does, the body of the table is a list of the rows from the row at its head (`_RosterTableView.anchor`), built with `make_index_list`. The table builds only the rows that it shows, fills the height and scrolls its rows. Where the context gives an edge and no slot, the body is a list too: the grid row of the table is `Content`, so the table gets the edge, and it takes its rows up to it. The cells of a row are the same object while the row stays, so the grid of the list keeps the print of a row that a filter or a sort keeps. Every column takes an equal share of the width, and the width of its header at least, because a table of a list measures no cell for a column. A row is as tall as its cells. Where no height is given, as in a print with no window, the body is a vector of every row, and a column is as wide as its widest cell. A filter that keeps no row gives a body of `nothing`, a list with no rows.
 
 When the table moves its head more than 200 rows from the head, it writes `cells`. The roster turns that write into a write of `anchor`, and it drops the shift of the selection, because the selection of the rows names a row of `rows` and the maps place it from the anchor.
 
 **A page from a row.** A double click on a row opens its item as a page. The first press selects the item, as a single click does. The second press adds `OpenPageOperation(nothing, <path of the item>)` to the answer, so the nearest navigator shows the item as a page and Back returns to the table. The page is the page of the type of the item: a row of the `:tasks` source opens the page of the task ([task.md](../task/task.md)). With no navigator around the table, the editor opens a new tab with a navigator ([navigator.md](../navigator/navigator.md)). `RosterRowsToWidget` makes this answer in its own `read_intent`, the reader that also answers an operation that a route brings to a row. A press with a modifier key, and a press on a cell that holds a document, do not open a page. The roster slice does not name the navigator, because the operation is a type of the widget slice.
 
-A cell whose value is a document shows that document, the same object as in its item. So a key in that cell edits the item through the reader of the document, and the history of the window records the edit. A cell whose value is not a document shows a label of its text. A press on a label selects the item of the row, so the context menu is the menu of the item. A label takes no key: no widget writes a field of a target as text. In a navigator, the menu of a row has Open as a page and Open in a new tab, and Ctrl+Return opens the selected item, at the place where the content holds it when its domain answers it ([navigator.md](../navigator/navigator.md)); so a roster needs no link of its own.
+**The first cell is a link.** When the value of the first column of a row is not a document, its cell is a link, as a name on the page of a folder is: a click opens the item of the row, and Ctrl and a click open it in a new tab. The link is a `WidgetLink(content, EmptyReference())` ([widget.md](../widget/widget.md)), so a middle click opens it in a new tab too, and its text follows the value. Its open names the part itself, and `RosterRowsToWidget` maps the path of a cell that holds no document to the item of the row, so a click on the link opens the same page as a double click on the row. So a link opens on one click, and a row on a double click, as everywhere in the platform. A right click on the link opens the menu of the row. The part under the pointer in a cell of text is the item of the row and, below it, the cell as a part that the rows draw, `rows[k].item‹[c]›` ([mouse-target.md](../../kernel/mouse-target.md#the-innermost-part)). So the item stays the document under the pointer, the table lights the row, and each cell that the rows make reads its part from the mouse target of its row: the link of the first cell draws its line.
+
+A cell whose value is a picture, an `ImageDocument` or an `ImageFile` (`get_shown_picture` answers an `ImageDocument`), shows the picture (`make_roster_value_cell`): at most `table_picture_height` of the widget theme high (120 by default), in its shape, and a row is as high as its highest cell. The picture reads its pixels on a task when a paint asks for them. Before they come, and for a file that does not exist, the cell shows a box 160 by 120 pixels. The table offers a cell no width, so a column that is narrower than the picture clips it. A page that draws its own cells, such as the table of a task group, makes a picture cell with the same function.
+
+A cell whose value is another document shows that document, the same object as in its item, also in the first column. So a key in that cell edits the item through the reader of the document, and the history of the window records the edit. Any other cell whose value is not a document shows a label of its text. A press on a label selects the item of the row, so the context menu is the menu of the item. A label takes no key: no widget writes a field of a target as text. In a navigator, the menu of a row has Open as a page and Open in a new tab, and Ctrl+Return opens the selected item, at the place where the content holds it when its domain answers it ([navigator.md](../navigator/navigator.md)).
 
 **A count where the roster is named.** A row of a tree, a tab or an item of an address bar that names a roster shows its icon and a pill with the count of its rows (`get_document_decoration`). An arrangement around a roster counts the rows that it shows, the number of "1 of 18" in its bar. The pill takes the colour that all the counted items share: a row says what its item says, and `find_shared_decoration_tint` answers the tint that every item has, or none. So a view of the tasks that failed is red, a view of the tasks that run is blue, and a roster of files is quiet. A roster with no rows, and an arrangement that shows none, show no count.
 
@@ -41,8 +55,8 @@ The count runs the search of the source when the name is drawn first and when a 
 | Source | Its items | Its parts |
 | --- | --- | --- |
 | `TabDocuments(type)` | the documents of `type` that the tabs of the window show: the first layer of the content of a tab that is a `type`, from the outside inward | one part for each tab |
-| `CollectionItems(collection)` | the items of a collection inside a document, given by a `Reference` from the document of the window, or as the collection itself | one part |
-| `ItemsWithin(source, type)` | the documents of `type` inside each item of `source`, at any depth, each with the item that holds it as `within` | one part for each item of `source` |
+| `CollectionItems(collection)` | the items of a collection inside a document, given by a `Reference` from the document of the window, each with its place `<reference>[j]`, or as the collection itself, with no place | one part |
+| `ItemsWithin(source, type)` | the documents of `type` inside each item of `source`, at any depth, each with the item that holds it as `within` | one part for each item of `source`, and one for the inside of each document that it finds |
 | `StoreRecords(name)` | the records of a store of the session that a slice registers under `name` | the parts of the source of the store |
 | `SystemProcesses(tree)` | every process of a `SystemProcessTree`, a parent before its children, each with its parent as `within` ([systemprocess.md](../systemprocess/systemprocess.md)) | one part, the tree |
 
@@ -73,7 +87,7 @@ A facet is a value of an item that the slice of its type computes. A slice decla
 | Type | Facets |
 | --- | --- |
 | `Document` | `type`: the name of the type of the document that a person sees, through the layers that wrap it |
-| `FileDocument` | `name`, `folder`, and `has_edits`: whether the history of the file has a step that the file does not hold |
+| `FileDocument` | `name`, `folder`, `has_edits`: whether the history of the file has a step that the file does not hold, and `state`: the words of its conditions, such as "unsaved edits", "changed on disk" or "read only" |
 | `Assistant` | `title`, `turn`, `tokens`, `plan` (the completed steps over all the steps of its first plan with steps, such as `3/7`), `subagents` and `background_tasks` (how many run) |
 | `AgentWork` | `tokens` |
 | `SystemProcess` | `load`, `elapsed` |
@@ -103,7 +117,29 @@ edit_shown_items!(roster, "status" => "checked")
 - `edit_shown_items!` gives one value to the key of the item of each row that the roster shows, as one `CompoundOperation`. `find_rooted_operation` carries it through the readers, so the history records it as one step. With a group in the arrangement of the roster, the call throws an `ArgumentError`.
 - `describe_item_facets(type_or_source)` lists the keys of the items.
 
-`make_editor_api` declares these verbs, `TabDocuments` and the three other sources for the assistant of every window, and `EDITOR_SYSTEM` names them.
+The docstrings of these verbs, of `TabDocuments` and of the three other sources carry the mark `For the assistant.`, so `make_editor_api` offers them to the assistant of every window, and the index of the text of the window lists them.
+
+## A table of records that a file keeps
+
+A `RecordTable` is a document that holds its own records and shows them as a table. Its fields are `title`, `columns`, `records` and `table`. `records` is a `CellVector` with one plain cell for each record, and a record is a named tuple or any document. `table` is an arrangement around `Roster(CollectionItems(records); columns, title)`, whose link is the record table, so the table has every part of a roster: the bar, the filters under the headers, the sort, the group, the link of the first column, the open of a row and the picture cell.
+
+```julia
+path = joinpath(folder, "ledger.pred")
+write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path)
+tab = open_file!(path)
+ledger = get_edited_document(tab)
+insert_elements!(ledger.records, length(ledger.records) + 1,
+                 [(number = 1, commit = "fd436d7", state = "waiting")])
+replace_referenced_value!(ledger.records[1], :state, "equal")
+save_file_to_disk!(tab)
+sort_collection!(ledger, "number")
+```
+
+- A record is a part, as a tuple is: `ledger.records[1]` answers the part at `records[1]`, and the field form of `replace_referenced_value!` writes one field. The write copies the named tuple into its slot, and the roster makes a new row for that record only.
+- A row follows its record by its identity, so two equal records are one row. Each record needs a field that no other record has, such as `number`.
+- A file keeps the title, the columns and the records (`pred_arguments`), and the constructor makes the roster and the arrangement again. A file keeps no arrangement, so a sort is made again after a load.
+- `RecordTableToWidget` draws a line that counts the records, and under it the table, which fills the height. Its reader keeps the arrangement of the table (`keep_held_arrangement`) and opens the record of a row at its place, `records[j]` (`retarget_held_row_open`), as the page of the open files does.
+- The verbs of the arrangement take a record table for the rows of its roster, through `get_arranged_collection_steps(::RecordTable)`.
 
 ## The cost of a change
 
@@ -130,6 +166,8 @@ The counters measured this on a headless window, with the walk of the paint coun
 | a change of one call, no roster | 0 | 149 | 0 |
 | the same, with the roster of the calls of one function, grouped by file | 571 | 33047 | 737 |
 
+**A large roster.** On 2026-10-29 a roster of the 22,731 tasks of one group, with four columns, was measured in `ProjecturedPlatform` alone. After one task starts, a filter on the status computes again in about 6 ms, a sort by the status in about 8 ms, a sort by the name in about 2 ms, and a quick text in about 2 ms. The cell of the inside of that task, the value cell of its status and its cell in the filter or the sort compute again. The rows of a filter compute again only when the answer of that task changes, and a sort moves only its row (the arrangement keeps one cell for each item). The first open costs more, because each item gets a row, a cell of its inside, and a cell in each filter and sort: about 0.4 s for the rows and about 0.5 s for the first filter. When the tasks name one project of about 250 values, the rows take about 0.2 s with `enter_field = is_task_search_field`, and about 2 s without it. The plan [a-roster-and-its-arrangement-cost-what-changed.md](../../../../plan/done/a-roster-and-its-arrangement-cost-what-changed.md) holds the scripts and each number.
+
 The plan in [roster-table-cost.md](../../../../plan/done/roster-table-cost.md) holds the probe that found these causes, and [computed-cell-stop-measure.md](../../../../plan/done/computed-cell-stop-measure.md) the measure of the stop of a computed cell.
 
 ## Limits
@@ -150,7 +188,9 @@ roster/RosterModule.jl      (RosterModule): the module, its exports and its incl
     ├─ RosterDocument.jl    : Roster, RosterRow, RosterItem, the value of a key, the facets, the save
     ├─ RosterSource.jl      : CollectionItems, ItemsWithin, StoreRecords and the stores
     ├─ RosterToGraphics.jl  : the print of a roster and of its rows as a table
-    └─ RosterProgram.jl     : the verbs of code and of the assistant
+    ├─ RosterProgram.jl     : the verbs of code and of the assistant
+    ├─ RecordTable.jl       : RecordTable, a table of records that a file keeps
+    └─ RecordTableToWidget.jl : the page of a record table: the count and the table
 ```
 
 ## Try it

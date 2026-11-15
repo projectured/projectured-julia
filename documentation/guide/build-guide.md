@@ -1,6 +1,6 @@
 # Build a binary
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 A build makes a native binary of this repository: a directory that holds an
 executable, a system image, the shared libraries and the files that the program
@@ -14,8 +14,9 @@ one is an experiment; the builder here is the path that ships.
 
 ## Warnings
 
-- **A build uses much memory.** The compile of the system image reached 14 GB.
-  Run one build at a time, and run no large model beside it.
+- **A build uses much memory.** A plain build went past 20 GB, and the
+  founding of a reactive store reached 26 GB. Run one build at a time, and run
+  no large model beside it.
 - **A build takes minutes.** About 8 minutes for a build on top of the image of
   this Julia, and about 25 minutes for a distribution.
 
@@ -32,6 +33,38 @@ function writes the package of the binary, and asked to compile nothing it
 stops there. The script then starts `julia_main` of that package. A change is
 tried in the time that Julia needs to compile it, and not in the minutes that a
 build costs.
+
+The script loads the packages as Julia does. With another Julia, a change of a
+package makes Julia compile that package and every package above it again,
+which takes minutes for a change of the platform. With the reactive Julia, the
+first start after a small change takes seconds:
+
+- **The changed package gets a patch.** Julia loads the compiled file of the
+  package, applies the changed definitions, compiles again the code that they
+  reach, and writes only that, as a patch beside the file. A later change adds
+  a patch on top of the others.
+- **The packages above keep their files.** Julia compiles again, at its first
+  call, each function of theirs that called a changed method.
+- **A read at the top level is recorded.** A package that expands a macro or
+  reads a constant of a package below it at its top level compiles whole when
+  that macro or constant changes. The packages that do not read it keep their
+  files.
+- **Some changes compile the package whole**, as with another Julia: a changed
+  type, a changed global that is not constant, a changed `__init__`, a changed
+  include of a file that is not a source file, and a change after 32 patches.
+- **Revise reads the patch.** In a session, Revise compares an edit with the
+  text that the patch applied, so it applies the edit and no more.
+- `JULIA_REACTIVE_PACKAGE_PATCH=0` turns the patch off.
+
+The binary has its own fast path: see [Rebuild in seconds](#rebuild-in-seconds).
+
+The first start after an install or an update installs and compiles the
+packages of the program, which takes some minutes. When that preparation runs
+longer than ten seconds, the script says why the wait comes and shows each
+package as it installs and compiles. A normal start spends about five seconds
+there and prints nothing, and a failure shows its output. A launcher of another
+program that the builder writes does the same, with `run_with_slow_output` of
+[LauncherOutput.jl](../../source/tool/builder/LauncherOutput.jl).
 
 ## Start a build
 
@@ -59,7 +92,7 @@ The options of the front end:
 | --- | --- |
 | `--distribution` | build for other machines, test the copy, and write an archive |
 | `--backends=<list>` | the backends in the binary (default: `sdl,web`). The first one is its default |
-| `--no-workload` | compile no start of the application ahead of time |
+| `--precompile-calls=<value>` | what each package compiles ahead: `recorded` (default), `live` or `none` |
 | `--no-incremental` | compile a fresh system image, not one on top of the image of this Julia |
 | `--filter-stdlibs` | hold only the standard libraries that the program uses. Needs `--no-incremental` |
 | `--name=<name>` | the name of the executable and of its directory under `build/` |
@@ -69,6 +102,8 @@ The options of the front end:
 | `--log=<file>` | write the output of the compiler to a file |
 | `--log-level=<level>` | the level the binary logs from |
 | `--no-compile` | write the package of the binary under `build/app/`, and compile nothing |
+| `--no-prelink` | leave the restore of the image to every start |
+| the options of the reactive build | see [Rebuild in seconds](#rebuild-in-seconds) |
 
 `--no-compile` is the fast way to see what a build would make. It writes the
 package in a second and compiles nothing.
@@ -82,15 +117,96 @@ build_projectured_executable(; compile = false, backends = (:sdl,))
 build_projectured_distribution()
 ```
 
+## Rebuild in seconds
+
+With the reactive Julia, a build compiles only what changed since the build
+before:
+
+```bash
+bin/build_projectured                 # the first build founds a store: a whole build
+# edit a file of a package of the binary
+bin/build_projectured                 # a rebuild: the edit and no more
+bin/build_projectured --status
+bin/build_projectured --stop-server
+```
+
+The first build founds a *store* under the output, `build/projectured/reactive-store`:
+the sources that the build tracks, the trace of the workloads, and the snapshots.
+Every later build of the output is a rebuild. It reads the tracked sources from
+disk, applies what changed to a compiler server that keeps the image in memory,
+compiles the edit and no more, and writes an overlay beside the image. The
+tracked sources are the files of every package of this repository that the
+binary holds. Nothing runs the program during a build.
+
+`--dev --watch` is the loop in one process:
+
+```bash
+bin/build_projectured --dev --watch
+```
+
+`--dev` compiles the code of a rebuild at `-O1`, and `--watch` rebuilds at
+every save of a tracked file until Ctrl-C. Do not press Ctrl-C before the line
+`watch: N tracked files` appears: before it, the first build runs.
+
+Every build command made with `ProjecturedBuilder` takes the same options of
+the reactive build. `REACTIVE_BUILD_OPTIONS` lists them,
+`apply_reactive_build_option!` reads one, and `run_reactive_build_action!`
+runs `--status`, `--stop-server` and `--watch`:
+
+| Option | What it does |
+| --- | --- |
+| `--reactive` | found the store or rebuild it, as a build does by default, and stop when this Julia has no reactive compiler |
+| `--no-reactive` | compile the whole program, and found no store; a store under the output goes with the old output |
+| `--found` | found the store again now: a whole build, and the chain starts over |
+| `--dev` | `--reactive --delta-optimization=1 --debug-info=1` |
+| `--watch` | build now, then rebuild at every save of a tracked file until Ctrl-C |
+| `--refresh-trace` | before a rebuild, add what the workload compiles from the current binary to the trace of the store |
+| `--no-server` | rebuild in a child process, not in the compiler server |
+| `--image=overlay\|pages\|whole` | how a rebuild writes the image (default: `overlay`); on Linux only `overlay` |
+| `--delta-optimization=N` | the `-O` level of the code of a rebuild, 0 to 3 (default: the level of the build) |
+| `--compact=N,F` | found again by itself after a growth of F of the image, or after N rebuilds for `--image=pages` and `--image=whole` (default: `50,0.25`) |
+| `--trim` | write the trimmed product too, under `<output>/trimmed` |
+| `--status` | print what the store of the output holds, and exit |
+| `--stop-server` | stop the compiler server of the store of the output, and exit |
+
+- **The reactive Julia** is the branch `merged` of
+  https://github.com/levy/julia, which also writes a pre-relocated image. The
+  build environment takes PackageCompiler from the branch `reactive` of
+  https://github.com/projectured/PackageCompiler.jl, which builds like the
+  released one on another Julia.
+- **With another Julia**, a build compiles the whole program, as before, and
+  says how to get the reactive Julia. Over an output that holds a store it
+  stops, because a plain build removes the store: start it with the reactive
+  Julia, or pass `--no-reactive`.
+- **The binary keeps what its founding build holds.** A change of the backends,
+  of the options of the package, or of `--precompile-calls` is refused with the
+  words "founded for another package": found the store again with `--found`.
+- **An edit that calls new code** compiles that code at each start of the
+  binary until `--refresh-trace` adds it to the trace.
+- **The store founds again by itself** when its overlay grew the image by a
+  quarter since the founding.
+- **The program starts prelinked.** The founding links the image into
+  `bin/projectured` and prelinks it, and a start applies the overlay of the
+  last rebuild on top: about 60 ms after a founding, and about 110 ms with an
+  overlay. `--no-prelink` turns the prelink off. The program reads no other
+  image, so on Linux a build refuses `--image=pages` and `--image=whole`. A
+  store founded before the program held its image keeps the slower launcher of
+  PackageCompiler until `--found`.
+- `--no-incremental`, `--distribution` and `PROJECTURED_PERFORMANCE_COUNTERS`
+  compile the whole program: a rebuild keeps the image of its founding build.
+
 ## What a build makes
 
 1. **A package for the binary**, under `build/app/<name>/`. It names the
    packages that go in, and its module holds the body of `julia_main`, the
-   workload, the `--help` text and the build record. A build that would write
+   `--help` text and the build record. Its `LocalPreferences.toml` says what
+   each package compiles ahead. A build that would write
    the same package again leaves it alone, so the compiler cache holds.
 2. **The bundle**, under `build/<name>/`: `bin/`, `lib/`, `libexec/` and
    `share/`. PackageCompiler writes it, and the build adds the files that the
-   program reads while it runs.
+   program reads while it runs. On Linux, `bin/<name>` holds the image and is
+   prelinked, so it starts fast; the image as a library, `sys.so`, and its
+   object archive go beside the bundle, to `build/<name>.object/`.
 
 Every binary answers four flags that the builder writes itself: `--help`,
 `--version`, `--build-info` and `--log-level=<level>`. `--build-info` prints
@@ -146,41 +262,29 @@ target machine still needs.
 The packages reach a Julia programmer through a registry, not as a binary.
 [release-guide.md](release-guide.md) says how to make a release of them.
 
-## Build the agent claude-code-acp
+## The agent claude-code-acp
 
-`bin/build_claude_code_acp` builds `claude-code-acp`, the program of the package
-ClaudeCodeACP: the agent of the Agent Client Protocol that runs Claude Code. An
-editor that starts agents as programs, such as Zed, starts it. ProjecturEd
-itself needs no binary of it, because it runs the same agent in its own process.
-The package comes from the folder `ClaudeCodeACP.jl` beside this repository, the
-folder where `environment/all` finds it too.
-
-```sh
-bin/build_claude_code_acp
-build/claude-code-acp/bin/claude-code-acp --help
-```
-
-The bundle goes to `build/claude-code-acp/`. While the image compiles, the
-workload serves a client in the process through `initialize`, so the first
-answer of the binary needs no compilation. The binary runs the `claude` program
-of the machine, which must be signed in. The build takes no `--distribution` and
-no `--backends`.
+`claude-code-acp`, the agent of the Agent Client Protocol that runs Claude Code,
+is built in its own repository,
+[ClaudeCodeACP.jl](https://github.com/projectured/ClaudeCodeACP.jl). Its README
+says how. ProjecturEd needs no binary of it, because it runs the same agent in
+its own process.
 
 ## Add a binary
 
-A binary is a function. `source/tool/builder/ProjecturedProgram.jl` and
-`source/tool/builder/ClaudeCodeAcpProgram.jl` hold the ones of this repository;
-write the new one beside them, give the front end a row in its `BUILD_BINARIES`
-table, and add the scripts in `bin/` that build it and, for a program of this
-repository, run it from the checkout.
+A binary is a function. `source/tool/builder/ProjecturedProgram.jl` holds the
+ones of this repository; write the new one beside them, give the front end a row
+in its `BUILD_BINARIES` table, and add the two scripts in `bin/`: one that runs
+the program from the checkout, and one that builds it.
 
 The function calls `build_executable(context; …)` with:
 
 - `packages` — the packages the binary holds, as names. The build finds each one
   and writes it into the package of the binary. Nothing here loads them.
 - `main` — an expression whose value is the exit code, the body of `julia_main`.
-- `workload` — an expression that runs while the image compiles, so the first
-  frames of a real start need no compilation.
+- `precompile_calls` — what each package of the binary compiles ahead, as the
+  preference of that name says: `"recorded"`, `"live"` or `"none"`. The workload
+  of a binary is in its own package, such as `ProjecturedBuild`.
 - `usage` — a [`Usage`](../../source/tool/builder/Usage.jl): what the binary does,
   and the options it takes. **The options of the program live here**, and a test
   compares them with what the program parses.
@@ -196,7 +300,6 @@ package. That is what lets another repository use the same builder.
 | --- | --- |
 | [source/tool/builder/](../../source/tool/builder/) | the builder, `BuilderModule`: context, preferences, usage, app package, executable, distribution, release copy, and the command line (`BuildCommand.jl`) |
 | [source/tool/builder/ProjecturedProgram.jl](../../source/tool/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
-| [source/tool/builder/ClaudeCodeAcpProgram.jl](../../source/tool/builder/ClaudeCodeAcpProgram.jl) | the binary `claude-code-acp` of the package ClaudeCodeACP |
 | [tool/build-binary.jl](../../tool/build-binary.jl) | the shell front end |
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |

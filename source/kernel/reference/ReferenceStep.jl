@@ -13,7 +13,7 @@
 # ── RangeReferenceStep ────────────────────────────────────────────────────────
 
 """
-    RangeReferenceStep(start, stop)
+    RangeReferenceStep(start, stop[, direction])
 
 Unified sequence step.  Encodes:
 - **Cursor position** (start == stop): a position between elements (0-based).
@@ -21,11 +21,17 @@ Unified sequence step.  Encodes:
 - **Range**           (stop > start + 1): a multi-element selection.
 
 All positions are 0-based boundaries.  For a collection with n elements,
-valid boundaries are 0 to n.
+valid boundaries are 0 to n, and always `start <= stop`.
+
+`direction` says which end of a selected range moves when a key or a drag extends
+it: `:forward` (the default) moves `stop`, and `:backward` moves `start`. The other
+end is the anchor. A cursor position is always `:forward`. A backward range prints
+with its anchor first, `{5:3}`, and `@reference xs{5:3}` builds it.
 """
 @document [C, M] struct RangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
+    direction::Symbol = :forward
 end
 
 # Every method below dispatches on the `A…` stem, so the C and the M layout of
@@ -38,7 +44,19 @@ end
 
 Construct a `RangeReferenceStep` representing the `index`-th element (1-based).
 Equivalent to `RangeReferenceStep(index - 1, index)`.
+
+Use it to name the n-th element of a collection in a reference.
+
+# Example
+
+    step_1 = ElementReferenceStep(3)
+
+See also `PositionReferenceStep` and `RangeReferenceStep`.
+
+For the assistant.
 """
+function ElementReferenceStep end
+
 ElementReferenceStep(index::Int) = RangeReferenceStep(index - 1, index)
 
 """
@@ -46,7 +64,19 @@ ElementReferenceStep(index::Int) = RangeReferenceStep(index - 1, index)
 
 Construct a `RangeReferenceStep` representing a cursor position (0-based).
 Equivalent to `RangeReferenceStep(index, index)`.
+
+Use it to name a place between two elements, such as a caret place, in a reference.
+
+# Example
+
+    step_1 = PositionReferenceStep(0)
+
+See also `ElementReferenceStep` and `RangeReferenceStep`.
+
+For the assistant.
 """
+function PositionReferenceStep end
+
 PositionReferenceStep(index::Int) = RangeReferenceStep(index, index)
 
 # The M (plain-layout) conveniences, for a hot path that builds VALUE steps.
@@ -71,6 +101,17 @@ something" is a `Position`. A path terminating at a cursor therefore records
 `Position` as its terminal type (`…{k}::Position`), and
 `evaluate_reference` of such a path returns `Position(k)` — a signal that the
 target is a caret, distinct from a document node reached by a structural step.
+
+Use it to tell a caret from a document node when you read what a reference names.
+
+# Example
+
+    part_1 = evaluate_reference(document_1, reference_1)
+    part_1 isa Position
+
+See also `Reference`, `evaluate_reference` and `search_references`.
+
+For the assistant.
 """
 struct Position
     index::Int
@@ -81,7 +122,9 @@ Base.hash(p::Position, h::UInt) = hash(p.index, hash(:Position, h))
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
 function Base.show(io::IO, s::ARangeReferenceStep)
-    if is_element_reference_step(s)
+    if s.direction === :backward
+        print(io, "{", s.stop, ":", s.start, "}")
+    elseif is_element_reference_step(s)
         print(io, "[", s.start + 1, "]")
     elseif is_position_reference_step(s)
         print(io, "{", s.start, "}")
@@ -90,9 +133,80 @@ function Base.show(io::IO, s::ARangeReferenceStep)
     end
 end
 
-Base.:(==)(a::ARangeReferenceStep, b::ARangeReferenceStep) = a.start == b.start && a.stop == b.stop
+Base.:(==)(a::ARangeReferenceStep, b::ARangeReferenceStep) =
+    a.start == b.start && a.stop == b.stop && a.direction === b.direction
 Base.hash(s::ARangeReferenceStep, h::UInt) =
-    hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h)))
+    hash(s.direction, hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h))))
+
+"""
+    make_range_reference_step(anchor, moving) -> RangeReferenceStep
+
+The range step from the end that stays, `anchor`, to the end that moves, `moving`,
+in either order: `:forward` when `moving` is not before `anchor`, `:backward`
+otherwise. The step keeps `start <= stop`.
+
+Use it where a gesture moves one end of a selected range, and to build `{a:m}`.
+
+# Example
+
+    step_1 = make_range_reference_step(5, 3)    # {5:3}: start 3, stop 5, backward
+
+See also `RangeReferenceStep` and `get_range_direction`.
+
+For the assistant.
+"""
+function make_range_reference_step end
+
+make_range_reference_step(anchor::Int, moving::Int) =
+    moving < anchor ? RangeReferenceStep(moving, anchor, :backward) :
+                      RangeReferenceStep(anchor, moving)
+
+"""
+    get_range_direction(reference) -> Symbol
+
+The direction of the range that `reference` ends in: `:backward` when its start is
+the end that moves, `:forward` otherwise, also for a reference that ends in no
+range.
+
+Use it where a map builds the range of its output from the numbers of the range of
+its input, so the output keeps the direction.
+
+# Example
+
+    direction_1 = get_range_direction(reference_1)
+
+See also `RangeReferenceStep` and `make_range_reference_step`.
+
+For the assistant.
+"""
+function get_range_direction end
+
+get_range_direction(step::ARangeReferenceStep) = step.direction
+get_range_direction(_) = :forward
+
+"""
+    get_range_ends(reference) -> (anchor, moving)
+
+The two ends of the range that `reference` ends in, the anchor first: `(start,
+stop)` for a forward range and `(stop, start)` for a backward one. A caret gives
+its place twice.
+
+Use it where a map matched a range with the pattern `{s:e}`, which binds the
+ordered ends, and builds the range of its output with `{a:m}`, which takes the
+anchor first, so the output keeps the direction.
+
+# Example
+
+    (anchor_1, moving_1) = get_range_ends(reference_1)
+
+See also `get_range_direction` and `make_range_reference_step`.
+
+For the assistant.
+"""
+function get_range_ends end
+
+get_range_ends(step::ReferenceStep) =
+    get_range_direction(step) === :backward ? (step.stop, step.start) : (step.start, step.stop)
 
 get_reference_step_kind(::ARangeReferenceStep) = :structural
 
@@ -114,6 +228,15 @@ function evaluate_reference_step(step::ARangeReferenceStep, document::AbstractSt
     document[nextind(document, 0, step.start + 1)]
 end
 
+# A cursor always reaches its `Position`. An element step reaches an array or a
+# string when its index is inside the length, counted in characters for a string.
+# On any other document the evaluation decides.
+has_reference_step_child(step::ARangeReferenceStep, document::AbstractArray) =
+    is_position_reference_step(step) || checkbounds(Bool, document, step.start + 1)
+
+has_reference_step_child(step::ARangeReferenceStep, document::AbstractString) =
+    is_position_reference_step(step) || 0 <= step.start < length(document)
+
 # ── FieldReferenceStep ────────────────────────────────────────────────────────
 
 """
@@ -128,8 +251,8 @@ end
 # A `FieldReferenceStep` addresses a struct field by name — OR, when the document is
 # an `AbstractDict`, a dict entry by key. A reference into a dict records the
 # entry this way (the reference grammar has no dedicated key step), so navigation
-# must follow it back. Dict keys may be stored as `String` or `Symbol`; the
-# recorded name is the `string(key)`, so try it as both. Results are cell-unwrapped.
+# must follow it back. A path records a key that is a name, a `String` or a
+# `Symbol`, by its text, so try it as both. Results are cell-unwrapped.
 function _get_field(document::AbstractDict, name)
     haskey(document, name) && return unwrap_cell(document[name])
     unwrap_cell(document[Symbol(name)])
@@ -147,6 +270,12 @@ get_reference_step_kind(::AFieldReferenceStep) = :structural
 
 evaluate_reference_step(step::AFieldReferenceStep, document) =
     _get_field(document, step.name)
+
+has_reference_step_child(step::AFieldReferenceStep, document::AbstractDict) =
+    haskey(document, step.name) || haskey(document, Symbol(step.name))
+
+has_reference_step_child(step::AFieldReferenceStep, document) =
+    hasfield(typeof(document), Symbol(step.name))
 
 # ── TypeReferenceStep ─────────────────────────────────────────────────────────
 
@@ -190,6 +319,12 @@ end
 
 Base.:(==)(a::ATypeReferenceStep, b::ATypeReferenceStep) = a.type === b.type
 Base.hash(s::ATypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
+
+# ── Whether a step reaches a place ────────────────────────────────────────
+
+# A step of a kind with no method of its own lets its evaluation decide. So a
+# `TypeReferenceStep` still reaches the `MethodError` of its evaluation.
+has_reference_step_child(::ReferenceStep, document) = true
 
 # ── Cross-type step equality ──────────────────────────────────────────────
 

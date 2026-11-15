@@ -23,6 +23,22 @@ function test_agent_connection_event()
         @test (plan.id, plan.markdown, plan.uri, plan.is_removed) == ("", nothing, nothing, false)
     end
 
+    @testset "a terminal request names its method, its command and its terminal, and a tool call its terminals" begin
+        reply = value -> true
+        create = AgentTerminalRequest("s1", :create, "", reply; command = "bash", arguments = ["-c", "make"],
+                                      directory = "/work", environment = ["MODE" => "release"],
+                                      output_byte_limit = 30000)
+        @test (create.session_id, create.method, create.command, create.arguments) == ("s1", :create, "bash", ["-c", "make"])
+        @test (create.directory, create.environment, create.output_byte_limit) == ("/work", ["MODE" => "release"], 30000)
+        output = AgentTerminalRequest("s1", :output, "T3", reply)
+        @test (output.terminal_id, output.command, output.arguments, output.directory) == ("T3", "", String[], nothing)
+        @test output.environment == Pair{String,String}[] && output.output_byte_limit === nothing
+        @test AGENT_TERMINAL_METHODS == (:create, :output, :wait_for_exit, :kill, :release)
+        @test_throws ArgumentError AgentTerminalRequest("s1", :open, "T3", reply)
+        @test AgentToolCallUpdate("t1").terminal_ids === nothing
+        @test AgentToolCallUpdate("t1"; terminal_ids = ["T3"]).terminal_ids == ["T3"]
+    end
+
     @testset "a plan entry has an id, a description, an active title and blockers" begin
         entry = AgentPlanEntry("Run the tests", :medium, :in_progress; id = "2", description = "All of them.",
                                active_title = "Running the tests", blocked_by = ["1"])

@@ -1,7 +1,7 @@
 # WidgetSelect dropdown. A click on the closed select answers an
-# `OpenPopupOperation` just below it, in its own frame, whose content is a
-# vertical `WidgetMenu` of `WidgetOption`s; each reader above moves the position
-# into its own frame. Clicking an option writes the value back to the select and
+# `OpenPopupOperation` at its box, in its own frame, whose content is a vertical
+# `WidgetMenu` of `WidgetOption`s; each reader above moves the box into its own
+# frame. Clicking an option writes the value back to the select and
 # closes the popup in one `CompoundOperation`.
 
 mutable struct _SelectMockEditor
@@ -48,9 +48,10 @@ end
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
-    # Opens just below the box, in the select's own frame.
-    @test op.x == 0
-    @test op.y == _select_iomap_of(iomap, select).control_height + 2
+    # Opens 2 pixels below the box of the select, in the select's own frame.
+    @test (op.x, op.y) == (0, 0)
+    @test op.anchor_size[2] == _select_iomap_of(iomap, select).control_height
+    @test op.gap == 2
     # Content is a dropdown of one option per selectable value.
     @test op.content isa WidgetMenu
     @test length(op.content.elements) == 3
@@ -84,8 +85,8 @@ end
     op = _select_popup(read_intent(proj, iomap, MouseClick(:left, ox + 5, oy + 5, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test oy > 0
-    @test op.x == ox
-    @test op.y == oy + cim.control_height + 2
+    @test (op.x, op.y) == (ox, oy)
+    @test op.anchor_size[2] == cim.control_height
 end
 
 @testset "a scrolled pane moves the popup of a select by its scroll offset" begin
@@ -99,8 +100,8 @@ end
     iomap = print_document(proj, pane)
     op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 5, oy - 10 + 5, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
-    @test op.x == 0
-    @test op.y == oy - 10 + cim.control_height + 2
+    @test (op.x, op.y) == (0, oy - 10)
+    @test op.anchor_size[2] == cim.control_height
 end
 
 @testset "a zoomed pane moves the popup of a select through its transform" begin
@@ -109,12 +110,13 @@ end
     pane = WidgetTransformPane(VerticalLayout(Any[select]); size = Point2D(400, 400),
                                transform = make_affine_scale(2.0, 2.0))
     iomap = print_document(proj, pane)
-    # At twice the size, the select is drawn at twice its extent, and so is the
-    # place just below it; the bound of the popup stays in screen pixels.
+    # At twice the size, the select is drawn at twice its extent, and so is its
+    # box; the gap and the bound of the popup stay in screen pixels.
     op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
-    @test op.x == 0
-    @test op.y == 2 * (height + 2)
+    @test (op.x, op.y) == (0, 0)
+    @test op.anchor_size[2] == 2 * height
+    @test op.gap == 2
     @test (op.width, op.height) == (640, 800)
 end
 

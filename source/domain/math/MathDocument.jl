@@ -1,6 +1,22 @@
 # Fragment of `MathModule` — the mathematics document types: the abstract
 # `MathDocument`, its atoms, and the compound expressions built from them.
 
+"""
+    MathDocument
+
+The abstract supertype of the documents of mathematical expressions. Its main members are `MathFraction`, `MathBinaryOperation`, `MathMatrix`, `MathScript`, `MathVariable`.
+
+Use it to recognise the documents of mathematical expressions when you walk a document: a part is one of them when `part isa MathDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathDocument)
+    found_1 = search_documents(get_edited_document(find_pane("equations")), part -> part isa MathFraction)
+
+See also `search_documents`, `find_pane`, `describe_document` and `MathFraction`.
+
+For the assistant.
+"""
 abstract type MathDocument <: Document end
 
 """
@@ -184,8 +200,15 @@ end
 
 """
 A function applied to an argument: `sin x`, `log₂(n)`, `Q(x)`. The name is
-upright. `base` renders as a subscript on the name, which is what makes a
+upright for a word. `base` renders as a subscript on the name, which is what makes a
 logarithm's base.
+
+The node is neutral: the reader makes it of any name directly before `(`, a
+word `exp(1)`, a letter `f(2)`, a Greek letter `ρ(1 - ρ)` or a name with a
+braced subscript `S_{pure}(0.5)`, and it prints the same text whatever it
+means. A word draws upright, a letter and a lowercase Greek letter slanted.
+Whether it is a call or a product is the reading of the formula domain, which
+knows the sheet.
 """
 @document struct MathFunction <: MathDocument
     name::String
@@ -338,6 +361,42 @@ The glyph of a named symbol. An unknown name renders as its own text, so a
 half-typed name is still visible.
 """
 get_math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
+
+"""
+    find_math_symbol_name(glyph) -> Union{Symbol, Nothing}
+
+The name of the symbol that a glyph draws, `ρ` is `:rho`, or `nothing` when the
+glyph is none of the named symbols.
+
+Use it to learn the name of a Greek or other symbol that a formula draws, so you can type it back.
+
+# Example
+
+    name_1 = find_math_symbol_name("ρ")
+
+See also `parse_math`.
+
+For the assistant.
+"""
+function find_math_symbol_name end
+
+function find_math_symbol_name(glyph::AbstractString)
+    for (name, text) in _MATH_SYMBOLS
+        text == glyph && return name
+    end
+    nothing
+end
+
+# A symbol says its name, its glyph and how to type it when the pointer rests on it.
+const _MATH_SYMBOL_BINDINGS = GestureBinding[
+    make_tooltip_binding(symbol -> TooltipNote(; title = String(symbol.name),
+                             facts = ["Glyph" => get_math_symbol_glyph(symbol.name),
+                                      "Typed as" => "\\" * String(symbol.name)]);
+                         description = "Show the name of the symbol")]
+
+@gestures MathSymbol begin
+    splice(_MATH_SYMBOL_BINDINGS)
+end
 
 # ── Large operators ───────────────────────────────────────────────────────────
 

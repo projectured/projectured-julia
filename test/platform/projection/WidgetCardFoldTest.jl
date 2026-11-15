@@ -5,10 +5,11 @@
 # draws with it. A card takes a plain left click on its own area. A WidgetAccordion
 # opens and closes an item from its header.
 
-_fold_font = StyleFont("Ubuntu Mono", 20)
 _fold_stub = FixedMeasure(10, 18, 6, 0)
+# The padding of a card in the default theme: a click at `_fold_pad + 16` is on the title row.
+_fold_pad = get_theme_defaults(WidgetTheme).container_padding
 _fold_proj() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(_fold_font; measure=_fold_stub).dispatch))
+    WidgetToGraphics(; measure=_fold_stub).dispatch))
 
 # The text of every GraphicsText under a canvas, the fold mark's glyph among them.
 function _fold_texts(canvas, texts = String[])
@@ -46,6 +47,37 @@ end
 _fold_title() = WidgetLabel("Details")
 _fold_title_x(iomap) = getfield(iomap, :child_iomaps)[][1][1]
 
+# A dispatch that prints a `PrimitiveString` as the editor's does: through the text
+# domain, so a title that is a `PrimitiveString` has a printer to draw it.
+_title_proj() = RecursiveProjection(TypeDispatchingProjection(vcat(
+    WidgetToGraphics(; measure = _fold_stub).dispatch,
+    Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(),
+                                                           TextToGraphics(; measure = _fold_stub))])))
+
+# The card printer of the dispatch, whose `title_text` and `row_selected_color` a title draws with.
+_title_printer() = WidgetCardToGraphicsCanvas(WidgetTheme(); measure = _fold_stub)
+
+# The font of the first text `text` under a canvas, or `nothing`.
+function _find_text_font(canvas, text)
+    for elem in canvas.elements
+        elem isa GraphicsText && String(elem.text) == text && return elem.font
+        if elem isa GraphicsCanvas
+            found = _find_text_font(elem, text)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
+# The rects under a canvas that are filled with `color`.
+function _find_rects_with_color(canvas, color, found = [])
+    for elem in canvas.elements
+        elem isa GraphicsRect && elem.color == color && push!(found, elem)
+        elem isa GraphicsCanvas && _find_rects_with_color(elem, color, found)
+    end
+    found
+end
+
 function test_widget_card_fold()
     @testset "a collapsible card shows its fold state" begin
         body = "the body of the card"
@@ -72,11 +104,11 @@ function test_widget_card_fold()
         # A click on the chevron folds, and so does one at the right edge of its
         # column. A click on the title does not.
         title_x = _fold_title_x(iomap)
-        on_chevron = read_intent(proj, iomap, MouseClick(:left, 20, 28, ModifierKeys(); time = 0.0))
+        on_chevron = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
 
         # Folded: the mark points right, and the body is not drawn.
@@ -97,9 +129,9 @@ function test_widget_card_fold()
         # A click left of the title is a click on the padding, not a fold, and a
         # click on the title is not a fold either: a card that draws no chevron
         # does not fold from a click.
-        @test !(read_intent(proj, iomap, MouseClick(:left, 4, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, 4, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
         title_x = _fold_title_x(iomap)
-        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
     end
 
     # A container routes a press to a card only over something the card drew. A
@@ -112,9 +144,9 @@ function test_widget_card_fold()
         title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
         card = make_card()
         iomap = print_document(proj, proj, WidgetComposite(Any[card]), PrinterContext())
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
     end
 
@@ -169,7 +201,7 @@ function test_widget_card_fold()
                                      ("Plain title", "the plain body")]; expanded = 1)
         proj = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(_fold_font; measure = _fold_stub).dispatch)))
+            WidgetToGraphics(; measure = _fold_stub).dispatch)))
         iomap = print_document(proj, proj, accordion, PrinterContext())
         texts = _fold_texts(iomap.output)
         # Each document draws its own text, and no document is drawn as its string.
@@ -209,9 +241,10 @@ function test_widget_card_fold()
         bare = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                      padding = Inset(0, 0, 0, 0)),
                               PrinterContext()).output
-        # The themed padding is 12 on each side; the bare card has none.
-        @test Int(bare.w[]) == Int(themed.w[]) - 24
-        @test Int(bare.h[]) == Int(themed.h[]) - 24
+        # The themed padding is `container_padding` on each side; the bare card has none.
+        side = get_theme_defaults(WidgetTheme).container_padding
+        @test Int(bare.w[]) == Int(themed.w[]) - 2side
+        @test Int(bare.h[]) == Int(themed.h[]) - 2side
         # An Inset names each side: this one indents and does nothing else.
         indented = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                          padding = Inset(0, 0, 12, 0)),
@@ -222,7 +255,7 @@ function test_widget_card_fold()
 
     # A card is a solid surface, so a plain left click on it that nothing inside it
     # uses ends at the card. A right click and an Alt+click go on, to the menus of
-    # the parts around the card and to a whole selection.
+    # the parts around the card and to a caret.
     @testset "a card takes a plain left click on its own area" begin
         proj = _fold_proj()
         iomap = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain), PrinterContext())
@@ -232,5 +265,178 @@ function test_widget_card_fold()
         @test !(click(:right, 4, 4) isa DoNothingOperation)
         @test !(click(:left, 4, 4; modifiers = ModifierKeys(alt = true)) isa DoNothingOperation)
         @test click(:left, 500, 500) === nothing                  # off the card
+    end
+
+    # A binding of the card answers a plain left click that nothing inside the
+    # card uses, before the card takes it as a solid surface.
+    @testset "a binding of a card answers a plain left click on its own area" begin
+        proj = _fold_proj()
+        selected = (_, _) -> ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), selected;
+                                 description = "Select the content", domain = "test")
+        card = WidgetCard(; content = "abc", variant = :plain, gestures = GestureBinding[binding])
+        iomap = print_document(proj, proj, card, PrinterContext())
+        click(x, y) = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        answer = click(4, 4)                                      # the padding
+        @test answer isa ReplaceSelectionOperation
+        @test strip_reference_types(answer.path) ==
+              ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+        @test click(500, 500) === nothing                         # off the card
+    end
+
+    @testset "a String title draws in the title style, folds, and is selected as the part title" begin
+        printer = _title_printer()
+        title_font = printer.title_text.font
+        proj = _title_proj()
+        label_font = _find_text_font(print_document(proj, proj,
+            WidgetCard(; title = WidgetLabel("Details"), content = "x"), PrinterContext()).output, "Details")
+        @test label_font != title_font
+        card = WidgetCard(; title = "Details", content = "the body", collapsible = true)
+        iomap = print_document(proj, proj, card, PrinterContext())
+        @test _find_text_font(iomap.output, "Details") == title_font
+        @test _find_text_font(iomap.output, "the body") != title_font
+
+        # The chevron folds the card, as it does for a document title.
+        press(x, y; modifiers = ModifierKeys(), button = :left, count = 1) =
+            read_intent(proj, iomap, MouseClick(button, x, y, count, modifiers; time = 0.0))
+        title_x = iomap.header.title_box[1]
+        on_chevron = press(_fold_pad + 8, _fold_pad + 8)
+        @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
+        @test !(press(title_x + 2, _fold_pad + 8) isa ToggleCollapseOperation)
+        @test iomap.header.height > 0
+
+        # An Alt+double click on the title selects its field, a plain press puts the caret
+        # in it, and a right press selects neither.
+        title = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+        selected = press(title_x + 2, _fold_pad + 8; modifiers = ModifierKeys(alt = true), count = 2)
+        @test selected isa ReplaceSelectionOperation && strip_reference_types(selected.path) == title
+        @test strip_reference_types(press(title_x + 2, _fold_pad + 8).path) ==
+              ConcreteReference(FieldReferenceStep("title"), ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
+        @test !(press(title_x + 2, _fold_pad + 8; button = :right,
+                      modifiers = ModifierKeys(alt = true), count = 2) isa ReplaceSelectionOperation &&
+                strip_reference_types(press(title_x + 2, _fold_pad + 8; button = :right,
+                                            modifiers = ModifierKeys(alt = true), count = 2).path) == title)
+
+        # The selected title draws the band of a selected part over its box, and no band before.
+        band = printer.row_selected_color
+        @test isempty(_find_rects_with_color(iomap.output, band))
+        evaluate_operation((document = card,), selected)
+        bands = _find_rects_with_color(iomap.output, band)
+        @test length(bands) == 1
+        box = iomap.header.title_box
+        @test (Int(bands[1].x), Int(bands[1].y), Int(bands[1].w), Int(bands[1].h)) == box
+        # A card that holds no selection of its title draws no band.
+        set_selection!(card, nothing)
+        @test isempty(_find_rects_with_color(iomap.output, band))
+    end
+
+    @testset "a plain click on a String title puts the caret at the character, and the caret is drawn" begin
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "the body")
+        iomap = print_document(proj, proj, card, PrinterContext())
+        x0, y0, _, height = iomap.header.title_box
+        caret = ConcreteReference(FieldReferenceStep("title"),
+                    ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+        # Each character of the stub measure is 10 wide, so 32 is nearest the place after "Det".
+        answer = read_intent(proj, iomap, MouseClick(:left, x0 + 32, y0 + height ÷ 2, ModifierKeys(); time = 0.0))
+        @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
+        # A point there maps back to the same caret, and the caret maps forward to its
+        # place on the line, which has a box.
+        @test strip_reference_types(map_reference_backward(iomap.projection, iomap,
+                                                           PointReferenceStep(x0 + 32, y0 + 2))) == caret
+        place = map_reference_forward(iomap.projection, iomap, caret)
+        @test place !== nothing && find_reference_box(iomap.output, place; measure = _fold_stub) !== nothing
+        # The card draws the caret, and no caret before.
+        mark() = [e for e in iomap.output.elements if e isa GraphicsRect && Int(e.w) == 2]
+        @test isempty(mark())
+        evaluate_operation((document = card,), answer)
+        @test length(mark()) == 1 && Int(only(mark()).x) == x0 + 30
+    end
+
+    @testset "a press, a drag, a key and a click with Shift select in a String title, which a paste leaves" begin
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "the body")
+        iomap = print_document(proj, proj, card, PrinterContext())
+        x0, y0, _, height = iomap.header.title_box
+        y = y0 + height ÷ 2
+        place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("title"),
+            ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))
+        selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
+        # A press puts the caret and starts a drag, and a move of the drag selects a range.
+        down = read_intent(proj, iomap, MouseDown(:left, x0 + 32, y, ModifierKeys(); time = 0.0))
+        @test down isa CompoundOperation && selected(down.operations[1]) == place(3)
+        set_selection!(card, place(3))
+        @test selected(read_intent(proj, iomap, DragMove(x0 + 62, y; time = 0.0))) == place(3, 6)
+        # A key moves the caret, and with Shift makes a range.
+        @test selected(read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0))) == place(4)
+        @test selected(read_intent(proj, iomap, KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == place(3, 7)
+        # A click with Shift moves the moving end there.
+        @test selected(read_intent(proj, iomap, MouseClick(:left, x0 + 12, y, 1, ModifierKeys(shift = true);
+                                                           time = 0.0))) == place(1, 3; direction = :backward)
+        # A paste leaves the title and takes the content.
+        @test !accepts_pasted_text(card, :title) && accepts_pasted_text(card, :content)
+    end
+
+    @testset "a PrimitiveString title draws in the title style, and its Alt+double click selects it" begin
+        title_font = _title_printer().title_text.font
+        proj = _title_proj()
+        text = PrimitiveString("Details")
+        card = WidgetCard(; title = text, content = PrimitiveString("the body"), collapsible = true)
+        iomap = print_document(proj, proj, card, PrinterContext())
+        @test _find_text_font(iomap.output, "Details") == title_font
+        # The property is in the context of the title only: the content keeps the style of its own printer.
+        @test _find_text_font(iomap.output, "the body") != title_font
+        # The card folds from the height of the canvas of the title.
+        title_x = _fold_title_x(iomap)
+        folds = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0))
+        @test folds isa ToggleCollapseOperation
+        @test iomap.header.height == Int(iomap.child_iomaps[1][3].output.h)
+        # Its own printer reads a double click with Alt: the answer names the innermost
+        # part, the `String` that the title holds.
+        selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8, 2,
+                                                       ModifierKeys(alt = true); time = 0.0))
+        @test selected isa ReplaceSelectionOperation
+        @test evaluate_reference(card, selected.path) === text.value
+    end
+
+    @testset "a title that is a WidgetLabel keeps the style of the label" begin
+        proj = _title_proj()
+        label = WidgetLabel("Details")
+        alone = _find_text_font(print_document(proj, proj, label, PrinterContext()).output, "Details")
+        card = WidgetCard(; title = label, content = "x")
+        @test _find_text_font(print_document(proj, proj, card, PrinterContext()).output, "Details") == alone
+    end
+
+    @testset "an Alt+double click on a PrimitiveString title inside a container selects the string" begin
+        proj = _title_proj()
+        text = PrimitiveString("Details")
+        card = WidgetCard(; title = text, content = "x")
+        composite = WidgetComposite(Any[card])
+        iomap = print_document(proj, proj, composite, PrinterContext())
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
+                                                     ModifierKeys(alt = true); time = 0.0))
+        @test answer isa ReplaceSelectionOperation
+        @test evaluate_reference(composite, answer.path) === text.value
+    end
+
+    @testset "an Alt+double click on a String title inside a container selects the title of the card" begin
+        printer = _title_printer()
+        proj = _title_proj()
+        card = WidgetCard(; title = "Details", content = "x")
+        composite = WidgetComposite(Any[card])
+        iomap = print_document(proj, proj, composite, PrinterContext())
+        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
+                                                     ModifierKeys(alt = true); time = 0.0))
+        @test answer isa ReplaceSelectionOperation
+        @test strip_reference_types(answer.path) ==
+              ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(0, 1),
+                      ConcreteReference(FieldReferenceStep("title"), EmptyReference())))
+        # The selection reaches the card, which draws the band over its title.
+        band = printer.row_selected_color
+        @test isempty(_find_rects_with_color(iomap.output, band))
+        evaluate_operation((document = composite,), answer)
+        @test length(_find_rects_with_color(iomap.output, band)) == 1
     end
 end

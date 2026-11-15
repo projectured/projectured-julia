@@ -1,6 +1,6 @@
 # The agent stack — tool, llm, agent
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Three kernel layers, not one. They are separate because they are separately
 useful, and the shortest way to see that is to notice what each works without:
@@ -119,7 +119,7 @@ required and the optional terms.
 module after it, and the first sentence of the description under it.
 
 ```
-- `replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text` — function in PaneModule
+- `replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> String` — function in PaneModule
   Put `value` where `reference` points, and answer the window's new program.
 ```
 
@@ -153,6 +153,23 @@ one sentence each, and a miss in one names the other. They rank differently on
 purpose — a name by its name first, a guide section by its heading first — so
 they stay two tools.
 
+**`audience` says whose guides `search_guides` searches.** The header line of a
+guide says who it is for, in its field `**For:**`. A user uses the editor, and
+so does the assistant in a window of the editor; a developer changes the code
+of the editor. `"user"`, the default, searches the guides for users,
+`"developer"` the guides for developers, and `"all"` both. When guides of the
+other audience match too, a line before the hits says how many, and the
+`audience` that finds them:
+
+```
+Searched the documents for users. 3 documents for developers also match: audience = "developer".
+```
+
+A model so learns that the other guides exist, and it reads them only when the
+task needs them. Each hit shows the kind of its guide as a label, such as
+`[procedure]` or `[reference]`. `read_resource` reads a guide of any audience. A
+guide without a header line, such as a slide deck, is for developers.
+
 **`detail` says how much a hit shows**, the same on both: `"names"` is one line
 each, up to 25; `"summary"`, the default, adds the sentence or the excerpt, up
 to 8; `"full"` is the whole docstring or section, up to 3. A `limit` given
@@ -179,8 +196,9 @@ each with its count and its shape, in six lines.
 **`execute_julia_code!` answers what the code printed, whole, then the value of
 the last statement on its own.** What the code prints is what the model asked
 for, so it is never cut. The value comes unasked — a `DataFrame` of thousands
-of rows, the `Text` a side-effect verb answers — so a `describe_value` function
-renders it: the default keeps a short value whole, limits a longer one as the
+of rows, the text a side-effect verb answers — so a `describe_value` function
+renders it: the default shows a string that has a line break as its lines,
+without quotes, keeps a short value whole, limits a longer one as the
 Julia REPL would, and trims one still longer than that to its start and its end
 around one mark line, with a note that names `summary(value)` and how to read a
 part. `nothing` with nothing printed answers "Done.", because an empty answer
@@ -215,6 +233,19 @@ at the same time each see their own.
   the verb throws `MissingEvaluationEditorException`, whose message says to pass
   `editor = …`.
 - A caller that has an editor passes it, and the verb acts on that one.
+
+**The evaluation names who asked for it.** A second `ScopedValue`, the starter
+of the evaluation, says who asked for the code: `find_evaluation_starter()` reads
+it, and `run_with_evaluation_starter(function_, starter)` binds it. The kernel
+does not read the value; a layer above defines its type, and the work that the
+code starts records it, as the task list of the platform records who started
+each row. `run_turn!` binds the starter that its keyword `call_starter` gives for
+each tool call, a function of the `LlmToolUse`, around the call, also when the
+call goes to the task of the editor; with no `call_starter` the call keeps the
+starter of the turn. A task that the code starts keeps the starter, and so does a
+call that it posts to the loop of an editor ([editor.md](editor.md)). The loop
+binds none for its own frames, so an operation that it reads from a gesture has
+no starter, and the platform reads that as the person.
 
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
@@ -509,7 +540,9 @@ run_turn!(agent, target; messages, on_event, tools = Tool[]) -> stop_reason
 
 The loop owns a turn's **control flow** and nothing else: stream a round, collect the
 tool calls the model made, dispatch them through the `ToolSet`, decide from the stop
-reason whether to go again, and stop at the round cap. It owns nothing about
+reason whether to go again, and stop at the round cap, `max_rounds` of the `Agent`.
+A turn that the cap ends while the model still asks for tools answers
+`:round_limit`, so the caller can say so. It owns nothing about
 *conversations* — how a transcript is stored, how a message is built from one, and
 how an answer is rendered are all the caller's, because they are the caller's domain
 and not an agent's.
@@ -554,7 +587,9 @@ stop_reason = send_agent_prompt!(connection, session_id, prompt; on_event)
 
 With a `session_id`, `open_agent_session!` resumes that session, with the history that the agent keeps, when the agent can, and else opens a new session. The id that it returns says which: a new id means a session without the old history.
 
-The generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`, `stop_agent_background_task!`, `close_agent_session!`, `stop_agent_connection!`, `has_agent_steering`, `steer_agent_prompt!`, `has_agent_sign_out` and `sign_out_agent!`. A package adds the methods for its kind. `has_agent_steering` says whether the agent takes a prompt into a turn that runs, and `steer_agent_prompt!` sends it. The two generics of the work of an agent are `cancel_agent_subagent!(connection, session_id, subagent_id)`, which asks the agent to stop the work of a subagent and answers `nothing`, and `stop_agent_background_task!(connection, session_id, task_id)`, which asks the agent to stop a background task and answers whether it did. The defaults do nothing and answer `nothing` and `false`, so a connection that can not do either needs no method. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
+`fork_agent_session!(connection; session_id, directory, mcp_servers, instructions, on_event, events)` opens a new session that starts with the history of the session `session_id`, as the agent keeps it at the call, in `directory`, the folder of that session. The old session goes on, and a later answer of it does not reach the new one. It answers the id of the new session, or `nothing` when the agent can not fork that session. A new session and a fork both have a new id, so a caller that must know whether the agent has the history calls this verb, and opens a new session with `open_agent_session!` when it answers `nothing`. The default answers `nothing`.
+
+The generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `fork_agent_session!`, `set_agent_option!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`, `stop_agent_background_task!`, `close_agent_session!`, `stop_agent_connection!`, `has_agent_steering`, `steer_agent_prompt!`, `sign_in_agent!`, `has_agent_sign_out` and `sign_out_agent!`. A package adds the methods for its kind. `has_agent_steering` says whether the agent takes a prompt into a turn that runs, and `steer_agent_prompt!` sends it. The two generics of the work of an agent are `cancel_agent_subagent!(connection, session_id, subagent_id)`, which asks the agent to stop the work of a subagent and answers `nothing`, and `stop_agent_background_task!(connection, session_id, task_id)`, which asks the agent to stop a background task and answers whether it did. The defaults do nothing and answer `nothing` and `false`, so a connection that can not do either needs no method. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
 
 `send_agent_prompt!` takes a prompt, a vector of `LlmContent`, and waits until the turn of the agent ends. It answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`, `:refusal` or `:cancelled`. It calls `on_event` on a task that is not the editor task, so the caller posts its writes through `run_on_editor_task!`. `on_event` gets these events:
 
@@ -569,8 +604,9 @@ The generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connecti
 - `AgentNoticeUpdate` for a note of the agent that needs no answer: its `severity` (`:info`, `:warning` or `:error`), its `title` and its `description`.
 - `AgentCompactionUpdate` for a compaction of the context of the session: its `id`, its `status` (`:in_progress`, `:completed`, `:failed` or `:cancelled`) and its `summary`. `nothing` keeps the summary, and an empty one clears it.
 - `AgentCommandsUpdate` for the commands that the session offers, each an `AgentCommand` with its `name`, its `description` and an `input_hint` that says what it takes after its name.
-- `AgentSignInException`, thrown and not sent to `on_event`, when the agent needs a sign-in before it opens a session or runs a prompt. It holds the title of the agent, a sentence that says how to sign in, and one `AgentSignInMethod` for each way that this editor can run: its `id`, its `name`, its `description` and its `command`, a `Cmd` that the person answers in a terminal and that ends with the status 0 when the sign-in worked. `sign_out_agent!` asks the agent to forget the sign-in, when `has_agent_sign_out` says that it can; the defaults answer `false`.
+- `AgentSignInException`, thrown and not sent to `on_event`, when the agent needs a sign-in before it opens a session or runs a prompt. It holds the title of the agent, a sentence that says how to sign in, and one `AgentSignInMethod` for each way that this editor can run: its `id`, its `name`, its `description` and its `command`. The `command` is a `Cmd` that the person answers in a terminal and that ends with the status 0 when the sign-in worked, or `nothing` for a sign-in that the agent runs itself, such as in the browser. `sign_in_agent!(connection, method_id)` asks the agent to run such a sign-in and waits until it ends; it answers whether the agent signed in, and it throws when the sign-in did not complete. `sign_out_agent!` asks the agent to forget the sign-in, when `has_agent_sign_out` says that it can; the defaults answer `false`.
 - `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent and answers `true`; a later call does nothing and answers `false`. `cancel_agent_prompt!` answers each request that waits as `nothing`.
+- `AgentTerminalRequest` for a command that the agent asks the client to run in a terminal, or for a terminal that it started: its `session_id`, its `method` (`:create`, `:output`, `:wait_for_exit`, `:kill` or `:release`, `AGENT_TERMINAL_METHODS`), its `terminal_id`, and for `:create` the `command`, its `arguments`, its `directory` (`nothing` for the folder of the session), its added `environment` and its `output_byte_limit`. Its `reply` takes the id of a new terminal, the output `(output, truncated, exit_code, signal)`, the end `(exit_code, signal)`, or `true` for a kill and a release; an exception when the client can not do it, and `nothing` for a cancel. The first call answers the agent and answers `true`; a later call answers `false`. The client answers it on a task of its own, so a wait for the end of a command holds no frame. `cancel_agent_prompt!` answers each request that waits as cancelled. The `terminal_ids` of an `AgentToolCallUpdate` name the terminals that the content of the call shows.
 - `AgentQuestionRequest` for a question of the agent that a person answers in a form: its `message`, its `fields`, each an `AgentQuestionField` with a `name`, a `title`, a `description`, a `kind` (`:choice`, `:choices`, `:text`, `:number`, `:integer` or `:boolean`), the `options` of a choice, each an `AgentOptionValue`, and `is_required`. Its `reply` takes a `Dict{String,Any}` of the values that the person filled, or `nothing` for a decline. The first call answers the agent and answers `true`; a later call does nothing and answers `false`. `cancel_agent_prompt!` answers each request that waits as cancelled.
 
 **The options of a session.** An `AgentOption` is one option, such as the model, with its `category` (`:mode`, `:model`, `:thought_level`, `:model_config` or `:other`), its `current_value`, and its `values`, each an `AgentOptionValue` with a `value` for the agent and a `name` for a person. `open_agent_session!` gives the options of the new session to its `on_event` as an `AgentOptionsUpdate`. `set_agent_option!` sets one option, and gives all the options that the agent answers to its `on_event`. **A connection keeps no `on_event` after the call that took it.** A caller captures the editor in it to post its writes, and a document must not hold the editor, even through the connection that it holds.

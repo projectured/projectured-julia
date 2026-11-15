@@ -40,10 +40,11 @@ _gen_build_step(step::ReferenceSyntaxPosition) =
 
 # A step counts gaps between elements, from 0, so only the `[i, j]` spelling has
 # a conversion to make — the same one `ElementReferenceStep` makes for `xs[i]`.
+# The first end is the anchor, so `{5:3}` is a backward range from 3 to 5.
 function _gen_build_step(step::ReferenceSyntaxRange)
     start = :(Int($(esc(step.startexpr))))
     step.numbering === :element && (start = :($start - 1))
-    :(ReferenceModule.RangeReferenceStep($start, Int($(esc(step.stopexpr)))))
+    :(ReferenceModule.make_range_reference_step($start, Int($(esc(step.stopexpr)))))
 end
 
 _gen_build_step(step::ReferenceSyntaxSplice) = esc(step.expr)
@@ -205,8 +206,10 @@ correct by construction rather than by hand. Use this whenever the document is
 in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
 
-See also [`@reference_step`](@ref), which builds a single step, and
-[`@reference_case`](@ref), which matches the same grammar.
+See also `parse_reference_path`, which reads a path from text, and
+`extend_reference`.
+
+For the assistant.
 """
 macro reference()
     return _gen_build_path(ReferenceSyntaxStep[])

@@ -5,7 +5,7 @@
 # The binaries of this repository.
 #
 # A build function says what goes into one binary: the packages, the body of
-# `julia_main`, the workload and the command line. It names the packages as
+# `julia_main` and the command line. It names the packages as
 # strings, so this file loads none of them; the build finds each one in the
 # repository and writes a package that holds them.
 # ──────────────────────────────────────────────────────────────────────────
@@ -281,12 +281,12 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedRST", "ProjecturedBook", "ProjecturedMath", "ProjecturedJulia",
     "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
     "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
-    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
-    "ProjecturedWorkflow"]
+    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedGit", "ProjecturedPivot",
+    "ProjecturedWorkflow", "ProjecturedResearch"]
 
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
-                                 workload = true,
+                                 precompile_calls = "recorded",
                                  context = make_projectured_build_context(),
                                  kwargs...) -> String
 
@@ -296,19 +296,23 @@ Build the ProjecturEd application, and answer the directory of the bundle,
 - `backends` names the backends the binary holds, from
   [`PROJECTURED_BACKENDS`](@ref). The first one is the default; with more than
   one, `--backend` chooses.
-- `workload` runs the application once without a window while the image
-  compiles, so the first frames of a real start need no compilation.
+- `precompile_calls` says what each package of the binary compiles into the
+  image: `"recorded"`, the recorded calls of each package, `"live"`, a run of
+  each workload, or `"none"`. `ProjecturedBuild`, the package of the binary,
+  holds both backends and the workload of the binary: the gestures of the
+  application window, a file of each format, and the window again on SDL.
 - Every other keyword goes to [`build_executable`](@ref), for example
   `compile = false` to write the package and compile nothing, or
   `incremental = false` for a fresh image.
 
-The binary holds the umbrella, which holds every domain and, through the
-platform, the application; both model adapters, the MCP server, and the
-backends.
+The binary holds `ProjecturedBuild`, which holds every domain and, through the
+platform, the application; both model adapters, the MCP server, and both
+backends. `backends` chooses what `--backend` offers, not what the binary
+holds.
 """
 function build_projectured_executable(; name::AbstractString = "projectured",
                                         backends = (:sdl, :web),
-                                        workload::Bool = true,
+                                        precompile_calls::AbstractString = "recorded",
                                         context::BuildContext = make_projectured_build_context(),
                                         kwargs...)
     isempty(backends) && error("build_projectured_executable: name at least one backend")
@@ -327,11 +331,12 @@ function build_projectured_executable(; name::AbstractString = "projectured",
     main = :(ProjecturedPlatform.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
                      packages = vcat(["ProjecturedPlatform", "ProjecturedOllama",
-                                      "ProjecturedAnthropic", "ProjecturedMCP", "ProjecturedACP"],
-                                     backend_packages),
+                                      "ProjecturedAnthropic", "ProjecturedMCP", "ProjecturedACP",
+                                      "ProjecturedLanguageServer"],
+                                     backend_packages, ["ProjecturedBuild"]),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
-                     workload = workload ? :(ProjecturedPlatform.warm_application()) : nothing,
+                     precompile_calls = precompile_calls,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,
@@ -384,7 +389,7 @@ machine of the user, or serves only the development of this repository, as the
 flat namespace of `ProjecturedAll` does.
 """
 const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
-                                        "ProjecturedBuilder", "ProjecturedREPL"]
+                                        "ProjecturedBuild", "ProjecturedBuilder", "ProjecturedREPL"]
 
 """
     PROJECTURED_PACKAGE_ASSETS
@@ -402,8 +407,8 @@ const PROJECTURED_PACKAGE_ASSETS = Dict(
     "ProjecturedPlatformExample" => ["asset/image/file.png" => "asset/image/file.png",
                                      "asset/image/projectured.png" => "asset/image/projectured.png"],
     "ProjecturedMarkdownTest" => ["asset/image/file.png" => "asset/image/file.png"],
-    "ProjecturedSDLTest" => ["tool/precompile/recording-driver.jl" =>
-                             "tool/precompile/recording-driver.jl"],
+    "ProjecturedSDLTest" => ["example/projectured/ExampleWorkload.jl" =>
+                             "example/projectured/ExampleWorkload.jl"],
     "ProjecturedTest" => ["test/suite" => "test/suite"])
 
 """
@@ -559,6 +564,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedGraph" =>
         (summary = "Node-and-edge diagrams in which each vertex holds a document of any kind.",
          document = "documentation/package/domain/graph/graph.md"),
+    "ProjecturedGit" =>
+        (summary = "A commit, the change of a file and a file at a revision, read from a repository by the git program.",
+         document = "documentation/package/domain/git/git.md"),
     "ProjecturedJSON" =>
         (summary = "JSON data as a tree of documents that you edit in the JSON notation.",
          document = "documentation/package/domain/json/json.md"),
@@ -574,6 +582,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedACP" =>
         (summary = "Lets the AI assistant of ProjecturEd talk to an agent that runs its own loop, such as Claude, over the Agent Client Protocol (ACP).",
          document = "documentation/package/adapter/acp/acp.md"),
+    "ProjecturedLanguageServer" =>
+        (summary = "Colours the names of a C or C++ file by their kinds, which a language server such as clangd gives.",
+         document = "documentation/package/adapter/languageserver/languageserver.md"),
     "ProjecturedMCP" =>
         (summary = "Lets a client outside the process, such as an AI assistant, drive a running editor over the Model Context Protocol (MCP).",
          document = "documentation/package/adapter/mcp/mcp.md"),
@@ -589,12 +600,18 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedPDF" =>
         (summary = "Writes a view as a vector PDF with selectable text, with no third-party package.",
          document = "documentation/package/backend/pdf/pdf.md"),
+    "ProjecturedPrecompile" =>
+        (summary = "The one mechanism that compiles a package of ProjecturEd ahead of time, as its preferences say, and the recording of the calls that it compiles.",
+         document = "documentation/package/tool/precompile/precompile.md"),
     "ProjecturedProcess" =>
         (summary = "An algorithm as a structured flowchart: steps, decisions, loops and jumps. It runs with breakpoints and a live trace.",
          document = "documentation/package/domain/process/process.md"),
     "ProjecturedRST" =>
         (summary = "reStructuredText as a tree of documents, with a parser and two presentations.",
          document = "documentation/package/domain/rst/rst.md"),
+    "ProjecturedResearch" =>
+        (summary = "The record of a study: questions, sources, hypotheses, experiments, analyses, results, evidence, decisions and answers, each with who made it and when.",
+         document = "documentation/package/domain/research/research.md"),
     "ProjecturedSDL" =>
         (summary = "Shows the editor in native windows with SDL2, and writes images of a view.",
          document = "documentation/package/backend/sdl/sdl.md"),
@@ -755,8 +772,11 @@ end
 # through `ProjecturedAll`.
 _format_projectured_runtests(name, test_package, suite) = """
     # The suite of `$test_package`, which the release holds in `test/` and the
-    # registry serves. SDL draws into memory when no display is named.
-    haskey(ENV, "SDL_VIDEODRIVER") || (ENV["SDL_VIDEODRIVER"] = "offscreen")
+    # registry serves. SDL draws into memory when no display is named: in the
+    # offscreen driver, and on macOS in the dummy driver, because there the
+    # offscreen driver loads OpenGL through EGL, which macOS does not have.
+    haskey(ENV, "SDL_VIDEODRIVER") ||
+        (ENV["SDL_VIDEODRIVER"] = Sys.isapple() ? "dummy" : "offscreen")
     using $name
     using $test_package
     $suite()

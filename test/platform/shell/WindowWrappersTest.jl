@@ -109,11 +109,19 @@ end
     @test length(screen.windows) == 1
 end
 
-@testset "command_palette: Ctrl+Shift+P opens the palette over the window" begin
-    editor, backend = _ww_editor(PrimitiveString("x"); command_palette = true)
-    before = Set(_shell_texts(last(rendered_output(backend))))
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    @test !issubset(Set(_shell_texts(last(rendered_output(backend)))), before)
+@testset "command_palette: Ctrl+Shift+P opens the list of the commands in a window of its own" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    _ww_press!(editor, backend, WindowInput(screen.windows[1].id, _ww_ctrl(:p; shift = true)))
+    lists = [window for window in screen.windows if window.content isa WidgetChoiceList]
+    @test length(lists) == 1
+    @test only(lists).content.prompt == "Command"
+    @test only(lists).style === :popup
+    @test is_window_placed(only(lists))
+    # A bare Escape closes it, as every popup.
+    _ww_press!(editor, backend, WindowInput(screen.windows[1].id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+    @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
 end
 
 @testset "gesture_log: an operation of the window is an entry of the gesture log" begin
@@ -191,7 +199,7 @@ end
         shell = editor.document
         @test shell isa WidgetShell
         @test labels(shell.toolbar) == ["Explorer", "Files", "Assistant", "Evaluator", "Message log", "Gesture log",
-                                        "Fault log", "Statistics", "Frame times", "Selection", "Appearance",
+                                        "Fault log", "Frame statistics", "Frame times", "Selection", "Appearance",
                                         "Settings"]
         @test shell.status_bar === nothing
     finally
@@ -275,21 +283,74 @@ end
     @test !any(==("GestureRow"), texts)
 end
 
+@testset "shell: Ctrl+P finds a file of the Explorer by its name and opens it; Ctrl+O opens the Open dialog" begin
+    mktempdir() do root
+        mkpath(joinpath(root, "source"))
+        write(joinpath(root, "source", "alpha.json"), "{\"a\": 1}")
+        write(joinpath(root, "notes.txt"), "x")
+        editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600), shell = true)
+        screen = get_wrapped_document(editor.document)
+        id = screen.windows[1].id
+        push!(get_session_explorer_content(; editor).entries, Workspace([WorkspaceFolder("work", root)]))
+        tabs = _ww_tabs(editor)
+        # The command posts the open of the list, and the loop applies a post; a
+        # test that runs the frames applies it by hand.
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p)))
+        drain_operations!(editor)
+        wait_for_cell!(get_session_workspace_file_list(; editor).files; editor)
+        run_frame!(editor)
+        list = only(window.content for window in screen.windows if window.content isa WidgetChoiceList)
+        @test list.prompt == "Go to file"
+        @test sort([choice.label for choice in list.find("")]) == ["alpha.json", "notes.txt"]
+        for c in "alp"
+            _ww_press!(editor, backend, WindowInput(id, KeyPress(c; time = 0.0)))
+        end
+        @test [choice.label for choice in list.find(list.query)] == ["alpha.json"]
+        @test only(list.find(list.query)).note == "source"
+        _ww_press!(editor, backend, WindowInput(id, KeyPress('\n'; time = 0.0)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
+        @test _ww_tabs(editor) == tabs + 1
+        # The open file comes first in the list of the next search.
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        list = only(window.content for window in screen.windows if window.content isa WidgetChoiceList)
+        @test first(list.find("")).label == "alpha.json"
+        _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+        _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:o)))
+        @test any(window -> window.id === :file_dialog, screen.windows)
+    end
+end
+
 @testset "shell: Command palette in the Help menu does what Ctrl+Shift+P does" begin
-    editor, backend = _ww_editor(PrimitiveString("x"); shell = true, command_palette = true)
-    closed = Set(_shell_texts(last(rendered_output(backend))))
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    by_key = Set(_shell_texts(last(rendered_output(backend))))
-    @test !issubset(by_key, closed)
-    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
-    help = only(item for item in editor.document.menu_bar.elements if string(item.action.label) == "Help")
-    item = only(item for item in help.submenu.elements if string(item.action.label) == "Command palette")
-    evaluate_operation(editor, InvokeActionOperation(item.action))
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    list_window() = only(window for window in screen.windows if window.content isa WidgetChoiceList)
+    _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p; shift = true)))
+    by_key = [choice.label for choice in list_window().content.find("")]
+    @test !isempty(by_key)
+    _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+    @test !any(window -> window.content isa WidgetChoiceList, screen.windows)
+    # The menu opens the same list, below the bands of the window.
+    _ww_click_help_item!(editor, backend, screen, id, "Command palette", 1.0)
+    drain_operations!(editor)
     run_frame!(editor)
-    @test Set(_shell_texts(last(rendered_output(backend)))) == by_key
-    evaluate_operation(editor, InvokeActionOperation(item.action))
-    run_frame!(editor)
-    @test Set(_shell_texts(last(rendered_output(backend)))) == closed
+    @test [choice.label for choice in list_window().content.find("")] == by_key
+    @test is_window_placed(list_window())
+    # It stands 8 below the toolbar of the shell, 480 wide, in the middle of the
+    # window of 800.
+    popup = _cm_output_window(editor, screen, :widget_popup)
+    main = _cm_output_window(editor, screen, id)
+    toolbar = ProjecturedPlatform.ScreenModule._find_part_box(editor.projection, editor.iomap,
+                  extend_reference(ProjecturedPlatform.ShellModule._find_shell_reference(editor.document),
+                                   FieldReferenceStep("toolbar")))
+    @test popup.y == toolbar.y + toolbar.height + 8
+    @test popup.maximum_size[1] == 480
+    @test popup.x == Int(main.x) + (800 - 480) ÷ 2
 end
 
 end # @testset

@@ -1,6 +1,6 @@
 # The parts of a domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](concepts.md), [domain-inventory.md](domain-inventory.md), [projection-system.md](../package/kernel/projection-system.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](concepts.md), [domain-inventory.md](domain-inventory.md), [projection-system.md](../package/kernel/projection-system.md)
 
 This document describes the parts that every domain package has, and how an edit and a registration travel through them. The design document of each domain describes only how that domain differs from this shape. Read this document first, then the document of the domain.
 

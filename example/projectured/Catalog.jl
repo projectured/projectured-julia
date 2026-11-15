@@ -189,7 +189,7 @@ end
 # The hierarchical `domain/name/variant` name doubles as the filter path; `catalog_domain`
 # reads the domain level straight back off it.
 catalog_domain(ex::Example) = Symbol(first(split(ex.name, '/')))
-runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/web, text→console
+runnable(ex::Example) = ex.terminal in (:text, :graphics, :natural)   # graphics→screen/web, text→console
 
 # A document whose own gestures can change its type: a domain's insertion buffer (Enter
 # commits it to a concrete node) or its nothing placeholder (Insert turns it into that
@@ -222,12 +222,14 @@ function _single_step_leaf(projT, doc)
     out isa SyntaxLeaf
 end
 
-# ── Generator: up to three Examples per atomic document ─────────────────────────────
-# `domain/name/syntax` (trivial single-step), `domain/name/text`, `domain/name/graphics`.
+# ── Generator: up to four Examples per atomic document ──────────────────────────────
+# `domain/name/syntax` (trivial single-step), `domain/name/text`, `domain/name/graphics`,
+# and with `natural = true` `domain/name/natural`, the projection that an editor makes for
+# the document when it gets none (`make_document_projection`), which the app uses.
 # Each is a plain `Example` (origin = :generated); variants that aren't reachable are
 # skipped ("…and to graphics if possible"). Building an Example is cheap — the projection
 # objects are constructed, not run; the slow pipeline runs only when a test/example prints.
-function _atom_examples(ad::AtomicDocument)
+function _atom_examples(ad::AtomicDocument; natural::Bool = false)
     doc = ad.make_document()
     D   = typeof(doc)
     out = Example[]
@@ -255,24 +257,33 @@ function _atom_examples(ad::AtomicDocument)
     gfx_seq = _graphics_sequence(D, doc, text_seq)
     gfx_seq === nothing || push!(out, variant(:graphics, () -> _compile(gfx_seq)))
 
+    natural && push!(out, variant(:natural, () -> make_document_projection(ad.make_document())))
+
     out
 end
 
 """
-    catalog(; domain=nothing, document=nothing, terminal=nothing, only_runnable=false)
+    catalog(atoms = atomic_documents(); domain=nothing, document=nothing, terminal=nothing,
+            only_runnable=false, natural=false)
 
-The generated catalog: for each hand-authored `AtomicDocument`, its trivial single-step
-projection plus the composite projections reaching `:text` and `:graphics`, as plain
-`Example`s under hierarchical `domain/name/variant` names. Filter by document `domain`,
+The generated catalog: for each hand-authored `AtomicDocument` of `atoms`, its trivial
+single-step projection plus the composite projections reaching `:text` and `:graphics`, as
+plain `Example`s under hierarchical `domain/name/variant` names. Filter by document `domain`,
 document `name`, projection `terminal`, or `only_runnable` — the same three axes the name
 path encodes. Every entry feeds `test_printer` / `run_example` unchanged.
+
+`atoms` is the atoms of any package, such as those of another repository, which the same
+search gives their projections. With `natural = true`, each atom also gets the variant
+`domain/name/natural`: the projection that an editor makes for the document when it gets
+none, the one that the app uses. A view that prints widgets reaches the screen only so.
 """
-function catalog(; domain = nothing, document = nothing, terminal = nothing, only_runnable = false)
+function catalog(atoms = atomic_documents(); domain = nothing, document = nothing, terminal = nothing,
+                 only_runnable = false, natural = false)
     cs = Example[]
-    for ad in atomic_documents()
+    for ad in atoms
         (domain   === nothing || ad.domain === domain)   || continue
         (document === nothing || ad.name   === document) || continue
-        for ex in _atom_examples(ad)
+        for ex in _atom_examples(ad; natural)
             (terminal === nothing || ex.terminal === terminal) || continue
             (!only_runnable || runnable(ex))                   || continue
             push!(cs, ex)

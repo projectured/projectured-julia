@@ -1,6 +1,6 @@
 # File system
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
 
 The file-system slice of `ProjecturedPlatform` shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how a folder reads the disk, how the tree shows it, how a file opens, and where its documents differ from the [shape of every domain](../../../design/domain-anatomy.md).
 
@@ -17,13 +17,23 @@ The file-system slice of `ProjecturedPlatform` shows folders and files of the di
 | `WorkspaceExplorer` | a `workspace` and `open`, the folders that this explorer shows open: what the Files tab shows |
 | `FileSystemChooser` | a `directory`, `open` and a `name`: the document of an open or save dialog |
 
-A `FileSystemFile` has a field `document`, the document that the editor holds open for the file. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict.
+A `FileSystemFile` has a field `document`, the file document that the editor holds open for the file, and a view-state field `document_view`, the `FileView` of that document that the page of the file draws. The acquire of the file takes the document that `find_open_file_document` finds in the `OpenFileList` of the editor, else the document that the file kept, else it reads the file, so one file path is one document in an editor ([fileformat.md](../fileformat/fileformat.md)). The release of the file clears the field, unless the document has an unsaved edit or a conflict, or keeps a dormant selection: the place where the keys were on it, which a double press in an explorer links back ([explorer.md](../explorer/explorer.md)).
+
+The open of a file (`OpenFileOperation`, `open_file!` and the acquire of a `FileSystemFile`) gives each `file("…")` of the file that it reads the file document that the editor holds for that file, before the history wraps the content. This slice adds the method of `open_file_document!` for an `Editor`: the file document that the list of open files holds for the path, else a new one that `make_unread_file` makes with the history of the settings of the editor around its content, which it adds to the list at once. The method runs on the task of the editor. The new file document reads its file when a view of it is drawn ([fileformat.md](../fileformat/fileformat.md)).
 
 `make_filesystem_pathname(path)` makes a `FileSystemFile`, or a `FileSystemDirectory` that is unread. A print reads only what a folder holds, and never the disk.
 
 ### A folder holds what its last read found
 
-`elements` holds the entries in the order of their names, each a `FileSystemFile` or a `FileSystemDirectory`. `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`. A folder that can not be read, because of a permission or because it is gone, is `:failed`. `reading` is a `Bool`: it says that a read runs. `has_entries` says whether the folder holds an entry, as the read of its parent found it: `true`, `false`, or `nothing` while that is not known. `has_folder_entries(folder)` answers from the entries of a folder that is read, and from `has_entries` otherwise. `read_count` counts the changes that need a new read.
+`elements` holds the entries in the order of a folder, each a `FileSystemFile` or a `FileSystemDirectory`. `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`. A folder that can not be read, because of a permission or because it is gone, is `:failed`. `reading` is a `Bool`: it says that a read runs. `has_entries` says whether the folder holds an entry, as the read of its parent found it: `true`, `false`, or `nothing` while that is not known. `has_folder_entries(folder)` answers from the entries of a folder that is read, and from `has_entries` otherwise. `read_count` counts the changes that need a new read.
+
+### The order of a folder
+
+A read stores the folders first, then the files. In each group, the names compare in runs. Two runs of ASCII digits compare by their values, so `file9` comes before `file10`. Any other two characters compare by their lower case, so `a.txt` comes before `Makefile`. A character that is not valid UTF-8 compares as it is. When two names are equal by these rules, the order of their character codes decides: `README.md` comes before `readme.md`, and `file01` before `file1`. So the order is total, and a folder has one order only.
+
+The order depends on no locale, so a folder shows the same order on every computer, and a test or a screenshot does not change with the machine. A name that starts with `.` comes first in its group. A letter outside ASCII sorts by its code after the lower case, so `éclair` comes after `zeta`. No setting changes the order. Most file browsers list the folders first and sort numbers by value, and this order follows them.
+
+`_is_entry_before` in `FileSystemDocument.jl` is the order. The read sorts its listing with it, and the merge of a new listing walks with it. A `FileSystemDirectory` made with its entries keeps the order that its maker gives.
 
 ### A folder reads when a part shows its entries
 
@@ -31,13 +41,13 @@ An unread folder reads nothing until a part that shows its entries calls `demand
 
 `listing` is a background cell of the path and of `read_count` ([editor.md](../../kernel/editor.md#the-background-cell)). `listing_source` reads, in one task after a frame, every folder of one tree that the frame asked for. The read lists the names with their kinds in one call, and checks each sub-folder for an entry with one `readdir`, so the sub-folder shows a chevron only when it holds an entry. A known cost: that check reads the whole listing of the sub-folder.
 
-The answer is an `ApplyFolderListingOperation`, which the editor evaluates after it writes the answer of the listing, through the `apply` keyword of the background cell. The operation compares the new listing with `elements` by name. A kept entry keeps its document, so an open folder stays open. Each run of new or gone entries is one splice of `elements`, so a new file is one insert and the paths after it move. The answer of an older read is dropped: `read_count` names the read. The operation is a write of view state, so undo records no read.
+The answer is an `ApplyFolderListingOperation`, which the editor evaluates after it writes the answer of the listing, through the `apply` keyword of the background cell. The operation compares the new listing with `elements` in the order of a folder. An entry stays when its kind and its name stay. A kept entry keeps its document, so an open folder stays open. A file that becomes a folder of the same name is a gone entry and a new entry in the other group. Each run of new or gone entries is one splice of `elements`, so a new file is one insert and the paths after it move. The answer of an older read is dropped: `read_count` names the read. The operation is a write of view state, so undo records no read.
 
 An acquire of the folder reads nothing. It watches the folder and its sub-folders, with the folder as the receiver, up to the limit of watches of the store. The watch is a watch of a folder in the file change slice ([filechange.md](../filechange/filechange.md)). A change that the watch reports on the folder itself adds one to `read_count`, so the next demand reads again. A change of a sub-folder starts `start_document_read!` ([domain.md](../domain/domain.md)), and its answer is an `ApplyFolderEmptinessOperation`. An editor with no file change feed watches nothing.
 
 The release stops the watches and keeps the entries. The folder shows its last listing when a holder acquires it again.
 
-`read_filesystem_folder!(folder; depth)` reads a folder at once on the calling task, and its sub-folders down to `depth` levels. A script, an example and a test use it when no editor runs. It never runs in a print.
+`read_filesystem_folder!(folder; depth)` reads a folder at once on the calling task, and its sub-folders down to `depth` levels. A script, an example and a test use it when no editor runs. It never runs in a print. It reads through the listing, with `wait_for_cell!` and no editor, so the listing holds the answer of the read and its value is final. A listing with no answer is provisional, and a computation that reads a provisional cell computes it again at each read: the rows of a tree over the folder would be made again at each read, and an editor would read the folder a second time. A listing that holds an answer already reads again for a new `read_count`.
 
 ### The workspace and the explorer
 
@@ -66,21 +76,39 @@ The Files tab chain is `FileSystemToWidget`, then `RecursiveProjection(WidgetToG
 
 A row of an explorer is a document of the workspace: the folders and entries are stored. So a selection of a row is the path `workspace.folders[k].directory.elements[a]…` of the explorer, and a key goes where that path points. A plain click and the arrow keys move the row. The tree itself and a part that the view drew, such as a scroll bar, are named by an introduced reference.
 
-In the chain of a bare `Workspace`, the tree is the output of `WorkspaceToFileSystem`, so a row is a place that the projection introduces. A selection of that row is a `ProjectionReferenceStep` on the folder. An Alt+click selects the `Workspace` as a whole, so the pane that holds it draws its selection ring.
+In the chain of a bare `Workspace`, the tree is the output of `WorkspaceToFileSystem`, so a row is a place that the projection introduces. A selection of that row is a `ProjectionReferenceStep` on the folder. An Alt+double click selects the `Workspace` as a whole, so the pane that holds it draws its selection ring.
 
 ### Open a file
 
-Enter on a row, or a double click, makes an `OpenFileOperation(path)`. The operation is a type of the widget slice (`OpenFileOperation.jl`), and this slice evaluates it (`FileSystemDocument.jl`). The operation names the file and nothing else. When the editor applies it, `make_file_tab` reads the file into the document type that its extension registers, in a scroll pane, and `open_pane!` asks the pane tree where a file goes. An opener can put a part of its own around the content that the file holds (`wrap`), or around the file document (`file_wrap`), as a link puts a navigator around a file. When the editor has settings, the evaluation gives the file a history (`make_history_wrap` of the undo slice), whatever started the open: around the part of `file_wrap`, so it records every edit of that part, and else around the content, inside the file. A file that is its own content has no content inside it, so the history goes around the file. So a file that the Files pane, the menu Open or a link opens has an undo.
+Enter on a row, or a double click, makes an `OpenFileOperation(path)`. The operation is a type of the widget slice (`OpenFileOperation.jl`), and this slice evaluates it (`FileSystemDocument.jl`). The operation names the file and nothing else. When the editor applies it, `make_file_tab` reads the file into the document type that its extension registers, and `open_pane!` asks the pane tree where the view of the file (`make_file_view`) goes. A file that is open already is one document: its tab takes the focus, or, when no tab shows it, a new tab opens with a new view of it. `open_file!` finds the tab of an open file through the layers that its content holds (`get_edited_field`), as `OpenFileOperation` does. An opener can put a part of its own around the content that the file holds (`wrap`), or around the file document (`file_wrap`), as a link puts a navigator around a file; the tab then shows that part, whose own view of its page shows the file. When the editor has settings, the evaluation gives the file a history (`make_history_wrap` of the undo slice) around its content, inside the file, whatever started the open and whatever `file_wrap` puts around the file. A file that is its own content has no content inside it, so the history goes around the file. So a file that the Files pane, the menu Open or a link opens has an undo.
+
+### The files of the workspace folders
+
+`WorkspaceFileList` lists every file below the folders of a workspace, for the search that finds a file by its name. An editor keeps one as a session document (`get_session_workspace_file_list`). It has four cells:
+
+- `folders`, the absolute folders that it reads;
+- `read_count`, the count of the reads that were asked for;
+- `reading`, whether a read runs now;
+- `files`, a background cell (`make_background_cell`) of a `WorkspaceFiles(folders, paths, is_cut)`: the folders, the absolute path of each file, and whether the read stopped at the limit.
+
+`read_workspace_files_again!(list, folders)` asks for a new read. The list answers the files of the last read until the new read ends, so a search shows a list at once. The read runs on a task, and reads no document. It follows these rules:
+
+- It skips each file and each folder whose name starts with a dot.
+- It skips what a `.gitignore` names (`read_gitignore_rules`, `is_gitignored`, `GitIgnoreRule`). The rules are those of git: `#` starts a comment, `!` negates, `\` quotes, a `/` at the start or in the middle anchors the rule to the folder of the file, a `/` at the end names a folder only, and `*`, `?`, `[…]` and `**` match as in git. The `.gitignore` of each folder applies below that folder, and a later rule wins. A folder that a rule ignores is not entered. The read uses no `.git/info/exclude` and no global ignore file.
+- It does not enter a link to a folder.
+- It stops at `WORKSPACE_FILE_LIMIT`, which is 100,000 files, and then `is_cut` is `true`.
+
+`make_workspace_file_search(list; open_files)` makes the search: a `WidgetChoiceList` with the prompt "Go to file" ([context-menu.md](../widget/context-menu.md#a-list-that-a-person-types-into)). A row is the file name, with its folder as the note. The folder is relative to its Explorer folder, after the name of the folder when there is more than one. The query matches the letters in order, with the file name as the name part. An empty query lists the files that `open_files` names first, then the other files in path order. The search keeps its last ranking, so the keys of the list score no path again. A footer says "Reading the files…" while a read runs, or that the list stops at the limit. A choice answers `OpenFileOperation(path)`. The shell opens the search; see [shell.md](../shell/shell.md#go-to-file).
 
 ### Choose a file
 
 `FileSystemChooser` is the document of the open and save dialogs of the shell slice. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.
 
-`FileSystemChooserToWidget` draws the chooser as a one-column grid: the tree over the field of the name. The tree is the tree of an explorer, built from `open` of the chooser, with the rows, the chevrons and the "reading" row of the Files tab. A chevron opens or closes a folder and changes what the chooser holds, and the chooser holds its open folders as an explorer does. The file action of the tree is `WriteChosenNameOperation`: Enter or a double press on a file row writes the name of the file into `name`. The field is a text widget whose content is `name`, so a key in the field edits `name`. The paths map `children[1].roots[1].children[a]…` to `directory.elements[a]…` and `children[2].content<rest>` to `name<rest>`. The renderer takes the view through `make_graphics_projection` for `FileSystemChooser`, chained with `GridLayoutToGraphicsCanvas`.
+`FileSystemChooserToWidget` draws the chooser as a one-column grid: the tree over the field of the name. The tree is the tree of an explorer, built from `open` of the chooser, with the rows, the chevrons and the "reading" row of the Files tab. A chevron opens or closes a folder and changes what the chooser holds, and the chooser holds its open folders as an explorer does. The file action of the tree is `WriteChosenNameOperation`: Enter or a double press on a file row writes the path of the file from the directory of the chooser into `name`, so a file in an open folder names the folder too. The field is a text widget whose content is `name`, so a key in the field edits `name`. The paths map `children[1].roots[1].children[a]…` to `directory.elements[a]…` and `children[2].content<rest>` to `name<rest>`. The renderer takes the view through `make_graphics_projection` for `FileSystemChooser`, chained with `GridLayoutToGraphicsCanvas`.
 
 ### Duplicate the Explorer
 
-`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate of a `WorkspaceExplorer` shares the workspace and copies `open`, so it opens the same folders and shares what they read; see [document.md](../../kernel/document.md#the-duplicate). The selected row is not in the explorer, so a duplicate opens with no row selected. The duplicate of a bare `Workspace` is a copy of its folders.
+`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the menu of the tab of the Explorer offers Duplicate. The duplicate of a `WorkspaceExplorer` shares the workspace and copies `open`, so it opens the same folders and shares what they read; see [document.md](../../kernel/document.md#the-duplicate). The selected row is not in the explorer, so a duplicate opens with no row selected. The duplicate of a bare `Workspace` is a copy of its folders.
 
 ### The theme
 
@@ -91,7 +119,7 @@ default values for `nothing`. The registration gives the scaled theme of the `Ap
 
 ## How it fits
 
-The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Files button of the toolbar.
+The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, on the layout slice for the grid of the chooser, on the file change slice for the watch of a folder and the store of an editor (`find_file_change_store`), on the domain slice for the acquire and the read, and on the focus slice for the Alt+double click that selects the workspace. The shell slice uses it for the dialogs and for the Files button of the toolbar.
 
 Its `__init__` registers:
 
@@ -108,7 +136,7 @@ A `.pred` file builds `Workspace`, `WorkspaceFolder` and `WorkspaceExplorer` by 
 - **A print reads only cells.** A folder reads in an operation, on a task, and never in a computation. The state of a folder is in its document: the entries, the read state and whether it holds an entry.
 - **An explorer owns what a person controls, and shares what it reads.** The open folders are in the explorer, and the listing is in the folder document that the workspace holds. So two explorers of one workspace show different open folders over one read.
 - **A holder sets what is read.** A folder reads and watches itself while a holder holds it, and a closed folder reads nothing. The release keeps the entries.
-- **The file action is a parameter of the view.** A row of a file names the file, and the document around the tree sets the meaning: the Files tab opens the file, and the chooser writes the name.
+- **The file action is a parameter of the view.** A row of a file names the file, and the document around the tree sets the meaning: the Files tab opens the file, and the chooser writes the path.
 
 ## Usage
 
@@ -119,7 +147,7 @@ explorer = WorkspaceExplorer(workspace)   # a tab shows it, and its folders read
 run_example("files")                      # the Explorer view of the fixture project
 ```
 
-- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `files_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/` with `read_filesystem_folder!`, so they do not change when the repository changes.
+- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `files_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/` with `read_filesystem_folder!`, so they do not change when the repository changes. The tree of `filesystem_widget_example` passes `open_file = nothing`: the example has no pane tree to open a file in.
 - Test: `test_filesystem()` runs the layering guard, the two projection tests, `test_filesystem_document()`, which checks the acquire, the read and the watch of a folder, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back. `FileDialogTest.jl` of the shell slice draws the chooser. The SDL suite has `test_tree_render()`, which renders a folder of 1,000 entries in a small pane and checks that only the drawn rows build their nodes.
 
 ## Limits

@@ -84,7 +84,7 @@ end
 end
 
 @testset "A click puts the caret of the view that it hits" begin
-    place_y = Int(iomap.output.elements[2].y)
+    place_y = Int(iomap.output.elements[1].elements[2].y)
     # x = 25 is between the caret 2 and the caret 3 of the text: `.value{1}`.
     @test press!(MouseClick(:left, 25, place_y + 5; time = 0.0)) isa ReplaceSelectionOperation
     @test stored(view_b) == value_caret(1) && is_live_selection(view_b)

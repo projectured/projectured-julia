@@ -1,6 +1,6 @@
 # Console backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../../platform/text/text.md), [style.md](../../platform/style/style.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../../platform/text/text.md), [style.md](../../platform/style/style.md)
 
 `ProjecturedConsole` holds `ConsoleBackend`, which draws a text document in a terminal with ANSI colour codes and reads the keys of the terminal. It needs no third-party package, so the umbrella `Projectured` holds it. This document says how the backend implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), and what a console pipeline must look like.
 
@@ -33,7 +33,7 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 - `TextSpacing` prints one space.
 - `TextGraphics` and any other run print nothing.
 
-`color_default` gets no code, so an empty marker span takes the foreground colour of the terminal and is not black on a dark background. With `ansi = false` the backend writes plain text, and with `clear = true` it clears the screen before each frame. The editor loop writes on every tick, so the backend compares the buffer with the last frame and writes nothing when the two are equal. Without that, the terminal would flicker.
+`color_default` gets no code, so a run that names no colour takes the foreground colour of the terminal and is not black on a dark background. With `ansi = false` the backend writes plain text, and with `clear = true` it clears the screen before each frame. The editor loop writes on every tick, so the backend compares the buffer with the last frame and writes nothing when the two are equal. Without that, the terminal would flicker.
 
 ### Events in
 
@@ -63,7 +63,7 @@ The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 
 
 A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `take_from_devices!` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
 
-Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
+Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and `run_console_example` puts an `EscapeQuittingProjection` around its projection, so there an Escape that no reader handled quits.
 
 Every event is wrapped as `WindowInput(:console, event)`, because the console has no window. Home selects the root because the console has no mouse to make a first selection.
 
@@ -81,7 +81,7 @@ The code is the slice `ConsoleModule`, in `source/backend/console/`: `ConsoleMod
 
 `ProjecturedConsole` depends on the kernel and the platform: the style slice for the colours, and the text slice for the spans. It registers nothing.
 
-`default_backend()` in the [application slice](../../platform/application/application.md) picks it last, after `SdlBackend` and `WebBackend`. The gallery pipelines end in graphics, so a gallery run on this backend raises the error above; `run_console_example` builds a console pipeline instead. `warm_application()` gives its editor a `ConsoleBackend`, because the warm-up of a build must run with no display and draws nothing.
+`default_backend()` in the [application slice](../../platform/application/application.md) picks it last, after `SdlBackend` and `WebBackend`. The gallery pipelines end in graphics, so a gallery run on this backend raises the error above; `run_console_example` builds a console pipeline instead.
 
 ## Design decisions
 

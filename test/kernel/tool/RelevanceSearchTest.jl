@@ -156,18 +156,19 @@ function test_relevance_search()
              for text in texts]
         end
         set_relevance_model!(guides, RelevanceModel("fake/guides", guide_score, choose))
+        # The naming rules are for developers.
         answer = search_guides(guides, "what must the name of a function start with";
-                               mode = "description", detail = "names",
+                               mode = "description", detail = "names", audience = "developer",
                                context = "I add a verb to a module.")
         first_hit = match(r"^- (resource://guide/\S+).*$"m, answer)
         @test first_hit !== nothing
         @test occursin("rule/naming-rules", first_hit.captures[1])
-        @test endswith(first_hit.match, "— Functions")
+        @test endswith(first_hit.match, "— Functions [rule]")
         # The pool is the first hits of the words, since no meaning model is set.
         @test 0 < seen[] <= 50
         # Keywords go to it too.
         seen[] = 0
-        answer = search_guides(guides, "function name verb"; detail = "names")
+        answer = search_guides(guides, "function name verb"; detail = "names", audience = "developer")
         first_hit = match(r"^- (resource://guide/\S+).*$"m, answer)
         @test occursin("rule/naming-rules", first_hit.captures[1])
         @test seen[] > 0

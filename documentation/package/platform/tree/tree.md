@@ -1,6 +1,6 @@
 # Tree
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md), [navigator.md](../navigator/navigator.md)
 
 The tree slice of `ProjecturedPlatform` shows a document of any type, with the documents under it, as a tree. This document says how a document becomes a node, how a tree keeps its open nodes, how a double click or Return on a node opens a page, and how a slice adds its own kind of node.
 
@@ -21,7 +21,7 @@ The open nodes are `expanded`, the open places: an `IdDict` whose keys are the d
 
 ### Four generics make a document a node
 
-The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. Another generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)).
+The slice names no kind of node. A slice that owns a kind adds methods to four generics, and each has a default, so any document is a leaf with a label. A path of `get_tree_children_steps` reaches a collection of children, or one document that no collection holds, such as a part in a field: that document is one child, and its path has no step of an element. A layer is the exception: a document whose `get_edited_field` names the field of the document that it shows, such as a file view, a file or a history, has by default the children of that document, each path after the step of that field. So a file in a tree has the nodes of its document below it, with no method of the file format slice. The icon of a node is the icon of the decoration of its document (`get_document_decoration` of the domain slice), which a tab and an address item draw too. Another generic, `is_explorer_entry_type(type)`, is no part of the node: it says whether a person adds a document of `type` as an entry of an explorer. Its default is `false` (`TreeDefaults.jl`), and a slice that owns such a kind adds a method that answers `true` ([explorer.md](../explorer/explorer.md)). The last generic, `is_session_explorer_entry_type(type)`, says whether the first content of the explorer of a window holds the session document of `type`, which `get_session_document!(type, editor, type)` gives. Its default is `false` too.
 
 | Generic | Answers | Default |
 | --- | --- | --- |
@@ -107,12 +107,14 @@ These slices add kinds of node:
 | [assistant.md](../assistant/assistant.md) | `AssistantList`, `Assistant`, `AgentWork`, `AssistantWork` | the assistants; the subagents, then the background tasks |
 | [filesystem.md](../filesystem/filesystem.md) | `Workspace`, `WorkspaceFolder`, `FileSystemDirectory`, `FileSystemFile` | the folders; the entries of the folder document; the entries of a folder; none |
 | [explorer.md](../explorer/explorer.md) | `ExplorerSection`, `Dashboard`, `DashboardCard` | the entries; the cards; none |
+| [help.md](../help/help.md) | `DocumentTypeList`, `ProjectionList`, `HelpGroup` | the groups of the packages; the groups of the modules of a package, or the entries of its types |
 
 ## Design decisions
 
 - **One tree for every kind of document.** The file tree of the Explorer shows one kind of node. The tree slice shows any kind, and a slice adds only the three generics and a decoration. The options and the steps are in [the-assistant-shows-the-work-of-its-agent.md](../../../../plan/done/the-assistant-shows-the-work-of-its-agent.md).
 - **A place is open by the documents on its path.** An open node that a path of indices names would name another node after an insert, and an open node that only its document names would open at every place of the document. The owner chose places on 2026-10-17 ([the-explorer-shows-what-the-editor-holds.md](../../../../plan/done/the-explorer-shows-what-the-editor-holds.md), Q1).
 - **Each node reads its own cells.** A change of one document draws its own label again, and no other label.
+- **The walk of the open nodes reads only open places.** It reads the children of an open node only when a place below the node is open, and it makes the entry of an open child only, because the document of a child says whether it is open. So the open paths of the widget read nothing of a node that is open with every child closed, such as a folder whose listing is read again.
 - **A double click opens a page and adds no event.** The answer is the operation that every link already makes, so a tree needs no reader above the navigator.
 
 ## Limits

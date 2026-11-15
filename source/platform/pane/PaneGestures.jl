@@ -14,7 +14,6 @@
 #
 # Nothing here builds an operation of its own — each rule calls a surgery builder,
 # which answers with a generic operation.
-const _NO_MODIFIERS = ModifierKeys()
 
 # ── The rules' bodies ──────────────────────────────────────────────────────
 
@@ -72,13 +71,23 @@ function _sibling_tab(tree::PaneTree, step::Int)
     make_pane_focus_operation(tree, group, mod1(index + step, n))
 end
 
+# The focused group fills the window, and the next press gives back the layout. A
+# tree of one group has nothing to hide.
+function _toggle_maximize(tree::PaneTree)
+    find_pane_maximized_group(tree) === nothing || return make_pane_restore_operation(tree)
+    tree.root isa PaneGroup && return nothing
+    group = get_pane_focused_group(tree)
+    group === nothing && return nothing
+    make_pane_maximize_operation(tree, group)
+end
+
 # ── The tab title ──────────────────────────────────────────────────────────
 #
 # A rename is not a mode. The title is a text document, so putting the caret in it
-# *is* the editing state, and the editing itself is the title document's own
-# business: each keystroke is handed to `read_gesture(title, …)`, whose
-# `@gestures PrimitiveString` table inserts and deletes, and the answer is
-# re-rooted onto the tree. This slice writes no editing code.
+# *is* the editing state. The tab bar draws the name through a text view and gives
+# a key in the name to it, so the text domain edits the name as it edits every
+# text, and its answer comes back as a path in the name. This slice writes no
+# editing code: F2 puts the caret in the name, and Escape takes it out.
 
 # Put the caret at the end of the focused tab's name.
 function _rename(tree::PaneTree)
@@ -94,18 +103,6 @@ function _leave_title(tree::PaneTree)
     found = get_pane_focus_title(tree)
     found === nothing && return nothing
     make_pane_focus_operation(tree, found[1], found[2])
-end
-
-# Hand one keystroke to the name in the title and re-root what it answers. The event
-# is rebuilt from the pattern's own bound fields, because a rule body sees those
-# and not the event object.
-function _title_edit(tree::PaneTree, event)
-    found = get_pane_focus_title(tree)
-    found === nothing && return nothing
-    group, index = found
-    answer = read_gesture(group.tabs[index].title.name, event)
-    answer === nothing && return nothing
-    make_pane_retarget_title_operation(tree, group, index; operation = answer)
 end
 
 # ── The walk at a tab ──────────────────────────────────────────────────────
@@ -189,23 +186,16 @@ end
     override(KeyPress('\t'; ctrl, shift)) => "Focus the previous group" => _traverse(doc, true)
     KeyDown(:page_down; ctrl) => "Focus the next tab" => _sibling_tab(doc, 1)
     KeyDown(:page_up; ctrl) => "Focus the previous tab" => _sibling_tab(doc, -1)
+    KeyDown(:m; ctrl) => "Maximize the focused group, or give back the layout" => _toggle_maximize(doc)
     when(KeyDown(k; alt), k in (:left, :right, :up, :down)) =>
         "Walk from a whole tab to its neighbour or into its content" =>
             _walk_tab(doc, k)
     KeyDown(:f2;) => "Put the caret in the tab name" => _rename(doc)
     KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
     nothing => "Add the tab to the explorer" => _make_add_tab_operation(doc)
-    # The four rules of a rename. Each answers `nothing` unless the caret is in a
-    # name, so a key that means something else keeps meaning it — the rule body
-    # is the guard, because a `when(…)` guard sees only the event's own fields. A
-    # name is one line, so it takes printable text only.
+    splice(_PANE_TAB_MENU_BINDINGS)
+    # It answers `nothing` unless the caret is in a name, so Escape keeps its
+    # meaning elsewhere: the rule body is the guard, because a `when(…)` guard sees
+    # only the event's own fields.
     KeyDown(:escape;) => "Leave the tab name" => _leave_title(doc)
-    when(KeyPress(c, t), !any(iscntrl, t)) =>
-        "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS; time = time()))
-    KeyDown(:backspace;) =>
-        "Delete backward in the tab name" => _title_edit(doc, KeyDown(:backspace, _NO_MODIFIERS;
-                                                                      time = time()))
-    KeyDown(:delete;) =>
-        "Delete forward in the tab name" => _title_edit(doc, KeyDown(:delete, _NO_MODIFIERS;
-                                                                     time = time()))
 end

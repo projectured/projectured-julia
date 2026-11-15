@@ -1,6 +1,6 @@
 # Gestures
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
 
 What the mouse and the keyboard let you do beyond a single key or a single
 click: a double click, a sequence of keys, a rest of the pointer, and a right
@@ -11,6 +11,23 @@ are.
 
 A left click puts the selection where you click. Of the gestures in this guide,
 only the left click moves the selection.
+
+## Three clicks
+
+A click does what the part under the pointer does. A button presses, a tab
+opens its page, a checkbox toggles, a link opens its target, and the text of a
+table header selects its column or row. On a text with no such use, a click puts
+the caret where you click. On the padding of a row, a cell or a card, a click
+selects that row, cell or card.
+
+Alt + click always puts the caret at the character under the pointer, in any
+text, also the text of a button or a tab. It never acts, so a button does not
+press.
+
+Alt + double click always selects the innermost part under the pointer as a
+whole: a value, a cell, a header, a row or a file. It never acts either, so a
+double click on a file in the Files pane does not open it. Alt + Up, Alt + Down,
+Alt + Left and Alt + Right then move that selection.
 
 ## A double click opens
 
@@ -44,8 +61,8 @@ menu with no pointer.
 1. Press F1. A window lists every key, click, double click, chord and rest of
    the pointer that does something where the selection is now, with what each
    one does.
-2. Press Ctrl+Shift+P. Type a few letters of what you want to do, and press
-   Enter to run it. This finds a gesture that has no key or click of its own,
+2. Press Ctrl+Shift+P. Type a few letters of what you want to do, in the order
+   of its name, and press Enter to run it. This finds a gesture that has no key or click of its own,
    such as a menu or a tooltip run from a part with no pointer on it.
 
 See [the keyboard and the mouse](keyboard-and-mouse-guide.md) for the full list

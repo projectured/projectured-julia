@@ -9,10 +9,12 @@ HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 
 [compat]
 HTTP = "1.11.0"

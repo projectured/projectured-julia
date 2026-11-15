@@ -23,6 +23,22 @@ const natural_example        = Example("natural",        make_natural_document_e
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const workflow_example       = Example("workflow",       make_workflow_document_example,       make_workflow_projection_example)
 const workflow_journal_example = Example("workflow_journal", make_workflow_journal_document_example, make_workflow_projection_example)
+# One workflow in stages, from a goal alone to a full record with elements of other
+# domains: each stage adds one feature of the domain to the stage before it.
+const workflow_goal_example          = Example("workflow_goal",          make_workflow_goal_document_example,          make_workflow_projection_example)
+const workflow_steps_example         = Example("workflow_steps",         make_workflow_steps_document_example,         make_workflow_projection_example)
+const workflow_substeps_example      = Example("workflow_substeps",      make_workflow_substeps_document_example,      make_workflow_projection_example)
+const workflow_open_decision_example = Example("workflow_open_decision", make_workflow_open_decision_document_example, make_workflow_projection_example)
+const workflow_explored_example      = Example("workflow_explored",      make_workflow_explored_document_example,      make_workflow_projection_example)
+const workflow_recorded_example      = Example("workflow_recorded",      make_workflow_recorded_document_example,      make_workflow_projection_example)
+const workflow_elements_example      = Example("workflow_elements",      make_workflow_elements_document_example,      make_workflow_projection_example)
+const workflow_complete_example      = Example("workflow_complete",      make_workflow_complete_document_example,      make_workflow_projection_example)
+const research_example       = Example("research",       make_research_study_document_example, make_research_projection_example)
+# The studies at the stages of the work before the end; `research` is the concluded one.
+const research_framed_example    = Example("research_framed",    make_research_framed_study_document_example,    make_research_projection_example)
+const research_grounded_example  = Example("research_grounded",  make_research_grounded_study_document_example,  make_research_projection_example)
+const research_planned_example   = Example("research_planned",   make_research_planned_study_document_example,   make_research_projection_example)
+const research_contested_example = Example("research_contested", make_research_contested_study_document_example, make_research_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
 const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const rst_example            = Example("rst",            make_rst_document_example,            make_rst_projection_example)
@@ -34,6 +50,8 @@ const focusing_example       = Example("focusing",       make_focusing_document_
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
 const graph_example          = Example("graph",          make_graph_document_example,          make_graph_projection_example)
+# A larger graph: fifteen services with labelled calls, curved edges, the zoom and the scroll.
+const graph_services_example = Example("graph_services", make_graph_services_document_example, make_graph_services_projection_example)
 const chart_example          = Example("chart",          make_chart_document_example,          make_chart_projection_example)
 const chart_line_example     = Example("chart_line",     make_chart_line_document_example,     make_chart_line_projection_example)
 const chart_bar_example      = Example("chart_bar",      make_chart_bar_document_example,      make_chart_bar_projection_example)
@@ -48,11 +66,15 @@ const sequencechart_inspector_example = Example("sequencechart_inspector", make_
 const sequencechart_pair_example = Example("sequencechart_pair", make_sequencechart_pair_document_example, make_sequencechart_pair_projection_example)
 const fsm_example            = Example("fsm",            make_fsm_document_example,            make_fsm_projection_example)
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
+const fsm_crossing_example   = Example("fsm_crossing",   make_fsm_crossing_document_example,   make_fsm_projection_example)
+const fsm_alternating_bit_example = Example("fsm_alternating_bit", make_fsm_alternating_bit_document_example, make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
+const fsm_alternating_bit_diagram_example = Example("fsm_alternating_bit_diagram", make_fsm_alternating_bit_diagram_document_example, make_fsm_diagram_projection_example)
 const pivot_example          = Example("pivot",          make_pivot_pane_document_example,     make_pivot_projection_example)
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const process_diagram_example = Example("process_diagram", make_process_diagram_document_example, make_process_diagram_projection_example)
+const git_example            = Example("git",            make_git_commit_document_example,     make_git_projection_example)
 # The visual tier's `pane_example` with real domain documents in its tabs: the
 # focused tab holds the json example document, and the renderer is the natural
 # projection, so any other domain works in a tab too.
@@ -180,6 +202,19 @@ const domain_examples = Example[
     book_example,
     workflow_example,
     workflow_journal_example,
+    workflow_goal_example,
+    workflow_steps_example,
+    workflow_substeps_example,
+    workflow_open_decision_example,
+    workflow_explored_example,
+    workflow_recorded_example,
+    workflow_elements_example,
+    workflow_complete_example,
+    research_framed_example,
+    research_grounded_example,
+    research_planned_example,
+    research_contested_example,
+    research_example,
     markdown_example,
     markdown_rendered_example,
     rst_example,
@@ -191,6 +226,7 @@ const domain_examples = Example[
     table_example,
     math_table_example,
     graph_example,
+    graph_services_example,
     chart_example,
     chart_line_example,
     chart_bar_example,
@@ -207,8 +243,12 @@ const domain_examples = Example[
     process_example,
     process_drain_example,
     process_diagram_example,
+    git_example,
     fsm_toggle_example,
+    fsm_crossing_example,
+    fsm_alternating_bit_example,
     fsm_diagram_example,
+    fsm_alternating_bit_diagram_example,
     pivot_example,
     pane_json_example,
     widget_tabs_example,
@@ -407,12 +447,24 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:book, "list",    make_book_list_document_example),
     AtomicDocument(:book, "book",    make_book_book_document_example),
     AtomicDocument(:workflow, "entry",    make_workflow_entry_document_example),
-    AtomicDocument(:workflow, "card",     make_workflow_card_document_example),
+    AtomicDocument(:workflow, "element",  make_workflow_element_document_example),
     AtomicDocument(:workflow, "step",     make_workflow_step_document_example),
     AtomicDocument(:workflow, "decision", make_workflow_decision_document_example),
     AtomicDocument(:workflow, "workflow", make_workflow_document_example),
     AtomicDocument(:workflow, "journal",  make_workflow_journal_document_example),
-    AtomicDocument(:workflow, "catalog",  make_workflow_catalog_document_example),
+    AtomicDocument(:workflow, "list",     make_workflow_list_document_example),
+    AtomicDocument(:research, "question",    make_research_question_document_example),
+    AtomicDocument(:research, "source",      make_research_source_document_example),
+    AtomicDocument(:research, "hypothesis",  make_research_hypothesis_document_example),
+    AtomicDocument(:research, "experiment",  make_research_experiment_document_example),
+    AtomicDocument(:research, "analysis",    make_research_analysis_document_example),
+    AtomicDocument(:research, "result",      make_research_result_document_example),
+    AtomicDocument(:research, "evidence",    make_research_evidence_document_example),
+    AtomicDocument(:research, "decision",    make_research_decision_document_example),
+    AtomicDocument(:research, "answer",      make_research_answer_document_example),
+    AtomicDocument(:research, "expectation", make_research_expectation_document_example),
+    AtomicDocument(:research, "study",       make_research_study_document_example),
+    AtomicDocument(:research, "map",         make_research_map_document_example),
     AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
     AtomicDocument(:filesystem, "directory", make_filesystem_directory_document_example),
     AtomicDocument(:filesystem, "chooser",   make_filesystem_chooser_document_example),
@@ -497,6 +549,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:sql, "table_expression", make_sql_table_expression_document_example),
     AtomicDocument(:workspace, "folder",    make_workspace_folder_document_example),
     AtomicDocument(:workspace, "workspace", make_workspace_document_example),
+    AtomicDocument(:workspace, "explorer",  make_workspace_explorer_document_example),
     AtomicDocument(:gesture, "map", make_gesture_map_document_example),
     AtomicDocument(:database, "instance", make_database_instance_document_example),
     # Two base-tier documents whose only example lives here, because the wrapper

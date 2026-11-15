@@ -6,8 +6,9 @@
 
 `event` with its position `(x, y)` moved by `(dx, dy)`: a pointer event or a
 pointer gesture of a container, moved into the frame of a child that the
-container placed at `(-dx, -dy)`. An event with no position, such as a key,
-comes back unchanged.
+container placed at `(-dx, -dy)`. An event with no position, such as a key, and
+a value that is no event, such as the query `CollectIntents`, come back
+unchanged.
 
 A widget reads a point in the frame of its own canvas, so a reader that hands an
 event to a child it placed moves the event with this, and moves the child's
@@ -21,6 +22,8 @@ function shift_event_position(event::Union{Event, Gesture}, dx::Integer, dy::Int
        name === :y ? getfield(event, :y) + dy : getfield(event, name)
        for name in fieldnames(T))...)
 end
+
+shift_event_position(event, dx::Integer, dy::Integer) = event
 
 """
     map_event_position(event, move) -> event

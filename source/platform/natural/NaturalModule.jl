@@ -1,7 +1,8 @@
 """
     NaturalModule
 
-What a document's **natural notation** is, and how two notations combine.
+The natural notation of a document: the form in which it prints as text and as
+graphics, and how two notations combine.
 
 A notation is a rung on one ladder:
 
@@ -66,6 +67,7 @@ using ..ProjectionModule
 using ..StyleModule
 using ..TextModule
 using ..TooltipModule
+using ..GestureModule
 using ..WidgetModule
 using ..ReferenceModule
 
@@ -85,9 +87,9 @@ export register_natural_syntax!, register_natural_graphics!, register_natural_fa
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
 export ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap, ArrangementGroupRowsToWidget,
        ArrangementGroupRowsToWidgetIoMap
-export NaturalToGraphics,
+export NaturalToGraphics, make_natural_primitive_row,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
-export TooltipContentToVerticalLayout, make_natural_tooltip_row
+export ImageToWidget, TooltipContentToVerticalLayout, TooltipNoteToVerticalLayout, make_natural_tooltip_row
 
 
 include("NaturalNotation.jl")
@@ -95,5 +97,7 @@ include("NaturalRegistry.jl")
 include("NaturalArrangement.jl")
 include("NaturalProjection.jl")
 include("TooltipContentToLayout.jl")
+include("TooltipNoteToLayout.jl")
+include("ImageToWidget.jl")
 
 end # module

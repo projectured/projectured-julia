@@ -28,6 +28,18 @@ again.
 - `sampled_at` — the time of the last sample of the tree. The cell is the cell
   `sampled_at` of the tree itself, so one write moves the elapsed time of every
   process of the tree, and no clock is read.
+
+Use it to read the facts of one process of a tree: its command, state, load and
+memory.
+
+# Example
+
+    processes_1 = search_documents(get_edited_document(find_pane("Processes")), part -> part isa SystemProcess)
+    records_1 = read_system_processes([1])
+
+See also `SystemProcessTree`, `read_system_processes` and `search_documents`.
+
+For the assistant.
 """
 @document struct SystemProcess <: Document
     process_id::Int
@@ -59,6 +71,17 @@ with no `/proc`, the node of the tree says that the processes can not be read.
 
 Show it with [`show_system_process_tree!`](@ref), or alone, as the page of a
 navigator, where it draws as a tree.
+
+Use it to reach the processes under a root process as one document.
+
+# Example
+
+    trees_1 = search_documents(get_edited_document(find_pane("Processes")), part -> part isa SystemProcessTree)
+    records_1 = read_system_processes([1])
+
+See also `SystemProcess`, `read_system_processes` and `search_documents`.
+
+For the assistant.
 """
 @document struct SystemProcessTree <: Document
     root_process_ids::Vector{Int}
@@ -129,7 +152,19 @@ format_tree_node_label(process::SystemProcess) =
     string(process.process_id, "  ", _shorten_command(process.command), "  ",
            _format_processor_load(process.processor_load), "  ", format_memory_size(process.memory))
 
-get_document_decoration(::SystemProcess) = DocumentDecoration(; icon = :terminal)
+get_document_decoration(process::SystemProcess) =
+    DocumentDecoration(; icon = :terminal, tooltip = () -> _make_process_note(process))
+
+# What a row of a process says when the pointer rests on it: its whole command as
+# code, and its folder, state, threads and start.
+function _make_process_note(process::SystemProcess)
+    facts = Pair{String,Any}["Process id" => string(process.process_id)]
+    isempty(process.folder) || push!(facts, "Folder" => format_home_path(process.folder))
+    push!(facts, "State" => string(process.state), "Threads" => string(process.thread_count),
+          "Started" => Libc.strftime("%H:%M:%S", process.start_time))
+    TooltipNote(; title = _shorten_command(process.command; limit = 40),
+                code = isempty(process.command) ? nothing : process.command, facts)
+end
 
 # A command as a label shows it: at most `limit` characters, the rest an ellipsis.
 _shorten_command(command::AbstractString; limit::Integer = 60) =
@@ -162,4 +197,6 @@ function _compute_elapsed_time(process::SystemProcess)
     sampled_at === nothing ? nothing : max(0.0, sampled_at - process.start_time)
 end
 
-get_document_decoration(::SystemProcessTree) = DocumentDecoration(; icon = :cpu)
+get_document_decoration(tree::SystemProcessTree) =
+    DocumentDecoration(; icon = :cpu, tooltip = () -> TooltipNote(; title = tree.title,
+        text = "The processes that run below this one, with their load and memory."))

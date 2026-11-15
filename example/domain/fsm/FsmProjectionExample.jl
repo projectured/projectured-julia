@@ -13,8 +13,11 @@ end
 # and each edge's label (an `FsmTransition`) through the compact diagram label
 # projections; anything else falls back to the notation, so a machine that grows
 # a foreign content type still renders.
+#
+# The layout is the force layout with a wide gap between the boxes: the layout
+# does not measure the labels, and a label of an edge stands between two boxes.
 function make_fsm_diagram_projection_example(; measure=FontFileMeasure(),
-                                             engine=GridEmbedding())
+                                             engine=FruchtermanReingoldLayout(spacing = 100))
     label = ChainingProjection(
         RecursiveProjection(FsmToSyntaxLabel()),
         RecursiveProjection(SyntaxToText()),

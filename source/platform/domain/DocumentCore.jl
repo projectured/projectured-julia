@@ -24,15 +24,22 @@ has_document_duplicate(::DocumentNothing) = true
 
 # ── DocumentInsertion ─────────────────────────────────────────────────────────
 
-const DOCUMENT_INSERTION_PREFIX = "Insert a new "
-const DOCUMENT_INSERTION_SUFFIX = " here"
+const DOCUMENT_INSERTION_PREFIX = ""
+const DOCUMENT_INSERTION_SUFFIX = ""
+
+"""
+The text that an empty `DocumentInsertion` shows, pale, until the first key.
+"""
+const DOCUMENT_INSERTION_PLACEHOLDER = "Type a kind"
 
 """
     DocumentInsertion(value; font=nothing, selection=nothing)
 
 An insertion placeholder document.  `value` is the editable string being
 inserted.  `font` is the optional display font (style/font, not yet ported).
-The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
+While `value` is empty it shows `DOCUMENT_INSERTION_PLACEHOLDER`, pale, as an
+empty field shows its placeholder, and the text goes at the first key; it has no
+prefix and no suffix.
 """
 @document struct DocumentInsertion <: DocumentBase
     value::String = ""
@@ -105,17 +112,29 @@ takes text in its fields, because a person types there.
 accepts_pasted_text(::Any) = true
 
 """
+    accepts_pasted_text(document, field::Symbol) -> Bool
+
+Whether a paste may put text into the string that `field` of `document` holds.
+`accepts_pasted_text(document)` by default. A document answers `false` for a field
+whose text a paste must leave alone while its other fields hold documents that take
+pasted text, such as the title of a card whose content is a form.
+"""
+accepts_pasted_text(document, ::Symbol) = accepts_pasted_text(document)
+
+"""
     make_pasted_document_operation(document, path, value) -> Operation | Nothing
 
 How `document` takes a pasted document `value` that is no plain text, while the
-selection is a text cursor inside it: the operation that puts `value` in, or
-`nothing` when it does not take it. `path` is the path from the root of the paste
-to `document`, for an operation that names its target by a path. `nothing` by
-default.
+selection is a text cursor inside it or names it as a whole: the operation that
+puts `value` in, or `nothing` when it does not take it. `path` is the path from
+the root of the paste to `document`, for an operation that names its target by a
+path. `nothing` by default.
 
-The clipboard asks each document on the path of the selection, from the deepest,
-before it pastes text there. Use it for a document that holds parts, such as the
-draft of a conversation, which takes a plot as a part of its own.
+At a text cursor, the clipboard asks each document on the path of the selection,
+from the deepest, before it pastes text there. When the selection names a whole
+document, the clipboard asks that document before the paste replaces it. Use it
+for a document that holds parts, such as the draft of a conversation, which takes
+a plot as a part of its own, or a dashboard, which takes a document as a card.
 """
 make_pasted_document_operation(::Any, ::Any, ::Any) = nothing
 

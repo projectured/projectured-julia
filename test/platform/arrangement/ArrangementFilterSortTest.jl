@@ -74,6 +74,39 @@ function test_arrangement_filter_sort()
         @test shown() == [0, 1, 2]
     end
 
+    @testset "a change of one item computes the rows of a filter only when its answer changes" begin
+        items = [_ArrangementRun(i, "done", 0.1, vector(String[])) for i in 1:5]
+        stage = print_document(make_arrangement_projection(filter_of(condition(field("status"), :equal, "failed"))),
+                               nothing, CellVector(Cell[Cell(item) for item in items]), PrinterContext())
+        kept = stage.rows
+        @test kept == Int[]
+        # The item still fails the condition, so the rows stay the same vector.
+        items[2].status = "skipped"
+        @test stage.rows === kept
+        # The item now meets it, so the rows change.
+        items[3].status = "failed"
+        @test stage.rows == [3]
+    end
+
+    @testset "a change of one item moves its row in a sort, to the order of a sort of every item" begin
+        items = [_ArrangementRun(i, "done", delay, vector(String[])) for (i, delay) in enumerate([0.5, 0.1, 0.4, 0.1, 0.3])]
+        sort = sort_of(ArrangementSortKey(field("delay"), :ascending))
+        stage = print_document(make_arrangement_projection(sort), nothing, CellVector(Cell[Cell(item) for item in items]),
+                               PrinterContext())
+        @test stage.rows == [2, 4, 5, 3, 1]
+        # Items with equal keys keep the order of the input.
+        items[1].delay = 0.1
+        @test stage.rows == [1, 2, 4, 5, 3]
+        items[4].delay = 0.45
+        @test stage.rows == [1, 2, 5, 3, 4]
+        @test stage.rows == compute_sort_rows(sort, items)
+        # A second key orders the items that the first keeps equal.
+        push!(sort.keys, ArrangementSortKey(field("id"), :descending))
+        @test stage.rows == [2, 1, 5, 3, 4]
+        items[5].delay = 0.1
+        @test stage.rows == [5, 2, 1, 3, 4] == compute_sort_rows(sort, items)
+    end
+
     runs = [_ArrangementRun(1, "done", 0.31, vector(["a", "b"])),
             _ArrangementRun(2, "failed", 0.12, vector(["c"])),
             _ArrangementRun(3, "done", 0.54, vector(["d", "e", "f"])),

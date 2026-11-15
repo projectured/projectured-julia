@@ -18,7 +18,7 @@ function test_sequencechart_theme()
     @test !isempty(plain)
     @test sort(unique(plain)) == [12, 14]
 
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), SequenceChartTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), SequenceChartTheme)
     large = draw(theme)
     @test large == round.(Int, plain .* 1.5)
     @test sort(unique(large)) == [18, 21]
@@ -29,7 +29,7 @@ end
     @test unwrap_cell(p.style).padding == 8
 
     scaled = SequenceChartPlotToGraphicsCanvas(measure = FixedMeasure(8, 12, 4, 0),
-                                               theme = get_scaled_theme!(Appearance(spacing_scale = 2.0),
+                                               theme = get_scaled_theme!(Appearance(scale = AppearanceScale(spacing_scale = 2.0)),
                                                                         SequenceChartTheme))
     @test unwrap_cell(scaled.style).padding == 16
 end

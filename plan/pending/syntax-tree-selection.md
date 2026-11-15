@@ -18,6 +18,13 @@ questions.
 
 ## 1. Range / multi-element text selection ⏳ (partly landed under new names)
 
+**The range of characters is done (2026-11-09)** by
+[select-a-range-of-text-with-the-keys-and-the-mouse.md](../done/select-a-range-of-text-with-the-keys-and-the-mouse.md):
+the keys and the mouse select a range, the range records which end moves, and the
+syntax layer maps a range that the value of one leaf holds. The text below about
+the character range is older than that plan. What stays open here is the range of
+sibling nodes, `.children[2..4]`.
+
 **Renaming since this plan was written:** `TextRectangularReference` is now
 `TextSpanReferenceStep` (`package/text/main/TextSpanReferenceStep.jl`) — same
 `(start, stop)` flat-offset payload, still `:structural` (terminal). Its

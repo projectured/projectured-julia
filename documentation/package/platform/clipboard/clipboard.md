@@ -1,6 +1,6 @@
 # Clipboard
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
 
 The clipboard slice of `ProjecturedPlatform` adds copy, cut, note and paste to any document, a view of what the clipboard holds, and a bridge to the clipboard of the operating system. It works for every domain without a line of code in the domain. This document says how the wrapper stays out of the view, which rules decide where a paste can go, and why a copy is a deep copy.
 
@@ -21,14 +21,26 @@ The reader has eight gestures, in a gesture table of the projection:
 | --- | --- | --- |
 | Ctrl+C | copy | a deep copy of the selected document, with no selection |
 | Ctrl+Shift+C | copy the reference | Julia code that gives the selected document, as text |
-| Ctrl+X | cut | the selected document itself; the source becomes `DocumentNothing()` |
+| Ctrl+X | cut | what a copy of a range stores, or the selected document itself; and the content's Delete at the same selection |
 | Ctrl+N | note | the selected document itself, not a copy: a live bookmark |
 | Ctrl+V | paste | the stored document replaces the selection; for a stored view of a content, a second view of the same content does |
 | Ctrl+Shift+V | paste a copy | a copy of the stored document replaces the selection |
 | Ctrl+Alt+V | paste the same view | the stored document itself replaces the selection, a stored view too |
 | Ctrl+/ | toggle | shows the stored document instead of the content |
 
-A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`. `ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.
+A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`.
+
+### A cut is a copy and a delete
+
+Ctrl+X stores what it takes, and adds the answer of the content to Delete at the same selection, in one operation. The content deletes in its own way: the text reader takes a range out, and a number field refuses a delete that leaves no number. A cut that can not delete stores nothing, so a cut never copies alone. The delete comes last, so the selection is where the delete leaves it. A whole document goes into the slice itself, not a copy: it leaves the document, so a cut and a paste move it, a tool too.
+
+Delete and Backspace with no modifier, on a whole selected document that nothing inside answers, take it out of its slot. An element leaves its list, and the selection goes to the element that takes its place, the one before it, or the document that holds the list. A field gets the empty document of the domain of what it held (`get_nothing_document` of its `get_domain_insertion`), which the view of that domain draws. The checks of a paste below decide whether the slot may change. A host that leaves out `:cut` gets no such delete.
+
+### Each edit goes down to its place
+
+The clipboard is outside the history of a window and of each tab. So an edit of the content that a cut or a paste makes is not answered up from the clipboard: it goes down to the document that holds its slot as an `Intent` with a `route`, and each reader and each history on the way reads it, as it reads the answer to a gesture. Ctrl+Z then takes back one cut or one paste. A reader whose IO map holds no children follows no route, so the edit goes to the deepest document of its place that the readers reach, with the rest of the path in the edit. The write of the slice and of the system clipboard stays out of every history.
+
+`ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.
 
 The clipboard reads its own `selection` field only, never its content's. Every write of the live selection starts at the root, so by the time a key reaches the clipboard, its own suffix already names what was selected (`PAR-SELECTION-WRITTEN-AT-ROOT`; see [selection.md](../../kernel/selection.md#writing-from-outside-a-gesture)).
 
@@ -40,9 +52,13 @@ A paste replaces a whole document. Three checks decide whether the selection can
 2. Every document from `content` down to the target accepts a pasted document: `accepts_pasted_document` of `ProjecturedDomain`.
 3. The cell of the slot accepts the value, and the document there accepts a replacement: `accepts_pasted_replacement`. A field in an `ImmutableCell` does not.
 
-A selection that ends in a character range of a text or number field is different. Copy, cut and paste then act on the characters of that field with `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`. This is how Ctrl+C and Ctrl+V work in a text field of a form.
+A selection that ends in a character range of a text or number field is different. Copy and paste then act on the characters of that field with `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`, and a cut takes the characters out with the Delete of the text reader. This is how Ctrl+C, Ctrl+X and Ctrl+V work in a text field of a form.
+
+A stored text pasted while the selection names a whole document of another kind is typed over the value of that document: its `value` field, or its only field that holds text or a number. A stored copy of `Al` pasted on a whole JSON string `"Paris"` makes it `"Al"`, and a number takes only a text that is a number. A document with no value of its own, such as a JSON object or a list, refuses the text. With no stored copy and no `from_text`, the text of the system clipboard is pasted in the same way. A stored text on a document of the same kind replaces it, by the checks above. An empty place, such as a new tab or the hole that a cut leaves, takes the stored document; in a hole of a domain, a stored text becomes the insertion of that domain with the text in it, so the hole holds a document of its own domain.
 
 A stored document that is no plain text, pasted at such a text cursor, goes first to the documents on the path of the cursor: each one, from the deepest, can take it with `make_pasted_document_operation(document, path, value)` of `ProjecturedDomain`. The draft of a conversation takes a plot this way, as a part before the text that the person types. Paste-copy gives the document a fresh copy. When no document takes it, the paste puts text into the field, as above.
+
+A stored document that is no plain text, pasted while the selection names a whole document, goes first to that document, by the same `make_pasted_document_operation`. A dashboard takes it as a new card and a workflow step as an element, so a paste on the row of a dashboard in an explorer adds a card. Only when the document takes nothing does the paste replace it, by the three checks above.
 
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
 
@@ -62,11 +78,19 @@ Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no 
 
 `make_clipboard_projection(…; to_text, from_text)` connects the clipboard to the operating system. A copy then adds a `WriteOsClipboardOperation` with the text form of the document, and a paste with an empty slice reads the system clipboard. `read_os_clipboard` and `write_os_clipboard!` call the first tool that is installed: `xclip` or `xsel`, `wl-paste` or `wl-copy`, `pbpaste` or `pbcopy`. With no tool they return `nothing` and `false`. The inverse of the write is `DoNothingOperation()`, because the system clipboard is not part of the document. `set_os_clipboard_backend!` puts a fake in place for a test.
 
+The `clipboard` wrapper of `build_editor` takes `to_text` too. The window of the application gives it the value of a primitive, the natural text of a document that has one (`print_natural_text`), and an empty text for a document with none. So each copy, cut and note of an object writes the system clipboard, and a paste at a caret never types a text older than the stored copy.
+
+The editor never waits for a clipboard tool:
+
+- **A tool has a time limit.** A read or a write that does not end in `CLIPBOARD_TOOL_SECONDS` (2 s) is stopped, logs one warning, and gives `nothing` or `false`.
+- **A copy writes on a task of its own.** `WriteOsClipboardOperation` and `CopyReferenceOperation` call `start_os_clipboard_write!`. Each write starts after the write before it, and goes to the backend that is set when it starts. A read, and a direct `write_os_clipboard!`, wait for the writes that were started, so a copy and a paste in one frame paste what was copied.
+- **A reader reads no clipboard.** A paste that needs the text of the system clipboard answers `PasteOsClipboardOperation(place, projection, copy)`, in a `ReplaceViewStateOperation`, so undo does not record it. The readers above give it the place of the clipboard document, as they reroot any operation. Its evaluation reads the clipboard with `start_document_read!`. A read that ends inside 50 ms pastes in the same evaluation. A later read posts `ApplyOsClipboardPasteOperation`, which pastes in a later frame, at the place that the gesture named. It makes the edit from the root with `read_rooted_operation`, so each reader between the place and the root lifts it, as it lifts the answer to a gesture. When the place holds no clipboard document any more, it pastes nothing and logs one warning.
+
 With `text = true` over a `TextBlock` content, the clipboard copies and pastes character ranges only, and never a node.
 
 ### The `clipboard` wrapper of `build_editor`
 
-`clipboard = true | (; gestures, collection)` is the wrapper of `build_editor` that gives a window the clipboard and the walk of its objects: Alt and an arrow walk the objects of the window, an Alt+click selects one, and the clipboard copies, cuts and pastes the object that is selected. `gestures` says which of `CLIPBOARD_GESTURES` the window offers, all of them by default; `collection = true` keeps a collection of copies instead of one. It is off by default. It acts in the layer `:container` with the number 30, around the chrome of the `shell` wrapper and the cycle of the focus, so the walk and the clipboard reach into the bands too.
+`clipboard = true | (; gestures, collection, to_text)` is the wrapper of `build_editor` that gives a window the clipboard and the walk of its objects: Alt and an arrow walk the objects of the window, an Alt+double click selects one, and the clipboard copies, cuts and pastes the object that is selected. `gestures` says which of `CLIPBOARD_GESTURES` the window offers, all of them by default; `collection = true` keeps a collection of copies instead of one. It is off by default. It acts in the layer `:container` with the number 30, around the chrome of the `shell` wrapper and the cycle of the focus, so the walk and the clipboard reach into the bands too.
 
 ## How it fits
 
@@ -92,7 +116,7 @@ run_example("json"; clipboard = true)     # the same wrapper, from the gallery
 ```
 
 - Example: `clipboard_example`. The general sweeps skip it, because its display cell keeps state between tests.
-- Tests: `test_clipboard()` and `test_text_clipboard()`.
+- Tests: `test_clipboard()`, `test_text_clipboard()`, and `test_clipboard_edits()`, which presses the keys in the window of the application.
 
 ## Limits
 
@@ -100,3 +124,5 @@ run_example("json"; clipboard = true)     # the same wrapper, from the gallery
 - In the gallery, `clipboard = true` can not go with `tooltip = true`.
 - A reference is a path, so a reference through an index goes stale when the tree changes shape, for example when the tabs are moved.
 - A paste of text reads the complete selection. A tool that the toolbar of the application opens leaves that selection unwritten from the root, so Ctrl+V into it does nothing until a click places the caret.
+- A whole document has the delete of Delete and Backspace only in a window with the `clipboard` wrapper, and a whole plain value, such as the key of a JSON entry, has none, so it takes no cut either.
+- In Julia and SQL code, a caret stops at a part that the syntax projection makes, so typing, Delete and the clipboard do nothing at a range there.

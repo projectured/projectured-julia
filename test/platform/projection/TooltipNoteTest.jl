@@ -1,0 +1,214 @@
+# A tooltip note, drawn by the natural projection: each piece stands where a
+# person looks for it, in the texts and the colors of the tooltip theme.
+
+const _TN_APPEARANCE = Appearance()
+
+# The note as the tooltip window draws it: the natural projection, at most as large
+# as the window.
+function _tn_print(note)
+    projection = NaturalToGraphics(measure = FixedMeasure(10, 18, 6, 0), appearance = _TN_APPEARANCE)
+    context = with_bounded_size(PrinterContext(); width = Cell(Int32(560)), height = Cell(Int32(400)))
+    get_iomap_output(print_document(projection, nothing, note, context))
+end
+
+_tn_force(value) = value isa AbstractCell ? _tn_force(value[]) : value
+
+# Each text of a drawn note with its place, and each rectangle with its place, its
+# fill and the color of its border: the offsets of the canvases around a graphic
+# add up to its place.
+function _tn_places(node, x = 0, y = 0, found = Any[])
+    node = _tn_force(node)
+    if node isa GraphicsCanvas || node isa GraphicsViewport
+        nx, ny = x + Int(_tn_force(node.x)), y + Int(_tn_force(node.y))
+        if node isa GraphicsViewport
+            _tn_places(node.content, nx, ny, found)
+        else
+            for element in _tn_force(node.elements)
+                _tn_places(element, nx, ny, found)
+            end
+        end
+    elseif node isa GraphicsText
+        push!(found, (String(_tn_force(node.text)), x + Int(_tn_force(node.x)), y + Int(_tn_force(node.y))))
+    elseif node isa GraphicsRect
+        push!(found, (:rect, x + Int(_tn_force(node.x)), y + Int(_tn_force(node.y)), _tn_force(node.color),
+                      _tn_force(node.border_color)))
+    end
+    found
+end
+
+_tn_texts(note) = [place for place in _tn_places(_tn_print(note)) if place[1] isa String]
+
+# The place of the one drawn text `text`.
+_tn_place(texts, text) = only(place[2:3] for place in texts if place[1] == text)
+
+_tn_style(name) = unwrap_cell(get_tooltip_style(get_scaled_theme!(_TN_APPEARANCE, TooltipTheme), name))
+
+# A tooltip window that shows `note`, printed as the screen prints the window: at
+# its largest size.
+function _tn_print_window(note)
+    projection = NaturalToGraphics(measure = FixedMeasure(10, 18, 6, 0), appearance = _TN_APPEARANCE)
+    largest = _tn_style(:maximum_size)
+    # A window that fits its content gives it its maximum as an edge, as
+    # `ScreenToScreen` does.
+    context = with_bounded_size(PrinterContext(); width = Cell(Int32(largest.x[])),
+                                height = Cell(Int32(largest.y[])))
+    content = TooltipContent(; layers = [("Note", note)], shown = 1)
+    get_iomap_output(print_document(projection, nothing, content, context))
+end
+
+# The width of the first rectangle of a drawing, which is the frame of a tooltip.
+function _tn_find_frame_width(node)
+    node = _tn_force(node)
+    node isa GraphicsRect && return Int(_tn_force(node.w))
+    elements = node isa GraphicsViewport ? Any[node.content] :
+               node isa GraphicsCanvas ? collect(_tn_force(node.elements)) : Any[]
+    for element in elements
+        width = _tn_find_frame_width(element)
+        width === nothing || return width
+    end
+    nothing
+end
+
+function test_tooltip_note()
+@testset "a tooltip note" begin
+
+@testset "the title comes first, and the key caps follow it on its line" begin
+    texts = _tn_texts(TooltipNote(; title = "Palette",
+                                  keys = [KeyDownPattern(:p; modifiers = [:ctrl, :shift])]))
+    title = _tn_place(texts, "Palette")
+    @test title[1] == 0
+    caps = [_tn_place(texts, name) for name in ("Ctrl", "Shift", "P")]
+    # One cap for each key, in the order of the key, after the title.
+    @test caps[1][1] > title[1] + length("Palette") * 10
+    @test caps[1][1] < caps[2][1] < caps[3][1]
+    @test caps[1][2] == caps[2][2] == caps[3][2]
+end
+
+@testset "a key cap has the fill and the line of the theme" begin
+    places = _tn_places(_tn_print(TooltipNote(; keys = [KeyDownPattern(:f5; modifiers = Symbol[])])))
+    @test any(place -> place[1] === :rect && is_color_equal(place[4], _tn_style(:key_fill)) &&
+                       is_color_equal(place[5], _tn_style(:key_line)), places)
+end
+
+@testset "a plus at the end of a key text is the key of the plus" begin
+    texts = _tn_texts(TooltipNote(; keys = ["Ctrl++"]))
+    @test [place[1] for place in sort(texts; by = place -> place[2])] == ["Ctrl", "+"]
+end
+
+@testset "two keys stand with an or between them" begin
+    texts = _tn_texts(TooltipNote(; keys = ["F5", "Ctrl+R"]))
+    @test _tn_place(texts, "F5")[1] < _tn_place(texts, "or")[1] < _tn_place(texts, "Ctrl")[1]
+end
+
+@testset "the text, the facts and the hint stand below the title, in this order" begin
+    texts = _tn_texts(TooltipNote(; title = "Refresh", text = "Read the frame again.",
+                                  facts = ["Rows" => "12480", "Read" => "14:02:11"],
+                                  hint = "The filter stays."))
+    title = _tn_place(texts, "Refresh")
+    text = _tn_place(texts, "Read the frame again.")
+    rows, value = _tn_place(texts, "Rows"), _tn_place(texts, "12480")
+    read = _tn_place(texts, "Read")
+    hint = _tn_place(texts, "The filter stays.")
+    @test title[2] < text[2] < rows[2] < read[2] < hint[2]
+    # A fact is its name and its value side by side, and the values line up.
+    @test value[2] == rows[2] && value[1] > rows[1]
+    @test _tn_place(texts, "14:02:11")[1] == value[1]
+end
+
+@testset "a long text breaks its lines at the edge of the window" begin
+    words = join(fill("word", 40), " ")
+    texts = _tn_texts(TooltipNote(; text = words))
+    @test length(unique(place[3] for place in texts)) > 1
+    @test all(place -> place[2] + length(place[1]) * 10 <= 560, texts)
+end
+
+@testset "a piece that is nothing or empty draws nothing" begin
+    @test [place[1] for place in _tn_texts(TooltipNote(; text = "only this"))] == ["only this"]
+    @test isempty(_tn_texts(TooltipNote(; title = "", text = "", hint = nothing)))
+end
+
+@testset "a warning and an error draw their mark before the title" begin
+    plain = _tn_texts(TooltipNote(; title = "Folder"))
+    @test _tn_place(plain, "Folder")[1] == 0
+    for tone in (:warning, :error)
+        texts = _tn_texts(TooltipNote(; title = "Folder", tone))
+        @test length(texts) == 2
+        mark = only(place for place in texts if place[1] != "Folder")
+        @test mark[1] == string(find_icon_character(:warning))
+        @test mark[2] < _tn_place(texts, "Folder")[1]
+    end
+end
+
+@testset "a note finds the keys that a gesture table binds to a command" begin
+    @test describe_gesture_pattern.(find_bound_keys(Navigator, "Go back")) == ["Ctrl+["]
+    @test describe_gesture_pattern.(find_bound_keys(Navigator, "Edit the address")) == ["Ctrl+L"]
+    @test isempty(find_bound_keys(Navigator, "a command that no key reaches"))
+end
+
+@testset "a condition of a decoration is a fact: its glyph, its words and its count" begin
+    texts = _tn_texts(TooltipNote(; facts = Any[DocumentCondition(:failed; count = 3), DocumentCondition(:waiting)]))
+    failed, count = _tn_place(texts, "failed"), _tn_place(texts, "3")
+    glyph = _tn_place(texts, string(find_icon_character(:x)))
+    @test glyph[1] < failed[1] < count[1]
+    @test glyph[2] <= failed[2] && failed[2] == count[2]
+    # A look with no glyph has a dot, on the next row.
+    waiting = _tn_place(texts, "waits for you")
+    @test waiting[2] > failed[2]
+    @test any(place -> place[1] == string(find_icon_character(:dot)) && place[2] < waiting[1], texts)
+end
+
+@testset "a code stands after the title, before the text, and breaks at the edge" begin
+    code = join(("argument_$(index)::Int" for index in 1:20), ", ")
+    texts = _tn_texts(TooltipNote(; title = "add", code = code, text = "Add them."))
+    lines = [place for place in texts if startswith(place[1], "argument")]
+    @test length(unique(place[3] for place in lines)) > 1
+    @test _tn_place(texts, "add")[2] < minimum(place[3] for place in lines)
+    @test maximum(place[3] for place in lines) < _tn_place(texts, "Add them.")[2]
+    @test all(place -> place[2] + length(place[1]) * 10 <= 560, lines)
+end
+
+@testset "a value that is no string and no document says its string" begin
+    @test [place[1] for place in _tn_texts(TooltipNote(; text = 42))] == ["42"]
+    texts = _tn_texts(TooltipNote(; facts = Any[("Rows", 12480)]))
+    @test _tn_place(texts, "Rows")[2] == _tn_place(texts, "12480")[2]
+    # A plus at the end of a key text that names no key draws no empty cap.
+    @test [place[1] for place in _tn_texts(TooltipNote(; keys = ["Ctrl+"]))] == ["Ctrl"]
+end
+
+@testset "a container finds the part that the pointer is on, or else the selected part" begin
+    first_label, second_label = WidgetLabel("a"), WidgetLabel("b")
+    container = WidgetComposite(Any[first_label, second_label])
+    @test find_pointed_part(container) === nothing
+    to_second = only(search_references(container, node -> node === second_label))
+    # A path that ends in the text of the label ends at the label.
+    replace_mouse_target!(container, extend_reference(to_second, FieldReferenceStep("content")))
+    found = find_pointed_part(container)
+    @test found.part === second_label
+    @test found.documents[1] === container && length(found.documents) == length(found.steps) + 1
+    # With no pointer on it, a container finds its selected part.
+    selected = WidgetComposite(Any[WidgetLabel("c"), WidgetLabel("d")])
+    third = only(search_references(selected, node -> node isa WidgetLabel && node.content == "c"))
+    replace_selection!(selected, third)
+    @test find_pointed_part(selected).part.content == "c"
+end
+
+@testset "a piece that is a document stands as it is" begin
+    texts = _tn_texts(TooltipNote(; title = "Name", facts = ["Kind" => WidgetLabel("a widget")]))
+    @test _tn_place(texts, "a widget")[2] == _tn_place(texts, "Kind")[2]
+end
+
+@testset "the frame of a tooltip window is as wide as the window" begin
+    # The window is at least `minimum_size` wide, so the frame of a short note is
+    # that wide, with no surface of the window beside it. The frame of a long note
+    # keeps the width of what it says, and the window takes it.
+    least = Int(_tn_style(:minimum_size).x[])
+    short = _tn_print_window(TooltipNote(; title = "Vertex"))
+    @test _tn_find_frame_width(short) == least
+    @test Int(_tn_force(short.w)) == least
+    long = _tn_print_window(TooltipNote(; title = "Vertex", text = "a text much wider than the least width"))
+    @test _tn_find_frame_width(long) > least
+    @test Int(_tn_force(long.w)) == _tn_find_frame_width(long)
+end
+
+end # @testset
+end # function

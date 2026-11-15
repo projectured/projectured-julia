@@ -34,6 +34,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..EventModule
+using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..IntentModule
@@ -47,6 +48,7 @@ using ..ReferenceModule
 using ..SelectionModule
 using ..StyleModule
 using ..TextModule
+using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
@@ -59,12 +61,12 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
        is_on_closing_delimiter,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
-       build_syntax_child_path, peel_child_step
+       build_syntax_child_path, make_syntax_child_steps, peel_child_step
 export SyntaxTheme, ScaledSyntaxTheme
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
-       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
+       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf, TypeToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
 export ObjectFieldToSyntax
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
@@ -72,12 +74,12 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
        PrimitiveToSyntax
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,
-       default_factory, default_completion, parse_completion,
-       insert_insertion_text_operation, delete_insertion_text_operation
+       default_factory, default_completion, parse_completion
 export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
 export SyntaxLeafView, SyntaxNodeView
 export FaultToSyntax
+export MarkedTextToSyntaxLeaf
 
 
 include("SyntaxDocument.jl")
@@ -89,6 +91,7 @@ include("ObjectToSyntax.jl")
 include("ObjectFieldToSyntax.jl")
 include("CollectionToSyntax.jl")
 include("PrimitiveToSyntax.jl")
+include("MarkedTextToSyntax.jl")
 include("InsertionToSyntax.jl")
 include("SyntaxNatural.jl")
 

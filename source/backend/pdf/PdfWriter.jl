@@ -347,14 +347,16 @@ end
 # Stroke a polyline of absolute (gx, gy) points (page-top coordinates) with
 # width `wdt`, plus optional filled-triangle arrowheads and an optional
 # (on, off) dash pattern. Splines tessellate to a polyline first, so this
-# serves both edge primitives — native vector output.
+# serves both edge primitives — native vector output. The stroke stops inside
+# the base of each arrowhead (`compute_polyline_before_arrowheads`).
 function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
                                  start_arrow::Bool, end_arrow::Bool, arrow_size::Int,
                                  dash=nothing)
     (a == 0 || isempty(gpts)) && return
     ys = [p[2] for p in gpts]
     _on_page(ctx, minimum(ys) - wdt, maximum(ys) + wdt) || return
-    flip = [(p[1], _flip(ctx, p[2])) for p in gpts]
+    line = compute_polyline_before_arrowheads(gpts, arrow_size; start_arrow, end_arrow)
+    flip = [(p[1], _flip(ctx, p[2])) for p in line]
     if length(flip) >= 2
         # Dash array via the PDF `d` operator; always emitted (`[] 0 d` = solid) so
         # a dashed stroke never leaks its pattern onto a later solid stroke. The

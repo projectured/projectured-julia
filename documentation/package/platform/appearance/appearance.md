@@ -1,13 +1,13 @@
 # Appearance
 
-> **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [style.md](../style/style.md), [editor.md](../../kernel/editor.md), [operation.md](../../kernel/operation.md)
 
 The appearance slice of `ProjecturedPlatform` connects the `Appearance` of an editor to its view. It holds the `Appearance` in the root document, binds the keys of the zoom and of the scales, and makes the view print again after a change. The editor knows nothing about themes: it gets a document and a projection, as always.
 
 ## The parts
 
 - `AppearanceDocument(appearance, content)` is the root document of an editor with the wrapper. The `Appearance` is a part of the document, so a view can show it and a reference can name it. `get_wrapped_document` goes through it to the content.
-- `AdjustZoomOperation(appearance, delta)` steps the zoom, and `AdjustScaleOperation(appearance, scale, delta)` steps one of the six scales (`APPEARANCE_SCALES`), through the table of `step_factor`: `+1` up, `-1` down, `0` back to 1. The zoom operation also copies the zoom into the `Display` of the editor, where the backends read it. Neither is an edit of the content, so the inverse is `DoNothingOperation`.
+- `AdjustZoomOperation(document, delta)` steps the zoom, and `AdjustScaleOperation(document, scale, delta)` steps one of the six scales of `document`, the `AppearanceScale` of an appearance (`APPEARANCE_SCALES`), through the table of `step_factor`: `+1` up, `-1` down, `0` back to 1. The zoom operation also copies the zoom into the `Display` of the editor, where the backends read it. Neither is an edit of the content, so the inverse is `DoNothingOperation`.
 - `ReplaceThemeValueOperation(write)` writes one field of a theme and then prints the view again. Its inverse writes the old value and prints the view again, so a history that records a change of a theme takes it back with the view.
 - `AppearanceManagingProjection(inner)` prints the content through `inner` and returns its output, and maps references through the `content` field.
 - The `appearance` wrapper of `build_editor` puts both around everything else, the window manager too. It is on by default.
@@ -30,7 +30,7 @@ A projection reads its scaled theme through untracked style fields, which record
 1. The content reads each input first. A view that binds a key, such as the zoom of a `WidgetTransformPane`, keeps it.
 2. When the content answers nothing, the keys of the `AppearanceDocument` answer.
 3. In the answer, each write of a field of a theme of the appearance becomes a `ReplaceThemeValueOperation`, also inside a compound or a wrapping operation such as the record of a history.
-4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance` or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of `open_sections` changes no look, so it prints no view again.
+4. When the answer changes the appearance (`is_appearance_change`: a step of the zoom or of a scale, or a write into the `Appearance`, into one of its parts or headings, or into one of its themes, alone or inside a compound or a wrapping operation), the projection puts `InvalidateProjectionOperation` after it. A write of `scroll_position` or of the `open_names` of a heading changes no look, so it prints no view again.
 
 The editor then prints the whole view again in the same frame, and the inputs after the change wait for the new view. A frame prints at most once.
 
@@ -40,7 +40,7 @@ A `SystemColorsChange`, which a backend reports when the colour settings of the 
 
 ## One appearance for each editor
 
-The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes the argument of each wrapper with `make_wrapper_argument` before it builds anything; for the argument `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; arguments...)` gives the renderer the same object. `EditorParts.arguments` holds the arguments, so the `tabs` wrapper takes the appearance from there when its own argument names none. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds. Another start step, `copy_system_colors!`, copies the colour settings of the operating system that `find_system_colors(editor.backend)` gives into `system_colors`, so a setting `:system` is right from the first print.
+The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes the argument of each wrapper with `make_wrapper_argument` before it builds anything; for the argument `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; arguments...)` gives the renderer the same object. `EditorParts.arguments` holds the arguments, so the `tabs` wrapper takes the appearance from there when its own argument names none. Before the editor exists, the wrapper calls `copy_system_colors!(parts.backend, appearance)`, which copies the colour settings of the operating system that `find_system_colors` gives into `system_colors`. The editor prints when it is made, and a style field of a projection reads its colour with no edge, so a part that the first print drew keeps the colours of that print until the view prints again: the copy must come before that print, so a setting `:system` is right from it. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds.
 
 A main builder that builds its own projection makes one `Appearance`, builds with it, and passes it as `appearance = …` to `build_editor`.
 
@@ -51,6 +51,17 @@ The natural renderer draws an `Appearance` as the appearance tab, with
 the item "Appearance" of the View menu and Ctrl+, open it on the `Appearance` of
 the window (`find_editor_appearance`).
 
+Each part of the appearance has a view of its own for its page in the explorer, a
+subtype of `AppearancePartToWidget`: `AppearanceScaleToWidget`,
+`AppearanceColorsToWidget`, `ThemeGroupToWidget`, a folding card for each theme,
+and `ThemeToWidget`. A view holds the appearance of the editor, whose widget theme
+and colours it draws with, makes its controls as the tab does
+(`_make_view_controls`), and reads as the tab reads. The tab builds the same
+bodies with the same functions (`_make_scale_body`, `_make_colors_body`,
+`_make_group_body`, `_make_theme_body`), and does not put a part into a card for
+its view to draw: Tab moves through the stops of one widget tree, and its walk
+does not enter a document that another view draws.
+
 - At the top: "Save" and "Load", which act on the whole appearance.
 - The card "Scale": a row for the zoom and one for each scale, with the name, −,
   the value in percent, + and a reset button. Under the rows, "Reset all" resets
@@ -60,8 +71,8 @@ the window (`find_editor_appearance`).
   it, as "system (dark)". Under the rows, "Reset all" writes the default of the
   five of them. These two cards do not fold, and each has a fixed summary.
 - The themes in three groups, each a heading over its cards: "Editor" holds the
-  colour theme of the present mode and contrast, then the widget, the text, the
-  syntax, the reference, the graphics and the tooltip themes, in this order,
+  colour theme of the present mode and contrast, then the font theme, then the
+  widget, the text, the syntax, the reference, the graphics and the tooltip themes, in this order,
   because every view draws with them; "Tools" holds the other themes of
   `ProjecturedPlatform`; "Documents" holds the themes of the other packages. A
   group shows its themes in the order of their names. Two groups are further
@@ -70,10 +81,19 @@ the window (`find_editor_appearance`).
   the card: the presets as a radio group, which writes every field of the preset
   into the theme in place, so the views that read the theme follow; a spin box
   for each part of a size; buttons that step through the font files and a spin
-  box for the size of a font; a spin box in percent for a multiple line
+  box for the size of an exact font; a spin box in percent for a multiple line
   spacing; the swatch of a color and its text, `#rrggbbaa`,
   which a person edits; and for a text style, the controls of its color over
   those of its font, each of which writes a new style and keeps the other part.
+  The fonts have controls of their own:
+  - in the font theme, buttons that step through the families for `sans_family`
+    and `mono_family`, and for each role a choice of the kind of family, buttons
+    that step through the weights, a checkbox for italic and a spin box for the
+    size;
+  - in any other theme, a field that names a role has buttons that step through
+    the roles of the font theme, buttons that step through the weights, and a
+    checkbox for italic. It has no size, because a role never changes its size.
+
   Under the row of the name and the control of a field, a row of its own holds
   the docstring of the field, across the card, in the small font and the muted
   color of the widget theme (`LayoutConstraint(…; column_span = 2)`). The card
@@ -102,15 +122,17 @@ hold a selection. So the `Appearance` holds the caret as a path that
 print gives each widget the part of that path below it. The tree has the same form
 at each print, so the caret stays in its text after the print that a write starts.
 
-The place of the tab is in the `Appearance` too, in `scroll_position`, and so are
-the cards that are open, in `open_sections`, by the names of their theme types. A view of
+The place of the tab is in the `Appearance` too, in `scroll_position`, and the
+cards that are open are in each heading (`ThemeGroup`), in `open_names`, by the
+names of their theme types. A view of
 another document prints its parts again one by one, and its scroll panes keep
 their place. A change of the appearance prints the whole view again, so the tab
 is a new tree after each change, with a new pane that would start at its top. So
 the tab gives each new pane the cell of the `Appearance` to scroll, and a step of a
 size far down the tab leaves the tab where it is. The `collapsed` cell of each card
-is computed from `open_sections`, and a press on the chevron of a card answers a
-write of `open_sections` as view state, so the card folds with no new print. The
+is computed from the `open_names` of its heading, and a press on the chevron of a
+card answers a write of `open_names` as view state, so the card folds with no new
+print. The
 file keeps neither, and every view of the tab shows the same place and the same
 open cards.
 
@@ -118,7 +140,11 @@ open cards.
 
 `save_appearance!(appearance, path)` writes the zoom, the scales and the base
 value of each field of each theme into a TOML file, by default
-`~/.config/projectured/appearance.toml` (`get_appearance_file`).
+`~/.config/projectured/appearance.toml` (`get_appearance_file`). The colour
+themes and the font theme write only the fields that differ from the default,
+under a table of the name of their type, such as `[FontTheme]`. A field that names
+a font role is written as the name of the role, and its weight and its slant
+where the field sets them.
 `load_appearance!(appearance, path)` reads it back in place: a held theme takes
 its values at once, and the table of a theme that a builder makes later waits in
 `saved_themes`. A main builder, such as `run_application`, loads the file before
@@ -136,4 +162,5 @@ The slice depends on the kernel and on the layout, natural, primitive, projectio
 - **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the arguments of the wrappers on. See [plan/done/zoom-and-theme-controls.md](../../../../plan/done/zoom-and-theme-controls.md), D4, D20, D29 and D32.
 - **A change prints the whole view again.** The view has no edge to the theme, so a print of the whole view is the one way a change reaches it, and it costs one print for a rare event.
 - **A change of a theme is a step of a history** (finding 29 of the plan, from D14 of the settings plan). The window history holds the pane tree, so it holds the tab, as it does for the settings tab. `ReplaceThemeValueOperation` is the counterpart of `ApplySettingOperation`: the wrapper makes it from a plain write, so the inverse prints the view again too.
-- **The state of the tab is in the `Appearance`.** The tab is a new tree after each change, so its place and its open cards can live nowhere else; they are view state, and the file does not keep them.
+- **The state of the tab is in the `Appearance`.** The tab is a new tree after each change, so its place and its open cards can live nowhere else; they are view state, and the file does not keep them. The open cards are in the headings, so the page of a heading folds the same cards as the tab.
+- **The parts of an appearance are nodes of a tree.** In the explorer, an `Appearance` has a node for its scale, its colour settings and each heading (`get_tree_children_steps`), and a heading has a node for each theme; in "Editor", the colour theme of the present mode and contrast first. Each is a document in a field, which the tree slice reads as one child. A part, a heading and a theme have the icon of the appearance and a title: "Scale", "Colors", the title of the heading, and the name of the theme type in words.

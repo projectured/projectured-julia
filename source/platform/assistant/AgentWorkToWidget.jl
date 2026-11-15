@@ -4,7 +4,7 @@
 # navigator around it.
 
 """
-    AgentWorkToWidget(theme)
+    AgentWorkToWidget(theme; widget_theme)
 
 Draw an [`AgentWork`](@ref) as the page of a subagent, a column of cards in a
 scroll pane:
@@ -21,12 +21,12 @@ scroll pane:
 Each value reads the cells of the work, so the page follows the subagent.
 """
 @projection UntrackedCell struct AgentWorkToWidget
-    stack_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_gap::Int = get_widget_style(nothing, :section_gap)
     muted_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
 end
 
-AgentWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AgentWorkToWidget(; stack_gap = get_conversation_style(theme, :section_gap),
+AgentWorkToWidget(theme::Union{ConversationTheme,ScaledConversationTheme}; widget_theme = nothing) =
+    AgentWorkToWidget(; section_gap = get_widget_style(widget_theme, :section_gap),
                         muted_color = get_conversation_style(theme, :placeholder_color))
 
 function print_document(p::AgentWorkToWidget, recursion, work::AgentWork, context)
@@ -68,12 +68,12 @@ function _build_agent_page_card(p, work::AgentWork, part, children)
     lines = part.kind === :header ? _build_agent_header_lines(work) :
             _build_agent_link_lines(p, work, children...)
     title = part.kind === :header ? "Subagent" : "Subagents and background tasks"
-    WidgetCard(; title = WidgetLabel(title),
+    WidgetCard(; title = title,
                content = VerticalLayout(lines; child_width = Fill))
 end
 
 function _build_agent_header_lines(work::AgentWork)
-    cancel = WidgetButton("Cancel"; tooltip = "Stop the work of the subagent",
+    cancel = WidgetButton("Cancel"; tooltip = "Stop the work of the subagent.",
                           action = editor -> _cancel_agent_subagent_work(editor, work))
     set_cell_computation!(getfield(cancel, :visible),
                           () -> work.state === :running && work.can_cancel)
@@ -150,12 +150,8 @@ end
 function _make_agent_work_link(work::AgentWork, field::AbstractString, index::Int, child)
     reference = extend_reference(EmptyReference(), FieldReferenceStep(field),
                                  ElementReferenceStep(index))
-    open = (_, _) -> OpenPageOperation(work, reference)
-    binding = GestureBinding(MouseClickPattern(:left), open;
-                             description = "Open the page of a part of the work",
-                             domain = "assistant")
-    link = WidgetButton(""; tooltip = "Open its page", gestures = GestureBinding[binding])
-    set_cell_computation!(link, () -> _format_one_line(_join_label_and_detail(child)))
+    WidgetLink(() -> _format_one_line(_join_label_and_detail(child)), DocumentLocator(work, reference);
+               tooltip = "Open the page of this part of the work.")
 end
 
 # A press of Cancel: the assistant whose session runs the subagent asks its agent

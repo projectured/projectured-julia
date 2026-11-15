@@ -124,6 +124,26 @@ all_rows = [1, 2, 3, 4]
       sum(row.amount for row in sales if row.country == "DE" && row.year == 2024)
 @test_throws ArgumentError compute_pivot_measure(values, all_rows, PivotMeasure("amount", :median))
 
+# ── find_pivot_value reads the value of one cell ────────────────────────────
+
+by_year = make_pivot_table(sales; rows = ["region", "country"], columns = ["year"],
+                           measures = [PivotMeasure("amount", :sum), PivotMeasure("", :count)])
+@test find_pivot_value(by_year, ("EU", "DE"), (2024,)) == 60
+@test find_pivot_value(by_year, ("EU", "DE"), 2025) == 80
+@test find_pivot_value(by_year, ("US", "NY"), 2025; measure = 2) == 4
+@test find_pivot_value(by_year, ("EU", "NY"), 2025) === nothing
+# The key of a total occurs while the pivot shows its totals.
+@test find_pivot_value(by_year, ("EU", PivotTotal()), 2024) === nothing
+getfield(by_year, :totals)[] = true
+@test find_pivot_value(by_year, ("EU", PivotTotal()), 2024) == 60 + 100
+@test find_pivot_value(by_year, (PivotTotal(), PivotTotal()), PivotTotal(); measure = 2) == 32
+# A key of the wrong length and a measure that the pivot does not have are refused.
+@test_throws ArgumentError find_pivot_value(by_year, "EU", 2024)
+@test_throws ArgumentError find_pivot_value(by_year, ("EU", "DE"), 2024; measure = 3)
+# A pivot with no dimension on an axis has one key there, the empty tuple.
+@test find_pivot_value(make_pivot_table(sales; measures = [PivotMeasure("amount", :sum)]), ()) ==
+      sum(row.amount for row in sales)
+
 # ── make_pivot_table checks its columns ─────────────────────────────────────
 
 @test_throws ArgumentError make_pivot_table(42)

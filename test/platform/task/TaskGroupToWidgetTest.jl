@@ -30,13 +30,11 @@ TaskModule.get_work_item_identifier(item::_TaskViewProbeItem) = item.identifier
 TaskModule.describe_work_item_kind(::_TaskViewProbeItem, count::Integer) = count == 1 ? "probe" : "probes"
 TaskModule.stop_work_item!(item::_TaskViewProbeItem) = (item.stopped = true; nothing)
 TaskModule.describe_work_item(item::_TaskViewProbeItem; limit::Integer = 20) =
-    Text(join(first(String[item.stopped ? "stopped" : "running", "found 3"], limit), "\n"))
+    join(first(String[item.stopped ? "stopped" : "running", "found 3"], limit), "\n")
 DocumentModule.get_document_title(item::_TaskViewProbeItem) = item.title
 ProjecturedPlatform.DomainModule.get_document_decoration(item::_TaskViewProbeItem) =
     DocumentDecoration(; icon = :search, conditions = [DocumentCondition(item.stopped ? :stopped : :running)],
                        detail = "found 3", work_item = true)
-TaskModule.format_task_details(task::_TaskViewProbeTask, result) =
-    String["script: " * task.script; result === nothing ? String[] : ["ended: " * result.result]]
 const _TASK_VIEW_PRESSES = String[]
 TaskModule.get_task_actions(::_TaskViewProbeTask) =
     ["Note" => (editor, task) -> push!(_TASK_VIEW_PRESSES, task.name)]
@@ -51,8 +49,147 @@ end
 WidgetModule.make_graphics_projection(::Type{_TaskViewResultDocument}; measure, appearance) =
     ProjecturedPlatform.NaturalModule.PhraseToGraphics(document -> document.line,
         StyleText(StyleFont("Ubuntu", 18), color_black), TextToGraphics(; measure))
-TaskModule.get_task_result_document(task::_TaskViewProbeTask, result) =
-    _TaskViewResultDocument("the result of " * task.name * " is " * result.result)
+
+# A kind of task that gives its document from the start: one line that says it
+# waits, and one that says the result. Every call of the hook is logged.
+struct _TaskViewDocumentProbeTask <: AbstractTask
+    name::String
+    script::String
+end
+TaskModule.get_result_codes(::_TaskViewDocumentProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskViewDocumentProbeTask) = task.name
+TaskModule.get_task_kind_name(::_TaskViewDocumentProbeTask) = "probe kind"
+const _TASK_VIEW_KIND_CALLS = Tuple{String,Any}[]
+function TaskModule.make_task_kind_document(task::_TaskViewDocumentProbeTask, result)
+    push!(_TASK_VIEW_KIND_CALLS, (task.name, result === nothing ? nothing : result.result))
+    _TaskViewResultDocument(result === nothing ? "the kind of " * task.name * " waits" :
+                                                 "the result of " * task.name * " is " * result.result)
+end
+TaskModule.start_task(task::_TaskViewDocumentProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, task.script); on_finish)
+
+# A kind of task whose document is a page that makes its card one time, folded at
+# the start, and reads its document only in the content of the card, as the pages
+# of the task types do. Each card that a print makes is kept, so the count of the
+# cards is the count of the prints.
+@document struct _TaskViewCardDocument <: Document
+    name::Any
+    state::Any
+end
+const _TASK_VIEW_CARDS = Any[]
+struct _TaskViewCardToWidget <: Projection end
+function ProjecturedPlatform.ProjectionModule.print_document(p::_TaskViewCardToWidget, recursion,
+                                                             document::_TaskViewCardDocument, ctx)
+    content = WidgetLabel(() -> string("run ", getfield(document, :name)[], " · ", getfield(document, :state)[]))
+    card = WidgetCard(; title = "Command", content, collapsible = true, collapsed = true)
+    push!(_TASK_VIEW_CARDS, card)
+    ChildrenIoMap(p, document, card, Cell(Any[]))
+end
+WidgetModule.make_graphics_projection(::Type{_TaskViewCardDocument}; measure, appearance) =
+    ChainingProjection(_TaskViewCardToWidget(),
+                       RecursiveProjection(WidgetToGraphics(; measure,
+                           theme = get_scaled_theme!(appearance, WidgetTheme),
+                           graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                           text_theme = get_scaled_theme!(appearance, TextTheme))))
+struct _TaskViewCardProbeTask <: AbstractTask
+    name::String
+    script::String
+end
+TaskModule.get_result_codes(::_TaskViewCardProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskViewCardProbeTask) = task.name
+TaskModule.make_task_kind_document(task::_TaskViewCardProbeTask, result) =
+    _TaskViewCardDocument(task.name, result === nothing ? "waits" : result.result)
+TaskModule.start_task(task::_TaskViewCardProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, task.script); on_finish)
+
+# A kind of task whose actions are asked each time the parts of its detail are
+# built, so the calls count the builds.
+struct _TaskViewBuildProbeTask <: AbstractTask
+    name::String
+end
+TaskModule.get_result_codes(::_TaskViewBuildProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskViewBuildProbeTask) = task.name
+const _TASK_VIEW_BUILDS = Ref(0)
+TaskModule.get_task_actions(::_TaskViewBuildProbeTask) = (_TASK_VIEW_BUILDS[] += 1; Pair{String,Function}[])
+
+# A kind of task whose document of a result is a table of many rows, as the
+# differences of a statistical test are: a table takes the height of its place.
+struct _TaskViewTableProbeTask <: AbstractTask
+    name::String
+end
+TaskModule.get_result_codes(::_TaskViewTableProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskViewTableProbeTask) = task.name
+TaskModule.start_task(task::_TaskViewTableProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, "exit 0"); on_finish)
+TaskModule.make_task_kind_document(::_TaskViewTableProbeTask, result) = result === nothing ? nothing :
+    WidgetTable(Any["scalar", "old", "new"], Any[Any["row $i", string(i), string(i + 1)] for i in 1:30])
+
+# A kind of task whose column `picture` gives a picture once the task has a
+# result: the picture of the shape that the task name says, `wide` or `tall`, with
+# its natural size in hand so that no backend decodes; any other name gives no picture.
+# The column `note` gives text.
+struct _TaskPictureProbeTask <: AbstractTask
+    name::String
+end
+const _TASK_PICTURE_SHAPES = Dict("wide" => (1000, 200), "tall" => (200, 1000), "small" => (60, 30))
+TaskModule.get_result_codes(::_TaskPictureProbeTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskPictureProbeTask) = task.name
+TaskModule.get_task_columns(::_TaskPictureProbeTask) = ["name" => 1, "picture" => 2, "note" => 1]
+TaskModule.format_task_column(task::_TaskPictureProbeTask, column::AbstractString) = column == "name" ? task.name : ""
+function TaskModule.get_task_column_value(task::_TaskPictureProbeTask, result, column::AbstractString)
+    column == "name" && return task.name
+    result === nothing && return nothing
+    column == "note" && return "note of " * task.name
+    shape = get(_TASK_PICTURE_SHAPES, task.name, nothing)
+    shape === nothing ? nothing : _make_sized_picture_file(task.name * ".png", shape[1], shape[2])
+end
+TaskModule.start_task(task::_TaskPictureProbeTask; on_finish = nothing) =
+    TaskModule.start_task(_TaskGroupProbeTask(task.name, "exit 0"); on_finish)
+
+# Each image of a drawn pane as `(x, y, width, height)` on the canvas.
+function _collect_task_view_images(node, x = 0, y = 0, found = NTuple{4,Int}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            link = elements
+            while link !== nothing
+                _collect_task_view_images(link.value, x + Int(node.x), y + Int(node.y), found)
+                link = link.next
+            end
+        else
+            for element in elements
+                _collect_task_view_images(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        _collect_task_view_images(node.content, x + Int(node.x), y + Int(node.y), found)
+    elseif node isa GraphicsImage
+        push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    found
+end
+
+# Each viewport of a drawn pane as `(x, y, width, height, content)` on the canvas.
+function _collect_task_view_viewports(node, x = 0, y = 0, found = Tuple{Int,Int,Int,Int,Any}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            link = elements
+            while link !== nothing
+                _collect_task_view_viewports(link.value, x + Int(node.x), y + Int(node.y), found)
+                link = link.next
+            end
+        else
+            for element in elements
+                _collect_task_view_viewports(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h), node.content))
+        _collect_task_view_viewports(node.content, x + Int(node.x), y + Int(node.y), found)
+    end
+    found
+end
 
 # Each text of a drawn pane with its place on the canvas.
 function _collect_task_view_texts(node, x = 0, y = 0, found = Tuple{Int,Int,String}[])
@@ -86,6 +223,9 @@ function _print_task_view(document; width = 1200, height = 900)
                               height = Cell(Int32(height)))
     (projection, print_document(projection, nothing, document, context))
 end
+
+# The projection of the pane of a group and its IO map: the first stage of the chain.
+_find_task_view_pane(projection, iomap) = (projection.projections[1], iomap.step_iomaps[1][])
 
 _collect_task_view_words(document) =
     [text for (_, _, text) in _collect_task_view_texts(last(_print_task_view(document)).output)]
@@ -145,11 +285,12 @@ function test_task_views()
             @test sort([t[3] for t in texts if t[1] == header[1] && t[2] > header[2]]) ==
                   ["alpha", "fail"]
 
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 2)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
             words = [t[3] for t in texts]
-            @test "script: exit 1" in words && "ended: ERROR" in words
+            @test "ERROR" in words && !any(w -> startswith(w, "script: ") || startswith(w, "ended: "), words)
             @test "Stop" in words && "Run again" in words && "Note" in words
 
             note = only(t for t in texts if t[3] == "Note")
@@ -169,60 +310,296 @@ function test_task_views()
             @test any(w -> occursin(r"^1\. started \d\d:\d\d:\d\d — ERROR", w), words)
         end
 
+        @testset "a column that gives a picture shows it small, in its shape, with its row as high as it" begin
+            tasks = [_TaskPictureProbeTask(name) for name in ("wide", "tall", "small", "none")]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "pictures", jobs = 4))
+            images(width) = _collect_task_view_images(last(_print_task_view(document; width)).output)
+            @test isempty(images(1800))
+            wait_task_group_document(start_task_group_document!(document))
+            height = Int(get_scaled_theme!(Appearance(), WidgetTheme).table_picture_height)
+            shown = sort(images(1800); by = image -> image[2])
+            # A task with no picture has no image; a picture is at most the picture height high.
+            @test length(shown) == 3 && all(image -> image[4] <= height, shown)
+            # A picture keeps its shape, and one smaller than the height is not made bigger.
+            wide, tall, small = shown[1], shown[2], shown[3]
+            @test wide[4] == height && abs(wide[3] / wide[4] - 5) < 0.1
+            @test tall[4] == height && abs(tall[3] / tall[4] - 0.2) < 0.02
+            @test small[3:4] == (60, 30)
+            # A row is as high as its picture: the row of a picture is taller than a line of text.
+            texts = _collect_task_view_texts(last(_print_task_view(document; width = 1800)).output)
+            rows = sort([t[2] for t in texts if t[3] == "note of wide" || t[3] == "note of tall" ||
+                                                t[3] == "note of small" || t[3] == "note of none"])
+            @test rows[2] - rows[1] >= height && rows[3] - rows[2] >= 30
+            # A cell is offered no width, so in a narrow window the picture keeps its height and its shape.
+            narrow = sort(images(700); by = image -> image[2])
+            @test length(narrow) == 3 && narrow[1][3:4] == wide[3:4] && narrow[2][3:4] == tall[3:4]
+            # Any other value stays text, and a value of nothing is an empty cell.
+            words = _collect_task_view_words(document)
+            @test "note of wide" in words && !("nothing" in words)
+        end
+
         @testset "the detail draws the document that the kind gives for a result" begin
             document = wrap_task_group_document(
-                TaskGroup([_TaskViewProbeTask("beta", "exit 0")]; name = "result document", jobs = 1))
+                TaskGroup([_TaskViewDocumentProbeTask("beta", "exit 0")]; name = "result document", jobs = 1))
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 1)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             words() = [t[3] for t in _collect_task_view_texts(iomap.output)]
             @test !any(startswith("the result of"), words())
+            @test "the kind of beta waits" in words()
             wait_task_group_document(start_task_group_document!(document))
             # The drawn pane follows the result, and the line stands between the
             # buttons and the output.
             texts = _collect_task_view_texts(iomap.output)
             line = only(t for t in texts if t[3] == "the result of beta is DONE")
+            @test !("the kind of beta waits" in words())
             @test only(t for t in texts if t[3] == "Run again")[2] < line[2] <
-                  only(t for t in texts if t[3] == "stdout")[2]
+                  only(t for t in texts if t[3] == "stdout · empty")[2]
         end
 
-        @testset "a path into the document of a result goes to its card and back" begin
+        @testset "the hook of the kind runs before the result and again when the result comes" begin
+            empty!(_TASK_VIEW_KIND_CALLS)
             document = wrap_task_group_document(
-                TaskGroup([_TaskViewProbeTask("gamma", "exit 0")]; name = "result path", jobs = 1))
+                TaskGroup([_TaskViewDocumentProbeTask("kappa", "exit 0")]; name = "kind hook", jobs = 1))
+            task = only(getfield(document, :tasks)[])
+            before = getfield(task, :kind_document)[]
+            @test before isa _TaskViewResultDocument && before.line == "the kind of kappa waits"
+            @test _TASK_VIEW_KIND_CALLS == [("kappa", nothing)]
+            @test getfield(task, :kind_document)[] === before && length(_TASK_VIEW_KIND_CALLS) == 1
+            wait_task_group_document(start_task_group_document!(document))
+            after = getfield(task, :kind_document)[]
+            @test after !== before && after.line == "the result of kappa is DONE"
+            @test last(_TASK_VIEW_KIND_CALLS) == ("kappa", "DONE")
+            # A kind with no document answers nothing, and the frame shows only its header, buttons, process and streams.
+            @test TaskModule.make_task_kind_document(_TaskViewProbeTask("plain", "exit 0"), nothing) === nothing
+            @test TaskModule.get_task_kind_name(_TaskViewProbeTask("plain", "exit 0")) == ""
+        end
+
+        @testset "the header holds the state badge once, the name, the muted parts and the error" begin
+            broken = BuildCommandTask(; action = "Compiling", subject = "broken.c", working_directory = mktempdir(),
+                arguments = ["sh", "-c", "echo broke >&2; exit 2"], input_files = String[], output_files = String[])
+            tasks = AbstractTask[_TaskViewDocumentProbeTask("good", "exit 0"), _TaskViewDocumentProbeTask("bad", "exit 1"),
+                                 _TaskViewProbeTask("plain", "exit 1"), broken]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "headers", jobs = 4))
+            documents = getfield(document, :tasks)[]
+            # Before the result: the state word, with no role.
+            waiting = TaskModule._make_task_state_badge(documents[1])
+            @test waiting.content == "pending" && waiting.role === nothing
+            wait_task_group_document(start_task_group_document!(document))
+            good = TaskModule._make_task_state_badge(documents[1])
+            bad = TaskModule._make_task_state_badge(documents[2])
+            @test good.content == "DONE" && good.role === :success
+            @test bad.content == "ERROR" && bad.role === :error
+            running = TaskDocument(_TaskGroupProbeTask("r", "exit 0"); status = :running)
+            @test TaskModule._make_task_state_badge(running).content == "running" &&
+                  TaskModule._make_task_state_badge(running).role === :accent
+            # The badge, the name and the muted parts stand in one line; the code
+            # shows once in the detail, and the old result line is gone.
+            select_task_document!(document, 2)
+            texts = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
+            words = [t[3] for t in texts]
+            badge = last(sort([t for t in texts if t[3] == "ERROR"]; by = t -> t[2]))
+            name = last(sort([t for t in texts if t[3] == "bad"]; by = t -> t[2]))
+            note = only(t for t in texts if t[3] == "probe kind · unexpected · Non-zero exit code: 1")
+            @test badge[2] == name[2] == note[2] && badge[1] < name[1] < note[1]
+            # The code shows once from the badge down, and the old result line is gone.
+            detail = [t[3] for t in texts if t[2] >= badge[2]]
+            @test count(==("ERROR"), detail) == 1
+            @test !any(w -> occursin("bad — ", w) || occursin("(unexpected)", w), detail)
+            # A result that says nothing about its error has no error line.
+            @test !("<No error message>" in words)
+            # The error message of an ERROR is a line under the header, above the
+            # buttons; the stream of the step shows the same text further down.
+            select_task_document!(document, 4)
+            texts = _collect_task_view_texts(last(_print_task_view(document; height = 1200)).output)
+            badge = last(sort([t for t in texts if t[3] == "ERROR"]; by = t -> t[2]))
+            line = first(sort([t for t in texts if t[3] == "broke"]; by = t -> t[2]))
+            @test line[2] > badge[2] && line[2] < only(t for t in texts if t[3] == "Run again")[2]
+            # A good result has no error line and only the name of the kind.
+            select_task_document!(document, 1)
+            words = _collect_task_view_words(document)
+            @test "probe kind" in words && !("<No error message>" in words)
+            # A kind with a document shows it below the header; a kind with none
+            # shows the frame only.
+            @test "the result of good is DONE" in words
+            select_task_document!(document, 3)
+            words = _collect_task_view_words(document)
+            @test "Stop" in words && "Run again" in words && !any(w -> startswith(w, "the result of "), words)
+        end
+
+        @testset "the Process group holds the facts that have a value" begin
+            pending = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("p", "exit 0")]; name = "pending process", jobs = 1))
+            task = only(getfield(pending, :tasks)[])
+            group = TaskModule._make_task_process_group(pending, task)
+            @test !group.visible && isempty(group.facts)
+            select_task_document!(pending, 1)
+            @test !("Process" in _collect_task_view_words(pending))
+            wait_task_group_document(start_task_group_document!(pending))
+            group = TaskModule._make_task_process_group(pending, task)
+            @test group.visible
+            @test [fact.label for fact in group.facts] == ["process", "elapsed"]
+            texts = _collect_task_view_texts(last(_print_task_view(pending; height = 1200)).output)
+            title = only(t for t in texts if t[3] == "Process")
+            below = [t for t in texts if t[2] >= title[2]]
+            process = only(t for t in below if t[3] == "process")
+            elapsed = only(t for t in below if t[3] == "elapsed")
+            @test title[2] < process[2] < elapsed[2] && process[1] == elapsed[1]
+            @test only(t for t in below if t[3] == string(TaskModule._get_current_field(task, :process_id)))[2] == process[2]
+            # The process group follows the buttons and the document, and comes before the streams.
+            @test only(t for t in texts if t[3] == "Run again")[2] < title[2] < only(t for t in texts if t[3] == "stdout · empty")[2]
+        end
+
+        @testset "an empty stream is one muted word, and a line builds the parts once" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewProbeTask("echoes", "echo hi")]; name = "streams", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            words = _collect_task_view_words(document)
+            select_task_document!(document, 1)
+            words = _collect_task_view_words(document)
+            @test "stdout · 1 line" in words && "hi" in words
+            @test "stderr · empty" in words && !("stderr" in words) && !("stderr · 0 lines" in words)
+            # The parts of the detail are not built again when lines come: the slot
+            # of the stream shows its card, and only the count and the box follow.
+            counted = wrap_task_group_document(TaskGroup([_TaskViewBuildProbeTask("counted")]; name = "builds", jobs = 1))
+            task = only(getfield(counted, :tasks)[])
+            execution = TaskExecution(task.task)
+            execution.status = :running
+            shadow = make_task_execution_shadow(execution)
+            add_task_execution!(task, execution, shadow)
+            select_task_document!(counted, 1)
+            _, iomap = _print_task_view(counted; height = 1200)
+            read() = [t[3] for t in _collect_task_view_texts(iomap.output)]
+            @test "stdout · empty" in read()
+            builds = _TASK_VIEW_BUILDS[]
+            for (k, line) in enumerate(("one", "two", "three"))
+                update_task_execution!(e -> append_output_line!(e.output, line), execution)
+                sync_document!(shadow, execution)
+                words = read()
+                @test string("stdout · ", k, k == 1 ? " line" : " lines") in words && line in words
+                @test _TASK_VIEW_BUILDS[] == builds
+            end
+        end
+
+        @testset "the detail is one column that scrolls, and each part takes the height of its content" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewTableProbeTask("delta")]; name = "short detail", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            find_y(texts, text) = only(t for t in texts if t[3] == text)[2]
+            # In a tall window everything shows, in order: the buttons, the table of
+            # the document with all its rows, the cards.
+            tall = _collect_task_view_texts(last(_print_task_view(document; height = 3000)).output)
+            @test find_y(tall, "Run again") < find_y(tall, "scalar") < find_y(tall, "row 30") <
+                  find_y(tall, "Process") < find_y(tall, "stdout · empty")
+            # The table of one task takes its row, and the detail starts under it:
+            # the header line of the detail is less than 100 px below the state
+            # word of the row.
+            header_y = find_y(tall, "delta")
+            row_y = maximum(t[2] for t in tall if t[3] == "DONE" && t[2] < header_y)
+            @test 0 < header_y - row_y < 100
+            # In a short window the column keeps the same order and the same heights:
+            # the table keeps all its rows, and the column scrolls.
+            short = _collect_task_view_texts(last(_print_task_view(document; height = 500)).output)
+            @test header_y < find_y(short, "Run again") < find_y(short, "scalar") < find_y(short, "row 30") <
+                  find_y(short, "Process") < find_y(short, "stdout · empty")
+            @test find_y(short, "row 30") - find_y(short, "scalar") == find_y(tall, "row 30") - find_y(tall, "scalar")
+        end
+
+        @testset "a stream is a card with a box of at most ten lines that shows its last lines" begin
+            document = wrap_task_group_document(TaskGroup(
+                [_TaskViewProbeTask("many", raw"for i in $(seq 1 30); do echo line $i; done; echo oops >&2")];
+                name = "boxes", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            cap = Int(TaskModule.get_task_style(nothing, :stream_box_height))
+            _, iomap = _print_task_view(document; height = 1200)
+            texts = _collect_task_view_texts(iomap.output)
+            boxes = _collect_task_view_viewports(iomap.output)
+            # The smallest viewport that holds a line is the box of its stream.
+            box_of(line) = (at = only(t for t in texts if t[3] == line);
+                            argmin(v -> v[4], [v for v in boxes if v[2] <= at[2] < v[2] + v[4]]))
+            many, one = box_of("line 30"), box_of("oops")
+            @test 0 < many[4] <= cap && 0 < one[4] < many[4]
+            # The box follows the end: the last line shows, and the first has scrolled out.
+            @test only(t for t in texts if t[3] == "line 30")[2] < many[2] + many[4]
+            @test only(t for t in texts if t[3] == "line 1")[2] < many[2]
+            # The cards carry the count of lines in their title.
+            @test "stdout · 30 lines" in [t[3] for t in texts] && "stderr · 1 line" in [t[3] for t in texts]
+            # A stream with no line is a muted word and no card.
+            quiet = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("quiet", "exit 0")]; name = "quiet", jobs = 1))
+            wait_task_group_document(start_task_group_document!(quiet))
+            select_task_document!(quiet, 1)
+            _, quiet_iomap = _print_task_view(quiet; height = 1200)
+            words = [t[3] for t in _collect_task_view_texts(quiet_iomap.output)]
+            @test "stdout · empty" in words && "stderr · empty" in words
+        end
+
+        @testset "a path into the document of a result goes to its place and back" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewDocumentProbeTask("gamma", "exit 0")]; name = "result path", jobs = 1))
             wait_task_group_document(start_task_group_document!(document))
             select_task_document!(document, 1)
             task = only(getfield(document, :tasks)[])
-            shown = getfield(task, :result_document)[]
+            shown = getfield(task, :kind_document)[]
             projection, iomap = _print_task_view(document)
             # The document stays the one the detail draws while its result stays.
-            @test shown isa _TaskViewResultDocument && getfield(task, :result_document)[] === shown
-            pane, pane_iomap = projection.projections[1], iomap.step_iomaps[1][]
+            @test shown isa _TaskViewResultDocument && getfield(task, :kind_document)[] === shown
+            pane, pane_iomap = _find_task_view_pane(projection, iomap)
             steps_of(path) = get_reference_steps(strip_reference_types(path))
             make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
-            result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("result_document"))
-            # The card is the seventh part of the detail, the second pane of the
-            # split below the card of the group.
-            card = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+            result = (FieldReferenceStep("tasks"), RangeReferenceStep(0, 1), FieldReferenceStep("kind_document"))
+            # The place is the one part of the slot of the document, the fourth
+            # part of the column of the detail, below the header line, the error
+            # line and the buttons, in the second pane of the split below the line
+            # of buttons of the group; it holds the document itself, because the
+            # fields of the document are not cells.
+            place = (FieldReferenceStep("children"), RangeReferenceStep(2, 3), FieldReferenceStep("child"),
                     FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
-                    FieldReferenceStep("children"), RangeReferenceStep(6, 7), FieldReferenceStep("child"))
+                    FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(3, 4),
+                    FieldReferenceStep("children"), RangeReferenceStep(0, 1), FieldReferenceStep("child"))
             inside = make_path(result..., FieldReferenceStep("line"))
             drawn = map_reference_forward(pane, pane_iomap, inside)
-            @test steps_of(drawn) == [card..., FieldReferenceStep("content"), FieldReferenceStep("line")]
+            @test steps_of(drawn) == [place..., FieldReferenceStep("line")]
             @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
-            # A selection in the document reaches the card: each container on the
+            # A selection in the document reaches its place: each container on the
             # way holds the part of the path below it, so a key goes there.
             replace_selection!(document, inside)
-            around_card = foldl((node, step) -> ProjecturedKernel.CellModule.unwrap_cell(
+            around_place = foldl((node, step) -> ProjecturedKernel.CellModule.unwrap_cell(
                                     ProjecturedKernel.ReferenceModule.evaluate_reference_step(step, node)),
-                                card[1:(end - 1)]; init = pane_iomap.output)
-            @test around_card isa ProjecturedPlatform.LayoutModule.LayoutConstraint
-            @test steps_of(getfield(around_card, :selection)[]) ==
-                  [FieldReferenceStep("child"), FieldReferenceStep("content"), FieldReferenceStep("line")]
-            # The title of the card names the whole document.
-            @test steps_of(map_reference_backward(pane, pane_iomap, make_path(card..., FieldReferenceStep("title")))) ==
-                  collect(result)
-            # The document of a task that the detail does not show has no card.
+                                place[1:(end - 1)]; init = pane_iomap.output)
+            @test around_place isa ProjecturedPlatform.LayoutModule.LayoutConstraint
+            @test steps_of(getfield(around_place, :selection)[]) ==
+                  [FieldReferenceStep("child"), FieldReferenceStep("line")]
+            # The whole place is the whole document.
+            @test steps_of(map_reference_backward(pane, pane_iomap, make_path(place...))) == collect(result)
+            # The document of a task that the detail does not show has no place.
             select_task_document!(document, 0)
             @test map_reference_forward(pane, pane_iomap, inside) === nothing
+        end
+
+        @testset "the detail alone of a task with a result shows the result document only" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewDocumentProbeTask("gamma", "exit 0")]; name = "alone result", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            select_task_document!(document, 1)
+            words() = _collect_task_view_words(document)
+            @test "stdout · empty" in words() && any(startswith("the result of gamma"), words())
+            ProjecturedKernel.CellModule.set_cell_value!(getfield(document, :is_detail_alone), true)
+            @test any(startswith("the result of gamma"), words()) && !("stdout · empty" in words()) && !("stderr · empty" in words())
+            # The document is at the place below the card of the group, and a path maps both ways.
+            projection, iomap = _print_task_view(document)
+            pane, pane_iomap = _find_task_view_pane(projection, iomap)
+            steps_of(path) = get_reference_steps(strip_reference_types(path))
+            make_path(steps...) = foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
+            inside = make_path(FieldReferenceStep("tasks"), RangeReferenceStep(0, 1),
+                               FieldReferenceStep("kind_document"), FieldReferenceStep("line"))
+            drawn = map_reference_forward(pane, pane_iomap, inside)
+            @test steps_of(drawn) == [FieldReferenceStep("children"), RangeReferenceStep(2, 3),
+                                      FieldReferenceStep("child"), FieldReferenceStep("content"),
+                                      FieldReferenceStep("line")]
+            @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
+            ProjecturedKernel.CellModule.set_cell_value!(getfield(document, :is_detail_alone), false)
+            @test "stdout · empty" in words()
         end
 
         @testset "the progress of a task that runs is a ring" begin
@@ -247,7 +624,7 @@ function test_task_views()
             words = _collect_task_view_words(document)
             # The card of the phase, under the card of the build, with no actions
             # of its own.
-            @test "phase 1" in words && "4 DONE" in words && "1 ERROR unexpected" in words
+            @test "Phase 1" in words && "4 DONE" in words && "1 ERROR unexpected" in words
             @test count(==("Run all"), words) == 1
         end
 
@@ -263,16 +640,135 @@ function test_task_views()
             words = _collect_task_view_words(document)
             # The card of the build, under the card of the group, with no actions
             # of its own.
-            @test "stub" in words && "1 ERROR unexpected" in words
+            @test "Stub" in words && "1 ERROR unexpected" in words
             @test count(==("Run all"), words) == 1
+        end
+
+        # The detail shows a following copy of the documents of the kinds, so the
+        # page is printed one time: its card stays the same card, and keeps its
+        # fold, while rows are selected and when a result comes.
+        @testset "a card of a page is made one time, and keeps its fold while rows are selected" begin
+            empty!(_TASK_VIEW_CARDS)
+            tasks = [_TaskViewCardProbeTask("one", "exit 0"), _TaskViewCardProbeTask("two", "exit 0")]
+            document = wrap_task_group_document(TaskGroup(tasks; name = "cards", jobs = 1))
+            select_task_document!(document, 1)
+            _, iomap = _print_task_view(document; height = 1200)
+            words() = [t[3] for t in _collect_task_view_texts(iomap.output)]
+            @test !("run one · waits" in words())
+            card = only(_TASK_VIEW_CARDS)
+            @test getfield(card, :collapsed)[]
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
+            @test "run one · waits" in words()
+            select_task_document!(document, 2)
+            @test "run two · waits" in words() && !("run one · waits" in words())
+            @test only(_TASK_VIEW_CARDS) === card && !getfield(card, :collapsed)[]
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
+            select_task_document!(document, 1)
+            @test !("run one · waits" in words())
+            @test only(_TASK_VIEW_CARDS) === card && getfield(card, :collapsed)[]
+            # The result makes the document of the kind again; the card stays.
+            evaluate_operation(nothing, ToggleCollapseOperation(card))
+            wait_task_group_document(start_task_group_document!(document))
+            @test "run one · DONE" in words()
+            @test only(_TASK_VIEW_CARDS) === card && !getfield(card, :collapsed)[]
+        end
+
+        @testset "the card of a group names its kind, its state and its counts" begin
+            group = TaskGroup(AbstractTask[_TaskNestedTask("first", [("a1", "ERROR", "boom")]),
+                                           _TaskGroupProbeTask("ok", "exit 0"),
+                                           _TaskGroupProbeTask("fail", "exit 1")];
+                              name = "nested test", jobs = 2)
+            document = wrap_task_group_document(group; description = "the selection")
+            @test getfield(document, :description)[] == "the selection"
+            @test getfield(wrap_task_group_document(
+                TaskGroup(_make_task_group_probe_tasks(0.0); name = "probe")), :description)[] == ""
+            @test TaskModule._get_group_state_role(document, group) == ("not started", nothing)
+            projection = TaskModule.TaskGroupDocumentToWidgetPane()
+            badges(card) = [(badge.content, badge.role) for badge in search_documents(card, part -> part isa WidgetBadge)]
+            summary_card(document) = first(TaskModule._build_summary_card(projection, document, nothing))
+            @test ("3 waiting", nothing) in badges(summary_card(document))
+            wait_task_group_document(start_task_group_document!(document))
+            @test TaskModule._get_group_state_role(document, group) == ("ERROR", :error)
+            getfield(document, :status)[] = :running
+            @test TaskModule._get_group_state_role(document, group) == ("running", :accent)
+            getfield(document, :status)[] = :finished
+
+            card = summary_card(document)
+            @test Set(badges(card)) == Set([("1 DONE", :success), ("2 ERROR unexpected", :error),
+                                            ("ERROR", :error), (getfield(document, :identifier)[], nothing)])
+            texts = _collect_task_view_texts(last(_print_task_view(document)).output)
+            words = [t[3] for t in texts]
+            # The card is the topmost: the table of the tasks has an `elapsed` header too.
+            at(text) = first(sort([t for t in texts if t[3] == text]; by = t -> t[2]))
+            @test "Nested test" in words && !("nested test" in words)
+            @test "the selection · 2 at a time" in words
+            @test !any(startswith("Tested"), words) && !any(occursin("tasks a minute", w) for w in words)
+            @test !any(w -> occursin("/3 unexpected", w), words)
+
+            # The time facts: two groups side by side, a row at the same height, and the values of a
+            # group in one column.
+            finished, slowest = at("finished"), at("slowest")
+            elapsed, rate = at("elapsed"), at("rate")
+            @test finished[1] < slowest[1] && finished[2] == slowest[2] && elapsed[2] == rate[2]
+            @test finished[1] == elapsed[1] && slowest[1] == rate[1] && finished[2] < elapsed[2]
+            value(label) = first(sort([t for t in texts if t[2] == label[2] && t[1] > label[1]]; by = first))
+            @test value(finished)[3] == "3 of 3" && value(finished)[1] == value(elapsed)[1]
+            @test occursin(r"^\d+ s$", value(elapsed)[3])
+            # A time of 0 has no digit after the point.
+            @test occursin(r"^(ok|fail|first), \d+(\.\d)? s$", value(slowest)[3])
+            @test occursin(r"^\d+(\.\d)? a minute$", value(rate)[3])
+            # A slow group says one digit after the point, and below one a minute its rate in an hour.
+            @test TaskModule._format_task_rate(72.4) == "72 a minute"
+            @test TaskModule._format_task_rate(2.5) == "2.5 a minute"
+            @test TaskModule._format_task_rate(0.2) == "12 an hour"
+            @test TaskModule._format_task_rate(0.05) == "3.0 an hour"
+            @test !("left" in words)
+
+            # The table of reasons: the headers on one line, a row for each reason below them.
+            count, reason, tasks = at("count"), only(t for t in texts if t[3] == "reason" && t[2] == at("count")[2]),
+                                   at("tasks")
+            @test count[1] < reason[1] < tasks[1] && count[2] == reason[2] == tasks[2]
+            first_row = only(t for t in texts if t[3] == "boom")
+            @test first_row[2] > count[2] && first_row[1] == reason[1]
+            @test only(t for t in texts if t[3] == "a1")[1] == tasks[1]
+            @test only(t for t in texts if t[3] == "1" && t[2] == first_row[2])[1] <= first_row[1]
+            # The table of the tasks below says the reason of the failed task too.
+            second_row = first(sort([t for t in texts if t[3] == "Non-zero exit code: 1"]; by = t -> t[2]))
+            @test second_row[2] > first_row[2] && second_row[1] == reason[1]
+            @test only(t for t in texts if t[3] == "fail" && t[2] == second_row[2])[1] == tasks[1]
+            @test !any(startswith("+"), words)
+        end
+
+        @testset "the card lists five reasons and counts the rest" begin
+            leaves = [("l$i", "ERROR", "reason $i") for i in 1:7]
+            group = TaskGroup(AbstractTask[_TaskNestedTask("many", leaves)]; name = "many")
+            document = wrap_task_group_document(group)
+            wait_task_group_document(start_task_group_document!(document))
+            words = _collect_task_view_words(document)
+            @test all(i -> "reason $i" in words, 1:5) && !("reason 6" in words)
+            @test "+2 more reasons" in words
+            # A reason of many tasks names the first three and counts the rest.
+            shared = TaskGroup(AbstractTask[_TaskNestedTask("shared", [("s$i", "ERROR", "same") for i in 1:5])];
+                               name = "shared")
+            document = wrap_task_group_document(shared)
+            wait_task_group_document(start_task_group_document!(document))
+            words = _collect_task_view_words(document)
+            @test "s1, s2, s3 and 2 more" in words && !any(w -> occursin("s4", w), words)
+            # A group whose results were all expected shows neither the table nor the line.
+            ok = wrap_task_group_document(TaskGroup(AbstractTask[_TaskGroupProbeTask("ok", "exit 0")]; name = "ok"))
+            wait_task_group_document(start_task_group_document!(ok))
+            words = _collect_task_view_words(ok)
+            @test "Ok" in words && "1 DONE" in words
+            @test !("count" in words) && !any(startswith("+"), words)
         end
 
         @testset "a row, the detail and the Tasks pane open pages" begin
             tasks = [_TaskViewProbeTask(name, "exit 0") for name in ("alpha", "beta")]
             document = wrap_task_group_document(TaskGroup(tasks; name = "linked", jobs = 2); title = "linked tasks")
             wait_task_group_document(start_task_group_document!(document))
+            # A window tall enough that the facts of the detail show whole.
             select_task_document!(document, 2)
-            projection, iomap = _print_task_view(document)
+            projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
             press(view, map, t; count = 1, ctrl = false) = read_intent(view, map,
                 MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0))
@@ -285,13 +781,14 @@ function test_task_views()
             # detail, a double press opens its page, and Ctrl+press opens it in a
             # new tab.
             @test !any(t -> t[3] == "›", texts)
-            table = iomap.step_iomaps[1][].output.children[2].child.elements[1].child.content
-            @test get_widget_table_selected_row(table) == 2
+            roster = getfield(document, :table)[].document
+            @test roster.marked === task(2)
             row = only(t for t in texts if t[3] == "alpha")
             shown = press(projection, iomap, row)
-            @test shown isa ReplaceViewStateOperation
+            @test shown isa CompoundOperation && shown.operations[1] isa ReplaceViewStateOperation &&
+                  shown.operations[2] isa ReplaceSelectionOperation
             _nav_apply!(_NavHolder(document), shown)
-            @test getfield(document, :selected)[] == 1 && get_widget_table_selected_row(table) == 1
+            @test getfield(document, :selected)[] == 1 && roster.marked === task(1)
             opened = press(projection, iomap, row; count = 2)
             @test opened isa OpenPageOperation && opened.document === document && opened.place === :here
             @test evaluate_reference(document, opened.reference) === task(1)
@@ -302,29 +799,9 @@ function test_task_views()
             projection, iomap = _print_task_view(list)
             title = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "linked tasks")
             opened = press(projection, iomap, title)
-            @test opened isa OpenPageOperation && opened.document === list
+            @test typeof(opened) == OpenPageOperation
+            @test opened.document === nothing
             @test evaluate_reference(list, opened.reference) === document
-        end
-
-        @testset "a row of a list that a scroll moved far is the task at its place" begin
-            tasks = [_TaskViewProbeTask(string("task ", k), "exit 0") for k in 1:400]
-            document = wrap_task_group_document(TaskGroup(tasks; name = "long", jobs = 1))
-            projection, iomap = _print_task_view(document)
-            pane, pane_iomap = projection.projections[1], iomap.step_iomaps[1][]
-            table = pane_iomap.output.children[2].child.elements[1].child.content
-            # A scroll far from the head writes the head of the list of the table;
-            # the pane writes the anchor of the group instead, and the list starts
-            # again from that task.
-            head = find_list_node(table.cells, 301)
-            moved = CompoundOperation(Any[ReplaceViewStateOperation(ReplaceReferencedValueOperation(table, "cells", head))])
-            answer = read_intent(pane, nothing, Intent(MouseScroll(0, -1, 10, 10, ModifierKeys(), 0.0), moved), pane_iomap)
-            _nav_apply!(_NavHolder(document), answer.operation)
-            @test getfield(document, :anchor)[] == 301
-            @test table.cells.value[2].content == "task 301"
-            row = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == "task 302")
-            _nav_apply!(_NavHolder(document), read_intent(projection, iomap,
-                MouseClick(:left, row[1] + 2, row[2] + 2, 1, ModifierKeys(); time = 0.0)))
-            @test getfield(document, :selected)[] == 302 && get_widget_table_selected_row(table) == 2
         end
 
         @testset "the tab and the Tasks pane follow the group" begin

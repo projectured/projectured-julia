@@ -2,6 +2,22 @@
 # `JuliaDocument`, the insertion that holds source being typed, and the nodes a
 # parsed file becomes.
 
+"""
+    JuliaDocument
+
+The abstract supertype of the documents of Julia source code. Its main members are `JuliaFunction`, `JuliaCall`, `JuliaStruct`, `JuliaIf`, `JuliaToplevel`.
+
+Use it to recognise the documents of Julia source code when you walk a document: a part is one of them when `part isa JuliaDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaDocument)
+    found_1 = search_documents(get_edited_document(find_pane("Main.jl")), part -> part isa JuliaCall)
+
+See also `search_documents`, `find_pane`, `describe_document` and `JuliaCall`.
+
+For the assistant.
+"""
 abstract type JuliaDocument <: Document end
 
 # Julia code is what a person typed, so its duplicate is a copy of it.
@@ -235,10 +251,8 @@ end
 """
 An empty placeholder that renders as no text at all. The parser
 uses it for the else-branch of an `if …end` with no else clause —
-distinct from `JuliaNothing` (which renders the literal
-`nothing`) and from an empty `JuliaBlock` (which still emits its
-trailing line-chrome, producing a stray blank line before the
-closing `end`).
+distinct from `JuliaNothing`, which renders the literal
+`nothing`.
 """
 @document struct JuliaEmpty <: JuliaDocument
 end
@@ -246,21 +260,25 @@ end
 # ── Statements ────────────────────────────────────────────────────────────────
 
 """
-A sequence of statements/expressions.
+The statements of a body: of a function, a loop, a `begin … end` and the other
+constructs. Each prints on a line of its own, indented under the header of the
+construct.
 """
 @document struct JuliaBlock <: JuliaDocument
     statements::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
-Statements on one line with `;` between them, `a; b`, which the Julia parser
-gives as an `Expr(:toplevel, …)` of their own. `trailing_semicolon` is a `;`
-after the last statement, `x = 1;`, which the Julia REPL reads as "do not show
-the value".
+The statements of the top level, which the Julia parser gives as an
+`Expr(:toplevel, …)`: the statements of a file, each on a line of its own with no
+indentation, or with `on_one_line`, statements on one line with `;` between them,
+`a; b`. `trailing_semicolon` is a `;` after the last statement, `x = 1;`, which
+the Julia REPL reads as "do not show the value".
 """
 @document struct JuliaToplevel <: JuliaDocument
     statements::CellVector{JuliaDocument}
     trailing_semicolon::Bool = false
+    on_one_line::Bool = false
 end
 
 """
@@ -276,8 +294,10 @@ renders the keyword highlighted and the rest verbatim.
 end
 
 """
-An anonymous function `(p₁, p₂, …) -> body`. `parameters` are the argument
-documents (empty for `() -> …`); `body` is the returned expression.
+An anonymous function `(p₁, p₂, …; k₁, …) -> body`. `parameters` are the
+positional argument documents (empty for `() -> …`); `body` is the returned
+expression; `keyword_parameters` are the documents after the `;`, empty when the
+code has no `;`.
 """
 @document struct JuliaLambda <: JuliaDocument
     parameters::CellVector{JuliaDocument}
@@ -285,7 +305,16 @@ documents (empty for `() -> …`); `body` is the returned expression.
     # Whether the parameters stand in parentheses, as the code wrote them:
     # `(x) -> x` and `() -> 1` do, `x -> x` does not.
     parenthesized::Bool = true
+    keyword_parameters::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
+
+# Callers give the lists of a lambda as plain vectors, and each becomes the
+# collection that the lambda holds. `@document` makes such a constructor only for
+# a struct with one collection (its Rule C), and a lambda has two.
+JuliaLambda(parameters::AbstractVector, body, parenthesized::Bool = true,
+            keyword_parameters::AbstractVector = JuliaDocument[]) =
+    JuliaLambda(CellVector{JuliaDocument}(parameters), body, parenthesized,
+                CellVector{JuliaDocument}(keyword_parameters))
 
 """
 An assignment statement. `operator` is one of `:(=)`, `:(+=)`, `:(-=)`, `:(*=)`, `:(/=)`.
@@ -361,15 +390,15 @@ end
     get_julia_expression_without_comments(document) -> document
 
 The expression that `document` holds without its comments: the subject of an
-end-of-line comment, or the one statement of a block whose other statements are
-comments. Any other document comes back as it is. A domain that puts the code of
+end-of-line comment, or the one statement of a block or a top level whose other
+statements are comments. Any other document comes back as it is. A domain that puts the code of
 a person into an expression place, such as the condition of an `if`, calls it,
 because a comment there holds the code that the print puts after it.
 """
 function get_julia_expression_without_comments(document)
     document isa JuliaEndOfLineComment &&
         return get_julia_expression_without_comments(document.subject)
-    if document isa JuliaBlock
+    if document isa Union{JuliaBlock, JuliaToplevel}
         statements = [s for s in document.statements if !(s isa Union{JuliaComment, JuliaMultilineComment})]
         length(statements) == 1 && return get_julia_expression_without_comments(statements[1])
     end
@@ -616,15 +645,14 @@ end
 """
 A function definition. `result_type` is the declared return type and
 `where_clause` a [`JuliaWhereParameters`](@ref); both are `JuliaEmpty`
-when absent, and print as nothing.
+when absent, and print as nothing. `keyword_parameters` are the parameters
+after `;`, each a `key = value` or a bare name, as in
+`function f(x; scale = 1)`. They print after the positional ones, as the
+keyword arguments of a [`JuliaCall`](@ref) do.
 
 The `where` lives here rather than wrapping the whole definition in a
 [`JuliaWhere`](@ref), because that is where it is written: after the
-parameter list, not after `end`. It is a single document rather than a
-collection because **`params` is this struct's one vector field** — a
-`@document` with two of them loses the sugar that wraps a raw `Vector`
-into a `CellVector`, and `params` would stop being a place the
-selection walker can descend.
+parameter list, not after `end`.
 """
 @document struct JuliaFunction <: JuliaDocument
     name::JuliaDocument
@@ -632,7 +660,16 @@ selection walker can descend.
     body::JuliaDocument
     result_type::JuliaDocument = JuliaEmpty()
     where_clause::JuliaDocument = JuliaEmpty()
+    keyword_parameters::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
+
+# Most callers give the lists of a function as plain vectors, and each becomes the
+# collection that the function holds. `@document` makes such a constructor only for
+# a struct with one collection (its Rule C), and a function has two.
+JuliaFunction(name, params::AbstractVector, body, result_type = JuliaEmpty(), where_clause = JuliaEmpty(),
+              keyword_parameters::AbstractVector = JuliaDocument[]) =
+    JuliaFunction(name, CellVector{JuliaDocument}(params), body, result_type, where_clause,
+                  CellVector{JuliaDocument}(keyword_parameters))
 
 """
 The type variables a `where` introduces, as one document — `where {T,
@@ -688,6 +725,8 @@ _julia_signature_name(node::JuliaIdentifier) = node.name
 _julia_signature_name(node::JuliaTypeAnnotation) =
     _julia_signature_name(node.value) * "::" * _julia_signature_name(node.type)
 _julia_signature_name(::JuliaEmpty) = ""
+# A parameter with a default value: a caller passes it by its name.
+_julia_signature_name(node::JuliaAssignment) = _julia_signature_name(node.target)
 _julia_signature_name(node) = string(nameof(typeof(node)))
 
 """
@@ -696,35 +735,54 @@ _julia_signature_name(node) = string(nameof(typeof(node)))
 The signature of `function_` as a caller reads it: the name, the parameters, and
 the result type where one is declared. Not the body, and not the `where` clause:
 a tooltip says what to pass, and a person who needs the rest opens the file.
+
+Use it to read what a Julia function takes and returns without its body.
+
+# Example
+
+    julia_1 = parse_julia("f(x::Int; scale = 2)::Int = x * scale")
+    signature_1 = compute_julia_signature(julia_1)
+
+See also `parse_julia` and `find_julia_definition`.
+
+For the assistant.
 """
+function compute_julia_signature end
+
 function compute_julia_signature(function_::JuliaFunction)
     parameters = join((_julia_signature_name(function_.params[i])
                        for i in 1:length(function_.params)), ", ")
+    keywords = join((_julia_signature_name(function_.keyword_parameters[i])
+                     for i in 1:length(function_.keyword_parameters)), ", ")
+    isempty(keywords) || (parameters *= "; " * keywords)
     signature = _julia_signature_name(function_.name) * "(" * parameters * ")"
     result = _julia_signature_name(function_.result_type)
     isempty(result) ? signature : signature * "::" * result
 end
 
+compute_julia_signature(function_::ReferencedDocument) = compute_julia_signature(get_document(function_))
+
 # A function answers a dwell with its signature. Its prose is in the docstring, a
 # node ABOVE it that holds the function as its subject, and the docstring adds its
 # own layer when the tooltip goes out from the function.
 get_document_gesture_bindings_own(::Type{JuliaFunction}) = GestureBinding[
-    make_tooltip_binding(function_ -> _julia_tooltip_text(compute_julia_signature(function_));
-                         description = "Show the signature")]
+    make_tooltip_binding(_make_julia_function_note; description = "Show the signature")]
 
 # A documented definition answers both, which is the whole point of a
 # documentation tooltip: what to pass, and what it is for.
 get_document_gesture_bindings_own(::Type{JuliaDocstring}) = GestureBinding[
-    make_tooltip_binding(docstring -> _julia_tooltip_text(_julia_documentation_text(docstring));
-                         description = "Show the documentation")]
+    make_tooltip_binding(_make_julia_docstring_note; description = "Show the documentation")]
 
-_julia_documentation_text(docstring::JuliaDocstring) =
-    docstring.subject isa JuliaFunction ?
-        compute_julia_signature(docstring.subject) * "\n\n" * docstring.text :
-        docstring.text
+# The note of a function: its name, and its signature as code, which breaks at the
+# edge of the window.
+_make_julia_function_note(function_::JuliaFunction) =
+    TooltipNote(; title = _julia_signature_name(function_.name), code = compute_julia_signature(function_))
 
-# A tooltip is a document, and this slice reaches the text one. A line of the
-# answer becomes a line of the text, so a blank line between the signature and the
-# prose stays a blank line.
-_julia_tooltip_text(text::AbstractString) =
-    TextBlock(TextDocument[TextLine(TextString(line)) for line in split(text, "\n")])
+# The note of a docstring: the note of the function that it documents, with the
+# prose of the docstring as its text; for another subject, the prose alone.
+function _make_julia_docstring_note(docstring::JuliaDocstring)
+    subject = docstring.subject
+    subject isa JuliaFunction || return TooltipNote(; text = docstring.text)
+    TooltipNote(; title = _julia_signature_name(subject.name), code = compute_julia_signature(subject),
+                text = docstring.text)
+end

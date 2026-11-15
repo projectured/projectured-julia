@@ -24,6 +24,7 @@ using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
+using ..LinkModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
@@ -39,6 +40,7 @@ using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..TooltipModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -46,10 +48,11 @@ import ..DocumentModule: get_document_title, get_edited_field, has_document_dupl
 import ..PaneModule: make_pane_tab_title
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: make_change
 import ..OperationModule: evaluate_operation
 import ..DomainModule: acquire_document!, release_document!, get_document_decoration
 
-export NavigatorViewSlot, NavigatorVisit, ReferenceInsertion, NavigatorAddress, NavigatorChoiceList, Navigator
+export NavigatorViewSlot, NavigatorVisit, ReferenceInsertion, NavigatorAddress, Navigator
 export get_navigator_page_address, get_navigator_address_steps, get_navigator_page, get_navigator_page_view,
        find_navigator_parent_address, is_navigator_stop, find_navigator_selected_address,
        make_navigator_open_operation, make_navigator_back_operation,
@@ -60,7 +63,6 @@ export make_navigator_address_edit_operation, make_navigator_address_commit_oper
 export find_navigator_target, find_navigator_address, open_page!
 export make_navigator_address_projection, ReferenceStepToSyntaxLeaf
 export NavigatorToWidget, make_navigator_projection
-export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")
@@ -70,7 +72,6 @@ include("NavigatorGestures.jl")
 include("NavigatorPageOpen.jl")
 include("NavigatorAddressToSyntax.jl")
 include("NavigatorToWidget.jl")
-include("NavigatorChoiceListToWidget.jl")
 
 # The row that lets a tab draw a navigator. The factory form, so every renderer
 # builds its own projection instance. The bar and the page come back through the
@@ -80,9 +81,6 @@ function __init__()
         Navigator => ChainingProjection(
             make_navigator_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme),
                                       syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-            GridLayoutToGraphicsCanvas()),
-        NavigatorChoiceList => ChainingProjection(
-            make_navigator_choice_list_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
             GridLayoutToGraphicsCanvas())])
 end
 

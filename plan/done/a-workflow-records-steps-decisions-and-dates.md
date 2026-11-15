@@ -454,9 +454,14 @@ given to `change_workflow_state!` raised a `MethodError` (now an
 7. **No switch operation:** "no, there's no need to switch to a workflow
    operation, the user can have multiple workflows open at a time".
 
-## 7. Open questions for a later plan
+## 7. The questions after the plan
 
-- **Q2. How does the model learn that a workflow exists?** The verbs are in the
+- **Q2. How does the model learn that a workflow exists?** Answered by later
+  work: the explorer of each window lists the open workflows, so a model sees
+  "Workflows" in `find_explorer_content()`, and a loaded domain registers the
+  sentence that tells a model about its names
+  (`plan/done/the-explorer-shows-the-open-workflows.md`). The question as it
+  stood: The verbs are in the
   API, and a model finds them with `search_api` when it searches for a decision
   or a workflow. The system text of the application is static and names only
   modules of the platform, and no domain can add a sentence to it. Two ways, each
@@ -468,6 +473,11 @@ given to `change_workflow_state!` raised a `MethodError` (now an
   turn knows its assistant where it runs `execute_julia_code!`, so it could bind
   it in the namespace of the code; an external agent reaches the editor through
   MCP and has no assistant there. This is a new mechanism too.
+  **The owner (2026-10-26): "keep it explicit".** A verb takes its node as its
+  first argument, and the `workflow` of an assistant does not stand in for it.
+  An explicit node works the same for the built-in assistant and for an external
+  agent, and the explorer already lists the open workflows, so a model can name
+  the node.
 - Left for later, as section 4.6 says: the dashboard page, the exploration
   graph, due dates, templates; and from the steps: a lighter row of add buttons,
   the caret in an added node, a button that starts a new workflow file, and the

@@ -36,6 +36,10 @@ function ReferenceModule.evaluate_reference_step(step::AFieldReferenceStep, view
     invoke(evaluate_reference_step, Tuple{AFieldReferenceStep, Any}, step, view)
 end
 
+ReferenceModule.has_reference_step_child(step::AFieldReferenceStep, view::ContentView) =
+    hasfield(typeof(view), Symbol(step.name)) ||
+    has_reference_step_child(step, getproperty(view, :viewed))
+
 """
     make_content_view(content) -> ContentView or nothing
 

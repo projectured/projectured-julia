@@ -108,10 +108,13 @@ function _print_grid_list(p, recursion, doc, ctx)
     policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
     peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
                                                peek(getfield(doc, :column_policy)))
-    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    # The grid divides the edge of its width, exact or bounded, else its minimum,
+    # as the eager grid does; a cell that is not built can not be measured, so a
+    # weighted column is its share.
+    avail_w = ctx === nothing ? nothing : first(_gl_divided_extent(ctx.minimum_width, ctx.maximum_width))
     _check_grid_list(n, peek_column_policy, row_policy, avail_w)
-    hgap = getfield(doc, :horizontal_gap)
-    vgap = getfield(doc, :vertical_gap)
+    hgap = make_layout_gap_cell(doc, :horizontal_gap)
+    vgap = make_layout_gap_cell(doc, :vertical_gap)
     # Every column is given its extent, so no cell is read to find it.
     no_content = Cell[Cell(0) for _ in 1:n]
     col_extents = _gl_extents_cell(getfield(doc, :columns), policy_of_column, no_content, hgap,
@@ -128,7 +131,7 @@ function _print_grid_list(p, recursion, doc, ctx)
     # list draws no rows.
     set_cell_computation!(state.head, () -> begin
         list = doc.children
-        start_kept_list_head!(state.prints)
+        start_kept_list_head!(state.prints, list)
         empty!(state.built)
         list isa ListNode ?
             _make_grid_list_node(recursion, doc, ctx, state, col_x, col_w, total_w, 1, list,
@@ -252,7 +255,7 @@ end
 # as the row. The `y` of the canvas is set by the node that links it.
 _make_grid_list_row_canvas(printed::_GridListRow, total_w::Cell) =
     GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), total_w, printed.height,
-                   CellVector(Cell[Cell(e) for e in printed.cells]), layout_none, true,
+                   CellVector(Cell[Cell(e) for e in printed.cells]), layout_horizontal, false,
                    Cell(nothing))
 
 # The canvas node of row `k`, linked as a node of a linear list is
@@ -266,8 +269,8 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
         _link_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
     end
     state.built[k] = (canvas, entries, row_h)
-    note_kept_list_link!(state.prints, k)
-    vgap = getfield(doc, :vertical_gap)
+    note_kept_list_link!(state.prints, k, document_node)
+    vgap = make_layout_gap_cell(doc, :vertical_gap)
     if before !== nothing
         before_canvas = before.value
         set_cell_computation!(getfield(canvas, :y),

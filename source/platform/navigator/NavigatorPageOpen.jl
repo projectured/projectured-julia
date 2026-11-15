@@ -1,18 +1,21 @@
 # Fragment of `NavigatorModule` — the open of a page that no navigator takes, which
-# opens a tab with a navigator of its own, what the target of a link names, and
-# where a content holds a document.
+# opens a tab with a navigator of its own, the open of an address outside the
+# editor, what the target of a link names, and where a content holds a document.
 
 """
-    find_navigator_target(root, target) -> Reference, String or nothing
+    find_navigator_target(root, target) -> Reference, String, Url or nothing
 
 What the target of a link names, for a navigator whose content is `root`:
 `target` is the text of the target as the domain of the link writes it, such as
 `#install`, `guide.md` or the name of an rst target. The answer is a `Reference`
-to a part of `root`, the absolute path of a file, or `nothing` for a target that
-names nothing here, such as a web URL. The default answers `nothing`; a domain
-adds a method for its root and its file document.
+to a part of `root`, the absolute path of a file, a `Url` for an address outside
+the editor, such as a web address, which opens in the program of the system for
+it, or `nothing` for a target that names nothing. An address outside the editor
+needs no page to resolve it, so the default answers a `Url` for an address of the
+web or of mail (`find_web_url`) and `nothing` for any other target; a domain adds
+a method for its root and its file document.
 """
-find_navigator_target(root, target::AbstractString) = nothing
+find_navigator_target(root, target::AbstractString) = find_web_url(target)
 
 """
     find_navigator_address(root, document) -> Reference or nothing
@@ -39,22 +42,27 @@ function evaluate_operation(editor, operation::OpenPageOperation)
     if operation.target !== nothing
         address = find_navigator_target(content, operation.target)
         address isa AbstractString && return evaluate_operation(editor, OpenFileOperation(address; file_wrap = Navigator))
+        address isa Url && return evaluate_operation(editor, OpenUrlOperation(address, operation.place))
         address isa Reference || return nothing
         address = annotate_reference_types(content, strip_reference_types(address))
     end
+    # A page opens as a person opens it: the new tab takes the focus.
     post_pane_operation!(editor, make_open_pane_operation(Navigator(content, address);
-                                                          group = get_pane_file_group(; editor), editor))
+                                                          group = get_pane_file_group(; editor),
+                                                          focus = true, editor))
     nothing
 end
 
 """
-    open_page!(part; editor = get_evaluation_editor()) -> Text
+    open_page!(part; editor = get_evaluation_editor()) -> ReferencedDocument
 
-Open `part` as a page in a new tab with a navigator, as the "Open as a page"
-command does: the page shows the part alone, its address names its place in the
-document of its tab, and Back, Forward and Parent move from it. The tab opens at
-the next frame of the window. `part` is a `ReferencedDocument` that a verb
-answered, such as a record read from `get_edited_document(tab)`.
+Open `part` as a page in a new tab with a navigator, in the group where the "Open
+as a page" command opens it: the page shows the part alone, its address names its
+place in the document of its tab, and Back, Forward and Parent move from it. As
+with `open_pane!`, the tab does not take the focus of the person, and the answer
+is the new tab, which `show_pane!` brings to the front. `part` is a
+`ReferencedDocument` that a verb answered, such as a record read from
+`get_edited_document(tab)`.
 
 Use it to show the person one part of a large document on a page of its own,
 such as one record of a table or one section of a file.
@@ -62,18 +70,31 @@ such as one record of a table or one section of a file.
 # Example
 
     people_1 = get_edited_document(find_pane("people.json"))
-    open_page!(people_1[2])
+    page_tab_1 = open_page!(people_1[2])
+    show_pane!(page_tab_1)
 
-See also `open_pane!`, `select_part!`.
+See also `open_pane!`, `show_pane!`, `select_part!`.
+
+For the assistant.
 """
 function open_page! end
 
 function open_page!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "open_page!") do
-        evaluate_operation(editor, OpenPageOperation(nothing, get_reference(part)))
+        content, address = _find_opened_content(editor.document, OpenPageOperation(nothing, get_reference(part)))
+        content === nothing &&
+            throw(ArgumentError("open_page!: the reference of the part names nothing in the window."))
+        open_pane!(Navigator(content, address); group = get_pane_file_group(; editor), editor)
     end
-    Text("The page of " * describe_document(part) * " opens in a new tab.")
 end
+
+make_change(::typeof(open_page!), part::ReferencedDocument; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        content, address = _find_opened_content(editor.document, OpenPageOperation(nothing, get_reference(part)))
+        content === nothing &&
+            throw(ArgumentError("open_page!: the reference of the part names nothing in the window."))
+        make_change(open_pane!, Navigator(content, address); group = get_pane_file_group(; editor), editor)
+    end
 
 # The navigators of the window of `root`: the content of a tab that is one, and a
 # navigator that the content of a tab holds in a field, such as the navigator of
@@ -151,4 +172,19 @@ function _find_opened_content(root, operation::OpenPageOperation)
     end
     content = nodes[index]
     (content, annotate_reference_types(content, extend_reference(EmptyReference(), steps[index:end]...)))
+end
+
+# An address: a file opens in a new tab with a navigator, as a link to a file does,
+# an address whose document a package reads (`find_url_document`) opens that
+# document as a page in a new tab, and any other address opens in the program of
+# the system for it, through the backend of the editor. A backend that opens
+# nothing says so in the log.
+function evaluate_operation(editor, operation::OpenUrlOperation)
+    path = find_url_file_path(operation.url)
+    path === nothing || return evaluate_operation(editor, OpenFileOperation(path; file_wrap = Navigator))
+    document = find_url_document(operation.url)
+    document === nothing || return evaluate_operation(editor, OpenPageOperation(document, EmptyReference(), :new_tab))
+    address = format_url(operation.url)
+    open_url!(editor.backend, address) || @warn("No program of the system opened the address.", address)
+    nothing
 end

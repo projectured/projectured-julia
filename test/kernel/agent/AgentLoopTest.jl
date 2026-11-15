@@ -7,7 +7,8 @@ import ProjecturedKernel.FaultModule: FaultStore, get_fault_records
 import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd, LlmImage
 import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!, register_default_tools!,
                                      call_tool, take_tool_call_value!, start_background_work,
-                                     stop_background_work!
+                                     stop_background_work!, find_evaluation_starter,
+                                     run_with_evaluation_starter
 using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                 make_scripted_say
 
@@ -204,8 +205,8 @@ function test_agent_loop()
         @test isempty(_get_agent_tool_results(events))
     end
 
-    # The answer is the stop reason of the last round that ran: the model still
-    # waits for tools when the cap ends the turn.
+    # The answer says that the cap ended the turn while the model still waited
+    # for tools.
     @testset "the round cap ends a turn that keeps calling tools" begin
         calls = Ref(0)
         tools = _make_agent_loop_tools((target, arguments) -> (calls[] += 1; "ran"))
@@ -214,7 +215,7 @@ function test_agent_loop()
         stop = @test_logs (:warn, r"round cap") match_mode = :any run_turn!(
             agent, (name = :target,); messages = () -> LlmMessage[],
             on_event = event -> nothing)
-        @test stop === :tool_use
+        @test stop === :round_limit
         @test calls[] == 2
         @test llm.cursor == 2
     end
@@ -258,6 +259,24 @@ function test_agent_loop()
                         messages = () -> LlmMessage[], on_event = log) === :end_turn
         @test length(_get_agent_tool_results(log.events)) == 1
         @test !ismutabletype(Agent)
+    end
+
+    @testset "a tool call runs with the starter that the turn gives for it" begin
+        seen = Any[]
+        tools = _make_agent_loop_tools((target, arguments) -> (push!(seen, find_evaluation_starter()); "ran"))
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        stop = run_turn!(Agent(llm, tools), (name = :target,); messages = () -> LlmMessage[],
+                         on_event = event -> nothing, call_starter = call -> (:assistant, call.id))
+        @test stop === :end_turn
+        @test seen == Any[(:assistant, "tu_1")]
+        # With no function the call keeps the starter of the turn.
+        empty!(seen)
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        run_with_evaluation_starter(:the_turn) do
+            run_turn!(Agent(llm, tools), (name = :target,); messages = () -> LlmMessage[],
+                      on_event = event -> nothing)
+        end
+        @test seen == Any[:the_turn]
     end
 
     @testset "a round cap below one is refused" begin

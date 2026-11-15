@@ -1,6 +1,6 @@
 # Graph layout
 
-> **Kind:** reference · **Status:** current · **Stands on:** [graph.md](graph.md), [domain-inventory.md](../../../design/domain-inventory.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [graph.md](graph.md), [domain-inventory.md](../../../design/domain-inventory.md)
 
 How a graph gets from a list of vertices and edges to a picture: which engines
 exist, what each one is, what a caller can ask of them, and which one runs when
@@ -17,6 +17,12 @@ layout_graph(engine, graph, sizes, constraints; extent = nothing, border = 0)
 `(x, y)` the top-left corner; `routes` maps an edge to a polyline. Every key is
 an `objectid`, which keeps the call free of any reactive cell so
 `GraphGraphToGraphLayout` can memoize it on topology, sizes and constraints.
+
+The drawing uses only the bends of a route. It starts the line at the centre of
+the box of the source, passes through the bends, ends it at the centre of the
+box of the target, and cuts it at the painted rim of each box. So an engine can
+end a route on the border of a box or at its centre, and the arrowhead still
+touches the box. [graph.md](graph.md) says how, under "The edges".
 
 `extent` is the box the caller has room for and `border` is the inset kept
 inside it. They are arguments rather than engine fields because the same graph,
@@ -36,18 +42,21 @@ caller's business, and what `:pin` means to an algorithm is this package's.
 | `AdaptagramsLayout` | libcola placement and libavoid routing, through a C shim | carried | native |
 | `DeferredLayout` | becomes one of the above, or a registered engine, when the layout runs | — | — |
 
-`AdaptagramsLayout` has a native dependency, so it lives in its own package and
-reaches this one through `register_layout_engine!`. When its shim is not built
+`AdaptagramsLayout` has a native dependency, so it lives in its own package. A
+projection that wants it names it as its engine. When its shim is not built
 it says so once and hands each layout to the engine of this package. A package
-can register any engine the same way, for example one that reproduces the
-pictures of another program.
+can register any engine with `register_layout_engine!`, for example one that
+reproduces the pictures of another program.
 
 ## The force-directed engine
 
 `FruchtermanReingoldLayout` follows the paper: an edge pulls its two ends
-together with `d²/k`, every pair of bodies pushes apart with `k²/d`, and a
-temperature that falls each round caps how far a body moves. Four things are
-added for the boxes that this package draws:
+together with `d²/k`, every pair of bodies closer than `2k` pushes apart with
+`k²/d`, as in the grid variant of the paper, and a temperature that falls each
+round caps how far a body moves. Two bodies farther apart do not push each
+other, so a large group keeps the room of its neighbours only: a tree of 40 cards
+of 228 × 150 px takes about 3600 × 4300 px. Four things are added for the boxes
+that this package draws:
 
 - **Sizes.** `k`, the ideal distance, is the mean size of a box plus `spacing`,
   and the forces read the distance between the rims of two bodies, so a large
@@ -55,7 +64,8 @@ added for the boxes that this package draws:
 - **Constraints.** A pinned vertex is a body that does not move. A cluster is
   one body that carries its members at their offsets.
 - **Parts that are not connected** feel a weak pull to the centre of the
-  drawing, so no part drifts away from the others.
+  drawing. The push reaches only `2k`, so the pull holds every part beside the
+  others, a vertex with no edge among them.
 - **No overlap.** After the simulation, a pass pushes each two boxes that still
   overlap apart, along the axis where they overlap less.
 
@@ -75,6 +85,14 @@ yields only to a pin, and a free body yields first.
 A drop of a dragged vertex writes a `:pin` for it and a `:start` for every other
 vertex, at the place where it is drawn, into `GraphGraph.constraints`. The next
 layout begins from what the person saw.
+
+`GraphGraphToGraphLayout` also gives a `:start` to each vertex that the engine
+placed by itself in its last run, at that corner, when the engine takes a start.
+So an edit that changes the size of a box does not lay out the graph from the
+start: the boxes stay, and only the boxes that overlap after it move. These starts
+come before the constraints of the projection and of the graph, and the stage
+does not write them into the document. A vertex that a constraint placed gets
+none, so the undo of a drop gives the engine its free choice again.
 
 | engine | what a `:start` does |
 | --- | --- |

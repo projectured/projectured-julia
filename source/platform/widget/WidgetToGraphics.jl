@@ -136,22 +136,91 @@ end
 _get_inset_sides(inset::Inset) =
     (_sc(Int(inset.left[])), _sc(Int(inset.top[])), _sc(Int(inset.right[])), _sc(Int(inset.bottom[])))
 
-# The resolved insets of `w`, each as `(left, top, right, bottom)`.
-_get_box_insets(p, w; variant = nothing) =
-    (margin  = _get_inset_sides(_get_inset(w, p, :margin; variant)),
-     border  = _get_inset_sides(_get_inset(w, p, :border; variant)),
-     padding = _get_inset_sides(_get_inset(w, p, :padding; variant)))
-
-function _content_offset(p, w::WidgetDocument; variant = nothing)
-    box = _get_box_insets(p, w; variant)
-    (box.margin[1] + box.border[1] + box.padding[1], box.margin[2] + box.border[2] + box.padding[2])
+# The shape of a widget box: from the outside in, the space that the parent gives
+# around the box, the margin, the border and the padding, each as
+# `(left, top, right, bottom)`. The outer extent of the box is the extent of its
+# canvas, so the shape does not hold it. A printer computes the shape once
+# (`_make_box_geometry_cell`), and its IO map carries it to the readers
+# (`_get_box_geometry`).
+#
+# The space is the space of the offer (`_get_given_space`). It lies outside the
+# margin and inside the canvas of the box, so a parent counts it in the extent,
+# as it counts a margin, and the box draws nothing in it. A box offers 0 to what
+# it holds.
+struct BoxGeometry
+    space::NTuple{4, Int}
+    margin::NTuple{4, Int}
+    border::NTuple{4, Int}
+    padding::NTuple{4, Int}
 end
 
-function _inset_total(p, w::WidgetDocument; variant = nothing)
-    box = _get_box_insets(p, w; variant)
-    (box.margin[1] + box.margin[3] + box.border[1] + box.border[3] + box.padding[1] + box.padding[3],
-     box.margin[2] + box.margin[4] + box.border[2] + box.border[4] + box.padding[2] + box.padding[4])
+# The space of an offer that gives no space.
+const _NO_SPACE = (0, 0, 0, 0)
+
+# The shape of a widget that draws no box, such as a widget that is not visible.
+const _NO_BOX_GEOMETRY = BoxGeometry(_NO_SPACE, _NO_SPACE, _NO_SPACE, _NO_SPACE)
+
+# The space that the parent of a widget gives around it, `(left, top, right,
+# bottom)`: the space of the offer, and none for a print with no context.
+_get_given_space(ctx) = ctx === nothing ? _NO_SPACE : ctx.space
+
+# The offer of `ctx` with no space: the range that a box passes on to a part that
+# it draws inside its edge.
+_with_no_space(ctx) = ctx === nothing ? nothing : with_size_range(ctx)
+
+# The shape of `w` that `p` draws in `variant`, with `space` around it.
+_compute_box_geometry(p, w, space::NTuple{4, Int}; variant = nothing) =
+    BoxGeometry(space,
+                _get_inset_sides(_get_inset(w, p, :margin; variant)),
+                _get_inset_sides(_get_inset(w, p, :border; variant)),
+                _get_inset_sides(_get_inset(w, p, :padding; variant)))
+
+# The shape in a cell, which each computation of a print reads. The insets of the
+# theme and of the document are cells, so a change of one reaches the shape.
+_make_box_geometry_cell(p, w, space::NTuple{4, Int}; variant = nothing) =
+    Cell(@computation _compute_box_geometry(p, w, space; variant))
+
+# The sides of the box outside its part `part`, which is `:margin`, `:border`,
+# `:padding` or `:content`, each as `(left, top, right, bottom)`: the space
+# outside the margin, the margin too outside the border, the border too outside
+# the padding, and every inset outside the content.
+function _get_sides_outside(box::BoxGeometry, part::Symbol)
+    part === :margin && return box.space
+    sides = box.space .+ box.margin
+    part === :border && return sides
+    sides = sides .+ box.border
+    part === :padding && return sides
+    part === :content || throw(ArgumentError("a box has no part $(repr(part))"))
+    sides .+ box.padding
 end
+
+# The place of the content in the frame of the box.
+function _get_content_offset(box::BoxGeometry)
+    left, top, _, _ = _get_sides_outside(box, :content)
+    (left, top)
+end
+
+# The width and the height that the four insets take together.
+function _get_inset_total(box::BoxGeometry)
+    left, top, right, bottom = _get_sides_outside(box, :content)
+    (left + right, top + bottom)
+end
+
+# The width and the height that the space takes.
+function _get_space_total(box::BoxGeometry)
+    left, top, right, bottom = box.space
+    (left + right, top + bottom)
+end
+
+# The rect `(x, y, width, height)` of the part `part` of the box, `:margin` or
+# `:border`, in a box whose outer extent is `width` by `height`: the margin box
+# lies inside the space, and the border box inside the space and the margin.
+function _get_part_rect(box::BoxGeometry, part::Symbol, width::Int, height::Int)
+    left, top, right, bottom = _get_sides_outside(box, part)
+    (left, top, width - left - right, height - top - bottom)
+end
+
+_get_border_rect(box::BoxGeometry, width::Int, height::Int) = _get_part_rect(box, :border, width, height)
 
 # Push the band of `sides` inside the rectangle `(x, y, width, height)`: one rect
 # for each side with a width. A transparent band adds no element.
@@ -164,13 +233,6 @@ function _push_band!(elements::Vector, x::Int, y::Int, width::Int, height::Int, 
     right > 0 && push!(elements, GraphicsRect(x + width - right, y + top, right, height - top - bottom; color))
 end
 
-# Push the four box parts of a widget whose content is `content_width` by
-# `content_height`, at the widget's own origin. `box` holds the insets that
-# `_get_box_insets` resolves, and `colors` a color for each part: `margin`,
-# `border`, `padding` and `content`. A transparent part adds no element. With a
-# uniform border and one color for the padding and the content, the border, the
-# padding and the content are one rounded rect; else each part is a band, so a
-# translucent part does not show the color of the part around it.
 # True when `_push_box_parts!` can draw something for a box of these insets and
 # colours: a colour that is not transparent, and a border only where it has a width.
 _is_box_visible(box, colors) =
@@ -178,37 +240,96 @@ _is_box_visible(box, colors) =
     !is_color_transparent(colors.content) ||
     (any(>(0), box.border) && !is_color_transparent(colors.border))
 
-function _push_box_parts!(elements::Vector, box, colors, content_width::Int, content_height::Int;
-                          radius::Int = 0)
+# Push the four box parts of a widget whose content is `content_width` by
+# `content_height`, inside the space of the box at the widget's own origin. `box`
+# is the shape of the box, and `colors` a color for each part: `margin`,
+# `border`, `padding` and `content`. A transparent part adds no element. With a
+# uniform border and one color for the padding and the content, the border, the
+# padding and the content are one rounded rect; else each part is a band, so a
+# translucent part does not show the color of the part around it.
+function _push_box_parts!(elements::Vector, box::BoxGeometry, colors, content_width::Int,
+                          content_height::Int; radius::Int = 0)
+    space_left, space_top = box.space
     margin_left, margin_top, margin_right, margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
     padding_left, padding_top, padding_right, padding_bottom = box.padding
     border_box_width = border_left + padding_left + content_width + padding_right + border_right
     border_box_height = border_top + padding_top + content_height + padding_bottom + border_bottom
-    _push_band!(elements, 0, 0, margin_left + border_box_width + margin_right,
+    margin_x, margin_y = space_left, space_top
+    border_x, border_y = margin_x + margin_left, margin_y + margin_top
+    _push_band!(elements, margin_x, margin_y, margin_left + border_box_width + margin_right,
                 margin_top + border_box_height + margin_bottom, box.margin, colors.margin)
     uniform = border_left == border_top == border_right == border_bottom
     if uniform && is_color_equal(colors.padding, colors.content)
-        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+        _push_panel!(elements, border_x, border_y, border_box_width, border_box_height;
                      fill = colors.padding, border = colors.border, border_w = border_left, radius = radius)
         return
     end
     if uniform
-        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+        _push_panel!(elements, border_x, border_y, border_box_width, border_box_height;
                      fill = color_transparent, border = colors.border, border_w = border_left, radius = radius)
     else
-        _push_band!(elements, margin_left, margin_top, border_box_width, border_box_height,
+        _push_band!(elements, border_x, border_y, border_box_width, border_box_height,
                     box.border, colors.border)
     end
-    _push_band!(elements, margin_left + border_left, margin_top + border_top,
+    _push_band!(elements, border_x + border_left, border_y + border_top,
                 padding_left + content_width + padding_right, padding_top + content_height + padding_bottom,
                 box.padding, colors.padding)
     # The content keeps the corner radius, less the border and the padding
     # that lie between it and the rounded outline.
-    _push_panel!(elements, margin_left + border_left + padding_left, margin_top + border_top + padding_top,
+    _push_panel!(elements, border_x + border_left + padding_left, border_y + border_top + padding_top,
                  content_width, content_height; fill = colors.content,
                  radius = max(0, radius - border_left - padding_left))
 end
+
+# Cut the content of a widget at the inner box of `box` (`layout-rules.md` §3b).
+# `elements[first:end]` is the content, drawn in the frame of the widget, and it
+# reaches `content_width` by `content_height` from the inner edge of the box, in a
+# widget whose outer extent is `width` by `height`. When it reaches past the inner
+# box on an axis, the content goes into one viewport at the inner box, so it draws
+# over neither the border of the widget nor the widget beside it. The canvas in the
+# viewport moves the content back by the place of the viewport, so each element
+# keeps its place in the frame of the widget. A content that fits keeps its
+# elements as they are.
+function _cut_content_at_box!(elements::Vector, first::Int, box::BoxGeometry, width::Int, height::Int,
+                              content_width::Int, content_height::Int; scroll::Tuple{Int,Int} = (0, 0))
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    _cut_elements!(elements, first, content_x, content_y, max(0, width - inset_width),
+                   max(0, height - inset_height), content_width, content_height; scroll)
+end
+
+# Cut `elements[first:end]` at the rect `(x, y, width, height)` in their frame, when
+# they reach `reach_width` by `reach_height` from `(x, y)` and that passes the rect
+# on an axis: the elements go into one viewport at the rect, and keep their places.
+# A part of a widget that holds a content beside a mark of its own, such as the
+# value of a select beside its chevron, cuts the content at the rect of the content.
+function _cut_elements!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int,
+                        reach_width::Int, reach_height::Int; scroll::Tuple{Int,Int} = (0, 0))
+    (reach_width <= width && reach_height <= height) && return elements
+    _put_in_viewport!(elements, first, x, y, width, height; scroll)
+end
+
+# Put `elements[first:end]` into one viewport at the rect `(x, y, width, height)` in
+# their frame; the canvas in the viewport moves them back by the place of the
+# viewport, so each element keeps its place, and further by `scroll`, the offset of
+# a content that scrolls in its box.
+function _put_in_viewport!(elements::Vector, first::Int, x::Int, y::Int, width::Int, height::Int;
+                           scroll::Tuple{Int,Int} = (0, 0))
+    first > length(elements) && return elements
+    content = elements[first:end]
+    deleteat!(elements, first:length(elements))
+    canvas = GraphicsCanvas(Int32(-x - scroll[1]), Int32(-y - scroll[2]), Int32(0), Int32(0),
+                            CellVector(Cell[Cell(element) for element in content]),
+                            layout_none, true, Cell(nothing))
+    push!(elements, GraphicsViewport(Int32(x), Int32(y), Int32(max(0, width)), Int32(max(0, height)), canvas))
+    elements
+end
+
+# The place of a content of `extent` in an inner box of `room` on one axis, from the
+# inner edge: `offset` when it fits, and the edge when it is larger, so a content
+# that is cut shows its start.
+_place_in_room(offset::Int, extent::Int, room::Int) = extent > room ? 0 : offset
 
 # Push the band of `sides` inside a rectangle whose origin and size are thunks:
 # each rect computes its geometry from them, so it follows the cells that the
@@ -234,7 +355,9 @@ end
 # is a pair of cells, such as the viewport of a pane. The bands follow the cells,
 # so a content that grows moves them without a print of the pane. The pane
 # paints its content part itself.
-function _push_following_box_bands!(elements::Vector, box, colors, content_width::Cell, content_height::Cell)
+function _push_following_box_bands!(elements::Vector, box::BoxGeometry, colors, content_width::Cell,
+                                    content_height::Cell)
+    space_left, space_top = box.space
     margin_left, margin_top, margin_right, margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
     padding_left, padding_top, padding_right, padding_bottom = box.padding
@@ -242,12 +365,13 @@ function _push_following_box_bands!(elements::Vector, box, colors, content_width
     padding_height() = padding_top + Int(content_height[]) + padding_bottom
     border_width() = border_left + padding_width() + border_right
     border_height() = border_top + padding_height() + border_bottom
-    _push_following_band!(elements, () -> 0, () -> 0,
+    border_x, border_y = space_left + margin_left, space_top + margin_top
+    _push_following_band!(elements, () -> space_left, () -> space_top,
                           () -> margin_left + border_width() + margin_right,
                           () -> margin_top + border_height() + margin_bottom, box.margin, colors.margin)
-    _push_following_band!(elements, () -> margin_left, () -> margin_top, border_width, border_height,
+    _push_following_band!(elements, () -> border_x, () -> border_y, border_width, border_height,
                           box.border, colors.border)
-    _push_following_band!(elements, () -> margin_left + border_left, () -> margin_top + border_top,
+    _push_following_band!(elements, () -> border_x + border_left, () -> border_y + border_top,
                           padding_width, padding_height, box.padding, colors.padding)
 end
 
@@ -285,8 +409,9 @@ function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
 end
 
 # A focus ring around a focused widget (Stage 2). Focus is selection. The ring is
-# a **persistent overlay** (always pushed) whose `w`/`h` read the selection — full
-# control bounds when focused, 0 when not (a zero-size rect the renderer skips).
+# a **persistent overlay** (always pushed) whose `w`/`h` read the selection — the
+# margin box of `box` in a widget of `width` by `height` when focused, so the ring
+# stays inside the space, and 0 when not (a zero-size rect the renderer skips).
 # Pushing it unconditionally keeps the selection read OUT of the elements-vector
 # thunk, so a pure focus/caret move invalidates only the ring's own geometry cells
 # (selection-overlay geometry), not the whole content `CellVector` — the widget
@@ -295,12 +420,15 @@ end
 # ring-coloured border shows.
 #
 # `whole`, when given, holds the values of the graphics theme, whose ring color
-# the ring takes while the widget is selected as a whole. A text box with the focus holds a caret, so a whole selection of one is
-# a selection of the box as an object, and it shows as one. The ring keeps the
-# width of `ring`; only its color follows the kind of the selection.
-function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
+# the ring takes while the widget is selected as a whole, or a value in one of
+# its own fields is, such as the text of a text box. A text box with the focus
+# holds a caret, so a whole selection of one is a selection of the box as an
+# object, and it shows as one. The ring keeps the width of `ring`; only its color
+# follows the kind of the selection.
+function _push_focus_ring!(elems::Vector, w::WidgetDocument, box::BoxGeometry, width::Int, height::Int,
                            ring::StyleStroke, radius::Int; whole = nothing)
-    rect = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius,
+    x, y, cw, ch = _get_part_rect(box, :margin, width, height)
+    rect = GraphicsRect(x, y, 0, 0; color = color_transparent, radius,
                         border_width=max(1, Int(ring.width)), border_color=ring.color)
     set_cell_computation!(getfield(rect, :w),
                           () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
@@ -308,8 +436,132 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                           () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     whole === nothing ||
         set_cell_computation!(getfield(rect, :border_color), () ->
-            get_stored_selection(w) isa EmptyReference ? whole.selection_ring : ring.color)
+            _is_whole_widget_selection(w, get_stored_selection(w)) ? whole.selection_ring : ring.color)
     push!(elems, rect)
+end
+
+# Whether `selection`, the stored selection of `w`, names `w` as a whole, one of
+# its own fields as a whole, such as `.content` of a text box, or the value of the
+# document in such a field, such as `.content.value` of a `PrimitiveString`
+# (`is_whole_selected_field`). A caret in the text is no such selection.
+function _is_whole_widget_selection(w, selection)
+    selection isa EmptyReference && return true
+    selection isa ConcreteReference || return false
+    step = first(get_reference_steps(strip_reference_types(selection)))
+    step isa FieldReferenceStep && is_whole_selected_field(selection, step.name; document = w)
+end
+
+# ── The IO map of a widget ──────────────────────────────────────────────────
+# A widget printer puts the shape of its box into its IO map, so its readers, its
+# hit tests and the ring of its selection read the shape there. A widget that
+# holds no child returns a `WidgetBoxIoMap`, and a container a
+# `WidgetChildrenIoMap`. A widget with an IO map of its own holds the shape in
+# its field `box`.
+
+# The IO map of a widget that holds no child: the fields of a `SimpleIoMap`, the
+# shape of the box, and the lines of text that the widget drew with the part of its
+# input that each shows (`DrawnTextLine`).
+@iomap struct WidgetBoxIoMap
+    projection::Any
+    input::Any
+    output::Any
+    box::Any
+    drawn::Any
+end
+
+# The IO map of a widget that records no line of text.
+WidgetBoxIoMap(projection, input, output, box) =
+    WidgetBoxIoMap(projection, input, output, box, _NO_DRAWN_TEXT_LINES)
+
+const _NO_DRAWN_TEXT_LINES = DrawnTextLine[]
+
+# The IO map of a widget that holds children: the fields of a `ChildrenIoMap`,
+# whose `child_iomaps` holds an `(x, y, child_iomap)` entry for each child, and
+# the shape of the box.
+@iomap struct WidgetChildrenIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+end
+
+# The IO map of a card: the fields of a `WidgetChildrenIoMap`, and `header`, the
+# header row that the card drew, as `(height, title_box)`. `height` is the
+# height of the row, and `title_box` is `(x, y, width, height)` of a title that
+# is a `String` in the frame of the card, or `nothing` for any other title.
+@iomap struct WidgetCardToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+    header::Any
+    drawn::Any            # the lines of the title and the description (`DrawnTextLine`)
+end
+
+# The IO map of a visible fact group: the children of a `WidgetChildrenIoMap`, for
+# each fact the node that covers its row and the `(top, bottom)` of the row in the
+# frame of the group, and the lines of its texts. The printer derives them in the
+# build that draws the rows. PAR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetFactGroupToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    row_nodes::Any
+    row_bounds::Any
+    box::Any
+    drawn::Any            # the lines of the title, the labels and the values (`DrawnTextLine`)
+end
+
+# The IO map of a tabbed pane: the fields of a `WidgetChildrenIoMap`, one entry
+# for the content of each tab; `name_view`, the IO map of the text view that
+# draws the name that holds the caret, or `nothing` for a pane that draws no
+# strip; and `close_iomaps`, the IO map of the close button of each tab, or
+# `nothing` for each tab of a pane that is not `closable`. The reader gives a key
+# in a name to the name view, so the text domain edits a name as it edits every
+# text.
+@iomap struct WidgetTabbedPaneToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Any
+    box::Any
+    name_view::Any
+    close_iomaps::Any
+end
+
+# An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
+const _ChildEntriesIoMap = Union{WidgetChildrenIoMap, WidgetCardToGraphicsCanvasIoMap,
+                                WidgetFactGroupToGraphicsCanvasIoMap,
+                                WidgetTabbedPaneToGraphicsCanvasIoMap}
+
+# The shape of the box of a widget, from its IO map.
+_get_box_geometry(iomap) = iomap.box
+
+# What a route reaches through a container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::_ChildEntriesIoMap) =
+    _collect_child_iomaps(iomap.child_iomaps...)
+
+# A route reaches the content of each tab, and the close button of each tab.
+ProjectionModule.get_child_iomaps(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.child_iomaps..., iomap.close_iomaps...)
+
+# A widget with no child answers the baseline of its text by a method for its
+# projection. One that draws no text answers none.
+find_first_baseline(iomap::WidgetBoxIoMap) = find_first_baseline(iomap.projection, iomap)
+find_first_baseline(projection, iomap::WidgetBoxIoMap) = nothing
+
+# A container answers the baseline of its first child that has one, offset by the
+# place of that child.
+function find_first_baseline(iomap::_ChildEntriesIoMap)
+    for entry in iomap.child_iomaps
+        (entry isa Tuple && length(entry) == 3) || continue
+        baseline = find_first_baseline(entry[3])
+        baseline === nothing || return Int(unwrap_cell(entry[2])) + baseline
+    end
+    nothing
 end
 
 # ── The light under the pointer ─────────────────────────────────────────────
@@ -346,16 +598,18 @@ _is_under_pointer(w) = get_mouse_target(w) !== nothing
     content_color::StyleColor
     label_text::StyleText
     placeholder_color::StyleColor          # an image that is not decoded yet
+    selected_color::StyleColor             # the band of the text selected as a whole
 end
 
-WidgetLabelToGraphicsCanvas(theme; measure,
+WidgetLabelToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default, border = inset_default, padding = inset_default,
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = color_transparent, content_color = color_transparent,
                             label_text = _themed(StyleText, theme, _get_body_text),
-                            placeholder_color = _themed(StyleColor, theme, t -> t.muted)) =
+                            placeholder_color = _themed(StyleColor, theme, t -> t.muted),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetLabelToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                padding_color, content_color, label_text, placeholder_color)
+                                padding_color, content_color, label_text, placeholder_color, selected_color)
 
 @projection UntrackedCell struct WidgetTextToGraphicsCanvas
     measure::TextMeasure
@@ -477,9 +731,10 @@ WidgetCheckboxToGraphicsCanvas(theme; measure,
     corner_radius::Int
     label_gap::Int                         # between the icon and the label
     icon_size::Float64                    # times the box of the icon, one line of the label
+    selected_color::StyleColor             # the band of the label selected as a whole
 end
 
-WidgetButtonToGraphicsCanvas(theme; measure,
+WidgetButtonToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                              margin = inset_default,
                              border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                              padding = _themed(Inset, theme, t -> t.control_padding),
@@ -501,13 +756,50 @@ WidgetButtonToGraphicsCanvas(theme; measure,
                                  _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                              corner_radius = _themed(Int, theme, t -> t.radius),
                              label_gap = _themed(Int, theme, t -> t.label_gap),
-                             icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                             icon_size = _themed(Float64, theme, t -> t.icon_size),
+                             selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetButtonToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, padding_disabled_color,
                                  content_disabled_color, label_text, label_disabled_text,
                                  layer_hovered_color, layer_pressed_color, shadow_color, shadow_offset,
                                  placeholder_color, focus_ring_stroke, corner_radius, label_gap,
-                                 icon_size)
+                                 icon_size, selected_color)
+
+@projection UntrackedCell struct WidgetLinkToGraphicsCanvas
+    measure::TextMeasure
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    link_text::StyleText
+    link_disabled_text::StyleText          # a link that opens nothing
+    underline_width::Int                   # the line under the face while the pointer is on the link
+    focus_ring_stroke::StyleStroke
+    corner_radius::Int
+    label_gap::Int                         # between the icon and the text
+    icon_size::Float64                     # times the height of the line of the text
+    selected_color::StyleColor             # the band of the text selected as a whole
+end
+
+WidgetLinkToGraphicsCanvas(theme; graphics_theme = nothing, measure,
+                           margin = inset_default, border = inset_default, padding = inset_default,
+                           margin_color = color_transparent, border_color = color_transparent,
+                           padding_color = color_transparent, content_color = color_transparent,
+                           link_text = _themed(StyleText, theme, _get_link_text),
+                           link_disabled_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                           underline_width = _themed(Int, theme, t -> t.border_width),
+                           focus_ring_stroke =
+                               _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                           corner_radius = _themed(Int, theme, t -> t.radius),
+                           label_gap = _themed(Int, theme, t -> t.label_gap),
+                           icon_size = _themed(Float64, theme, t -> t.icon_size),
+                           selected_color = _make_selected_row_color(graphics_theme)) =
+    WidgetLinkToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                               padding_color, content_color, link_text, link_disabled_text, underline_width,
+                               focus_ring_stroke, corner_radius, label_gap, icon_size, selected_color)
 
 @projection UntrackedCell struct WidgetTooltipToGraphicsCanvas
     measure::TextMeasure
@@ -554,24 +846,26 @@ WidgetTooltipToGraphicsCanvas(theme; measure,
     vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
     bar_gap::Int                # between the items of a horizontal menu bar
+    highlighted_color::StyleColor   # behind the item that the keys lit, the selection band
 end
 
-WidgetMenuToGraphicsCanvas(theme; measure,
+WidgetMenuToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            margin = inset_default, border = inset_default,
                            padding = _themed(Inset, theme, t -> t.menu_bar_padding),
                            vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
-                           vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.item_gap)),
+                           vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.menu_padding)),
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
                            vertical_border_color = _themed(StyleColor, theme, t -> t.border),
                            vertical_padding_color = _themed(StyleColor, theme, t -> t.popover),
                            vertical_content_color = _themed(StyleColor, theme, t -> t.popover),
                            font = _themed(StyleFont, theme, t -> t.font),
-                           bar_gap = _themed(Int, theme, t -> t.bar_gap)) =
+                           bar_gap = _themed(Int, theme, t -> t.bar_gap),
+                           highlighted_color = _make_selected_row_color(graphics_theme)) =
     WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
                                margin_color, border_color, padding_color, content_color,
                                vertical_border_color, vertical_padding_color,
-                               vertical_content_color, font, bar_gap)
+                               vertical_content_color, font, bar_gap, highlighted_color)
 
 # An item that opens a menu is the name of the menu on a bar, the variant
 # `submenu`; any other item is a command of a menu. Each takes its own padding.
@@ -591,6 +885,8 @@ WidgetMenuToGraphicsCanvas(theme; measure,
     label_gap::Int                   # between a leading icon and the label
     popup_gap::Int                   # below the item, where its submenu opens
     icon_size::Float64              # times the box of a leading icon, one line of the label
+    keys_text::StyleText             # the keys of the item, at its right edge
+    keys_gap::Int                    # between the label and the keys
 end
 
 WidgetMenuItemToGraphicsCanvas(theme; measure,
@@ -604,12 +900,14 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
                                    _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                                label_gap = _themed(Int, theme, t -> t.label_gap),
-                               popup_gap = _themed(Int, theme, t -> t.item_gap),
-                               icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                               popup_gap = _themed(Int, theme, t -> t.popup_gap),
+                               icon_size = _themed(Float64, theme, t -> t.icon_size),
+                               keys_text = _themed(StyleText, theme, _get_quiet_text),
+                               keys_gap = _themed(Int, theme, t -> t.section_gap)) =
     WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, submenu_padding, margin_color,
                                    border_color, padding_color, content_color, label_text,
                                    label_disabled_text,
-                                   layer_hovered_color, label_gap, popup_gap, icon_size)
+                                   layer_hovered_color, label_gap, popup_gap, icon_size, keys_text, keys_gap)
 
 @projection UntrackedCell struct WidgetToolbarItemToGraphicsCanvas
     measure::TextMeasure
@@ -627,9 +925,11 @@ WidgetMenuItemToGraphicsCanvas(theme; measure,
     layer_stroke::StyleStroke        # the outline of the layer: the item shows as a button
     corner_radius::Int
     icon_size::Float64               # times the box of the icon, one line of the label
+    badge::Any                       # the colors of the roles of a decorated icon and its marks
+    selected_color::StyleColor       # the band of the label selected as a whole
 end
 
-WidgetToolbarItemToGraphicsCanvas(theme; measure,
+WidgetToolbarItemToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                   margin = inset_default, border = inset_default,
                                   padding = _themed(Inset, theme, t -> t.toolbar_item_padding),
                                   margin_color = color_transparent, border_color = color_transparent,
@@ -642,11 +942,13 @@ WidgetToolbarItemToGraphicsCanvas(theme; measure,
                                   layer_stroke =
                                       _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                   corner_radius = _themed(Int, theme, t -> t.radius),
-                                  icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
+                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                                  selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
                                       layer_hovered_color, layer_pressed_color, layer_stroke,
-                                      corner_radius, icon_size)
+                                      corner_radius, icon_size, badge, selected_color)
 
 @projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
@@ -678,6 +980,7 @@ WidgetCompositeToGraphicsCanvas(theme; graphics_theme = nothing,
     content_color::StyleColor
     font::StyleFont             # measures the menu/toolbar band heights
     band_gap::Int               # gap below the toolbar band
+    band_line_stroke::StyleStroke   # the line under the menu bar and the toolbar, above the status bar
 end
 
 WidgetShellToGraphicsCanvas(theme; measure,
@@ -687,9 +990,10 @@ WidgetShellToGraphicsCanvas(theme; measure,
                             padding_color = _themed(StyleColor, theme, t -> t.background),
                             content_color = _themed(StyleColor, theme, t -> t.background),
                             font = _themed(StyleFont, theme, t -> t.font),
-                            band_gap = _themed(Int, theme, t -> t.item_gap)) =
+                            band_gap = _themed(Int, theme, t -> t.band_gap),
+                            band_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
     WidgetShellToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                padding_color, content_color, font, band_gap)
+                                padding_color, content_color, font, band_gap, band_line_stroke)
 
 @projection UntrackedCell struct WidgetTitlePaneToGraphicsCanvas
     measure::TextMeasure
@@ -727,6 +1031,11 @@ WidgetTitlePaneToGraphicsCanvas(theme; measure,
     padding_color::StyleColor
     content_color::StyleColor
     splitter_stroke::StyleStroke    # divider color + thickness
+    slot_padding::Inset             # the space that each slot gives to what it holds
+    splitter_band_color::StyleColor # the band of a divider that the pointer rests on or that is dragged
+    splitter_band_width::Int        # across the band, centred on the divider
+    band_delay::Float64             # seconds that the pointer rests on a divider before its band shows
+    fade_duration::Float64          # seconds that the band takes to fade in and to fade out
 end
 
 WidgetSplitPaneToGraphicsCanvas(theme;
@@ -734,9 +1043,14 @@ WidgetSplitPaneToGraphicsCanvas(theme;
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 splitter_stroke =
-                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                slot_padding = _themed(Inset, theme, t -> t.slot_padding),
+                                splitter_band_color = _themed(StyleColor, theme, t -> t.ring),
+                                splitter_band_width = _themed(Int, theme, t -> t.splitter_band_width),
+                                band_delay = 0.3, fade_duration = 0.1) =
     WidgetSplitPaneToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, splitter_stroke)
+                                    content_color, splitter_stroke, slot_padding, splitter_band_color,
+                                    splitter_band_width, Float64(band_delay), Float64(fade_duration))
 
 @projection UntrackedCell struct WidgetTabbedPaneToGraphicsCanvas
     measure::TextMeasure
@@ -755,11 +1069,13 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     tab_selected_text::StyleText
     page_color::StyleColor                # the area below the strip
     graphics_style::NamedTuple            # the ring around a page selected as a whole
-    tab_padding::Int
+    tab_padding::Inset
     corner_radius::Int
     label_gap::Int                        # between a tab's icon and its label, and before its button
     icon_size::Float64                   # times the box of an icon and of a button, one line
     badge::Any                            # the badge printer of the theme, for the badges of a label
+    tab_row_line_stroke::StyleStroke      # the line under the tab row, open under the selected tab
+    slot_padding::Inset                   # the space that the page gives to what it holds
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -772,19 +1088,21 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  tab_color = color_transparent,
                                  tab_selected_color = _themed(StyleColor, theme, t -> t.background),
                                  tab_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
-                                 tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
+                                 tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.selected_tab_font, t.foreground)),
                                  page_color = color_transparent,
                                  graphics_style = _make_graphics_style(graphics_theme),
-                                 tab_padding = _themed(Int, theme, t -> t.item_gap),
+                                 tab_padding = _themed(Inset, theme, t -> t.tab_padding),
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
                                  icon_size = _themed(Float64, theme, t -> t.icon_size),
-                                 badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+                                 badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                                 tab_row_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                 slot_padding = _themed(Inset, theme, t -> t.slot_padding)) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
                                      graphics_style, tab_padding, corner_radius, label_gap,
-                                     icon_size, badge)
+                                     icon_size, badge, tab_row_line_stroke, slot_padding)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -921,6 +1239,8 @@ WidgetScrollBarToGraphicsCanvas(theme;
     content_iomap::Any
     bars::Any        # the bars that the pane draws: `(field, document, iomap, place)` each
     parts::Any       # the parts of a `ScrollLayout` that the pane takes apart, or `nothing`
+    revealed_scroll::Any # the cell of the offset that shows the selection when the pane starts, or `nothing`
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -934,6 +1254,7 @@ ProjectionModule.get_child_iomaps(iomap::WidgetScrollPaneToGraphicsCanvasIoMap) 
     input::WidgetTransformPane
     output::GraphicsCanvas
     content_iomap::Any
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -989,18 +1310,57 @@ function _text_lines(measure, font::StyleFont, text::AbstractString, bound::Int)
 end
 
 # One text, drawn from `x, y` down, broken to `bound`. Answers the width of the
-# widest line and the height of all of them.
+# widest line and the height of all of them. With `max_lines` above 0, only that
+# many lines are drawn, and the last ends with an ellipsis where the text goes on.
+# A `LineSpacing` in `spacing` sets the height of each line, with the half of its
+# leading above the text; `nothing` keeps the lines of the font.
+#
+# With `drawn`, a vector of `DrawnTextLine`, and `part`, the path of the part of the
+# input that `text` shows, each line that the block draws is recorded with the
+# character of `text` where it starts.
 function _push_text_block!(elements::Vector, measure, style::StyleText,
-                           text::AbstractString, x::Int, y::Int, bound::Int)
+                           text::AbstractString, x::Int, y::Int, bound::Int;
+                           max_lines::Int = 0, spacing = nothing, part = nothing, drawn = nothing)
     width = 0
     height = 0
-    for line in _text_lines(measure, style.font, text, bound)
-        line_width, line_height = _text_size(measure, style.font, line)
-        _push_text!(elements, measure, style.font, line, x, y + height, style.color)
-        width = max(width, Int(line_width))
-        height += Int(line_height)
+    lines = _limit_text_lines(measure, style.font, _text_lines(measure, style.font, text, bound),
+                              bound, max_lines)
+    starts = drawn === nothing ? nothing : _find_line_starts(text, lines)
+    for (index, line) in enumerate(lines)
+        if spacing === nothing
+            drawn_width, step = _text_size(measure, style.font, line)
+            lift = 0
+        else
+            box = compute_line_box(measure, line, style.font; spacing)
+            drawn_width, step, lift = box.width, box.height, box.text_y
+        end
+        _push_text!(elements, measure, style.font, line, x, y + height + Int(lift), style.color)
+        drawn === nothing || push!(drawn, DrawnTextLine(last(elements), part, starts[index]))
+        width = max(width, Int(drawn_width))
+        height += Int(step)
     end
     (width, height)
+end
+
+# The lines of a text of at most `max_lines`, when it is above 0: the last line
+# that is drawn ends with "…", and it is cut to fit `bound` with the ellipsis.
+function _limit_text_lines(measure, font::StyleFont, lines::Vector{String}, bound::Int, max_lines::Int)
+    (max_lines <= 0 || length(lines) <= max_lines) && return lines
+    kept = lines[1:max_lines]
+    kept[end] = _make_ellipsis_line(measure, font, kept[end] * " " * lines[max_lines + 1], bound)
+    kept
+end
+
+# `text` cut at the end so that it and "…" fit `bound`; the whole text when it fits.
+function _make_ellipsis_line(measure, font::StyleFont, text::AbstractString, bound::Int)
+    (bound <= 0 || first(_text_size(measure, font, text)) <= bound) && return String(text)
+    characters = collect(rstrip(text))
+    while !isempty(characters)
+        pop!(characters)
+        candidate = rstrip(String(characters)) * "…"
+        first(_text_size(measure, font, candidate)) <= bound && return candidate
+    end
+    "…"
 end
 
 # The width of `text` in `font` and the height of the line that holds it.
@@ -1012,7 +1372,7 @@ end
 # ── Image / polymorphic content helpers ─────────────────────────────────────
 
 # Decoded pixel payload of an ImageDocument and its natural size, read straight
-# from the image's `raw` cell (filled by the backend's `decode_image_file!`):
+# from the image's `raw` cell:
 #   (data, natural_w, natural_h)  when decoded
 #   (nothing, 0, 0)               until decoded (printer draws a placeholder)
 # Mirrors TextToGraphics' `_extract_image_data`: the domain layer only *reads*
@@ -1025,6 +1385,18 @@ function _image_payload(img::ImageDocument)
     (raw, 0, 0)
 end
 
+# An `Image` answers its pixel cell itself, which only the paint of a backend
+# reads, and its natural size from `get_image_natural_size`, which asks a task for
+# the size in the head of the file. Until the first answer it measures as
+# `_UNMEASURED_IMAGE_SIZE`, which the slot of the label then fits.
+const _UNMEASURED_IMAGE_SIZE = (320, 240)
+
+function _image_payload(img::Image)
+    natural_size = get_image_natural_size(img)
+    width, height = natural_size === nothing ? _UNMEASURED_IMAGE_SIZE : natural_size
+    (getfield(img, :pixels), width, height)
+end
+
 # The rendered content size of a widget's polymorphic `content`: an ImageDocument
 # measures to its natural size, anything else is stringified and text-measured.
 function _content_size(measure, font::StyleFont, content)
@@ -1033,6 +1405,19 @@ function _content_size(measure, font::StyleFont, content)
         return (iw, ih)
     end
     _text_size(measure, font, string(content))
+end
+
+# The size an image draws at: its natural size, or smaller, in its shape, to
+# fit the maximum of the range the parent gave on each axis less the box. A free
+# axis does not bound the image. The image keeps at least one pixel.
+function _fit_image_size(width::Int, height::Int, ctx, inset_width::Int, inset_height::Int)
+    (width > 0 && height > 0 && ctx !== nothing) || return (width, height)
+    scale = 1.0
+    ctx.maximum_width === nothing ||
+        (scale = min(scale, max(1, Int(ctx.maximum_width[]) - inset_width) / width))
+    ctx.maximum_height === nothing ||
+        (scale = min(scale, max(1, Int(ctx.maximum_height[]) - inset_height) / height))
+    scale == 1.0 ? (width, height) : (max(1, round(Int, width * scale)), max(1, round(Int, height * scale)))
 end
 
 # Push a widget's polymorphic `content` into `elems` at (x, y). An ImageDocument
@@ -1046,6 +1431,9 @@ function _push_content!(elems::Vector, measure, label::StyleText, content,
             # Not decoded yet — keep layout stable with a placeholder.
             _push_panel!(elems, x, y, cw, ch; fill = placeholder_color)
         else
+            # A picture whose pixels have not come, or whose read failed, shows a box under its pixels.
+            content isa Image && (content.decoded_count < 0 || content.failure !== nothing) &&
+                _push_panel!(elems, x, y, cw, ch; fill = placeholder_color)
             push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
         end
     else
@@ -1059,12 +1447,11 @@ end
 # minimum and a maximum (`PrinterContext`); the widget draws
 # `max(minimum, content)`, or its authored size.
 #
-#   - an exact range (the minimum is the maximum) stretches the widget to it, so
-#     the widget takes its slot in a layout;
+#   - an exact range (the minimum is the maximum) is the size of the widget, so
+#     the widget takes its slot in a layout, and cuts a larger content at its box;
 #   - a bounded or a free range has no minimum, so the widget draws its content;
-#   - the widget never goes under its content — the measured content plus its
-#     padding — so content is never lost; the container clips what passes the
-#     maximum.
+#   - in a bounded or a free range the widget never goes under its content — the
+#     measured content plus its padding; an ancestor cuts what passes the maximum.
 #
 # A widget with no measurable content (progress, slider, skeleton) has a content
 # of 0 and sizes from the minimum or from its authored value.
@@ -1075,8 +1462,9 @@ end
 # An overlay — a tooltip, a menu, a context menu — sizes to its content and to any
 # size its caller asked for, and is then CAPPED at the maximum of the range rather
 # than stretched to the minimum. A tooltip that filled its window would be a panel.
+# An authored size does not hold the space around the box, as in `_resolve_size`.
 function _resolve_overlay(ctx, axis::Symbol, authored::Int, content::Int)
-    base = max(authored, content)
+    base = max(authored > 0 ? authored + _get_given_space_extent(ctx, axis) : 0, content)
     edge = ctx === nothing ? nothing :
            axis === :x ? ctx.maximum_width : ctx.maximum_height
     edge === nothing ? base : min(base, max(0, Int(edge[])))
@@ -1092,15 +1480,29 @@ end
 # content is smaller: an exact range stretches it to the slot, and a bounded or
 # a free range, whose minimum is 0, leaves it at its content.
 #
-# The content is a floor under the minimum, never under an authored size. A
-# widget told to be 40 wide draws 40 and lets its content overflow, because that
-# is what being told a size means. The maximum does not cut the widget: the
-# container clips what passes it.
+# An exact range is a size that is decided, and the widget takes it, as it takes
+# an authored size. In a bounded or a free range the content is a floor under the
+# minimum, so a stack can tell a child that is too big from one that fits. A
+# widget told to be 40 wide, or given exactly 40, draws 40 and cuts its content at
+# its box (`_cut_content_at_box!`). The maximum of a bounded range does not cut the
+# widget: an ancestor cuts what passes it.
+#
+# An authored size does not hold the space that the parent gives around the box
+# (`_get_given_space`), so the widget is the authored size and the space. The
+# content, the minimum and an exact range hold the space.
 function _resolve_size(ctx, axis::Symbol, authored::Int, content::Int=0)
-    authored > 0 && return authored
-    minimum = ctx === nothing ? nothing :
-              axis === :x ? ctx.minimum_width : ctx.minimum_height
+    authored > 0 && return authored + _get_given_space_extent(ctx, axis)
+    ctx === nothing && return content
+    exact = axis === :x ? get_exact_width(ctx) : get_exact_height(ctx)
+    exact === nothing || return max(0, Int(exact[]))
+    minimum = axis === :x ? ctx.minimum_width : ctx.minimum_height
     minimum === nothing ? content : max(0, Int(minimum[]), content)
+end
+
+# The extent that the space given around a box takes on `axis`.
+function _get_given_space_extent(ctx, axis::Symbol)
+    left, top, right, bottom = _get_given_space(ctx)
+    axis === :x ? left + right : top + bottom
 end
 
 _resolve_width(ctx, authored::Int, content::Int=0) =
@@ -1203,8 +1605,12 @@ function _get_entry_box(x, y, cim, measure)
 end
 
 # `cap` is an overlay's context: given one, the extent is capped by what the
-# parent offered rather than allowed to run past it.
-function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
+# parent offered rather than allowed to run past it. `stretch` is a context whose
+# minimum raises the extent, by the rule of every widget (`layout-rules.md` §1).
+# `width` and `height` are cells that fix the extent on an axis where the widget
+# has a slot.
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing, stretch = nothing,
+                               width = nothing, height = nothing)
     elems = CellVector(Computation(elems_fn))
     bounds = Cell(@computation begin
         w = 0; h = 0
@@ -1212,12 +1618,12 @@ function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
             ew, eh = _element_size(e, measure)
             w = max(w, ew); h = max(h, eh)
         end
-        cap === nothing ? (w, h) :
-            (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        cap === nothing || return (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
+        stretch === nothing ? (w, h) : (_resolve_size(stretch, :x, 0, w), _resolve_size(stretch, :y, 0, h))
     end)
     GraphicsCanvas(Int32(x), Int32(y),
-                   Cell(@computation Int32(bounds[][1])),
-                   Cell(@computation Int32(bounds[][2])),
+                   width === nothing ? Cell(@computation Int32(bounds[][1])) : Cell(@computation Int32(Int(width[]))),
+                   height === nothing ? Cell(@computation Int32(bounds[][2])) : Cell(@computation Int32(Int(height[]))),
                    elems, layout_none, true, Cell(nothing))
 end
 
@@ -1311,11 +1717,11 @@ function _find_child_steps(input, child)
     isempty(paths) ? nothing : collect(get_reference_steps(strip_reference_types(first(paths))))
 end
 
-# A point of a container that keeps its children in a `ChildrenIoMap` maps to the
-# child drawn at it; any other reference maps to nothing.
+# A point of a container that keeps its children in a `WidgetChildrenIoMap` maps to
+# the child drawn at it; any other reference maps to nothing.
 function _map_child_point(iomap, reference)
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa ChildrenIoMap)) && return nothing
+    (point === nothing || !(iomap isa _ChildEntriesIoMap)) && return nothing
     _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
 end
 
@@ -1385,7 +1791,7 @@ function _read_children_move(input, entries::Vector, evt::MouseMove, on_containe
     join_move_answers(reroot_operation(old_answer, Tuple(steps)), new_answer)
 end
 
-_read_children_move(iomap::ChildrenIoMap, evt::MouseMove) =
+_read_children_move(iomap::WidgetChildrenIoMap, evt::MouseMove) =
     _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
                         !_outside_widget(iomap, evt))
 
@@ -1489,12 +1895,9 @@ function _retarget_op(p, iomap, op)
         return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
     elseif op isa ReplaceTextRangeOperation
         # A flat edit of the lines of a text: under a document it stays flat; in the
-        # text of a plain value it is a range of that string.
+        # text of a plain value it is a range of that string (`retarget_operation`).
         new_ref = map_reference_backward(p, iomap, op.reference)
-        new_ref === nothing && return nothing
-        last(get_reference_steps(strip_reference_types(new_ref))) isa TextRangeReferenceStep &&
-            return ReplaceTextRangeOperation(new_ref, op.replacement)
-        return ReplaceStringRangeOperation(new_ref, op.replacement)
+        return new_ref === nothing ? nothing : retarget_operation(op, new_ref)
     elseif op isa ReplaceReferencedValueOperation
         # `editor.document`-rooted (document === nothing) ⇒ reroot the reference;
         # a self-contained one (carried root) passes through unchanged.
@@ -1550,66 +1953,139 @@ end
 
 # The baseline of the first line of a label: the top of its content box and the
 # baseline of the line box of its text. An image has none.
-function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap)
+function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap)
     w = iomap.input
-    (w.visible == false || w.content isa ImageDocument) && return nothing
-    _, content_y = _content_offset(p, w)
-    content_y + compute_line_box(p.measure, string(w.content), _get_label_style(p, w).font).baseline
+    (w.visible == false || get_shown_picture(w.content) isa ImageDocument) && return nothing
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
+    font = _get_label_style(p, w).font
+    spacing = w.line_spacing
+    line = spacing === nothing ? compute_line_box(p.measure, string(w.content), font) :
+                                 compute_line_box(p.measure, string(w.content), font; spacing)
+    content_y + line.baseline
 end
 
 function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        content = w.content
-        # A label may carry its own font+color (e.g. a chat card's title) that
-        # overrides the theme's default label style — or a bare COLOUR, which
-        # takes the theme's font and only changes the ink, or a bare FONT, which
-        # takes the theme's ink. The colour is what lets a severity, a diff or a
-        # status be coloured without a caller naming a font and so dropping out
-        # of the theme; the font is what lets a label write an icon of the icon
-        # font in the color of the text beside it. `text_style` wins over the
-        # `label_text_color` of a style.
-        style = _get_label_style(p, w)
-        box = _get_box_insets(p, w)
-        colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
-        content_width, content_height = _content_size(p.measure, style.font, content)
-        elements = Any[]
-        # Text breaks at the edge of the range the parent gave, exact or bounded,
-        # less the box. A label in a column holds prose in that column, and a line
-        # longer than the column would be drawn past it and lost. An image is not
-        # broken; it fills its box.
-        edge = ctx === nothing ? nothing : ctx.maximum_width
-        bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
-        if bound > 0 && content_width > bound
-            text_elements = Any[]
-            text_width, text_height = _push_text_block!(text_elements, p.measure, style, string(content),
-                                                        content_x, content_y, bound)
-            outer_width = _resolve_width(ctx, 0, text_width + inset_width)
-            outer_height = _resolve_height(ctx, 0, text_height + inset_height)
-            _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height)
-            append!(elements, text_elements)
-            return (width = outer_width, height = outer_height, elements = elements)
-        end
-        # No size of its own, so the offer decides and the content is the floor.
-        # An image label fills what it is given; text stays where it is drawn.
-        outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
-        outer_height = _resolve_height(ctx, 0, content_height + inset_height)
-        content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        _push_box_parts!(elements, box, colors, content_width, content_height)
-        _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
-                       content_height; placeholder_color = p.placeholder_color)
-        (width = outer_width, height = outer_height, elements = elements)
-    end))
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> _build_label(p, w, geometry[], ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# The canvas of a widget that records the lines of its text, from `build`, a cell
+# of `(; width, height, elements, drawn)`: its elements, with the caret that a
+# plain click puts into the text and the band of a text selected as a whole, which
+# an Alt+double click selects (`make_drawn_selection_elements`). The marks read the
+# selection of `w` in a cell of their own, so a move of the selection builds no
+# widget.
+_make_drawn_text_canvas(x::Int, y::Int, build::Cell, w, measure, band_color) =
+    GraphicsCanvas(Int32(x), Int32(y),
+                   Cell(@computation Int32(build[].width)),
+                   Cell(@computation Int32(build[].height)),
+                   CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
+                                                                         w.selection, measure, band_color)),
+                   layout_none, true, Cell(nothing))
 
-function map_reference_backward(::WidgetLabelToGraphicsCanvas, iomap, reference)
-    return nothing
+# The box, the text and the lines of a label: `(; width, height, elements, drawn)`.
+# A label that draws its content as a text records each line that it draws, as the
+# part `.content` from the character where the line starts.
+function _build_label(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel, box::BoxGeometry, ctx)
+    drawn = DrawnTextLine[]
+    content = get_shown_picture(w.content)
+    part = _is_drawn_value(content) ? _CONTENT_PART : nothing
+    # A label may carry its own font+color (e.g. a chat card's title) that
+    # overrides the theme's default label style — or a bare COLOUR, which
+    # takes the theme's font and only changes the ink, or a bare FONT, which
+    # takes the theme's ink. The colour is what lets a severity, a diff or a
+    # status be coloured without a caller naming a font and so dropping out
+    # of the theme; the font is what lets a label write an icon of the icon
+    # font in the color of the text beside it. `text_style` wins over the
+    # `label_text_color` of a style.
+    style = _get_label_style(p, w)
+    colors = _get_box_colors(p, w)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    content_width, content_height = _content_size(p.measure, style.font, content)
+    content isa ImageDocument &&
+        ((content_width, content_height) = _fit_image_size(content_width, content_height, ctx,
+                                                           inset_width, inset_height))
+    elements = Any[]
+    # Text breaks at the edge of the range the parent gave, exact or bounded,
+    # less the box. A label in a column holds prose in that column, and a line
+    # longer than the column would be drawn past it and lost. An image is not
+    # broken; it fills its box.
+    edge = ctx === nothing ? nothing : ctx.maximum_width
+    bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
+    radius = w.corner_radius
+    text = content isa ImageDocument ? "" : string(content)
+    if !(content isa ImageDocument) && (bound > 0 && content_width > bound ||
+                                         w.line_spacing !== nothing || occursin('\n', text))
+        text_elements = Any[]
+        text_width, text_height = _push_text_block!(text_elements, p.measure, style, text,
+                                                    content_x, content_y, bound;
+                                                    max_lines = w.max_lines, spacing = w.line_spacing,
+                                                    part, drawn = part === nothing ? nothing : drawn)
+        outer_width = _resolve_width(ctx, 0, text_width + inset_width)
+        outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+        _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
+                         radius)
+        first_content = length(elements) + 1
+        append!(elements, text_elements)
+        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, text_width, text_height)
+        return (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
+    end
+    # No size of its own, so the offer decides and the content is the floor.
+    # An image label fills what it is given; text stays where it is drawn, and the
+    # box cuts a text that is larger than the box.
+    outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
+    outer_height = _resolve_height(ctx, 0, content_height + inset_height)
+    reach_width, reach_height = content isa ImageDocument ? (0, 0) : (content_width, content_height)
+    content_width, content_height = outer_width - inset_width, outer_height - inset_height
+    _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+    first_content = length(elements) + 1
+    _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
+                   content_height; placeholder_color = p.placeholder_color)
+    part === nothing || push!(drawn, DrawnTextLine(last(elements), part, 0))
+    _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, reach_width, reach_height)
+    (width = outer_width, height = outer_height, elements = elements, drawn = drawn)
 end
+
+# The part `.content` of a widget that shows its content as a text.
+const _CONTENT_PART = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+
+# Whether a widget draws `value` as a text that it records: a value that is no
+# document and no picture, such as a `String` or a number, which the widget draws as
+# its `string`. A caret in it is a place in the value, as in the text of a primitive.
+_is_drawn_value(value) = !(value isa Document) && !(value isa ImageDocument)
+
+# A widget that shows a text that it draws and records, such as the label, the badge
+# and the avatar, maps and reads a click on the text by the three functions below.
+
+# A caret or a range in the text is drawn on its line.
+_map_drawn_text_forward(iomap, reference) =
+    something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
+              Some(_map_child_forward(iomap, reference)))
+map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the text, and a point on it, is the caret or the range in
+# the content; any other place names nothing.
+map_reference_backward(p::WidgetLabelToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+function _map_drawn_text_backward(p, iomap, reference)
+    reference === nothing && return nothing
+    place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
+    point = find_reference_point(reference)
+    (point === nothing || _is_bound_control(iomap.input)) && return nothing
+    find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+end
+
+# Whether `w` acts on a press by bindings of its own, as a chip that selects the
+# item it names does: such a widget is a control, so a plain click and a move give
+# its text no caret, and the move names the widget as a whole; an Alt+click still
+# puts the caret there.
+_is_bound_control(w) = !isempty(get_instance_gesture_bindings(w))
 
 
 # ── Every widget checks its own bounds ────────────────────────────────────────
@@ -1663,9 +2139,49 @@ function _find_row_index(bounds, y::Real)
     nothing
 end
 
-function read_intent(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
+# A label or a badge takes the gestures that it is given, such as a press on a
+# chip, which then acts on a plain click and gives no caret to it. Else a plain
+# single click on its text puts the caret at the character under the pointer, and
+# a move names that caret as the part under the pointer. An Alt+click puts the
+# caret there whatever the widget does, also on a chip, and an Alt+double click
+# answers it too, which the container makes the text as a whole
+# (`convert_to_whole_selection`). A plain double click is left to the widget around
+# it, such as the row that it opens. A key that no binding takes moves the caret or
+# the range in the text, read-only, by the key table of the text domain
+# (`read_drawn_text_key`), also on a chip that an Alt+click gave the caret. A left
+# press puts the caret and starts a drag that selects a range, and with Shift a press
+# or a click moves the moving end of the selection to the point
+# (`read_drawn_text_pointer`); on a chip only a press with Alt does.
+read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
+    w = iomap.input
+    # The moves and the end of a drag that a press on the text started reach the
+    # widget also off its text.
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
     _outside_widget(iomap, evt) && return nothing
-    return nothing
+    w.visible == false && return nothing
+    # A press that selects never acts, so it reads no binding, and nor does a press
+    # with Alt.
+    selecting = is_selection_press(evt) || evt isa MouseDown && evt.modifiers.alt
+    if !selecting
+        bound = read_bound_gesture(w, evt)
+        bound === nothing || return bound
+        key = read_drawn_text_key(iomap.drawn, w, evt, p.measure)
+        key === nothing || return key
+    end
+    evt isa MouseDown && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure;
+                                                        control = _is_bound_control(w))
+    !selecting && _is_bound_control(w) && return nothing
+    shift = evt isa MouseClick && evt.modifiers == ModifierKeys(shift = true)
+    press = selecting ||
+            evt isa MouseClick && evt.button === :left && evt.count == 1 && (evt.modifiers == ModifierKeys() || shift)
+    (press || evt isa MouseMove) || return nothing
+    if press
+        path = find_drawn_click_selection(iomap.drawn, iomap.output, w, evt, p.measure)
+        return path === nothing ? nothing : ReplaceSelectionOperation(path)
+    end
+    caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure)
+    caret === nothing ? nothing : ReplaceMouseTargetOperation(annotate_reference_types(w, caret))
 end
 
 # ── WidgetInsertion ──────────────────────────────────────────────────────────
@@ -1698,17 +2214,19 @@ function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::Widget
     content = "insert here"
     label = _get_part_text(w, :label_text, p.label_text)
     content_width, content_height = _text_size(p.measure, label.font, content)
-    inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
+    box = _compute_box_geometry(p, w, _get_given_space(ctx))
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     elements = Any[]
-    _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+    _push_box_parts!(elements, box, _get_box_colors(p, w), content_width, content_height)
     _push_text!(elements, p.measure, label.font, content, content_x, content_y, label.color)
-    SimpleIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements))
+    WidgetBoxIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements),
+                   box)
 end
 
 map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
@@ -1729,6 +2247,8 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
     output::Any
     content_iomap::Any
     value_iomap::Any   # the child of a document in `content` that gives a value, or nothing
+    box::Any
+    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
 end
 
 # ── A plain value as a text ─────────────────────────────────────────────────
@@ -1736,8 +2256,10 @@ end
 # A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, such as
 # a `String`, is edited as a text too. The printer makes one `TextBlock` whose
 # text is the string of the value and whose caret is the range of `content` that
-# the widget holds, and draws it with a `TextToGraphics` of its own, so a chain
-# with no rule for a `TextBlock` draws it too. The block is the lines of the string;
+# the widget holds, and prints it through the recursion, as it prints a document
+# in `content`: each table of rules that draws such a widget holds one rule for a
+# `TextBlock`, which draws the text of its documents and the text of its widgets.
+# The block is the lines of the string;
 # in a field of code, each line holds a run for each piece that `compute_code_pieces`
 # gives, in its color. The reader maps what the text domain answers back to a range
 # of the `content` field. So a string edit writes the field itself, and the caret after
@@ -1807,13 +2329,26 @@ function _get_value_text_caret(selection, child)
 end
 
 # `appearance` is the appearance of a field of code, whose theme of its language
-# gives the colors, or `nothing`.
+# gives the colors, or `nothing`. The widget gives its text all of its own look: the
+# spans carry the font and the color, and the `TextView` that holds the block carries
+# the wrap (`wrap` of the widget, else no wrap) and the line spacing (`line_spacing`
+# of the widget, else single spacing). The view prints through `recursion`, as the
+# document of a `content` does, and the dispatch that composes the widget holds the
+# text printer.
 function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing,
                                 value_slot = nothing)
-    view = _make_plain_text_view(w, style, appearance; value_slot)
-    measure = p.measure
-    make_reconciled_child_iomap_cell(() -> view,
-                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+    block = _make_plain_text_view(w, style, appearance; value_slot)
+    view = _make_widget_text_view(w, block)
+    make_reconciled_child_iomap_cell(() -> view, v -> print_child(recursion, v, ctx))
+end
+
+# The view of the block of a widget: it follows `wrap` and `line_spacing` of the
+# widget where it has them.
+function _make_widget_text_view(w, block::TextBlock)
+    wrap = hasfield(typeof(w), :wrap) ? Cell(@computation w.wrap === true) : false
+    line_spacing = hasfield(typeof(w), :line_spacing) ?
+        Cell(@computation w.line_spacing === nothing ? SingleSpacing() : w.line_spacing) : SingleSpacing()
+    make_text_view(block; wrap, line_spacing)
 end
 
 # The caret of the view: the range of `content` that the widget holds, as a flat
@@ -1825,12 +2360,24 @@ function _get_plain_text_caret(selection)
     (steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
     range = steps[2]
     (range isa RangeReferenceStep || range isa TextRangeReferenceStep) || return nothing
-    make_flat_range_reference(range.start, range.stop)
+    make_flat_range_reference(range.start, range.stop; direction = range.direction)
 end
 
-_make_content_range_reference(start::Int, stop::Int) =
+_make_content_range_reference(start::Int, stop::Int, direction::Symbol = :forward) =
     ConcreteReference(FieldReferenceStep("content"),
-                      ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
+                      ConcreteReference(RangeReferenceStep(start, stop, start == stop ? :forward : direction),
+                                        EmptyReference()))
+
+# A reference of a `TextView` of a block, as a reference of the block: the step
+# `viewed` of the view comes off. A reference that does not start with it names the
+# block already.
+function _strip_text_view_step(reference)
+    reference isa ConcreteReference || return reference
+    stripped = strip_reference_types(reference)
+    stripped isa ConcreteReference || return reference
+    head = get_reference_head(stripped)
+    (head isa FieldReferenceStep && head.name == "viewed") ? get_reference_tail(stripped) : reference
+end
 
 # A reference of the view, mapped to a range of the `content` field. The text
 # domain answers a place in the view in either form that a text takes, and
@@ -1840,30 +2387,32 @@ _make_content_range_reference(start::Int, stop::Int) =
 # string answers, is the caret at the end of the string.
 function _map_plain_text_reference(view::TextBlock, reference)
     reference === nothing && return nothing
+    reference = _strip_text_view_step(reference)
     if isempty(get_reference_steps(strip_reference_types(reference)))
         n = get_flat_length(view)
         return _make_content_range_reference(n, n)
     end
     range = get_flat_range(view, reference)
-    range === nothing ? nothing : _make_content_range_reference(range...)
+    range === nothing ? nothing : _make_content_range_reference(range..., get_range_direction(reference))
 end
 
 # The view of a plain value, which the text domain prints: the input of the IO map
 # of the content of a text widget.
-_get_plain_text_view(iomap) = iomap.content_iomap.input
+_get_plain_text_view(iomap) = iomap.content_iomap.input.viewed
 
 # The range of the content of a widget that draws its box around it: the range of
-# the widget less its insets, in the same state, so a slot stays a slot and an edge
-# stays an edge (§3 of layout-rules.md).
-function _get_inner_content_context(p, w::WidgetDocument, ctx)
+# the widget less the insets of its shape `geometry`, a cell, in the same state, so
+# a slot stays a slot and an edge stays an edge (§3 of layout-rules.md).
+function _get_inner_content_context(geometry::Cell, ctx)
     ctx === nothing && return nothing
-    with_inner_size(ctx; width = Cell(@computation _inset_total(p, w)[1]),
-                    height = Cell(@computation _inset_total(p, w)[2]))
+    with_inner_size(ctx; width = Cell(@computation _get_inset_total(geometry[])[1]),
+                    height = Cell(@computation _get_inset_total(geometry[])[2]))
 end
 
 function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     pos = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
 
     state = w.enabled === false ? :disabled : nothing
 
@@ -1875,13 +2424,14 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # as an `ObjectField` does under the nesting of a value widget, is drawn
     # through a text view of that value. Which of the two a document is, is read
     # once, here, and with no reader, so the print does not follow the value.
-    content_ctx = _get_inner_content_context(p, w, ctx)
+    content_ctx = _get_inner_content_context(geometry, ctx)
     document_iomap = w.content isa Document ?
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
         nothing
     value_slot = _is_value_child(document_iomap) ? document_iomap : nothing
+    text_style = _get_text_field_style(p, w, state)
     content_iomap = document_iomap !== nothing && value_slot === nothing ? document_iomap :
-        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx;
+        _print_plain_text_view(p, recursion, w, text_style, content_ctx;
                                appearance = p.appearance, value_slot)
     build = Cell(@computation begin
         radius = p.corner_radius
@@ -1889,43 +2439,88 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # The box is at least as wide as the widget asks for, and always at
         # least one line tall. An empty document measures nothing in both
         # directions, and a form field of nothing cannot be clicked.
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         # An empty field of plain text shows its placeholder, an example of what
         # it takes, where its text begins, and is as wide as the example.
         placeholder = w.placeholder
-        shows_placeholder = placeholder !== nothing && !(w.content isa Document) && isempty(string(w.content))
+        # The flag is a `Bool` for inference, so a package that adds `|` for its
+        # own type does not make this code invalid.
+        shows_placeholder = placeholder !== nothing && !(w.content isa Document) &&
+                            isempty(string(w.content)::String)
         shows_placeholder |= placeholder !== nothing && value_slot !== nothing &&
-                             isempty(string(value_slot[].output))
+                             isempty(string(value_slot[].output)::String)
         inner_w = Int(inner.w[])
-        shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, p.placeholder_text.font,
+        placeholder_style = StyleText(text_style.font, p.placeholder_text.color)
+        shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, placeholder_style.font,
                                                                 String(placeholder))[1]))
         # `w.width` is an authored inner width, so it and the offer are both
         # outer measures here: resolve the outer extent by the one rule, then
-        # take the inner box back out of it.
-        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0, inner_w + inset_width)
+        # take the inner box back out of it. The authored extent of the box does
+        # not hold the space around it, which `_resolve_width` adds.
+        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width - _get_space_total(box)[1] : 0,
+                                 inner_w + inset_width)
         outer_h = _resolve_height(ctx, 0,
                                   max(Int(inner.h[]),
-                                      _text_size(p.measure, p.label_text.font, "X")[2]) + inset_height)
+                                      _text_size(p.measure, text_style.font, "X")[2]) + inset_height)
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
+        _push_box_parts!(elems, box, _get_box_colors(p, w; state),
                          outer_w - inset_width, outer_h - inset_height; radius)
+        w.quiet && _make_box_quiet!(elems, w)
+        # A press anywhere in the box of a field that takes edits puts the caret,
+        # and a press on a disabled field does nothing, also over its text.
+        margin_rect = _get_part_rect(box, :margin, outer_w, outer_h)
+        state === :disabled || push!(elems, GraphicsPointerShape(margin_rect..., :ibeam))
+        # The placeholder and the text are the content, which the box cuts.
+        first_content = length(elems) + 1
         if shows_placeholder
-            style = p.placeholder_text
+            style = placeholder_style
             push!(elems, GraphicsText(String(placeholder), content_x, content_y; font = style.font,
                                       color = style.color))
         end
-        # A press anywhere in the box of a field that takes edits puts the caret,
-        # and a press on a disabled field does nothing, also over its text.
-        state === :disabled || push!(elems, GraphicsPointerShape(0, 0, outer_w, outer_h, :ibeam))
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
-        state === :disabled && push!(elems, GraphicsPointerShape(0, 0, outer_w, outer_h, :arrow))
-        _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
+        # A text larger than the box scrolls in it, so the caret stays in view. A
+        # text that fits reads no selection, so a caret move builds no field.
+        view_w, view_h = outer_w - inset_width, outer_h - inset_height
+        scroll = inner_w <= view_w && Int(inner.h[]) <= view_h ? (0, 0) :
+            _compute_text_scroll(w, _find_content_selection_box(w, value_slot === nothing ? nothing : value_slot[],
+                                                                content_iomap[], inner, p.measure),
+                                 inner_w, Int(inner.h[]), view_w, view_h)
+        _cut_content_at_box!(elems, first_content, box, outer_w, outer_h, inner_w, Int(inner.h[]); scroll)
+        state === :disabled && push!(elems, GraphicsPointerShape(margin_rect..., :arrow))
+        _push_focus_ring!(elems, w, box, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.graphics_style)
-        (width=outer_w, height=outer_h, elements=elems)
+        (width=outer_w, height=outer_h, elements=elems, scroll=scroll)
     end)
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap,
-                                    value_slot)
+                                    value_slot, geometry, Cell(@computation build[].scroll))
+end
+
+# The parts of the box of a quiet field take no colour while the field holds no
+# caret. The colours follow the selection of the field, so a caret that comes or
+# goes draws the box again and prints nothing.
+function _make_box_quiet!(elements::Vector, w::WidgetDocument)
+    for element in elements
+        element isa GraphicsRect || continue
+        for name in (:color, :border_color)
+            shown = getfield(element, name)[]
+            set_cell_computation!(getfield(element, name),
+                                  () -> getfield(w, :selection)[] === nothing ? color_transparent : shown)
+        end
+    end
+    elements
+end
+
+# The text of a field in `state`: the text of the theme, under the `text_style` of
+# the field when it gives one, as for a label.
+function _get_text_field_style(p, w, state)
+    base = _get_state_text(p, w, :label; state)
+    own = hasfield(typeof(w), :text_style) ? w.text_style : nothing
+    own === nothing ? base :
+    own isa StyleColor ? StyleText(base.font, own) :
+    own isa StyleFont ? StyleText(own, base.color) :
+    own
 end
 
 # Whether the child of a document in `content` gives a value and not graphics.
@@ -1934,6 +2529,103 @@ _is_value_child(document_iomap) =
     !(run_without_cell_tracking(() -> document_iomap[].output) isa GraphicsCanvas)
 
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+
+# A caret or a range in the value that a text widget shows, a plain value or the
+# value that the child of a document in `content` gives, is a range of the text of
+# its view, and the value as a whole is that text as a whole; both map through the
+# IO map of the view to their place in its output. Any other document in `content`
+# maps through its child.
+map_reference_forward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference) =
+    something(_map_shown_text_forward(iomap, reference), Some(_map_child_forward(iomap, reference)))
+
+# The place in the output of `reference`, a path under `.content` of a text widget
+# that shows a value as a text, or `nothing` for any other reference: `.content`
+# and `.content{s:e}` of a plain value, and a path that the child of the document
+# in `content` maps to a range of the string of its value.
+function _map_shown_text_forward(iomap::WidgetTextToGraphicsCanvasIoMap, reference)
+    child = iomap.value_iomap
+    (child !== nothing || !(iomap.input.content isa Document)) || return nothing
+    view = iomap.content_iomap
+    image = _map_content_into_view(iomap.input, child, view, reference)
+    image === nothing && return nothing
+    outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(view)); depth = 6)
+    outer === nothing ? nothing : concat_references(outer, image)
+end
+
+# The place of `reference`, a path under `.content` of the text widget `w`, in the
+# output of `view`, the IO map of its content, or `nothing`. A widget that shows a
+# value as a text, a plain value or the value of `value_iomap`, the child of a
+# document in `content`, maps `.content` and a range of the value to the text of
+# the view. A document in `content` maps the rest of the path itself.
+function _map_content_into_view(w, value_iomap, view, reference)
+    (view === nothing || !(reference isa Reference)) && return nothing
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    (!isempty(steps) && steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
+    if value_iomap === nothing && w.content isa Document
+        rest = extend_reference(EmptyReference(), steps[2:end]...)
+        return map_reference_forward(get_iomap_projection(view), view,
+                                     annotate_reference_types(get_iomap_input(view), rest))
+    end
+    text = if length(steps) == 1
+        EmptyReference()
+    elseif value_iomap !== nothing
+        rest = extend_reference(EmptyReference(), steps[2:end]...)
+        range = map_reference_forward(value_iomap.projection, value_iomap,
+                                      annotate_reference_types(value_iomap.input, rest))
+        flat = range isa Reference ? strip_reference_types(range) : nothing
+        flat isa ConcreteReference && flat.head isa TextRangeReferenceStep ? flat : nothing
+    elseif length(steps) == 2 && steps[2] isa RangeReferenceStep
+        make_flat_range_reference(steps[2].start, steps[2].stop)
+    end
+    text === nothing && return nothing
+    inner = ConcreteReference(FieldReferenceStep("viewed"), text)
+    map_reference_forward(get_iomap_projection(view), view, annotate_reference_types(get_iomap_input(view), inner))
+end
+
+# The box `(x, y, width, height)` of the selection of the text widget `w` in
+# `canvas`, the output of `view`, in the frame of that canvas, or `nothing` when
+# the selection is not in the content.
+function _find_content_selection_box(w, value_iomap, view, canvas, measure)
+    selection = get_selection(w)
+    selection === nothing && return nothing
+    image = _map_content_into_view(w, value_iomap, view, selection)
+    image === nothing && return nothing
+    box = find_reference_box(canvas, image; measure)
+    box === nothing && return nothing
+    (box.x - Int(canvas.x), box.y - Int(canvas.y), box.width, box.height)
+end
+
+# The offset at which a text widget draws a text of `text_width` by `text_height` in
+# a view of `view_width` by `view_height`: the least move from the offset that it
+# stores that shows its selection at `selection_box`, kept between 0 and the end of
+# the text. A caret is as wide as the caret of the theme, so a caret at the end of
+# the text shows inside the view. A text that fits the view has the offset 0.
+function _compute_text_scroll(w, selection_box, text_width::Int, text_height::Int,
+                              view_width::Int, view_height::Int)
+    stored = w.scroll_position::Point2D
+    x, y = Int(stored.x[]), Int(stored.y[])
+    caret = Int(unwrap_cell(get_text_style(nothing, :caret_width)))
+    if selection_box !== nothing
+        box_x, box_y, box_width, box_height = selection_box
+        x = _compute_shown_offset(x, view_width, box_x, max(box_width, caret))
+        y = _compute_shown_offset(y, view_height, box_y, box_height)
+        text_height = max(text_height, box_y + box_height)
+    end
+    # The text scrolls past its end by the width of a caret, so a caret at its end
+    # shows, and the text stays while that caret moves back.
+    (clamp(x, 0, max(0, text_width + caret - view_width)), clamp(y, 0, max(0, text_height - view_height)))
+end
+
+# The answer of a text widget, with the write of `scroll`, the offset that it draws
+# its text at, when the widget stores another offset: the next print moves the text
+# from where it is, so the text stays while the caret moves inside the view. No
+# answer writes nothing.
+function _keep_text_scroll(w, scroll::Tuple{Int,Int}, answer)
+    answer === nothing && return nothing
+    stored = w.scroll_position::Point2D
+    (Int(stored.x[]), Int(stored.y[])) == scroll && return answer
+    CompoundOperation(Any[answer, _write_view_state(w, "scroll_position", Point2D(scroll...))])
+end
 
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1963,7 +2655,7 @@ function _map_value_text_reference(view::TextBlock, child, reference)
     range === nothing && return nothing
     step = get_reference_steps(range)[end]
     inner = map_reference_backward(child.projection, child,
-                                   make_flat_range_reference(step.start, step.stop))
+                                   make_flat_range_reference(step.start, step.stop; direction = step.direction))
     inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
 end
 
@@ -1973,20 +2665,25 @@ _map_text_point(point::PointReferenceStep) =
     ConcreteReference(FieldReferenceStep("content"), ConcreteReference(point, EmptyReference()))
 
 # Invisible text (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`. A field is
-# one line: Return breaks no line in it, and goes on to the bindings around the
-# field, such as the find of a bar.
+# one line: Return breaks no line in it, and Tab and Shift+Tab indent no line in
+# it, so these keys go on to the bindings around the field, such as the find of a
+# bar and the indent of the node of an outline.
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     _is_plain_typed(evt, '\n') && return nothing
+    evt isa KeyPress && evt.char == '\t' && return nothing
+    left, top = _get_content_offset(_get_box_geometry(iomap))
+    scroll = iomap.scroll
     operation = _validate_text_edit(iomap.input,
-        _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
+        _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
     child = iomap.value_iomap
-    child === nothing ? operation : _make_value_text_store(iomap.input, child, operation)
+    _keep_text_scroll(iomap.input, scroll,
+                      child === nothing ? operation : _make_value_text_store(iomap.input, child, operation))
 end
 
 # An edit of the text view of the value that the child of `content` gives: the
@@ -2088,20 +2785,22 @@ function _push_mark_label!(elements::Vector, p, content, x::Int, y::Int)
 end
 
 function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :content, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         checked = _get_slot_value(w, :content, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         box_size = p.indicator_size
         corner_radius = p.corner_radius
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         content = _get_mark_label_layout(p, w, box_size, box_size, enabled)
         x, y = content_x, content_y + content.mark_y
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content.width, content.height)
+        _push_box_parts!(elements, box, _get_box_colors(p, w), content.width, content.height)
         _push_mark_label!(elements, p, content, content_x, content_y)
         # When disabled, the box uses the muted surface and the tick/outline render in
         # the muted foreground, keeping the checked/unchecked shape but signalling that
@@ -2117,9 +2816,9 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
                          border=outline.color, border_w=max(1, Int(outline.width)), radius=corner_radius)
         end
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2178,97 +2877,142 @@ _button_label_content(w::WidgetButton) = _button_action(w).label
 _button_icon(w::WidgetButton) = _button_action(w).icon
 
 function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        authored_size = w.size::Point2D
-        label_content = _button_label_content(w)
-        content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
-        # A button that can show several labels is as wide as the widest, so the
-        # row it stands in does not move when the label changes.
-        for other in w.labels
-            content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
-        end
-        box = _get_box_insets(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
-        # An optional leading icon: a square of the height of the label times the icon
-        # scale, with a gap before the label. The button is as tall as the larger of
-        # the icon and the label. An unknown icon name contributes nothing.
-        icon = _button_icon(w)
-        icon_sz = scale_length(content_height, p.icon_size)
-        icon_w  = icon_width(icon, icon_sz)
-        icon_gap = icon_w > 0 ? p.label_gap : 0
-        full_w = icon_w + icon_gap + content_width
-        full_h = max(icon_w, content_height)
-        button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
-        button_height = _resolve_height(ctx, Int(authored_size.y[]), full_h + inset_height)
-        inner_width, inner_height = button_width - inset_width, button_height - inset_height
-        corner_radius = p.corner_radius
-        # State-driven surface. The reader keeps the transient `pressed` cell
-        # current, and the mouse target says whether the pointer is on the button.
-        # A lit or a pressed button draws a translucent layer over its surface, so
-        # the state shows over any surface color; the layer reads the state in
-        # cells of its own. A press also drops the shadow, so it is read here. A
-        # disabled button (or one bound to a disabled command) ignores both: its
-        # own muted surface and label, no shadow, no layer (its reader also never
-        # sets `pressed`).
-        enabled = _button_enabled(w)
-        pressed = enabled && w.pressed === true
-        state = enabled ? nothing : :disabled
-        label = _get_state_text(p, w, :label; state)
-        # The rect of the border: the box without its margin.
-        margin_left, margin_top, margin_right, margin_bottom = box.margin
-        border_box_width = button_width - margin_left - margin_right
-        border_box_height = button_height - margin_top - margin_bottom
-        elements = Any[]
-        # Default button: light surface, subtle border, soft shadow, dark label —
-        # matching the shadcn default button. A faint offset rect approximates the
-        # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
-        # and while disabled (so it reads as inert/flat).
-        if enabled && !pressed
-            _push_panel!(elements, margin_left, margin_top + p.shadow_offset, border_box_width,
-                         border_box_height; fill = p.shadow_color, radius = corner_radius)
-        end
-        _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
-                         radius = corner_radius)
-        enabled && _push_hover_layer!(elements, w, margin_left, margin_top, border_box_width, border_box_height;
-                                      hovered_color = p.layer_hovered_color,
-                                      pressed_color = p.layer_pressed_color, radius = corner_radius)
-        # Lay out icon + label as one centered group; the icon tints to the label color
-        # (so it mutes with the button), the label sits to its right.
-        start_x = content_x + (inner_width - full_w) ÷ 2
-        cy = content_y + (inner_height - content_height) ÷ 2
-        if icon_w > 0
-            _push_icon!(elements, icon, start_x, content_y + (inner_height - icon_sz) ÷ 2, icon_sz, label.color)
-        end
-        _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
-                       content_height; placeholder_color = p.placeholder_color)
-        _push_focus_ring!(elements, w, button_width, button_height, p.focus_ring_stroke, corner_radius)
-        # A press on a button that acts runs its action.
-        enabled && push!(elements, GraphicsPointerShape(0, 0, button_width, button_height, :pointing_hand))
-        (width=button_width, height=button_height, elements=elements)
-    end))
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> _build_button(p, w, geometry[], ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# The part that the label of a button or a toolbar item shows: the label of its action.
+const _ACTION_LABEL_PART =
+    ConcreteReference(FieldReferenceStep("action"), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
 
-function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference)
-    return nothing
+# The box, the icon and the label of a button: `(; width, height, elements, drawn)`.
+# A label that the button draws as a text records its line, as the part
+# `.action.label`, so an Alt+click puts the caret at its character.
+function _build_button(p::WidgetButtonToGraphicsCanvas, w::WidgetButton, box::BoxGeometry, ctx)
+    authored_size = w.size::Point2D
+    label_content = _button_label_content(w)
+    content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
+    # A button that can show several labels is as wide as the widest, so the
+    # row it stands in does not move when the label changes.
+    for other in w.labels
+        content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
+    end
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    # An optional leading icon: a square of the height of the label times the icon
+    # scale, with a gap before the label. A button with no label has no gap, so
+    # its icon sits in the middle. The button is as tall as the larger of the
+    # icon and the label. An unknown icon name contributes nothing.
+    icon = _button_icon(w)
+    icon_sz = scale_length(content_height, p.icon_size)
+    icon_w  = icon_width(icon, icon_sz)
+    icon_gap = icon_w > 0 && content_width > 0 ? p.label_gap : 0
+    full_w = icon_w + icon_gap + content_width
+    full_h = max(icon_w, content_height)
+    button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
+    button_height = _resolve_height(ctx, Int(authored_size.y[]), full_h + inset_height)
+    inner_width, inner_height = button_width - inset_width, button_height - inset_height
+    corner_radius = p.corner_radius
+    # State-driven surface. The reader keeps the transient `pressed` cell
+    # current, and the mouse target says whether the pointer is on the button.
+    # A lit or a pressed button draws a translucent layer over its surface, so
+    # the state shows over any surface color; the layer reads the state in
+    # cells of its own. A press also drops the shadow, so it is read here. A
+    # disabled button (or one bound to a disabled command) ignores both: its
+    # own muted surface and label, no shadow, no layer (its reader also never
+    # sets `pressed`).
+    enabled = _button_enabled(w)
+    pressed = enabled && w.pressed === true
+    state = enabled ? nothing : :disabled
+    label = _get_state_text(p, w, :label; state)
+    # The rect of the border: the box without its margin.
+    border_x, border_y, border_box_width, border_box_height = _get_border_rect(box, button_width,
+                                                                               button_height)
+    elements = Any[]
+    # Default button: light surface, subtle border, soft shadow, dark label —
+    # matching the shadcn default button. A faint offset rect approximates the
+    # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
+    # and while disabled (so it reads as inert/flat).
+    if enabled && !pressed
+        _push_panel!(elements, border_x, border_y + p.shadow_offset, border_box_width,
+                     border_box_height; fill = p.shadow_color, radius = corner_radius)
+    end
+    _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
+                     radius = corner_radius)
+    enabled && _push_hover_layer!(elements, w, border_x, border_y, border_box_width, border_box_height;
+                                  hovered_color = p.layer_hovered_color,
+                                  pressed_color = p.layer_pressed_color, radius = corner_radius)
+    # Lay out icon + label as one centered group; the icon tints to the label color
+    # (so it mutes with the button), the label sits to its right. A group larger
+    # than the box starts at its inner edge, and the box cuts it.
+    first_content = length(elements) + 1
+    start_x = content_x + _place_in_room((inner_width - full_w) ÷ 2, full_w, inner_width)
+    cy = content_y + _place_in_room((inner_height - content_height) ÷ 2, full_h, inner_height)
+    if icon_w > 0
+        _push_icon!(elements, icon, start_x,
+                    content_y + _place_in_room((inner_height - icon_sz) ÷ 2, full_h, inner_height), icon_sz,
+                    label.color)
+    end
+    _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
+                   content_height; placeholder_color = p.placeholder_color)
+    drawn = DrawnTextLine[]
+    _is_drawn_value(label_content) && !isempty(string(label_content)) &&
+        push!(drawn, DrawnTextLine(last(elements), _ACTION_LABEL_PART, 0))
+    _cut_content_at_box!(elements, first_content, box, button_width, button_height, full_w, full_h)
+    _push_focus_ring!(elements, w, box, button_width, button_height, p.focus_ring_stroke, corner_radius)
+    # A press on a button that acts runs its action.
+    enabled && push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, button_width, button_height)...,
+                                                    :pointing_hand))
+    (width = button_width, height = button_height, elements = elements, drawn = drawn)
+end
+
+# A caret or a range in the label is drawn on its line.
+map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the label is the caret or the range in it. A point on
+# the button names no caret, because a button is a control: a move names the button.
+map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+
+# The answer of a control to an event on the text that it records, which only a
+# press with Alt reaches, because its plain press acts: an Alt+click gives the caret,
+# which the container makes the text as a whole on an Alt+double click; a press with
+# Alt starts the drag of a range; a key moves the caret or the range, read-only.
+# `nothing` for any other event, which the control reads as its own.
+function _read_control_text(p, iomap, evt)
+    w = iomap.input
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
+    if is_selection_press(evt)
+        path = find_drawn_click_selection(iomap.drawn, iomap.output, w, evt, p.measure)
+        return path === nothing ? nothing : ReplaceSelectionOperation(path)
+    end
+    evt isa MouseDown && evt.modifiers.alt &&
+        return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure; control = true)
+    read_drawn_text_key(iomap.drawn, w, evt, p.measure)
 end
 
 # The button owns the transitions of its `pressed` state. A click invokes the
 # action; press/release drive the held-down look. A move of the pointer also reaches the button when the
 # pointer leaves it; every other pointer event reaches it only when the parent
 # hit-tested the pointer onto it.
-function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(p::WidgetButtonToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     # A move off the button reaches it only while it is the part under the pointer,
     # so the pointer left it: a press that was released off the button ends here.
     if evt isa MouseMove && _outside_widget(iomap, evt)
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
-    _outside_widget(iomap, evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    # A press with Alt never acts, also on a disabled button, and a key moves in the
+    # label while the selection is in it: they reach the label as a text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     # A disabled button (or one bound to a disabled command) is inert: no action,
     # and no hover/press state changes, so it can never show an interaction surface
     # (see the printer's enabled branch).
@@ -2297,8 +3041,8 @@ end
 # the default primary op — it is not privileged; any gesture (double/right/shift-
 # click, …) is expressed as its own per-instance binding. A modal dialog is
 # centered, not placed under a widget, so it opens directly as an
-# `OpenWindowOperation`. v1 uses a generous fixed window box; true screen-sizing /
-# centering is deferred (see widget.md).
+# `OpenWindowOperation` at the automatic place, which the screen makes the center
+# of the window that holds the button.
 # A command that does something wins; the dialog is the fallback for one that
 # does not, so a button carrying both a callback and a dialog runs the callback.
 function _button_primary_op(w::WidgetButton)
@@ -2307,7 +3051,164 @@ function _button_primary_op(w::WidgetButton)
     dlg = w.dialog
     dlg === nothing && return InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
-                        x=80, y=60, width=480, height=320, content=dlg)
+                        x=-1, y=-1, width=480, height=320, content=dlg)
+end
+
+# ── WidgetLink ──────────────────────────────────────────────────────────────
+
+# Whether a link opens something: a link with `enabled = false` draws muted.
+_is_link_enabled(w::WidgetLink) = w.enabled !== false
+
+# The style of the text of a link: the link color, or the muted color of a link
+# that opens nothing.
+_get_link_style(p::WidgetLinkToGraphicsCanvas, w::WidgetLink) =
+    _is_link_enabled(w) ? _get_part_text(w, :link_text, p.link_text) : p.link_disabled_text
+
+# The icon of a link and the gap after it, for a line of `height`.
+function _measure_link_icon(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, height::Integer)
+    extent = icon_width(w.icon, scale_length(height, p.icon_size))
+    (extent, extent > 0 ? p.label_gap : 0)
+end
+
+# The lines of a link: its text broken where a label breaks it, at `bound` less
+# the icon, or at its line breaks only when `bound` is 0; the style; and the sizes
+# of the icon and of the lines. The icon and the first line stand on the middle
+# of the first row.
+function _measure_link_lines(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, bound::Int)
+    text = string(w.content)
+    style = _get_link_style(p, w)
+    icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, text, style.font).height)
+    room = bound > 0 ? max(1, bound - icon_extent - icon_gap) : 0
+    texts = _text_lines(p.measure, style.font, text, room)
+    boxes = [compute_line_box(p.measure, line, style.font) for line in texts]
+    first_height = max(icon_extent, boxes[1].height)
+    (; style, texts, boxes, icon_extent, icon_gap, first_height,
+       height = first_height + sum(box.height for box in boxes[2:end]; init = 0),
+       text_top = (first_height - boxes[1].height) ÷ 2,
+       width = icon_extent + icon_gap + maximum(box.width for box in boxes))
+end
+
+# The baseline of the first line of a link with a text face, from the top of the
+# link. A break moves no baseline of the first line, so the text is measured
+# whole. A face that is a document gives no baseline.
+function find_first_baseline(p::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap)
+    w = iomap.input
+    (w.visible == false || w.content isa Document) && return nothing
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
+    measured = _measure_link_lines(p, w, 0)
+    content_y + measured.text_top + measured.boxes[1].baseline
+end
+
+# A link draws its icon and its face, and no frame. A text face is in the link
+# color and breaks at the edge of the range that the parent gave, as the text of a
+# label does. A face that is a document draws as the renderer draws it: the link
+# keeps the child for itself and gives it no event, so a press on the face is a
+# press on the link, and the link is the part under the pointer. A line under the
+# face and the hand pointer say that a press opens it, while the link is enabled.
+function print_document(p::WidgetLinkToGraphicsCanvas, recursion, w::WidgetLink, ctx)
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    # The child is made only for a face that is a document.
+    face = make_reconciled_child_iomap_cell(() -> w.content,
+                                            c -> print_child(recursion, c, _get_inner_content_context(geometry, ctx)))
+    build = Cell(Computation(() -> _build_link(p, w, geometry[], face, ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
+end
+
+# The box, the icon and the face of a link: `(; width, height, elements, drawn)`.
+# A text face records each line that it draws, as the part `.content`.
+function _build_link(p::WidgetLinkToGraphicsCanvas, w::WidgetLink, box::BoxGeometry, face::Cell, ctx)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    thickness = max(1, p.underline_width)
+    elements = Any[]
+    body = Any[]
+    lines = DrawnTextLine[]
+    if w.content isa Document
+        style = _get_link_style(p, w)
+        inner = face[].output
+        face_width, face_height = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
+        icon_extent, icon_gap = _measure_link_icon(p, w, compute_line_box(p.measure, "", style.font).height)
+        height = max(icon_extent, face_height)
+        face_x = content_x + icon_extent + icon_gap
+        face_top = content_y + (height - face_height) ÷ 2
+        icon_extent > 0 && _push_icon!(body, w.icon, content_x, content_y + (height - icon_extent) ÷ 2,
+                                       icon_extent, style.color)
+        push!(body, _make_canvas(face_x, face_top, Any[inner]))
+        _push_link_underline!(body, w, face_x, face_top + max(0, face_height - thickness), face_width,
+                              thickness, style.color)
+        width = icon_extent + icon_gap + face_width
+    else
+        edge = ctx === nothing ? nothing : ctx.maximum_width
+        measured = _measure_link_lines(p, w, edge === nothing ? 0 : max(0, Int(edge[]) - inset_width))
+        style = measured.style
+        if measured.icon_extent > 0
+            _push_icon!(body, w.icon, content_x, content_y + (measured.first_height - measured.icon_extent) ÷ 2,
+                        measured.icon_extent, style.color)
+        end
+        text_x = content_x + measured.icon_extent + measured.icon_gap
+        top = content_y + measured.text_top
+        starts = _find_line_starts(string(w.content), measured.texts)
+        for (text, line, start) in zip(measured.texts, measured.boxes, starts)
+            _push_text!(body, p.measure, style.font, text, text_x, top, style.color)
+            isempty(text) || push!(lines, DrawnTextLine(last(body), _CONTENT_PART, start))
+            _push_link_underline!(body, w, text_x, top + min(line.baseline + thickness, line.height - thickness),
+                                  line.width, thickness, style.color)
+            top += line.height
+        end
+        width, height = measured.width, measured.height
+    end
+    outer_width = _resolve_width(ctx, 0, width + inset_width)
+    outer_height = _resolve_height(ctx, 0, height + inset_height)
+    _push_box_parts!(elements, box, _get_box_colors(p, w), outer_width - inset_width,
+                     outer_height - inset_height)
+    _cut_content_at_box!(body, 1, box, outer_width, outer_height, width, height)
+    append!(elements, body)
+    _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, p.corner_radius)
+    _is_link_enabled(w) &&
+        push!(elements, GraphicsPointerShape(_get_part_rect(box, :margin, outer_width, outer_height)...,
+                                             :pointing_hand))
+    (width = outer_width, height = outer_height, elements = elements, drawn = lines)
+end
+
+# The line under the face of a link, while the pointer is on the link and the
+# link is enabled. Its size reads the mouse target in cells of its own, as the
+# layer of a button does, so a move onto the link draws only the line.
+function _push_link_underline!(elements::Vector, w::WidgetLink, x::Int, y::Int, width::Int,
+                               thickness::Int, color::StyleColor)
+    line = GraphicsRect(x, y, 0, 0; color)
+    is_lit() = _is_link_enabled(w) && _is_under_pointer(w)
+    set_cell_computation!(getfield(line, :w), () -> is_lit() ? Int32(width) : Int32(0))
+    set_cell_computation!(getfield(line, :h), () -> is_lit() ? Int32(thickness) : Int32(0))
+    push!(elements, line)
+end
+
+# A caret or a range in the text of a link is drawn on its line.
+map_reference_forward(::WidgetLinkToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the text is the caret or the range in it; a point names the
+# link as a whole.
+map_reference_backward(::WidgetLinkToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+
+# A link answers the gestures of its type and of every widget: the opens of
+# `make_open_page_gestures` with its own target, and the tooltip. A key reaches it
+# while it has the focus. A link acts on the click, so it answers the press before
+# the click itself, as a button does, and the press selects nothing: no focus moves
+# to the link. A link that is not enabled answers nothing, as a disabled button.
+function read_intent(p::WidgetLinkToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    # A press with Alt never opens, also on a link that is not enabled, and a key moves
+    # in the text while the selection is there: they reach the text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
+    _is_link_enabled(iomap.input) || return nothing
+    is_focusing_press(evt) && return DoNothingOperation()
+    read_bound_gesture(iomap.input, evt)
 end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
@@ -2316,23 +3217,25 @@ end
 # its range less its insets, and never a slot, because an overlay is as large as
 # its content (§3 of layout-rules.md). A content in a slot would stretch to the
 # whole window, and the overlay with it.
-function _get_overlay_content_context(p, w::WidgetDocument, ctx)
+function _get_overlay_content_context(geometry::Cell, ctx)
     ctx === nothing && return nothing
-    inner = _get_inner_content_context(p, w, ctx)
+    inner = _get_inner_content_context(geometry, ctx)
     with_bounded_size(inner; width = inner.maximum_width, height = inner.maximum_height)
 end
 
 function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
     pos = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # The child is reconciled and forced only in the WidgetDocument branch.
-    content_ctx = _get_overlay_content_context(p, w, ctx)
+    content_ctx = _get_overlay_content_context(geometry, ctx)
     child_iomap = make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         # The padding of the projection keeps the box off the text, unless the
         # document gives a padding of its own.
-        cox, coy = _content_offset(p, w)
-        txp, typ = _inset_total(p, w)
+        box = geometry[]
+        cox, coy = _get_content_offset(box)
+        txp, typ = _get_inset_total(box)
         label = _get_part_text(w, :label_text, p.label_text)
         child_iomaps = Any[]
         content = w.content
@@ -2355,12 +3258,13 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
         sz = w.size
         vw = _resolve_overlay(ctx, :x, sz isa Point2D ? Int(sz.x[]) : 0, cw + txp)
         vh = _resolve_overlay(ctx, :y, sz isa Point2D ? Int(sz.y[]) : 0, ch + typ)
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), vw - txp, vh - typ;
+        _push_box_parts!(elems, box, _get_box_colors(p, w), vw - txp, vh - typ;
                          radius = p.corner_radius)
         append!(elems, body)
         (width=vw, height=vh, elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), Cell(@computation build[].child_iomaps))
+    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build),
+                        Cell(@computation build[].child_iomaps), geometry)
 end
 
 map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2368,7 +3272,7 @@ map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference) = _map_
 map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
-function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -2405,6 +3309,7 @@ WidgetContextMenuToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     child_iomap::Any
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -2412,15 +3317,17 @@ ProjectionModule.get_child_iomaps(iomap::WidgetContextMenuToGraphicsCanvasIoMap)
     _collect_child_iomaps(iomap.child_iomap)
 
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
-    child_ctx = _get_overlay_content_context(p, w, ctx)
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    w.child isa Document || return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    child_ctx = _get_overlay_content_context(geometry, ctx)
     child_iomap = make_reconciled_child_iomap_cell(() -> w.child, c -> print_child(recursion, c, child_ctx))
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
         inner = child_iomap[].output::GraphicsCanvas
         iw, ih = Int(inner.w[]), Int(inner.h[])
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         # An overlay: content-sized, and capped by the window rather than stretched
         # to it, so a menu opened near an edge does not run past it.
         width = _resolve_overlay(ctx, :x, 0, iw + inset_width)
@@ -2431,7 +3338,7 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
         # child is placed.
         x, y = Int(inner.x), Int(inner.y)
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w),
+        _push_box_parts!(elements, box, _get_box_colors(p, w),
                          max(0, width - inset_width), max(0, height - inset_height))
         push!(elements, _make_canvas(content_x - x, content_y - y, Any[inner]))
         (x = x, y = y, width = width, height = height, elements = elements)
@@ -2441,7 +3348,7 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
                             Cell(@computation Int32(build[].height)),
                             CellVector(@computation build[].elements),
                             layout_none, true, Cell(nothing))
-    WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap)
+    WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, geometry)
 end
 
 map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
@@ -2466,7 +3373,7 @@ function map_reference_backward(p::WidgetContextMenuToGraphicsCanvas, iomap::Wid
 end
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Every event routes to the child: its answer is re-rooted through `.child`, and a
 # popup the child opens is moved out of the content offset. A dwell and a right
@@ -2506,13 +3413,13 @@ end
 # Where the frame of the child of a context menu stands in the menu's frame: at the
 # content offset, because the menu stands where its child stands.
 _get_context_menu_child_offset(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap) =
-    _content_offset(p, iomap.input)
+    _get_content_offset(_get_box_geometry(iomap))
 
 # The child as an entry of the routing helpers, which take the place of the child's
 # own canvas off a point: the offset of the wrapper canvas, the content offset less
 # the origin of the child's canvas.
 function _get_context_menu_child_entry(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap)
-    cox, coy = _content_offset(p, iomap.input)
+    cox, coy = _get_content_offset(_get_box_geometry(iomap))
     canvas = iomap.child_iomap.output
     canvas isa GraphicsCanvas || return (cox, coy, iomap.child_iomap)
     (cox - Int(canvas.x), coy - Int(canvas.y), iomap.child_iomap)
@@ -2547,7 +3454,7 @@ WidgetDialogToGraphicsCanvas(theme; measure,
                              title_text = _themed(StyleText, theme, _get_title_text),
                              body_text = _themed(StyleText, theme, _get_body_text),
                              scrim_color = _themed(StyleColor, theme, t -> t.scrim),
-                             gap = _themed(Int, theme, t -> t.item_gap),
+                             gap = _themed(Int, theme, t -> t.section_gap),
                              corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetDialogToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, title_text, body_text, scrim_color,
@@ -2562,6 +3469,7 @@ WidgetDialogToGraphicsCanvas(theme; measure,
     card::NTuple{4,Int}      # (x, y, w, h)
     content_entry::Any       # (ox, oy, cim) | nothing
     button_entries::Cell     # Vector of (ox, oy, cim)
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -2569,8 +3477,9 @@ ProjectionModule.get_child_iomaps(iomap::WidgetDialogToGraphicsCanvasIoMap) =
     _collect_child_iomaps(iomap.content_entry, iomap.button_entries...)
 
 function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    box = _get_box_insets(p, w)
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    # A dialog fills its window, as a shell does, so it takes no space around it.
+    box = _compute_box_geometry(p, w, _NO_SPACE)
     colors = _get_box_colors(p, w)
     margin_left, margin_top, _margin_right, _margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
@@ -2590,7 +3499,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     # The card takes its size from what it holds, so it gives no slot: each part
     # gets the edge of the window less the margin, the border and the padding
     # around it (§3 of layout-rules.md).
-    inset_width, inset_height = _inset_total(p, w)
+    inset_width, inset_height = _get_inset_total(box)
     edge_w = max(0, avail_w - inset_width)
     edge_h = max(0, avail_h - inset_height - title_h)
 
@@ -2673,7 +3582,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
 
     canvas = _make_canvas(0, 0, avail_w, avail_h, elements)
     WidgetDialogToGraphicsCanvasIoMap(p, w, canvas, (card_x, card_y, card_w, card_h),
-                                      content_entry, Cell(button_entries))
+                                      content_entry, Cell(button_entries), box)
 end
 
 map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2687,7 +3596,7 @@ function map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDia
 end
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetDialogToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Esc / a backdrop click (on the scrim, outside the card) dismiss; a button click
 # runs its action AND closes (one CompoundOperation); a click inside the card on
@@ -2744,6 +3653,7 @@ end
     natural_width::Any
     control_width::Any
     control_height::Any
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -2761,7 +3671,9 @@ _menu_item_icon(w::WidgetMenuItem) = _menu_item_command(w).icon
 _get_menu_item_variant(w::WidgetMenuItem) = w.submenu === nothing ? nothing : :submenu
 
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    space = _get_given_space(ctx)
+    geometry = Cell(@computation _compute_box_geometry(p, w, space; variant = _get_menu_item_variant(w)))
     # The child (a recursed widget content) is reconciled and forced only in the
     # WidgetDocument branch. It is offered no width, so what the item needs does
     # not depend on what the item is offered.
@@ -2772,9 +3684,9 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # offer, because a dropdown reads the width each item needs to offer every item
     # the widest.
     measured = Cell(@computation begin
-        variant = _get_menu_item_variant(w)
-        content_x, content_y = _content_offset(p, w; variant)
-        inset_width, inset_height = _inset_total(p, w; variant)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
+        inset_width, inset_height = _get_inset_total(box)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
         state = enabled ? nothing : :disabled
@@ -2808,24 +3720,40 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
                         content_y + (ch - line) ÷ 2, label.color)
             cw += icon_w + gap
         end
+        keys = _describe_menu_item_keys(w)
+        keys_width, keys_height = isempty(keys) ? (0, 0) : _text_size(p.measure, p.keys_text.font, keys)
+        keys_width > 0 && (cw += p.keys_gap + keys_width)
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         enabled, elements = elems, child_iomaps, variant)
+         enabled, elements = elems, child_iomaps, keys, keys_width,
+         keys_y = content_y + (ch - keys_height) ÷ 2, content_x)
     end)
     build = Cell(@computation begin
         needed = measured[]
         control_w = _resolve_width(ctx, 0, needed.width)
         control_h = _resolve_height(ctx, 0, needed.height)
-        # A clear surface over the whole item: a press or a move anywhere on it
-        # hits the item, and not only on its label, also where the padding is.
-        final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
-        _push_box_parts!(final, _get_box_insets(p, w; needed.variant), _get_box_colors(p, w),
+        # A clear surface over the whole item, inside the space around it: a press
+        # or a move anywhere on it hits the item, and not only on its label, also
+        # where the padding is.
+        box = geometry[]
+        surface = _get_part_rect(box, :margin, control_w, control_h)
+        final = Any[GraphicsRect(surface...; color = color_transparent, radius = 0)]
+        _push_box_parts!(final, box, _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
         # The layer of the light of an enabled item, drawn over the box and under
         # the content. It reads the mouse target in cells of its own, so a light
         # changes no extent.
-        needed.enabled && _push_hover_layer!(final, w, 0, 0, control_w, control_h;
-                                             hovered_color = p.layer_hovered_color)
+        needed.enabled && _push_hover_layer!(final, w, surface...; hovered_color = p.layer_hovered_color)
+        first_content = length(final) + 1
         append!(final, needed.elements)
+        # The keys stand at the right edge of the item, so the keys of the items of
+        # a menu make a column.
+        if needed.keys_width > 0
+            right = control_w - (needed.inset_width - needed.content_x)
+            _push_text!(final, p.measure, p.keys_text.font, needed.keys, right - needed.keys_width,
+                        needed.keys_y, p.keys_text.color)
+        end
+        _cut_content_at_box!(final, first_content, box, control_w, control_h, needed.width - needed.inset_width,
+                             needed.height - needed.inset_height)
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
     # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
@@ -2837,19 +3765,36 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
                                         Cell(@computation build[].child_iomaps),
                                         Cell(@computation measured[].width),
-                                        Cell(@computation build[].width), Cell(@computation build[].height))
+                                        Cell(@computation build[].width), Cell(@computation build[].height),
+                                        geometry)
 end
 
 map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
-map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetBoxIoMap, reference) = _map_child_forward(iomap, reference)
 function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     (point === nothing || !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)) && return nothing
     _map_point_to_child(iomap.input, iomap.child_iomaps, point)
 end
 
+# The answer to a choice of the enabled item `w`: its action, or the edit of the
+# part that its context menu belongs to when it holds one, and the close of the
+# popup that holds it.
+function _make_menu_item_choice(w::WidgetMenuItem)
+    command = _menu_item_command(w)
+    operation = w.operation
+    chosen = operation === nothing ? InvokeActionOperation(command) :
+             EditMenuPartOperation(operation, string(command.label))
+    CompoundOperation(Any[chosen, CloseWindowOperation(:widget_popup)])
+end
+
+# The keys of an item, as a person reads them: "Delete", "Shift+F10", with a
+# comma between two of them.
+_describe_menu_item_keys(w::WidgetMenuItem) =
+    join((key isa AbstractString ? String(key) : describe_gesture_pattern(key) for key in w.keys), ", ")
+
 # Invisible item (printer returned a bare empty canvas): inert.
-read_intent(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
+read_intent(::WidgetMenuItemToGraphicsCanvas, ::WidgetBoxIoMap, evt) = nothing
 
 function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -2869,13 +3814,8 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         submenu = w.submenu
         submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
         # The subtree wins over the callback here (unlike a button's dialog):
-        # a menu-bar entry that opens a submenu is what the item IS. An item
-        # with an operation edits the part that its context menu belongs to.
-        command = _menu_item_command(w)
-        operation = w.operation
-        chosen = operation === nothing ? InvokeActionOperation(command) :
-                 EditMenuPartOperation(operation, string(command.label))
-        return CompoundOperation(Any[chosen, CloseWindowOperation(:widget_popup)])
+        # a menu-bar entry that opens a submenu is what the item IS.
+        return _make_menu_item_choice(w)
     end
     # A dwell goes to the content at its point, and invokes nothing.
     evt isa MouseDwell &&
@@ -2884,14 +3824,14 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
-# Open the item's `submenu` as a popup just below the item: a position in
-# the item's own frame, which each reader above moves into its own frame, as the
+# Open the item's `submenu` as a popup below the item: the box of the item in its
+# own frame, which each reader above moves into its own frame, as the
 # `WidgetSelect` dropdown does. The popup window takes the extent of what the
-# submenu draws; placement beyond "below" is left to anchored-layout.md.
+# submenu draws, and goes above the item when the display has no room below.
 function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=submenu))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=submenu))
 end
 
 # ── WidgetToolbarItem ───────────────────────────────────────────────────────
@@ -2905,46 +3845,67 @@ _toolbar_item_enabled(w::WidgetToolbarItem) =
 # shows and its padding, so a move in a toolbar lands on the item under the
 # pointer and not on its left neighbour.
 function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::WidgetToolbarItem, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
-        cox, coy = _content_offset(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        command = _toolbar_item_command(w)
-        enabled = _toolbar_item_enabled(w)
-        state = enabled ? nothing : :disabled
-        label = _get_state_text(p, w, :label; state)
-        _, line = _text_size(p.measure, label.font, "M")
-        icon_size = icon_width(command.icon, scale_length(line, p.icon_size))
-        elements = Any[]
-        if icon_size > 0
-            _push_icon!(elements, command.icon, cox, coy, icon_size, label.color)
-            content_width, content_height = icon_size, icon_size
-        else
-            text = string(command.label)
-            content_width, content_height = _text_size(p.measure, label.font, text)
-            _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
-        end
-        # As large as what it shows, on both axes. A band can offer the height of
-        # the window, and an item that took it would take every press below it.
-        width = content_width + inset_width
-        height = content_height + inset_height
-        # A clear surface over the whole button: a press anywhere on it hits the
-        # item, and not only on the strokes of its picture.
-        drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
-        _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
-                         content_width, content_height; radius = p.corner_radius)
-        # Flat at rest; under the pointer the layer draws the surface and the
-        # outline of a button, and a darker surface while it is held.
-        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color,
-                                      pressed_color = p.layer_pressed_color,
-                                      stroke = p.layer_stroke, radius = p.corner_radius)
-        append!(drawn, elements)
-        (width = width, height = height, elements = drawn)
-    end))
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> _build_toolbar_item(p, w, geometry[], ctx)))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(0, 0, build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
 
-map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = nothing
+# The box, the icon or the label of a toolbar item: `(; width, height, elements, drawn)`.
+# A label that the item draws records its line, as the part `.action.label`.
+function _build_toolbar_item(p::WidgetToolbarItemToGraphicsCanvas, w::WidgetToolbarItem, box::BoxGeometry, ctx)
+    cox, coy = _get_content_offset(box)
+    inset_width, inset_height = _get_inset_total(box)
+    command = _toolbar_item_command(w)
+    enabled = _toolbar_item_enabled(w)
+    state = enabled ? nothing : :disabled
+    label = _get_state_text(p, w, :label; state)
+    _, line = _text_size(p.measure, label.font, "M")
+    icon_size = icon_width(command.icon, _get_icon_size(command.icon, scale_length(line, p.icon_size)))
+    elements = Any[]
+    lines = DrawnTextLine[]
+    if icon_size > 0
+        # A decorated icon takes the color of its role and its corner marks, as
+        # in a row of a tree.
+        _push_decorated_icon!(elements, p.badge, command.icon, cox, coy, icon_size, label.color,
+                              color_transparent)
+        content_width, content_height = icon_size, icon_size
+    else
+        text = string(command.label)
+        content_width, content_height = _text_size(p.measure, label.font, text)
+        _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
+        _is_drawn_value(command.label) && !isempty(text) &&
+            push!(lines, DrawnTextLine(last(elements), _ACTION_LABEL_PART, 0))
+    end
+    # What it shows, raised to the minimum of its range: a toolbar gives its
+    # items no minimum, so an item there is as large as what it shows.
+    width = _resolve_width(ctx, 0, content_width + inset_width)
+    height = _resolve_height(ctx, 0, content_height + inset_height)
+    # A clear surface over the whole button, inside the space around it: a
+    # press anywhere on it hits the item, and not only on the strokes of its
+    # picture.
+    surface = _get_part_rect(box, :margin, width, height)
+    drawn = Any[GraphicsRect(surface...; color = color_transparent, radius = 0)]
+    _push_box_parts!(drawn, box, _get_box_colors(p, w; state),
+                     width - inset_width, height - inset_height; radius = p.corner_radius)
+    # Flat at rest; under the pointer the layer draws the surface and the
+    # outline of a button, and a darker surface while it is held.
+    enabled && _push_hover_layer!(drawn, w, surface...; hovered_color = p.layer_hovered_color,
+                                  pressed_color = p.layer_pressed_color,
+                                  stroke = p.layer_stroke, radius = p.corner_radius)
+    _cut_content_at_box!(elements, 1, box, width, height, content_width, content_height)
+    append!(drawn, elements)
+    (width = width, height = height, elements = drawn, drawn = lines)
+end
+
+# A caret or a range in the label is drawn on its line.
+map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+
+# A place of characters of the label is the caret or the range in it; a point names
+# the item as a whole.
+map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # A left press on an enabled item invokes its action. The item's own gestures come
 # first, as on a button.
@@ -2952,9 +3913,10 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 # A left down and up on an enabled item write its transient `pressed`, as on a
 # button. The down is the answer of the item, so it does not move the focus.
 #
-# Alt and a left press select the item as a whole, as they select any widget, so
-# the item declines that press and the layers above select it.
-function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, evt)
+# An Alt+click puts the caret in the label and an Alt+double click selects it
+# whole; neither acts. A press with Alt starts the drag of a range, and a key moves
+# in the label while the selection is there.
+function read_intent(p::WidgetToolbarItemToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
     # A move off the item reaches it only while it is the part under the pointer,
@@ -2962,8 +3924,11 @@ function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, ev
     if evt isa MouseMove && _outside_widget(iomap, evt)
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
-    _outside_widget(iomap, evt) && return nothing
-    is_whole_selection_press(evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     enabled = _toolbar_item_enabled(w)
     enabled || return nothing
     operation = read_bound_gesture(w, evt)
@@ -2998,6 +3963,15 @@ end
 # drawn width of an item is never read here, because it depends on this width: an
 # item whose IO map a host wraps beyond reach counts nothing, and it still draws
 # at least what it needs.
+# The least width of a row of a dropdown: its minimum width less the insets of its
+# shape `box`.
+function _menu_minimum_row_width(w::WidgetMenu, box::BoxGeometry)
+    minimum = w.minimum_width
+    minimum === nothing && return 0
+    inset_width, _ = _get_inset_total(box)
+    max(0, minimum - inset_width)
+end
+
 function _menu_row_width(child_iomaps)
     width = 0
     for cim in child_iomaps
@@ -3062,7 +4036,9 @@ function _compute_bar_extent(box_width::Int, box_height::Int, child_iomaps::Vect
 end
 
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    space = _get_given_space(ctx)
+    geometry = Cell(@computation _compute_box_geometry(p, w, space; variant = w.orientation))
     # Reconcile every element by identity, keeping the ORIGINAL index so the
     # context of an item names `…elements[i]` and its forward image maps back to
     # graphics coordinates (Step 4c). Non-widget slots reconcile to `nothing` and
@@ -3079,10 +4055,12 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
                                      i -> (FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)))) :
             nothing)
     w.orientation === :horizontal ||
-        set_cell_computation!(row_width, () -> _menu_row_width(child_cells[]))
+        set_cell_computation!(row_width, () -> max(_menu_row_width(child_cells[]),
+                                                   _menu_minimum_row_width(w, geometry[])))
     build = Cell(@computation begin
         variant = w.orientation
-        content_x, content_y = _content_offset(p, w; variant)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
         horizontal = w.orientation === :horizontal
         _, item_h = _text_size(p.measure, p.font, "M")
         item_gap = horizontal ? p.bar_gap : 0
@@ -3092,10 +4070,13 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         y_cursor = 0
         item_w = 0
         row_h = item_h
-        for cim in child_cells[]
+        lit = nothing
+        for (index, cim) in enumerate(child_cells[])
             cim === nothing && continue
             push!(child_iomaps, (content_x + x_cursor, content_y + y_cursor, cim))
             push!(items, _make_canvas(content_x + x_cursor, content_y + y_cursor, Any[cim.output]))
+            index == w.highlighted && !horizontal &&
+                (lit = (content_y + y_cursor, max(item_h, _menu_item_height(cim))))
             if horizontal
                 x_cursor += _menu_item_width(cim) + item_gap
                 row_h = max(row_h, _menu_item_height(cim))
@@ -3107,9 +4088,12 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         content_width = horizontal ? max(0, x_cursor - item_gap) : item_w
         content_height = horizontal ? row_h : y_cursor
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
+        _push_box_parts!(elems, box, _get_box_colors(p, w; variant),
                          content_width, content_height)
-        inset_width, inset_height = _inset_total(p, w; variant)
+        # The item that the keys lit, behind its label, as wide as the menu.
+        lit === nothing || push!(elems, GraphicsRect(content_x, lit[1], content_width, lit[2];
+                                                     color = p.highlighted_color, radius = 0))
+        inset_width, inset_height = _get_inset_total(box)
         width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
                                             child_iomaps, _p_measure(p))
         append!(elems, items)
@@ -3117,15 +4101,17 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         (width = _resolve_overlay(ctx, :x, 0, width), height = _resolve_overlay(ctx, :y, 0, height),
          elements = elems, child_iomaps = child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
+    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps),
+                        geometry)
 end
 
-map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
-function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetMenuToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
+    evt isa KeyDown && return _read_menu_key(iomap.input, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3135,11 +4121,31 @@ function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_scroll_to_children(child_iomaps, evt)
 end
 
+# The keys of a vertical menu: Down and Up light the next and the previous
+# enabled item, Home and End the first and the last, and Return chooses the lit
+# item as a click does. The light is view state of the menu.
+function _read_menu_key(w::WidgetMenu, evt::KeyDown)
+    (w.orientation === :vertical && evt.modifiers == ModifierKeys()) || return nothing
+    choices = Int[index for (index, element) in enumerate(w.elements)
+                  if element isa WidgetMenuItem && element.visible !== false &&
+                     element.submenu === nothing && _menu_item_enabled(element)]
+    isempty(choices) && return nothing
+    current = findfirst(==(w.highlighted), choices)
+    evt.key === :return && return current === nothing ? nothing : _make_menu_item_choice(w.elements[choices[current]])
+    next = evt.key === :down ? (current === nothing ? 1 : min(current + 1, length(choices))) :
+           evt.key === :up ? (current === nothing ? length(choices) : max(current - 1, 1)) :
+           evt.key === :home ? 1 :
+           evt.key === :end ? length(choices) : nothing
+    next === nothing && return nothing
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "highlighted", choices[next]))
+end
+
 # ── WidgetComposite ─────────────────────────────────────────────────────────
 
 function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::WidgetComposite, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
     pos = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # A composite renders widget children, embedded layout children (e.g. a
     # GridLayout form from ObjectToWidget) and a child in a `LayoutConstraint`;
     # each re-enters the recursion. Reconcile the filtered children by identity so
@@ -3147,12 +4153,13 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[c for c in w.elements
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
-        (_, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
+        (_, c) -> print_child(recursion, c, _make_composite_child_context(w, geometry, c, ctx)))
     # The natural extent of the children together, before the box around them. A
-    # context with a minimum width, as a slot that the composite fills gives, makes
-    # the box at least that wide, so a box of a `Fill` composite reaches the edge
-    # of its slot.
+    # context with a minimum, as a slot that the composite fills gives, makes the
+    # box at least that large, so a box of a `Fill` composite reaches the edges of
+    # its slot.
     minimum_width = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_height = ctx isa PrinterContext ? ctx.minimum_height : nothing
     extent = Cell(@computation begin
         content_width, content_height = 0, 0
         for cim in child_cells[]
@@ -3160,7 +4167,9 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
             content_width = max(content_width, ew); content_height = max(content_height, eh)
         end
         minimum_width === nothing ||
-            (content_width = max(content_width, Int(minimum_width[]) - _inset_total(p, w)[1]))
+            (content_width = max(content_width, Int(minimum_width[]) - _get_inset_total(geometry[])[1]))
+        minimum_height === nothing ||
+            (content_height = max(content_height, Int(minimum_height[]) - _get_inset_total(geometry[])[2]))
         (content_width, content_height)
     end)
     # The box around the children is a canvas of its own, so the list of the
@@ -3170,21 +4179,46 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     # in it, and a transparent box would pay for that on every change inside.
     box = GraphicsCanvas(CellVector(@computation begin
         elems = Any[]
-        insets, colors = _get_box_insets(p, w), _get_box_colors(p, w)
+        insets, colors = geometry[], _get_box_colors(p, w)
         if _is_box_visible(insets, colors)
             content_width, content_height = extent[]
             _push_box_parts!(elems, insets, colors, content_width, content_height)
         end
+        # The space at the right and at the bottom holds no child and no part of
+        # the box, so a clear rect gives the composite its extent with the space.
+        if insets.space != _NO_SPACE
+            content_width, content_height = extent[]
+            inset_width, inset_height = _get_inset_total(insets)
+            push!(elems, GraphicsRect(0, 0, content_width + inset_width, content_height + inset_height;
+                                      color = color_transparent))
+        end
         elems
     end))
+    # A composite in an exact range takes it, and cuts the children that reach
+    # past it at its inner box: the outer extent and the reach of the children, or
+    # `nothing` when they fit. The answer is plain data, so a change inside a child
+    # that keeps the fit builds nothing.
+    exact_width = ctx isa PrinterContext ? get_exact_width(ctx) : nothing
+    exact_height = ctx isa PrinterContext ? get_exact_height(ctx) : nothing
+    cut = Cell(@computation begin
+        (exact_width === nothing && exact_height === nothing) && return nothing
+        content_width, content_height = extent[]
+        inset_width, inset_height = _get_inset_total(geometry[])
+        width = exact_width === nothing ? content_width + inset_width : Int(exact_width[])
+        height = exact_height === nothing ? content_height + inset_height : Int(exact_height[])
+        (content_width + inset_width <= width && content_height + inset_height <= height) && return nothing
+        (width, height, content_width, content_height)
+    end)
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
+        content_x, content_y = _get_content_offset(geometry[])
         cims = child_cells[]
         child_iomaps = Any[(content_x, content_y, cim) for cim in cims]
         elems = Any[box]
         for cim in cims
             push!(elems, _make_canvas(content_x, content_y, Any[cim.output]))
         end
+        reach = cut[]
+        reach === nothing || _cut_content_at_box!(elems, 2, geometry[], reach...)
         (elements=elems, child_iomaps=child_iomaps)
     end)
     # The ring over the element the composite's selection names as a whole.
@@ -3195,9 +4229,9 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         (x, y, cim) = entries[i]
         _get_entry_box(x, y, cim, _p_measure(p))
     end, p.graphics_style)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
-                                              _p_measure(p)),
-                  Cell(@computation build[].child_iomaps))
+    WidgetChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
+                                                    _p_measure(p); stretch = ctx isa PrinterContext ? ctx : nothing),
+                        Cell(@computation build[].child_iomaps), geometry)
 end
 
 # The context of a child of a composite. The children overlap, each at its own
@@ -3205,17 +4239,17 @@ end
 # axes the range of `make_cross_axis_context`: the policy is the
 # `LayoutConstraint` that the child is, else the composite's `child_width` and
 # `child_height`, else `Content`. The edge is the maximum of the composite's
-# range less its insets and less the position of the child, so a child that
-# fills ends at the edge of the composite, and a child that fits its content
-# draws it up to there.
-function _make_composite_child_context(p, w::WidgetComposite, child, ctx)
+# range less the insets of its shape `geometry`, a cell, and less the position of
+# the child, so a child that fills ends at the edge of the composite, and a child
+# that fits its content draws it up to there.
+function _make_composite_child_context(w::WidgetComposite, geometry::Cell, child, ctx)
     ctx isa PrinterContext || return ctx
     position = () -> _get_placed_position(child)
     edge(maximum, inset, coordinate) = maximum === nothing ? nothing :
         Cell(@computation Int32(max(0, Int(maximum[]) - inset() - coordinate())))
     cctx = with_bounded_size(ctx;
-        width = edge(ctx.maximum_width, () -> _inset_total(p, w)[1], () -> position()[1]),
-        height = edge(ctx.maximum_height, () -> _inset_total(p, w)[2], () -> position()[2]))
+        width = edge(ctx.maximum_width, () -> _get_inset_total(geometry[])[1], () -> position()[1]),
+        height = edge(ctx.maximum_height, () -> _get_inset_total(geometry[])[2], () -> position()[2]))
     cctx = make_cross_axis_context(cctx, child, :x, w.child_width)
     make_cross_axis_context(cctx, child, :y, w.child_height)
 end
@@ -3231,7 +4265,7 @@ function _get_placed_position(child)
     position isa Point2D ? (round(Int, position.x[]), round(Int, position.y[])) : (0, 0)
 end
 
-map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -3243,7 +4277,7 @@ map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
 # `elements[i]` — the same scheme WidgetSplitPane uses. Identity-bearing ops
 # (ReplaceReferencedValueOperation from a control) pass through `reroot_operation`
 # unchanged. For a dwell and a right click the composite then reads its own stretch.
-function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     # A move that is off the composite still goes to the child the pointer leaves.
     _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3415,7 +4449,10 @@ end
 # ── WidgetShell ─────────────────────────────────────────────────────────────
 
 function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShell, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    # The shell is the frame of a window: it reaches the edges of its slot, takes
+    # no space around it, and offers 0 to everything that it holds.
+    geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
     # The shell's extent on an axis is its own `size` when it has one, else the
     # space its parent offered, and it has none on an axis where it has neither
     # (`layout-rules.md` §3). A window offers its size, so the shell of a window
@@ -3433,7 +4470,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     end)
     # The room inside the shell, across, less its insets.
     avail_w_cell = Cell(@computation begin
-        tx, _ = _inset_total(p, w)
+        tx, _ = _get_inset_total(geometry[])
         max(0, outer_width[] - tx)
     end)
     # A band spans the shell and is as tall as what it holds, so it is offered
@@ -3452,21 +4489,24 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     sb_cell = make_reconciled_child_iomap_cell(() -> w.status_bar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("status_bar"))))
     tt_cell = make_reconciled_child_iomap_cell(() -> w.overlay,
-        c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("overlay"))))
+        c -> print_child(recursion, c, make_child_context(_with_no_space(ctx), FieldReferenceStep("overlay"))))
+    # A line under the menu bar and the toolbar and above the status bar takes
+    # its width of height, as a splitter takes its width.
+    line = max(1, Int(p.band_line_stroke.width))
     # Where the bands sit, from the height each one draws. A band's height comes
     # from what it holds, never from the shell, so reading it closes no cycle.
     bands = Cell(@computation begin
-        cox, coy = _content_offset(p, w)
-        menu_h = w.menu_bar isa WidgetDocument ? _shell_band_height(mb_cell[]) : 0
-        tool_h = w.toolbar isa WidgetDocument ? _shell_band_height(tb_cell[]) + p.band_gap : 0
-        status_h = w.status_bar isa WidgetDocument ? _shell_band_height(sb_cell[]) : 0
+        cox, coy = _get_content_offset(geometry[])
+        menu_h = w.menu_bar isa WidgetDocument ? _shell_band_height(mb_cell[]) + line : 0
+        tool_h = w.toolbar isa WidgetDocument ? _shell_band_height(tb_cell[]) + p.band_gap + line : 0
+        status_h = w.status_bar isa WidgetDocument ? _shell_band_height(sb_cell[]) + line : 0
         (cox=cox, coy=coy, menu_h=menu_h, tool_h=tool_h,
          content_y=coy + menu_h + tool_h, status_h=status_h)
     end)
     # The room inside the shell, down, less its insets and the bands above and
     # below the content.
     avail_h_cell = Cell(@computation begin
-        _, ty = _inset_total(p, w)
+        _, ty = _get_inset_total(geometry[])
         b = bands[]
         max(0, outer_height[] - ty - (b.content_y - b.coy) - b.status_h)
     end)
@@ -3487,9 +4527,11 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         content_y = tool_y + b.tool_h
         content_bottom = content_y
         w.content !== nothing && !has_height && (content_bottom += _shell_band_height(content_cell[]))
-        _, ty = _inset_total(p, w)
+        _, ty = _get_inset_total(geometry[])
         status_y = has_height ? b.coy + outer_height[] - ty - b.status_h : content_bottom
-        (menu_bar = menu_y, toolbar = tool_y, content = content_y, status_bar = status_y)
+        (menu_bar = menu_y, toolbar = tool_y, content = content_y,
+         status_bar = status_y + (w.status_bar isa WidgetDocument ? line : 0),
+         menu_line = tool_y - line, tool_line = content_y - line, status_line = status_y)
     end)
     # The bands the shell draws, each with the iomap it holds and the cell of its top.
     # Which bands there are depends on the fields of the shell and not on how tall
@@ -3508,24 +4550,46 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         w.overlay isa WidgetDocument && push!(out, (:overlay, tt_cell[]))
         out
     end)
-    get_band_left(name) = name === :overlay ? 0 : _content_offset(p, w)[1]
+    get_band_left(name) = name === :overlay ? 0 : _get_content_offset(geometry[])[1]
     get_band_top(name) = name === :overlay ? 0 : getproperty(places[], name)
     build = Cell(@computation begin
         elems = Any[]
         if has_width && has_height
-            inset_width, inset_height = _inset_total(p, w)
+            box = geometry[]
+            inset_width, inset_height = _get_inset_total(box)
             content_width = max(0, Int(outer_width[]) - inset_width)
             content_height = max(0, Int(outer_height[]) - inset_height)
-            _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+            _push_box_parts!(elems, box, _get_box_colors(p, w), content_width, content_height)
+        end
+        line_width = has_width ? Int(outer_width[]) :
+            maximum((Int(cim.output.w[]) for (_, cim) in slots[] if cim.output isa GraphicsCanvas); init = 0)
+        for (field, line_name) in ((:menu_bar, :menu_line), (:toolbar, :tool_line), (:status_bar, :status_line))
+            getproperty(w, field) isa WidgetDocument &&
+                push!(elems, GraphicsRect(0, getproperty(places[], line_name), line_width, line;
+                                          color = p.band_line_stroke.color))
         end
         for (name, cim) in slots[]
             push!(elems, _make_canvas(get_band_left(name), Cell(@computation Int32(get_band_top(name))),
                                       Any[cim.output]))
+            # The shell gives its content a slot on each axis where it has a size,
+            # and cuts the content there.
+            if name === :content && (has_width || has_height) && cim.output isa GraphicsCanvas
+                content_width, content_height = Int(cim.output.w[]), Int(cim.output.h[])
+                _cut_elements!(elems, length(elems), get_band_left(name), Int(get_band_top(name)),
+                               has_width ? Int(avail_w_cell[]) : content_width,
+                               has_height ? Int(avail_h_cell[]) : content_height, content_width, content_height)
+            end
         end
         elems
     end)
     child_iomaps = Cell(@computation Any[(get_band_left(name), get_band_top(name), cim) for (name, cim) in slots[]])
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p)), child_iomaps)
+    # The shell takes its size or its slot on each axis by itself, else what it
+    # holds, raised to the minimum of its range.
+    WidgetChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p);
+                                                    stretch = ctx isa PrinterContext ? ctx : nothing,
+                                                    width = has_width ? outer_width : nothing,
+                                                    height = has_height ? outer_height : nothing),
+                        child_iomaps, geometry)
 end
 
 # How tall a band's printed output is.
@@ -3544,7 +4608,7 @@ _shell_field(w, name) =
     name == "content"  ? w.content  :
     name == "overlay"  ? w.overlay  : nothing
 
-map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
@@ -3552,7 +4616,7 @@ map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = _map_ch
 # the forward mapper finds it, with the point of a pointer gesture in the frame of
 # that band; every other change is read as any projection reads it.
 function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
-                     iomap::ChildrenIoMap)
+                     iomap::WidgetChildrenIoMap)
     change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
     head = change.route isa ConcreteReference ? get_reference_head(change.route) : nothing
     head isa FieldReferenceStep || return Intent(change.gesture, nothing)
@@ -3574,7 +4638,7 @@ end
 # A change with a route goes on to the child the route names, and comes back
 # rerooted by the steps it took, as the answer to a gesture does. The kernel's
 # default reader does this for every container whose IoMap names its children
-# (`get_child_iomaps`, `read_routed_child`): a `ChildrenIoMap` does, and a
+# (`get_child_iomaps`, `read_routed_child`): a `WidgetChildrenIoMap` does, and a
 # container with an IoMap of its own says what it holds, next to that IoMap. The
 # shell keeps its own reader, because its route names a band of the shell.
 
@@ -3592,7 +4656,7 @@ end
 # The shell wraps a single child widget as its `.content` field. A path
 # coming up from the child's reader lives at `.content.<rest>` in the
 # shell's input domain.
-function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference)
     reference === nothing && return nothing
     find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
@@ -3625,7 +4689,7 @@ function _shell_shortcut_actions(w::WidgetShell)
     acc
 end
 
-function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetShellToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     # A band answers in its own field, and the content in `content`.
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -3663,9 +4727,9 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _retarget_op(p, iomap, op)
 end
 
-# An Alt+press over a band selects in that band, and the path names the band's
+# An Alt+double click over a band selects in that band, and the path names the band's
 # own field. Every other answer is re-rooted into `content`, and a band is not
-# the content, so an Alt+press on a toolbar button selects the button and not the
+# the content, so an Alt+double click on a toolbar button selects the button and not the
 # whole window. Only the bands are hit-tested here, so a press over the content
 # reads the content once, on the ordinary route.
 function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MouseClick)
@@ -3744,11 +4808,13 @@ end
 # ── WidgetTitlePane ─────────────────────────────────────────────────────────
 
 function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    content_ctx = _get_title_pane_content_context(p, w, ctx)
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    content_ctx = _get_title_pane_content_context(p, w, geometry, ctx)
     content_cell = make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
-        content_x, content_y0 = _content_offset(p, w)
+        box = geometry[]
+        content_x, content_y0 = _get_content_offset(box)
         title_text = _get_part_text(w, :title_text, p.title_text)
         body_text = _get_part_text(w, :body_text, p.body_text)
         title = string(w.title)
@@ -3770,32 +4836,37 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
             _push_text!(body_elems, p.measure, body_text.font, content, content_x, content_y, body_text.color)
         end
         # The pane takes its slot, and with no slot the title and the content.
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         outer_width = _resolve_width(ctx, 0, max(tw, cw) + inset_width)
         outer_height = _resolve_height(ctx, 0, (content_y - content_y0) + ch + inset_height)
         box_content_width = outer_width - inset_width
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), box_content_width,
+        _push_box_parts!(elems, box, _get_box_colors(p, w), box_content_width,
                          outer_height - inset_height)
         title_bar_color = _get_part_color(w, :title_bar_color, p.title_bar_color)
+        first_content = length(elems) + 1
         _push_panel!(elems, content_x, content_y0, box_content_width, th; fill = title_bar_color)
         # Card-like: bold title, body in the content style.
         _push_text!(elems, p.measure, title_text.font, title, content_x, content_y0, title_text.color)
         append!(elems, body_elems)
+        _cut_content_at_box!(elems, first_content, box, outer_width, outer_height, max(tw, cw),
+                             (content_y - content_y0) + ch)
         (width=outer_width, height=outer_height, elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
+    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps),
+                        geometry)
 end
 
-# The range of the content: the range of the pane less its insets, and less the
-# title bar and its gap on the height, in the same state, so a slot stays a slot
-# and an edge stays an edge (§3 of layout-rules.md).
-function _get_title_pane_content_context(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane, ctx)
+# The range of the content: the range of the pane less the insets of its shape
+# `geometry`, a cell, and less the title bar and its gap on the height, in the same
+# state, so a slot stays a slot and an edge stays an edge (§3 of layout-rules.md).
+function _get_title_pane_content_context(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane,
+                                         geometry::Cell, ctx)
     ctx === nothing && return nothing
-    inset_width = Cell(@computation _inset_total(p, w)[1])
+    inset_width = Cell(@computation _get_inset_total(geometry[])[1])
     above = Cell(@computation begin
         title_text = _get_part_text(w, :title_text, p.title_text)
-        _inset_total(p, w)[2] + _text_size(p.measure, title_text.font, string(w.title))[2] + p.title_gap
+        _get_inset_total(geometry[])[2] + _text_size(p.measure, title_text.font, string(w.title))[2] + p.title_gap
     end)
     with_inner_size(ctx; width = inset_width, height = above)
 end
@@ -3805,7 +4876,7 @@ map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) = _ma
 map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
-function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3851,6 +4922,39 @@ function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
     layout_preferred(elem, axis, intrinsic)
 end
 
+# Whether a slot takes the extent of its content on the main axis: the child is
+# wrapped in a `LayoutConstraint` that says `Content` there, a policy that writes
+# no preferred extent and an explicit weight of 0. A bare child, and a constraint
+# that writes no weight, are not such a slot: with no size and no weight a slot
+# takes no room when the split has an extent to divide.
+function _is_split_content_slot(elem, axis::Symbol)
+    elem isa LayoutConstraint || return false
+    preferred = axis === :x ? elem.preferred_width : elem.preferred_height
+    weight = axis === :x ? elem.weight_width : elem.weight_height
+    preferred === nothing && weight !== nothing && iszero(weight)
+end
+
+# Whether a slot takes the extent of its content on the main axis up to its share:
+# the child is wrapped in a `LayoutConstraint` that writes no preferred extent there
+# and a weight above 0, as `height = Content, weight_height = 1.0` does. When the
+# split has an extent to divide, the slot is offered its share as an edge, and the
+# open slots that take no content share what it leaves. A drag pins it as it pins
+# any other slot.
+function _is_split_share_slot(elem, axis::Symbol)
+    elem isa LayoutConstraint || return false
+    preferred = axis === :x ? elem.preferred_width : elem.preferred_height
+    weight = axis === :x ? elem.weight_width : elem.weight_height
+    preferred === nothing && weight !== nothing && weight > 0
+end
+
+# The extent that the child of a content slot draws on the main axis, within the
+# minimum and the maximum of the slot.
+function _get_split_content_extent(elem, cim, axis::Symbol)
+    out = cim.output
+    drawn = out isa GraphicsCanvas ? Int(axis === :x ? out.w[] : out.h[]) : 0
+    clamp(drawn, layout_min(elem, axis, drawn), layout_max(elem, axis, drawn))
+end
+
 # The slot list a split lays out: `Document` children, each optionally wrapped in a
 # `LayoutConstraint` (transparent for projection, consulted for sizing policy).
 function _split_valid_elements(w::WidgetSplitPane)
@@ -3861,6 +4965,17 @@ function _split_valid_elements(w::WidgetSplitPane)
     end
     result
 end
+
+# Whether each slot is open. A slot whose maximum extent on the main axis is 0 is
+# closed: it takes no extent, it draws nothing, and no splitter stands on either
+# side of it. So a split hides a slot and keeps the IoMap of what it shows. The
+# maximum is read in the cells of the allocation and of the drawing, never in the
+# slot list, so a slot that closes or opens prints no child again.
+_get_split_open_slots(elements::Vector, axis::Symbol) =
+    Bool[layout_max(element, axis, 0) > 0 for element in elements]
+
+# Whether a splitter stands after slot `i`: both slots beside it are open.
+_has_split_gap(open::Vector{Bool}, i::Int) = i < length(open) && open[i] && open[i + 1]
 
 # Every per-slot cell, child IoMap and canvas child below is built for the slot
 # count it saw, so a slot **added or removed** can not be threaded through the ones
@@ -3873,19 +4988,21 @@ end
 # which is the cycle the forward-declared `alloc_cell` below already threads once;
 # a second pass through it would have to run inside the very cell it feeds.
 function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    build = Cell(@computation _split_build(p, recursion, w, ctx))
-    ChildrenIoMap(p, w, Cell(@computation build[].canvas),
-                  Cell(@computation build[].child_iomaps))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    # A split pane is a part of the frame: its dividers reach the edges of its
+    # slot, so it takes no space around it.
+    geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
+    build = Cell(@computation _split_build(p, recursion, w, geometry[], ctx))
+    WidgetChildrenIoMap(p, w, Cell(@computation build[].canvas),
+                        Cell(@computation build[].child_iomaps), geometry)
 end
 
-function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
-    box = _get_box_insets(p, w)
+function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, box::BoxGeometry,
+                      ctx)
     colors = _get_box_colors(p, w)
-    cox, coy = _content_offset(p, w)
+    cox, coy = _get_content_offset(box)
     orientation = w.orientation::Symbol
     main_axis = orientation === :horizontal ? :x : :y
-    sizes = w.sizes
     splitter_stroke = _get_part_stroke(w, :splitter_stroke, p.splitter_stroke)
     splitter_thickness = max(1, Int(splitter_stroke.width))
     splitter_color = splitter_stroke.color
@@ -3899,7 +5016,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # The offer covers the pane's whole box, and the slots live inside its inset.
     # Allocating the full offer and then placing the first child at `cox` made the
     # pane overhang its own offer by exactly the inset, on both axes.
-    inset_x, inset_y = _inset_total(p, w)
+    inset_x, inset_y = _get_inset_total(box)
     outer_avail_w = get_exact_width(ctx)
     outer_avail_h = get_exact_height(ctx)
     avail_w = outer_avail_w === nothing ? nothing :
@@ -3923,10 +5040,27 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
     alloc_cell = Cell(nothing)
+    # Whether each slot takes the extent of its child. The weights that it reads are
+    # read in a cell of its own, whose answer is plain data, so a new weight that
+    # keeps each answer, as a drag of a divider of the pane tree writes, builds the
+    # split no new time.
+    content_slots = Cell(@computation Tuple(_is_split_content_slot(elem, main_axis) for elem in valid_elems))
+    is_content = collect(Bool, content_slots[])
+    # Whether each slot takes the extent of its child up to its share, read as the
+    # content slots are.
+    share_slots = Cell(@computation Tuple(_is_split_share_slot(elem, main_axis) for elem in valid_elems))
+    is_share = collect(Bool, share_slots[])
+    open_cell = Cell(@computation _get_split_open_slots(valid_elems, main_axis))
     slot_main = Cell[]
+    # The share of each slot, `alloc_cell`, which a slot that takes its content up
+    # to its share is offered as an edge; and the extent of each slot after such a
+    # slot took what its child draws, `taken_cell`, which places the slots.
+    taken_cell = Cell(nothing)
+    share_main = Cell[]
     if avail_main !== nothing
         for i in 1:n
-            push!(slot_main, Cell(@computation begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
+            push!(slot_main, Cell(@computation begin v = taken_cell[]; v === nothing ? 0 : Int(v[i]) end))
+            push!(share_main, Cell(@computation begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
         end
     else
         # No main-axis offer: there is nothing to divide, so each slot is the
@@ -3942,6 +5076,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # Recurse into the wrapped widget (peeking through LayoutConstraint),
     # passing the slot's main-axis extent down via context so the child can
     # size itself to its slot.
+    slot_space = _get_inset_sides(p.slot_padding)
     inner_iomaps = Any[]
     for i in 1:n
         elem  = valid_elems[i]
@@ -3950,19 +5085,30 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # Offer the slot only when there is one. Offering an unallocated slot
         # tells the child it has no room at all, and it draws nothing; withholding
         # the axis lets the child size itself, which is what the slot then is.
-        cctx  = avail_main === nothing ? with_free_axis(ctx, main_axis) :
-                main_axis === :x ? with_exact_size(ctx; width=cell) :
-                                   with_exact_size(ctx; height=cell)
+        # Each slot gives `slot_padding` to what it holds, so the first box in it
+        # stands that far from the dividers and the edges. A slot that takes its
+        # content up to its share offers its share as an edge.
+        cctx  = avail_main === nothing || is_content[i] ? with_free_axis(ctx, main_axis; space = slot_space) :
+                is_share[i] ? (main_axis === :x ? with_bounded_size(ctx; width = share_main[i], space = slot_space) :
+                                                  with_bounded_size(ctx; height = share_main[i], space = slot_space)) :
+                main_axis === :x ? with_exact_size(ctx; width = cell, space = slot_space) :
+                                   with_exact_size(ctx; height = cell, space = slot_space)
         cim = print_child(recursion, inner, cctx)
         push!(inner_iomaps, cim)
     end
 
-    # The unoffered slots, now that the children have drawn.
+    # The unoffered slots, now that the children have drawn. The sizes and the pins
+    # are read in the cells of the slots and of the allocation, and not here: a
+    # drag writes them, and a new build prints every child again, so the view
+    # state inside a child, such as the place of its own divider, would start over.
     if avail_main === nothing
         for i in 1:n
-            declared = _split_intrinsic(valid_elems[i], sizes, i, main_axis)
+            elem_local = valid_elems[i]
             cim_local = inner_iomaps[i]
             set_cell_computation!(slot_main[i], function ()
+                open_cell[][i] || return 0
+                is_content[i] && return _get_split_content_extent(elem_local, cim_local, main_axis)
+                declared = _split_intrinsic(elem_local, w.sizes, i, main_axis)
                 declared > 0 && return declared
                 out = cim_local.output
                 out isa GraphicsCanvas || return 0
@@ -3979,32 +5125,88 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         local_cims  = inner_iomaps
         axis        = main_axis
         n_local     = n
-        sizes_local = sizes
-        pinned_cv   = w.pinned
-        set_cell_computation!(alloc_cell, function ()
+        # The minimum, the maximum, the preferred extent and the weight of each
+        # slot, and whether a drag pinned a slot.
+        function compute_slot_inputs()
+            sizes_local = w.sizes
+            pinned_cv   = w.pinned
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)
             wts   = Vector{Float64}(undef, n_local)
+            has_pinned = false
             for i in 1:n_local
                 elem      = local_elems[i]
                 intrinsic = _split_intrinsic(elem, sizes_local, i, axis)
                 mins[i]   = layout_min(elem, axis, intrinsic)
                 maxs[i]   = layout_max(elem, axis, intrinsic)
+                # A content slot is exactly as long as its child draws, and a drag
+                # gives it no size.
                 # A slot pinned by a drag is laid out at its dragged `sizes`
                 # extent exactly: that value becomes a hard pref (overriding any
                 # LayoutConstraint preferred) and its weight is zeroed so
                 # weighted redistribution leaves it alone.
-                if i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
+                if is_content[i]
+                    extent   = _get_split_content_extent(elem, local_cims[i], axis)
+                    mins[i]  = extent
+                    maxs[i]  = extent
+                    prefs[i] = extent
+                    wts[i]   = 0.0
+                elseif i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)
                     prefs[i] = Int(sizes_local[i])
                     wts[i]   = 0.0
+                    has_pinned = true
                 else
                     prefs[i] = intrinsic
                     wts[i]   = layout_weight(elem, axis)
+                    # A split divides its axis: a pane that declares no size and no
+                    # weight takes an equal share.
+                    intrinsic == 0 && wts[i] == 0.0 && (wts[i] = 1.0)
                 end
             end
-            allocate_axis(Int(avail_main[]); mins, maxs, prefs, weights = wts,
-                          gap = splitter_thickness, n = n_local)
+            (mins, maxs, prefs, wts, has_pinned)
+        end
+        # The extent of each slot. A slot in `fixed` keeps its preferred extent.
+        function allocate_slots(mins, maxs, prefs, wts, has_pinned, fixed)
+            # Only the open slots share the extent, and only the splitters between
+            # two of them take a part of it.
+            open = open_cell[]
+            shown = findall(open)
+            result = zeros(Int, n_local)
+            isempty(shown) && return result
+            # A drag pins every slot but the last, and the last takes the rest of
+            # the total, also when it has no weight of its own.
+            last_sized = findlast(i -> !fixed[i], shown)
+            has_pinned && last_sized !== nothing && wts[shown[last_sized]] == 0.0 &&
+                (wts[shown[last_sized]] = 1.0)
+            gaps = count(i -> _has_split_gap(open, i), 1:n_local) * splitter_thickness
+            result[shown] = allocate_axis(Int(avail_main[]) - gaps; mins = mins[shown],
+                                          maxs = maxs[shown], prefs = prefs[shown],
+                                          weights = wts[shown], gap = 0, n = length(shown))
+            result
+        end
+        set_cell_computation!(alloc_cell, () -> allocate_slots(compute_slot_inputs()..., is_content))
+        # Each open slot that takes its content up to its share, and that no drag
+        # pinned, keeps what its child draws within its share, and the other
+        # slots share the rest. Its child reads only the share, so no extent reads
+        # itself.
+        set_cell_computation!(taken_cell, function ()
+            shares = alloc_cell[]
+            (shares === nothing || !any(is_share)) && return shares
+            (mins, maxs, prefs, wts, has_pinned) = compute_slot_inputs()
+            pinned_cv = w.pinned
+            sizes_local = w.sizes
+            open = open_cell[]
+            fixed = copy(is_content)
+            for i in 1:n_local
+                (is_share[i] && open[i]) || continue
+                (i <= length(pinned_cv) && pinned_cv[i] && i <= length(sizes_local)) && continue
+                extent = min(_get_split_content_extent(local_elems[i], local_cims[i], axis), Int(shares[i]))
+                mins[i] = maxs[i] = prefs[i] = extent
+                wts[i] = 0.0
+                fixed[i] = true
+            end
+            allocate_slots(mins, maxs, prefs, wts, has_pinned, fixed)
         end)
     end
 
@@ -4014,9 +5216,10 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     for i in 1:n
         if main_axis === :x
             push!(child_x, Cell(Computation(function ()
+                open = open_cell[]
                 x = cox
                 for j in 1:(i-1)
-                    x += Int(slot_main[j][]) + splitter_thickness
+                    x += Int(slot_main[j][]) + (_has_split_gap(open, j) ? splitter_thickness : 0)
                 end
                 Int32(x)
             end)))
@@ -4024,9 +5227,10 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         else
             push!(child_x, Cell(Int32(cox)))
             push!(child_y, Cell(Computation(function ()
+                open = open_cell[]
                 y = coy
                 for j in 1:(i-1)
-                    y += Int(slot_main[j][]) + splitter_thickness
+                    y += Int(slot_main[j][]) + (_has_split_gap(open, j) ? splitter_thickness : 0)
                 end
                 Int32(y)
             end)))
@@ -4038,11 +5242,12 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # parent gave us an available cross extent we report that instead so
     # the slot fills the parent's allocation.
     outer_main = Cell(Computation(function ()
+        open = open_cell[]
         total = 0
         for i in 1:n
-            total += Int(slot_main[i][])
+            total += Int(slot_main[i][]) + (_has_split_gap(open, i) ? splitter_thickness : 0)
         end
-        Int32(total + (n - 1) * splitter_thickness)
+        Int32(total)
     end))
     outer_cross = if main_axis === :x
         avail_h === nothing ?
@@ -4068,10 +5273,29 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             Cell(@computation Int32(avail_w[]))
     end
     # Report the whole box: the slots plus the inset they sit inside.
+    # With no slot on an axis, the split is what its panes need there, raised to
+    # the minimum of its range.
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
+    at_least(extent, slot, minimum, inset) = (slot !== nothing || minimum === nothing) ? extent :
+        Cell(@computation Int32(max(Int(extent[]), Int(minimum[]) - inset)))
+    outer_main = main_axis === :x ? at_least(outer_main, avail_w, minimum_w, inset_x) :
+                                    at_least(outer_main, avail_h, minimum_h, inset_y)
+    outer_cross = main_axis === :x ? at_least(outer_cross, avail_h, minimum_h, inset_y) :
+                                     at_least(outer_cross, avail_w, minimum_w, inset_x)
     inner_w_cell = main_axis === :x ? outer_main : outer_cross
     inner_h_cell = main_axis === :x ? outer_cross : outer_main
     outer_w_cell = Cell(@computation Int32(Int(inner_w_cell[]) + inset_x))
     outer_h_cell = Cell(@computation Int32(Int(inner_h_cell[]) + inset_y))
+
+    # The band of each divider is a rect of cells of its own, made once for the
+    # split, so a change of the pointer or of the clock writes the cells of the band
+    # and prints no child again.
+    bands = [_make_splitter_band(p, w, k, main_axis, splitter_thickness,
+                                 ctx === nothing ? nothing : ctx.clock,
+                                 main_axis === :x ? child_x[k + 1] : child_y[k + 1],
+                                 main_axis === :x ? coy : cox, outer_cross)
+             for k in 1:(n - 1)]
 
     # Build the outer canvas elements as a CellVector so splitter positions
     # and child wrappers re-flow reactively when slot sizes change. The
@@ -4081,7 +5305,9 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         result = Any[]
         _push_box_parts!(result, box, colors, Int(inner_w_cell[]), Int(inner_h_cell[]))
         cross_extent = Int(outer_cross[])
+        open = open_cell[]
         for i in 1:n
+            open[i] || continue
             cim = inner_iomaps[i]
             cim.output isa GraphicsCanvas || continue
             slot = Int(slot_main[i][])
@@ -4099,6 +5325,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cursor = cox
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
+                _has_split_gap(open, i) || continue
                 push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent;
                                            color = splitter_color))
                 cursor += splitter_thickness
@@ -4107,14 +5334,19 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cursor = coy
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
+                _has_split_gap(open, i) || continue
                 push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness;
                                            color = splitter_color))
                 cursor += splitter_thickness
             end
         end
+        for i in 1:(n-1)
+            _has_split_gap(open, i) && push!(result, bands[i])
+        end
         # Where a press grabs a splitter, the pointer is a double arrow along the
         # main axis, over the band of the reader (`_get_splitter_band`).
         for i in 2:n
+            _has_split_gap(open, i - 1) || continue
             if main_axis === :x
                 start, extent = _get_splitter_band(Int(child_x[i][]), splitter_thickness)
                 push!(result, GraphicsPointerShape(start, coy, extent, cross_extent,
@@ -4140,13 +5372,67 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     (canvas = outer_canvas, child_iomaps = child_iomaps)
 end
 
+# The share of the band of a divider that shows `fade` seconds after the pointer
+# came to rest on it for `delay` seconds, from the clock time `start` at which it
+# came: 0 during the delay, then up to 1 over `fade` seconds, then 1. With no clock
+# the pointer never rests, so the share is 0. While the delay and the rise run, the
+# read subscribes to the clock; after that it reads none.
+function _compute_splitter_rise(clock, start::Float64, delay::Real, fade::Real)
+    clock === nothing && return 0.0
+    _is_within_duration(clock, start, delay + fade) || return 1.0
+    clamp((get_clock_time(clock) - start - delay) / fade, 0.0, 1.0)
+end
+
+# The band of the divider after slot `k`, a rect across the divider along the
+# cross axis, centred on the line of `thickness` pixels. `next_position` is the
+# cell of the main-axis place of slot `k + 1`, `cross_start` the cross-axis place
+# of the line and `cross_extent` the cell of its length. The band is the colour of
+# `splitter_band_color` with its alpha scaled by a share: 1 at once while the
+# divider is dragged, else it rises after the pointer rested on the grab area of
+# the divider for `band_delay` seconds of `clock`, and it falls over
+# `fade_duration` seconds after the pointer leaves or the drag ends. A split with
+# no pointer on a divider and none dragged reads no clock.
+function _make_splitter_band(p::WidgetSplitPaneToGraphicsCanvas, w::WidgetSplitPane, k::Int,
+                             main_axis::Symbol, thickness::Int, clock,
+                             next_position::Cell, cross_start::Int, cross_extent::Cell)
+    under = Cell(@computation w.splitter_under_pointer == k)
+    dragged = Cell(@computation w.active_splitter == k)
+    resting = _make_change_time_cell(() -> under[], clock)
+    rise = Cell(Computation(function ()
+        rests, since = resting[]
+        rests ? _compute_splitter_rise(clock, since, p.band_delay, p.fade_duration) : 0.0
+    end))
+    lit = Cell(Computation(function ()
+        raised = rise[]
+        dragged[] || raised > 0
+    end))
+    lit_since = _make_change_time_cell(() -> lit[], clock)
+    # `lit_since` is read each time, so it sees each change of `lit`.
+    share = Cell(Computation(function ()
+        since = lit_since[][2]
+        dragged[] && return 1.0
+        rise[] > 0 && return rise[]
+        _compute_scroll_bar_share(clock, (false, since), p.fade_duration)
+    end))
+    band = p.splitter_band_width
+    along = Cell(@computation Int32(Int(next_position[]) - thickness + (thickness - band) ÷ 2))
+    rect = GraphicsRect(0, 0, 0, 0; color = color_transparent)
+    set_cell_computation!(getfield(rect, :x), () -> main_axis === :x ? along[] : Int32(cross_start))
+    set_cell_computation!(getfield(rect, :y), () -> main_axis === :x ? Int32(cross_start) : along[])
+    set_cell_computation!(getfield(rect, :w), () -> main_axis === :x ? Int32(band) : Int32(cross_extent[]))
+    set_cell_computation!(getfield(rect, :h), () -> main_axis === :x ? Int32(cross_extent[]) : Int32(band))
+    set_cell_computation!(getfield(rect, :color),
+                          () -> _mix_colors(color_transparent, p.splitter_band_color, share[]))
+    rect
+end
+
 map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The split's input has `.elements[i]` (a CellVector). When the i-th slot
 # wraps the child in a LayoutConstraint, the projector recurses into
 # `.child` of the constraint; the backward map must account for that to
 # re-root the inner path.
-function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, reference)
     reference === nothing && return nothing
     find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
     # Without a slot index this function can't disambiguate which child;
@@ -4176,10 +5462,11 @@ _get_splitter_band(next_position::Int, thickness::Int) =
 # Splitter `k` occupies the `thickness`-wide gap immediately before child `k+1`
 # (see the print cursor), widened on each side along the main axis.
 function _splitter_band_hit(orientation::Symbol, child_iomaps::Vector,
-                            thickness::Int, x::Int, y::Int)
+                            thickness::Int, x::Int, y::Int, open::Vector{Bool})
     n = length(child_iomaps)
     coord = orientation === :horizontal ? x : y
     for k in 1:(n - 1)
+        _has_split_gap(open, k) || continue
         nxt = child_iomaps[k + 1]
         nxt === nothing && continue
         start, extent = _get_splitter_band(_split_child_main_pos(nxt, orientation), thickness)
@@ -4200,12 +5487,12 @@ end
 # itself here instead took the far inset for a slot, and an asymmetric box model
 # for a symmetric one.
 function _split_measured_sizes(child_iomaps::Vector, orientation::Symbol,
-                               thickness::Int, content_main::Int)
+                               thickness::Int, content_main::Int, open::Vector{Bool})
     n = length(child_iomaps)
     sizes = Vector{Int}(undef, n)
     pos(i) = _split_child_main_pos(child_iomaps[i], orientation)
     for i in 1:(n - 1)
-        sizes[i] = pos(i + 1) - pos(i) - thickness
+        sizes[i] = pos(i + 1) - pos(i) - (_has_split_gap(open, i) ? thickness : 0)
     end
     sizes[n] = max(0, content_main - (pos(n) - pos(1)))
     sizes
@@ -4219,7 +5506,7 @@ end
 # the grab origin (so rounding doesn't accumulate); `DragEnd` ends it, and
 # `DragCancel` puts back the sizes of the grab. All are marked as view state, so a
 # history records no part of a drag.
-function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap,
+function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap,
                           w::WidgetSplitPane, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     n = length(child_iomaps)
@@ -4229,14 +5516,17 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     active      = w.active_splitter::Int
 
     if evt isa MouseDown && evt.button === :left && active == 0
-        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y)
+        open = _get_split_open_slots(_split_valid_elements(w),
+                                     orientation === :horizontal ? :x : :y)
+        length(open) == n || return nothing
+        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y, open)
         k == 0 && return nothing
         outer = iomap.output
         outer_main = outer isa GraphicsCanvas ?
                      (orientation === :horizontal ? Int(outer.w[]) : Int(outer.h[])) : 0
-        inset_x, inset_y = _inset_total(p, w)
+        inset_x, inset_y = _get_inset_total(_get_box_geometry(iomap))
         content_main = max(0, outer_main - (orientation === :horizontal ? inset_x : inset_y))
-        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main)
+        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main, open)
         coord = orientation === :horizontal ? evt.x : evt.y
         return CompoundOperation(Any[
             ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes)),
@@ -4257,6 +5547,9 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         elem_b = w.elements[k + 1]
         min_a, max_a = layout_min(elem_a, axis, size_a), layout_max(elem_a, axis, size_a)
         min_b, max_b = layout_min(elem_b, axis, size_b), layout_max(elem_b, axis, size_b)
+        # A content slot keeps the extent of its child: a drag beside it moves no divider.
+        _is_split_content_slot(elem_a, axis) && ((min_a, max_a) = (size_a, size_a))
+        _is_split_content_slot(elem_b, axis) && ((min_b, max_b) = (size_b, size_b))
         # Move the boundary by `delta`, conserve the pair's total, and keep both
         # slots within their min/max: clamp A, give/take the rest from B, then
         # re-derive A from the clamped B so the sum is exactly preserved.
@@ -4281,13 +5574,13 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     nothing
 end
 
-function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     w = iomap.input
     # The parts of the drag of a divider come by the path of the pane, wherever
     # the pointer is, so a divider does not stop where the pane ends.
     w isa WidgetSplitPane && evt isa Union{DragMove, DragEnd, DragCancel} &&
         return _split_drag_read(p, iomap, w, evt)
-    w isa WidgetSplitPane && evt isa MouseMove && return _read_split_move(iomap, w, evt)
+    w isa WidgetSplitPane && evt isa MouseMove && return _read_split_move(p, iomap, w, evt)
     _outside_widget(iomap, evt) && return nothing
     if w isa WidgetSplitPane
         drag = _split_drag_read(p, iomap, w, evt)
@@ -4343,10 +5636,27 @@ function _get_split_slot_steps(w, slot::Int)
     w.elements[slot] isa LayoutConstraint ? (steps..., FieldReferenceStep("child")) : steps
 end
 
-# A move of the pointer: the slot that the pane's own mouse target names (the
-# pointer leaves it), then the slot under the point, each re-rooted into its slot.
-# A point on a splitter is on the pane itself.
-function _read_split_move(iomap::ChildrenIoMap, w::WidgetSplitPane, evt::MouseMove)
+# A move of the pointer: the answer of the slots (`_read_split_slot_move`), joined
+# with the write of the divider whose grab area holds the pointer, when that is
+# not the divider that the split holds. A point off the split is on no divider, so
+# a leave writes 0. The move still goes to the slot under the point.
+function _read_split_move(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap,
+                          w::WidgetSplitPane, evt::MouseMove)
+    answer = _read_split_slot_move(iomap, w, evt)
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
+    orientation = w.orientation::Symbol
+    open = _get_split_open_slots(_split_valid_elements(w), orientation === :horizontal ? :x : :y)
+    under = _outside_widget(iomap, evt) || length(open) != length(child_iomaps) ? 0 :
+            _splitter_band_hit(orientation, child_iomaps, max(1, Int(p.splitter_stroke.width)),
+                               evt.x, evt.y, open)
+    under == w.splitter_under_pointer && return answer
+    join_move_answers(answer, ReplaceViewStateOperation(SetSplitterUnderPointerOperation(w, under)))
+end
+
+# The slot that the pane's own mouse target names (the pointer leaves it), then the
+# slot under the point, each re-rooted into its slot. A point on a splitter is on
+# the pane itself.
+function _read_split_slot_move(iomap::WidgetChildrenIoMap, w::WidgetSplitPane, evt::MouseMove)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     new = _outside_widget(iomap, evt) ? nothing :
           _route_split_event(child_iomaps, evt.x, evt.y,
@@ -4454,57 +5764,67 @@ end
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
 # a NamedTuple of the content offset, the tab padding, the strip height, the natural
 # strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, button_w,
-# buttons, text_w, badges)`, where `x`/`rw` are the tab's left edge and full width in
-# strip coordinates, `button_w` is the width of its button column (0 when it has
-# none), `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or
-# `:both`, the `+` above the `x`, `text_w` is the width of the label's text, and
-# `badges` holds a `(badge, width, height)` for each badge after the text — and the
+# text_w, badges, button_h)`, where `x`/`rw` are the tab's left edge and full width in
+# strip coordinates, `button_w` and `button_h` are the size of its close button (0
+# when the pane is not `closable`), `text_w` is the width of the label's text, and
+# `badges` holds a `(badge, box, width, height)` for each badge after the text — and the
 # new-tab button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
 #
 # The first six fields come in the order a positional destructure reads them.
-function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane)
-    cox, coy = _content_offset(p, w)
-    sel_pad = p.tab_padding
+# `box` is the shape of the pane, and `buttons` holds the size of the close button
+# of each tab as its IO map printed it, or `nothing` for a tab with none.
+function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, box::BoxGeometry,
+                             buttons::Vector)
+    cox, coy = _get_content_offset(box)
+    pad = p.tab_padding
+    pad_top, pad_bottom = Int(pad.top[]), Int(pad.bottom[])
+    pad_left, pad_right = Int(pad.left[]), Int(pad.right[])
     # The em height sizes the buttons, and gives an empty strip its height — a pane
     # with no tabs still shows a new-tab button, which is the state a fresh layout
     # starts in.
     _, em_h = _text_size(p.measure, p.font, "M")
     closable = w.closable === true
-    duplicable = w.duplicable === true
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons, text_w, badges)
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, text_w, badges, button_h)
     # An icon and a button are a square of one line times `icon_size`, and the
     # row is as tall as the largest of them and the line.
     new_side = w.new_tab === true ? scale_length(em_h, p.icon_size) : 0
     tab_h = max(em_h, new_side)
     x = cox
-    for pair in w.selector_element_pairs
+    # A name takes the wider of the font of a tab and the font of the selected tab,
+    # so the name of the selected tab fits, and no tab moves when the selection does.
+    name_fonts = (_get_state_text(p, w, :tab).font, _get_state_text(p, w, :tab; state = :selected).font)
+    for (i, pair) in enumerate(w.selector_element_pairs)
         selector = pair.selector
         label = _get_tab_selector_text(selector)
         icon  = _get_tab_icon(selector, pair.icon)
-        tw, th = _text_size(p.measure, p.font, label)
+        _, th = _text_size(p.measure, p.font, label)
+        tw = maximum(first(_text_size(p.measure, font, label)) for font in name_fonts)
         iw  = icon_width(icon, scale_length(th, p.icon_size))
         gap = iw > 0 ? p.label_gap : 0
         badges = Any[]
         badges_w = 0
         for badge in _get_tab_badges(selector)
-            bw, bh = _measure_badge(p.badge, badge)
-            push!(badges, (badge, bw, bh))
+            badge_box = _compute_box_geometry(p.badge, badge, _NO_SPACE)
+            bw, bh = _measure_badge(p.badge, badge, badge_box)
+            push!(badges, (badge, badge_box, bw, bh))
             badges_w += p.label_gap + bw
             tab_h = max(tab_h, bh)
         end
-        buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
-        button_w = buttons === :none ? 0 : scale_length(th, p.icon_size)
+        button = (closable && i <= length(buttons)) ? buttons[i] : nothing
+        button_w, button_h = button === nothing ? (0, 0) : button
         button_gap = button_w > 0 ? p.label_gap : 0
-        rw  = tw + badges_w + iw + gap + button_w + button_gap + 2 * sel_pad
-        push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons, tw, badges))
+        rw  = tw + badges_w + iw + gap + button_w + button_gap + pad_left + pad_right
+        push!(tabs, (label, icon, iw, gap, x, rw, button_w, tw, badges, button_h))
         x += rw
-        tab_h = max(tab_h, th, iw, button_w)
+        tab_h = max(tab_h, th, iw, button_h)
     end
-    sel_h = tab_h + 2 * sel_pad
-    new_w = w.new_tab === true ? new_side + 2 * sel_pad : 0
+    sel_h = tab_h + pad_top + pad_bottom
+    rule = max(1, Int(p.tab_row_line_stroke.width))
+    new_w = w.new_tab === true ? new_side + pad_left + pad_right : 0
     strip_w = (isempty(tabs) && new_w == 0) ? 0 : (x + new_w - cox)
-    (cox = cox, coy = coy, pad = sel_pad, height = sel_h, strip_w = strip_w,
-     tabs = tabs, new_x = x, new_w = new_w, line = em_h)
+    (cox = cox, coy = coy, pad = (top = pad_top, bottom = pad_bottom, left = pad_left, right = pad_right), height = sel_h, strip_w = strip_w,
+     tabs = tabs, new_x = x, new_w = new_w, line = em_h,
+     rule = rule, page_top = sel_h + rule)
 end
 
 # The icon of a tab: the icon of its label, else the icon of its page.
@@ -4530,48 +5850,46 @@ function _get_tab_badges(selector::WidgetTabLabel)
 end
 _get_tab_badges(selector) = WidgetBadge[]
 
-# What the button column of a tab holds.
-_get_tab_buttons(closable::Bool, duplicable::Bool) =
-    closable && duplicable ? :both :
-    closable               ? :close :
-    duplicable             ? :duplicate : :none
+# The sizes of the close buttons that `close_iomaps` printed, one for each tab, or
+# `nothing` for a tab with none.
+_get_close_button_sizes(close_iomaps) =
+    Any[cim === nothing ? nothing : _get_close_button_size(cim.output) for cim in close_iomaps]
 
-# The button column's box inside a tab tuple: its left edge and its width, or
-# `nothing` when the tab has none.
-function _get_tab_button_box(tab, sel_pad::Int)
-    button_w = tab[7]
-    button_w > 0 ? (tab[5] + tab[6] - sel_pad - button_w, button_w) : nothing
+# The size that the button gives its canvas. A walk of what the canvas holds would
+# read the layer that shows under the pointer, and lay out the strip at each move.
+_get_close_button_size(output::GraphicsCanvas) =
+    (Int(unwrap_cell(getfield(output, :w))), Int(unwrap_cell(getfield(output, :h))))
+_get_close_button_size(output) = (0, 0)
+
+# The geometry of the strip that `iomap` printed, with its close buttons.
+_get_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, iomap) =
+    _tab_strip_geometry(p, w, _get_box_geometry(iomap),
+                        _get_close_button_sizes(getfield(iomap, :close_iomaps)[]))
+
+# The box of the close button of a tab in strip coordinates, `(x, y, width,
+# height)`: at the right end of the tab, and at the middle of the height of the
+# label. `nothing` when the tab has none.
+function _get_tab_button_box(g, tab)
+    button_w, button_h = tab[7], tab[10]
+    button_w > 0 || return nothing
+    (tab[5] + tab[6] - g.pad.right - button_w,
+     g.coy + g.pad.top + (g.height - g.pad.top - g.pad.bottom - button_h) ÷ 2, button_w, button_h)
 end
 
-# The part of the strip a point on tab `tab` lands on: `:close`, `:duplicate`, or
-# `:tab` for the rest. A column that holds both buttons is split across the strip's
-# height: the `+` above, the `x` below.
+# The part of the strip that the point `(xx, yy)` on tab `tab` lands on: `:close`
+# in the box of its close button, and `:tab` for the rest of the tab.
 function _get_tab_part(g, tab, xx::Int, yy::Int)
-    box = _get_tab_button_box(tab, g.pad)
-    (box !== nothing && xx >= box[1] && xx < box[1] + box[2]) || return :tab
-    buttons = tab[8]
-    buttons === :both || return buttons
-    yy < g.coy + g.height ÷ 2 ? :duplicate : :close
+    box = _get_tab_button_box(g, tab)
+    box === nothing && return :tab
+    x, y, width, height = box
+    (x <= xx < x + width && y <= yy < y + height) ? :close : :tab
 end
 
-# Draw the button column of a tab. A single button fills the column at the
-# height of the label; two share it, each centred in its half of the strip.
-function _push_tab_buttons!(result, g, tab, color)
-    box = _get_tab_button_box(tab, g.pad)
-    box === nothing && return
-    x, w = box
-    buttons = tab[8]
-    if buttons === :both
-        half = g.height ÷ 2
-        side = min(w, half)
-        icon_x = x + (w - side) ÷ 2
-        _push_icon!(result, :plus, icon_x, g.coy + (half - side) ÷ 2, side, color)
-        _push_icon!(result, :close, icon_x, g.coy + half + (g.height - half - side) ÷ 2,
-                    side, color)
-    else
-        _push_icon!(result, buttons === :duplicate ? :plus : :close, x,
-                    g.coy + g.pad + (g.height - 2 * g.pad - w) ÷ 2, w, color)
-    end
+# The close button of a tab: the output that its IO map printed, at its box.
+function _push_tab_close_button!(result, g, tab, close_iomap)
+    box = _get_tab_button_box(g, tab)
+    (box === nothing || close_iomap === nothing) && return
+    push!(result, _make_canvas(box[1], box[2], Any[close_iomap.output]))
 end
 
 # Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
@@ -4584,13 +5902,15 @@ _tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
 #
 # A tab bar draws its names as plain text, except the one that holds the caret.
 # That name is drawn through a text view of one span, as a `WidgetText` draws a
-# plain value, so the text domain draws its caret as it draws every other caret.
-# The view only draws: the keys that edit a name go to the document that owns
-# the name. The caret is `selector_element_pairs[i].selector{k}`, or
-# `selector_element_pairs[i].selector.text{k}` in the text of a `WidgetTabLabel`.
+# plain value, so the text domain draws its caret and its range as it draws every
+# other one. The reader gives a key in the name to the view, so the text domain
+# edits the name as it edits every text (`_read_tab_name_key`). The place is
+# `selector_element_pairs[i].selector{s:e}`, or
+# `selector_element_pairs[i].selector.text{s:e}` in the text of a `WidgetTabLabel`.
 
-# The tab whose name holds the caret, and the caret position, or `nothing`.
-function _find_tab_name_caret(selection)
+# The tab whose name holds the selection, and the range of the selection in it, as
+# `(index, start, stop, direction)`, or `nothing`.
+function _find_tab_name_range(selection)
     selection isa Reference || return nothing
     steps = get_reference_steps(strip_reference_types(selection))
     length(steps) in (4, 5) || return nothing
@@ -4599,48 +5919,63 @@ function _find_tab_name_caret(selection)
      steps[3] isa FieldReferenceStep && steps[3].name == "selector") || return nothing
     length(steps) == 5 &&
         !(steps[4] isa FieldReferenceStep && steps[4].name == "text") && return nothing
-    caret = steps[end]
-    caret isa RangeReferenceStep || return nothing
-    (steps[2].stop, caret.start)
+    range = steps[end]
+    range isa RangeReferenceStep || return nothing
+    (index = steps[2].stop, start = range.start, stop = range.stop, direction = get_range_direction(range))
 end
 
-# The view of the name that holds the caret, in the style of the selected tab,
-# drawn with a `TextToGraphics` of its own.
-function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ctx)
+# The view of the name that holds the selection, in the style of the selected tab,
+# drawn through `recursion`.
+function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, place::Cell, ctx)
     span = TextString(() -> begin
-        found = caret[]
+        found = place[]
         pairs = w.selector_element_pairs
-        (found === nothing || !(1 <= found[1] <= length(pairs))) ? "" :
-            _get_tab_selector_text(pairs[found[1]].selector)
+        (found === nothing || !(1 <= found.index <= length(pairs))) ? "" :
+            _get_tab_selector_text(pairs[found.index].selector)
     end, _get_state_text(p, w, :tab; state = :selected))
     view = TextBlock(TextLine(span))
     set_cell_computation!(getfield(view, :selection), () -> begin
-        found = caret[]
-        found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
+        found = place[]
+        found === nothing ? nothing :
+            make_flat_range_reference(found.start, found.stop; direction = found.direction)
     end)
-    measure = p.measure
-    make_reconciled_child_iomap_cell(() -> view,
-                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+    text_view = make_text_view(view)
+    make_reconciled_child_iomap_cell(() -> text_view, v -> print_child(recursion, v, ctx))
 end
 
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false &&
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing, Cell(Any[]))
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
+    # A tabbed pane is a part of the frame: its strip and its page reach the edges
+    # of its slot, so it takes no space around it.
+    geometry = _make_box_geometry_cell(p, w, _NO_SPACE)
+    # The view of the name that holds the caret. A pane with no tab makes it too:
+    # a live editor keeps this IO map when a person adds the first tab, and the
+    # keys in the name of that tab go to this view.
+    name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
+    name_view = _print_tab_name_view(p, recursion, w, name_place, _with_no_space(ctx))
     if isempty(pairs)
-        return ChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps))
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, name_view, Cell(Any[]))
     end
 
-    box = _get_box_insets(p, w)          # stable — independent of the tab count
+    box = geometry[]                     # stable — independent of the tab count
     colors = _get_box_colors(p, w)
-    cox, coy = _content_offset(p, w)     # stable — independent of the tab count
+    cox, coy = _get_content_offset(box)  # stable — independent of the tab count
+    # The close button of each tab of a `closable` pane, printed as a child: it
+    # draws its own look under the pointer, and reads its own press. As in a
+    # toolbar, it gets no minimum, so it is as large as what it shows.
+    button_ctx = ctx === nothing ? nothing :
+                 with_bounded_size(ctx; width = ctx.maximum_width, height = ctx.maximum_height)
+    close_iomaps = make_reconciled_child_iomaps_cell(
+        () -> Any[w.closable === true ? pair.close : nothing for pair in w.selector_element_pairs],
+        (_, button) -> button isa WidgetToolbarItem ? print_child(recursion, button, button_ctx) : nothing)
     # Reactive tab-strip geometry: re-derives when a tab is added / removed, so the
     # strip and everything sized from it (`sel_h`, `strip_w`, the tab tuples) reflows.
-    geom = Cell(@computation _tab_strip_geometry(p, w))
+    geom = Cell(@computation _tab_strip_geometry(p, w, geometry[], _get_close_button_sizes(close_iomaps[])))
 
     sel_cell = getfield(w, :selection)
-    name_caret = Cell(@computation _find_tab_name_caret(get_stored_selection(w)))
-    name_view = _print_tab_name_view(p, recursion, w, name_caret, ctx)
 
     _active_idx(sel, ntabs) = begin
         i = _tab_index_from_selection(sel, ntabs)
@@ -4649,7 +5984,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
 
     selector_cv = CellVector(@computation begin
         g = geom[]
-        sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
+        buttons = close_iomaps[]
+        pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(get_stored_selection(w), length(tabs))
         result = Any[]
         tab_radius = p.corner_radius
@@ -4660,7 +5996,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         # with no size of its own: the header of the tab, the image of its
         # `selector`. No other element of the strip is a canvas.
         for i in eachindex(tabs)
-            label, icon, iw, gap, tx, rw, _, _, tw, badges = tabs[i]
+            label, icon, iw, gap, tx, rw, _, tw, badges = tabs[i]
             state = i == active ? :selected : nothing
             tab_color = _get_state_color(p, w, :tab; state)
             header = Any[]
@@ -4675,38 +6011,49 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
             # A decorated icon draws its marks on a disc of the color of its tab.
-            iw > 0 && _push_decorated_icon!(header, p.badge, icon, tx + sel_pad,
-                                            coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2, iw,
+            iw > 0 && _push_decorated_icon!(header, p.badge, icon, tx + pad.left,
+                                            coy + pad.top + (sel_h - pad.top - pad.bottom - iw) ÷ 2, iw,
                                             _get_tab_icon_color(p, pairs[i].selector, fg),
                                             state === :selected ? p.tab_selected_color : p.tab_strip_color)
-            name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad + (sel_h - 2 * sel_pad - g.line) ÷ 2
-            found = name_caret[]
-            if found !== nothing && found[1] == i
+            name_x, name_y = tx + pad.left + iw + gap, coy + pad.top + (sel_h - pad.top - pad.bottom - g.line) ÷ 2
+            found = name_place[]
+            if found !== nothing && found.index == i
                 push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
             else
                 _push_text!(header, p.measure, tab_text.font, label, name_x, name_y, fg)
             end
             # The badges follow the text, each centred on the height of the strip.
             badge_x = name_x + tw
-            for (badge, bw, bh) in badges
+            for (badge, badge_box, bw, bh) in badges
                 badge_x += p.label_gap
                 push!(header, _make_canvas(badge_x, coy + (sel_h - bh) ÷ 2,
-                                           _build_badge_elements(p.badge, badge, bw, bh)))
+                                           _build_badge_elements(p.badge, badge, badge_box, bw, bh)))
                 badge_x += bw
             end
-            # The button column sits at the tab's right edge, tinted like its label.
-            _push_tab_buttons!(header, g, tabs[i], fg)
-            button_box = _get_tab_button_box(tabs[i], g.pad)
-            button_box === nothing ||
-                push!(header, GraphicsPointerShape(button_box[1], coy, button_box[2], sel_h,
-                                                   :pointing_hand))
+            # The close button sits at the tab's right edge. The open tab always
+            # shows it. Another tab shows it only while the pointer is on its
+            # header or on the button: a cell of its own canvas reads the mouse
+            # target, so a move redraws that canvas and not the strip. The button
+            # keeps its place while it is hidden, so no tab changes its width.
+            close = Any[]
+            _push_tab_close_button!(close, g, tabs[i], i <= length(buttons) ? buttons[i] : nothing)
+            if i == active
+                append!(header, close)
+            elseif !isempty(close)
+                n = length(tabs)
+                push!(header, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
+                                             CellVector(@computation _is_tab_header_under_pointer(w, i, n) ? close : Any[]),
+                                             layout_none, true, Cell(nothing)))
+            end
+            button_box = _get_tab_button_box(g, tabs[i])
+            button_box === nothing || push!(header, GraphicsPointerShape(button_box..., :pointing_hand))
             push!(result, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                          CellVector(Cell[Cell(e) for e in header]),
                                          layout_none, true, Cell(nothing)))
         end
         # The new-tab button follows the last tab.
-        new_side = g.new_w - 2 * sel_pad
-        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - new_side) ÷ 2,
+        new_side = g.new_w - pad.left - pad.right
+        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + pad.left, coy + pad.top + (sel_h - pad.top - pad.bottom - new_side) ÷ 2,
                                    new_side, _get_part_text(w, :tab_text, p.tab_text).color)
         g.new_w > 0 && push!(result, GraphicsPointerShape(g.new_x, coy, g.new_w, sel_h, :pointing_hand))
         result
@@ -4723,17 +6070,19 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # Distinct names: `tx` is reused below as a tab x-position inside the
     # selector builder loop, so capturing it here would alias that closure's
     # local and clobber the selector viewport width.
-    inset_x, inset_y = _inset_total(p, w)
+    inset_x, inset_y = _get_inset_total(box)
     # The page's extent inside a slot; with no slot the page is as large as what
     # it holds.
     avail_w_inner = avail_w === nothing ? nothing :
         Cell(@computation max(0, Int(avail_w[]) - inset_x))
     avail_h_inner = avail_h === nothing ? nothing :
-        Cell(@computation max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
+        Cell(@computation max(0, Int(avail_h[]) - geom[].page_top - inset_y))
     # The content gets the pane's range less the insets, and less the tab strip
     # on the height, in the same state: a slot stays a slot and an edge stays an
-    # edge.
-    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[][4] + inset_y))
+    # edge. The page gives `slot_padding` to what it holds, so the first box in it
+    # stands that far from the edges of the page.
+    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[].page_top + inset_y),
+                                  space = _get_inset_sides(p.slot_padding))
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
     all_cims = make_reconciled_child_iomaps_cell(
@@ -4750,7 +6099,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # is nothing to clip against and the page takes the content's own extent there.
     content_cv = CellVector(@computation begin
         cims = all_cims[]
-        sel_h = geom[][4]
+        sel_h = geom[].page_top
         active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
@@ -4774,7 +6123,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # default) around the strip and the page together.
     box_cv = CellVector(@computation begin
         cims = all_cims[]
-        sel_h = geom[][4]
+        sel_h = geom[].page_top
         active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
@@ -4812,6 +6161,33 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         Cell(affine_identity),
         Cell(nothing))
 
+    # The line under the tab row runs from the left edge of the padding box to its
+    # right edge, and is open under the selected tab, so the tab joins its page.
+    rule_cv = CellVector(@computation begin
+        g = geom[]
+        page_w = 0
+        cims = all_cims[]
+        idx = _active_idx(get_stored_selection(w), length(cims))
+        if 1 <= idx <= length(cims) && cims[idx] !== nothing
+            page_w, _ = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
+        end
+        tab_idx = _active_idx(get_stored_selection(w), length(g.tabs))
+        left = cox - box.padding[1]
+        right = cox + max(g.strip_w, page_w) + box.padding[3]
+        y = coy + g.height
+        color = p.tab_row_line_stroke.color
+        open_from, open_to = right, right
+        if !isempty(g.tabs)
+            scroll = _tab_scroll_offset(w, g.strip_w, Int(sel_view_w[]))
+            _, _, _, _, tx, rw = g.tabs[tab_idx]
+            open_from, open_to = clamp(tx - scroll, left, right), clamp(tx + rw - scroll, left, right)
+        end
+        result = Any[]
+        open_from > left && push!(result, GraphicsRect(left, y, open_from - left, g.rule; color))
+        right > open_to && push!(result, GraphicsRect(open_to, y, right - open_to, g.rule; color))
+        result
+    end)
+
     # The ring over the page, while the document the page shows is selected as a
     # whole. The page's document is in the tree, so its own selection says so.
     ring = make_selection_ring(() -> begin
@@ -4821,7 +6197,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         page = _get_page_document(w, idx)
         _is_whole_selected_page(page) || return nothing
         page_w, page_h = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
-        (cox, coy + geom[][4], page_w, page_h)
+        (cox, coy + geom[].page_top, page_w, page_h)
     end, p.graphics_style)
 
     # A tabbed pane offered an extent reports that extent, not what its strip and
@@ -4830,17 +6206,28 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         GraphicsCanvas(box_cv),
         selector_viewport,
         GraphicsCanvas(content_cv),
+        GraphicsCanvas(rule_cv),
         ring,
     ])
-    canvas = (avail_w === nothing && avail_h === nothing) ? inner :
+    # The pane takes its slot on an axis, else what it holds, raised to the
+    # minimum of its range. The extent of what it holds is read only in the cells of
+    # the extent: a read here makes the cell that prints the pane, such as the build
+    # of a split, depend on it, so a change of a size inside the page prints the
+    # pane again, and each view state inside it starts over.
+    minimum_w = ctx isa PrinterContext ? ctx.minimum_width : nothing
+    minimum_h = ctx isa PrinterContext ? ctx.minimum_height : nothing
+    extent(slot, own, minimum) =
+        slot !== nothing ? Cell(@computation Int32(max(0, Int(slot[])))) :
+        minimum === nothing ? Cell(@computation Int32(own[])) :
+                              Cell(@computation Int32(max(Int(own[]), Int(minimum[]))))
+    canvas = (avail_w === nothing && avail_h === nothing && minimum_w === nothing && minimum_h === nothing) ? inner :
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                       avail_w === nothing ? inner.w : Cell(@computation Int32(max(0, Int(avail_w[])))),
-                       avail_h === nothing ? inner.h : Cell(@computation Int32(max(0, Int(avail_h[])))),
+                       extent(avail_w, getfield(inner, :w), minimum_w), extent(avail_h, getfield(inner, :h), minimum_h),
                        CellVector(Cell[Cell(inner)]),
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
-    child_iomaps = Cell(@computation Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
-    ChildrenIoMap(p, w, canvas, child_iomaps)
+    child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
+    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps)
 end
 
 # The extent of the page of a tabbed pane: the slot offered on each axis, else
@@ -4868,9 +6255,20 @@ function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, refere
         return index == (active == 0 ? 1 : active) ? EmptyReference() : nothing
     end
     head = get_reference_head(rest)
+    # The close button of a tab is the canvas that it printed, in the header.
+    head isa FieldReferenceStep && head.name == "close" && return _find_tab_close_reference(iomap, index)
     (head isa FieldReferenceStep && head.name == "selector") || return _map_child_forward(iomap, reference)
     get_reference_tail(rest) isa EmptyReference || return nothing
     _find_tab_header_reference(iomap, index)
+end
+
+# The close button of tab `index`: the canvas that its IO map printed, or `nothing`
+# while the strip does not draw it.
+function _find_tab_close_reference(iomap, index::Int)
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
+    close_iomaps = getfield(iomap, :close_iomaps)[]
+    (1 <= index <= length(close_iomaps) && close_iomaps[index] !== nothing) || return nothing
+    find_node_reference(unwrap_cell(get_iomap_output(iomap)), close_iomaps[index].output; depth = 10)
 end
 
 # `selector_element_pairs[i]` and the rest after it, as `(i, rest)`, or `nothing`.
@@ -4932,8 +6330,8 @@ end
 function map_reference_backward(p::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     if point !== nothing
-        header = _find_tab_header_at(p, iomap, point)
-        return header === nothing ? _map_open_page_point(iomap, point) : header
+        part = _find_tab_part_at(p, iomap, point)
+        return part === nothing ? _map_open_page_point(iomap, point) : part
     end
     # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
     # it in its own input coordinates, so it maps back as itself; without the case
@@ -4952,7 +6350,7 @@ end
 # pane draws: the contents of the other pages are printed, at the same place, but
 # not drawn.
 function _map_open_page_point(iomap, point)
-    iomap isa ChildrenIoMap || return nothing
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     pages = w.selector_element_pairs
@@ -4964,24 +6362,26 @@ function _map_open_page_point(iomap, point)
     _map_point_to_child(w, entries, point)
 end
 
-# The `selector` of the tab whose header is at `point`, the part that the header
-# draws, or `nothing` when no header is there.
-function _find_tab_header_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
-    iomap isa ChildrenIoMap || return nothing
+# The part of the tab whose header is at `point`: its `close` button in the box of
+# the button, else its `selector`, the part that the header draws, or `nothing`
+# when no header is there.
+function _find_tab_part_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
+    iomap isa WidgetTabbedPaneToGraphicsCanvasIoMap || return nothing
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     strip_x = _tab_strip_coordinate(p, w, iomap, point.x, point.y)
     strip_x === nothing && return nothing
-    index, _ = _find_tab_at_strip_point(_tab_strip_geometry(p, w), strip_x, point.y)
+    index, part = _find_tab_at_strip_point(_get_strip_geometry(p, w, iomap), strip_x, point.y)
     index == 0 && return nothing
     annotate_reference_types(w, extend_reference(EmptyReference(), FieldReferenceStep("selector_element_pairs"),
-                                                 ElementReferenceStep(index), FieldReferenceStep("selector")))
+                                                 ElementReferenceStep(index),
+                                                 FieldReferenceStep(part === :close ? "close" : "selector")))
 end
 
 # Selector-viewport width as drawn (the clip box). Read back from the output so the
 # reader clamps scroll / hit-tests against exactly what the printer produced; falls
 # back to `strip_w` (no clip) when the pane is empty/invisible.
-function _tab_view_w(iomap::ChildrenIoMap, strip_w::Int)
+function _tab_view_w(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, strip_w::Int)
     canvas = iomap.output
     canvas isa GraphicsCanvas || return strip_w
     els = canvas.elements
@@ -4995,7 +6395,7 @@ end
 # strip hit-test starts here.
 function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane,
                                iomap, x::Int, y::Int)
-    g = _tab_strip_geometry(p, w)
+    g = _get_strip_geometry(p, w, iomap)
     (isempty(g.tabs) && g.new_w == 0) && return nothing
     (y >= g.coy && y < g.coy + g.height) || return nothing
     view_w = _tab_view_w(iomap, g.strip_w)
@@ -5003,8 +6403,8 @@ function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTab
     x + _tab_scroll_offset(w, g.strip_w, view_w)
 end
 
-# The 1-based tab a strip-space x lands on, or 0, and the part of it at `yy`:
-# `:tab`, `:close` or `:duplicate` (see `_get_tab_part`).
+# The 1-based tab at the strip-space point `(xx, yy)`, or 0, and the part of the
+# tab there: `:tab` or `:close` (see `_get_tab_part`).
 function _find_tab_at_strip_point(g, xx::Int, yy::Int)
     for (i, t) in enumerate(g.tabs)
         tx, rw = t[5], t[6]
@@ -5014,7 +6414,36 @@ function _find_tab_at_strip_point(g, xx::Int, yy::Int)
     (0, :tab)
 end
 
-function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+# The answer of the close button of tab `index` to `evt`, read in the frame of the
+# button. The command of the button closes its tab, so the strip reports it as
+# `CloseTabOperation`. Its other answers, such as the write of its `pressed`, name
+# the button itself and go up as they are.
+function _read_close_button(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
+                            index::Int, evt)
+    w = iomap.input
+    close_iomaps = getfield(iomap, :close_iomaps)[]
+    (1 <= index <= length(close_iomaps) && close_iomaps[index] !== nothing) || return nothing
+    g = _get_strip_geometry(p, w, iomap)
+    index <= length(g.tabs) || return nothing
+    box = _get_tab_button_box(g, g.tabs[index])
+    box === nothing && return nothing
+    scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+    dx, dy = box[1] - scroll, box[2]
+    answer = shift_operation_position(read_child_event(close_iomaps[index], shift_event_position(evt, -dx, -dy)),
+                                      dx, dy)
+    answer isa InvokeActionOperation ? CloseTabOperation(w, index) : answer
+end
+
+# The tab whose close button the pane's mouse target names, or 0.
+function _find_mouse_target_close(w::WidgetTabbedPane, n::Int)
+    target = get_mouse_target(w)
+    index = _tab_index_from_selection(target, n)
+    index == 0 && return 0
+    rest = target.head isa FieldReferenceStep ? target.tail.tail : target.tail
+    (rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "close") ? index : 0
+end
+
+function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseMove && return _read_tabbed_pane_move(p, iomap, child_iomaps, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -5028,14 +6457,22 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
         end
         xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
         if xx !== nothing
-            g = _tab_strip_geometry(p, w)
+            g = _get_strip_geometry(p, w, iomap)
+            # A middle click on a tab of a `closable` pane closes the tab, as its
+            # close button does. Anywhere else in the strip it does nothing.
+            if evt.button === :middle
+                index, _ = _find_tab_at_strip_point(g, xx, evt.y)
+                return (index > 0 && w.closable === true) ? CloseTabOperation(w, index) : nothing
+            end
             # The new-tab button first: it follows the last tab, so no tab box can
             # claim it.
             g.new_w > 0 && xx >= g.new_x && xx < g.new_x + g.new_w &&
                 return OpenTabOperation(w)
+            # A click on the close button is the button's. A click that it declines,
+            # such as Alt and a press, which selects the button whole, is declined
+            # here too.
             index, part = _find_tab_at_strip_point(g, xx, evt.y)
-            index > 0 && part === :close && return CloseTabOperation(w, index)
-            index > 0 && part === :duplicate && return DuplicateTabOperation(w, index)
+            index > 0 && part === :close && return _read_close_button(p, iomap, index, evt)
             # A tab click is a selection change, nothing more. Emitted as this pane's
             # own local path, so the ordinary re-targeting carries it to the document
             # root: the walk then starts high enough to see a sibling group and mark
@@ -5049,11 +6486,11 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     if evt isa MouseScroll
         w = iomap.input
         if w isa WidgetTabbedPane
-            cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
+            cox, coy, _, sel_h, strip_w, tabs = _get_strip_geometry(p, w, iomap)
             # A wheel over the strip scrolls it horizontally (the strip is a horizontal
             # row, so vertical wheel maps to horizontal motion); over the content it
-            # scrolls the active tab as before.
-            if !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
+            # scrolls the active tab as before. Ctrl and the wheel never scroll it.
+            if !evt.modifiers.ctrl && !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
                 view_w = _tab_view_w(iomap, strip_w)
                 max_s = max(0, strip_w - view_w)
                 if max_s > 0
@@ -5075,21 +6512,26 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     # tab's frame.
     # A left button down on a tab of a `draggable` pane is a grab. The strip
     # resolves which tab; the projection that owns the tabs runs the drag from
-    # there, because only it knows where a tab may be dropped. A down on the close
-    # or the duplicate button is not a grab, and a down anywhere else routes to
+    # there, because only it knows where a tab may be dropped. A down or an up on
+    # the close button is the button's, and no grab; a down anywhere else routes to
     # the visible tab.
-    if evt isa MouseDown && evt.button === :left
+    if (evt isa MouseDown || evt isa MouseUp) && evt.button === :left
         w = iomap.input
-        if w isa WidgetTabbedPane && w.draggable === true
-            xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
-            if xx !== nothing
-                index, part = _find_tab_at_strip_point(_tab_strip_geometry(p, w), xx, evt.y)
-                index > 0 && part === :tab && return DragTabOperation(w, index)
-            end
+        xx = w isa WidgetTabbedPane ? _tab_strip_coordinate(p, w, iomap, evt.x, evt.y) : nothing
+        if xx !== nothing
+            index, part = _find_tab_at_strip_point(_get_strip_geometry(p, w, iomap), xx, evt.y)
+            index > 0 && part === :close && return _read_close_button(p, iomap, index, evt)
+            evt isa MouseDown && w.draggable === true && index > 0 && return DragTabOperation(w, index)
         end
     end
     if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
+    end
+    # A key while the selection is in the name of a tab goes to the text view of
+    # the name first.
+    if evt isa Union{KeyDown, KeyPress}
+        named = _read_tab_name_key(iomap, evt)
+        named === nothing || return named
     end
     # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
     # points at, or to nothing when the selection is not in this pane — selection
@@ -5098,14 +6540,62 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt), iomap.input)
 end
 
+# A key while the selection is in the name of a tab: the answer of the text view
+# that draws the name, as an answer of the pane at
+# `selector_element_pairs[i].selector.text{s:e}`. The text domain edits the name
+# and moves its caret as in every text. A name is one line, so an edit of the
+# lines (`changes_lines`) is no answer, and the key goes on.
+function _read_tab_name_key(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, key)
+    found = _find_tab_name_range(get_stored_selection(iomap.input))
+    found === nothing && return nothing
+    view = iomap.name_view
+    view === nothing && return nothing
+    _map_tab_name_operation(view.input.viewed, found.index, read_intent(view.projection, view, key))
+end
+
+# The answer of the text view `view` of the name of tab `index`, as an answer of
+# the pane, or `nothing` when a part of it has no place in the name.
+_map_tab_name_operation(view::TextBlock, index::Int, ::Nothing) = nothing
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::CompoundOperation)
+    members = Any[_map_tab_name_operation(view, index, member) for member in operation.operations]
+    any(isnothing, members) ? nothing : CompoundOperation(members)
+end
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::ReplacePathOperation)
+    path = _map_tab_name_reference(view, index, get_operation_path(operation))
+    path === nothing ? nothing : make_path_operation(operation, path)
+end
+
+function _map_tab_name_operation(view::TextBlock, index::Int, operation::ReplaceRangeOperation)
+    changes_lines(operation) && return nothing
+    place = _map_tab_name_reference(view, index, operation.reference)
+    place === nothing ? nothing : ReplaceStringRangeOperation(place, operation.replacement)
+end
+
+_map_tab_name_operation(view::TextBlock, index::Int, operation) = nothing
+
+# A place of the text view of the name of tab `index`, in either form that a text
+# takes, as the place in the text of its label, in the direction of the range.
+function _map_tab_name_reference(view::TextBlock, index::Int, reference)
+    reference === nothing && return nothing
+    reference = _strip_text_view_step(reference)
+    range = get_flat_range(view, reference)
+    range === nothing && return nothing
+    direction = range[1] == range[2] ? :forward : get_range_direction(strip_reference_types(reference))
+    Reference(FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(index),
+              FieldReferenceStep("selector"), FieldReferenceStep("text"),
+              RangeReferenceStep(range[1], range[2], direction))
+end
+
 # A dwell or a right click on a tab header is read by the header and the
 # documents around it: the pane draws the header itself, so the backward map of
 # the point names it, as it names a part of a child that answers nothing
 # (`read_child_part_gesture`). A dwell or a right click on the open page goes to
 # the page, as a click does. Neither opens, closes or selects a tab.
 function _read_tabbed_pane_outward(p::WidgetTabbedPaneToGraphicsCanvas,
-                                   iomap::ChildrenIoMap, gesture)
-    _find_tab_header_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
+                                   iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, gesture)
+    _find_tab_part_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
         return read_child_part_gesture(iomap, gesture)
     w = iomap.input
     w isa WidgetTabbedPane || return read_container_gesture(nothing, gesture, w)
@@ -5131,19 +6621,38 @@ function _get_tab_page_steps(widget::WidgetTabbedPane, idx::Int)
 end
 
 # A move of the pointer. The open page gets a move off it first when the
-# pane's own mouse target is in that page and the point is not. Then the part at
-# the point answers: a tab header is its `selector`, and the open page reads the
-# move itself.
-function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap,
+# pane's own mouse target is in that page and the point is not, and so does a
+# close button that the pointer leaves, so a press that was released off it ends.
+# Then the part at the point answers: a tab header is its `selector`, a close
+# button is its `close`, and the open page reads the move itself.
+function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
                                 child_iomaps::Vector, evt::MouseMove)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
+    answer = _read_tabbed_pane_move_answer(p, iomap, child_iomaps, evt)
+    left = _find_mouse_target_close(w, length(child_iomaps))
+    (left == 0 || _is_close_button_target(answer, left)) && return answer
+    join_move_answers(_read_close_button(p, iomap, left, evt), answer)
+end
+
+# Whether `answer` puts the mouse target on the close button of tab `index`.
+function _is_close_button_target(answer, index::Int)
+    answer isa ReplaceMouseTargetOperation || return false
+    place = _find_tab_page_place(strip_reference_types(get_operation_path(answer)))
+    place === nothing && return false
+    i, rest = place
+    i == index && rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "close"
+end
+
+function _read_tabbed_pane_move_answer(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap,
+                                       child_iomaps::Vector, evt::MouseMove)
+    w = iomap.input
     active = _active_tab_index(w, length(child_iomaps))
     entry = active == 0 ? nothing : child_iomaps[active]
     new_answer = nothing
     on_page = false
     if !_outside_widget(iomap, evt)
-        header = _find_tab_header_at(p, iomap, (x = evt.x, y = evt.y))
+        header = _find_tab_part_at(p, iomap, (x = evt.x, y = evt.y))
         if header !== nothing
             new_answer = ReplaceMouseTargetOperation(header)
         elseif entry !== nothing
@@ -5167,24 +6676,34 @@ function _read_tabbed_pane_move(p::WidgetTabbedPaneToGraphicsCanvas, iomap::Chil
     join_move_answers(_prefix_tab_operation(old_answer, w, active), new_answer)
 end
 
-# The tab whose page holds the part that the pane's mouse target names, or 0. A
-# path to a header, `selector_element_pairs[i].selector`, is not in the page.
-function _find_mouse_target_page(w::WidgetTabbedPane, n::Int)
+# The tab of the part that the pane's mouse target names, or 0, and whether that
+# part is the header of the tab: its `selector`, or its `close` button in it.
+function _find_mouse_target_tab(w::WidgetTabbedPane, n::Int)
     target = get_mouse_target(w)
     index = _tab_index_from_selection(target, n)
-    index == 0 && return 0
+    index == 0 && return (0, false)
     rest = target.head isa FieldReferenceStep ? target.tail.tail : target.tail
-    is_header = rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
-                rest.head.name == "selector"
+    (index, rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
+            rest.head.name in ("selector", "close"))
+end
+
+# The tab whose page holds the part that the pane's mouse target names, or 0. A
+# header is not in the page.
+function _find_mouse_target_page(w::WidgetTabbedPane, n::Int)
+    index, is_header = _find_mouse_target_tab(w, n)
     is_header ? 0 : index
 end
+
+# Whether the pointer is on the header of tab `i` of the `n` tabs of the pane.
+_is_tab_header_under_pointer(w::WidgetTabbedPane, i::Int, n::Int) =
+    _find_mouse_target_tab(w, n) == (i, true)
 
 # Coordless routing: forward to the tab the selection points at, or nothing when
 # the selection is not in this pane. Unlike `_route_active_tab` there is NO
 # fallback to a default/visible tab — selection is authoritative for keyboard
 # events. Coordless events need no coordinate translation, so `evt` is forwarded
 # as-is. Returns (op, idx) with the 1-based tab number for `_tab_prefix`.
-function _route_selected_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
+function _route_selected_tab(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child_iomaps::Vector, evt)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     idx = _tab_index_from_selection(get_stored_selection(w), length(child_iomaps))
@@ -5199,7 +6718,7 @@ end
 
 # Returns (op, active_idx) — the index is the 1-based tab number so it can
 # be turned into `selector_element_pairs[idx]` via _tab_prefix below.
-function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
+function _route_active_tab(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child_iomaps::Vector, evt)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
     active_idx = _active_tab_index(w, length(child_iomaps))
@@ -5347,14 +6866,18 @@ function _descends_into_page(widget, idx::Int)
     page isa WidgetTabPage && !(page.element isa WidgetDocument)
 end
 
-# The viewport extent of a scroll pane on one axis. It is the offer when the pane
-# has one — an authored size or the space the parent gave. It is the content's own
-# extent when the pane has neither, because a pane with nothing to clip against
-# must not clip.
-function _pane_extent(offer, content_cell)
+# The viewport extent of a viewport on one axis. It is the offer when it has one —
+# an authored size or the slot the parent gave. With neither, it is the content's
+# own extent between the `minimum` and the `maximum` of its range, each a cell or
+# `nothing`: an edge cuts the content, and the viewport scrolls the rest.
+function _pane_extent(offer, content_cell, minimum = nothing, maximum = nothing)
     offer !== nothing && return offer
-    content_cell === nothing && return Cell(Int32(0))
-    Cell(@computation Int32(max(0, Int(content_cell[]))))
+    Cell(@computation begin
+        extent = content_cell === nothing ? 0 : max(0, Int(content_cell[]))
+        minimum === nothing || (extent = max(extent, Int(minimum[])))
+        maximum === nothing || (extent = min(extent, Int(maximum[])))
+        Int32(extent)
+    end)
 end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
@@ -5371,8 +6894,11 @@ end
 # is. The ends that a list does have stop it, once the walk from the head reaches
 # them (`_clamp_to_list_ends`). A list that runs to the side has its extent down,
 # and the pane clamps to it.
-function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer)
-    y = Int((getfield(w, :scroll_position)[]::Point2D).y[])
+#
+# `revealed` is the offset that shows the selection when the pane starts, or
+# `nothing` (`_get_pane_stored_scroll`).
+function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer, revealed = nothing)
+    y = _get_pane_stored_scroll(w, revealed)[2]
     if is_infinite_canvas(content)
         _find_list_canvas(content, :y) === nothing &&
             return clamp(y, 0, max(0, Int(content.h) - Int(view_h)))
@@ -5383,13 +6909,86 @@ function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::In
     clamp(y, 0, room)
 end
 
-# How far to the side a pane shows its content, in pixels. A content with an
-# extent is clamped as it is scrolled, not as it is read. A list that runs to the
-# side stops at its ends as it is read, as a list that runs down does.
-function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer)
-    x = Int((getfield(w, :scroll_position)[]::Point2D).x[])
-    (is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing) || return x
-    _clamp_to_list_ends(content, x, Int(view_w), :x)
+# How far to the side a pane shows its content, in pixels. A stored offset is
+# clamped as it is read, as the offset down is, because the content can shrink
+# under it, as a graph does when its zoom goes out. A list that runs to the side
+# stops at its ends as it is read, as a list that runs down does.
+function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer, revealed = nothing)
+    x = _get_pane_stored_scroll(w, revealed)[1]
+    is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing &&
+        return _clamp_to_list_ends(content, x, Int(view_w), :x)
+    clamp(x, 0, max(0, Int(content.w) - Int(view_w)))
+end
+
+# The offset that a pane scrolls from, `(x, y)`, before the clamp: its scroll
+# position, or `revealed`, the offset that shows the selection of its content when
+# the pane starts, while the pane holds the position that it starts with
+# (`revealed_position`). The first scroll writes a new position, so the pane then
+# scrolls from where the person puts it.
+function _get_pane_stored_scroll(w::WidgetScrollPane, revealed)
+    point = getfield(w, :scroll_position)[]::Point2D
+    (revealed === nothing || getfield(w, :revealed_position)[] !== point) && return (Int(point.x[]), Int(point.y[]))
+    revealed
+end
+
+# The offset that shows the selection when the pane of `iomap` starts, or `nothing`.
+_get_pane_revealed_scroll(iomap::WidgetScrollPaneToGraphicsCanvasIoMap) = iomap.revealed_scroll
+
+# The cell of the offset at which a pane shows the selection of its content when it
+# starts, `(x, y)`, or `nothing` while the selected part has no box. The offset is
+# found once, the first time the part has a box in a view that has an extent, and
+# then holds, so a later move of the selection, such as a click, does not move the
+# view.
+function _make_pane_revealed_scroll(p, w::WidgetScrollPane, content_iomap, parts, vw_cell, vh_cell)
+    found = Ref{Any}(nothing)
+    Cell(@computation begin
+        found[] === nothing && (found[] = _find_pane_revealed_scroll(p, w, content_iomap, parts, vw_cell, vh_cell))
+        found[]
+    end)
+end
+
+function _find_pane_revealed_scroll(p, w::WidgetScrollPane, content_iomap, parts, vw_cell, vh_cell)
+    content = w.content
+    content isa Document || return nothing
+    path = get_selection(content)
+    path isa Reference || return nothing
+    view_w, view_h = parts === nothing ? (Int(vw_cell[]), Int(vh_cell[])) : (Int(parts.view_w[]), Int(parts.view_h[]))
+    (view_w > 0 && view_h > 0) || return nothing
+    box = _find_pane_part_box(p, content_iomap, parts, path)
+    box === nothing && return nothing
+    start = getfield(w, :revealed_position)[]::Point2D
+    (_compute_revealed_offset(Int(start.x[]), view_w, box[1], box[3]),
+     _compute_revealed_offset(Int(start.y[]), view_h, box[2], box[4]))
+end
+
+# The offset of a view of `size` at `offset` that shows a part from `start` of
+# `extent` when a pane starts: the same offset when the part shows, else the offset
+# that puts the part in the middle of the view, or its start when it is longer than
+# the view.
+function _compute_revealed_offset(offset::Int, size::Int, start::Int, extent::Int)
+    (start >= offset && start + extent <= offset + size) && return offset
+    extent >= size && return start
+    max(0, start - (size - extent) ÷ 2)
+end
+
+# The box of the part at `path`, a path of the input of the content of a pane, in
+# the canvas that the pane scrolls: `(left, top, width, height)` from the origin of
+# that canvas, the center of the parts for a content that the pane takes apart.
+# `nothing` when the part has no image there.
+function _find_pane_part_box(p, content_iomap, parts, path::Reference)
+    image = map_reference_forward(content_iomap.projection, content_iomap, path)
+    image === nothing && return nothing
+    canvas = content_iomap.output
+    if parts !== nothing
+        (image isa ConcreteReference && image.head isa FieldReferenceStep &&
+         image.head.name == String(SCROLL_LAYOUT_PARTS[_PANE_CENTER])) || return nothing
+        canvas, image = parts.canvases[_PANE_CENTER], image.tail
+    end
+    canvas isa GraphicsCanvas || return nothing
+    box = find_reference_box(canvas, image; measure = p.measure)
+    box === nothing && return nothing
+    (round(Int, box.x) - Int(canvas.x), round(Int, box.y) - Int(canvas.y), round(Int, box.width),
+     round(Int, box.height))
 end
 
 # The canvas whose elements are a list that runs along `axis` (`:y` down, `:x`
@@ -5457,6 +7056,49 @@ function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, ax
         node = preceding
     end
     offset
+end
+
+# The extent of the content of a pane along `axis`, which the viewport takes
+# there when the pane has no offer on that axis: `extent`, the cell of the extent
+# of the content, or, for a content that draws a list along `axis` under an
+# `edge`, the extent of the list up to the edge (`_measure_list_extent`).
+function _get_listed_content_extent(offer, content_canvas, extent, edge, axis::Symbol)
+    (offer === nothing && edge !== nothing && content_canvas !== nothing) || return extent
+    Cell(@computation begin
+        canvas = content_canvas[]
+        _has_no_extent_along(canvas, axis) || return extent[]
+        Int32(_measure_list_extent(canvas, axis, Int(edge[])))
+    end)
+end
+
+# The extent along `axis` of the list that `content` draws, from the start of
+# `content`, when a walk from the head reaches both ends of the list within
+# `edge`; else `edge`. So a list that ends before the edge takes only its
+# children. Each walk stops at the edge, so it reads the children that a
+# renderer reads to draw the list.
+function _measure_list_extent(content::GraphicsCanvas, axis::Symbol, edge::Int)
+    list, start = _find_list_canvas(content, axis)
+    head = list.elements
+    span = _get_list_element_span(head.value, axis)
+    span === nothing && return edge
+    near, far = span
+    node = head
+    while (following = node.next) !== nothing
+        start + far - near >= edge && return edge
+        node = following
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return edge
+        far = span[2]
+    end
+    node = head
+    while (preceding = node.prev) !== nothing
+        start + far - near >= edge && return edge
+        node = preceding
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return edge
+        near = span[1]
+    end
+    min(edge, start + far - near)
 end
 
 # ── The parts of a ScrollLayout in a scroll pane ────────────────────────────
@@ -5536,10 +7178,10 @@ _get_pane_band_extent(band::Int, extents, view::Int) =
     band == 1 ? extents[1] : band == 2 ? view : extents[3]
 
 # How far the pane scrolls the center, `(x, y)`.
-function _get_pane_part_scroll(w::WidgetScrollPane, parts::_PaneParts)
+function _get_pane_part_scroll(w::WidgetScrollPane, parts::_PaneParts, revealed = nothing)
     center = parts.canvases[_PANE_CENTER]
     center === nothing && return (0, 0)
-    (_pane_scroll_x(w, center, Int(parts.view_w[])), _pane_scroll_y(w, center, Int(parts.view_h[])))
+    (_pane_scroll_x(w, center, Int(parts.view_w[]), revealed), _pane_scroll_y(w, center, Int(parts.view_h[]), revealed))
 end
 
 # A coordinate of the view of a pane along one axis, in the frame in which the
@@ -5561,10 +7203,8 @@ end
 # Put each part of `parts` in a viewport of its own, at its band of the view of
 # the pane, moved by the scroll on the axes on which the part scrolls.
 function _push_pane_part_viewports!(elems::Vector, w::WidgetScrollPane, parts::_PaneParts,
-                                    cox::Int, coy::Int, vw_cell::Cell, vh_cell::Cell)
-    parts.view_w = Cell(@computation Int32(max(0, Int(vw_cell[]) - _get_pane_part_insets(parts)[1])))
-    parts.view_h = Cell(@computation Int32(max(0, Int(vh_cell[]) - _get_pane_part_insets(parts)[2])))
-    scroll = Cell(@computation _get_pane_part_scroll(w, parts))
+                                    cox::Int, coy::Int, vw_cell::Cell, vh_cell::Cell, revealed)
+    scroll = Cell(@computation _get_pane_part_scroll(w, parts, revealed === nothing ? nothing : revealed[]))
     for (index, canvas) in enumerate(parts.canvases)
         canvas === nothing && continue
         column, row = get_scroll_layout_cell(index)
@@ -5600,7 +7240,7 @@ end
 function _get_pane_scroll_view(p, iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
     parts = iomap.parts
     parts === nothing || return (Int(parts.view_w[]), Int(parts.view_h[]))
-    tx, ty = _inset_total(p, iomap.input)
+    tx, ty = _get_inset_total(_get_box_geometry(iomap))
     (max(0, Int(iomap.output.w[]) - tx), max(0, Int(iomap.output.h[]) - ty))
 end
 
@@ -5643,8 +7283,28 @@ function _map_pane_part_forward(iomap, parts::_PaneParts, inner)
             ConcreteReference(FieldReferenceStep("content"), rest)))
 end
 
+# The shape of a scroll pane that is given `space`: the space is a part of its
+# padding, inside its border. So the pane cuts its content inside the space on
+# every side, at every scroll position, and its bars, which lie at the inner edge
+# of the border, stay at its outer edge.
+function _compute_scroll_pane_geometry(p::WidgetScrollPaneToGraphicsCanvas, w::WidgetScrollPane,
+                                       space::NTuple{4, Int})
+    box = _compute_box_geometry(p, w, _NO_SPACE)
+    BoxGeometry(_NO_SPACE, box.margin, box.border, box.padding .+ space)
+end
+
+# The view of a viewport as the edge of the range that it offers its content on an
+# axis where the content fits: a second cell that holds the number of the minimum,
+# so the range is bounded with a minimum and gives no slot (`layout-rules.md` §3).
+# A content takes at least the view and wraps at it, and a content that can not
+# fit stays larger, because the viewport scrolls it; a widget takes an exact size
+# and cuts, so an exact offer would leave the viewport nothing to scroll.
+_make_view_edge(view::Cell) = Cell(@computation Int32(Int(view[])))
+
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
-    w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing)
+    w.visible == false &&
+        return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing, nothing,
+                                                     _NO_BOX_GEOMETRY)
     pos = w.position
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
@@ -5662,18 +7322,26 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # it (`layout-rules.md` §1). So a pane that authors its height and a width of
     # 0 has a fixed height and takes the width its parent offers.
     #
-    # An axis with no authored size and no offer is not clipped at all. On that
-    # axis the pane withholds the offer, lets the content size itself, and takes
-    # the viewport extent from the content. This is what keeps a pane that clips
-    # one axis — a collapsed card body, clipped to a fixed height — as wide as
-    # its content on the other. The two cases cannot form a cycle: a clipped axis
-    # offers a cell that the content reads, and an unclipped axis reads a cell
-    # that the content produces.
+    # On an axis with no authored size and no offer, the pane passes its range on
+    # to the content, lets the content size itself, and takes the content between
+    # the minimum and the maximum of its range (`layout-rules.md` §1): it
+    # stops at an edge that cuts and scrolls the rest, and with no edge it is as
+    # large as its content. This is what keeps a pane that clips one axis — a
+    # collapsed card body, clipped to a fixed height — as wide as its content on
+    # the other. The two cases cannot form a cycle: a clipped axis offers a cell
+    # that the content reads, and an unclipped axis reads a cell that the content
+    # produces.
     #
     # An authored extent is read inside the cell, so a pane whose size is a
     # computed cell — a tree pane that grows as its rows open — follows it after
     # the first print as well.
-    tx, ty = _inset_total(p, w)
+    #
+    # The pane takes the space that it is given as a part of its padding
+    # (`_compute_scroll_pane_geometry`), so it cuts its content inside the space.
+    space = _get_given_space(ctx)
+    geometry = Cell(@computation _compute_scroll_pane_geometry(p, w, space))
+    box = geometry[]
+    tx, ty = _get_inset_total(box)
     avail_w = get_exact_width(ctx)
     avail_h = get_exact_height(ctx)
     function extent_cell(authored, avail, inset)
@@ -5686,7 +7354,11 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     end
     offer_w = extent_cell(() -> sz isa Point2D ? Int(sz.x[]) : 0, avail_w, tx)
     offer_h = extent_cell(() -> sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
-    cox, coy = _content_offset(p, w)
+    # The range of the pane less its insets: what the content gets on an axis with
+    # no offer, and what the viewport stops at there. The insets hold the space of
+    # the slot, and the content gets no space of its own.
+    inner_ctx = with_inner_size(ctx; width = tx, height = ty)
+    cox, coy = _get_content_offset(box)
     scroll_cell = getfield(w, :scroll_position)
     # Recurse into the content before the extent cells exist: on an unclipped axis
     # the viewport extent is the content's own, so the content must come first.
@@ -5701,14 +7373,27 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     part_inset_w = Cell(Int32(0))
     part_inset_h = Cell(Int32(0))
     if content isa Document
-        # A clipped axis gives the content its extent exactly. An unclipped axis
-        # passes the parent's range on, less the insets: an edge stays an edge,
-        # so text in the pane wraps at it, and the pane takes the content's
-        # extent there.
-        content_ctx = with_inner_size(ctx; width = tx, height = ty)
-        offer_w === nothing || (content_ctx = with_exact_size(content_ctx; width = offer_w))
-        offer_h === nothing || (content_ctx = with_exact_size(content_ctx; height = offer_h))
+        # A clipped axis gives the content its extent exactly where the content
+        # fits the view, and as its minimum where it grows (`grows`). An
+        # unclipped axis passes the parent's range on, less the insets: an edge
+        # stays an edge, so text in the pane wraps at it, and the pane takes the
+        # content's extent there. A clipped axis gives the view as the visible
+        # extent too.
+        # On an axis that grows and has no offer, the content gets the minimum of
+        # the range and no edge, and the edge is its visible extent.
+        grows = w.at_natural_size ? (width = true, height = true) : w.grows
+        content_ctx = inner_ctx
+        content_ctx = offer_w !== nothing ?
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : _make_view_edge(offer_w))) :
+            grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
+        content_ctx = offer_h !== nothing ?
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : _make_view_edge(offer_h))) :
+            grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
         content_ctx = with_inner_size(content_ctx; width = part_inset_w, height = part_inset_h)
+        visible_w = offer_w !== nothing ? content_ctx.minimum_width : inner_ctx.maximum_width
+        visible_h = offer_h !== nothing ? content_ctx.minimum_height : inner_ctx.maximum_height
+        visible_w === nothing || (content_ctx = with_visible_size(content_ctx; width = visible_w))
+        visible_h === nothing || (content_ctx = with_visible_size(content_ctx; height = visible_h))
         content_iomap = print_child(recursion, content, content_ctx)
         output = content_iomap.output
         if output isa ScrollLayout
@@ -5719,61 +7404,84 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
             inner_canvas = output::GraphicsCanvas
         end
     end
+    # The canvas of the content now. A content can print a new canvas as its
+    # document grows, as one behind a `NestingProjection` does, and its IO map
+    # then answers the new one; the extent, the offsets, the viewport and the
+    # bars read it through this cell, and the pane does not print again.
+    content_canvas = inner_canvas === nothing ? nothing :
+        Cell(@computation content_iomap.output::GraphicsCanvas)
     # The content's extent cells and not their values: a value read here would
     # make the pane's own print depend on it, and a content that grows would
     # print the pane and everything in it again. The extent of parts is the
     # extent of the layout that puts them together.
     content_w = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][1]))) :
-                inner_canvas === nothing ? nothing : getfield(inner_canvas, :w)
+                content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
     content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
-                inner_canvas === nothing ? nothing : getfield(inner_canvas, :h)
-    vw_cell = _pane_extent(offer_w, content_w)
-    vh_cell = _pane_extent(offer_h, content_h)
+                content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
+    # A list has no extent of its own, so on an axis with an edge and no offer the
+    # pane measures a list that runs along it, up to the edge.
+    content_w = _get_listed_content_extent(offer_w, content_canvas, content_w, inner_ctx.maximum_width, :x)
+    content_h = _get_listed_content_extent(offer_h, content_canvas, content_h, inner_ctx.maximum_height, :y)
+    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
+    if parts !== nothing
+        parts.view_w = Cell(@computation Int32(max(0, Int(vw_cell[]) - _get_pane_part_insets(parts)[1])))
+        parts.view_h = Cell(@computation Int32(max(0, Int(vh_cell[]) - _get_pane_part_insets(parts)[2])))
+    end
+    # The offset that shows the selection of the content when the pane starts.
+    revealed = getfield(w, :revealed_position)[] === nothing || content_iomap === nothing ? nothing :
+               _make_pane_revealed_scroll(p, w, content_iomap, parts, vw_cell, vh_cell)
+    get_revealed() = revealed === nothing ? nothing : revealed[]
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
-    inner_x = Cell(@computation Int32(-(inner_canvas === nothing ?
-        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, inner_canvas, vw_cell[]))))
+    inner_x = Cell(@computation Int32(-(content_canvas === nothing ?
+        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, content_canvas[], vw_cell[], get_revealed()))))
     elems = Any[]
     # The margin, the border and the padding follow the viewport extent; the
     # viewport is the content part. A transparent part draws no element.
     colors = _get_box_colors(p, w)
-    _push_following_box_bands!(elems, _get_box_insets(p, w), colors, vw_cell, vh_cell)
+    _push_following_box_bands!(elems, box, colors, vw_cell, vh_cell)
     content_color = colors.content
-    # Cell-backed rect so it tracks the viewport extent.
+    # Cell-backed rect so it tracks the viewport extent. It also fills the band of
+    # the space that the pane takes inside its padding.
+    space_left, space_top, space_right, space_bottom = space
     is_color_transparent(content_color) ||
-        push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+        push!(elems, GraphicsRect(Cell(Int32(cox - space_left)), Cell(Int32(coy - space_top)),
+                              Cell(@computation Int32(Int(vw_cell[]) + space_left + space_right)),
+                              Cell(@computation Int32(Int(vh_cell[]) + space_top + space_bottom)),
                               Cell(content_color),
                               Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                               Cell(Int32(0)),
                               Cell(color_transparent),
                               Cell(nothing)))
-    if inner_canvas !== nothing
+    if content_canvas !== nothing
+        # Vertical offset of the content inside the viewport. With `follow_end`
+        # the pane sticks to the bottom of its content, so newly appended content
+        # (a streaming chat) stays in view as the content grows.
+        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, content_canvas[], vh_cell[], get_revealed())))
         # A content whose elements are a collection is drawn element by element.
         # A content that holds its elements in a cell — a layout of a list — is
         # drawn as its canvas, so a new list in that cell reaches the viewport
         # and the pane reads no cell of its content as it prints.
-        inner_elems_cv = getfield(inner_canvas, :elements)
-        # Vertical offset of the content inside the viewport. With `follow_end`
-        # the pane sticks to the bottom of its content, so newly appended content
-        # (a streaming chat) stays in view as the content grows.
-        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[])))
-        held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
+        viewed = Cell(@computation begin
+            canvas = content_canvas[]
+            inner_elems_cv = getfield(canvas, :elements)
+            held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(canvas)])
+            GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0), held, layout_none, true, Cell(nothing))
+        end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                      vw_cell, vh_cell,
-                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                          held,
-                                                          layout_none, true, Cell(nothing))),
+                                      vw_cell, vh_cell, viewed,
                                       Cell(affine_identity),
                                       Cell(nothing)))
     elseif parts !== nothing
-        _push_pane_part_viewports!(elems, w, parts, cox, coy, vw_cell, vh_cell)
+        _push_pane_part_viewports!(elems, w, parts, cox, coy, vw_cell, vh_cell, revealed)
     end
     # The bars lie over the content, so they come after it. They scroll the
     # center of parts, in the view of the center.
     bars = parts === nothing ?
-        _print_pane_bars(p, recursion, w, ctx, inner_canvas, vw_cell, vh_cell) :
-        _print_pane_bars(p, recursion, w, ctx, parts.canvases[_PANE_CENTER], vw_cell, vh_cell;
-                         scroll_view_w = parts.view_w, scroll_view_h = parts.view_h)
+        _print_pane_bars(p, recursion, w, box, ctx, content_canvas, vw_cell, vh_cell; revealed) :
+        _print_pane_bars(p, recursion, w, box, ctx, parts.canvases[_PANE_CENTER], vw_cell, vh_cell;
+                         scroll_view_w = parts.view_w, scroll_view_h = parts.view_h, revealed)
     for bar in bars
         push!(elems, bar.place)
     end
@@ -5789,7 +7497,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
-    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars, parts)
+    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars, parts, revealed, geometry)
 end
 
 # The viewport of a scroll pane or a transform pane shows the content in a canvas
@@ -5802,13 +7510,15 @@ map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference) =
 
 function _map_viewport_content_forward(iomap, reference)
     reference isa Reference || return nothing
-    reference = strip_reference_types(reference)
-    reference isa ConcreteReference || return _map_self_forward(reference)
-    head = reference.head
+    stripped = strip_reference_types(reference)
+    stripped isa ConcreteReference || return _map_self_forward(stripped)
+    head = stripped.head
     (head isa FieldReferenceStep && head.name == "content") || return nothing
     children = something(get_child_iomaps(iomap), Any[])
     isempty(children) && return nothing
     child = first(children)
+    # The content gets the tail with the node types that the caller gave, so a
+    # stage of the content that builds a typed reference from it can.
     inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
     inner === nothing && return nothing
     parts = _get_pane_parts(iomap)
@@ -5849,17 +7559,19 @@ end
 function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
                                        iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
     w = iomap.input
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
+    box = _get_box_geometry(iomap)
+    cox, coy = _get_content_offset(box)
+    tx, ty = _get_inset_total(box)
     parts = iomap.parts
     if parts === nothing
         content = iomap.content_iomap.output
-        sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx)
-        sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty)
+        revealed = _get_pane_revealed_scroll(iomap)
+        sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx, revealed)
+        sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty, revealed)
         return (x - cox + sx, y - coy + sy)
     end
     # Parts: the frame in which the layout puts them together.
-    sx, sy = _get_pane_part_scroll(w, parts)
+    sx, sy = _get_pane_part_scroll(w, parts, _get_pane_revealed_scroll(iomap))
     widths, heights = parts.extents[]
     edge_widths, edge_heights = parts.edges[]
     (_move_into_parts(x - cox, edge_widths[1], Int(parts.view_w[]), sx, widths[2]),
@@ -5874,8 +7586,8 @@ function _find_scroll_pane_point(p::WidgetScrollPaneToGraphicsCanvas,
         ox, oy = _find_scroll_pane_local_point(p, iomap, 0, 0)
         return (x - ox, y - oy)
     end
-    cox, coy = _content_offset(p, iomap.input)
-    sx, sy = _get_pane_part_scroll(iomap.input, parts)
+    cox, coy = _get_content_offset(_get_box_geometry(iomap))
+    sx, sy = _get_pane_part_scroll(iomap.input, parts, _get_pane_revealed_scroll(iomap))
     widths, heights = parts.extents[]
     edge_widths, edge_heights = parts.edges[]
     (_move_out_of_parts(x, edge_widths[1], Int(parts.view_w[]), sx, widths[2]) + cox,
@@ -5929,15 +7641,15 @@ end
 #
 # Every write of a scroll is view state, so a history never records it and
 # `Ctrl+Z` takes back an edit, not a scroll.
-function _scroll_by(sp, dx, dy, room = nothing)
-    old = sp.scroll_position
-    x = Int(old.x[]) + dx
-    y = Int(old.y[]) + dy
+function _scroll_by(sp::WidgetScrollPane, dx, dy, room = nothing, revealed = nothing)
+    old_x, old_y = _get_pane_stored_scroll(sp, revealed)
+    x = old_x + dx
+    y = old_y + dy
     if room !== nothing
         x = clamp(x, 0, room[1])
         y = clamp(y, 0, room[2])
     end
-    (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
+    (x == old_x && y == old_y) && return nothing
     _write_view_state(sp, "scroll_position", Point2D(x, y))
 end
 
@@ -5988,9 +7700,11 @@ _add_wheel_run(op, w, run) =
 # Scroll this pane, if the wheel landed on it. Only reached once the content has
 # declined the event, so the innermost pane under the pointer wins. A notch
 # scrolls `lines_per_notch` lines, more in a fast run, and at most the view less
-# one line.
+# one line. Ctrl and the wheel zoom and never scroll, so a zoom that stops at its
+# limit does not give the next notch to the page.
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
+    evt.modifiers.ctrl && return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
     _, line = _text_size(p.measure, p.font, "M")
     # The turn with its fraction, so a touchpad scrolls smoothly.
@@ -6012,7 +7726,8 @@ end
 # end and ignores `scroll_position` — so a reader who scrolls back through a
 # transcript must first take the pane off the pin, and the pin goes back on when
 # they reach the end again. Without that, the wheel writes a cell that nothing
-# reads, and the transcript does not scroll.
+# reads, and the transcript does not scroll. A pane whose `follow_end` is
+# `nothing` never follows its end.
 function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
     w = iomap.input
     room = _scroll_room(p, iomap)
@@ -6022,7 +7737,7 @@ function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
         dy >= 0 && return nothing                   # already at the end, and asked to go further
         # Release the pin, and start from where the reader is actually looking,
         # which is the end — not from whatever the unread cell happens to hold.
-        x = clamp(Int(w.scroll_position.x[]) + dx, 0, room[1])
+        x = clamp(_get_pane_stored_scroll(w, _get_pane_revealed_scroll(iomap))[1] + dx, 0, room[1])
         y = clamp(room[2] + dy, 0, room[2])
         return CompoundOperation(Any[
             _write_view_state(w, "follow_end", false),
@@ -6031,7 +7746,7 @@ function _scroll_pane_by(p, iomap, dx::Int, dy::Int)
     content = _get_pane_scroll_canvas(iomap)
     room === nothing && content isa GraphicsCanvas && is_infinite_canvas(content) &&
         return _scroll_list_by(p, iomap, content, dx, dy)
-    op = _scroll_by(w, dx, dy, room)
+    op = _scroll_by(w, dx, dy, room, _get_pane_revealed_scroll(iomap))
     # Back at the end: follow again, so new turns stay in view.
     if op !== nothing && room !== nothing && room[2] > 0 &&
        Int(get_wrapped_operation(op).value.y[]) == room[2] && getfield(w, :follow_end)[] === false
@@ -6049,8 +7764,9 @@ end
 function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
     w = iomap.input
     view_w, view_h = _get_pane_scroll_view(p, iomap)
-    drawn_x = _pane_scroll_x(w, content, view_w)
-    drawn_y = _pane_scroll_y(w, content, view_h)
+    revealed = _get_pane_revealed_scroll(iomap)
+    drawn_x = _pane_scroll_x(w, content, view_w, revealed)
+    drawn_y = _pane_scroll_y(w, content, view_h, revealed)
     x = _find_list_canvas(content, :x) === nothing ?
         clamp(drawn_x + dx, 0, max(0, Int(content.w) - view_w)) :
         _clamp_to_list_ends(content, drawn_x + dx, view_w, :x)
@@ -6068,9 +7784,9 @@ function _is_point_in_pane_view(p, iomap, x::Int, y::Int)
     out = iomap.output
     out isa GraphicsCanvas || return false
     (Int(out.w) <= 0 || Int(out.h) <= 0) && return true
-    w = iomap.input
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
+    box = _get_box_geometry(iomap)
+    cox, coy = _get_content_offset(box)
+    tx, ty = _get_inset_total(box)
     cox <= x < cox + Int(out.w) - tx && coy <= y < coy + Int(out.h) - ty
 end
 
@@ -6194,9 +7910,109 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     end
     # A right click then reads the stretch of the pane (`read_container_gesture`).
     op === nothing ||
-        return read_container_gesture(_retarget_op(p, iomap, op), evt, iomap.input;
+        return read_container_gesture(_show_pane_selection(p, iomap, op), evt, iomap.input;
                                       steps = (FieldReferenceStep("content"),))
+    size_choice = _read_pane_size_choice(iomap.input, evt)
+    size_choice === nothing || return read_container_gesture(size_choice, evt, iomap.input)
     read_container_gesture(_self_scroll(p, iomap, canvas, evt), evt, iomap.input)
+end
+
+# Ctrl+1 gives the content of the pane its natural size, and Ctrl+0 gives the size
+# back to the rule of the pane. Each key answers only when it changes the choice, so
+# Ctrl+0 on a pane at its rule goes on to a transform pane and the zoom of the window.
+function _read_pane_size_choice(w::WidgetScrollPane, evt)
+    @gesture_case evt begin
+        KeyDown(:one; ctrl)  => return w.at_natural_size ? nothing : _write_view_state(w, "at_natural_size", true)
+        KeyDown(:zero; ctrl) => return w.at_natural_size ? _write_view_state(w, "at_natural_size", false) : nothing
+    end
+    nothing
+end
+
+# The answer of the content of a pane in the input of the pane, with the scroll
+# that brings into view the part that it selects to show, or the scroll that keeps
+# under the pointer the point that it moves. A selection of a document that the
+# content holds, which no reader below it named, is named here.
+function _show_pane_selection(p, iomap, operation)
+    if operation isa KeepPointOperation
+        inner = _show_pane_selection(p, iomap, get_wrapped_operation(operation))
+        scroll = inner === nothing ? nothing : _scroll_pane_with_point(p, iomap, operation.move)
+        return scroll === nothing ? inner : CompoundOperation(Any[inner, scroll])
+    end
+    if operation isa SelectDocumentOperation
+        input = get_iomap_input(iomap.content_iomap)
+        path = find_document_path(input, operation.document)
+        path === nothing ||
+            (operation = ShowSelectionOperation(ReplaceSelectionOperation(
+                annotate_reference_types(input, concat_references(path, operation.tail)))))
+    end
+    retargeted = _retarget_op(p, iomap, operation)
+    path = _find_shown_path(operation)
+    (retargeted === nothing || path === nothing) && return retargeted
+    scroll = _scroll_pane_to_show(p, iomap, path)
+    scroll === nothing ? retargeted : CompoundOperation(Any[retargeted, scroll])
+end
+
+# The scroll of a pane by `move` from the offset that it draws with, so a point of
+# the content that an operation moves by `move` stays under the pointer. The
+# offset is clamped at 0 only: the operation changes the content, and the pane
+# clamps the offset to the new content as it reads it. `nothing` for a pane that
+# scrolls parts that keep their own places, or when nothing moves.
+function _scroll_pane_with_point(p, iomap, move::Tuple{Int,Int})
+    iomap.parts === nothing || return nothing
+    content = _get_pane_scroll_canvas(iomap)
+    content isa GraphicsCanvas || return nothing
+    w = iomap.input
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
+    revealed = _get_pane_revealed_scroll(iomap)
+    x = max(0, _pane_scroll_x(w, content, view_w, revealed) + move[1])
+    y = max(0, _pane_scroll_y(w, content, view_h, revealed) + move[2])
+    (x, y) == _get_pane_stored_scroll(w, revealed) && return nothing
+    _write_view_state(w, "scroll_position", Point2D(x, y))
+end
+
+# The path of the part that `operation` asks to show, the selection of a
+# `ShowSelectionOperation` or the part of a `RevealPartOperation`, or `nothing`.
+_find_shown_path(::Any) = nothing
+_find_shown_path(operation::ShowSelectionOperation) =
+    operation.operation isa ReplaceSelectionOperation ? operation.operation.path : nothing
+_find_shown_path(operation::RevealPartOperation) = operation.reference
+function _find_shown_path(operation::CompoundOperation)
+    for member in operation.operations
+        path = _find_shown_path(member)
+        path === nothing || return path
+    end
+    nothing
+end
+
+# The scroll of a pane that brings the part at `path`, a path of the input of its
+# content, into its view: the least move that shows the part, its top when the part
+# is taller than the view. A content that the pane takes apart shows the part in the
+# view of its center. `nothing` when the part shows or has no image.
+function _scroll_pane_to_show(p, iomap, path::Reference)
+    content_iomap = iomap.content_iomap
+    content_iomap === nothing && return nothing
+    canvas = _get_pane_scroll_canvas(iomap)
+    canvas isa GraphicsCanvas || return nothing
+    box = _find_pane_part_box(p, content_iomap, iomap.parts, path)
+    box === nothing && return nothing
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
+    w = iomap.input
+    revealed = _get_pane_revealed_scroll(iomap)
+    x = _pane_scroll_x(w, canvas, view_w, revealed)
+    y = _pane_scroll_y(w, canvas, view_h, revealed)
+    shown_x = _compute_shown_offset(x, view_w, box[1], box[3])
+    shown_y = _compute_shown_offset(y, view_h, box[2], box[4])
+    (shown_x == x && shown_y == y) && return nothing
+    _scroll_pane_by(p, iomap, shown_x - x, shown_y - y)
+end
+
+# The offset of a view of `size` at `offset` that shows a part from `start` of
+# `extent`: the same offset when the part shows, else the least move to show it,
+# and its start when it is longer than the view.
+function _compute_shown_offset(offset::Int, size::Int, start::Int, extent::Int)
+    start < offset && return start
+    start + extent > offset + size && return min(start, start + extent - size)
+    offset
 end
 
 # ── The bars of a scroll pane ─────────────────────────────────────────────────
@@ -6220,22 +8036,26 @@ _has_no_extent_along(content::GraphicsCanvas, axis::Symbol) =
 # of the content that the view shows. A content that fits, or that has no extent
 # along the axis, gives a thumb that fills the track.
 function _compute_pane_bar_numbers(w::WidgetScrollPane, field::AbstractString,
-                                   content::GraphicsCanvas, view_w::Integer, view_h::Integer)
+                                   content::GraphicsCanvas, view_w::Integer, view_h::Integer, revealed = nothing)
     vertical = field == "vertical_scroll_bar"
     _has_no_extent_along(content, vertical ? :y : :x) && return (0.0, 1.0)
     view = vertical ? Int(view_h) : Int(view_w)
     extent = vertical ? Int(content.h) : Int(content.w)
     room = extent - view
     room <= 0 && return (0.0, 1.0)
-    offset = vertical ? _pane_scroll_y(w, content, view) : _pane_scroll_x(w, content, view)
+    offset = vertical ? _pane_scroll_y(w, content, view, revealed) : _pane_scroll_x(w, content, view, revealed)
     (clamp(offset / room, 0.0, 1.0), view / extent)
 end
 
 # The bar of `field` that a pane makes. It is lit while the mouse target of the
 # pane names it, as a row of a list is lit by the mouse target of the list.
-function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content::GraphicsCanvas,
-                        view_w::Cell, view_h::Cell)
-    numbers = Cell(@computation _compute_pane_bar_numbers(w, field, content, view_w[], view_h[]))
+# `content` is the canvas that the pane scrolls, or a cell of the canvas of a
+# content that can print a new one, which the numbers read as they compute.
+function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w::Cell, view_h::Cell,
+                        revealed = nothing)
+    numbers = Cell(@computation _compute_pane_bar_numbers(w, field, unwrap_cell(content)::GraphicsCanvas,
+                                                          view_w[], view_h[],
+                                                          revealed === nothing ? nothing : revealed[]))
     target = Cell(@computation _is_mouse_target_in_field(w, field) ? EmptyReference() : nothing)
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection, mouse_target.
@@ -6246,11 +8066,11 @@ function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content::Gra
 end
 
 # The bar that the field `field` of a pane asks for, or `nothing`.
-function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h)
+function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h, revealed = nothing)
     asked = getfield(w, Symbol(field))[]
     asked isa WidgetScrollBar && return asked
-    (asked === :auto && content isa GraphicsCanvas) || return nothing
-    _make_pane_bar(w, field, content, view_w, view_h)
+    (asked === :auto && (content isa GraphicsCanvas || content isa Cell)) || return nothing
+    _make_pane_bar(w, field, content, view_w, view_h, revealed)
 end
 
 # The bars of a pane, each printed along the edge of the view and the padding
@@ -6260,16 +8080,16 @@ end
 # which the pane scrolls it, `scroll_view_w` and `scroll_view_h`: the view of the
 # center of parts, and else the whole view.
 function _print_pane_bars(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane,
-                          ctx, content, view_w, view_h;
-                          scroll_view_w = view_w, scroll_view_h = view_h)
+                          box::BoxGeometry, ctx, content, view_w, view_h;
+                          scroll_view_w = view_w, scroll_view_h = view_h, revealed = nothing)
     thickness = p.scroll_bar_thickness
-    asked = [(field, _get_pane_bar(w, field, content, scroll_view_w, scroll_view_h))
+    asked = [(field, _get_pane_bar(w, field, content, scroll_view_w, scroll_view_h, revealed))
              for field in _PANE_BAR_FIELDS]
     shown = Dict(field => bar === nothing ? Cell(false) :
                           Cell(@computation Float64(bar.thumb_size) < 1.0)
                  for (field, bar) in asked)
-    left, top, right, bottom = _get_box_insets(p, w).padding
-    cox, coy = _content_offset(p, w)
+    left, top, right, bottom = box.padding
+    cox, coy = _get_content_offset(box)
     hidden = _empty_canvas()
     bars = Any[]
     for (field, bar) in asked
@@ -6377,17 +8197,18 @@ function _scroll_pane_to_bar_value(p, iomap, field::AbstractString, value::Float
     w = iomap.input
     room = _scroll_room(p, iomap)
     room === nothing && return nothing
-    old = getfield(w, :scroll_position)[]::Point2D
+    old_x, old_y = _get_pane_stored_scroll(w, _get_pane_revealed_scroll(iomap))
     if field == "horizontal_scroll_bar"
         x = round(Int, clamp(value, 0.0, 1.0) * room[1])
-        x == Int(old.x[]) && return nothing
-        return _write_view_state(w, "scroll_position", Point2D(x, Int(old.y[])))
+        x == old_x && return nothing
+        return _write_view_state(w, "scroll_position", Point2D(x, old_y))
     end
     y = round(Int, clamp(value, 0.0, 1.0) * room[2])
-    following = getfield(w, :follow_end)[] === true
-    operations = Any[_write_view_state(w, "scroll_position", Point2D(Int(old.x[]), y))]
-    following && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
-    !following && room[2] > 0 && y == room[2] && push!(operations, _write_view_state(w, "follow_end", true))
+    following = getfield(w, :follow_end)[]
+    operations = Any[_write_view_state(w, "scroll_position", Point2D(old_x, y))]
+    following === true && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
+    following === false && room[2] > 0 && y == room[2] &&
+        push!(operations, _write_view_state(w, "follow_end", true))
     length(operations) == 1 ? operations[1] : CompoundOperation(operations)
 end
 
@@ -6404,30 +8225,66 @@ const _ZOOM_MIN  = 0.25    # smallest total scale
 const _ZOOM_MAX  = 4.0     # largest total scale
 
 function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::WidgetTransformPane, ctx)
-    w.visible == false && return WidgetTransformPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false &&
+        return WidgetTransformPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     pos = w.position
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    # The same rule as the scroll pane's: an authored size wins over an offer.
-    tx, ty = _inset_total(p, w)
+    # The same rule as the scroll pane's, one axis at a time: an authored size
+    # wins, and 0 authors nothing; then the slot that the parent gives; then the
+    # content, between the minimum and the maximum of the range.
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    box = geometry[]
+    tx, ty = _get_inset_total(box)
     avail_w = get_exact_width(ctx)
     avail_h = get_exact_height(ctx)
-    vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
-              avail_w !== nothing ?
-              Cell(@computation Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(0))
-    vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
-              avail_h !== nothing ?
-              Cell(@computation Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(0))
-    cox, coy = _content_offset(p, w)
+    function offer_cell(authored, avail, inset)
+        authored > 0 && return Cell(Int32(authored))
+        avail === nothing ? nothing : Cell(@computation Int32(max(0, Int(avail[]) - inset)))
+    end
+    offer_w = offer_cell(sz isa Point2D ? Int(sz.x[]) : 0, avail_w, tx)
+    offer_h = offer_cell(sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
+    inner_ctx = with_inner_size(ctx; width = tx, height = ty)
+    cox, coy = _get_content_offset(box)
     # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
     # the viewport reactively.
     transform_cell = Cell(@computation getfield(w, :transform)[]::AffineTransform)
+    # Recurse into the content first, at the viewport's (unscaled) logical
+    # extent — the content lays out at 1× and the viewport's transform magnifies
+    # it. On an axis with no offer the viewport extent is the content's.
+    content_iomap = nothing
+    content = w.content
+    if content isa Document
+        # The view is the extent of the content on an axis where the content
+        # fits, and its minimum where it grows; it is the visible extent on both.
+        # On an axis with no offer the content gets the range of the pane.
+        grows = w.grows
+        content_ctx = inner_ctx
+        content_ctx = offer_w !== nothing ?
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : _make_view_edge(offer_w))) :
+            grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
+        content_ctx = offer_h !== nothing ?
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : _make_view_edge(offer_h))) :
+            grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
+        visible_w = something(offer_w, inner_ctx.maximum_width, Some(nothing))
+        visible_h = something(offer_h, inner_ctx.maximum_height, Some(nothing))
+        visible_w === nothing || (content_ctx = with_visible_size(content_ctx; width = visible_w))
+        visible_h === nothing || (content_ctx = with_visible_size(content_ctx; height = visible_h))
+        content_iomap = print_child(recursion, content, content_ctx)
+    end
+    # The canvas of the content now, as for a scroll pane: a content can print a new
+    # canvas, such as a file that is read after the pane printed, and its IO map then
+    # answers the new one; the extent and the viewport read it through this cell.
+    content_canvas = content_iomap === nothing ? nothing :
+        Cell(@computation content_iomap.output::GraphicsCanvas)
+    content_w = content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].w))
+    content_h = content_canvas === nothing ? nothing : Cell(@computation Int32(content_canvas[].h))
+    vw_cell = _pane_extent(offer_w, content_w, inner_ctx.minimum_width, inner_ctx.maximum_width)
+    vh_cell = _pane_extent(offer_h, content_h, inner_ctx.minimum_height, inner_ctx.maximum_height)
     elems = Any[]
     colors = _get_box_colors(p, w)
-    _push_following_box_bands!(elems, _get_box_insets(p, w), colors, vw_cell, vh_cell)
+    _push_following_box_bands!(elems, box, colors, vw_cell, vh_cell)
     content_color = colors.content
     is_color_transparent(content_color) ||
         push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
@@ -6436,22 +8293,16 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
                               Cell(Int32(0)),
                               Cell(color_transparent),
                               Cell(nothing)))
-    # Recurse into the content at the viewport's (unscaled) logical extent — the
-    # content lays out at 1× and the viewport's transform magnifies it.
-    content_iomap = nothing
-    content = w.content
-    if content isa Document
-        content_ctx = with_exact_size(ctx; width=vw_cell, height=vh_cell)
-        content_iomap = print_child(recursion, content, content_ctx)
-        inner_canvas = content_iomap.output::GraphicsCanvas
-        inner_elems_cv = inner_canvas.elements
+    if content_canvas !== nothing
         # Inner canvas stays at the origin; the transform carries pan + zoom.
+        viewed = Cell(@computation begin
+            canvas = content_canvas[]
+            inner_elems_cv = getfield(canvas, :elements)
+            held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(canvas)])
+            GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Int32(0), Int32(0), held, layout_none, true, Cell(nothing))
+        end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                      vw_cell, vh_cell,
-                                      Cell(GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Int32(0), Int32(0),
-                                                          inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
-                                                          layout_none, true, Cell(nothing))),
-                                      transform_cell,
+                                      vw_cell, vh_cell, viewed, transform_cell,
                                       Cell(nothing)))
     end
     outer_w = Cell(@computation Int32(Int(vw_cell[]) + tx))
@@ -6459,7 +8310,7 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
-    WidgetTransformPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
+    WidgetTransformPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, geometry)
 end
 
 map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference) =
@@ -6495,7 +8346,7 @@ function _read_transform_pane_move(p::WidgetTransformPaneToGraphicsCanvas,
         read_child_move(content_iomap, MouseMove(lx, ly, evt.buttons, evt.modifiers; time = evt.time)) :
         read_child_leave(content_iomap, evt, 0, 0)
     M = getfield(w, :transform)[]::AffineTransform
-    cox, coy = _content_offset(p, w)
+    cox, coy = _get_content_offset(_get_box_geometry(iomap))
     map_outer(x, y) = begin
         px, py = apply_affine_transform(M, Float64(x), Float64(y))
         (round(Int, px) + cox, round(Int, py) + coy)
@@ -6510,7 +8361,7 @@ function _find_transform_pane_local_point(p::WidgetTransformPaneToGraphicsCanvas
                                           x::Int, y::Int)
     w = iomap.input
     M = getfield(w, :transform)[]::AffineTransform
-    cox, coy = _content_offset(p, w)
+    cox, coy = _get_content_offset(_get_box_geometry(iomap))
     Tuple(round.(Int, apply_affine_transform(compute_affine_inverse(M),
                                              Float64(x - cox), Float64(y - coy))))
 end
@@ -6544,7 +8395,8 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     canvas = iomap.output
     w = iomap.input
     M = getfield(w, :transform)[]::AffineTransform
-    cox, coy = _content_offset(p, w)
+    box = _get_box_geometry(iomap)
+    cox, coy = _get_content_offset(box)
     # MouseScroll is consumed here (zoom or pan); each matched branch `return`s.
     @gesture_case evt begin
         # Ctrl+wheel: zoom about the cursor.
@@ -6561,7 +8413,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             # pans more at each notch, and at most the view less one line.
             turn_x, turn_y = evt.precise_dx, evt.precise_dy
             horizontal = turn_x != 0 && turn_y == 0
-            tx, ty = _inset_total(p, w)
+            tx, ty = _get_inset_total(box)
             largest = max(line, (horizontal ? Int(canvas.w) - tx : Int(canvas.h) - ty) - line)
             step = min(p.lines_per_notch * line, largest)
             distance, run = _compute_wheel_turn(w.wheel_run, horizontal ? turn_x : turn_y, evt.time,
@@ -6618,7 +8470,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     # so a Ctrl+= / Ctrl+- bound inside the content (e.g. collection add/remove)
     # still wins. Ctrl+= / keypad-+ zooms in, Ctrl+- / keypad-- out, Ctrl+0
     # resets — all about the viewport centre (no cursor for keyboard).
-    tx, ty = _inset_total(p, w)
+    tx, ty = _get_inset_total(box)
     cw = Int(canvas.w); ch = Int(canvas.h)
     acx, acy = (cw - tx) / 2.0, (ch - ty) / 2.0
     @gesture_case evt begin
@@ -6633,16 +8485,19 @@ end
 # ── WidgetToolbar ───────────────────────────────────────────────────────────
 
 function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetToolbar, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
         # A toolbar lays its items out at their own size, side by side, so it gives
-        # no slot on the main axis: an item that took a slot would stretch to the
-        # whole band. It gives its edge instead, as a bounded range, so an item
+        # them no slot and no minimum: an item that took one would stretch to the
+        # whole band. It gives its edges instead, as bounded ranges, so an item
         # draws its content and a text in it wraps at the band's edge.
-        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
+        (_, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width,
+                                                                         height = ctx.maximum_height)))
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
         item_gap = p.item_gap
         _, item_h = _text_size(p.measure, p.font, "M")
         child_iomaps = Any[]
@@ -6661,15 +8516,21 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             content_height = max(content_height, _menu_item_height(cim))
         end
         content_width = max(0, x_cursor - item_gap)
-        elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
                                             child_iomaps, _p_measure(p))
+        width = _resolve_width(ctx, 0, width)
+        height = _resolve_height(ctx, 0, height)
+        elems = Any[]
+        _push_box_parts!(elems, box, _get_box_colors(p, w), width - inset_width,
+                         height - inset_height)
+        first_item = length(elems) + 1
         append!(elems, items)
+        _cut_content_at_box!(elems, first_item, box, width, height, content_width, content_height)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
+    WidgetChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps),
+                        geometry)
 end
 
 map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -6677,7 +8538,7 @@ map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference) = _map_
 map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
-function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
@@ -6688,8 +8549,9 @@ function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
 end
 
 # A press, a down, an up or a dwell goes to the item under the pointer, and its
-# answer is re-rooted into `elements[i]`, as a composite re-roots: an Alt+press then
-# selects that item rather than the whole toolbar, and an action travels unchanged.
+# answer is re-rooted into `elements[i]`, as a composite re-roots: an Alt+double
+# click then selects that item rather than the whole toolbar, and an action travels
+# unchanged.
 # An item answers a down with its pressed look, so the down leaves the focus where
 # it is. The toolbar lays out only its widget elements, so a laid-out index is
 # mapped back to the element it came from. For a dwell and a right click the
@@ -6728,25 +8590,27 @@ WidgetStatusBarToGraphicsCanvas(theme; measure,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = _themed(StyleColor, theme, t -> t.muted),
                                 content_color = _themed(StyleColor, theme, t -> t.muted),
-                                label_text = _themed(StyleText, theme, _get_caption_text),
+                                label_text = _themed(StyleText, theme, _get_quiet_text),
                                 item_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetStatusBarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, label_text, item_gap)
 
 function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # A status bar is one line, so its height comes from the font of its labels
     # and from its insets, and not from its words. A segment that says something
     # else, as the selection does on each key, changes what the bar draws and not
     # the room the bands around it have.
     height = Cell(@computation begin
-        _, inset_height = _inset_total(p, w)
+        _, inset_height = _get_inset_total(geometry[])
         label = _get_part_text(w, :label_text, p.label_text)
         _resolve_height(ctx, 0, compute_line_box(p.measure, "", label.font).height + inset_height)
     end)
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
-        inset_width, inset_height = _inset_total(p, w)
+        box = geometry[]
+        content_x, content_y = _get_content_offset(box)
+        inset_width, inset_height = _get_inset_total(box)
         item_gap = p.item_gap
         label = _get_part_text(w, :label_text, p.label_text)
         labels = Any[]
@@ -6760,38 +8624,45 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
         end
         width = _resolve_width(ctx, 0, x + inset_width)
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w),
+        _push_box_parts!(elements, box, _get_box_colors(p, w),
                          width - inset_width, height[] - inset_height)
+        _, line_height = _text_size(p.measure, label.font, "M")
+        _cut_content_at_box!(labels, 1, box, width, height[], x, line_height)
         append!(elements, labels)
         (width=width, elements=elements)
     end)
-    SimpleIoMap(p, w, GraphicsCanvas(Int32(0), Int32(0),
-                                     Cell(@computation Int32(build[].width)),
-                                     Cell(@computation Int32(height[])),
-                                     CellVector(@computation build[].elements),
-                                     layout_none, true, Cell(nothing)))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(Int32(0), Int32(0),
+                                        Cell(@computation Int32(build[].width)),
+                                        Cell(@computation Int32(height[])),
+                                        CellVector(@computation build[].elements),
+                                        layout_none, true, Cell(nothing)),
+                   geometry)
 end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
 # The extent of a scroll bar on one axis: its authored size, else the extent
-# that its parent offers, else its thickness across and nothing along.
-function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int)
-    authored > 0 && return authored
+# that its parent offers, else its thickness across and nothing along, raised to
+# `minimum`, the minimum of its range, where it has one. `space` is the extent of
+# the space given around the bar on the axis, which an offer and a minimum hold
+# and an authored size and the thickness do not.
+function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int, space::Int,
+                                minimum = nothing)
+    authored > 0 && return authored + space
     offered === nothing || return Int(offered[])
-    along ? 0 : thickness
+    max(along ? 0 : thickness + space, minimum === nothing ? 0 : Int(minimum[]))
 end
 
 # The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
-# canvas of the bar, from the extent of the bar and its value.
-function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, w::WidgetScrollBar,
+# canvas of the bar, from the shape and the extent of the bar and its value.
+function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, box::BoxGeometry, w::WidgetScrollBar,
                                width::Int, height::Int)
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
+    cox, coy = _get_content_offset(box)
+    tx, ty = _get_inset_total(box)
     cw = max(1, width - tx)
     ch = max(1, height - ty)
     value = clamp(Float64(w.value), 0.0, 1.0)
@@ -6871,7 +8742,7 @@ _is_scroll_bar_scroll(old, new) = old[1] != new[1] && old[2] == new[2]
 # writes keeps a fade at its start. The pointer is an arrow over the bar, also
 # over a text under it.
 function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     pos = w.position
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
@@ -6879,11 +8750,17 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     horizontal = w.orientation === :horizontal
     offered_w = ctx === nothing ? nothing : get_exact_width(ctx)
     offered_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    space_width, space_height = _get_given_space_extent(ctx, :x), _get_given_space_extent(ctx, :y)
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    minimum_h = ctx === nothing ? nothing : ctx.minimum_height
     width = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.x[]) : 0,
-                                                           offered_w, horizontal, p.thickness)))
+                                                           offered_w, horizontal, p.thickness, space_width,
+                                                           minimum_w)))
     height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
-                                                            offered_h, !horizontal, p.thickness)))
-    parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
+                                                            offered_h, !horizontal, p.thickness, space_height,
+                                                            minimum_h)))
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    parts = Cell(@computation _get_scroll_bar_thumb(p, geometry[], w, Int(width[]), Int(height[])))
     lit = Cell(@computation _is_under_pointer(w) || w.thumb_drag !== nothing)
     clock = ctx === nothing ? nothing : ctx.clock
     scroll = _make_change_time_cell(() -> (Float64(w.value), Float64(w.thumb_size)), clock,
@@ -6914,16 +8791,21 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
         rect
     end
     elems = Any[]
-    tx, ty = _inset_total(p, w)
-    _push_following_box_bands!(elems, _get_box_insets(p, w), _get_box_colors(p, w),
+    box = geometry[]
+    tx, ty = _get_inset_total(box)
+    _push_following_box_bands!(elems, box, _get_box_colors(p, w),
                                Cell(@computation Int32(max(1, Int(width[]) - tx))),
                                Cell(@computation Int32(max(1, Int(height[]) - ty))))
     push!(elems, make_rect(1))
     push!(elems, make_rect(2))
-    push!(elems, GraphicsPointerShape(0, 0, width, height, :arrow))
-    SimpleIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
-                                     CellVector(Cell[Cell(e) for e in elems]),
-                                     layout_none, true, Cell(nothing)))
+    space_left, space_top, _, _ = box.space
+    push!(elems, GraphicsPointerShape(Cell(Int32(space_left)), Cell(Int32(space_top)),
+                                      Cell(@computation Int32(max(0, Int(width[]) - space_width))),
+                                      Cell(@computation Int32(max(0, Int(height[]) - space_height))), :arrow))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
+                                        CellVector(Cell[Cell(e) for e in elems]),
+                                        layout_none, true, Cell(nothing)),
+                   geometry)
 end
 
 map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -6934,10 +8816,10 @@ end
 
 # The place of the point `(x, y)` along a bar, and the track and the thumb of the
 # bar, each `(start, length)` along it, in the frame of the bar.
-function _find_scroll_bar_place(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, x::Int, y::Int)
+function _find_scroll_bar_place(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, x::Int, y::Int)
     w = iomap.input
     canvas = iomap.output
-    track, thumb = _get_scroll_bar_thumb(p, w, Int(canvas.w), Int(canvas.h))
+    track, thumb = _get_scroll_bar_thumb(p, _get_box_geometry(iomap), w, Int(canvas.w), Int(canvas.h))
     w.orientation === :horizontal ?
         (x - Int(canvas.x), (track[1], track[3]), (thumb[1], thumb[3])) :
         (y - Int(canvas.y), (track[2], track[4]), (thumb[2], thumb[4]))
@@ -7036,6 +8918,47 @@ function make_owned_scroll_bar_drag(answer, w::WidgetScrollBar, press)
     CompoundOperation(operations)
 end
 
+"""
+    keep_owned_scroll_bar_drag(answer, bar, press) -> answer
+
+`answer` to `press`, a press on `bar`, for an owner that draws the bar over its own
+canvas and keeps the drag of its thumb: the drag is owned
+([`make_owned_scroll_bar_drag`](@ref)), and its start is at the owner, so each part
+of the drag comes to the owner, which reads it with [`read_scroll_bar_drag`](@ref).
+`press` is in the frame of the owner.
+"""
+function keep_owned_scroll_bar_drag(answer, w::WidgetScrollBar, press)
+    answer = make_owned_scroll_bar_drag(answer, w, press)
+    answer isa CompoundOperation || return answer
+    CompoundOperation(Any[o isa StartDragOperation ? StartDragOperation(EmptyReference(), o.dragged) : o
+                          for o in answer.operations])
+end
+
+"""
+    convert_scroll_bar_value_writes(answer, bar, convert) -> answer or nothing
+
+`answer` with each write of the value of `bar` replaced by `convert(value)`, the
+scroll of the owner that the value asks for, and left out where `convert` gives
+`nothing`. `nothing` when nothing is left. An owner that gives a bar to the parts
+it draws turns the page of a click on the track, and each move of a drag of the
+thumb, into its own scroll with it.
+"""
+function convert_scroll_bar_value_writes(answer, w::WidgetScrollBar, convert)
+    if answer isa CompoundOperation
+        kept = Any[]
+        for operation in answer.operations
+            converted = convert_scroll_bar_value_writes(operation, w, convert)
+            converted === nothing || push!(kept, converted)
+        end
+        return isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
+    end
+    write = answer isa ReplaceViewStateOperation ? get_wrapped_operation(answer) : answer
+    (write isa ReplaceReferencedValueOperation && write.document === w &&
+     write.reference isa ConcreteReference && write.reference.head == FieldReferenceStep("value")) ||
+        return answer
+    convert(write.value)
+end
+
 # Whether the drag of the thumb of `w` is on and its owner keeps it.
 _is_owned_scroll_bar_drag(w::WidgetScrollBar) =
     (drag = w.thumb_drag; drag isa NamedTuple && get(drag, :owned, false) === true)
@@ -7046,7 +8969,7 @@ _is_owned_scroll_bar_drag(w::WidgetScrollBar) =
 # sends are one `MouseClick` each, so each moves one page. The drag comes by the
 # path of the bar, wherever the pointer is, and the press is kept in the frame of
 # the bar.
-function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     @gesture_case evt begin
@@ -7089,6 +9012,41 @@ macro _printer_only(P)
     end
 end
 
+# ── WidgetIcon ──────────────────────────────────────────────────────────────
+
+# The size of `icon` in its place: its own size when it gives one, else `size`.
+_get_icon_size(icon::WidgetIcon, size::Int) = icon.size > 0 ? _sc(icon.size) : size
+_get_icon_size(icon, size::Int) = size
+
+@projection UntrackedCell struct WidgetIconToGraphicsCanvas
+    measure::TextMeasure
+    label_text::StyleText            # the colour of an icon with no role, and the line it is as tall as
+    badge::Any                       # the colours of the roles of the icon and of its marks
+end
+
+WidgetIconToGraphicsCanvas(theme; measure,
+                           label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
+                           badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
+    WidgetIconToGraphicsCanvas(measure, label_text, badge)
+
+# An icon with its corner marks, as tall as a line of the label font or as its own
+# size. The canvas is the box of the glyph, and the marks stand half outside it.
+# An icon draws no box. Its shape holds only the space given around it.
+function print_document(p::WidgetIconToGraphicsCanvas, recursion, w::WidgetIcon, ctx)
+    box = BoxGeometry(_get_given_space(ctx), _NO_SPACE, _NO_SPACE, _NO_SPACE)
+    WidgetBoxIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+        _, line = _text_size(p.measure, p.label_text.font, "M")
+        size = icon_width(w, _get_icon_size(w, Int(line)))
+        x, y = _get_content_offset(box)
+        space_width, space_height = _get_space_total(box)
+        elements = Any[]
+        size > 0 && _push_decorated_icon!(elements, p.badge, w, x, y, size, p.label_text.color,
+                                          color_transparent)
+        (width = size + space_width, height = size + space_height, elements = elements)
+    end), box)
+end
+@_printer_only WidgetIconToGraphicsCanvas
+
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetBadgeToGraphicsCanvas
@@ -7123,49 +9081,51 @@ end
     info_label_text::StyleText
     accent_surface_color::StyleColor
     accent_label_text::StyleText
+    selected_color::StyleColor                 # the band of the text selected as a whole
 end
 
 # The border inset is the theme's width in every variant, so a badge keeps its
 # size when its variant changes; only the outline variant shows a visible
 # border color. A role has a surface and a text of its own, and no border.
-WidgetBadgeToGraphicsCanvas(theme; measure,
+WidgetBadgeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default,
                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                             padding = _themed(Inset, theme, t -> t.compact_padding),
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = _themed(StyleColor, theme, t -> t.primary),
                             content_color = _themed(StyleColor, theme, t -> t.primary),
-                            label_text = _themed(StyleText, theme, t -> StyleText(t.font_small, t.primary_foreground)),
+                            label_text = _themed(StyleText, theme, t -> StyleText(t.badge_font, t.primary_foreground)),
                             secondary_padding_color = _themed(StyleColor, theme, t -> t.secondary),
                             secondary_content_color = _themed(StyleColor, theme, t -> t.secondary),
                             secondary_border_color = color_transparent,
                             secondary_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.secondary_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.secondary_foreground)),
                             destructive_padding_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_content_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_border_color = color_transparent,
                             destructive_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.destructive_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.destructive_foreground)),
                             outline_padding_color = _themed(StyleColor, theme, t -> t.background),
                             outline_content_color = _themed(StyleColor, theme, t -> t.background),
                             outline_border_color = _themed(StyleColor, theme, t -> t.border),
                             outline_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.foreground)),
                             success_surface_color = _themed(StyleColor, theme, t -> t.success_surface),
                             success_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.success_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.success_foreground)),
                             warning_surface_color = _themed(StyleColor, theme, t -> t.warning_surface),
                             warning_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.warning_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.warning_foreground)),
                             error_surface_color = _themed(StyleColor, theme, t -> t.error_surface),
                             error_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.error_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.error_foreground)),
                             info_surface_color = _themed(StyleColor, theme, t -> t.info_surface),
                             info_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.info_foreground)),
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.info_foreground)),
                             accent_surface_color = _themed(StyleColor, theme, t -> t.accent),
                             accent_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.accent_foreground))) =
+                                _themed(StyleText, theme, t -> StyleText(t.badge_font, t.accent_foreground)),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, label_text,
                                 secondary_padding_color, secondary_content_color, secondary_border_color,
@@ -7178,7 +9138,7 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                                 warning_surface_color, warning_label_text,
                                 error_surface_color, error_label_text,
                                 info_surface_color, info_label_text,
-                                accent_surface_color, accent_label_text)
+                                accent_surface_color, accent_label_text, selected_color)
 
 # The roles a badge takes, each with a surface and a text in the badge printer.
 const _BADGE_ROLES = (:success, :warning, :error, :info, :accent)
@@ -7199,46 +9159,59 @@ function _get_badge_style(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
     (colors = _get_box_colors(p, w; variant), label = _get_state_text(p, w, :label; variant))
 end
 
-# The size of badge `w` as `p` draws it: its text, its padding and its border. A
-# widget that holds badges, such as the strip of a tabbed pane, measures each with
-# the badge printer of its theme and draws it with `_build_badge_elements`, so a
-# badge looks the same in every host.
-function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
+# The size of badge `w` of shape `box` as `p` draws it: its text, its padding and
+# its border. A widget that holds badges, such as the strip of a tabbed pane,
+# computes the shape of each with the badge printer of its theme, measures it, and
+# draws it with `_build_badge_elements`, so a badge looks the same in every host.
+function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry)
     style = _get_badge_style(p, w)
     content_width, content_height = _text_size(p.measure, style.label.font, string(w.content))
-    inset_width, inset_height = _inset_total(p, w)
+    inset_width, inset_height = _get_inset_total(box)
     (content_width + inset_width, content_height + inset_height)
 end
 
-# The graphics of badge `w`, `width` by `height`, with its top left corner at the
-# origin: the pill and its text.
-function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, width::Int, height::Int)
+# The graphics of badge `w` of shape `box`, `width` by `height`, with its top left
+# corner at the origin: the pill and its text. With `drawn`, a vector of
+# `DrawnTextLine`, a content that the badge draws as a text records its line as the part
+# `.content`.
+function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, box::BoxGeometry,
+                               width::Int, height::Int; drawn = nothing)
     style = _get_badge_style(p, w)
     text = string(w.content)
-    _, content_height = _text_size(p.measure, style.label.font, text)
-    box = _get_box_insets(p, w)
-    inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
+    content_width, content_height = _text_size(p.measure, style.label.font, text)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
     elements = Any[]
     _push_box_parts!(elements, box, style.colors, width - inset_width, height - inset_height;
                      radius = border_box_height ÷ 2)
     _push_text!(elements, p.measure, style.label.font, text, content_x, content_y, style.label.color)
-    elements
+    drawn === nothing || _is_drawn_value(w.content) && push!(drawn, DrawnTextLine(last(elements), _CONTENT_PART, 0))
+    _cut_content_at_box!(elements, length(elements), box, width, height, content_width, content_height)
 end
 
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        natural_width, natural_height = _measure_badge(p, w)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> begin
+        box = geometry[]
+        natural_width, natural_height = _measure_badge(p, w, box)
         badge_width  = _resolve_width(ctx, 0, natural_width)
         badge_height = _resolve_height(ctx, 0, natural_height)
+        drawn = DrawnTextLine[]
         (width = badge_width, height = badge_height,
-         elements = _build_badge_elements(p, w, badge_width, badge_height))
+         elements = _build_badge_elements(p, w, box, badge_width, badge_height; drawn), drawn = drawn)
     end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetBadgeToGraphicsCanvas
+
+# A badge maps and reads a click on its text as a label does.
+map_reference_forward(::WidgetBadgeToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(p::WidgetBadgeToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -7263,37 +9236,42 @@ WidgetSeparatorToGraphicsCanvas(theme;
                                     content_color, divider_stroke)
 
 function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         rule_length = _sc(Int(w.length))
         divider_stroke = _get_state_stroke(p, w, :divider)
         thickness = max(1, Int(divider_stroke.width))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        space_width, space_height = _get_space_total(box)
+        content_x, content_y = _get_content_offset(box)
         elements = Any[]
+        # An authored length does not hold the space around the box, which
+        # `_resolve_size` adds.
         if w.orientation === :vertical
-            outer_height = _resolve_height(ctx, rule_length > 0 ? rule_length + inset_height : 0,
+            outer_height = _resolve_height(ctx, rule_length > 0 ? rule_length + inset_height - space_height : 0,
                                            rule_length + inset_height)
             line_length = outer_height - inset_height
             outer_width = thickness + inset_width
             _push_box_parts!(elements, box, colors, thickness, line_length)
-            push!(elements, GraphicsLine(content_x, content_y, content_x, content_y + line_length;
-                                         color = divider_stroke.color, width=thickness))
+            # The rule fills its band, so it draws inside the box.
+            push!(elements, GraphicsRect(content_x, content_y, thickness, line_length;
+                                         color = divider_stroke.color, radius = 0))
             (width=outer_width, height=outer_height, elements=elements)
         else
-            outer_width = _resolve_width(ctx, rule_length > 0 ? rule_length + inset_width : 0,
+            outer_width = _resolve_width(ctx, rule_length > 0 ? rule_length + inset_width - space_width : 0,
                                          rule_length + inset_width)
             line_length = outer_width - inset_width
             outer_height = thickness + inset_height
             _push_box_parts!(elements, box, colors, line_length, thickness)
-            push!(elements, GraphicsLine(content_x, content_y, content_x + line_length, content_y;
-                                         color = divider_stroke.color, width=thickness))
+            push!(elements, GraphicsRect(content_x, content_y, line_length, thickness;
+                                         color = divider_stroke.color, radius = 0))
             (width=outer_width, height=outer_height, elements=elements)
         end
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSeparatorToGraphicsCanvas
 
@@ -7324,6 +9302,11 @@ end
     plain_border_color::StyleColor
     plain_padding_color::StyleColor
     plain_content_color::StyleColor
+    row_border_color::StyleColor
+    row_padding_color::StyleColor
+    row_content_color::StyleColor
+    row_hovered_color::StyleColor      # the band of a :row card under the pointer
+    row_selected_color::StyleColor     # the band of a :row card that holds the selection, and of a text selected as a whole
     chevron_color::StyleColor          # the fold mark of a collapsible card
     graphics_style::NamedTuple         # the ring over the slot selected as a whole
     corner_radius::Int
@@ -7335,7 +9318,7 @@ end
 
 # The padding of the projection is the theme's container padding on every side,
 # unless the card names its own (`nothing` takes this default, by the rule of
-# `_get_box_insets`).
+# `_get_inset`).
 WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            margin = inset_default,
                            border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
@@ -7345,9 +9328,9 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            padding_color = _themed(StyleColor, theme, t -> t.card),
                            content_color = _themed(StyleColor, theme, t -> t.card),
                            title_text = _themed(StyleText, theme, _get_title_text),
-                           description_text = _themed(StyleText, theme, _get_caption_text),
+                           description_text = _themed(StyleText, theme, _get_quiet_text),
                            body_text = _themed(StyleText, theme, t -> StyleText(t.font, t.card_foreground)),
-                           footer_text = _themed(StyleText, theme, _get_caption_text),
+                           footer_text = _themed(StyleText, theme, _get_quiet_text),
                            header_color = color_transparent, body_color = color_transparent,
                            footer_color = color_transparent,
                            # The tint is NEUTRAL, and it is a step of depth rather than a change
@@ -7370,6 +9353,10 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            muted_content_color = _themed(StyleColor, theme, t -> t.muted),
                            plain_border_color = color_transparent,
                            plain_padding_color = color_transparent, plain_content_color = color_transparent,
+                           row_border_color = color_transparent,
+                           row_padding_color = color_transparent, row_content_color = color_transparent,
+                           row_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                           row_selected_color = _make_selected_row_color(graphics_theme),
                            chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                            graphics_style = _make_graphics_style(graphics_theme),
                            corner_radius = _themed(Int, theme, t -> t.radius),
@@ -7383,6 +9370,8 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                tinted_border_color, tinted_padding_color, tinted_content_color,
                                muted_border_color, muted_padding_color, muted_content_color,
                                plain_border_color, plain_padding_color, plain_content_color,
+                               row_border_color, row_padding_color, row_content_color,
+                               row_hovered_color, row_selected_color,
                                chevron_color, graphics_style, corner_radius, title_gap, section_gap,
                                chevron_size, chevron_nudge)
 
@@ -7392,13 +9381,13 @@ WidgetCardToGraphicsCanvas(theme; graphics_theme = nothing, measure,
 _card_chevron_column(p, w::WidgetCard) =
     (w.collapsible === true && w.title !== nothing) ? 2 * p.chevron_size + p.title_gap : 0
 
-# The box a card folds from, as `(x0, y0, x1, y1)`: the chevron's column, as tall
-# as the header row. `nothing` for a card that does not fold from a click. Only
-# a collapsible card with a Document title folds, and only from its chevron, so a
-# click on the title is a click on the title.
-function _card_fold_box(p, w::WidgetCard, header_h::Integer)
-    (w.collapsible === true && w.title isa Document) || return nothing
-    content_x, content_y = _content_offset(p, w)
+# The box a card of shape `box` folds from, as `(x0, y0, x1, y1)`: the chevron's
+# column, as tall as the header row. `nothing` for a card that does not fold from a
+# click. Only a collapsible card with a title folds, and only from its chevron, so
+# a click on the title is a click on the title.
+function _card_fold_box(p, w::WidgetCard, box::BoxGeometry, header_h::Integer)
+    (w.collapsible === true && w.title !== nothing) || return nothing
+    content_x, content_y = _get_content_offset(box)
     (content_x, content_y, content_x + _card_chevron_column(p, w), content_y + Int(header_h))
 end
 
@@ -7407,14 +9396,14 @@ end
 # them. Reads the recursed title/content iomaps' reactive sizes (`inner.h[]`/
 # `inner.w[]`), so the enclosing `build` cell re-runs when the content grows —
 # that is what keeps the card's border, height, and child positions in step
-# with reactive content.
-function _card_build(p, w, ctx, tim, cim)
+# with reactive content. `box` is the shape of the card.
+function _card_build(p, w, box::BoxGeometry, ctx, tim, cim)
     variant = w.variant === :card ? nothing : w.variant
-    box = _get_box_insets(p, w)
     colors = _get_box_colors(p, w; variant)
-    content_x, content_y = _content_offset(p, w)
-    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _get_content_offset(box)
+    inset_width, inset_height = _get_inset_total(box)
     header_elements = Any[]
+    drawn = DrawnTextLine[]
     body_elements = Any[]
     footer_elements = Any[]
     child_iomaps = Any[]
@@ -7434,11 +9423,13 @@ function _card_build(p, w, ctx, tim, cim)
     # column. With neither there is no bound, and each text is the one line it
     # measures.
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
+    # An authored width does not hold the space around the card, and `pad_x` does.
     authored_width = _sc(Int(w.width))
-    text_bound = authored_width > 0 ? max(0, authored_width - pad_x) :
+    text_bound = authored_width > 0 ? max(0, authored_width + _get_space_total(box)[1] - pad_x) :
                  edge_w !== nothing ? max(0, Int(edge_w[]) - pad_x) : 0
     header_top = y
     header_h = 0
+    title_box = nothing
     title_text = _get_state_text(p, w, :title)
     if tim !== nothing
         push!(child_iomaps, (padding, y, tim))
@@ -7453,7 +9444,10 @@ function _card_build(p, w, ctx, tim, cim)
         end
     elseif w.title !== nothing
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
-                                                      string(w.title), padding, y, text_bound)
+                                                      string(w.title), padding, y, text_bound;
+                                                      part = _card_title_reference(),
+                                                      drawn = _is_drawn_value(w.title) ? drawn : nothing)
+        title_box = (padding, y, title_width, title_height)
         header_h = title_height
         max_content_width = max(max_content_width, title_width); y += title_height + p.title_gap
     end
@@ -7465,7 +9459,7 @@ function _card_build(p, w, ctx, tim, cim)
                        chevron_size, w.collapsed === true ? :right : :down,
                        _get_state_color(p, w, :chevron))
     end
-    fold_box = _card_fold_box(p, w, header_h)
+    fold_box = _card_fold_box(p, w, box, header_h)
     if fold_box !== nothing
         # A container routes a press to the card only over something the card
         # drew, and the two strokes of the mark cover little of its column. A
@@ -7477,7 +9471,9 @@ function _card_build(p, w, ctx, tim, cim)
     if w.description !== nothing
         description_width, description_height =
             _push_text_block!(header_elements, p.measure, description_text,
-                              string(w.description), padding, y, text_bound)
+                              string(w.description), padding, y, text_bound;
+                              part = ConcreteReference(FieldReferenceStep("description"), EmptyReference()),
+                              drawn = _is_drawn_value(w.description) ? drawn : nothing)
         max_content_width = max(max_content_width, description_width)
         y += description_height + p.section_gap
     end
@@ -7534,10 +9530,11 @@ function _card_build(p, w, ctx, tim, cim)
     end
     footer_bottom = y
     card_width = _resolve_width(ctx, authored_width, max_content_width + pad_x)
-    # A fixed card is exactly its declared height; a content-tall one grows to fit.
+    # A fixed card is exactly its declared height and the space around it; a
+    # content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
-    bottom_inset = box.margin[4] + box.border[4] + box.padding[4]
-    card_height = fixed_height > 0 ? fixed_height :
+    bottom_inset = _get_sides_outside(box, :content)[4]
+    card_height = fixed_height > 0 ? fixed_height + _get_space_total(box)[2] :
                   _resolve_height(ctx, 0, y + bottom_inset)
     region_width = card_width - inset_width
     # The box, drawn first (behind content). The variant says how loud its
@@ -7546,8 +9543,11 @@ function _card_build(p, w, ctx, tim, cim)
     # are transparent, and `_push_box_parts!` skips a transparent part.
     surface = Any[]
     _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = p.corner_radius)
+    w.variant === :row && push!(surface, _make_row_band(p, w, box, region_width + inset_width, card_height))
     # The three regions, each a panel (transparent by default, so it costs
-    # nothing) behind the elements that fill it.
+    # nothing) behind the elements that fill it. They are the content, which the
+    # box cuts: a title, a footer or a body larger than an authored size.
+    first_content = length(surface) + 1
     _push_panel!(surface, content_x, header_top, region_width, header_bottom - header_top;
                 fill = _get_state_color(p, w, :header))
     append!(surface, header_elements)
@@ -7557,7 +9557,27 @@ function _card_build(p, w, ctx, tim, cim)
     _push_panel!(surface, content_x, footer_top, region_width, footer_bottom - footer_top;
                 fill = _get_state_color(p, w, :footer))
     append!(surface, footer_elements)
-    (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
+    _cut_content_at_box!(surface, first_content, box, card_width, card_height, max_content_width + column,
+                         y - content_y)
+    (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps,
+     header = (height = header_h, title_box = title_box), drawn = drawn)
+end
+
+# The reference of the title of a card as a part: the field `title`.
+_card_title_reference() = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+
+# The band of a `:row` card inside its margin: the selection band while the
+# selection is in the card, the hover layer while the pointer is on it, and no
+# colour else. The colour is a cell of its own, so a light draws the band again
+# and builds no card.
+function _make_row_band(p, w::WidgetCard, box::BoxGeometry, width::Int, height::Int)
+    band = GraphicsRect(_get_border_rect(box, width, height)...;
+                        color = color_transparent, radius = p.corner_radius)
+    selected, hovered = p.row_selected_color, p.row_hovered_color
+    set_cell_computation!(getfield(band, :color), () ->
+        get_selection(w) !== nothing ? selected :
+        get_mouse_target(w) !== nothing ? hovered : color_transparent)
+    band
 end
 
 # The body a card recurses into, and the context to print it with.
@@ -7576,9 +9596,12 @@ function _card_body(content, inner_ctx)
 end
 
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
-    w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    w.visible == false &&
+        return WidgetCardToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY,
+                                               Cell((height = 0, title_box = nothing)), Cell(DrawnTextLine[]))
     position = w.position::Point2D
     ox, oy = _origin(position)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # Recurse the Document title/content once (stable iomaps); the build cell only
     # reads their reactive sizes, so growing content repaints the card without
     # reprinting the projection.
@@ -7592,15 +9615,19 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # The body is offered the card's OWN inner width. A card told a width draws
     # that width whatever it was offered, so a body sized from the offer would be
     # wider than the card that holds it.
-    inset_width, _ = _inset_total(p, w)
+    inset_width, _ = _get_inset_total(geometry[])
     pad_x = inset_width + _card_chevron_column(p, w)
     # Without a width of its own, the card passes its range on, less its
     # padding, in the same state: a slot stays a slot and an edge stays an edge.
+    # An authored width does not hold the space around the card, and `pad_x` does.
     authored_width = _sc(Int(w.width))
-    inner_ctx = authored_width > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored_width - pad_x)))) :
+    space_width = _get_given_space_extent(ctx, :x)
+    inner_ctx = authored_width > 0 ?
+                with_exact_size(ctx; width = Cell(Int32(max(0, authored_width + space_width - pad_x)))) :
                 with_inner_size(ctx; width = pad_x)
     inner_ctx = with_free_axis(inner_ctx, :y)
-    tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
+    tim = w.title isa Document ? print_child(recursion, w.title, _card_title_context(p, w, inner_ctx)) :
+          nothing
     # A `LayoutConstraint` around the content is how a caller pins the body's
     # height — a collapsed card showing one row of what it holds. The card does
     # the clipping rather than the caller, because the caller does not know the
@@ -7610,25 +9637,37 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # the body draws in full. A clip is a promise about a width, and there is none.
     body, body_ctx = _card_body(w.content, inner_ctx)
     cim = body isa Document ? print_child(recursion, body, body_ctx) : nothing
-    build = Cell(@computation _card_build(p, w, ctx, tim, cim))
+    build = Cell(@computation _card_build(p, w, geometry[], ctx, tim, cim))
     # The ring over the slot the card's selection names as a whole.
     ring = make_selection_ring(() -> begin
         for entry in build[].child_iomaps
             entry === nothing && continue
             (x, y, child) = entry
             name = _card_slot_name(w, child)
-            (name !== nothing && is_whole_selected_field(w.selection, name)) || continue
+            (name !== nothing && is_whole_selected_field(w.selection, name; document = w)) || continue
             return _get_entry_box(x, y, child, _p_measure(p))
         end
         nothing
     end, p.graphics_style)
+    # The caret in the title or the description, which a plain click puts there.
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(@computation Int32(build[].w)),
                            Cell(@computation Int32(build[].h)),
-                           CellVector(@computation vcat(build[].elements, Any[ring])),
+                           CellVector(@computation vcat(make_drawn_selection_elements(build[].elements,
+                                                                                      build[].drawn, w.selection,
+                                                                                      p.measure,
+                                                                                      p.row_selected_color),
+                                                        Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, w, outer, Cell(@computation build[].child_iomaps))
+    WidgetCardToGraphicsCanvasIoMap(p, w, outer, Cell(@computation build[].child_iomaps), geometry,
+                                    Cell(@computation build[].header), Cell(@computation build[].drawn))
 end
+
+# The context that the title of a card is printed in. A `PrimitiveString` title
+# draws in the title style of the card, which the property `:text_style` of the
+# context carries to its printer; any other document draws in its own style.
+_card_title_context(p, w::WidgetCard, ctx) =
+    w.title isa PrimitiveString ? with_property(ctx, :text_style, _get_state_text(p, w, :title)) : ctx
 
 # ── The card's two document slots ───────────────────────────────────────────
 #
@@ -7681,11 +9720,13 @@ function _read_card_hit(w::WidgetCard, gesture, hit)
 end
 
 # A move of the pointer: the slot that the card's own mouse target names (the
-# pointer leaves it), then the slot under the point.
-function _read_card_move(w::WidgetCard, entries::Vector, evt::MouseMove)
+# pointer leaves it), then the slot under the point, or the caret under the point
+# in the text of the title or the description, `drawn`.
+function _read_card_move(w::WidgetCard, entries::Vector, evt::MouseMove, drawn = nothing)
     hit = _find_child_hit(entries, evt,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
-    new_answer = hit === nothing ? nothing : _card_reroot(w, hit[2], hit[1])
+    new_answer = hit !== nothing ? _card_reroot(w, hit[2], hit[1]) :
+                 drawn === nothing ? nothing : ReplaceMouseTargetOperation(annotate_reference_types(w, drawn))
     target = get_mouse_target(w)
     target isa ConcreteReference && target.head isa FieldReferenceStep || return new_answer
     for entry in entries
@@ -7706,27 +9747,42 @@ end
 #
 # A card is a solid surface: a plain left click on it that nothing inside it
 # uses ends there, so it does not reach a document that a stack draws under the
-# card, such as the text under the bar of a find bar view. Any other click goes
-# on, to the menus of the parts around the card and to a whole selection.
-function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MouseClick)
+# card, such as the text under the bar of a find bar view. The bindings of the
+# card answer such a click first; a click on the text of the title or of the
+# description then puts the caret at the character under the pointer, and a click
+# with Shift moves the moving end of the selection there. An Alt+click
+# puts it there too, and an Alt+double click answers it, which the container makes
+# the field as a whole (`convert_to_whole_selection`). Any other click goes on, to the menus of the
+# parts around the card and to a whole selection.
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     answer = _read_card_click(p, iomap, evt)
     answer === nothing || return answer
-    (!_outside_widget(iomap, evt) && evt.button === :left && evt.modifiers == ModifierKeys()) ?
-        DoNothingOperation() : nothing
+    _outside_widget(iomap, evt) && return nothing
+    plain = evt.button === :left && evt.modifiers == ModifierKeys()
+    shift = evt.button === :left && evt.count == 1 && evt.modifiers == ModifierKeys(shift = true)
+    (plain || shift || is_selection_press(evt)) || return nothing
+    if plain
+        bound = read_bound_gesture(iomap.input, evt)
+        bound === nothing || return bound
+    end
+    path = find_drawn_click_selection(iomap.drawn, iomap.output, iomap.input, evt, p.measure)
+    path === nothing ? (plain ? DoNothingOperation() : nothing) : ReplaceSelectionOperation(path)
 end
 
-function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MouseClick)
+function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
-    if w.title isa Document && !isempty(entries)
-        _, _, tim = entries[1]
-        tcanvas = tim.output
-        box = tcanvas isa GraphicsCanvas ? _card_fold_box(p, w, Int(tcanvas.h)) : nothing
-        if box !== nothing
-            x0, y0, x1, y1 = box
-            (x0 <= evt.x < x1 && y0 <= evt.y < y1) && return ToggleCollapseOperation(w)
-        end
+    header = iomap.header
+    box = _card_fold_box(p, w, _get_box_geometry(iomap), header.height)
+    if box !== nothing
+        x0, y0, x1, y1 = box
+        (x0 <= evt.x < x1 && y0 <= evt.y < y1) && return ToggleCollapseOperation(w)
+    end
+    if header.title_box !== nothing && is_whole_selection_press(evt)
+        x0, y0, width, height = header.title_box
+        (x0 <= evt.x < x0 + width && y0 <= evt.y < y0 + height) &&
+            return ReplaceSelectionOperation(_card_title_reference())
     end
     _read_card_hit(w, evt, _find_child_hit(entries, evt,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
@@ -7736,18 +9792,27 @@ end
 # widget nested in a card (a button, a row of a list) still sees the pointer
 # motion and the raw press-down/release that drive its light and its `pressed`
 # feedback. A dwell goes to the slot under the point, as a click does, and folds
-# nothing. The scroll wheel is still the card's own concern to decline (nothing).
+# nothing. A turn of the wheel goes to the slot under the point too, so a chart in
+# a card zooms; a turn that the slot does not use is left to the pane around the
+# card, which scrolls.
 #
 # A coordless keyboard event has no coordinate to hit-test, so it routes into the
 # card's CONTENT selection-directed: forwarded only when the card's `selection`
 # actually points inside it, so a card onto which nothing projects (every card in
-# a plain display, where `selection === nothing`) behaves exactly as it did before.
-function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+# a plain display, where `selection === nothing`) routes no key into its content.
+#
+# The title and the description that the card draws as a text are read as the text
+# of a label is: a left press on them puts the caret and starts the drag of a range,
+# only with Alt on a card with bindings of its own, and a key moves the caret or the
+# range in them, read-only.
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
     # A move that is off the card still goes to the slot the pointer leaves.
     _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
-    w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
-    evt isa MouseMove && return _read_card_move(w, entries, evt)
+    evt isa MouseMove && return _read_card_move(w, entries, evt,
+        _outside_widget(iomap, evt) ? nothing : find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, p.measure))
     evt isa MouseDwell &&
         return _read_card_hit(w, evt, _find_child_hit(entries, evt,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y)))
@@ -7755,33 +9820,57 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         return _card_route(w, entries, evt,
                            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers;
                                                time = evt.time))
+    if evt isa MouseDown
+        own = read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure; control = _is_bound_control(w))
+        own === nothing || return own
+    end
     (evt isa MouseDown || evt isa MouseUp) &&
         return _card_route(w, entries, evt,
                            (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
                                                                    time = evt.time) :
                                                          MouseUp(evt.button, x, y, evt.modifiers;
                                                                  time = evt.time))
-    evt isa MouseScroll && return nothing
+    evt isa MouseScroll &&
+        return _card_route(w, entries, evt, (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
+    key = read_drawn_text_key(iomap.drawn, w, evt, p.measure)
+    key === nothing || return key
     getfield(w, :selection)[] === nothing && return nothing
     for entry in entries
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
         cim.input === w.content || continue
-        return _card_reroot(w, cim, read_intent(cim.projection, cim, evt))
+        answer = _card_reroot(w, cim, read_intent(cim.projection, cim, evt))
+        answer === nothing || return answer
+        break
     end
-    nothing
+    # A key that the content does not take goes to the bindings of the card, such
+    # as the key that opens the menu of a row.
+    read_bound_gesture(w, evt)
 end
 
-map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+# A caret or a range in the title or the description is drawn on its line; any
+# other path goes to the slot that holds it.
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, reference) =
+    something(map_drawn_caret_forward(iomap.drawn, iomap.output, reference),
+              Some(_map_child_forward(iomap, reference)))
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The body slot, for a caller that re-roots a path out of the card without having
 # routed the event itself. The reader does not come through here: it knows which
 # of the two slots answered and prepends that one (`_card_reroot`).
-map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
-    reference === nothing ? nothing :
-    find_reference_point(reference) !== nothing ? _map_child_point(iomap, reference) :
-    ConcreteReference(FieldReferenceStep("content"), reference)
+# A place of characters of the title or the description, and a point on their
+# text, is the caret or the range in that field.
+function map_reference_backward(p::WidgetCardToGraphicsCanvas, iomap, reference)
+    reference === nothing && return nothing
+    drawn = iomap isa WidgetCardToGraphicsCanvasIoMap ? iomap.drawn : DrawnTextLine[]
+    place = map_drawn_place_backward(drawn, iomap.output, reference)
+    place === nothing || return place
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
+    child = _map_child_point(iomap, reference)
+    child === nothing || return child
+    find_drawn_caret(drawn, iomap.output, point.x, point.y, p.measure)
+end
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
@@ -7829,19 +9918,20 @@ WidgetSwitchToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, label_text, label_disabled_text, label_gap)
 
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :checked, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         on  = _get_slot_value(w, :checked, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         state = !enabled ? :disabled : on ? :checked : nothing
         track_width  = Int(p.track_size.x[])
         track_height = Int(p.track_size.y[])
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        label_x, label_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        label_x, label_y = _get_content_offset(box)
         content = _get_mark_label_layout(p, w, track_width, track_height, enabled)
         content_x, content_y = label_x, label_y + content.mark_y
         elements = Any[]
@@ -7861,9 +9951,9 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         # editor's clock, and the reader of the switch has no context that reaches it.
         push!(elements, knob)
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 # A click, or Return or Space on the focused switch, toggles `checked`: it stores
@@ -7923,22 +10013,27 @@ WidgetProgressBarToGraphicsCanvas(theme;
                                       indeterminate_share, indeterminate_period)
 
 function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::WidgetProgressBar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     clock = ctx === nothing ? nothing : ctx.clock
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        box = _get_box_insets(p, w)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        # An authored extent does not hold the space around the box, which
+        # `_resolve_size` adds.
+        space_width, space_height = _get_space_total(box)
+        content_x, content_y = _get_content_offset(box)
         bar_authored = _sc(Int(w.width))
-        outer_width  = _resolve_width(ctx, bar_authored > 0 ? bar_authored + inset_width : 0, inset_width)
+        outer_width  = _resolve_width(ctx, bar_authored > 0 ? bar_authored + inset_width - space_width : 0,
+                                      inset_width)
         # The thickness is `Fixed` and NOT the content, which is the one place
         # step 8's word does not survive the rule: a number passed as content
         # loses to an offer, and a progress bar 700 pixels thick is not a
         # progress bar. A widget that cannot measure its own extent has authored
         # the number it draws.
-        outer_height = _resolve_height(ctx, p.bar_height + inset_height, inset_height)
+        outer_height = _resolve_height(ctx, p.bar_height + inset_height - space_height, inset_height)
         bar_width, bar_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
         _push_box_parts!(elements, box, colors, bar_width, bar_height)
@@ -7963,7 +10058,7 @@ function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::Widg
         push!(elements, GraphicsRect(content_x, content_y, compute_tail_width, bar_height;
                                      color = indicator_color, radius = bar_height ÷ 2))
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetProgressBarToGraphicsCanvas
 
@@ -8014,12 +10109,14 @@ _compute_ring_sweep(value::Nothing, share::Real) = 360 * share
 _compute_ring_sweep(value::Real, share::Real) = 360 * clamp(Float64(value), 0.0, 1.0)
 
 function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::WidgetProgressRing, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     clock = ctx === nothing ? nothing : ctx.clock
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        box = geometry[]
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         line = compute_line_box(p.measure, "", p.font).height
         radius = max(1, round(Int, scale_length(line, p.ring_size) / 2))
         # The ring authors no size. An exact range stretches its box, and the ring
@@ -8028,8 +10125,10 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
         outer_height = _resolve_height(ctx, 0, 2radius + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
-        cx, cy = content_x + radius, content_y + content_height ÷ 2
+        _push_box_parts!(elements, box, _get_box_colors(p, w), content_width, content_height)
+        first_ring = length(elements) + 1
+        cx = content_x + radius
+        cy = content_y + radius + _place_in_room(content_height ÷ 2 - radius, 2radius, content_height)
         stroke = clamp(p.stroke_width, 1, radius)
         push!(elements, GraphicsCircle(cx, cy, radius; color = color_transparent, border_width = stroke,
                                        border_color = _get_state_color(p, w, :track)))
@@ -8044,8 +10143,9 @@ function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::Wid
                                     start_angle = () -> w.value === nothing ?
                                                         360 * _get_clock_phase(clock, period) : 0.0,
                                     sweep_angle = () -> _compute_ring_sweep(w.value, share)))
+        _cut_content_at_box!(elements, first_ring, box, outer_width, outer_height, 2radius, 2radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetProgressRingToGraphicsCanvas
 
@@ -8093,27 +10193,31 @@ WidgetSliderToGraphicsCanvas(theme;
                                  knob_color, knob_disabled_color, knob_stroke, focus_ring_stroke)
 
 function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # Resolved once, here, and handed to both halves: the printer draws the track
     # at this width and the reader turns a press into a value with it. The
     # track_width the IoMap stores is the width of the track itself, inside the
-    # box.
-    inset_width_only, _ = _inset_total(p, w)
+    # box. An authored extent does not hold the space around the box, which
+    # `_resolve_size` adds.
+    inset_width_only, _ = _get_inset_total(geometry[])
+    space_width, space_height = _get_space_total(geometry[])
     track_authored = _sc(Int(w.width))
-    track_outer_width = _resolve_width(ctx, track_authored > 0 ? track_authored + inset_width_only : 0, inset_width_only)
+    track_outer_width = _resolve_width(ctx, track_authored > 0 ? track_authored + inset_width_only - space_width : 0,
+                                       inset_width_only)
     track_width = track_outer_width - inset_width_only
     slot = _print_value_slot(recursion, w, :value, ctx)
     WidgetSliderToGraphicsCanvasIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         value = clamp(Float64(_get_slot_value(w, :value, _get_slot_child(slot))), 0.0, 1.0)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         slider_width  = track_width
-        slider_height = _resolve_height(ctx, p.height + inset_height, inset_height) - inset_height
+        slider_height = _resolve_height(ctx, p.height + inset_height - space_height, inset_height) - inset_height
         center_y = content_y + slider_height ÷ 2
         track_thickness = p.track_thickness
         filled_width = round(Int, value * slider_width)
@@ -8128,9 +10232,9 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         push!(elements, GraphicsCircle(content_x + filled_width, center_y, p.knob_radius; color = knob_c,
                                        border_width=max(1, Int(knob_stroke.width)), border_color=knob_stroke.color))
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end), track_width, slot)
+    end), track_width, slot, geometry)
 end
 
 # The track width the printer drew with, so a press is turned into a value by the
@@ -8143,6 +10247,7 @@ end
     output::Any
     track_width::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 # What a drag to `value` writes, and the value that the knob then has. A document
@@ -8158,7 +10263,7 @@ map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = _map_c
 map_reference_backward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible slider (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetSliderToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSliderToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Where along the track `x` falls, as a fraction. Clamped, so a drag that leaves
 # the control at either end pins rather than runs away — which is what a slider
@@ -8184,7 +10289,7 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     w = iomap.input
     w.enabled === false && return nothing
     width  = Int(iomap.track_width)
-    content_x, _ = _content_offset(p, w)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     child = iomap.value_iomap
     current_value() = Float64(_get_slot_value(w, :value, child))
     write_at(x) = _make_slider_write(w, child, _slider_value(width, x - content_x))
@@ -8307,6 +10412,7 @@ WidgetRadioGroupToGraphicsCanvas(theme; measure,
     output::Any
     row_bounds::Any
     value_iomap::Any   # the IO map of a document in `selected`, or nothing
+    box::Any
 end
 
 # The index of the selected option. A document in `selected` gives an option, and
@@ -8319,19 +10425,20 @@ function _get_radio_selected(w::WidgetRadioGroup, child)
 end
 
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :selected, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         selected = _get_radio_selected(w, _get_slot_child(slot))
         diameter = p.button_size
         label_gap = p.label_gap
         row_gap = p.row_gap
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         # Two passes: the rows are measured first, because a row can be wider
         # than its content when the offer fills more (the rule for a box whose
         # content can grow), and `_push_box_parts!` must see that final size.
@@ -8355,6 +10462,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         elements = Any[]
         row_bounds = Tuple{Int,Int}[]
         _push_box_parts!(elements, box, colors, group_width, group_height)
+        first_row = length(elements) + 1
         for (i, state, label, label_str, label_width, label_height, row_height, row_y) in rows
             center_y = content_y + row_y + row_height ÷ 2
             cx = content_x + diameter ÷ 2
@@ -8371,18 +10479,19 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
             push!(row_bounds, (content_y + row_y, content_y + row_y + row_height))
         end
         outer_width, outer_height = group_width + inset_width, group_height + inset_height
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, 0)
+        _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, content_width, content_height)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, 0)
         (width=outer_width, height=outer_height, elements=elements, row_bounds=row_bounds)
     end)
     WidgetRadioGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                          Cell(@computation build[].row_bounds), slot)
+                                          Cell(@computation build[].row_bounds), slot, geometry)
 end
 
 map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # The option an arrow key moves to: the next or the previous one, around the
 # ends, and the first or the last one when no option is on.
@@ -8435,41 +10544,72 @@ end
     padding_color::StyleColor
     content_color::StyleColor      # circle fill
     label_text::StyleText          # font + color of the initials
+    selected_color::StyleColor     # the band of the initials selected as a whole
 end
 
-WidgetAvatarToGraphicsCanvas(theme; measure,
+WidgetAvatarToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
                              padding_color = color_transparent,
                              content_color = _themed(StyleColor, theme, t -> t.muted),
-                             label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground))) =
+                             label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetAvatarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                 content_color, label_text)
+                                 content_color, label_text, selected_color)
+
+# The share of the size of an avatar that its text takes, and that its icon takes.
+const _AVATAR_TEXT_SHARE = 0.42
+const _AVATAR_ICON_SHARE = 0.7
 
 # The margin, the border and the padding are rectangular bands; the content is a
-# circle, so it is excluded from the box's own fill and drawn on top of it.
+# circle, so it is excluded from the box's own fill and drawn on top of it. Initials
+# that the avatar draws as a text record their line as the part `.initials`, so they take the
+# caret as the text of a label does.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> begin
         size = _sc(Int(w.size))
         radius = size ÷ 2
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
-        initials = string(w.initials)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         elements = Any[]
+        drawn = DrawnTextLine[]
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
         push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius; color = colors.content))
-        initials_width, initials_height = _text_size(p.measure, label.font, initials)
-        _push_text!(elements, p.measure, label.font, initials, content_x + radius - initials_width ÷ 2,
-                    content_y + radius - initials_height ÷ 2, label.color)
-        (width=size + inset_width, height=size + inset_height, elements=elements)
+        icon = w.initials isa Symbol ? icon_width(w.initials, max(1, round(Int, size * _AVATAR_ICON_SHARE))) : 0
+        if icon > 0
+            _push_icon!(elements, w.initials, content_x + radius - icon ÷ 2, content_y + radius - icon ÷ 2,
+                        icon, label.color)
+        else
+            initials = string(w.initials)
+            font = with_font_size(label.font, max(1, round(Int, size * _AVATAR_TEXT_SHARE)))
+            initials_width, initials_height = _text_size(p.measure, font, initials)
+            first_initials = length(elements) + 1
+            _push_text!(elements, p.measure, font, initials,
+                        content_x + _place_in_room(radius - initials_width ÷ 2, initials_width, size),
+                        content_y + _place_in_room(radius - initials_height ÷ 2, initials_height, size), label.color)
+            _is_drawn_value(w.initials) && push!(drawn, DrawnTextLine(last(elements), _INITIALS_PART, 0))
+            _cut_content_at_box!(elements, first_initials, box, size + inset_width, size + inset_height,
+                                 initials_width, initials_height)
+        end
+        (width=size + inset_width, height=size + inset_height, elements=elements, drawn = drawn)
     end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetAvatarToGraphicsCanvas
+
+const _INITIALS_PART = ConcreteReference(FieldReferenceStep("initials"), EmptyReference())
+
+# An avatar maps and reads a click on its initials as a label does on its text.
+map_reference_forward(::WidgetAvatarToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(p::WidgetAvatarToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetAvatarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
@@ -8490,9 +10630,11 @@ end
     corner_radius::Int
     label_gap::Int                     # gap between the icon and the title
     icon_size::Float64                # times the box of the icon, one line of the title
+    badge::Any                        # the colors of the role of a decorated icon and of its marks
+    selected_color::StyleColor        # the band of a text selected as a whole
 end
 
-WidgetAlertToGraphicsCanvas(theme; measure,
+WidgetAlertToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                             margin = inset_default,
                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                             padding = _themed(Inset, theme, t -> _make_uniform_inset(t.container_padding)),
@@ -8500,65 +10642,93 @@ WidgetAlertToGraphicsCanvas(theme; measure,
                             border_color = _themed(StyleColor, theme, t -> t.border),
                             padding_color = _themed(StyleColor, theme, t -> t.background),
                             content_color = _themed(StyleColor, theme, t -> t.background),
-                            title_text = _themed(StyleText, theme, _get_title_text),
-                            description_text = _themed(StyleText, theme, _get_caption_text),
+                            title_text = _themed(StyleText, theme, _get_strong_text),
+                            description_text = _themed(StyleText, theme, _get_quiet_text),
                             destructive_border_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_title_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_bold, t.destructive)),
+                                _themed(StyleText, theme, t -> StyleText(t.strong_font, t.destructive)),
                             title_gap = _themed(Int, theme, t -> t.title_gap),
                             corner_radius = _themed(Int, theme, t -> t.radius),
                             label_gap = _themed(Int, theme, t -> t.label_gap),
-                            icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                            icon_size = _themed(Float64, theme, t -> t.icon_size),
+                            badge = WidgetBadgeToGraphicsCanvas(theme; measure),
+                            selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetAlertToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, title_text, description_text, destructive_border_color,
                                 destructive_title_text, title_gap, corner_radius, label_gap,
-                                icon_size)
+                                icon_size, badge, selected_color)
 
+# A title and a description that the alert draws as a text record their lines as the parts
+# `.title` and `.description`, so they take the caret as the text of a label does.
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> begin
         variant = w.variant === :default ? nothing : w.variant
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; variant)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         title = _get_state_text(p, w, :title; variant)
         description = _get_state_text(p, w, :description; variant)
         elements = Any[]
+        drawn = DrawnTextLine[]
         max_content_width = 0
         y = content_y
         title_string = string(w.title)
         title_width, title_height = _text_size(p.measure, title.font, title_string)
-        # The icon stands before the title, in its color: a square of the height of
-        # the title times `icon_size`. The row is as tall as the larger of the
-        # icon and the title, and each is centred in it.
+        # The icon stands before the title: a square of the height of the title
+        # times `icon_size`, in the color of the title, or of its role when it is
+        # a `WidgetIcon`. The row is as tall as the larger of the icon and the
+        # title, and each is centred in it.
         icon_size = icon_width(w.icon, scale_length(title_height, p.icon_size))
         icon_gap = icon_size > 0 ? p.label_gap : 0
         row_height = max(icon_size, title_height)
-        icon_size > 0 && _push_icon!(elements, w.icon, content_x, y + (row_height - icon_size) ÷ 2, icon_size,
-                                     title.color)
+        icon_size > 0 && _push_decorated_icon!(elements, p.badge, w.icon, content_x,
+                                               y + (row_height - icon_size) ÷ 2, icon_size, title.color,
+                                               colors.content)
         _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap,
                     y + (row_height - title_height) ÷ 2, title.color)
+        _is_drawn_value(w.title) && push!(drawn, DrawnTextLine(last(elements), _ALERT_TITLE, 0))
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
             y += p.title_gap
-            description_string = string(w.description)
-            description_width, description_height = _text_size(p.measure, description.font, description_string)
-            _push_text!(elements, p.measure, description.font, description_string, content_x, y, description.color)
+            # The description breaks at the width that the alert was told, else
+            # at the edge of its range.
+            authored_width = _sc(Int(w.width))
+            edge = ctx === nothing ? nothing : ctx.maximum_width
+            bound = authored_width > 0 ? max(0, authored_width - inset_width) :
+                    edge !== nothing ? max(0, Int(edge[]) - inset_width) : 0
+            description_width, description_height =
+                _push_text_block!(elements, p.measure, description, string(w.description), content_x, y, bound;
+                                  part = _ALERT_DESCRIPTION,
+                                  drawn = _is_drawn_value(w.description) ? drawn : nothing)
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
-        bottom_inset = box.margin[4] + box.border[4] + box.padding[4]
+        bottom_inset = _get_sides_outside(box, :content)[4]
         alert_height = _resolve_height(ctx, 0, y + bottom_inset)
         surface = Any[]
         _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
                          radius = p.corner_radius)
+        _cut_content_at_box!(elements, 1, box, alert_width, alert_height, max_content_width, y - content_y)
         append!(surface, elements)
-        (width=alert_width, height=alert_height, elements=surface)
+        (width=alert_width, height=alert_height, elements=surface, drawn = drawn)
     end))
+    WidgetBoxIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure, p.selected_color),
+                   geometry, Cell(@computation build[].drawn))
 end
-@_printer_only WidgetAlertToGraphicsCanvas
+
+const _ALERT_TITLE = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+const _ALERT_DESCRIPTION = ConcreteReference(FieldReferenceStep("description"), EmptyReference())
+
+# An alert maps and reads a click on its title and its description as a label does
+# on its text.
+map_reference_forward(::WidgetAlertToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(p::WidgetAlertToGraphicsCanvas, iomap, reference) =
+    _map_drawn_text_backward(p, iomap, reference)
+read_intent(p::WidgetAlertToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
@@ -8587,20 +10757,22 @@ WidgetHighlightToGraphicsCanvas(theme;
 function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::WidgetHighlight, ctx)
     position = getfield(w, :position)
     shown() = w.visible !== false
+    # A highlight draws no box. Its shape holds only the space given around it.
+    box = BoxGeometry(_get_given_space(ctx), _NO_SPACE, _NO_SPACE, _NO_SPACE)
     x = Cell(@computation Int32(Int(position[].x[])))
     y = Cell(@computation Int32(Int(position[].y[])))
     width  = Cell(@computation Int32(shown() ? _resolve_width(ctx, max(0, _sc(Int(w.width)))) : 0))
     height = Cell(@computation Int32(shown() ? _resolve_height(ctx, max(0, _sc(Int(w.height)))) : 0))
     elements = CellVector(@computation begin
-        cw, ch = Int(width[]), Int(height[])
-        (cw <= 0 || ch <= 0) && return Any[]
+        rect = _get_part_rect(box, :margin, Int(width[]), Int(height[]))
+        (rect[3] <= 0 || rect[4] <= 0) && return Any[]
         content_color = _get_state_color(p, w, :content)
         border_stroke = _get_state_stroke(p, w, :border)
-        Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = p.corner_radius,
+        Any[GraphicsRect(rect...; color = content_color, radius = p.corner_radius,
                          border_width = Int(border_stroke.width), border_color = border_stroke.color)]
     end)
-    SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
-                                     layout_none, true, Cell(nothing)))
+    WidgetBoxIoMap(p, w, GraphicsCanvas(x, y, width, height, elements, layout_none, true, Cell(nothing)),
+                   box)
 end
 @_printer_only WidgetHighlightToGraphicsCanvas
 
@@ -8627,18 +10799,22 @@ WidgetSkeletonToGraphicsCanvas(theme;
                                    content_color, corner_radius)
 
 function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        block_width  = _resolve_width(ctx, _sc(Int(w.width)))
-        block_height = _resolve_height(ctx, _sc(Int(w.height)))
-        box = _get_box_insets(p, w)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        # The block is the content of the box, so it does not hold the space that
+        # `_resolve_size` adds.
+        box = geometry[]
+        space_width, space_height = _get_space_total(box)
+        block_width  = max(0, _resolve_width(ctx, _sc(Int(w.width))) - space_width)
+        block_height = max(0, _resolve_height(ctx, _sc(Int(w.height))) - space_height)
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         elements = Any[]
         _push_box_parts!(elements, box, colors, block_width, block_height; radius = p.corner_radius)
         (width=block_width + inset_width, height=block_height + inset_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
@@ -8668,18 +10844,19 @@ WidgetSwatchToGraphicsCanvas(theme;
                                  corner_radius)
 
 function print_document(p::WidgetSwatchToGraphicsCanvas, recursion, w::WidgetSwatch, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         side = w.size === nothing ? p.swatch_size : _sc(Int(w.size))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = (margin = _get_state_color(p, w, :margin), border = _get_state_color(p, w, :border),
                   padding = w.color, content = w.color)
-        inset_width, inset_height = _inset_total(p, w)
+        inset_width, inset_height = _get_inset_total(box)
         elements = Any[]
         _push_box_parts!(elements, box, colors, side, side; radius = p.corner_radius)
         (width=side + inset_width, height=side + inset_height, elements=elements)
-    end))
+    end), geometry)
 end
 @_printer_only WidgetSwatchToGraphicsCanvas
 
@@ -8799,6 +10976,9 @@ const LUCIDE_ICON_GLYPHS = (
     :menu           => 0xe115,  # menu
     # Documents
     :file           => 0xe0c0,  # file
+    :file_plus      => 0xe0c9,  # file-plus: a file with a plus
+    :file_minus     => 0xe0c6,  # file-minus: a file with a minus
+    :file_diff      => 0xe317,  # file-diff: a file with a plus over a minus
     :folder         => 0xe0d7,  # folder
     :save           => 0xe14d,  # save
     :pencil         => 0xe1f9,  # pencil
@@ -8866,6 +11046,21 @@ const LUCIDE_ICON_GLYPHS = (
     :circle_play    => 0xe080,  # circle-play: one run of a configuration
     :database       => 0xe0ad,  # database: a store of values on disk
     :circle_dashed  => 0xe4b0,  # circle-dashed: a configuration that only others extend
+    # The marks and the facts of a row of a record
+    :ellipsis       => 0xe0b6,  # ellipsis: the menu of a part
+    :sparkle        => 0xe47e,  # sparkle: what the assistant made
+    :circle_x       => 0xe084,  # circle-x: a choice that was set aside
+    :circle_slash   => 0xe402,  # circle-slash: a step that was dropped
+    :circle_dot     => 0xe345,  # circle-dot: a step that is under way
+    :git_branch     => 0xe0e2,  # git-branch: a plan of steps and decisions
+    :square_stack   => 0xe4a2,  # square-stack: the documents that a part holds
+    :code           => 0xe093,  # code: a piece of code
+    :message_square => 0xe117,  # message-square: the entries of a journal
+    :copy           => 0xe09e,  # copy: a copy of a document
+    :zoom_in        => 0xe1b6,  # zoom-in: a magnifier with a plus
+    :zoom_out       => 0xe1b7,  # zoom-out: a magnifier with a minus
+    :maximize       => 0xe112,  # maximize: four corners that point out
+    :minimize       => 0xe11a,  # minimize: four corners that point in
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS
@@ -8936,9 +11131,10 @@ WidgetToggleToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, corner_radius)
 
 function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
-    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing, _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :pressed, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         text = string(w.content)
         on  = _get_slot_value(w, :pressed, _get_slot_child(slot)) === true
@@ -8946,21 +11142,24 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         state = !enabled ? :disabled : on ? :checked : nothing
         label = _get_state_text(p, w, :label; state)
         text_width, text_height = _text_size(p.measure, label.font, text)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         outer_width  = _resolve_width(ctx, 0, text_width + inset_width)
         outer_height = _resolve_height(ctx, 0, text_height + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         radius = p.corner_radius
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x + (content_width - text_width) ÷ 2,
-                    content_y + (content_height - text_height) ÷ 2, label.color)
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        _push_text!(elements, p.measure, label.font, text,
+                    content_x + _place_in_room((content_width - text_width) ÷ 2, text_width, content_width),
+                    content_y + _place_in_room((content_height - text_height) ÷ 2, text_height, content_height),
+                    label.color)
+        _cut_content_at_box!(elements, length(elements), box, outer_width, outer_height, text_width, text_height)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end), slot)
+    end), slot, geometry)
 end
 
 map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -9001,9 +11200,10 @@ end
     segment_padding::Inset             # a segment's own text padding
     focus_ring_stroke::StyleStroke
     corner_radius::Int
+    selected_color::StyleColor         # the band of an option selected as a whole
 end
 
-WidgetToggleGroupToGraphicsCanvas(theme; measure,
+WidgetToggleGroupToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                   margin = inset_default,
                                   border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                                   padding = _themed(Inset, theme, t -> _make_uniform_inset(t.toggle_group_padding)),
@@ -9022,12 +11222,13 @@ WidgetToggleGroupToGraphicsCanvas(theme; measure,
                                       _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                   segment_padding = _themed(Inset, theme, t -> t.control_padding),
                                   focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
-                                  corner_radius = _themed(Int, theme, t -> t.radius)) =
+                                  corner_radius = _themed(Int, theme, t -> t.radius),
+                                  selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetToggleGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, padding_disabled_color, content_disabled_color,
                                       segment_color, segment_selected_color, segment_disabled_color,
                                       label_text, label_selected_text, label_disabled_text,
-                                      segment_padding, focus_ring_stroke, corner_radius)
+                                      segment_padding, focus_ring_stroke, corner_radius, selected_color)
 
 # The segment widths, so a press can be answered by the segment it landed in.
 # They are derived from the same measurement the printer draws with, in the same
@@ -9040,89 +11241,114 @@ WidgetToggleGroupToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     segment_widths::Any
+    box::Any
+    drawn::Any
 end
 
 function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    build = Cell(@computation begin
-        enabled = !(w.enabled === false)
-        state = enabled ? nothing : :disabled
-        selected = Int(w.selected)
-        box = _get_box_insets(p, w)
-        colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
-        segment_padding_x = Int(p.segment_padding.left[])
-        segment_padding_y = Int(p.segment_padding.top[])
-        labels = [string(o) for o in w.options]
-        _, text_height = _text_size(p.measure, p.label_text.font, "M")
-        # The segments divide what the control was given, and the control IS its
-        # segments.
-        #
-        # Their labels are the floor — a segment never shrinks under its own text
-        # — and every segment carries the same weight, so an offer is shared
-        # equally. That is what makes filling safe here: the reader hit-tests a
-        # press against these very widths, so segments that did not tile the
-        # control would put the picture and the press in different places.
-        #
-        # With no offer the sum is the content and `allocate_axis` has nothing to
-        # share, which is why every picture is unchanged.
-        label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
-        # The step look shows the selected option alone, in one segment as wide as
-        # the widest option.
-        stepping = w.look === :step
-        if stepping && !isempty(labels)
-            label_widths = Int[maximum(label_widths)]
-            labels = [labels[clamp(selected, 1, length(labels))]]
-        end
-        segment_count = length(label_widths)
-        offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
-        segment_widths = segment_count == 0 ? label_widths :
-            allocate_axis(offered_width; mins = copy(label_widths),
-                          maxs = fill(typemax(Int), segment_count),
-                          prefs = copy(label_widths), weights = fill(1.0, segment_count),
-                          gap = 0, n = segment_count)
-        content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
-        content_width  = sum(segment_widths; init=0)
-        corner_radius = p.corner_radius
-        # The content radius, less the border and the padding that lie between
-        # it and the rounded outline — the same rule `_push_box_parts!` applies
-        # to its own content part.
-        segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
-        elements = Any[]
-        _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
-        x = content_x
-        for i in eachindex(labels)
-            segment_width = segment_widths[i]
-            segment_state = (stepping || i == selected) ? (enabled ? :selected : :disabled) : nothing
-            segment_color = _get_state_color(p, w, :segment; state = segment_state)
-            _push_panel!(elements, x, content_y, segment_width, content_height;
-                        fill = segment_color, radius = segment_radius)
-            label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
-            label = _get_state_text(p, w, :label; state = label_state)
-            text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
-            _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
-                        content_y + (content_height - segment_text_height) ÷ 2, label.color)
-            x += segment_width
-        end
-        outer_width, outer_height = content_width + inset_width, content_height + inset_height
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
-        (width=outer_width, height=outer_height, elements=elements,
-         segment_widths=segment_widths)
-    end)
-    canvas = _reactive_canvas_cell(_origin(position)..., build)
-    WidgetToggleGroupToGraphicsCanvasIoMap(p, w, canvas,
-                                           Cell(@computation build[].segment_widths))
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    build = Cell(Computation(() -> _build_toggle_group(p, w, geometry[], ctx)))
+    WidgetToggleGroupToGraphicsCanvasIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure,
+                                                                         p.selected_color),
+                                           Cell(@computation build[].segment_widths), geometry,
+                                           Cell(@computation build[].drawn))
 end
 
-# A segmented control is a positioned leaf that nothing points into: it has one
-# value, and that value is a field rather than a place in a document.
-map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
+# The box and the segments of a toggle group: `(; width, height, elements, segment_widths, drawn)`.
+# The label of an option records its line, as the part `.options[i]`.
+function _build_toggle_group(p::WidgetToggleGroupToGraphicsCanvas, w::WidgetToggleGroup, box::BoxGeometry, ctx)
+    enabled = !(w.enabled === false)
+    state = enabled ? nothing : :disabled
+    selected = Int(w.selected)
+    colors = _get_box_colors(p, w; state)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
+    segment_padding_x = Int(p.segment_padding.left[])
+    segment_padding_y = Int(p.segment_padding.top[])
+    labels = [string(o) for o in w.options]
+    _, text_height = _text_size(p.measure, p.label_text.font, "M")
+    # The segments divide what the control was given, and the control IS its
+    # segments.
+    #
+    # Their labels are the floor — a segment never shrinks under its own text
+    # — and every segment carries the same weight, so an offer is shared
+    # equally. That is what makes filling safe here: the reader hit-tests a
+    # press against these very widths, so segments that did not tile the
+    # control would put the picture and the press in different places.
+    #
+    # With no offer the sum is the content and `allocate_axis` has nothing to
+    # share, which is why every picture is unchanged.
+    label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
+    # The step look shows the selected option alone, in one segment as wide as
+    # the widest option.
+    stepping = w.look === :step
+    if stepping && !isempty(labels)
+        label_widths = Int[maximum(label_widths)]
+        labels = [labels[clamp(selected, 1, length(labels))]]
+    end
+    # The option that each segment shows.
+    indices = stepping && !isempty(labels) ? [clamp(selected, 1, length(w.options))] : collect(eachindex(labels))
+    lines = DrawnTextLine[]
+    segment_count = length(label_widths)
+    offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
+    segment_widths = segment_count == 0 ? label_widths :
+        allocate_axis(offered_width; mins = copy(label_widths),
+                      maxs = fill(typemax(Int), segment_count),
+                      prefs = copy(label_widths), weights = fill(1.0, segment_count),
+                      gap = 0, n = segment_count)
+    content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
+    # The segments keep at least the width of their labels, and the box cuts them
+    # when the group is given less.
+    segments_width = sum(segment_widths; init=0)
+    content_width  = max(0, offered_width)
+    corner_radius = p.corner_radius
+    # The content radius, less the border and the padding that lie between
+    # it and the rounded outline — the same rule `_push_box_parts!` applies
+    # to its own content part.
+    segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
+    elements = Any[]
+    _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
+    first_segment = length(elements) + 1
+    x = content_x
+    for i in eachindex(labels)
+        segment_width = segment_widths[i]
+        segment_state = (stepping || i == selected) ? (enabled ? :selected : :disabled) : nothing
+        segment_color = _get_state_color(p, w, :segment; state = segment_state)
+        _push_panel!(elements, x, content_y, segment_width, content_height;
+                    fill = segment_color, radius = segment_radius)
+        label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
+        label = _get_state_text(p, w, :label; state = label_state)
+        text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
+        _push_text!(elements, p.measure, label.font, labels[i],
+                    x + _place_in_room((segment_width - text_width) ÷ 2, text_width, segment_width),
+                    content_y + _place_in_room((content_height - segment_text_height) ÷ 2, segment_text_height,
+                                               content_height), label.color)
+        _is_drawn_value(w.options[indices[i]]) && !isempty(labels[i]) &&
+            push!(lines, DrawnTextLine(last(elements), _make_option_part(indices[i]), 0))
+        x += segment_width
+    end
+    outer_width, outer_height = content_width + inset_width, content_height + inset_height
+    _cut_content_at_box!(elements, first_segment, box, outer_width, outer_height, segments_width,
+                         text_height + 2segment_padding_y)
+    _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
+    (width = outer_width, height = outer_height, elements = elements,
+     segment_widths = segment_widths, drawn = lines)
+end
+
+# The part that an option of a toggle group shows: `.options[index]`.
+_make_option_part(index::Int) = ConcreteReference(FieldReferenceStep("options"),
+    ConcreteReference(RangeReferenceStep(index - 1, index), EmptyReference()))
+
+# A caret or a range in the text of an option is drawn on its line. A pick is a value
+# written to a field, so a place of characters is the only place that maps back.
+map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
+map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # Which segment holds `x`, counting from the group's own left edge, or nothing
 # when the widths do not reach it. The widths are the printer's own, so this
@@ -9148,11 +11374,17 @@ end
 # out which control was pressed — see `resolve_toggle_group_write`.
 function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
                      iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
+    evt isa Union{DragMove, DragEnd} || !_outside_widget(iomap, evt) || return nothing
     w = iomap.input
+    # A press with Alt never picks, also on a disabled group, and a key moves in the
+    # text of an option while the selection is there: they reach the text.
+    text = _read_control_text(p, iomap, evt)
+    text === nothing || return text
+    (is_selection_press(evt) || evt isa Union{DragMove, DragEnd} || evt isa MouseDown && evt.modifiers.alt) &&
+        return nothing
     w.enabled === false && return nothing
     w.look === :step && return _read_toggle_group_step(w, evt)
-    content_x, _ = _content_offset(p, w)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     @gesture_case evt begin
         MouseClick(button, x, y) => begin
             button === :left || return nothing
@@ -9224,10 +11456,10 @@ WidgetSelectToGraphicsCanvas(theme; measure,
                                  _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                              chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                              focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
-                             gap = _themed(Int, theme, t -> t.item_gap),
+                             gap = _themed(Int, theme, t -> t.label_gap),
                              chevron_size = _themed(Int, theme, t -> t.chevron),
                              corner_radius = _themed(Int, theme, t -> t.radius),
-                             popup_gap = _themed(Int, theme, t -> t.item_gap)) =
+                             popup_gap = _themed(Int, theme, t -> t.popup_gap)) =
     WidgetSelectToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, padding_disabled_color, content_disabled_color, label_text,
                                  label_disabled_text, chevron_color, focus_ring_stroke, gap, chevron_size,
@@ -9245,20 +11477,22 @@ WidgetSelectToGraphicsCanvas(theme; measure,
     control_width::Any
     control_height::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :value, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     build = Cell(@computation begin
         text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         text_width, text_height = _text_size(p.measure, label.font, text)
         chevron_size = p.chevron_size
@@ -9272,24 +11506,30 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
+        # The value is cut before the chevron.
+        first_value = length(elements) + 1
+        _push_text!(elements, p.measure, label.font, text, content_x,
+                    content_y + _place_in_room((content_height - text_height) ÷ 2, text_height, content_height),
+                    label.color)
+        _cut_elements!(elements, first_value, content_x, content_y,
+                       max(0, content_width - p.gap - 2chevron_size), content_height, text_width, text_height)
         _push_chevron!(elements, content_x + content_width - chevron_size, content_y + content_height ÷ 2, chevron_size,
                        :down, chevron_color)
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSelectToGraphicsCanvasIoMap(p, w, canvas,
                                       Cell(@computation build[].width), Cell(@computation build[].height),
-                                      slot)
+                                      slot, geometry)
 end
 
 map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
-map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible select (printer returned a bare empty canvas): inert.
-read_intent(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # A left click on the box opens the option list as a floating popup window just
 # below the box. The reader answers that position in its own frame; each reader
@@ -9324,8 +11564,8 @@ function _open_select_popup(p::WidgetSelectToGraphicsCanvas, w::WidgetSelect,
                                                  DoNothingOperation()))
                 for opt in opts]
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
-                           auto_dismiss=true, content=WidgetMenu(items)))
+        OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
+                           gap=p.popup_gap, auto_dismiss=true, content=WidgetMenu(items)))
 end
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
@@ -9357,14 +11597,15 @@ WidgetOptionToGraphicsCanvas(theme; measure,
                                  padding_color, content_color, label_text, layer_hovered_color)
 
 function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    WidgetBoxIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         label_str = string(w.label)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         text_width, text_height = _text_size(p.measure, label.font, label_str)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + inset_width)
@@ -9374,7 +11615,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
         _push_box_parts!(elements, box, colors, content_width, content_height)
         _push_text!(elements, p.measure, label.font, label_str, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), geometry)
 end
 
 map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -9392,7 +11633,7 @@ function _pick_option(w::WidgetOption)
     ])
 end
 
-function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetOptionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     @gesture_case evt begin
@@ -9465,20 +11706,22 @@ WidgetSpinBoxToGraphicsCanvas(theme; measure,
     control_height::Any
     stepper_w::Any
     value_iomap::Any   # the IO map of a document in `value`, or nothing
+    box::Any
 end
 
 function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
     slot = _print_value_slot(recursion, w, :value, ctx)
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         tw, th = _text_size(p.measure, label.font, text)
         outer_height = _resolve_height(ctx, 0, th + inset_height)
@@ -9497,36 +11740,46 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         divider_stroke = _get_state_stroke(p, w, :divider; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
+        # The value is cut before the stepper.
+        first_value = length(elements) + 1
+        _push_text!(elements, p.measure, label.font, text, content_x,
+                    content_y + _place_in_room((content_height - th) ÷ 2, th, content_height), label.color)
+        _cut_elements!(elements, first_value, content_x, content_y,
+                       max(0, content_width - stepper_w - gap), content_height, tw, th)
         sx = content_x + content_width - stepper_w
         sy = content_y - padding_top
+        first_stepper = length(elements) + 1
         dw = max(1, Int(divider_stroke.width))
         push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w; color = divider_stroke.color, width=dw))
         isz = max(p.glyph_minimum, stepper_w ÷ 2 - p.glyph_inset)
         ix = sx + (stepper_w - isz) ÷ 2
         _push_icon!(elements, :plus,  ix, sy + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
         _push_icon!(elements, :minus, ix, sy + stepper_w ÷ 2 + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        # A box narrower than the stepper cuts it at the padding box.
+        padding_x = content_x - box.padding[1]
+        sx < padding_x && _put_in_viewport!(elements, first_stepper, padding_x, sy,
+                                            content_width + box.padding[1] + box.padding[3], stepper_w)
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, stepper_w=stepper_w, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].width), Cell(@computation build[].height), Cell(@computation build[].stepper_w),
-        slot)
+        slot, geometry)
 end
 
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
-    content_x, content_y = _content_offset(p, w)
-    box = _get_box_insets(p, w)
-    inset_width, _ = _inset_total(p, w)
+    box = _get_box_geometry(iomap)
+    content_x, content_y = _get_content_offset(box)
+    inset_width, _ = _get_inset_total(box)
     content_width = Int(iomap.control_width) - inset_width
     stepper_w = Int(iomap.stepper_w)
     sy = content_y - box.padding[2]
@@ -9562,22 +11815,46 @@ end
     output::Any
     pane::Any        # the IoMap of the pane of the rows
     place::Any       # `(x, y)`: the place of the pane in the canvas of the widget
+    box::Any
 end
-
-# The insets of rows that the box of their widget holds.
-const _NO_BOX_INSETS = (margin = (0, 0, 0, 0), border = (0, 0, 0, 0), padding = (0, 0, 0, 0))
 
 # Whether `w` prints as the rows of its own pane in `ctx`.
 _is_printed_as_rows(w, ctx) = ctx !== nothing && get_property(ctx, :rows_of) === w
 
-# Whether `w` scrolls its rows itself in `ctx`: it gets a slot on the vertical
-# axis, and it does not print as its rows.
-_scrolls_rows_itself(w, ctx) =
-    ctx !== nothing && get_exact_height(ctx) !== nothing && !_is_printed_as_rows(w, ctx)
+# The shape of the box of a list or a tree: the box takes the space that its slot
+# gives at the top and at the bottom, and its rows take the side space. The rows
+# of a widget that prints as the rows of its own pane have no box: the box of the
+# widget holds them.
+function _make_rows_box_geometry_cell(p, w, ctx)
+    _is_printed_as_rows(w, ctx) && return Cell(_NO_BOX_GEOMETRY)
+    _, top, _, bottom = _get_given_space(ctx)
+    _make_box_geometry_cell(p, w, (0, top, 0, bottom))
+end
 
-# Where the rows of a list or a tree start in its canvas: past its box, or at the
-# origin for rows that the box of their widget holds.
-_get_rows_content_offset(p, iomap) = iomap.bare ? (0, 0) : _content_offset(p, iomap.input)
+# The padding at the left and at the right of each row of `w`, a list or a tree:
+# the side space that the slot of `w` gives, so the band of a row reaches the edges
+# of the slot and its content stands that far inside them, and the side of
+# `row_padding`, the row padding of the projection, where the slot gives none. The
+# rows of a widget that prints as the rows of its own pane take the side space that
+# the pane carries for them. Read it inside a computation: the row padding is a
+# value of the theme.
+function _get_row_side_padding(row_padding::Inset, w, ctx)
+    space = _get_given_space(ctx)
+    left, right = _is_printed_as_rows(w, ctx) ? get_property(ctx, :row_side_space, (0, 0)) :
+                  (space[1], space[3])
+    (left > 0 ? left : Int(row_padding.left[]), right > 0 ? right : Int(row_padding.right[]))
+end
+
+# Whether `w` scrolls its rows itself in `ctx`: it gets an edge, exact or bounded,
+# on an axis that it scrolls, and it does not print as its rows. Its pane then
+# takes the rows up to the edge and scrolls the rest. A list scrolls down; a tree
+# scrolls down and to the side.
+_scrolls_rows_itself(w, ctx) =
+    ctx !== nothing && !_is_printed_as_rows(w, ctx) &&
+    (ctx.maximum_height !== nothing || (_scrolls_rows_aside(w) && ctx.maximum_width !== nothing))
+
+_scrolls_rows_aside(w) = false
+_scrolls_rows_aside(w::WidgetTree) = true
 
 # The mouse target of the pane of the rows of `w`: the bar that the mouse target
 # of `w` names, else the content, which is `w`, with the path of `w`.
@@ -9589,33 +11866,38 @@ function _find_rows_pane_target(w)
     ConcreteReference(FieldReferenceStep("content"), target)
 end
 
+# The box of a list or a tree takes the space that its slot gives at the top and at
+# the bottom, and its pane cuts the rows inside it. The rows take the space at the
+# left and at the right as their side padding (`_get_row_side_padding`), so the
+# band of a row reaches the edges of the slot: the pane carries that side space to
+# the print of the rows in the property `:row_side_space`.
 function _print_rows_pane(p, recursion, w, ctx)
-    box = _get_box_insets(p, w)
+    space_left, space_top, space_right, space_bottom = _get_given_space(ctx)
+    geometry = _make_box_geometry_cell(p, w, (0, space_top, 0, space_bottom))
+    box = geometry[]
     colors = _get_box_colors(p, w)
-    left = box.margin[1] + box.border[1]
-    top = box.margin[2] + box.border[2]
-    right = box.margin[3] + box.border[3]
-    bottom = box.margin[4] + box.border[4]
-    # Positional: content, position, size, scroll_position, follow_end,
-    # wheel_run, vertical_scroll_bar, horizontal_scroll_bar, visible, margin,
-    # border, padding, style, tooltip, selection, mouse_target.
-    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(false),
-                            Cell(nothing),
+    left, top, right, bottom = _get_sides_outside(box, :padding)
+    # Positional: content, position, size, grows, scroll_position, follow_end,
+    # wheel_run, at_natural_size, revealed_position, vertical_scroll_bar, horizontal_scroll_bar, visible,
+    # margin, border, padding, style, tooltip, selection, mouse_target.
+    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), Cell(_PANE_FITS), getfield(w, :scroll_position), Cell(nothing),
+                            Cell(nothing), Cell(false), Cell(nothing),
                             getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
                             Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
                             Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
                             Cell(nothing), Cell(@computation _find_rows_pane_target(w)))
-    pane_ctx = with_property(with_inner_size(ctx; width = left + right, height = top + bottom), :rows_of, w)
+    pane_ctx = with_property(with_property(with_inner_size(ctx; width = left + right, height = top + bottom),
+                                           :rows_of, w), :row_side_space, (space_left, space_right))
     pane_iomap = print_child(recursion, pane, pane_ctx)
     drawn = pane_iomap.output
-    tx, ty = _inset_total(p, w)
+    tx, ty = _get_inset_total(box)
     width = Cell(@computation Int32(Int(drawn.w) + left + right))
     height = Cell(@computation Int32(Int(drawn.h) + top + bottom))
     content_width = Cell(@computation Int32(max(0, Int(width[]) - tx)))
     content_height = Cell(@computation Int32(max(0, Int(height[]) - ty)))
     elements = Any[]
     _push_following_box_bands!(elements, box, colors, content_width, content_height)
-    cox, coy = _content_offset(p, w)
+    cox, coy = _get_content_offset(box)
     is_color_transparent(colors.content) ||
         push!(elements, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), content_width, content_height,
                                      Cell(colors.content),
@@ -9627,7 +11909,7 @@ function _print_rows_pane(p, recursion, w, ctx)
     px, py = _origin(w.position::Point2D)
     canvas = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
                             CellVector(Cell[Cell(e) for e in elements]), layout_none, true, Cell(nothing))
-    WidgetRowsPaneIoMap(p, w, canvas, pane_iomap, (left, top))
+    WidgetRowsPaneIoMap(p, w, canvas, pane_iomap, (left, top), geometry)
 end
 
 # The answer of the pane of the rows to `evt`, a gesture in the frame of the
@@ -9735,28 +12017,31 @@ WidgetListToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     control_width::Any
     rows::Any
     bare::Bool       # the rows of a list that scrolls itself, with no box
+    box::Any
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
     bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
+    geometry = _make_rows_box_geometry_cell(p, w, ctx)
     build = Cell(@computation begin
-        row_pad_x = Int(p.row_padding.left[]); row_pad_y = Int(p.row_padding.top[])
+        row_left, row_right = _get_row_side_padding(p.row_padding, w, ctx)
+        row_pad_y = Int(p.row_padding.top[])
         items = collect(w.items)
         n = length(items)
-        box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
-        content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label)
         _, th = _text_size(p.measure, label.font, "M")
         row_height = th + 2row_pad_y
         intrinsic = 0
         for it in items
             tw, _ = _text_size(p.measure, label.font, string(it))
-            intrinsic = max(intrinsic, tw + 2row_pad_x)
+            intrinsic = max(intrinsic, row_left + tw + row_right)
         end
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic + inset_width)
         outer_height = _resolve_height(ctx, 0, max(row_height, n * row_height) + inset_height)
@@ -9782,17 +12067,21 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
             if i == sel
                 _push_panel!(row, 0, 0, content_width, row_height; fill = row_selected_color)
             end
-            _push_text!(row, p.measure, label.font, string(it), row_pad_x, row_pad_y, label.color)
+            _push_text!(row, p.measure, label.font, string(it), row_left, row_pad_y, label.color)
             push!(rows, GraphicsCanvas(row; x = content_x, y = content_y + (i - 1) * row_height,
                                        w = content_width, h = row_height))
         end
+        first_row = length(elements) + 1
         append!(elements, rows)
+        # A list with no pane cuts its rows at its box, as a pane does.
+        bare || _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, intrinsic,
+                                     n * row_height)
         (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].row_height), Cell(@computation build[].width),
-        Cell(@computation build[].rows), bare)
+        Cell(@computation build[].rows), bare, geometry)
 end
 
 # `items[k]` is the canvas of row `k`, found by identity among the list's
@@ -9827,12 +12116,12 @@ function _find_list_row_at(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGra
                            y::Int)
     w = iomap.input
     n = length(collect(w.items))
-    _, content_y = _get_rows_content_offset(p, iomap)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     r = (y - content_y) ÷ iomap.row_height + 1
     (1 <= r <= n) ? r : 0
 end
 
-read_intent(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) = _read_rows_pane(p, iomap, evt)
 map_reference_backward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_backward(iomap, reference)
@@ -9908,17 +12197,20 @@ WidgetTextareaToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     content_iomap::Any
+    box::Any
+    scroll::Any        # the offset `(x, y)` that the text is drawn at in a box that cuts it
 end
 
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     state = w.enabled === false ? :disabled : nothing
     # A Document content is recursed through the outer projection chain, which
     # gives it to TextToGraphics; a plain value is drawn through a text view of
     # its string, in the muted color while the area is disabled. The box grows
     # with the text.
-    content_ctx = _get_inner_content_context(p, w, ctx)
+    content_ctx = _get_inner_content_context(geometry, ctx)
     content_iomap = if w.content isa Document
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     else
@@ -9926,16 +12218,19 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
     end
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w; state)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         label = _get_state_text(p, w, :label; state)
         inner = content_iomap[].output::GraphicsCanvas
         _, line_height = _text_size(p.measure, label.font, "M")
         text_height = max(Int(inner.h[]), line_height)
+        # `rows` is the authored height: the area is that many lines tall and cuts
+        # the other lines. An authored extent does not hold the space around the
+        # box, which `_resolve_size` adds.
         authored_height = Int(w.rows) > 0 ?
-            max(Int(w.rows) * line_height, text_height) + inset_height : 0
+            Int(w.rows) * line_height + inset_height - _get_space_total(box)[2] : 0
         outer_height = _resolve_height(ctx, authored_height, text_height + inset_height)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + inset_width)
         radius = p.corner_radius
@@ -9944,14 +12239,24 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
                          radius)
         # A press anywhere in the box of an area that takes edits puts the caret,
         # and a press on a disabled area does nothing, also over its text.
-        enabled && push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :ibeam))
+        margin_rect = _get_part_rect(box, :margin, outer_width, outer_height)
+        enabled && push!(elements, GraphicsPointerShape(margin_rect..., :ibeam))
+        first_content = length(elements) + 1
         push!(elements, _make_canvas(content_x, content_y, Any[inner]))
-        enabled || push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :arrow))
-        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
-        (width=outer_width, height=outer_height, elements=elements)
+        # A text larger than the box scrolls in it, so the caret stays in view. A
+        # text that fits reads no selection, so a caret move builds no area.
+        view_w, view_h = outer_width - inset_width, outer_height - inset_height
+        scroll = Int(inner.w[]) <= view_w && text_height <= view_h ? (0, 0) :
+            _compute_text_scroll(w, _find_content_selection_box(w, nothing, content_iomap[], inner, p.measure),
+                                 Int(inner.w[]), text_height, view_w, view_h)
+        _cut_content_at_box!(elements, first_content, box, outer_width, outer_height, Int(inner.w[]), text_height;
+                             scroll)
+        enabled || push!(elements, GraphicsPointerShape(margin_rect..., :arrow))
+        _push_focus_ring!(elements, w, box, outer_width, outer_height, p.focus_ring_stroke, radius)
+        (width=outer_width, height=outer_height, elements=elements, scroll=scroll)
     end)
     WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                        content_iomap)
+                                        content_iomap, geometry, Cell(@computation build[].scroll))
 end
 
 map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -9970,14 +12275,16 @@ function map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetT
 end
 
 # Invisible text area (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # The Text domain edits the content, as it edits the content of a `WidgetText`;
 # a plain Return breaks the line there.
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing
-    _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...)
+    left, top = _get_content_offset(_get_box_geometry(iomap))
+    scroll = iomap.scroll
+    _keep_text_scroll(iomap.input, scroll, _read_text_content_intent(p, iomap, evt, left - scroll[1], top - scroll[2]))
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
@@ -10005,12 +12312,12 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                title_text = _themed(StyleText, theme, _get_title_text),
-                                body_text = _themed(StyleText, theme, _get_caption_text),
+                                title_text = _themed(StyleText, theme, _get_strong_text),
+                                body_text = _themed(StyleText, theme, _get_quiet_text),
                                 divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                 chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                                 item_padding = _themed(Inset, theme, t -> t.control_padding),
-                                gap = _themed(Int, theme, t -> t.item_gap),
+                                gap = _themed(Int, theme, t -> t.line_gap),
                                 body_gap = _themed(Int, theme, t -> t.accordion_body_gap),
                                 chevron_size = _themed(Int, theme, t -> t.chevron)) =
     WidgetAccordionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
@@ -10028,6 +12335,7 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
     header_bounds::Any
     body_entry::Any
     headers::Any
+    box::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -10041,26 +12349,30 @@ function _get_open_accordion_body(w::WidgetAccordion)
     (1 <= expanded <= length(items)) ? items[expanded].body : nothing
 end
 
-# What the accordion offers a title or a body: the width inside its box and the
-# padding of a row when it has a width, and no height, because the accordion is
-# as tall as its rows.
-function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::WidgetAccordion, ctx)
+# What the accordion of shape `box` offers a title or a body: the width inside its
+# box and the padding of a row when it has a width, and no height, because the
+# accordion is as tall as its rows.
+function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::WidgetAccordion,
+                                     box::BoxGeometry, ctx)
     ctx === nothing && return ctx
-    inset_width, _ = _inset_total(p, w)
+    inset_width, _ = _get_inset_total(box)
     padding = inset_width + 2 * Int(p.item_padding.left[])
+    # An authored width does not hold the space around the box, and `padding` does.
     authored = _sc(Int(w.width))
-    inner_ctx = authored > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored - padding)))) :
+    inner_ctx = authored > 0 ?
+                with_exact_size(ctx; width = Cell(Int32(max(0, authored + _get_space_total(box)[1] - padding)))) :
                 with_inner_size(ctx; width = padding)
     with_free_axis(inner_ctx, :y)
 end
 
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
     # A title or a body that is a document is drawn through the recursion, as a
     # card draws its content. Each title is printed once, and the body only
     # while its item is open.
-    item_ctx = _get_accordion_item_context(p, w, ctx)
+    item_ctx = _get_accordion_item_context(p, w, geometry[], ctx)
     title_iomaps = make_reconciled_child_iomaps_cell(
         () -> Any[item.title for item in w.items],
         (_, title) -> title isa Document ? print_child(recursion, title, item_ctx) : nothing)
@@ -10068,10 +12380,10 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         body -> body isa Document ? print_child(recursion, body, item_ctx) : nothing)
     build = Cell(@computation begin
         expanded = Int(w.expanded)
-        box = _get_box_insets(p, w)
+        box = geometry[]
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
         item_padding_x = Int(p.item_padding.left[])
         item_padding_y = Int(p.item_padding.top[])
         chevron_size = p.chevron_size
@@ -10120,6 +12432,11 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             else
                 push!(header_elements, _make_canvas(item_padding_x, item_padding_y, Any[titles[i].output]))
             end
+            # A title is cut before the chevron.
+            title_width = size_of(titles[i], item.title, title_style.font)[1]
+            _cut_elements!(header_elements, 1, item_padding_x, item_padding_y,
+                           max(0, content_width - 2item_padding_x - p.gap - 2chevron_size), title_height,
+                           title_width, title_height)
             _push_chevron!(header_elements, content_width - item_padding_x - chevron_size,
                            row_height ÷ 2, chevron_size, i == expanded ? :down : :right, chevron_color)
             header = GraphicsCanvas(header_elements; x = content_x, y = content_y + y,
@@ -10147,14 +12464,16 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         outer_height = _resolve_height(ctx, 0, y + inset_height)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, outer_height - inset_height)
+        first_row = length(elements) + 1
         append!(elements, row_elements)
+        _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, item_content_min, y)
         (width=outer_width, height=outer_height, elements=elements,
          header_bounds=header_bounds, body_entry=body_entry, headers=headers)
     end)
     WidgetAccordionToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
                                          Cell(@computation build[].header_bounds),
                                          Cell(@computation build[].body_entry),
-                                         Cell(@computation build[].headers))
+                                         Cell(@computation build[].headers), geometry)
 end
 
 # `items[i]` is the canvas of the header of item `i`, found by identity among the
@@ -10211,7 +12530,7 @@ function _get_accordion_body_offset(iomap::WidgetAccordionToGraphicsCanvasIoMap,
 end
 
 # Invisible accordion (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetAccordionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetAccordionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
 
 # A left press on the header of an item opens that item, or closes it when it is
 # the open one. `expanded` holds one index, so the accordion shows one item at a
@@ -10331,6 +12650,274 @@ _translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y -
 _translate_pointer_event(evt::MouseScroll, dx, dy) = shift_event_position(evt, -dx, -dy)
 _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -dx, -dy)
 
+# ── WidgetFactGroup ─────────────────────────────────────────────────────────
+
+@projection UntrackedCell struct WidgetFactGroupToGraphicsCanvas
+    measure::TextMeasure
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    title_text::StyleText         # the line over the rows
+    label_text::StyleText         # muted label column
+    value_text::StyleText         # a string or a number
+    title_gap::Int                # gap between the title and the first row
+    column_gap::Int               # gap between the label column and the value column
+    row_gap::Int
+    selected_color::StyleColor    # the band of a text selected as a whole
+end
+
+WidgetFactGroupToGraphicsCanvas(theme; graphics_theme = nothing, measure,
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                title_text = _themed(StyleText, theme, _get_title_text),
+                                label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                value_text = _themed(StyleText, theme, _get_body_text),
+                                title_gap = _themed(Int, theme, t -> t.title_gap),
+                                column_gap = _themed(Int, theme, t -> t.form_column_gap),
+                                row_gap = _themed(Int, theme, t -> t.form_row_gap),
+                                selected_color = _make_selected_row_color(graphics_theme)) =
+    WidgetFactGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                    padding_color, content_color, title_text, label_text, value_text,
+                                    title_gap, column_gap, row_gap, selected_color)
+
+# The fact `value` drawn as a string; a document is drawn through the recursion.
+_format_fact_value(value) = value === nothing ? "" : string(value)
+
+function print_document(p::WidgetFactGroupToGraphicsCanvas, recursion, w::WidgetFactGroup, ctx)
+    w.visible == false && return WidgetChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY)
+    position = w.position::Point2D
+    geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    # The label column is as wide as the widest label. The values are offered the
+    # width that is left of the width that the group was offered, so a value that
+    # is a document breaks or sizes itself to its own column.
+    label_column = Cell(@computation begin
+        font = _get_state_text(p, w, :label).font
+        maximum((first(_text_size(p.measure, font, string(fact.label))) for fact in w.facts); init = 0)
+    end)
+    edge = ctx isa PrinterContext ? ctx.maximum_width : nothing
+    value_edge = edge === nothing ? nothing :
+                 Cell(@computation Int32(max(0, Int(edge[]) - _get_inset_total(geometry[])[1] -
+                                                label_column[] - p.column_gap)))
+    value_ctx = ctx isa PrinterContext ? with_bounded_size(ctx; width = value_edge, height = nothing) : ctx
+    values = make_reconciled_child_iomaps_cell(
+        () -> Any[fact.value for fact in w.facts],
+        (_, value) -> value isa Document ? print_child(recursion, value, value_ctx) : nothing)
+    build = Cell(@computation begin
+        box = geometry[]
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _get_inset_total(box)
+        content_x, content_y = _get_content_offset(box)
+        title = _get_state_text(p, w, :title)
+        label = _get_state_text(p, w, :label)
+        value = _get_state_text(p, w, :value)
+        column = label_column[]
+        value_x = content_x + column + p.column_gap
+        bound = edge === nothing ? 0 : max(0, Int(edge[]) - inset_width - column - p.column_gap)
+        elements = Any[]
+        child_iomaps = Any[]
+        row_bounds = Tuple{Int, Int}[]
+        drawn = DrawnTextLine[]
+        content_width = 0
+        y = content_y
+        if w.title !== nothing
+            title_string = string(w.title)
+            title_width, title_height = _text_size(p.measure, title.font, title_string)
+            _push_text!(elements, p.measure, title.font, title_string, content_x, y, title.color)
+            _is_drawn_value(w.title) && push!(drawn, DrawnTextLine(last(elements), _FACT_GROUP_TITLE, 0))
+            content_width = title_width; y += title_height + p.title_gap
+        end
+        value_width = 0
+        documents = values[]
+        for (i, fact) in enumerate(w.facts)
+            i > 1 && (y += p.row_gap)
+            row_top = y
+            label_string = string(fact.label)
+            _, label_height = _text_size(p.measure, label.font, label_string)
+            _push_text!(elements, p.measure, label.font, label_string, content_x, y, label.color)
+            _is_drawn_value(fact.label) &&
+                push!(drawn, DrawnTextLine(last(elements), _make_fact_part(i, "label"), 0))
+            row_height = label_height
+            if documents[i] === nothing
+                text_width, text_height = _push_text_block!(elements, p.measure, value,
+                                                            _format_fact_value(fact.value), value_x, y, bound;
+                                                            part = _make_fact_part(i, "value"),
+                                                            drawn = _is_drawn_value(fact.value) ? drawn : nothing)
+                value_width = max(value_width, text_width); row_height = max(row_height, text_height)
+            else
+                canvas = documents[i].output
+                push!(elements, _make_canvas(value_x, y, Any[canvas]))
+                push!(child_iomaps, (value_x, y, documents[i]))
+                value_width = max(value_width, Int(canvas.w[])); row_height = max(row_height, Int(canvas.h[]))
+            end
+            y += row_height
+            push!(row_bounds, (row_top, y))
+        end
+        content_width = max(content_width, column + (value_width > 0 ? p.column_gap + value_width : 0))
+        group_width = _resolve_width(ctx, 0, content_width + inset_width)
+        group_height = _resolve_height(ctx, 0, y + _get_sides_outside(box, :content)[4])
+        surface = Any[]
+        _push_box_parts!(surface, box, colors, group_width - inset_width, group_height - inset_height)
+        row_nodes = Any[_make_fact_row_node(p, w, i, content_x, top, group_width - inset_width, bottom - top)
+                        for (i, (top, bottom)) in enumerate(row_bounds)]
+        first_content = length(surface) + 1
+        append!(surface, row_nodes)
+        append!(surface, elements)
+        _cut_content_at_box!(surface, first_content, box, group_width, group_height, content_width,
+                             y - _get_content_offset(box)[2])
+        (width = group_width, height = group_height, elements = surface, child_iomaps = child_iomaps,
+         row_nodes = row_nodes, row_bounds = row_bounds, drawn = drawn)
+    end)
+    x, y = _origin(position)
+    # The caret in a text of the group, which a plain click puts there, and the band
+    # of a text selected as a whole, which an Alt+double click selects.
+    canvas = GraphicsCanvas(Int32(x), Int32(y),
+                            Cell(@computation Int32(build[].width)),
+                            Cell(@computation Int32(build[].height)),
+                            CellVector(@computation make_drawn_selection_elements(build[].elements, build[].drawn,
+                                                                                  w.selection, p.measure,
+                                                                                  p.selected_color)),
+                            layout_none, true, Cell(nothing))
+    WidgetFactGroupToGraphicsCanvasIoMap(p, w, canvas,
+                                         Cell(@computation build[].child_iomaps),
+                                         Cell(@computation build[].row_nodes),
+                                         Cell(@computation build[].row_bounds), geometry,
+                                         Cell(@computation build[].drawn))
+end
+
+const _FACT_GROUP_TITLE = ConcreteReference(FieldReferenceStep("title"), EmptyReference())
+
+# The path of the fact `i`, `facts[i]`.
+_make_fact_reference(i::Int) =
+    ConcreteReference(FieldReferenceStep("facts"), ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+
+# The path of the field `name`, `label` or `value`, of the fact `i`: `facts[i].name`.
+_make_fact_part(i::Int, name::AbstractString) =
+    concat_references(_make_fact_reference(i), ConcreteReference(FieldReferenceStep(name), EmptyReference()))
+
+# The node that covers the row of the fact `i`: the band of a selected part while the
+# selection names the fact as a whole, and no colour else. The colour is a cell of
+# its own, so a move of the selection builds no group.
+function _make_fact_row_node(p::WidgetFactGroupToGraphicsCanvas, w::WidgetFactGroup, i::Int, x, y, width, height)
+    node = GraphicsRect(x, y, width, height; color = color_transparent, radius = 0)
+    fact = _make_fact_reference(i)
+    selected = p.selected_color
+    set_cell_computation!(getfield(node, :color), () -> begin
+        selection = w.selection
+        selection isa Reference && strip_reference_types(selection) == fact ? selected : color_transparent
+    end)
+    node
+end
+
+# `facts[i]` is the node that covers the row of fact `i`; a caret or a range in a
+# text of the group is drawn on its line; a part inside the value of a fact is
+# found through the child that draws it.
+function map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap::WidgetFactGroupToGraphicsCanvasIoMap,
+                               reference)
+    reference isa Reference || return nothing
+    place = map_drawn_caret_forward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
+    stripped = strip_reference_types(reference)
+    if stripped isa ConcreteReference && stripped.head isa FieldReferenceStep && stripped.head.name == "facts"
+        rest = stripped.tail
+        if rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference
+            row_nodes = unwrap_cell(iomap.row_nodes)
+            i = rest.head.start + 1
+            1 <= i <= length(row_nodes) || return nothing
+            return find_node_reference(iomap.output, row_nodes[i]; depth = 1)
+        end
+    end
+    _map_child_forward(iomap, reference)
+end
+map_reference_forward(::WidgetFactGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+
+# A place of characters of a text of the group is the caret or the range in its
+# field. A point on the value of a fact that is a document maps into the document,
+# a point on a text is the caret there, and any other point of a row maps to the
+# fact, `facts[i]`.
+function map_reference_backward(p::WidgetFactGroupToGraphicsCanvas, iomap, reference)
+    iomap isa WidgetFactGroupToGraphicsCanvasIoMap || return nothing
+    place = map_drawn_place_backward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    inside = _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
+    inside === nothing || return inside
+    caret = find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+    caret === nothing || return annotate_reference_types(iomap.input, caret)
+    fact = _find_fact_group_row(iomap, point.y)
+    fact === nothing ? nothing : annotate_reference_types(iomap.input, fact)
+end
+
+# A press, a dwell, a turn of the wheel and a move go to the value under the pointer,
+# and the answer is rooted at `facts[i].value`. A dwell and a right click then
+# read the stretch of the group (`_read_children_outward`). Else a plain single
+# click on a text of the group, the title, a label or a value that is a string,
+# puts the caret at the character under the pointer, and a move names that caret.
+# An Alt+click puts that caret there too, and an Alt+double click answers it,
+# which the container makes the text as a whole; an Alt+double click on the rest of
+# a row selects its fact. A plain double click,
+# and a plain click on the rest of a row, are left to the widget around the group.
+# A press on such a text starts the drag of a range, a click with Shift moves the
+# moving end there, and a key moves the caret or the range, read-only, as in the
+# text of a label.
+function read_intent(p::WidgetFactGroupToGraphicsCanvas,
+                     iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, evt)
+    w = iomap.input
+    drawn = _get_fact_group_lines(iomap)
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(drawn, iomap.output, w, evt, p.measure)
+    if evt isa MouseMove
+        answer = _read_children_move(w, getfield(iomap, :child_iomaps)[]::Vector, evt,
+                                     !_outside_widget(iomap, evt))
+        caret = _outside_widget(iomap, evt) ? nothing : find_drawn_caret(drawn, iomap.output, evt.x, evt.y, p.measure)
+        caret === nothing && return answer
+        return join_move_answers(answer, ReplaceMouseTargetOperation(annotate_reference_types(w, caret)))
+    end
+    _outside_widget(iomap, evt) && return nothing
+    key = read_drawn_text_key(drawn, w, evt, p.measure)
+    key === nothing || return key
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    is_outward_gesture(evt) && return _read_children_outward(iomap.input, entries, evt)
+    make_event = evt isa MouseClick ? (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
+                                                           time = evt.time) :
+                 evt isa MouseDown ? (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time) :
+                 evt isa MouseUp ? (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time) :
+                 evt isa MouseScroll ? (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y) : nothing
+    make_event === nothing && return nothing
+    hit = _find_child_hit(entries, evt, make_event)
+    if hit === nothing
+        evt isa MouseDown && return read_drawn_text_pointer(drawn, iomap.output, w, evt, p.measure)
+        whole = is_whole_selection_press(evt)
+        plain = evt isa MouseClick && evt.button === :left && evt.count == 1 &&
+                (evt.modifiers == ModifierKeys() || evt.modifiers == ModifierKeys(shift = true))
+        (plain || is_selection_press(evt)) || return nothing
+        path = find_drawn_click_selection(drawn, iomap.output, w, evt, p.measure)
+        path === nothing || return ReplaceSelectionOperation(path)
+        whole || return nothing
+        fact = _find_fact_group_row(iomap, evt.y)
+        return fact === nothing ? nothing : ReplaceSelectionOperation(fact)
+    end
+    steps = _find_child_steps(iomap.input, get_iomap_input(hit[2]))
+    steps === nothing ? hit[1] : reroot_operation(hit[1], Tuple(steps))
+end
+
+# The fact of the row that holds `y`, `facts[i]`, or `nothing`.
+function _find_fact_group_row(iomap::WidgetFactGroupToGraphicsCanvasIoMap, y)
+    fact = _find_row_index(unwrap_cell(iomap.row_bounds), y)
+    fact === nothing ? nothing : _make_fact_reference(fact)
+end
+_find_fact_group_row(iomap, y) = nothing
+
+# The lines of the texts that the group drew; none for a group that a projection
+# prints as plain children.
+_get_fact_group_lines(iomap::WidgetFactGroupToGraphicsCanvasIoMap) = iomap.drawn
+_get_fact_group_lines(iomap) = _NO_DRAWN_TEXT_LINES
+
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
 # The single table abstraction. A table scrolls its own parts: the header row,
@@ -10390,6 +12977,7 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     edge_hovered_stroke::StyleStroke    # over the right edge of a header that the pointer is on
     cell_mark_stroke::StyleStroke       # the frame of an open cell whose last commit failed
     cell_padding::Inset                 # inside a cell: top and bottom, left and right
+    column_minimum_width::Int           # the least width of a column that takes a share of the width
     row_radius::Int                     # corner radius of the hover and the selection band
 end
 
@@ -10404,11 +12992,12 @@ WidgetTableToGraphicsCanvas(theme; graphics_theme = nothing,
                             edge_hovered_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, 3)),
                             cell_mark_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.destructive, 2)),
                             cell_padding = _themed(Inset, theme, t -> t.control_padding),
+                            column_minimum_width = _themed(Int, theme, t -> t.table_column_minimum_width),
                             row_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, divider_stroke, header_row_color, row_selected_color,
                                 layer_hovered_color, edge_hovered_stroke, cell_mark_stroke, cell_padding,
-                                row_radius)
+                                column_minimum_width, row_radius)
 
 # The geometry of a table as if it were not scrolled, in the coordinates of its
 # content. `col_x` / `row_y` are the cumulative left/top edges, length
@@ -10443,6 +13032,7 @@ end
     output::Any
     parts::Cell              # the panes of the parts and the regions that hold them
     geometry::Cell           # WTGeometry
+    box::Any
 end
 
 _wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
@@ -10545,13 +13135,13 @@ _wt_is_content_column(policy::SizePolicy) =
 # column and the cells, each a grid in a pane, and the regions that place the
 # panes and show the graphics of the table behind them. `ctx` is the context of
 # the content of the table.
-function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx,
-                                  graphics, pad_x::Int, pad_y::Int, bw::Int)
+function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable,
+                                  box::BoxGeometry, ctx, graphics, pad_x::Int, pad_y::Int, bw::Int)
     n = something(get_widget_table_column_count(w), 0)
     m = _count_body_rows(w)
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
-    content_x, content_y = _content_offset(p, w)
+    content_x, content_y = _get_content_offset(box)
     aligns = Symbol[_wt_column_align(w, c) for c in 1:n]
     wraps = Bool[_wt_column_cell_policy(w, c) === :wrap for c in 1:n]
     offset = getfield(w, :scroll_position)
@@ -10572,7 +13162,8 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         master = m == 0
         policies = master ? Cell(Any[_get_table_column_policy(w, c) for c in 1:n]) :
                             Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n])
-        offers = Bool[wraps[c] && (master || !_wt_is_content_column(_get_table_column_policy(w, c)))
+        offers = Bool[(wraps[c] || _wt_is_weighted_column(_get_table_column_policy(w, c))) &&
+                      (master || !_wt_is_content_column(_get_table_column_policy(w, c)))
                       for c in 1:n]
         grid = GridLayout(CellVector(Cell[Cell(_wt_get_header(w.column_headers, c)) for c in 1:n]),
                           Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
@@ -10607,7 +13198,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     get_row_header(r) = row_header_pane === nothing ? nothing :
                         row_header_pane.content_iomap.child_iomaps[r][3]
     column_policies = Cell(@computation Any[
-        _get_cells_column_policy(w, c, get_column_header(c), widest[c]) for c in 1:n])
+        _get_cells_column_policy(w, c, get_column_header(c), p.column_minimum_width, widest[c]) for c in 1:n])
     row_policies = Cell(@computation Any[_wt_get_cells_row_policy(w, r, get_row_header(r)) for r in 1:m])
     grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(w, r, c)) for r in 1:m for c in 1:n]),
                       Cell(max(1, n)), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
@@ -10830,7 +13421,7 @@ end
 
 
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     # A cell is one line of a row, so the text of every cell, header and corner
     # draws at single spacing, as the label of a row number does.
     ctx === nothing || (ctx = with_property(ctx, :line_spacing, SingleSpacing()))
@@ -10838,17 +13429,21 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # this is: a list in either direction draws the rows a viewport shows, a
     # vector draws them all.
     # A corner makes a table of a list, whose rows can be an empty vector at
-    # first.
-    (_is_listed_body(w) || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
+    # first. The form is read in a cell of its own, so the print depends on the
+    # form and not on the list: a new list of rows is a new head of the grid of
+    # the cells, and no new print of the table.
+    listed = Cell(@computation _is_listed_body(w))
+    (listed[] || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.
     pad_x = Int(p.cell_padding.left[])
     pad_y = Int(p.cell_padding.top[])
     bw  = max(1, _sc(Int(w.border_width)))
-    box = _get_box_insets(p, w)
+    box_geometry = _make_box_geometry_cell(p, w, _get_given_space(ctx))
+    box = box_geometry[]
     colors = _get_box_colors(p, w)
-    inset_width, inset_height = _inset_total(p, w)
+    inset_width, inset_height = _get_inset_total(box)
     divider_stroke = _get_state_stroke(p, w, :divider)
     header_row_color = _get_state_color(p, w, :header_row)
     row_selected_color = _get_state_color(p, w, :row; state = :selected)
@@ -10863,7 +13458,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                                                          divider_stroke, row_selected_color))
     # The parts, built again when the table changes its shape: a row, a column
     # or a header added or removed.
-    parts = Cell(@computation _print_eager_table_parts(p, recursion, w, inner, graphics,
+    parts = Cell(@computation _print_eager_table_parts(p, recursion, w, box_geometry[], inner, graphics,
                                                        pad_x, pad_y, bw))
     set_cell_computation!(geometry, () -> _compute_eager_table_geometry(parts[], pad_x, pad_y, bw))
 
@@ -10888,7 +13483,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     end)
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
                             table_w, table_h, elements, layout_none, true, Cell(nothing))
-    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, parts, geometry)
+    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, parts, geometry, box_geometry)
 end
 
 # The graphics of a table, in the coordinates of its geometry: the header bands,
@@ -10970,7 +13565,7 @@ end
 function _wt_get_unscrolled_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
                                   x::Int, y::Int)
     parts = iomap.parts
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     content = _get_part_content(parts.cells_pane)
     local_x = x - content_x
     local_y = y - content_y
@@ -11028,12 +13623,16 @@ end
 # `column_headers[c].…`, `row_headers[r].…`) is a child of the grid of the part
 # that holds it, and the pane of that part maps it; the steps from the table's
 # canvas to the canvas of the pane are found by identity, after the parts of the
-# box. The table itself is its own canvas. A whole row has no node of its own,
-# because its band is drawn in place, so it has no image.
+# box. A field of a bar is the bar that the pane of the cells draws. The table
+# itself is its own canvas. A whole row has no node of its own, because its band
+# is drawn in place, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.head.name in _PANE_BAR_FIELDS) &&
+        return _map_table_bar_forward(iomap, iomap.parts.cells_pane, reference)
     found = _wt_find_part_entry(iomap, reference)
     found === nothing && return nothing
     pane, i, _, rest = found
@@ -11054,7 +13653,7 @@ end
 
 # The place of the pane of the cells in a table whose rows are a vector.
 function _get_wt_cells_place(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap)
-    content_x, content_y = _content_offset(p, iomap.input)
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
     (content_x + region_x, content_y + region_y)
 end
@@ -11071,7 +13670,7 @@ function _find_wt_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphi
 end
 
 # A point maps to the cell, the row header, the column header or the corner at
-# it: the reference that an Alt+click there selects.
+# it: the reference that an Alt+double click there selects.
 function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, point)
     _is_point_on_canvas(iomap.output, point) || return nothing
     hit = _find_wt_hit(p, iomap, point.x, point.y)
@@ -11096,9 +13695,11 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here: a plain click goes to the
-# content of a cell or a header first, and one that the content declines selects
-# its row or its column; the corner selects the table; an Alt+click selects the
-# cell or the header itself. Keyboard grid navigation (the arrows,
+# content of a cell or a header first. A header keeps every answer but a caret
+# in a label (`_find_control_answer`); a click that the header does not keep
+# selects its row or its column, and a click that a cell declines selects its
+# row. The corner selects the table; an Alt+double click selects the cell or the
+# header itself, and an Alt+click gives the caret in its text. Keyboard grid navigation (the arrows,
 # Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
 # against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
 # cell (`_wt_route_event`). An operation from below finds no cell to go to.
@@ -11114,7 +13715,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     g isa MouseMove && return Intent(g, nothing)
     if g isa MouseScroll
         (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
-        content_x, content_y = _content_offset(p, iomap.input)
+        content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
         return Intent(g, _read_cells_wheel(iomap.output, iomap.parts.cells_pane,
                                            content_x + region_x, content_y + region_y, g))
     end
@@ -11142,24 +13743,25 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
         return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
         r = hit[2]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(r))
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_row_header_ref(r))
         return _wt_route_header_click(iomap, _wt_row_header_ref(r), _wt_row_ref(r), g, x, y)
     elseif kind === :col
         c = hit[2]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_column_header_ref(c))
         return _wt_route_header_click(iomap, _wt_column_header_ref(c), _wt_col_ref(c), g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
-        return _wt_route_cell_click(iomap, r, c, g, x, y)
+        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
+        op = _wt_route_cell_click(iomap, r, c, g, x, y)
+        return is_caret_press(g) ? convert_to_caret_selection(op) : op
     end
     return nothing
 end
 
 # Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
-# content of the header that `header` names, and root what it answers under the
-# header. A header that declines it — a label has nothing to say to one —
-# selects `line`, its row or its column, as the table of a list does.
+# content of the header that `header` names, and root what it keeps of the answer
+# under the header (`_find_control_answer`). Else the click selects `line`, its row
+# or its column, as the table of a list does.
 function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header::Reference, line::Reference,
                                 g::MouseClick, x::Int, y::Int)
     declined = ReplaceSelectionOperation(line)
@@ -11169,10 +13771,65 @@ function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header:
     cell = _wt_find_part_cell(iomap, pane, i)
     cell === nothing && return declined
     cim, left, top = cell
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
-                                                     time = g.time))
+    op = _find_control_answer(get_iomap_input(cim),
+                             read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                                         g.modifiers; time = g.time)), g)
     op === nothing ? declined : reroot_operation(op, steps)
 end
+
+# What a part that is a control of something else, such as the header of a column
+# or the corner of a table, keeps of `operation`, the answer of `content`, the
+# document that the part holds, to a plain click: every answer but a selection in
+# a text that takes no key, such as the caret in the text of a label. So a click
+# on the label of a header acts on what the header controls, as a click on a tab
+# switches its page, and an action, such as the toggle of a checkbox, and the
+# caret in a text that takes keys, such as a text field, stay. An Alt+click,
+# `press`, keeps the caret in any text and no action, because it always puts the
+# caret. `nothing` when nothing is kept.
+function _find_control_answer(content, operation, press)
+    is_caret_press(press) && return convert_to_caret_selection(operation)
+    operation isa ReplaceSelectionOperation || return operation
+    _is_path_in_read_only_text(content, strip_reference_types(operation.path)) ? nothing : operation
+end
+
+# Whether `document`, or a document on `path` inside it, shows a text that takes no
+# key (`_is_read_only_text`).
+function _is_path_in_read_only_text(document, path)
+    node = document
+    while true
+        _is_read_only_text(node) && return true
+        path isa ConcreteReference || return false
+        node = try_evaluate_reference(node, ConcreteReference(path.head, EmptyReference()))
+        node === nothing && return false
+        path = path.tail
+    end
+end
+
+# The widgets that show a text that a person reads and does not edit, as a label:
+# a caret or a range in it selects text to read or to copy, and edits nothing.
+const _ReadOnlyTextWidget = Union{WidgetLabel, WidgetBadge, WidgetAvatar, WidgetAlert}
+
+# Whether `node` shows a read-only text.
+_is_read_only_text(node) = false
+_is_read_only_text(::_ReadOnlyTextWidget) = true
+
+# A paste and a cut leave a read-only text as it is; a copy takes its characters.
+accepts_pasted_text(::_ReadOnlyTextWidget) = false
+
+# The label of a command, which a button and a toolbar item draw, is read-only too.
+accepts_pasted_text(::Action) = false
+
+# A card, a group of facts and a fact draw read-only texts too, but they hold other
+# documents, such as a form, so a paste leaves only the fields of those texts.
+accepts_pasted_text(::WidgetCard, field::Symbol) = field ∉ (:title, :description)
+accepts_pasted_text(::WidgetFactGroup, field::Symbol) = field !== :title
+accepts_pasted_text(::WidgetFact, field::Symbol) = field ∉ (:label, :value)
+
+# A link draws its content as a read-only text and holds the field `target`.
+accepts_pasted_text(::WidgetLink, field::Symbol) = field !== :content
+
+# A toggle group draws its options as read-only texts, and holds the field `values`.
+accepts_pasted_text(::WidgetToggleGroup, field::Symbol) = field !== :options
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
@@ -11416,7 +14073,8 @@ end
 function _read_cell_mark_dwell(w::WidgetTable, k::Int, c::Int, g::MouseDwell)
     cell = _find_open_cell(w, k, c)
     (cell === nothing || cell.reason === nothing) && return nothing
-    reroot_operation(make_tooltip_operation(w, PrimitiveString(cell.reason), g), _wt_get_cell_steps(w, k, c))
+    reroot_operation(make_tooltip_operation(w, TooltipNote(; text = cell.reason, tone = :error), g),
+                     _wt_get_cell_steps(w, k, c))
 end
 
 _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
@@ -11572,7 +14230,7 @@ end
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
     icon_column::Int              # width reserved for the icon glyph
-    row_padding::Int              # vertical padding per row
+    row_padding::Inset            # the space around the content of a row
     chevron_size::Int
     row_radius::Int               # corner radius of the hover and the selection band
     label_gap::Int                # between an icon column widened for a glyph and its label
@@ -11596,7 +14254,7 @@ WidgetTreeToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            indent = _themed(Int, theme, t -> t.indent),
                            chevron_column = _themed(Int, theme, t -> t.tree_chevron_column),
                            icon_column = _themed(Int, theme, t -> t.tree_icon_column),
-                           row_padding = _themed(Int, theme, t -> t.item_gap),
+                           row_padding = _themed(Inset, theme, t -> t.tree_row_padding),
                            chevron_size = _themed(Int, theme, t -> t.chevron),
                            row_radius = _themed(Int, theme, t -> t.radius_small),
                            label_gap = _themed(Int, theme, t -> t.label_gap),
@@ -11947,7 +14605,8 @@ end
     geometry::Cell
     width::Cell
     bare::Bool       # the rows of a tree that scrolls itself, with no box
-    view_height::Any # the height of the view of the rows that a pane offers, or nothing
+    view_height::Any # the height of the rows that can show, or nothing
+    box::Any
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -11983,7 +14642,7 @@ function _wtree_ref_path(reference)
 end
 
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetBoxIoMap(p, w, _empty_canvas(), _NO_BOX_GEOMETRY)
     _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
     bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
@@ -11992,10 +14651,11 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     icon_column = p.icon_column
     chevron_size = p.chevron_size
     pad = p.row_padding
-    box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
+    box_geometry = _make_rows_box_geometry_cell(p, w, ctx)
+    box = box_geometry[]
     colors = _get_box_colors(p, w)
-    inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
-    content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
+    inset_width, inset_height = _get_inset_total(box)
+    content_x, content_y = _get_content_offset(box)
     label_style = _get_state_text(p, w, :label)
     icon_style = _get_state_text(p, w, :icon)
     chevron_color = _get_state_color(p, w, :chevron)
@@ -12003,7 +14663,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     _, line_height = _text_size(p.measure, label_style.font, "M")
     icon_size = scale_length(line_height, p.icon_size)
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    # The rows that show: a lazy list of rows is measured over them.
+    visible_h = get_visible_height(ctx)
 
     # A named icon is a square of one line times `icon_size`. A tree whose roots
     # show one reserves a column that holds it and a gap, and rows as tall as the
@@ -12028,10 +14689,12 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # moves the head.
     geometry = Cell(@computation begin
         expanded = w.expanded
-        row_height = line_box[] + 2 * pad
+        row_height = line_box[] + Int(pad.top[]) + Int(pad.bottom[])
+        # The content of a row stands the side padding inside the row.
+        row_left, _ = _get_row_side_padding(pad, w, ctx)
         if bare && _has_wtree_open_lazy_children(w, expanded)
             function place(path, depth, count)
-                x = depth * indent
+                x = row_left + depth * indent
                 WTreeRow(path, depth, x, x + chevron_column, (count - 1) * row_height,
                          row_height)
             end
@@ -12042,7 +14705,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         rows = WTreeRow[]
         index = Dict{Vector{Int},Int}()
         function visit(path, depth, node)
-            x = depth * indent
+            x = row_left + depth * indent
             push!(rows, WTreeRow(path, depth, x, x + chevron_column, length(rows) * row_height, row_height))
             index[path] = length(rows)
             node === nothing && return
@@ -12075,21 +14738,24 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
 
     # The tree takes the width that its parent offers, and what holds the tree
     # clips a longer label. With no offer the tree is as wide as its widest row,
-    # which reads the node of every row of the open tree; a lazy list of rows is as
-    # wide as the rows that a walk from its head to the edges of its view reaches,
-    # so it can grow as a person scrolls.
-    width = Cell(@computation begin
+    # which reads the node of every row of the open tree, and at least the minimum
+    # of its range, as a viewport gives its rows; a lazy list of rows is as wide as
+    # the rows that a walk from its head to the edges of its view reaches, so it can
+    # grow as a person scrolls.
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    function measure_width()
         avail_w === nothing || return max(1, Int(avail_w[]) - inset_width)
         widest = 1
+        row_right = _get_row_side_padding(pad, w, ctx)[2]
         function measure_row(row, node)
             label = _tree_label(node)
             label_width = first(_text_size(p.measure, label_style.font, label))
-            row.depth * indent + chevron_column + column[] + label_width + measure_tail(node)
+            row.chevron_x0 + chevron_column + column[] + label_width + measure_tail(node) + row_right
         end
         g = geometry[]
         if g isa WTreeListGeometry
             top = Int(w.scroll_position.y[])
-            bottom = top + max(avail_h === nothing ? 0 : Int(avail_h[]), g.row_height)
+            bottom = top + max(visible_h === nothing ? 0 : Int(visible_h[]), g.row_height)
             measure_link(link) =
                 measure_row(link.value.row, _get_wtree_row_node(link.value))
             link = g.head
@@ -12108,7 +14774,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             widest = max(widest, measure_row(row, _wtree_node_at(w, row.path)))
         end
         widest
-    end)
+    end
+    width = Cell(@computation max(measure_width(), minimum_w === nothing ? 1 : Int(minimum_w[]) - inset_width))
 
     # What a row draws after its label: the glyphs of the facts of its document, its
     # detail, and its pills, each after a gap. `push_tail!` draws them from `x`, and
@@ -12129,10 +14796,12 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         end
         for part in _tree_badges(node)
             part isa WidgetBadge || continue
-            badge_width, badge_height = _measure_badge(p.badge, part)
+            badge_box = _compute_box_geometry(p.badge, part, _NO_SPACE)
+            badge_width, badge_height = _measure_badge(p.badge, part, badge_box)
             x += p.label_gap
             push!(elements, _make_canvas(x, (row_height - badge_height) ÷ 2,
-                                         _build_badge_elements(p.badge, part, badge_width, badge_height)))
+                                         _build_badge_elements(p.badge, part, badge_box, badge_width,
+                                                               badge_height)))
             x += badge_width
         end
         x
@@ -12207,14 +14876,14 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                   make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
                   make_band(row, row_selected_color, () -> w.selection),
                   make_current_mark(row))
-            x = row.depth * indent
+            x = row.chevron_x0
             if _wtree_has_children(node)
                 _push_open_chevron!(result, x + chevron_column ÷ 2, row.height ÷ 2, chevron_size,
                                     chevron_color, () -> row.path in w.expanded)
             end
             icon = _tree_icon(node)
-            text_y = pad + (line_box[] - line_height) ÷ 2
-            icon_y = pad + (line_box[] - icon_size) ÷ 2
+            text_y = Int(pad.top[]) + (line_box[] - line_height) ÷ 2
+            icon_y = Int(pad.top[]) + (line_box[] - icon_size) ÷ 2
             if icon isa Union{Symbol,WidgetIcon}
                 # A registered icon name: a glyph, tinted to the icon color, or to the
                 # role of a decorated icon, with its corner marks.
@@ -12269,26 +14938,30 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree.
+    # The tree is at least the minimum of its range on each axis. Its rows in its
+    # own pane are as large as they are: the pane holds the view.
+    least_w = (bare || ctx === nothing) ? nothing : ctx.minimum_width
+    least_h = (bare || ctx === nothing) ? nothing : ctx.minimum_height
+    outer_w = Cell(@computation Int32(max(width[] + inset_width, least_w === nothing ? 0 : Int(least_w[]))))
+    outer_h = Cell(@computation Int32(max(rows_height[] + inset_height, least_h === nothing ? 0 : Int(least_h[]))))
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
-    set_cell_computation!(getfield(hit_target, :w), () -> Int32(width[] + inset_width))
-    set_cell_computation!(getfield(hit_target, :h),
-                          () -> Int32(rows_height[] + inset_height))
+    set_cell_computation!(getfield(hit_target, :w), () -> outer_w[])
+    set_cell_computation!(getfield(hit_target, :h), () -> outer_h[])
 
     elements = CellVector(@computation begin
         # The hit target behind everything, then the box: margin, border, padding
         # and content, from the outside in (transparent and zero-width by default),
         # then the rows.
         result = Any[hit_target]
-        bare || _push_box_parts!(result, box, colors, width[], rows_height[])
+        bare || _push_box_parts!(result, box, colors, Int(outer_w[]) - inset_width, Int(outer_h[]) - inset_height)
         push!(result, rows_canvas)
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(@computation Int32(width[] + inset_width)),
-                            Cell(@computation Int32(rows_height[] + inset_height)),
+                            outer_w, outer_h,
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, avail_h)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h, box_geometry)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -12320,7 +14993,7 @@ end
 
 # The row of the tree at `y` of its canvas, or `nothing`.
 _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, y::Int) =
-    _wtree_row_at(iomap.geometry, y - _get_rows_content_offset(p, iomap)[2])
+    _wtree_row_at(iomap.geometry, y - _get_content_offset(_get_box_geometry(iomap))[2])
 
 read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) =
     _add_wtree_scroll_writes(iomap, _read_rows_pane(p, iomap, evt))
@@ -12376,14 +15049,18 @@ map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, 
 #
 # Per-instance gestures are consulted first — tree-level, then per-node — so a
 # binding can add / override (shadow) / suppress; the built-in select / collapse /
-# nav below is the fallback.
+# nav below is the fallback. A press that selects never acts, so it reads no
+# binding, such as the double click that opens the file of a row, and opens or
+# closes no row: the row under it is the answer.
 function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    op = read_bound_gesture(w, evt)
-    op === nothing || return op
-    nop = _wtree_node_gesture(p, iomap, evt)
-    nop === nothing || return nop
+    if !is_selection_press(evt)
+        op = read_bound_gesture(w, evt)
+        op === nothing || return op
+        nop = _wtree_node_gesture(p, iomap, evt)
+        nop === nothing || return nop
+    end
     evt isa MouseDwell && return _read_wtree_row_dwell(p, iomap, evt)
     if evt isa MouseClick && evt.button === :left
         return _wtree_mouse_press(p, iomap, evt)
@@ -12484,7 +15161,7 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     geom = iomap.geometry
     path = nothing
     if g isa MouseClick
-        _, content_y = _get_rows_content_offset(p, iomap)
+        _, content_y = _get_content_offset(_get_box_geometry(iomap))
         row = _wtree_row_at(geom, g.y - content_y)
         row === nothing || (path = row.path)
     elseif g isa Union{KeyDown, KeyPress}
@@ -12502,13 +15179,13 @@ end
 # row whose node has no tooltip.
 function _read_wtree_row_dwell(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap,
                                g::MouseDwell)
-    _, content_y = _get_rows_content_offset(p, iomap)
+    _, content_y = _get_content_offset(_get_box_geometry(iomap))
     row = _wtree_row_at(iomap.geometry, g.y - content_y)
     row === nothing && return nothing
     node = _find_wtree_node(iomap.geometry, iomap.input, row.path)
-    tooltip = _tree_tooltip(node)
-    (tooltip === nothing || isempty(tooltip)) && return nothing
-    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), PrimitiveString(String(tooltip)))],
+    tooltip = _as_tooltip_document(_tree_tooltip(node))
+    tooltip === nothing && return nothing
+    open = OpenTooltipOperation(Tuple{String,Document}[(_tree_label(node), tooltip)],
                                 EmptyReference(), (g.x, g.y))
     reroot_operation(ReplaceViewStateOperation(open), Tuple(get_reference_steps(_wtree_path_ref(row.path))))
 end
@@ -12518,12 +15195,12 @@ end
 # clamped into the rows.
 function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MouseClick)
     w = iomap.input
-    content_x, _ = _get_rows_content_offset(p, iomap)
+    content_x, _ = _get_content_offset(_get_box_geometry(iomap))
     row = _find_wtree_row_at(p, iomap, g.y)
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
     node = _find_wtree_node(iomap.geometry, w, row.path)
-    if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(node)
+    if !is_selection_press(g) && row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(node)
         return _wtree_toggle_expanded(iomap, row.path)
     end
     ReplaceSelectionOperation(_wtree_path_ref(row.path))
@@ -12712,7 +15389,7 @@ _has_any_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifier
 
 # How many rows Page Up and Page Down move: the rows that the view of the tree
 # holds, less one, so one row of the page before stays in view. The view is the
-# one that a pane offers, else the canvas of the tree.
+# height of the tree that can show, else the canvas of the tree.
 function _count_wtree_page_rows(iomap::WidgetTreeToGraphicsCanvasIoMap)
     row_height = iomap.geometry.row_height
     row_height > 0 || return 1
@@ -12751,9 +15428,7 @@ end
 
 
 """
-    WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing)
-    WidgetToGraphics(font; measure, theme = make_widget_theme(font = font),
-                     graphics_theme = nothing)
+    WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing, text_theme = nothing)
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is used for all
@@ -12762,26 +15437,34 @@ text sizing. `theme` is a [`WidgetTheme`](@ref) and `graphics_theme` a
 theme. Every widget printer holds the styles that it reads from them, and none
 holds a theme. A builder of an editor passes the scaled themes of its
 `Appearance`, so every widget of the editor follows its scales; an interface with
-no scales passes a theme as it is. A projection built on its own can name the
-font of its default theme, the slate light preset.
-"""
-WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                 theme = make_widget_theme(font = font), graphics_theme = nothing) =
-    WidgetToGraphics(; measure, theme, graphics_theme)
+no scales passes a theme as it is. The fonts of the widgets come only from the
+theme: each is a role of the font theme of the appearance, so a projection that
+needs larger text scales the fonts of its appearance.
 
-function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing)
+`text_theme` is a [`TextTheme`](@ref), scaled or not, whose caret and band the text of
+a widget draws with; `nothing` takes the default text theme.
+
+The dispatch draws the text of a widget with one rule, `TextView`: a widget prints a
+view of its text, which holds the look (the wrap and the line spacing), and the rule
+nests the printer of the view over a word wrapping and a text printer of
+`text_theme`. No document of an editor is a `TextView`, so the rule takes no document
+from the table that holds the dispatch.
+"""
+function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing,
+                          text_theme = nothing)
     widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
-        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
+        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetText       => WidgetTextToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
-        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
+        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; graphics_theme, measure = measure),
+        WidgetLink       => WidgetLinkToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measure),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measure),
-        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measure),
+        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme; graphics_theme),
         WidgetShell      => WidgetShellToGraphicsCanvas(theme; measure = measure),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(theme; measure = measure),
@@ -12792,7 +15475,8 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measure),
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measure),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
-        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measure),
+        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; graphics_theme, measure = measure),
+        WidgetIcon       => WidgetIconToGraphicsCanvas(theme; measure = measure),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme; measure = measure),
@@ -12800,19 +15484,20 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetProgressRing => WidgetProgressRingToGraphicsCanvas(theme; measure = measure),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),
-        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),
-        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measure),
+        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; graphics_theme, measure = measure),
+        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
         WidgetSwatch     => WidgetSwatchToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measure),
-        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measure),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(theme; measure = measure),
         WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(theme; measure = measure),
         WidgetList        => WidgetListToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measure),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measure),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measure),
+        WidgetFactGroup   => WidgetFactGroupToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetTable       => WidgetTableToGraphicsCanvas(theme; graphics_theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(theme; graphics_theme, measure = measure),
     )
@@ -12821,7 +15506,10 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
     # A layout draws the ring around a child selected as a whole with the
     # graphics theme.
     TypeDispatchingProjection(vcat(widgets.dispatch,
-        LayoutToGraphics(; theme = graphics_theme).dispatch))
+        LayoutToGraphics(; theme = graphics_theme).dispatch,
+        Pair{Type,Any}[TextView => NestingProjection(
+            TextViewToGraphics(),
+            ChainingProjection(WordWrapping(; measure), TextToGraphics(; measure, theme = text_theme)))]))
 end
 
 # ── A route gives a child the point in its own frame ───────────────────────
@@ -12837,12 +15525,30 @@ const _PlacingWidgetProjection = Union{
     WidgetCompositeToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
     WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
     WidgetToolbarToGraphicsCanvas, WidgetCardToGraphicsCanvas,
-    WidgetMenuItemToGraphicsCanvas}
+    WidgetFactGroupToGraphicsCanvas, WidgetMenuItemToGraphicsCanvas}
 
 ProjectionModule.read_child_by_route(::_PlacingWidgetProjection, recursion, change::Intent,
                                      iomap, child) =
     read_routed_entry_child(recursion, change, child;
                             entries = _get_route_entries(iomap.child_iomaps))
+
+# A tabbed pane places the content of each tab, and the close button of each tab
+# where the strip draws it.
+function ProjectionModule.read_child_by_route(p::WidgetTabbedPaneToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, child)
+    entries = Any[_get_route_entries(iomap.child_iomaps)...]
+    w = iomap.input
+    if w isa WidgetTabbedPane
+        g = _get_strip_geometry(p, w, iomap)
+        scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+        for (tab, cim) in zip(g.tabs, getfield(iomap, :close_iomaps)[])
+            box = _get_tab_button_box(g, tab)
+            (cim === nothing || box === nothing) || push!(entries, (box[1] - scroll, box[2], cim))
+        end
+    end
+    read_routed_entry_child(recursion, change, child; entries)
+end
 
 function ProjectionModule.read_child_by_route(::WidgetDialogToGraphicsCanvas, recursion,
                                               change::Intent,
@@ -12875,7 +15581,7 @@ function ProjectionModule.read_child_by_route(p::WidgetTransformPaneToGraphicsCa
     child === iomap.content_iomap ||
         return read_routed_intent(get_iomap_projection(child), recursion, change, child)
     M = getfield(iomap.input, :transform)[]::AffineTransform
-    cox, coy = _content_offset(p, iomap.input)
+    cox, coy = _get_content_offset(_get_box_geometry(iomap))
     move_out(x, y) = begin
         px, py = apply_affine_transform(M, Float64(x), Float64(y))
         (round(Int, px) + cox, round(Int, py) + coy)

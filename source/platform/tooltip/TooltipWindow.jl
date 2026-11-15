@@ -35,10 +35,13 @@ another part.
 [`OpenTooltipOperation`](@ref) from its own gesture table, and each part around it
 adds its layer. This projection takes that operation out of the answer and opens
 the window with the nearest layer, at the `offset` of the [`TooltipTheme`](@ref)
-from the point where the pointer rested, in screen coordinates. A command that
-runs the binding answers with no point, and the window opens below the part, with
-the left edges aligned and the `part_gap` between them (`find_part_place`), so it
-does not cover the part. The window is printed at the `maximum_size` of the theme
+below and right of the point where the pointer rested, in screen coordinates. A
+command that runs the binding answers with no point, and the window opens below
+the part, with the left edges aligned and the `part_gap` between them, so it does
+not cover the part. Each place is a placement (`compute_anchored_place`): a window
+with no room below goes above the point or the part, so it never covers the
+point, and slides inside the area of the display. The window is printed at the
+`maximum_size` of the theme
 and ends with the extent of what it holds, never smaller than its `minimum_size`.
 `theme` is a `TooltipTheme`, scaled or not, or `nothing` for the default theme;
 the projection holds the offset, the part gap and the two sizes that it reads from
@@ -180,30 +183,42 @@ function _take_tooltip(answer::CompoundOperation)
 end
 _take_tooltip(answer) = (nothing, answer)
 
-# Open the window of `tooltip`, and keep what it shows. It stands `offset` from
-# the point where the pointer rested; with no point, below the part with the left
-# edges aligned and `part_gap` between them; with neither, at the corner.
+# Open the window of `tooltip`, and keep what it shows. Its placement puts it, and
+# while the placement answers no place, the window stands `offset` from the point
+# where the pointer rested, or from the corner.
 function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, tooltip::OpenTooltipOperation)
     state = iomap.input
     offset = _get_pair(unwrap_cell(p.offset))
     minimum_size = _get_pair(unwrap_cell(p.minimum_size))
     maximum_size = _get_pair(unwrap_cell(p.maximum_size))
-    x, y = if tooltip.point !== nothing
-        (tooltip.point[1] + offset[1], tooltip.point[2] + offset[2])
-    else
-        below = find_part_place(p, iomap, tooltip.source)
-        below === nothing ? offset : (below[1], below[2] + Int(unwrap_cell(p.part_gap)))
-    end
+    x, y = tooltip.point === nothing ? offset : (tooltip.point[1] + offset[1], tooltip.point[2] + offset[2])
     window = OpenWindowOperation(; id = p.id, title = p.title, x = x, y = y,
                                    width = maximum_size[1], height = maximum_size[2],
                                    minimum_size, maximum_size,
                                    style = :tooltip,
+                                   placement = _make_tooltip_placement(p, state, tooltip, offset),
                                    content = _make_tooltip_content(tooltip.layers, 1))
     CompoundOperation(Any[_write_state(state, "layers", tooltip.layers),
                           _write_state(state, "shown", 1),
                           _write_state(state, "source", strip_reference_types(tooltip.source)),
                           _write_state(state, "window", window),
                           window])
+end
+
+# The placement of the window of `tooltip`: `offset` below and right of the point
+# where the pointer rested; with no point, below the part with `part_gap` between
+# them. `nothing` when there is no point and the part is on no screen.
+function _make_tooltip_placement(p::TooltipWindowProjection, state::TooltipWindowState,
+                                 tooltip::OpenTooltipOperation, offset)
+    if tooltip.point !== nothing
+        anchor = (x = tooltip.point[1] + offset[1], y = tooltip.point[2], width = 0, height = 0)
+        return context -> compute_anchored_place(context, anchor; gap = offset[2])
+    end
+    part = find_screen_reference(state, tooltip.source)
+    part === nothing && return nothing
+    gap = Int(unwrap_cell(p.part_gap))
+    context -> (box = find_window_part_box(context, part);
+                box === nothing ? nothing : compute_anchored_place(context, box; gap))
 end
 
 function _close_tooltip(p::TooltipWindowProjection, state::TooltipWindowState)
@@ -222,8 +237,26 @@ function _closes_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, 
     event isa MouseMove || return false
     path = _find_path_at(p, iomap, input.window_id, event.x, event.y)
     source = iomap.input.source
-    path === nothing || source === nothing ||
-        !(path == source || is_reference_prefix(source, path))
+    (path === nothing || source === nothing) && return true
+    path = _expand_introduced_steps(path)
+    !(path == source || is_reference_prefix(source, path))
+end
+
+# `reference` with each introduced step replaced by the path that it names in the
+# output of its projection. A view maps a point on a part that it made to an
+# introduced step, and the answer of that part names it by the same path after the
+# path of the view, so the two forms compare.
+function _expand_introduced_steps(reference)
+    reference isa ConcreteReference || return reference
+    any(step -> step isa ProjectionReferenceStep, get_reference_steps(reference)) || return reference
+    steps = Any[]
+    for step in get_reference_steps(reference)
+        step isa ProjectionReferenceStep ||
+            (push!(steps, step); continue)
+        output_path = _expand_introduced_steps(step.output_path)
+        output_path isa ConcreteReference && append!(steps, get_reference_steps(output_path))
+    end
+    extend_reference(EmptyReference(), steps...)
 end
 
 # The path, from the state, of the part at `(x, y)` of the window `window`, or

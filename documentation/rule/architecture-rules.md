@@ -1,6 +1,6 @@
 # Architecture rules — how the code is divided and where things belong
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
 
 The decision rules behind the package/layer/slice/module structure. The terms
 are defined precisely in [division-terminology.md](division-terminology.md). They apply
@@ -233,6 +233,14 @@ can express them.
   field of its theme, of a kind that a scale scales, never a number that the
   projection scales itself. See
   [style.md](../package/platform/style/style.md#themes-and-the-appearance).
+- **A printer never makes a copy of its projection for a value of one print.**
+  A value that holds for one print, such as the line spacing or the space that a
+  slot gives, comes in through the printer context. What a reader needs of that
+  value goes out through the IO map. So the projection that a dispatch gives to a
+  reader is the projection that the IO map holds. The projection is fixed
+  configuration, and a printer builds none inside a print.
+  `test_widget_printer_projection()` checks the widget slice. See
+  [spacing-rules.md](spacing-rules.md#a-printer-makes-no-copy-of-itself).
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
 - **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted
@@ -246,7 +254,9 @@ can express them.
   or deterministic behaviour belongs in the example that needs it:
   pass an explicit fake `llm`; a `main` path with no real backend fails
   loudly instead. `FakeLlm` / `ScriptedLlm` live in `ProjecturedKernelExample`,
-  not in kernel `main`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
+  not in kernel `main`. The one exception is the model of
+  `make_workload_llm` in the platform, which only a compile workload makes. See
+  architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
 
 ## Content documents and view documents
 
@@ -268,7 +278,7 @@ state, and the code keeps them apart.
   explorers of one folder open apart. State that every view of a thing shares is
   content.
 - **A view document names the content that it shows** with `get_edited_field`, so a
-  path into the content goes through the view, as it goes through a `FilePage`.
+  path into the content goes through the view, as it goes through a `FileView`.
 - **A view document holds the content that it shows**, with `hold_documents!` in
   its `acquire_document!`, and something holds the view document only while it
   shows. So a read of outside state follows the views by the count of the holders,

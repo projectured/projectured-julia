@@ -25,7 +25,7 @@ using ..ReferenceModule
 
 
 """
-    TextRangeReferenceStep(start, stop)
+    TextRangeReferenceStep(start, stop[, direction])
 
 A reference step representing a flat character range in the text domain. `start`
 and `stop` are 0-based character offsets into the concatenated text of a
@@ -33,11 +33,19 @@ and `stop` are 0-based character offsets into the concatenated text of a
 selection. Evaluates to `Position(start)` for a caret and `(start, stop)` for a
 range — every reference in the tree is evaluatable, and the range's value is its
 character range independent of what characters happen to sit in the current text.
+`direction` is the end that moves, as in `RangeReferenceStep`: `:forward` (the
+default) moves `stop` and `:backward` moves `start`; the caret is drawn there.
 """
 @cell_struct struct TextRangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
+    direction::Symbol = :forward
 end
+
+# A range of the default direction, and the caret.
+TextRangeReferenceStep(start::Int, stop::Int) = TextRangeReferenceStep(start, stop, :forward)
+
+ReferenceModule.get_range_direction(step::TextRangeReferenceStep) = step.direction
 
 "True when this range is a zero-width caret (`start == stop`)."
 is_text_caret(s::TextRangeReferenceStep) = s.start == s.stop
@@ -50,11 +58,13 @@ ReferenceModule.evaluate_reference_step(step::TextRangeReferenceStep, document) 
     step.start == step.stop ? Position(step.start) : (step.start, step.stop)
 
 Base.:(==)(a::TextRangeReferenceStep, b::TextRangeReferenceStep) =
-    a.start == b.start && a.stop == b.stop
+    a.start == b.start && a.stop == b.stop && a.direction === b.direction
 Base.hash(s::TextRangeReferenceStep, h::UInt) =
-    hash(s.stop, hash(s.start, hash(:TextRangeReferenceStep, h)))
+    hash(s.direction, hash(s.stop, hash(s.start, hash(:TextRangeReferenceStep, h))))
 
+# A backward range prints with its anchor first, as `RangeReferenceStep` does.
 function Base.show(io::IO, s::TextRangeReferenceStep)
     s.start == s.stop ? print(io, "⌶{", s.start, "}") :
-                        print(io, "⌶{", s.start, ":", s.stop, "}")
+    s.direction === :backward ? print(io, "⌶{", s.stop, ":", s.start, "}") :
+                                print(io, "⌶{", s.start, ":", s.stop, "}")
 end

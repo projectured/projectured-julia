@@ -2,6 +2,22 @@
 # `FileSystemDocument`, its insertion placeholder, and the file and directory
 # nodes.
 
+"""
+    FileSystemDocument
+
+The abstract supertype of the documents of files and folders on disk. Its main members are `FileSystemFile`, `FileSystemDirectory`, `FileSystemChooser`.
+
+Use it to recognise the documents of files and folders on disk when you walk a document: a part is one of them when `part isa FileSystemDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemDocument)
+    found_1 = search_documents(get_edited_document(find_pane("files")), part -> part isa FileSystemFile)
+
+See also `search_documents`, `find_pane`, `describe_document` and `FileSystemFile`.
+
+For the assistant.
+"""
 abstract type FileSystemDocument <: Document end
 
 # ── FileSystemInsertion ─────────────────────────────────────────────────
@@ -15,49 +31,79 @@ end
 """
     FileSystemFile(pathname)
 
-A file on the disk, as the read of its folder found it. `document` is the page of
-the file that its page shows, or `nothing` while no holder acquired it: the
-acquire takes the page that the editor holds open for the same path, or reads the
-file, so a file is one document in an editor, also when a tab shows it.
+A file on the disk, as the read of its folder found it. `document` is the file
+document that its page shows, or `nothing` while no holder acquired it: the
+acquire takes the file document that the editor holds open for the same path, else
+the one that the file kept, else it reads the file, so a file is one document in an
+editor, also when a tab shows it. A release keeps a file document with an unsaved
+edit, and one that keeps a dormant selection, so the keys go back to where they
+were on it.
+
+`document_view` is the view of the file document that the page of the file shows
+([`FileView`](@ref)), which keeps its own place in the file apart from a tab that
+shows the same file document. It is view state: a save writes none of it, and a walk
+does not enter it.
 """
 @document struct FileSystemFile <: FileSystemDocument
     pathname::String
     document::Any = nothing
+    document_view::Any = nothing
 end
+
+get_view_state_fields(::Type{<:FileSystemFile}) = (:document_view,)
+is_field_walked(::FileSystemFile, name::Symbol) = name !== :document_view
 
 # A file keeps the path of the file, and not the document that its page showed.
 pred_arguments(file::FileSystemFile) = (file.pathname,), Pair{Symbol,Any}[]
 make_pred_document(::Type{<:FileSystemFile}, positional, keywords) = FileSystemFile(only(positional))
 
-# The acquire of a file gives it its document: the page that the editor holds open
-# for its path, or a page read from the disk, as the open of a file reads it. It
-# runs in the evaluation of the operation that acquires, where a read of the disk
-# is in its place. The file then holds the page, so the page watches the file.
+# The acquire of a file gives it its document: the file document that the editor
+# holds open for its path, else the one that the file kept, else a file document
+# read from the disk, as the open of a file reads it. It runs in the evaluation of
+# the operation that acquires, where a read of the disk is in its place. The file
+# then holds the view of the file document, which holds the file document, so the
+# file document watches its file.
 function acquire_document!(editor, file::FileSystemFile)
-    if file.document === nothing
-        open = find_open_file_document(file.pathname; editor)
-        file.document = open !== nothing ? open : _read_file_page(editor, file.pathname)
+    open = find_open_file_document(file.pathname; editor)
+    if open !== nothing
+        file.document = open
+    elseif file.document === nothing
+        file.document = _read_opened_file(editor, file.pathname)
     end
-    hold_documents!(editor, file, Any[file.document])
+    # The view of the file document that the file kept stays, unless another holder
+    # holds it, as the duplicate of a tab leaves it.
+    view = _get_file_document_view(file)
+    (view !== nothing && !is_document_held(editor, view)) ||
+        set_cell_value!(getfield(file, :document_view), make_file_view(file.document))
+    hold_documents!(editor, file, Any[something(_get_file_document_view(file), file.document)])
 end
 
-# The release lets the page go, and the file forgets a page with no unsaved edit,
-# so the next acquire takes the page that is open then.
+# The release lets the file document go. The file keeps a file document with an
+# unsaved edit or a conflict, and one that keeps a dormant selection, which is where
+# the keys were on it, with its view, and forgets any other.
 function release_document!(editor, file::FileSystemFile)
     document = file.document
     document === nothing && return nothing
-    release_held_documents!(editor, file, Any[document])
-    any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions) ||
-        (file.document = nothing)
+    release_held_documents!(editor, file, Any[something(_get_file_document_view(file), document)])
+    (_has_file_edits(document) || _has_dormant_place(document)) ||
+        (file.document = nothing; file.document_view = nothing)
     nothing
 end
 
-# The page of the file at `path`, with the history of the settings of `editor`.
-function _read_file_page(editor, path::AbstractString)
-    settings = find_editor_settings(; editor)
-    history = settings === nothing ? identity : make_history_wrap(settings)
-    make_file_tab_content(path, document -> history(document))
+# The view of the file document of `file` that the file shows: the view that it
+# keeps while that view shows its file document, and `nothing` otherwise.
+function _get_file_document_view(file::FileSystemFile)
+    view = file.document_view
+    (view isa FileView && view.file === file.document) ? view : nothing
 end
+
+_has_file_edits(document) =
+    any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions)
+
+_has_dormant_place(document) = get_stored_selection(document) !== nothing && !is_live_selection(document)
+
+# The file document at `path`, with the history of the settings of `editor`.
+_read_opened_file(editor, path::AbstractString) = _make_opened_file(editor, OpenFileOperation(path))
 
 
 # ── Directory ─────────────────────────────────────────────────────────────────
@@ -65,10 +111,11 @@ end
 """
     FileSystemDirectory(pathname, elements; state = :read, failure = nothing, has_entries = nothing)
 
-A folder on the disk, as the last read found it. `elements` holds its entries in
-the order of their names, each a `FileSystemFile` or a `FileSystemDirectory`;
-the entries are stored, so a print reads only what the folder holds, and never
-the disk.
+A folder on the disk, as the last read found it. `elements` holds its entries,
+each a `FileSystemFile` or a `FileSystemDirectory`. A read stores the folders
+first, then the files, each group by name with no regard to case and with a run
+of digits by its value, so `file9` comes before `file10`. The entries are stored,
+so a print reads only what the folder holds, and never the disk.
 
 `state` is `:unread`, `:read`, or `:failed` with the exception in `failure`.
 `has_entries` says whether the folder holds an entry, as the read of its parent
@@ -124,7 +171,7 @@ which is what Open is for. What happens to the chosen path belongs to whoever
 opened the chooser.
 
 `name` is the whole of what a person types, and a file row of the tree writes its
-own name there. The directory and the name together always say one path, and
+path from the directory there. The directory and the name together always say one path, and
 [`get_chosen_path`](@ref) is that path.
 
 `open` holds the open folders of the chooser, by their documents, as an explorer
@@ -167,37 +214,138 @@ make_filesystem_chooser(directory::AbstractString) =
 # ── Open a file ───────────────────────────────────────────────────────────────
 
 # The destination is a pane tree, in a new tab: `make_file_tab` reads the file into
-# the document type its extension owns, in a scroll pane, and `get_pane_file_group`
-# asks the pane tree where a file belongs. An editor with settings gives the file a
-# history (`make_history_wrap`), around the part that the opener puts around the
-# file, or around the content. This runs while the editor evaluates the open, so
-# the new tab is posted, and the loop evaluates it at the top of the next frame.
+# the document type its extension owns, the tab shows the view of the file
+# (`make_file_view`) or the part that the opener puts around it, and
+# `get_pane_file_group` asks the pane tree where a file belongs. An editor with
+# settings gives the file a history (`make_history_wrap`), around the content inside
+# the file, whatever the opener puts around the file. This runs while the editor
+# evaluates the open, so the new tab is posted, and the loop evaluates it at the top
+# of the next frame.
 function evaluate_operation(editor, op::OpenFileOperation)
     # A file that is open is one document: its tab takes the focus, or a tab opens
     # on that document.
     open = find_open_file_document(op.path; editor)
     if open !== nothing
         _focus_open_file!(editor, open) ||
-            post_pane_operation!(editor, make_open_pane_operation(open; group = get_pane_file_group(; editor), editor))
+            post_pane_operation!(editor, make_open_pane_operation(make_file_view(open);
+                                                                  group = get_pane_file_group(; editor),
+                                                                  focus = true, editor))
         return nothing
     end
+    # A file opens as a person opens it: the new tab takes the focus.
+    post_pane_operation!(editor, make_open_pane_operation(_make_opened_tab_content(editor, op);
+                                                          group = get_pane_file_group(; editor),
+                                                          focus = true, editor))
+    nothing
+end
+
+# The file of `op`: read from disk, with each `file("…")` in it given the file
+# document that the editor holds for that file, and a history around its content
+# when the editor has settings. The splice runs before the history wraps the content,
+# so the history gets no step.
+function _make_opened_file(editor, op::OpenFileOperation)
+    history = _make_editor_history_wrap(editor)
+    base_dir = dirname(abspath(op.path))
+    make_file_tab(op.path, document -> history(op.wrap(
+        splice_held_files!(document, base_dir, path -> open_file_document!(editor, path)))))
+end
+
+# What wraps the content of a file that the editor opens: a history when the editor
+# has settings, else nothing.
+function _make_editor_history_wrap(editor)
     settings = find_editor_settings(; editor)
-    history = settings === nothing ? identity : make_history_wrap(settings)
-    tab = op.file_wrap === identity ?
-          make_file_tab_content(op.path, document -> history(op.wrap(document))) :
-          make_file_page(WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap)))))
-    post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor), editor))
+    settings === nothing ? identity : make_history_wrap(settings)
+end
+
+# The file document of a held file at `path` in `editor`: the one that the editor
+# holds open, else a new one that reads nothing (`make_unread_file`), with the history
+# of the settings of the editor around its content, and in the open files of the
+# editor from this call on. It runs on the task of the editor. A new file document
+# reads its file when a view of it is drawn, and a holder that holds it watches its
+# file.
+function open_file_document!(editor::Editor, path::AbstractString)
+    run_on_editor_task!(editor; description = "open_file_document!") do
+        open = find_open_file_document(path; editor)
+        open === nothing || return open
+        file = make_unread_file(path, _make_editor_history_wrap(editor))
+        add_open_file!(editor, file)
+        file
+    end
+end
+
+# What a new tab shows of the file of `op`: the part that `file_wrap` puts around
+# it, whose own views show the file, or else the view of the file.
+function _make_opened_tab_content(editor, op::OpenFileOperation)
+    file = _make_opened_file(editor, op)
+    op.file_wrap === identity ? make_file_view(file) : op.file_wrap(file)
+end
+
+# Whether `tab` shows `file`: as its content, or through the layers that hold it,
+# such as a view or a navigator.
+function _is_document_in_tab(tab, file)
+    node = tab.content
+    for _ in 1:16
+        node === file && return true
+        field = get_edited_field(node)
+        field === nothing && return false
+        node = getproperty(node, field)
+    end
+    false
+end
+
+"""
+    open_file!(path; editor = get_evaluation_editor()) -> ReferencedDocument
+
+Open the file at `path` in a tab, where the window puts files, and answer the tab.
+The tab shows the file as the extension of its name reads it, and keeps the
+history of its edits, so Ctrl+Z undoes them. A file that is open already keeps
+its tab, and the answer is that tab. The tab does not take the focus, and the
+group shows it only when `show_pane!` shows it.
+
+Use it to open a file of the disk, so that you can read it and change it as a
+part of the window.
+
+# Example
+
+    notes_tab_1 = open_file!("notes.json")
+    show_pane!(notes_tab_1)
+
+See also `save_file_to_disk!`, `reload_file_from_disk!`, `show_pane!`.
+
+For the assistant.
+"""
+function open_file! end
+
+function open_file!(path::AbstractString; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_file!") do
+        open = find_open_file_document(path; editor)
+        tab = open === nothing ? nothing : _find_open_file_tab(editor, open)
+        tab === nothing || return tab
+        open_pane!(open === nothing ? _make_opened_tab_content(editor, OpenFileOperation(path)) : make_file_view(open);
+                   group = get_pane_file_group(; editor), editor)
+    end
+end
+
+# The tab that shows `document`, as a part, or `nothing`.
+function _find_open_file_tab(editor, document)
+    reference = find_pane_tree_reference(; editor)
+    reference === nothing && return nothing
+    tree = evaluate_reference(editor.document, reference)
+    for group in get_pane_groups(tree), (index, tab) in enumerate(group.tabs)
+        _is_document_in_tab(tab, document) || continue
+        return ReferencedDocument(tab, concat_references(reference, get_pane_tab_reference(tree, group, index)))
+    end
     nothing
 end
 
 
-# Focus the tab whose content is `document`, and answer whether one is.
+# Focus the tab that shows `document`, and answer whether one is.
 function _focus_open_file!(editor, document)
     reference = find_pane_tree_reference(; editor)
     reference === nothing && return false
     tree = evaluate_reference(editor.document, reference)
     for group in get_pane_groups(tree), (index, tab) in enumerate(group.tabs)
-        tab.content === document || continue
+        _is_document_in_tab(tab, document) || continue
         focus = read_rooted_operation(editor, reference, make_pane_focus_operation(tree, group, index);
                                       description = "Focus the tab of the file")
         focus === nothing || post_pane_operation!(editor, focus)
@@ -269,16 +417,21 @@ end
 Read `folder` at once on the calling task, and its sub-folders down to `depth`
 levels, for a script, an example or a test that shows a folder with no editor.
 It never runs in a print. A folder that can not be read is `:failed`.
+
+A folder made from the disk reads through its listing, which then holds what the
+read found, so a part that shows its entries reads a final value and asks for no
+read. A listing that holds an answer already reads again for a new count of
+changes.
 """
 function read_filesystem_folder!(folder::FileSystemDirectory; depth::Integer = 1)
     depth < 1 && return folder
-    listing = try
-        _read_folder_listing(folder.pathname)
-    catch exception
-        exception isa Base.IOError || rethrow()
-        exception
+    if folder.listing_source === nothing
+        _apply_folder_listing!(nothing, folder, _read_folder_answer(folder.pathname))
+    else
+        listing = getfield(folder, :listing)
+        is_cell_provisional(listing) || (folder.read_count += 1)
+        wait_for_cell!(listing; editor = nothing)
     end
-    _apply_folder_listing!(nothing, folder, listing)
     for entry in folder.elements
         entry isa FileSystemDirectory && read_filesystem_folder!(entry; depth = depth - 1)
     end
@@ -287,16 +440,71 @@ end
 
 # ── The read of a folder ──────────────────────────────────────────────────────
 
-# The entries of the folder at `path`, in the order of their names: the name of
-# each, whether it is a folder, and for a folder whether it holds an entry. One
-# call gives each name with its kind, so no entry costs a `stat`.
+# The entries of the folder at `path`, in the order of `_is_entry_before`: the
+# name of each, whether it is a folder, and for a folder whether it holds an entry.
+# One call gives each name with its kind, so no entry costs a `stat`.
 function _read_folder_listing(path::String)
     entries = isdefined(Base.Filesystem, :_readdirx) ?
-        [(entry.name, isdir(entry)) for entry in Base.Filesystem._readdirx(path)] :
-        [(name, isdir(joinpath(path, name))) for name in readdir(path)]
-    [(name = name, is_folder = is_folder,
-      has_entries = is_folder ? _read_folder_emptiness(joinpath(path, name)) : false)
-     for (name, is_folder) in entries]
+        [(name = entry.name, is_folder = isdir(entry)) for entry in Base.Filesystem._readdirx(path; sort = false)] :
+        [(name = name, is_folder = isdir(joinpath(path, name))) for name in readdir(path; sort = false)]
+    sort!(entries; lt = _is_entry_before)
+    [(name = entry.name, is_folder = entry.is_folder,
+      has_entries = entry.is_folder ? _read_folder_emptiness(joinpath(path, entry.name)) : false)
+     for entry in entries]
+end
+
+# Whether the entry `a` comes before the entry `b` in a folder: the folders first,
+# then the files, each group in the order of `_is_name_before`. Each of `a` and `b`
+# has the fields `is_folder` and `name`, as a listed entry and `_get_entry_key` give.
+_is_entry_before(a, b) = a.is_folder == b.is_folder ? _is_name_before(a.name, b.name) : a.is_folder
+
+# Whether the name `a` comes before the name `b`: with no regard to case, and with
+# a run of digits by its value, so `file9` comes before `file10`. Two names that
+# are equal so take the order of their character codes, so the order is total:
+# `README.md` comes before `readme.md`. The order depends on no locale.
+function _is_name_before(a::AbstractString, b::AbstractString)
+    order = _compare_entry_names(a, b)
+    order == 0 ? isless(a, b) : order < 0
+end
+
+# -1, 0 or 1 as the name `a` comes before, with or after the name `b`, with no tie
+# broken. The names compare in runs: two runs of ASCII digits by their values, and
+# any other two characters by their lower case. A character that is not valid
+# UTF-8 compares as it is. A name that ends first comes first.
+function _compare_entry_names(a::AbstractString, b::AbstractString)
+    i, j = firstindex(a), firstindex(b)
+    while i <= lastindex(a) && j <= lastindex(b)
+        x, y = a[i], b[j]
+        if isdigit(x) && isdigit(y)
+            run_a, run_b = _compute_digit_run(a, i), _compute_digit_run(b, j)
+            length_a, length_b = run_a.stop - run_a.value, run_b.stop - run_b.value
+            length_a == length_b || return length_a < length_b ? -1 : 1
+            order = cmp(SubString(a, run_a.value, run_a.stop - 1), SubString(b, run_b.value, run_b.stop - 1))
+            order == 0 || return order
+            i, j = run_a.stop, run_b.stop
+        else
+            order = cmp(isvalid(x) ? lowercase(x) : x, isvalid(y) ? lowercase(y) : y)
+            order == 0 || return order
+            i, j = nextind(a, i), nextind(b, j)
+        end
+    end
+    (i <= lastindex(a)) - (j <= lastindex(b))
+end
+
+# The run of ASCII digits of `name` that starts at `start`: `value`, the index of
+# its first digit after the leading zeros, or of its last digit when each digit is
+# a zero, and `stop`, the index after the run. A digit is one byte, so the value
+# has `stop - value` digits. No run is parsed, so a long run can not overflow.
+function _compute_digit_run(name::AbstractString, start::Int)
+    stop = start
+    while stop <= lastindex(name) && isdigit(name[stop])
+        stop += 1
+    end
+    value = start
+    while value < stop - 1 && name[value] == '0'
+        value += 1
+    end
+    (value = value, stop = stop)
 end
 
 # Whether the folder at `path` holds an entry; `nothing` when it can not be read.
@@ -318,8 +526,10 @@ end
 
 _get_entry_name(entry::FileSystemDocument) = basename(_get_folder_key(entry.pathname))
 
-_is_same_entry_kind(entry::FileSystemDirectory, listed) = listed.is_folder
-_is_same_entry_kind(entry::FileSystemDocument, listed) = !listed.is_folder
+# The kind and the name of a stored entry, which `_is_entry_before` compares.
+_get_entry_key(entry::FileSystemDocument) = (is_folder = entry isa FileSystemDirectory, name = _get_entry_name(entry))
+
+_is_same_entry(key, listed) = key.is_folder == listed.is_folder && key.name == listed.name
 
 function _make_listed_entry(folder::FileSystemDirectory, listed)
     path = joinpath(folder.pathname, listed.name)
@@ -331,7 +541,7 @@ end
     ApplyFolderListingOperation(folder, read_count, listing)
 
 Write what a read of `folder` found, as the answer of its listing stores it:
-`listing`, the entries in the order of their names, or the exception of the read.
+`listing`, the entries in the order of a folder, or the exception of the read.
 A kept entry keeps its document, each run of new and gone entries is one splice
 of `elements`, and a sub-folder that stays takes its new emptiness. The answer of
 a read that a newer read follows is dropped: `read_count` names the read. A
@@ -366,9 +576,11 @@ function evaluate_operation(editor, operation::ApplyFolderEmptinessOperation)
     nothing
 end
 
-# Write a listing into `folder`: walk the stored entries and the listing by name,
-# keep each entry that stays, and replace each run of gone and new entries with one
-# splice, so a new file is one insert and the entries after it keep their prints.
+# Write a listing into `folder`: walk the stored entries and the listing in the
+# order of `_is_entry_before`, keep each entry that stays with its kind and its
+# name, and replace each run of gone and new entries with one splice, so a new file
+# is one insert and the entries after it keep their prints. An entry whose name
+# changes its kind is a gone entry and a new entry in the other group.
 function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
     if listing isa Exception
         folder.state = :failed
@@ -395,14 +607,15 @@ function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
         nothing
     end
     old = collect(elements)
+    old_keys = map(_get_entry_key, old)
     i = 1
     for listed in listing
-        while i <= length(old) && _get_entry_name(old[i]) < listed.name
+        while i <= length(old) && _is_entry_before(old_keys[i], listed)
             start == 0 && (start = position)
             push!(removed, old[i])
             i += 1
         end
-        if i <= length(old) && _get_entry_name(old[i]) == listed.name && _is_same_entry_kind(old[i], listed)
+        if i <= length(old) && _is_same_entry(old_keys[i], listed)
             flush!()
             kept = old[i]
             kept isa FileSystemDirectory && kept.has_entries != listed.has_entries &&
@@ -412,10 +625,6 @@ function _apply_folder_listing!(editor, folder::FileSystemDirectory, listing)
             continue
         end
         start == 0 && (start = position)
-        if i <= length(old) && _get_entry_name(old[i]) == listed.name
-            push!(removed, old[i])
-            i += 1
-        end
         push!(inserted, _make_listed_entry(folder, listed))
     end
     if i <= length(old)
@@ -485,14 +694,26 @@ end
 # with the failure in words. It reads no listing, so a row of it asks for nothing.
 function get_document_decoration(folder::FileSystemDirectory)
     state = folder.state
-    folder.reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)])
+    tooltip = () -> _make_folder_note(folder)
+    folder.reading && return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:running)], tooltip)
     state === :failed &&
         return DocumentDecoration(; icon = :folder, conditions = [DocumentCondition(:failed)],
-                                  tooltip = sprint(showerror, folder.failure))
-    DocumentDecoration(; icon = :folder)
+                                  tooltip = () -> _make_folder_note(folder; text = sprint(showerror, folder.failure)))
+    DocumentDecoration(; icon = :folder, tooltip)
+end
+
+# What a row of a folder says when the pointer rests on it: its path, and its
+# entries once it is read, or that it is not.
+function _make_folder_note(folder::FileSystemDirectory; text = nothing)
+    path = String(folder.pathname)
+    facts = Pair{String,Any}["Path" => format_home_path(path)]
+    folder.state === :read && push!(facts, "Entries" => string(length(folder.elements)))
+    text === nothing && folder.state !== :read && (text = "Not read yet.")
+    TooltipNote(; title = basename(rstrip(path, '/')), text, facts)
 end
 
 # A file says what its page says once it has one, and its kind before.
 get_document_decoration(file::FileSystemFile) =
-    file.document === nothing ? DocumentDecoration(; icon = get_file_icon(file.pathname)) :
-                                get_document_decoration(file.document)
+    file.document === nothing ?
+        DocumentDecoration(; icon = get_file_icon(file.pathname), tooltip = () -> make_file_note(file.pathname)) :
+        get_document_decoration(file.document)

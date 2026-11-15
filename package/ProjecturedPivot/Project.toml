@@ -7,15 +7,16 @@ authors = []
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 
 [sources]
 ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 
 # AutoIntegration loads this package when Projectured is loaded, unless the
 # environment of the user sets it to "manual".

@@ -5,7 +5,7 @@
     AddDraftPictureOperation(assistant)
 
 The "Picture" button of the composer: a picture of the part that the person
-selected as a whole, with Alt+click, or else of the window, goes into the draft
+selected as a whole, with Alt+double click, or else of the window, goes into the draft
 of `assistant` as a part before the text that the person types
 (`write_part_picture`, `write_window_picture`). With no window, or no backend
 that writes an image, it does nothing.
@@ -39,7 +39,7 @@ end
 Add the tool `take_picture` to `set`: a picture of what the editor shows, as a
 PNG file in the folder of pictures, which the tool answers as an `LlmImage`. Its
 `part` is `"window"`, the window, or `"selection"`, the part that the person
-selected as a whole with Alt+click, or the window when the person selected no
+selected as a whole with Alt+double click, or the window when the person selected no
 whole part. The MCP server gives the picture to an agent as an image.
 """
 function register_picture_tools!(set)
@@ -50,7 +50,7 @@ function register_picture_tools!(set)
             "selected. Use it to see what has no text, such as a plot, a layout or a widget.",
         parameters = [(name = "part", type = "string", required = false,
                        description = "\"window\" (the default), or \"selection\": the part that the " *
-                                     "person selected with Alt+click, or the window when there is none")],
+                                     "person selected with Alt+double click, or the window when there is none")],
         handler = (editor, args) -> _take_picture(editor, get(args, "part", "window"))))
     set
 end
@@ -72,7 +72,7 @@ end
 function _make_part_pictures!(draft::ConversationDraft)
     for part in collect(draft.parts)
         content = part.content
-        (content isa ImageDocument || has_text_form(content)) && continue
+        (content isa Union{ImageDocument, ImageFile} || has_text_form(content)) && continue
         filename = _make_picture_filename()
         _write_document_picture(content, filename) === nothing && continue
         part.content = ImageFile(filename)
@@ -92,12 +92,17 @@ function _write_document_picture(document, filename::AbstractString)
     end
 end
 
+# The days that a picture stays in the folder of pictures after it is written.
+const PICTURE_KEEP_DAYS = 30
+
 # A new name for the file of a picture, in the folder of pictures of the user:
 # `$XDG_CACHE_HOME/projectured/pictures`, by default `~/.cache/projectured/pictures`.
+# The pictures of the folder that are older than `PICTURE_KEEP_DAYS` go away first.
 function _make_picture_filename()
     cache = get(ENV, "XDG_CACHE_HOME", "")
     isempty(cache) && (cache = joinpath(homedir(), ".cache"))
     directory = mkpath(joinpath(cache, "projectured", "pictures"))
+    _remove_old_pictures!(directory)
     stem = "picture-" * Libc.strftime("%Y%m%d-%H%M%S", time())
     filename = joinpath(directory, stem * ".png")
     count = 1
@@ -106,4 +111,16 @@ function _make_picture_filename()
         filename = joinpath(directory, stem * "-$(count).png")
     end
     filename
+end
+
+# Remove each picture file `picture-*.png` of `directory` that was written more
+# than `days` days ago. Other files of the folder stay.
+function _remove_old_pictures!(directory::AbstractString; days::Real = PICTURE_KEEP_DAYS)
+    oldest = time() - days * 86400
+    for name in readdir(directory)
+        startswith(name, "picture-") && endswith(name, ".png") || continue
+        path = joinpath(directory, name)
+        isfile(path) && mtime(path) < oldest && rm(path; force = true)
+    end
+    nothing
 end

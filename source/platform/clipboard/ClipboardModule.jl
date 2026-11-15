@@ -1,9 +1,8 @@
 """
     ClipboardModule
 
-The clipboard domain: a slice that holds one sub-document, a collection that
-holds many, the two projections that show them, and access to the host
-operating system's clipboard.
+Clipboard documents that hold one sub-document or many, the two projections that
+show them, and access to the clipboard of the operating system.
 
 This file holds the OS access, because both projections mirror through it. It
 also holds `WriteOsClipboardOperation` and the helpers the two readers share.
@@ -59,7 +58,9 @@ export ClipboardDocument
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
        ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,
-       WriteOsClipboardOperation, CopyReferenceOperation, make_reference_code
+       WriteOsClipboardOperation, CopyReferenceOperation, make_reference_code,
+       PasteOsClipboardOperation, ApplyOsClipboardPasteOperation,
+       start_os_clipboard_write!, CLIPBOARD_TOOL_SECONDS
 export ClipboardSlice, ClipboardCollection
 export CLIPBOARD_GESTURES
 export make_clipboard_document, make_clipboard_projection

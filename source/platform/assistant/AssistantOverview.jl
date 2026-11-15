@@ -9,7 +9,7 @@
 
 The title of `assistant` in the table of the assistants: the title that its
 agent gave the session, else the first line of the first prompt that holds
-text, else "Assistant".
+text, else "Assistant" with its number from 2 on, such as "Assistant (2)".
 """
 function compute_assistant_overview_title(a::Assistant)
     isempty(a.agent_title) || return a.agent_title
@@ -20,18 +20,50 @@ function compute_assistant_overview_title(a::Assistant)
             isempty(text) || return String(text)
         end
     end
-    ASSISTANT_TITLE
+    a.number == 1 ? ASSISTANT_TITLE : string(ASSISTANT_TITLE, " (", a.number, ")")
 end
 
 """
     find_first_prompt(assistant) -> String or nothing
+
+The text of the first turn of the person in the conversation of `assistant`, or
+`nothing` before the first prompt.
+
+Use it to read what a person first asked an assistant.
+
+# Example
+
+    prompt_1 = find_first_prompt(assistant_1)
+
+See also `find_last_prompt` and `describe_assistant_activity`.
+
+For the assistant.
+"""
+function find_first_prompt end
+
+find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+find_first_prompt(assistant::ReferencedDocument) = find_first_prompt(get_document(assistant))
+
+"""
     find_last_prompt(assistant) -> String or nothing
 
-The text of the first and of the last turn of the person in the conversation of
-`assistant`, or `nothing` before the first prompt.
+The text of the last turn of the person in the conversation of `assistant`, or
+`nothing` before the first prompt.
+
+Use it to read what a person asked an assistant last.
+
+# Example
+
+    prompt_1 = find_last_prompt(assistant_1)
+
+See also `find_first_prompt` and `describe_assistant_activity`.
+
+For the assistant.
 """
-find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+function find_last_prompt end
+
 find_last_prompt(a::Assistant) = _find_prompt(a, findlast)
+find_last_prompt(assistant::ReferencedDocument) = find_last_prompt(get_document(assistant))
 
 function _find_prompt(a::Assistant, find::Function)
     turns = collect(a.conversation.turns)
@@ -65,7 +97,19 @@ end
 What the turn of `assistant` that runs does now, in a few words: "starts",
 "thinks", "writes", "runs <tool>", or the question of the agent that waits for
 the person. "failed" after a turn that failed, and empty between turns.
+
+Use it to tell a person what an assistant does now.
+
+# Example
+
+    text_1 = describe_assistant_activity(assistant_1)
+
+See also `find_last_prompt`.
+
+For the assistant.
 """
+function describe_assistant_activity end
+
 function describe_assistant_activity(a::Assistant)
     a.status === :error && return "failed"
     is_assistant_turn_running(a) || return ""
@@ -80,6 +124,8 @@ function describe_assistant_activity(a::Assistant)
     content isa EvaluatorForm && return "runs " * content.tool_name
     "writes"
 end
+
+describe_assistant_activity(assistant::ReferencedDocument) = describe_assistant_activity(get_document(assistant))
 
 # The question of the agent in the last turn that waits for the person.
 function _find_open_permission_request(a::Assistant)
@@ -132,7 +178,25 @@ function get_document_decoration(a::Assistant)
     state = a.work_state
     counts = state === :pending ? DocumentCount[] :
              [DocumentCount(_format_work_state(state); role = _get_work_state_role(state))]
-    DocumentDecoration(; icon = :bot, conditions, counts, detail = describe_assistant_activity(a))
+    DocumentDecoration(; icon = :bot, conditions, counts, detail = describe_assistant_activity(a),
+                       tooltip = () -> _make_assistant_note(a))
+end
+
+# What a row of an assistant says when the pointer rests on it: its title, its
+# model and backend, the context it uses, its prompts, when it started and how
+# long it worked.
+function _make_assistant_note(a::Assistant)
+    facts = Pair{String,Any}[]
+    isempty(a.model) || push!(facts, "Model" => a.model)
+    push!(facts, "Backend" => string(a.backend))
+    usage = format_agent_usage(a.agent_usage)
+    isempty(usage) || push!(facts, "Context" => usage)
+    push!(facts, "Prompts" => string(compute_prompt_count(a)))
+    started = find_assistant_start_time(a)
+    started === nothing || push!(facts, "Started" => Libc.strftime("%H:%M:%S", started))
+    busy = compute_assistant_busy_time(a)
+    busy > 0 && push!(facts, "Busy" => _format_assistant_duration(busy))
+    TooltipNote(; title = compute_assistant_overview_title(a), facts)
 end
 
 """

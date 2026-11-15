@@ -33,19 +33,38 @@ end
 function print_document(p::ChartToChartPlot, recursion,
                         chart::Union{Chart, ChartNothing, ChartInsertion}, ctx)
     iomap_cell = Cell(nothing)
+    toolbar_cell, horizontal_cell, vertical_cell = Cell(nothing), Cell(nothing), Cell(nothing)
     plot = ChartPlot(
         Cell(chart),
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+        toolbar_cell, horizontal_cell, vertical_cell,
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, chart.selection)
         end),
         Cell(@computation map_mouse_target_forward(chart, path -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, path)
         end)))
+    # The buttons and the bars belong to this plot, and each of their parts holds
+    # the part of the selection and of the mouse target of the plot below it, so a
+    # selected part is drawn and the part under the pointer lights.
+    for (cell, field, part) in ((toolbar_cell, "toolbar", make_chart_buttons(plot)),
+                                (horizontal_cell, "horizontal_scroll_bar", make_chart_scroll_bar(plot, :x)),
+                                (vertical_cell, "vertical_scroll_bar", make_chart_scroll_bar(plot, :y)))
+        cell[] = part
+        follow_widget_output!(part, plot, path -> find_drawn_child_path(path, (FieldReferenceStep(field),)))
+    end
     iomap = ChartToChartPlotIoMap(p, chart, plot)
     iomap_cell[] = iomap
     iomap
 end
+
+# The fields of a plot that hold the parts that only the plot has: the buttons and
+# the bars.
+const _PLOT_PART_FIELDS = ("toolbar", "horizontal_scroll_bar", "vertical_scroll_bar")
+
+# Whether `path`, a path in a plot, goes into the buttons or a bar.
+_is_plot_part_path(path) =
+    any(field -> find_drawn_child_path(path, (FieldReferenceStep(field),)) !== nothing, _PLOT_PART_FIELDS)
 
 # anything... ↔ chart.anything...
 #
@@ -56,10 +75,14 @@ end
 # `get_reference_node_type`, not `typeof`: a `@document` builds a
 # kind-parameterized struct, and the reference vocabulary is written in the bare
 # wrapper names.
-function map_reference_forward(::ChartToChartPlot, iomap, reference)
+function map_reference_forward(p::ChartToChartPlot, iomap, reference)
     # No selection maps to no selection: the tail-binding pattern below would
     # otherwise match `nothing` and try to splice it into a path.
     reference === nothing && return nothing
+    # A part that only the plot holds, a button or a bar, comes back from the chart
+    # as an introduced reference.
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
     ct = get_reference_node_type(iomap.input)
     @reference_case reference begin
         ∅ => @reference ::ChartPlot
@@ -67,8 +90,11 @@ function map_reference_forward(::ChartToChartPlot, iomap, reference)
     end
 end
 
-function map_reference_backward(::ChartToChartPlot, iomap, reference)
+function map_reference_backward(p::ChartToChartPlot, iomap, reference)
     reference === nothing && return nothing
+    # A button and a bar have no place in the chart: the chart names them by an
+    # introduced reference, which the forward map gives back.
+    _is_plot_part_path(reference) && return make_introduced_reference(p, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::Chart
         ::ChartPlot.chart.rest... => (@reference ^(rest))

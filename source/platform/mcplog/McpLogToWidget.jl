@@ -21,21 +21,22 @@ Read only: a log is what happened, and a person edits nothing of it.
     answered_text::StyleText = get_mcp_log_style(nothing, :answered_text)
     fault_text::StyleText = get_mcp_log_style(nothing, :fault_text)
     muted_text::StyleText = get_mcp_log_style(nothing, :muted_text)
-    gap::Int = get_mcp_log_style(nothing, :gap)
+    gap::Int = get_widget_style(nothing, :form_row_gap)
     answer_lines::Int = 8
 end
 
 """
-    make_mcp_log_projection(; theme = nothing) -> McpLogToWidget
+    make_mcp_log_projection(; theme = nothing, widget_theme = nothing) -> McpLogToWidget
 
-The projection of the MCP log with the styles of `theme`: a `McpLogTheme`,
-scaled or not, or the default styles for `nothing`.
+The projection of the MCP log with the styles of `theme`, a `McpLogTheme`, and
+the `form_row_gap` of `widget_theme`, a `WidgetTheme`, each scaled or not, or the
+default styles for `nothing`.
 """
-function make_mcp_log_projection(; theme = nothing)
+function make_mcp_log_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_mcp_log_style(theme, name)
     McpLogToWidget(; heading_text = get_style(:heading_text), call_text = get_style(:call_text),
                    answered_text = get_style(:answered_text), fault_text = get_style(:fault_text),
-                   muted_text = get_style(:muted_text), gap = get_style(:gap))
+                   muted_text = get_style(:muted_text), gap = get_widget_style(widget_theme, :form_row_gap))
 end
 
 const _MCP_LOG_CHOICES = ("all", "tools", "faults")
@@ -96,11 +97,15 @@ function print_document(p::McpLogToWidget, recursion, log::McpLog, ctx)
         isempty(shown) && return Cell[Cell(WidgetLabel("no call yet"; text_style = p.muted_text))]
         Cell[Cell(_build_mcp_call_block(p, entry)) for entry in shown]
     end)
+    follow_built_children!(calls)
     root = VerticalLayout(Any[heading, choice,
-                              LayoutConstraint(WidgetScrollPane(calls; follow_end = true);
+                              LayoutConstraint(WidgetScrollPane(calls; follow_end = true,
+                                                               grows = (width = false, height = true));
                                                width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
-    ChildrenIoMap(p, log, root, Cell(Any[]))
+    iomap = ChildrenIoMap(p, log, root, Cell(Any[]))
+    follow_widget_output!(root, log, path -> map_reference_forward(p, iomap, path))
+    iomap
 end
 
 # ── Natural-projection registration ─────────────────────────────────────────
@@ -109,7 +114,8 @@ end
 
 function __init__()
     register_natural_graphics!(:mcplog, (; measure, appearance) -> Pair{Type,Any}[
-        McpLog => ChainingProjection(make_mcp_log_projection(; theme = get_scaled_theme!(appearance, McpLogTheme)),
+        McpLog => ChainingProjection(make_mcp_log_projection(; theme = get_scaled_theme!(appearance, McpLogTheme),
+                                                                 widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
                                      VerticalLayoutToGraphicsCanvas())])
     # The calls of the MCP log of the session, as a source of a roster.
     register_roster_source!(:mcp_log, link -> CollectionItems(get_session_mcp_log().entries);

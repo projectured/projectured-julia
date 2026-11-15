@@ -1,6 +1,6 @@
 # Pivot domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [collection.md](../../platform/collection/collection.md), [widget.md](../../platform/widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [collection.md](../../platform/collection/collection.md), [widget.md](../../platform/widget/widget.md)
 
 `ProjecturedPivot` cuts a table into parts by the values of its dimensions. The values of the row dimensions make the row headers, the values of the column dimensions make the column headers, and each cell shows the part of the table where its row and its column meet. This document says what a pivot holds, how it finds the parts, and what it reads of its source.
 
@@ -55,7 +55,7 @@ The computation makes one pass over each dimension, and reads the column as a ve
 
 **Derived dimensions.** The `bin` of a dimension derives the value of a row from its column: a positive number is the width of the bins of a number, so a value is a `PivotBin` such as `10–20`; `:year`, `:month` and `:day` take the year, the `PivotMonth` such as `2024-03`, or the day of a date. The pivot uses the standard library `Dates` for this. A column dimension with no limit of its own keeps its first 200 values, so a column of thousands of values does not make a table too wide to draw, and its badge says how many values it has, such as `price (1234 values)`, in the colour of a warning. The menu of a dimension offers two widths of bins for a column of numbers, about a tenth of its range and ten times that, and the year, the month and the day for a column of dates.
 
-**Totals.** A key whose value is `PivotTotal()` from some level on is a total: `("EU", PivotTotal())` is the subtotal of EU, and a key of only `PivotTotal()` is the total. With `totals` on the pivot, a subtotal row follows each run of an outer row dimension, a total row follows every row, and a total column every column. The details sort by their prefixes, so a total covers a contiguous range of details (`row_details`, `column_details`), and its part is gathered from the parts of those details when it is read: a total costs nothing until a cell shows it. A run of the row headers whose prefix is in `collapsed` shows only its subtotal row, with or without the totals, and its label starts with ▸. An Alt+press selects a run of an outer level, and Enter on a selected run closes or opens it.
+**Totals.** A key whose value is `PivotTotal()` from some level on is a total: `("EU", PivotTotal())` is the subtotal of EU, and a key of only `PivotTotal()` is the total. With `totals` on the pivot, a subtotal row follows each run of an outer row dimension, a total row follows every row, and a total column every column. The details sort by their prefixes, so a total covers a contiguous range of details (`row_details`, `column_details`), and its part is gathered from the parts of those details when it is read: a total costs nothing until a cell shows it. A run of the row headers whose prefix is in `collapsed` shows only its subtotal row, with or without the totals, and its label starts with ▸. An Alt+double click selects a run of an outer level, and Enter on a selected run closes or opens it.
 
 The cost, measured on 2026-10-06 with a data frame and three dimensions of 4, 40 and 10 values: 0.07 s for one million rows and 1.0 s for ten million rows. The `groupby` of DataFrames takes 0.05 s and 0.66 s for the same groups.
 
@@ -87,7 +87,9 @@ A cell that no row reaches is empty. A row of the table is as tall as the lines 
 - **The bar** has a row for each zone: Fields, Columns, Rows, Cells and Values. Each row shows the name of the zone and a badge for each dimension or measure in it. An empty Values row shows a muted `count` badge.
 - **The table** is a `WidgetTable` that scrolls its own parts. Its rows are a list, so it builds only the rows that it shows. The header of a column is a `CellVector` of the labels of its key, and so is the header of a row, so the table draws one level for each dimension and merges a run of equal labels; see the headers with levels in [widget.md](../../platform/widget/widget.md). The corner names the row dimensions. With no column dimension, the one column is headed by the names of the measures; with no row dimension, the one row is headed `all`.
 
-`cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table.
+`cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table. The mouse target of the pivot maps forward the same way into the mouse targets of the grid, the bar and the table, so the table lights the row under the pointer, and a container knows the child that the pointer leaves.
+
+A chart in a cell takes the gestures of a chart: Ctrl and the wheel zoom it, a drag draws a band and zooms to it, and Shift and a drag pan it. The parts of the drag come back to the chart through the table by the path of the cell. A plain turn of the wheel scrolls a chart only while it is zoomed in; otherwise the table scrolls.
 
 ### The bar
 
@@ -107,6 +109,28 @@ Each edit is an operation with an inverse: a move is a `MoveRangeOperation`, whi
 
 `compute_pivot_measure(table, rows, measure)` computes a measure over a part. A `missing` value counts for `:count` and for nothing else. `:sum` of no value is `0`; `:mean`, `:minimum` and `:maximum` of no value are `missing`.
 
+### The assistant
+
+The model of an assistant reads and changes a pivot through `execute_julia_code`. `PivotModule.__init__` declares the names of the pivot with `register_assistant_api!`, with a paragraph of the system text that shows a worked example of each request that a person makes of a pivot. A pivot in a tab is the `ReferencedDocument` that `get_edited_document(find_pane(title))` answers.
+
+- **Make.** The source of `make_pivot_table` can be the data of a tab, as a read answers it: a referenced document of a table is a table, and a `DataFrameView` is the table of all the rows of its frame ([collection.md](../../platform/collection/collection.md)). The pivot keeps the document, not the referenced document, because the constructor of a document stores `get_document` of each value.
+- **Read.** The display of a pivot, `MIME"text/plain"`, is a line that names each zone as the bar names it, with the field of the pivot that holds it, such as `Rows (row_dimensions): region, country`, then the grid of the table as text: the keys of the rows and of the columns, and the value of each measure in a text column of its own. The answer of a tool is a limited display, so it shows the rows and the columns that its display size holds and says how many it leaves out. A `print` writes Julia's own form of the struct, as it does for `WidgetTable`. `find_pivot_value(pivot, row_key, column_key; measure = 1)` reads one value, the number that the cell shows, and `find_pivot_part_rows(pivot.cross_table, row_key, column_key)` the numbers of the rows of the source in the cell. A key is a tuple of the values of the dimensions, and a key that does not occur gives `nothing`.
+- **Change.** Each verb makes the operation that the UI makes, so the tool `undo` takes it back in one step. No verb moves the selection of the person.
+  - `move_pivot_field!(pivot, column, zone; place)` makes the `MoveRangeOperation` of a drag. `zone` is `:fields`, `:columns`, `:rows` or `:cells`.
+  - A measure is an element of `pivot.measures`, so `insert_elements!` and `delete_elements!` add and remove one.
+  - `replace_referenced_value!(part, field, value)` writes a setting of the pivot, of a dimension or of a measure, as a menu writes it: `totals`, `cell_view`, `order`, `limit`, `bin`, `hidden_values` or `aggregate`. The field form of the verb writes a field of any part, also one that holds `nothing`. A request that changes several settings of one field, such as the top 5, is one write of a new `PivotDimension`, and one step of undo.
+
+```julia
+pivot_1 = make_pivot_table(get_edited_document(find_pane("Sales")); rows = ["region", "country"],
+                           columns = ["year"], measures = [PivotMeasure("amount", :sum)])
+find_pivot_value(pivot_1, ("EU", "DE"), 2025)                       # 80.0
+find_pivot_part_rows(pivot_1.cross_table, ("EU", "DE"), (2025,))   # [5, 6, 7, 8]
+move_pivot_field!(pivot_1, "country", :columns)
+replace_referenced_value!(pivot_1, :totals, true)
+replace_referenced_value!(pivot_1.row_dimensions[1],
+                          PivotDimension("region"; order = :measure, descending = true, limit = 5))
+```
+
 ## Usage
 
 ```julia
@@ -125,4 +149,4 @@ compute_pivot_measure(sales, rows, PivotMeasure("amount", :sum))   # 15.0
 
 The example `pivot` draws the sales of `make_pivot_sales_rows()` by region and country down and by year across: `run_example("pivot")`.
 
-The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`, `test_pivot_cell_views()` and `test_pivot_chart_views()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.
+The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`, `test_pivot_cell_views()`, `test_pivot_chart_views()`, `test_pivot_table_display()` and `test_pivot_assistant_api()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.

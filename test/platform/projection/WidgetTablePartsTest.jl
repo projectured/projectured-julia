@@ -21,12 +21,12 @@ function _wtp_key_event(key, modifiers)
                             KeyPress(character, modifiers; time = 0.0)
 end
 
-function test_widget_table_list_header_floor()
-@testset "a weighted column is at least as wide as its header" begin
+function test_widget_table_list_column_share()
+@testset "a weighted column takes its share of the width, never less than the minimum of the theme" begin
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+        WidgetToGraphics(; measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
     table = WidgetTable(; column_headers = Any["id", "a much longer header"],
@@ -37,13 +37,16 @@ function test_widget_table_list_header_floor()
         print_document(rec, nothing, table, ctx)
     end
     widths(io) = Int[Int(c[]) for c in io.state.cells_pane.content_iomap.col_w]
+    minimum_width = Int(unwrap_cell(get_widget_style(nothing, :table_column_minimum_width)))
     wide = print_at(900)
     @test Int(wide.output.w[]) == 900
-    # The same share on top of each header, less a pixel of rounding.
-    @test abs((widths(wide)[2] - widths(wide)[1]) - 8 * (length("a much longer header") - length("id"))) <= 1
+    # The headers are no floor: the columns take the same share, whatever their headers say.
+    @test abs(widths(wide)[2] - widths(wide)[1]) <= 1
+    @test all(>(minimum_width), widths(wide))
     narrow = print_at(100)
-    @test widths(narrow) == [8 * length("id"), 8 * length("a much longer header")]
+    @test widths(narrow) == [minimum_width, minimum_width]
     @test Int(narrow.output.w[]) == 100
+    # The table is cut at its right edge.
     @test Int(narrow.state.cells_pane.content_iomap.output.w) > 100
 end
 end
@@ -54,7 +57,7 @@ function test_widget_table_list()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
+    WidgetToGraphics(; measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 mods = ModifierKeys()
 alt = ModifierKeys(alt = true)
@@ -193,9 +196,9 @@ end
     box_canvas = found[2][1][3].output
     @test box_canvas isa GraphicsCanvas
     @test Int(box_canvas.w) > 0 && Int(box_canvas.h) > 0
-    # An Alt+press selects the cell.
+    # An Alt+double click selects the cell.
     (x, y) = place(io, 2, 1)
-    op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     @test op.path.head.name == "cells"
     @test row_of(op.path) == 2
@@ -205,14 +208,21 @@ end
     plain = read(io, MouseClick(:left, x + 4, y + 4, mods; time = 0.0))
     @test plain isa ReplaceReferencedValueOperation
     @test plain.document === box
-    # A plain press on a label, which declines it, selects the row.
-    (x2, y2) = place(io, 2, 2)
-    on_text = read(io, MouseClick(:left, x2 + 2, y2 + 2, mods; time = 0.0))
+    # A plain press on the text of a label puts the caret there, and a press on
+    # the padding of the cell, which the label declines, selects the row.
+    (tx, ty, _) = only(t for t in texts(io.output) if t[3] == texts_of(2, 2))
+    on_text = read(io, MouseClick(:left, tx + 2, ty + 2, mods; time = 0.0))
     @test on_text isa ReplaceSelectionOperation
-    @test on_text.path.head.name == "rows"
-    @test row_of(on_text.path) == 2
-    @test on_text.path.tail.tail isa EmptyReference
-    # A press on a header selects its column.
+    @test strip_reference_types(on_text.path) ==
+          concat_references(cell_reference(2, 2), extend_reference(EmptyReference(),
+              FieldReferenceStep("content"), RangeReferenceStep(0, 0)))
+    on_padding = read(io, MouseClick(:left, tx - 1, ty + 2, mods; time = 0.0))
+    @test on_padding isa ReplaceSelectionOperation
+    @test on_padding.path.head.name == "rows"
+    @test row_of(on_padding.path) == 2
+    @test on_padding.path.tail.tail isa EmptyReference
+    # A press on the text of a header selects its column: a header is a control
+    # of its column, and the caret goes into the text of a cell only.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "value")
     column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
     @test column isa ReplaceSelectionOperation
@@ -235,12 +245,12 @@ end
     # row two; a press past the rule under it names row three.
     (x, top) = place(io, 2, 2)
     for y in (top + Int(second.h) - 2, top + Int(second.h) + io.state.pad_y - 1)
-        op = read(io, MouseClick(:left, x + 2, y, alt; time = 0.0))
+        op = read(io, MouseClick(:left, x + 2, y, 2, alt; time = 0.0))
         @test op isa ReplaceSelectionOperation
         @test row_of(op.path) == 2
         @test column_of(op.path) == 2
     end
-    below = read(io, MouseClick(:left, x + 2, top + Int(second.h) + gap + 1, alt; time = 0.0))
+    below = read(io, MouseClick(:left, x + 2, top + Int(second.h) + gap + 1, 2, alt; time = 0.0))
     @test row_of(below.path) == 3
 end
 
@@ -474,6 +484,7 @@ end
     # The selection moves with its row: it names the same row from the new head.
     rebased = only(o for o in op.operations if o isa ReplaceSelectionOperation)
     @test row_of(rebased.path) == 305 - 300
+    built_before = built[]
     apply!(table, op)
     @test table.cells.value[1].content == "row 301"
     @test table.top_row == 1
@@ -481,6 +492,9 @@ end
     @test first(table.shown) == 1 && length(table.shown) > 1
     @test 0 <= Int(table.scroll_position.y[]) < step
     @test label_y(io, "row 305") == before - turn
+    # The new head is a node that the head before linked, so the walk of the kept
+    # prints of the grid reaches the same rows from it, and the move builds none.
+    @test built[] == built_before
     @test built[] < 1000
     # Up past the head as far, the head moves back.
     getfield(table, :scroll_position)[] = Point2D(0, -250 * step - 16 + turn)
@@ -606,12 +620,12 @@ text_x(io, label) = only(t[1] for t in texts(io.output) if t[3] == label)
     @test text_x(io, "r1 c4") - text_x(io, "r1 c3") ==
           8 * length("a longer header") + 2 * io.state.pad_x + io.state.bw
     @test text_x(io, "r1 c3") - text_x(io, "r1 c2") == 60 + 2 * io.state.pad_x + io.state.bw
-    # A press on a header selects its column, and on a cell its row.
+    # A press on a header selects its column, and an Alt+double click on a cell the cell.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
     column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
     @test column.path.head.name == "columns" && column.path.tail.head.start + 1 == 2
     (x, y) = place(io, 2, 4)
-    cell = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
+    cell = read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0))
     @test (row_of(cell.path), column_of(cell.path)) == (2, 4)
     # The band of a selected column: its span in the header row and in a row.
     getfield(table, :selection)[] = column.path
@@ -744,6 +758,8 @@ end
 @testset "a press on a row header selects its row, and a press on the corner the table" begin
     table = make_headed_table(1000)
     io = print_document(rec, nothing, table, context())
+    # On the text of the header and of the corner too: a header and the corner
+    # keep no caret in the text of their label.
     (x, y) = text_at(io, "#2")
     op = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0))
     @test op.path.head.name == "rows" && row_of(op.path) == 2
@@ -770,6 +786,19 @@ end
     @test compute_part_at_point(io, x + 2, y + 2) == corner_reference
 end
 
+@testset "the field of a bar reaches the bar that the pane of the cells draws" begin
+    io = print_document(rec, nothing, make_headed_table(1000), context())
+    bars = io.state.cells_pane.bars
+    @test length(bars) == 2
+    # The image is what the place of the bar holds: the canvas that the bar
+    # prints while it shows, and an empty canvas while it hides.
+    for bar in bars
+        reference = ConcreteReference(FieldReferenceStep(bar.field), EmptyReference())
+        node = evaluate_reference(io.output, map_reference_forward(io.projection, io, reference))
+        @test unwrap_cell(node) === unwrap_cell(bar.place.elements[1])
+    end
+end
+
 @testset "far from the head, the row headers move with the rows" begin
     table = make_headed_table(10_000_000)
     io = print_document(rec, nothing, table, context())
@@ -780,10 +809,17 @@ end
     op = wheel(io, -1)
     moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
     @test any(o -> o.reference.head.name == "row_headers", moved)
+    # The header column links the headers as far as row 305, as a view of them does.
+    @test any(t -> t[3] == "#305", texts(io.output; limit = 400))
+    built = ProjecturedPlatform.CollectionModule._count_computed_links(table.row_headers, :next)
     apply!(table, op)
     @test table.cells.value[1].content == "row 301"
     @test table.row_headers.value.content == "#301"
     @test text_at(io, "#305")[2] == text_at(io, "row 305")[2]
+    # The new head of the row headers is a node of their list that the header
+    # column linked, so its grid reaches the same headers from it, and the move
+    # builds none.
+    @test ProjecturedPlatform.CollectionModule._count_computed_links(table.row_headers, :next) == built - 300
 end
 
 @testset "row headers on a list need Fixed rows, and a corner needs a header row" begin
@@ -846,13 +882,13 @@ end
     @test key isa ReplaceStringRangeOperation
     @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
           [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
-    # A header that declines a press selects its column, and an Alt+press selects
-    # the header itself.
+    # A press on a label in a header, which is no control, selects its column,
+    # and an Alt+double click selects the header itself.
     (x, y) = text_at(io, "name")
     path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("columns"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
-    path = read(io, MouseClick(:left, x + 2, y + 2, ModifierKeys(alt = true); time = 0.0)).path
+    path = read(io, MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(alt = true); time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("column_headers"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
 end
@@ -884,9 +920,13 @@ end
     @test table.columns[1].policy == Fixed(120)
     @test table.column_drag === nothing
     @test text_at(io, "age")[1] == x2
-    # A press on a header away from its edge starts no drag.
+    # A press on the text of a header away from its edge starts no drag of the width:
+    # it starts the drag of a range in the text of the header.
     away = read(io, MouseDown(:left, x1 + 10, y1 + 2; time = 0.4))
-    @test !(away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations))
+    @test away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations)
+    @test !any(op -> op isa ReplaceViewStateOperation, away.operations)
+    apply!(table, away)
+    @test table.column_drag === nothing
 end
 
 @testset "the right edge of a header lights under the pointer, and a rest there says what a drag does" begin
@@ -918,7 +958,7 @@ end
     tooltip = read(io, MouseDwell(edge, y1 + 2; time = 0.0))
     @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
     layers = get_wrapped_operation(tooltip).layers
-    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "Drag to set the width", layers)
+    @test any(layer -> last(layer) isa TooltipNote && last(layer).text == "Drag to set the width.", layers)
 end
 
 @testset "a table whose columns are a list takes the width of a column from its owner" begin
@@ -1011,7 +1051,8 @@ end
     tooltip = read(io, MouseDwell(x + 2, y + 2; time = 0.0))
     @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
     layers = get_wrapped_operation(tooltip).layers
-    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "not a number", layers)
+    @test any(layer -> last(layer) isa TooltipNote && last(layer).text == "not a number" &&
+                           last(layer).tone === :error, layers)
     getfield(table, :open_cells)[] = Any[]
     @test rects_in(io.output, get_theme_defaults(WidgetTheme).destructive) == marks
 end

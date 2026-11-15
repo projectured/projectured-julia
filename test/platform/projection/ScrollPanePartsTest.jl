@@ -69,7 +69,7 @@ end
 _spp_renderer(content) = RecursiveProjection(TypeDispatchingProjection(vcat(
     Pair{Type, Any}[_SppWrapping => _SppWrappingContent()],
     Pair{Type, Any}[ScrollLayout => content],
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 15, 5, 0)).dispatch)))
+    WidgetToGraphics(; measure = FixedMeasure(10, 15, 5, 0)).dispatch)))
 
 # The viewports of a printed pane, in order.
 _spp_viewports(output) =

@@ -16,7 +16,7 @@ function test_tree_render()
         end
         folder = read_filesystem_folder!(make_filesystem_pathname(dir))
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
-        widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20);
+        widgets = RecursiveProjection(WidgetToGraphics(;
                                                        measure = FixedMeasure(8, 12, 4, 0)))
         # The tree scrolls itself in the slot that its parent offers.
         projection_module = ProjecturedKernel.ProjectionModule
@@ -68,7 +68,7 @@ end
         k -> (made[] += 1; widget_module.WidgetTreeNode("", "Run $(k - 1)", Any[])))
     sweep = widget_module.WidgetTreeNode("", "Sweep", runs; has_children = () -> true)
     tree = widget_module.WidgetTree(Any[sweep]; expanded = Set([[1]]))
-    widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)))
+    widgets = RecursiveProjection(WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)))
     projection_module = ProjecturedKernel.ProjectionModule
     offer = projection_module.with_exact_size(projection_module.PrinterContext();
                                               width = ProjecturedKernel.CellModule.Cell(Int32(300)),

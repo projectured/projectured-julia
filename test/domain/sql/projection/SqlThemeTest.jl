@@ -8,9 +8,9 @@ function test_sql_theme()
     document = parse_sql_text("SELECT a FROM t WHERE a = 1")
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     @test SqlColumnReferenceToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), SqlTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), SqlTheme)
     leaf = SqlColumnReferenceToSyntaxLeaf(; style = get_sql_style(theme, :plain_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(SqlTheme(), :plain_text).color)

@@ -21,8 +21,8 @@ end
 
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
-    (0x00, 0x00, 0x00, 0xff), 1, 1.0, C_NULL, 0, 0, false,
-    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), NTuple{4,Int}[])
+    (0x00, 0x00, 0x00, 0xff), 1, 1.0, 1.0, C_NULL, 0, 0, false,
+    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), NTuple{4,Int}[], C_NULL)
 
 function render(window)
     off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
@@ -34,25 +34,153 @@ function render(window)
 end
 
 @testset "the renderer reads the rows in the window" begin
-    # Scrolled up by 5000 pixels, a window of 600 pixels shows rows 501 to 561.
+    # Scrolled up by 5000 pixels, a window of 600 pixels shows rows 501 to 560.
     read = Int[]
     render(GraphicsCanvas(Any[make_rows(read; y = -5000)]; w = 800, h = 600))
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
 end
 
 @testset "the dirty walk reads the same rows" begin
     read = Int[]
     @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[make_rows(read; y = -5000)];
                                                              w = 800, h = 600)) !== nothing
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
+end
+
+@testset "a row that starts exactly on the far edge is not read" begin
+    # A window of 600 pixels ends where row 61 starts, so rows 1 to 60 show.
+    read = Int[]
+    render(GraphicsCanvas(Any[make_rows(read)]; w = 800, h = 600))
+    @test sort(read) == collect(1:60)
+    read = Int[]
+    @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[make_rows(read)]; w = 800, h = 600)) !== nothing
+    @test sort(read) == collect(1:60)
 end
 
 @testset "a viewport clips at its own edges" begin
-    # 100 pixels from y = 100 show rows 501 to 511.
+    # 100 pixels from y = 100 show rows 501 to 510.
     read = Int[]
     viewport = GraphicsViewport(0, 100, 100, 100, make_rows(read; y = -5000))
     render(GraphicsCanvas(Any[viewport]; w = 800, h = 600))
-    @test sort(read) == collect(501:511)
+    @test sort(read) == collect(501:510)
+end
+
+@testset "a viewport cut by the window reads the rows of the part that shows" begin
+    # The viewport spans y = -100 to 100 and the window starts at 0, so the upper
+    # half lies above the window and shows the rows from y = 100 to 200.
+    read = Int[]
+    window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 100, 200, make_rows(read))]; w = 800, h = 600)
+    render(window)
+    @test sort(read) == collect(11:20)
+    # A walk on a fresh print reads the same rows.
+    read = Int[]
+    window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 100, 200, make_rows(read))]; w = 800, h = 600)
+    @test SDL._compute_dirty_rect(make_res(), window) !== nothing
+    @test sort(read) == collect(11:20)
+end
+
+@testset "a viewport that the window shows none of reads no row and keeps its box" begin
+    read = Int[]
+    window = GraphicsCanvas(Any[GraphicsViewport(0, -300, 100, 200, make_rows(read))]; w = 800, h = 600)
+    render(window)
+    @test isempty(read)
+    res = make_res()
+    SDL._compute_dirty_rect(res, window)
+    @test isempty(read)
+    @test (0, -300, 100, -100) in values(res.dirty_bounds)
+end
+
+@testset "a viewport that goes from shown to cut forgets only the rows it recorded" begin
+    # The viewport spans y = -100 to 100, so its records hold rows 11 to 20 and not
+    # the rows 1 to 10 of the hidden half. Then it moves out of the window.
+    read = Int[]
+    top = Cell(-100)
+    window = GraphicsCanvas(Any[GraphicsViewport(0, () -> top[], 100, 200, make_rows(read))]; w = 800, h = 600)
+    res = make_res()
+    SDL._compute_dirty_rect(res, window)
+    @test sort(read) == collect(11:20)
+    top[] = -400
+    SDL._compute_dirty_rect(res, window)
+    @test sort(read) == collect(11:20)
+    # Back in the window, the content is recorded again and reads the rows that show.
+    top[] = -100
+    SDL._compute_dirty_rect(res, window)
+    @test sort(read) == collect(11:20)
+end
+
+# The bytes of the surface of `off`.
+function read_pixels(off)
+    surface = unsafe_load(off.surface)
+    copy(unsafe_wrap(Array, Ptr{UInt8}(surface.pixels), Int(surface.pitch) * Int(surface.h)))
+end
+
+# Paint `canvas` by the rectangles of the dirty walk into one renderer, and in full
+# into another, once before the changes and once after each of them. Answer the
+# frames whose pixels differ.
+function find_differing_frames(canvas, changes; on_first_frame = () -> nothing)
+    partial = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    full = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    differing = Int[]
+    try
+        state = SDL.make_offscreen_paint_state(partial)
+        for (frame, change!) in enumerate(Any[() -> nothing; changes])
+            change!()
+            SDL.render_offscreen_changes!(partial, state, canvas; background)
+            frame == 1 && on_first_frame()
+            SDL._render_canvas_offscreen!(full, canvas, 400, 300, background)
+            read_pixels(partial) == read_pixels(full) || push!(differing, frame)
+        end
+    finally
+        SDL.close_offscreen_renderer(partial)
+        SDL.close_offscreen_renderer(full)
+    end
+    differing
+end
+
+# Rows of three colours along the vertical axis, 100 of them, whose reads go to `read`.
+function make_colored_rows(read::Vector{Int}, scroll::Cell)
+    colors = [(0.9, 0.2, 0.2, 1.0), (0.2, 0.9, 0.2, 1.0), (0.2, 0.2, 0.9, 1.0)]
+    rows = CellVector(Cell[Cell(GraphicsCanvas(
+               CellVector(Computation(() -> (push!(read, k);
+                   Any[GraphicsRect(0, 0, 100, row_height; color = StyleColor(colors[mod1(k, 3)]...))])));
+               y = (k - 1) * row_height, w = 100, h = row_height)) for k in 1:100])
+    GraphicsCanvas(rows; y = () -> -scroll[], w = 100, h = 100 * row_height,
+                   layout = layout_vertical, overlapping = false)
+end
+
+@testset "an outer scroll brings a cut inner viewport further on the screen" begin
+    # The outer pane spans y = 20 to 220. Its content holds a pane of 80 pixels at
+    # y = 180 of the content, so the outer pane shows 20 pixels of it until it scrolls.
+    outer_scroll, inner_scroll = Cell(0), Cell(0)
+    read = Int[]
+    inner = GraphicsViewport(0, 180, 100, 80, make_colored_rows(read, inner_scroll))
+    outer = GraphicsViewport(20, 20, 300, 200,
+                             GraphicsCanvas(Any[inner]; y = () -> -outer_scroll[]))
+    canvas = GraphicsCanvas(Any[outer]; w = 400, h = 300)
+    differing = find_differing_frames(canvas,
+        [() -> (outer_scroll[] = 16), () -> (outer_scroll[] = 85), () -> (inner_scroll[] = 27),
+         () -> (outer_scroll[] = 62), () -> (outer_scroll[] = 0)];
+        on_first_frame = () -> @test sort(unique(read)) == [1, 2])
+    @test isempty(differing)
+end
+
+@testset "a viewport with a scale reads the rows of the part that shows" begin
+    # A scale of 2 at y = -100: the box spans y = -100 to 300 of the window, and
+    # the window starts at 0, so the content shows from its y = 50 to 150.
+    transform = make_affine_scale(2)
+    read = Int[]
+    window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 400, make_rows(read); transform)]; w = 800, h = 600)
+    render(window)
+    @test sort(read) == collect(6:20)
+    read = Int[]
+    window = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 400, make_rows(read); transform)]; w = 800, h = 600)
+    SDL._compute_dirty_rect(make_res(), window)
+    @test sort(read) == collect(6:20)
+    # A scroll of the content gives the pixels of a full paint.
+    scroll = Cell(0)
+    canvas = GraphicsCanvas(Any[GraphicsViewport(0, -100, 200, 200, make_colored_rows(Int[], scroll); transform)];
+                            w = 400, h = 300)
+    @test isempty(find_differing_frames(canvas, [() -> (scroll[] = 10), () -> (scroll[] = 33), () -> (scroll[] = 0)]))
 end
 
 @testset "a size query reads no row, and a dirty unit the rows in the window" begin
@@ -68,8 +196,114 @@ end
                               y = -5000, w = 100, h = 10000,
                               layout = layout_vertical, overlapping = false)
     @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[computed]; w = 800, h = 600)) !== nothing
-    @test sort(read) == collect(501:561)
+    @test sort(read) == collect(501:560)
 end
 
+# A canvas with no layout, in a viewport of 100 by 100 pixels at (20, 20), holds two
+# images of 100 by 100: image 1 at the top of the content and image 2 below it, at
+# y = 100, which lies at the far edge of the viewport. The pixels of an image are a
+# cell that pushes its number to `read` when it computes. The pixels of image 2
+# follow `shade`. The content scrolls by `scroll`.
+function make_two_images(read::Vector{Int}, shade::Cell, scroll::Cell)
+    pixels(c) = repeat(UInt8[c, 255 - c, 128, 255], 100 * 100)
+    first_image = GraphicsImage(0, 0, 100, 100, Cell(Computation(() -> (push!(read, 1); pixels(0x40)))))
+    second_image = GraphicsImage(0, 100, 100, 100,
+                                 Cell(Computation(() -> (push!(read, 2); pixels(shade[])))))
+    content = GraphicsCanvas(Any[first_image, second_image]; y = () -> -scroll[], w = 100, h = 200)
+    GraphicsCanvas(Any[GraphicsViewport(20, 20, 100, 100, content)]; w = 400, h = 300)
+end
+
+# The colour of the pixel `(x, y)` of the surface of `off`.
+function read_pixel(off, x::Int, y::Int)
+    surface = unsafe_load(off.surface)
+    pixels = unsafe_wrap(Array, Ptr{UInt8}(surface.pixels), Int(surface.pitch) * Int(surface.h))
+    offset = y * Int(surface.pitch) + 4x
+    pixels[offset + 1:offset + 4]
+end
+
+@testset "an image below the edge of a viewport reads its box and no pixel" begin
+    shade, scroll = Cell(0x80), Cell(0)
+    read = Int[]
+    render(make_two_images(read, shade, scroll))
+    @test read == [1]
+    read = Int[]
+    @test SDL._compute_dirty_rect(make_res(), make_two_images(read, shade, scroll)) !== nothing
+    @test read == [1]
+    read = Int[]
+    window = make_two_images(read, shade, scroll)
+    SDL._read_guard!(make_res(), window, UInt(0), 0, 0, SDL._ClipEdges(0, 0, 400, 300))
+    @test read == [1]
+
+    # A scroll of 50 pixels copies the pixels of the viewport. Image 2 comes into
+    # view in the strip below and is read in that frame; image 1 keeps its pixels.
+    read = Int[]
+    window = make_two_images(read, shade, scroll)
+    partial = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    full = SDL.open_offscreen_renderer(400, 300; supersample = 1)
+    try
+        state = SDL.make_offscreen_paint_state(partial)
+        function paint_frame()
+            rects = SDL.render_offscreen_changes!(partial, state, window; background)
+            SDL._render_canvas_offscreen!(full, window, 400, 300, background)
+            @test read_pixels(partial) == read_pixels(full)
+            rects
+        end
+        paint_frame()
+        @test read == [1]
+        before = read_pixel(full, 40, 100)
+        empty!(read)
+        scroll[] = 50
+        paint_frame()
+        @test !isempty(state.last_copies)
+        @test read == [2]
+        shown = read_pixel(full, 40, 100)
+        @test shown != before
+        # The pixels of image 2 change in the frame after.
+        empty!(read)
+        shade[] = 0xc0
+        paint_frame()
+        @test read == [2]
+        @test read_pixel(full, 40, 100) != shown
+        # A frame with no change paints nothing and reads nothing.
+        empty!(read)
+        @test isempty(paint_frame())
+        @test isempty(read)
+    finally
+        SDL.close_offscreen_renderer(partial)
+        SDL.close_offscreen_renderer(full)
+    end
+end
+
+
+# An endless list of rows: each `next` is computed when a reader reads it. A read
+# past 10000 nodes throws, so a walk that does not stop fails the test and does
+# not hang it.
+function make_endless_list(read::Ref{Int}, k::Int = 1)
+    node = ListNode(GraphicsRect(0, (k - 1) * row_height, 100, row_height))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        read[] += 1
+        read[] > 10_000 && error("an endless list was walked past 10000 nodes")
+        make_endless_list(read, k + 1)
+    end)
+    node
+end
+
+@testset "a list in a canvas with no layout is refused, and never walked" begin
+    read = Ref(0)
+    head = make_endless_list(read)
+    @test_throws ArgumentError GraphicsCanvas(head)
+    # A cell can give the list after the canvas is made, which no constructor sees.
+    unbounded = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                               Cell(head), layout_none, true, Cell(nothing))
+    window = GraphicsCanvas(Any[unbounded]; w = 800, h = 600)
+    @test SDL._compute_dirty_rect(make_res(), window) === nothing
+    @test_throws ArgumentError render(window)
+    @test_throws ArgumentError hit_element_at(unbounded, 5, 5)
+    @test read[] == 0
+    # The same list with a layout and no overlap draws the rows in the window.
+    bounded = GraphicsCanvas(head; layout = layout_vertical, overlapping = false)
+    render(GraphicsCanvas(Any[bounded]; w = 800, h = 600))
+    @test 59 <= read[] <= 61
+end
 end
 end

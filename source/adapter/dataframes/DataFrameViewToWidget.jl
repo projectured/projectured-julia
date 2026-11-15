@@ -8,7 +8,7 @@
 # where the top row is in the frame.
 
 """
-    DataFrameViewToWidget(; row_height = 0, row_step = 0, query_field_width, …)
+    DataFrameViewToWidget(; row_height = 0, row_step = 0, header_field_minimum_width, …)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts and
 draws the vertical `WidgetScrollBar` of the view over the right edge of its rows,
@@ -54,22 +54,25 @@ of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
 
 The projection holds its styles and no theme; `make_data_frame_view_projection`
-fills them from the `DataFrameTheme` of its appearance, and with none it holds
-the default styles: the width of a field of the filter row and of the expression bar, the
-gaps of their parts, the color of a query that does not parse and of the
-glyph of a column that does not sort, and `list_column_width`. The table
+fills them from the `WidgetTheme` and the `DataFrameTheme` of its appearance, and
+with none it holds the default styles: the width of a field of the filter row and
+of the expression bar, the gaps of the header and of the bar, the color of a text
+that does not parse and of the glyph of a column that does not sort, the font and
+the colour of the header of a column, and `list_column_width`. The table
 draws the bar at the thickness of its widget theme.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int = 0
     row_step::Int = 0
-    query_field_width::Int = get_data_frame_style(nothing, :query_field_width)
+    header_field_minimum_width::Int = get_widget_style(nothing, :header_field_minimum_width)
     expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
     find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
-    filter_gap::Int = get_data_frame_style(nothing, :filter_gap)
-    expression_gap::Int = get_data_frame_style(nothing, :expression_gap)
-    invalid_query::StyleColor = get_data_frame_style(nothing, :invalid_query)
-    unsorted_glyph::StyleColor = get_data_frame_style(nothing, :unsorted_glyph)
+    header_gap::Int = get_widget_style(nothing, :header_gap)
+    item_gap::Int = get_widget_style(nothing, :item_gap)
+    invalid_filter::StyleColor = get_widget_style(nothing, :invalid_filter)
+    unsorted_glyph::StyleColor = get_widget_style(nothing, :unsorted_glyph)
+    header_font::StyleFont = get_widget_style(nothing, :column_font)
+    header_color::StyleColor = get_widget_style(nothing, :muted_foreground)
     list_column_width::Int = get_data_frame_style(nothing, :list_column_width)
 end
 
@@ -91,11 +94,13 @@ const _COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 const _LIST_COLUMN_COUNT = 64
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
-    height = ctx === nothing ? nothing : get_exact_height(ctx)
-    # The rows that the table shows: the height less the expression bar and the
-    # header row, which holds the filter row too, about four rows.
+    height = get_visible_height(ctx)
+    # The rows that the table shows: the height less the space that the slot gives
+    # at the top and at the bottom, less the expression bar and the header row,
+    # which holds the filter row too, about four rows.
+    space_height = ctx === nothing ? 0 : ctx.space[2] + ctx.space[4]
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
-                                max(1, Int(height[]) ÷ p.row_step - 4))
+                                max(1, (Int(height[]) - space_height) ÷ p.row_step - 4))
     count = Cell(@computation length(view.kept_rows))
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection.
@@ -112,9 +117,14 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     # table that is drawn, and the table builds its parts again.
     table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view, bar) :
                                                     _make_view_table(p, view, bar)
-    # The expression bar over the table.
+    # The expression bar over the table. The table fills the height of the view.
+    # A view that gets only a maximum of the height, such as a part of a scroll
+    # area under a limit, has no height to fill: the table takes the height of its
+    # rows, at most the maximum, and the `Content` row gives the table that edge.
     expression = _make_expression_bar(p, view)
-    grid = GridLayout(Any[expression, table], 1; column_policies = Any[Fill], row_policies = Any[Content, Fill])
+    is_edge = ctx !== nothing && get_exact_height(ctx) === nothing && ctx.maximum_height !== nothing
+    grid = GridLayout(Any[expression, table], 1; column_policies = Any[Fill],
+                      row_policies = Any[Content, is_edge ? Content : Fill])
     # The grid gives a key to the expression bar or to the table, by their
     # selection.
     set_cell_computation!(getfield(grid, :selection), () -> begin
@@ -131,9 +141,9 @@ end
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::WidgetScrollBar)
     headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
-    made = _MadeRows()
+    made, list = _MadeRows(), _MadeList()
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
-                                            nothing, made))
+                                            nothing, made, list))
     row_headers, corner = _make_row_numbers(p, view)
     # The data of the shown columns. A column that a person gave a width has it,
     # and the others share the rest.
@@ -201,14 +211,25 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
 
 # The header of each kept row, its row number in the frame, as a list that moves
 # in step with the rows, and the corner of the filter row. A frame with no rows
-# has neither. `p` carries the style of the data frame theme.
+# has neither. `p` carries the styles of the projection.
 function _make_row_numbers(p, view::DataFrameView)
-    headers = Cell(@computation (kept = view.kept_rows;
-                                 isempty(kept) ? CellVector() :
-                                     make_index_list(length(kept), view.anchor,
-                                                      k -> WidgetLabel(string(kept[k])))))
+    list = _MadeList()
+    headers = Cell(@computation _make_row_header_list(view.kept_rows, view.anchor, list))
     corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(p, view))
     (headers, corner)
+end
+
+# The header of each of the `kept` rows, its row number in the frame, as a list
+# with its head at the place `anchor`, or an empty vector for no rows. When only
+# the anchor is new, the head moves inside the list that `list` keeps, as the
+# head of the rows does (`_make_row_list`).
+function _make_row_header_list(kept::Vector{Int}, anchor::Int, list::_MadeList)
+    place = clamp(anchor, 1, max(1, length(kept)))
+    moved = _find_moved_list_head!(list, nothing, kept, place)
+    moved === nothing || return moved
+    headers = isempty(kept) ? CellVector() :
+        make_index_list(length(kept), place, k -> WidgetLabel(string(kept[k])))
+    _keep_made_list!(list, nothing, kept, place, headers)
 end
 
 # The table of a frame whose columns are a list: the headers, the data of the
@@ -219,9 +240,9 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, 
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
         make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
-    made = _MadeRows()
+    made, list = _MadeRows(), _MadeList()
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
-                                            view.column_anchor, made))
+                                            view.column_anchor, made, list))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
     column_of = _make_column_documents(view, nothing)
@@ -253,7 +274,7 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
     found = _find_query_text_selection(view)
     if found !== nothing
         found[1] === :expression && return nothing
-        field = _make_field_child_reference(_make_content_range_reference(found[2]))
+        field = make_field_child_reference(_make_content_range_reference(found[2]))
         found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
     end
@@ -325,8 +346,9 @@ end
 # the top as it scrolls, and a sort can put a row anywhere among the kept rows.
 const _ROW_SEARCH_REACH = 10_000
 
-# The place of the kept row at the head of the list of rows.
-_get_head_place(view::DataFrameView) = clamp(view.anchor, 1, max(1, length(view.kept_rows)))
+# The place of the kept row at the head of the list of rows, for the anchor
+# `anchor` of the view.
+_get_head_place(view::DataFrameView, anchor::Int = view.anchor) = clamp(anchor, 1, max(1, length(view.kept_rows)))
 
 # The place in the table of row `r` of the frame, counted from the head of the
 # list, or `nothing` when no kept row near the head is `r`.
@@ -341,9 +363,9 @@ function _find_table_row(view::DataFrameView, r::Int)
 end
 
 # The row of the frame of row `k` of the table, counted from the head of the
-# list, or `nothing` past the kept rows.
-function _find_frame_row(view::DataFrameView, k::Int)
-    p = _get_head_place(view) + k - 1
+# list at the place `head` among the kept rows, or `nothing` past the kept rows.
+function _find_frame_row(view::DataFrameView, k::Int, head::Int = _get_head_place(view))
+    p = head + k - 1
     1 <= p <= length(view.kept_rows) ? view.kept_rows[p] : nothing
 end
 
@@ -358,7 +380,8 @@ of `appearance`. The height of a row is a line of the font of that theme, and
 its step adds the padding of a cell of the theme and a rule, and the scroll bar
 of the table takes the thickness of that theme; all three read the scaled
 theme at each print, with no edge, as a style field of a widget does. The filter
-row and the expression bar draw with the scaled `DataFrameTheme` of `appearance`.
+row and the gaps of the expression bar draw with the scaled `WidgetTheme` and the
+width of its fields with the scaled `DataFrameTheme` of `appearance`.
 """
 function make_data_frame_view_projection(; measure::TextMeasure,
                                          appearance::Appearance = Appearance())
@@ -371,12 +394,14 @@ function make_data_frame_view_projection(; measure::TextMeasure,
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
     get_style(name) = get_data_frame_style(frame_theme, name)
     view = DataFrameViewToWidget(; row_height, row_step,
-                                 query_field_width = get_style(:query_field_width),
+                                 header_field_minimum_width = get_widget_style(theme, :header_field_minimum_width),
                                  expression_field_width = get_style(:expression_field_width),
                                  find_field_width = get_style(:find_field_width),
-                                 filter_gap = get_style(:filter_gap), expression_gap = get_style(:expression_gap),
-                                 invalid_query = get_style(:invalid_query),
-                                 unsorted_glyph = get_style(:unsorted_glyph),
+                                 header_gap = get_widget_style(theme, :header_gap), item_gap = get_widget_style(theme, :item_gap),
+                                 invalid_filter = get_widget_style(theme, :invalid_filter),
+                                 unsorted_glyph = get_widget_style(theme, :unsorted_glyph),
+                                 header_font = get_widget_style(theme, :column_font),
+                                 header_color = get_widget_style(theme, :muted_foreground),
                                  list_column_width = get_style(:list_column_width))
     ChainingProjection(view, grid)
 end
@@ -447,14 +472,21 @@ read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
 # a cell their place in the frame, and the corner or the whole table the view. A
 # caret in a cell that is not open opens it first: the selection goes into the
 # document of its new entry, so its path is typed when the entry is there.
-function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-                     operation::ReplaceSelectionOperation)
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation) =
+    _read_table_selection(iomap, operation, _get_head_place(iomap.input))
+
+# A selection of the table in the view, with the rows of the table counted from
+# the head at the place `head` among the kept rows; `nothing` for a place that
+# has no place in the view. Each selection of the table comes here, alone and as
+# a part of a compound.
+function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation,
+                               head::Int)
     expression = _find_expression_path(operation.path)
     expression === nothing ||
         return ReplaceSelectionOperation(annotate_reference_types(iomap.input, expression))
     path = _find_table_path(operation.path)
     path === nothing && return nothing
-    target = _find_view_path(iomap, path)
+    target = _find_view_path(iomap, path, head)
     target === nothing && return nothing
     view = iomap.input
     target = _find_whole_read_only_cell(view, target)
@@ -517,28 +549,35 @@ function _make_open_cell_operation(view::DataFrameView, path)
     ReplaceViewStateOperation(OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing)))
 end
 
-# `path`, a path of the view, or the whole cell when it goes into a cell of a
-# column that takes no write: such a cell shows its value as any other does, and
+# `path`, a path of the view, or the whole cell when it goes into a cell that
+# takes no key: a cell of a column that takes no write, which shows its value as
+# any other does, and a cell that shows its value as a label
+# (`make_data_frame_cell`), whose text has no place in the frame. Such a cell
 # takes no caret and no key.
 function _find_whole_read_only_cell(view::DataFrameView, path)
     found = _find_cell_tail(path)
     found === nothing && return path
     r, c, _ = found
     frame = view.frame
-    (1 <= c <= ncol(frame) && !_is_writable_column(frame[!, c])) || return path
-    _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+    (1 <= r <= nrow(frame) && 1 <= c <= ncol(frame)) || return path
+    column = frame[!, c]
+    takes_keys = _is_writable_column(column) && !_is_shown_as_label(column[r], eltype(column))
+    takes_keys ? path :
+        _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
 # selection there does (`_find_view_path`): the header of a column to the column,
-# a field of the query to its text, and the corner to the view. So a right click on
-# the header of a column reads the gesture table of the column. Any other place is
-# a part that the view introduced, as the default map of the kernel says.
+# a field of the query to its text, the corner to the view, and a place in a cell
+# that takes no key to the whole cell (`_find_whole_read_only_cell`). So a right
+# click on the header of a column reads the gesture table of the column. Any other
+# place is a part that the view introduced, as the default map of the kernel says.
 function map_reference_backward(p::DataFrameViewToWidget,
                                 iomap::DataFrameViewToWidgetIoMap, reference)
     path = reference isa Reference ? _find_table_path(reference) : nothing
     target = path === nothing ? nothing : _find_view_path(iomap, path)
-    target === nothing || return annotate_reference_types(iomap.input, target)
+    target === nothing ||
+        return annotate_reference_types(iomap.input, _find_whole_read_only_cell(iomap.input, target))
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
@@ -563,8 +602,9 @@ end
 # rest of its corner, `columns[c]` of the frame for a column and for its header,
 # `rows[r]` for a row and for its header, which hold no state of their own in the
 # view, `rows[r][c]` for a cell with the rest of the path in it, and `nothing`
-# for any other place.
-function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+# for any other place. The rows of the table count from the head at the place
+# `head` among the kept rows.
+function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _get_head_place(iomap.input))
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
     view = iomap.input
@@ -579,7 +619,7 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
         return _find_frame_column_path(iomap, tail.head.stop, EmptyReference())
     end
     name in ("rows", "cells", "row_headers") || return nothing
-    r = _find_frame_row(view, tail.head.stop)
+    r = _find_frame_row(view, tail.head.stop, head)
     r === nothing && return nothing
     rest = tail.tail
     rest isa EmptyReference && name != "cells" && return _make_element_reference("rows", r, rest)
@@ -647,7 +687,8 @@ end
 # A scroll of the table writes the cell that the view shares with it, and
 # every other operation of the widgets carries its own subject: both pass on.
 # A table that moves the head of its rows far from the anchor writes its
-# `cells`; the view moves its anchor instead, and builds a new list from it. A
+# `cells`; the view moves its anchor instead, and the head of its list moves to
+# the node at the new anchor, which the table walked to. A
 # table that moves its head column writes its `column_headers`, its `columns`
 # and its `cells`; the view moves its column anchor instead, and builds the
 # three lists again from it. A write of the value of the scroll bar
@@ -667,30 +708,52 @@ function _find_written_field(document, operation)
 end
 
 # `operation` with the writes of the lists of the table turned into writes of
-# the anchors of the view.
+# the anchors of the view. A part of a compound counts the rows of the table from
+# the head that the parts before it leave: after a write of `cells`, from the
+# anchor that the write moves the view to, as the table counts them.
 function _convert_table_writes(iomap::DataFrameViewToWidgetIoMap, operation)
-    operation isa CompoundOperation || return _convert_table_write(iomap, operation, false)
+    head = _get_head_place(iomap.input)
+    operation isa CompoundOperation || return _convert_table_write(iomap, operation, false, head)
     columns = any(o -> something(_find_written_field(iomap.table, o), ("",))[1] == "column_headers",
                   operation.operations)
-    CompoundOperation(Any[o for o in (_convert_table_write(iomap, o, columns) for o in operation.operations)
-                          if o !== nothing])
+    converted = Any[]
+    for part in operation.operations
+        written = _convert_table_write(iomap, part, columns, head)
+        written === nothing || push!(converted, written)
+        anchor = columns ? nothing : _find_written_anchor(iomap, part)
+        anchor === nothing || (head = _get_head_place(iomap.input, anchor))
+    end
+    CompoundOperation(converted)
+end
+
+# The anchor that `operation`, a write of `cells` of the table, moves the view
+# to, or `nothing` for any other operation.
+function _find_written_anchor(iomap::DataFrameViewToWidgetIoMap, operation)
+    written = _find_written_field(iomap.table, operation)
+    (written === nothing || written[1] != "cells") && return nothing
+    k = find_list_index(iomap.table.cells, written[2])
+    k === nothing ? nothing : iomap.input.anchor + k - 1
 end
 
 # One write of a compound: the value of the scroll bar to a jump, `cells` to an
 # anchor, `column_headers` to a column anchor, and, when the compound moves the
 # columns, no write of `cells` or of `columns`, which the view builds again from
-# its anchors. The width of a
+# its anchors. A selection goes to its place in the view, or to no operation, as
+# a selection alone does, with the rows of the table counted from the head at
+# the place `head`; so a press on a cell that is not open opens it first. The
+# width of a
 # column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table. The drag of the
 # thumb of the bar of the view comes back to the view the same way.
-function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
+function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool, head::Int)
     bar = _find_written_field(iomap.bar, operation)
     if bar !== nothing && bar[1] == "value"
         count = length(iomap.input.kept_rows)
         return jump_to_row(iomap.input, compute_scroll_bar_top_row(bar[2], count, Int(iomap.visible)))
     end
-    cell = _convert_cell_operation(iomap, operation)
+    operation isa ReplaceSelectionOperation && return _read_table_selection(iomap, operation, head)
+    cell = _convert_cell_operation(iomap, operation, head)
     cell === nothing || return cell
     operation isa DropTableCellOperation && operation.table === iomap.table &&
         return _convert_cell_drop(iomap, operation)
@@ -713,36 +776,37 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
             view, "column_anchor", view.column_anchor + c - 1))
     end
     columns && field in ("cells", "columns") && return nothing
-    # The row headers move in step with the rows, and the view builds both
-    # again from its anchor.
+    # The row headers move in step with the rows, and the view moves the head
+    # of both from its anchor.
     field == "row_headers" && return nothing
     field == "cells" || return operation
-    k = find_list_index(iomap.table.cells, value)
-    k === nothing && return nothing
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
+    anchor = _find_written_anchor(iomap, operation)
+    anchor === nothing ? nothing : ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", anchor))
 end
 
-# An operation of the document in an open cell, in the paths of the view: a key
-# that edits its text, the write of the whole cell that replaces its document,
-# such as a number that becomes a type-in, and the selection that goes with it.
-# The paths go from `cells[k][j]…` of the table to `rows[r][c]…` of the view,
-# which reach the document of the entry. `nothing` for any other operation.
-function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
+# An operation of the document of a cell, in the paths of the view: a key that
+# edits its text, the write of the whole cell that replaces its document, such as
+# a number that becomes a type-in, and the start of a drag of its text. The paths
+# go from `cells[k][j]…` of the table, with `k` counted from the head at the place
+# `head` among the kept rows, to `rows[r][c]…` of the view, which reach the
+# document of the entry. `nothing` for any other operation.
+function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation,
+                                 head::Int = _get_head_place(iomap.input))
     if operation isa ReplaceRangeOperation
-        target = _find_cell_view_path(iomap, operation_reference(operation))
+        target = _find_cell_view_path(iomap, operation_reference(operation), head)
         return target === nothing ? nothing : retarget_operation(operation, target)
     elseif operation isa ReplaceReferencedValueOperation && operation.document === nothing
         # A key of a whole cell that is not open, such as Space on a Bool, opens
         # the cell first, so the write goes into the document of its entry.
-        target = _find_cell_view_path(iomap, operation.reference)
+        target = _find_cell_view_path(iomap, operation.reference, head)
         target === nothing && return nothing
         _find_whole_read_only_cell(iomap.input, target) === target || return nothing
         write = ReplaceReferencedValueOperation(nothing, target, operation.value)
         open = _make_open_cell_operation(iomap.input, target)
         return open === nothing ? write : _make_cell_step(Any[open, write], true)
-    elseif operation isa ReplaceSelectionOperation
-        target = _find_cell_view_path(iomap, operation.path)
-        return target === nothing ? nothing : ReplaceSelectionOperation(target)
+    elseif operation isa StartDragOperation
+        target = _find_cell_view_path(iomap, get_operation_path(operation), head)
+        return target === nothing ? nothing : make_path_operation(operation, target)
     end
     nothing
 end
@@ -790,16 +854,17 @@ function _find_frame_cell(view::DataFrameView, path)
 end
 
 # The path of the view of `path`, a path of the output of the view, when it
-# reaches a cell of the table, `cells[k][j]` with or without a rest; `nothing`
-# for any other path.
-function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+# reaches a cell of the table, `cells[k][j]` with or without a rest, with `k`
+# counted from the head at the place `head` among the kept rows; `nothing` for
+# any other path.
+function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _get_head_place(iomap.input))
     path isa Reference || return nothing
     table_path = _find_table_path(path)
     (table_path isa ConcreteReference && table_path.head == FieldReferenceStep("cells")) || return nothing
     tail = table_path.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep &&
      tail.tail isa ConcreteReference && tail.tail.head isa RangeReferenceStep) || return nothing
-    _find_view_path(iomap, table_path)
+    _find_view_path(iomap, table_path, head)
 end
 
 # The parts of the drag of the edge of a column come to the view by its path, and

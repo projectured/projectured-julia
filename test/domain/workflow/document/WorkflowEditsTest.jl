@@ -4,6 +4,15 @@ mutable struct _WorkflowTestEditor
     document::Any
 end
 
+# The conversation of a test window is the group with a tab of this title.
+const _WORKFLOW_CONVERSATION_TITLE = "Test conversation"
+
+function ProjecturedPlatform.PaneModule.pane_group_to_avoid(tree::PaneTree)
+    index = findfirst(group -> any(tab -> tab.title.name.value == _WORKFLOW_CONVERSATION_TITLE, group.tabs),
+                      get_pane_groups(tree))
+    index === nothing ? nothing : get_pane_groups(tree)[index]
+end
+
 const _WORKFLOW_TEST_TIME = "2026-10-09T15:00:00"
 
 """
@@ -72,14 +81,14 @@ function test_workflow_edits()
             @test [child isa WorkflowStep ? child.title.value : "?" for child in step.children] == ["b", "?"]
         end
 
-        @testset "a card is added and removed" begin
+        @testset "an element is added and removed" begin
             step = WorkflowStep()
-            card = WorkflowCard(title = PrimitiveString("Notes"), content = PrimitiveString("text"))
-            evaluate_operation(nothing, make_add_workflow_card_operation(step, card))
-            @test length(step.cards) == 1
-            @test step.cards[1] === card
-            evaluate_operation(nothing, make_delete_workflow_card_operation(step, 1))
-            @test length(step.cards) == 0
+            element = PrimitiveString("text")
+            evaluate_operation(nothing, make_add_element_operation(step, element))
+            @test length(step.elements) == 1
+            @test step.elements[1] === element
+            evaluate_operation(nothing, make_remove_element_operation(step, 1))
+            @test length(step.elements) == 0
         end
 
         @testset "a decision with a chosen option records the choice" begin
@@ -156,12 +165,53 @@ function test_workflow_edits()
             @test step.title.value == "Write the view"
             change_workflow_state!(step, :active; editor)
             @test step.state === :active
-            add_workflow_entry!(step, "The view embeds a card through the renderer."; editor)
+            add_workflow_entry!(step, "The view embeds an element through the renderer."; editor)
             @test step.journal[end].kind === :comment
             @test step.journal[end].author === :assistant
-            add_workflow_card!(step, PrimitiveString("a note"); title = "Note", editor)
-            @test step.cards[end].title.value == "Note"
-            @test step.cards[end].content.value == "a note"
+            add_element!(step, PrimitiveString("a note"); editor)
+            @test step.elements[end].value == "a note"
+        end
+
+        @testset "a workflow that the assistant starts opens with its steps and joins the explorer" begin
+            editor = Editor(PaneTree(PaneGroup(PaneTab[PaneTab("start", PrimitiveString("x"))])),
+                            NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            plan = run_with_evaluation_editor(editor) do
+                start_workflow!("A study of the Aloha sample"; steps = ["Read the model", "Run the sweep"])
+            end
+            root = get_document(plan)
+            @test root isa WorkflowStep && root.state === :active
+            @test root.title.value == "A study of the Aloha sample"
+            @test [child.title.value for child in root.children] == ["Read the model", "Run the sweep"]
+            @test all(child -> child.state === :open, root.children)
+            entries = get_session_explorer_content(; editor).entries
+            @test any(entry -> get_document(entry) === root, entries)
+            @test find_pane("A study of the Aloha sample"; editor) !== nothing
+            @test any(entry -> entry.module_ === WorkflowModule &&
+                      :start_workflow! in ProjecturedKernel.ToolModule.get_api_entry_names(entry),
+                      ProjecturedKernel.ToolModule.collect_marked_api())
+        end
+
+        @testset "a workflow opens above the conversation, and a second joins it" begin
+            conversation = PaneGroup(PaneTab[PaneTab(_WORKFLOW_CONVERSATION_TITLE, PrimitiveString("talk"))])
+            files = PaneGroup(PaneTab[PaneTab("files", PrimitiveString("f"))])
+            tree = PaneTree(PaneSplit(:vertical, Any[files, conversation]; weights = [0.5, 0.5]))
+            editor = Editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            run_with_evaluation_editor(editor) do
+                start_workflow!("First plan"; steps = ["a"])
+            end
+            column = tree.root.elements[2]
+            @test column isa PaneSplit && column.orientation === :horizontal
+            @test column.elements[2] === conversation
+            @test column.elements[1].tabs[1].content isa WorkflowStep
+            @test get_pane_normalized_weights(get_pane_weights(column)) ≈ [1 / 3, 2 / 3]
+            run_with_evaluation_editor(editor) do
+                start_workflow!("Second plan")
+            end
+            column = tree.root.elements[2]
+            @test length(column.elements) == 2 && column.elements[2] === conversation
+            @test length(column.elements[1].tabs) == 2
         end
 
         @testset "a verb answers a node as a referenced document when it gets one" begin

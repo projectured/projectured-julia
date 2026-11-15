@@ -225,33 +225,67 @@ end
     @test get_pane_focus(tree)[1] === right_group
 end
 
-@testset "duplicate a tab with a press on its +" begin
+@testset "duplicate a tab from the menu of its header" begin
     group = get_pane_groups(tree)[2]
     count = length(group.tabs)
     shown = get_pane_tab_title_string(group.tabs[1])
-    # The first press in the group's strip that answers a duplicate: an insert
-    # of one tab whose title carries a number.
-    writes(op) = op isa CompoundOperation ? reduce(vcat, map(writes, op.operations); init = Any[]) :
-                 op isa ReplaceReferencedValueOperation ? Any[op] : Any[]
-    is_duplicate(op) = any(w -> w.value isa AbstractVector && length(w.value) == 1 &&
-                                w.value[1] isa PaneTab &&
-                                endswith(get_pane_tab_title_string(w.value[1]), " (2)"),
-                           writes(op))
+    # A point on the header of the first tab: the first press in the strip of the
+    # group that answers the focus of that tab.
+    wanted = get_pane_tab_reference(tree, group, 1)
     r = get_pane_rectangle(tree, group)
     x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
     target = nothing
     for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
-        if is_duplicate(read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)))
+        op = read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        if op isa ReplaceSelectionOperation && op.path == wanted
             target = (x, y)
             break
         end
     end
     @test target !== nothing
-    press!(MouseClick(:left, target[1], target[2], ModifierKeys(); time = 0.0))
+    # The pointer on the header, and a right click: the menu of the tab.
+    _mtt_move!(MttDriver(projection, tree, iomap), target..., 1.0)
+    answer = read_intent(projection, nothing,
+                         Intent(MouseClick(:right, target..., ModifierKeys(); time = 0.0)), iomap)
+    find_opened(op) = op isa OpenContextMenuOperation ? op :
+                      op isa ReplaceViewStateOperation ? find_opened(get_wrapped_operation(op)) :
+                      op isa CompoundOperation ? something(map(find_opened, op.operations)..., nothing) : nothing
+    opened = find_opened(answer isa Intent ? answer.operation : answer)
+    @test opened !== nothing
+    menu = only(layer[2] for layer in opened.layers if layer[1] == shown)
+    duplicate = only(item for item in menu.elements
+                     if item isa WidgetMenuItem && item.action.label == "Duplicate")
+    evaluate_operation(editor, duplicate.operation)
     @test length(group.tabs) == count + 1
     @test get_pane_tab_title_string(group.tabs[2]) == shown * " (2)"
     @test get_pane_focus(tree) == (group, 2)
     assert_rendered!()
+end
+
+@testset "Ctrl+M fills the window with the focused group, and Ctrl+M gives back the layout" begin
+    left_group, right_group = get_pane_groups(tree)
+    @test get_pane_focus(tree)[1] === right_group
+    left_widget, right_widget = widget_of(left_group), widget_of(right_group)
+    # A point in the left group, while the layout shows.
+    x, y = point(left_group, 0.5, 0.5)
+    press!(ctrl(:m))
+    @test find_pane_maximized_group(tree) === right_group
+    @test get_pane_rectangle(tree, left_group) === nothing
+    # The standing render equals a fresh one, and no group printed again.
+    assert_rendered!()
+    @test widget_of(left_group) === left_widget
+    @test widget_of(right_group) === right_widget
+    # The right group covers the place of the left one, so a press there lands
+    # in it.
+    press!(MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+    @test get_pane_focus(tree)[1] === right_group
+    @test find_pane_maximized_group(tree) === right_group
+    press!(ctrl(:m))
+    @test find_pane_maximized_group(tree) === nothing
+    assert_rendered!()
+    @test widget_of(left_group) === left_widget
+    press!(MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+    @test get_pane_focus(tree)[1] === left_group
 end
 
 end # testset

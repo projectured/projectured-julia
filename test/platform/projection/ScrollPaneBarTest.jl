@@ -31,6 +31,32 @@ end
 # The coordinates of a point, or `nothing`.
 _bar_test_xy(point) = point === nothing ? nothing : (Int(point.x[]), Int(point.y[]))
 
+# A projection that prints a label as one text a line, in a new canvas each
+# time the text of the label changes, as a content behind a `NestingProjection`
+# does when its document grows.
+struct _NewCanvasTestProjection <: Projection end
+
+ProjecturedKernel.ProjectionModule.print_document(p::_NewCanvasTestProjection, recursion, label::WidgetLabel, ctx) =
+    SimpleIoMap(p, label, Cell(@computation begin
+        lines = split(string(label.content), '\n')
+        GraphicsCanvas(Any[GraphicsText(String(line), 0, 20 * (i - 1); font = StyleFont("Ubuntu Mono", 20))
+                            for (i, line) in enumerate(lines)];
+                       w = 180, h = 20 * length(lines))
+    end))
+
+# Every text that a canvas draws, through its viewports.
+function _bar_test_texts(node, found = String[])
+    node = unwrap_cell(node)
+    if node isa GraphicsText
+        push!(found, String(node.text))
+    elseif node isa GraphicsViewport
+        _bar_test_texts(node.content, found)
+    elseif node isa GraphicsCanvas
+        foreach(element -> _bar_test_texts(element, found), node.elements)
+    end
+    found
+end
+
 # Evaluate the writes of an answer: the start of the drag and the shape of the
 # pointer need an editor, so they are left out.
 _bar_test_apply!(op) = foreach(o -> o isa ReplaceReferencedValueOperation && evaluate_operation(nothing, o),
@@ -45,8 +71,11 @@ and a `WidgetScrollBar` of a maker is drawn as it is and keeps its writes. A
 click on the track of a bar scrolls the pane one view, Shift and a click jump,
 and a drag of the thumb scrolls the pane wherever the pointer goes and goes back
 on Escape. A pane that follows its end stops following when its bar leaves the
-end, and follows again at the end. The pointer on a bar names the bar as the part
-under it and lights it, and a click there does not reach the content.
+end, and follows again at the end; a pane that is not made to follow its end
+never follows it. The pointer on a bar names the bar as the part
+under it and lights it, and a click there does not reach the content. A content
+that prints a new canvas as it grows shows the new canvas, and the bar follows
+its extent.
 """
 function test_scroll_pane_bar()
     projection = _scroll_pane_projection()
@@ -171,6 +200,71 @@ function test_scroll_pane_bar()
         @test _bar_test_written(down, pane, "follow_end") == true
     end
 
+    @testset "a pane that is not made to follow its end never follows it" begin
+        pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
+        @test getfield(pane, :follow_end)[] === nothing
+        iomap = print_document(projection, pane)
+        room = Int(iomap.content_iomap.output.h) - 200
+        # Every write of an answer, with each compound opened.
+        writes(op) = op isa CompoundOperation ? reduce(vcat, writes.(op.operations); init = Any[]) :
+                     op isa ReplaceViewStateOperation ? writes(get_wrapped_operation(op)) :
+                     op === nothing ? Any[] : Any[op]
+        writes_follow_end(op) = any(o -> o isa ReplaceReferencedValueOperation &&
+                                         o.reference.head == FieldReferenceStep("follow_end"), writes(op))
+        # Shift and a click at the end of the bar jumps to the end.
+        down = read_intent(projection, iomap, MouseClick(:left, 200 - 2, 199, 1, shift; time = 0.0))
+        @test _bar_test_xy(_bar_test_written(down, pane, "scroll_position")) == (0, room)
+        @test !writes_follow_end(down)
+        _bar_test_apply!(down)
+        # A turn of the wheel up and one back down to the end.
+        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100; time = 1.0))
+        foreach(o -> o isa ReplaceReferencedValueOperation && evaluate_operation(nothing, o), writes(up))
+        @test Int(pane.scroll_position.y[]) < room
+        back = read_intent(projection, iomap, MouseScroll(0, -1, 100, 100; time = 3.0))
+        @test Int(only(o.value for o in writes(back)
+                       if o.reference.head == FieldReferenceStep("scroll_position")).y[]) == room
+        @test !writes_follow_end(back)
+        @test getfield(pane, :follow_end)[] === nothing
+    end
+
+    @testset "a pane keeps a point that its content moves, and a pane further out does not scroll" begin
+        inner = WidgetScrollPane(_make_bar_test_content(; width = 400); size = Point2D(300, 300))
+        outer = WidgetScrollPane(inner; size = Point2D(200, 200))
+        iomap = print_document(projection, outer)
+        inner_iomap = iomap.content_iomap
+        @test inner_iomap.input === inner
+        show(map, operation) = WidgetModule._show_pane_selection(map.projection, map, operation)
+        zoom = ReplaceViewStateOperation(ReplaceReferencedValueOperation(inner, "wheel_run", nothing))
+        answer = show(inner_iomap, KeepPointOperation(zoom, (30, 40)))
+        @test _bar_test_xy(_bar_test_written(answer, inner, "scroll_position")) == (30, 40)
+        @test any(o -> o === get_wrapped_operation(zoom), _bar_test_writes(answer))
+        @test _bar_test_written(show(iomap, answer), outer, "scroll_position") === nothing
+        # A move to the left or up stops at 0, and a move that moves nothing is no scroll.
+        @test show(inner_iomap, KeepPointOperation(zoom, (-30, -40))) === zoom
+        # An offset to the side that is larger than the room shows the end of the room.
+        evaluate_operation(nothing, ReplaceReferencedValueOperation(inner, "scroll_position",
+                                                                    Point2D(10_000, 0)))
+        content = WidgetModule._get_pane_scroll_canvas(inner_iomap)
+        view_w, _ = WidgetModule._get_pane_scroll_view(inner_iomap.projection, inner_iomap)
+        @test Int(content.w) > view_w
+        @test WidgetModule._pane_scroll_x(inner, content, view_w) == Int(content.w) - view_w
+    end
+
+    @testset "Page Down in a text moves the caret a page, and the pane scrolls as far" begin
+        pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
+        set_selection!(pane, Reference(FieldReferenceStep("content"), FieldReferenceStep("content"),
+                                       RangeReferenceStep(2, 2)))
+        iomap = print_document(projection, pane)
+        key = KeyDown(:page_down, plain; time = 0.0)
+        # The text answers the move of its caret, at most the height of the view.
+        moved = read_intent(iomap.content_iomap.projection, iomap.content_iomap, key)
+        @test moved isa KeepPointOperation
+        @test 0 < moved.move[2] <= 200
+        # The pane scrolls by the distance that the caret went.
+        answer = read_intent(projection, iomap, key)
+        @test _bar_test_xy(_bar_test_written(answer, pane, "scroll_position")) == (0, moved.move[2])
+    end
+
     @testset "a touchpad scrolls the pane by the fraction of a notch" begin
         pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
         iomap = print_document(projection, pane)
@@ -257,5 +351,21 @@ function test_scroll_pane_bar()
         @test thumb.color == found.iomap.projection.thumb_scrolled_color
         ProjecturedKernel.ClockModule.set_clock_time!(clock, 1.0)
         @test thumb.color == rest
+    end
+
+    @testset "a pane shows a content that prints a new canvas as it grows" begin
+        new_canvas = RecursiveProjection(TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[WidgetLabel => _NewCanvasTestProjection()],
+            WidgetToGraphics(; measure = FontFileMeasure()).dispatch)))
+        label = WidgetLabel("line 1")
+        pane = WidgetScrollPane(label; size = Point2D(200, 100))
+        iomap = print_document(new_canvas, pane)
+        first_canvas = iomap.content_iomap.output
+        @test "line 1" in _bar_test_texts(iomap.output)
+        label.content = join(("line $i" for i in 1:10), "\n")
+        @test iomap.content_iomap.output !== first_canvas
+        @test "line 10" in _bar_test_texts(iomap.output)
+        # The bar compares the new extent with the view: 200 pixels in 100.
+        @test _find_test_pane_bar(iomap, "vertical_scroll_bar").document.thumb_size ≈ 100 / 200
     end
 end

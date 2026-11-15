@@ -7,7 +7,7 @@ end
 function _make_slider_iomap()
     slider = WidgetSlider(0.3; width = 240)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     iomap = print_document(projection, nothing, slider, PrinterContext())
     (slider, projection, iomap, Int(iomap.output.h[]) ÷ 2)
 end

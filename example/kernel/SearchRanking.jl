@@ -478,7 +478,8 @@ function make_guide_units(size::Symbol; sections = ToolModule._guide_index())
         for section in sections, paragraph in split(section.body, r"\n\s*\n")
             text = strip(paragraph)
             isempty(text) || push!(units, ToolModule._GuideSection(section.guide, section.heading,
-                                                                   String(text)))
+                                                                   String(text), section.kind,
+                                                                   section.audiences))
         end
         return units
     end
@@ -497,5 +498,6 @@ end
 function _make_whole_guide_unit(guide::AbstractString, parts)
     opening = first(parts).heading * "\n" * first(first(parts).body, 600)
     others = join([part.heading for part in parts[2:end] if !isempty(part.heading)], "; ")
-    ToolModule._GuideSection(guide, "", isempty(others) ? opening : opening * "\n\nSections: " * others)
+    ToolModule._GuideSection(guide, "", isempty(others) ? opening : opening * "\n\nSections: " * others,
+                             first(parts).kind, first(parts).audiences)
 end

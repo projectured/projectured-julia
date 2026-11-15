@@ -36,6 +36,17 @@ function test_gesture_map()
         @test occursin("Tab — Move from key to value  (n/a)", text)
     end
 
+    @testset "a row draws its gesture in the gesture style and its description in the description style" begin
+        gmap = GestureMap(rows = [
+            GestureRow("Tab", "Move on", "JsonObject", DoNothingOperation())])
+        out = print_document(g2s, gmap).output
+        row = out.children[2]
+        gesture, description = row.children[1].value, row.children[2].value
+        @test gesture.font_color == g2s.gesture.color
+        @test gesture.font == g2s.gesture.font
+        @test description.font_color == g2s.description.color
+    end
+
     @testset "greys rows whose precondition fails for the selection" begin
         obj = JsonObject("a" => JsonNumber(1))         # selection === nothing → type-replace n/a
         gmap = make_gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj))

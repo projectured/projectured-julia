@@ -1,7 +1,23 @@
 # Fragment of `WorkflowModule` — the workflow document types: a step, a
-# decision, an option of a decision, an entry of a journal, and a card that
-# holds a document of any domain.
+# decision, an option of a decision, and an entry of a journal. A node holds the
+# documents of any domain that the work needs as its elements.
 
+"""
+    WorkflowDocument
+
+The abstract supertype of the documents of a workflow. Its main members are `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`, `WorkflowJournal`, `WorkflowEntry`.
+
+Use it to recognise the documents of a workflow when you walk a document: a part is one of them when `part isa WorkflowDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowDocument)
+    found_1 = search_documents(get_edited_document(find_pane("workflow")), part -> part isa WorkflowStep)
+
+See also `search_documents`, `find_pane`, `describe_document` and `WorkflowStep`.
+
+For the assistant.
+"""
 abstract type WorkflowDocument <: Document end
 
 # ── The tree ─────────────────────────────────────────────────────────────
@@ -17,8 +33,18 @@ workflow.
   is a `WorkflowStep` or a `WorkflowDecision`, and all of them belong to the
   step (AND).
 - `journal` — the `WorkflowEntry`s of the step, the oldest first.
-- `cards` — the `WorkflowCard`s that a person or the assistant added.
-- `collapsed` — the view shows the title row only.
+- `elements` — documents of any domain that a person or the assistant added,
+  such as code, a page of text, a table or a chart; the outline draws each
+  through the view of its own domain. A document that another file owns is
+  written to the file of the workflow as a marker into that file, and one of a
+  text format that no file writes as its text.
+- `collapsed` — the view shows the title row only. It is state of the view: the
+  file leaves it out.
+- `journal_shown` — the view shows the entries of the journal under the row. It
+  is state of the view too.
+- `first_text` — the quiet row that the outline of a workflow with no step
+  shows, where the first key a person types makes the first step. It is state of
+  the view.
 
 Use it to read or build a thing to do in a workflow, with its sub-steps.
 
@@ -27,14 +53,18 @@ Use it to read or build a thing to do in a workflow, with its sub-steps.
     step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
 
 See also `add_workflow_step!`, `change_workflow_state!`.
+
+For the assistant.
 """
 @document struct WorkflowStep <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
     state::Symbol = :open
     children::CellVector = CellVector()
     journal::CellVector = CellVector()
-    cards::CellVector = CellVector()
+    elements::CellVector = CellVector()
     collapsed::Bool = false
+    journal_shown::Bool = false
+    first_text::PrimitiveString = PrimitiveString("")
 end
 
 """
@@ -43,7 +73,7 @@ one of them is chosen (OR).
 
 - `question` — what is to be decided.
 - `options` — the `WorkflowOption`s, in order.
-- `journal`, `cards` and `collapsed` — as for a `WorkflowStep`.
+- `journal`, `elements`, `collapsed` and `journal_shown` — as for a `WorkflowStep`.
 
 Use it to read or build a branch point of a workflow, with its options.
 
@@ -52,13 +82,16 @@ Use it to read or build a branch point of a workflow, with its options.
     decision_1 = WorkflowDecision(question = PrimitiveString("Where does the view live?"))
 
 See also `record_workflow_decision!`, `WorkflowOption`.
+
+For the assistant.
 """
 @document struct WorkflowDecision <: WorkflowDocument
     question::PrimitiveString = PrimitiveString("")
     options::CellVector = CellVector()
     journal::CellVector = CellVector()
-    cards::CellVector = CellVector()
+    elements::CellVector = CellVector()
     collapsed::Bool = false
+    journal_shown::Bool = false
 end
 
 """
@@ -69,7 +102,7 @@ One answer to the question of a `WorkflowDecision`.
   keeps its children and its reason: it is the record of a branch that was tried.
 - `reason` — why the option has its state.
 - `children` — the steps and the decisions that follow the option.
-- `journal`, `cards` and `collapsed` — as for a `WorkflowStep`.
+- `journal`, `elements`, `collapsed` and `journal_shown` — as for a `WorkflowStep`.
 
 Use it to read or build one answer of a decision, with its state and reason.
 
@@ -78,6 +111,8 @@ Use it to read or build one answer of a decision, with its state and reason.
     option_1 = WorkflowOption(title = PrimitiveString("a widget view"), state = :chosen)
 
 See also `choose_workflow_option!`, `WorkflowDecision`.
+
+For the assistant.
 """
 @document struct WorkflowOption <: WorkflowDocument
     title::PrimitiveString = PrimitiveString("")
@@ -85,8 +120,9 @@ See also `choose_workflow_option!`, `WorkflowDecision`.
     reason::PrimitiveString = PrimitiveString("")
     children::CellVector = CellVector()
     journal::CellVector = CellVector()
-    cards::CellVector = CellVector()
+    elements::CellVector = CellVector()
     collapsed::Bool = false
+    journal_shown::Bool = false
 end
 
 # ── The record ───────────────────────────────────────────────────────────
@@ -107,9 +143,11 @@ Use it to read a dated record in the journal of a node.
 
 # Example
 
-    entry_1 = make_workflow_entry("The view embeds a card."; author = :assistant)
+    entries_1 = collect_workflow_entries(workflow_1)
 
 See also `add_workflow_entry!`, `collect_workflow_entries`.
+
+For the assistant.
 """
 @document struct WorkflowEntry <: WorkflowDocument
     time::String = ""
@@ -117,29 +155,6 @@ See also `add_workflow_entry!`, `collect_workflow_entries`.
     kind::Symbol = :comment
     text::Any = PrimitiveString("")
     source::Any = nothing
-end
-
-"""
-Content that a person or the assistant adds to a node: a document of any
-domain, shown through the view of its own domain.
-
-- `title` — what the card shows, or an empty text.
-- `content` — the document. A document that another file owns is written to
-  the file of the workflow as a marker into that file.
-- `collapsed` — the view shows the title only.
-
-Use it to hold a document of any domain on a step, a decision or an option.
-
-# Example
-
-    card_1 = WorkflowCard(title = PrimitiveString("Note"), content = PrimitiveString("a note"))
-
-See also `add_workflow_card!`, `WorkflowStep`.
-"""
-@document struct WorkflowCard <: WorkflowDocument
-    title::PrimitiveString = PrimitiveString("")
-    content::Any = nothing
-    collapsed::Bool = false
 end
 
 # ── The views ────────────────────────────────────────────────────────────
@@ -159,32 +174,34 @@ Use it to show the entries of a whole workflow as one document.
     journal_1 = WorkflowJournal(workflow = workflow_1, kind = :decision)
 
 See also `collect_workflow_entries`, `WorkflowEntry`.
+
+For the assistant.
 """
 @document struct WorkflowJournal <: WorkflowDocument
     workflow::Any = nothing
     kind::Symbol = :all
 end
 
-"""
-The workflows of a folder as a document of its own: a view that lists the `.pred`
-files of `folder` that hold a workflow.
+# Which nodes an outline shows folded is state of the view, not a thing the
+# workflow says: the file and a search leave it out.
+get_view_state_fields(::Type{<:Union{WorkflowStep, WorkflowDecision, WorkflowOption}}) = (:collapsed, :journal_shown)
+get_view_state_fields(::Type{<:WorkflowStep}) = (:collapsed, :journal_shown, :first_text)
 
-- `folder` — the path of the folder.
-- `version` — a count that a press on "Read again" raises, so the view reads the
-  folder again.
-"""
-@document struct WorkflowCatalog <: WorkflowDocument
-    folder::String = ""
-    version::Int = 0
-end
+# A person adds a new empty workflow by name, as an entry of an explorer or in a tab.
+get_insertion_aliases(::Type{WorkflowStep}) = ["workflow"]
+make_insertion_document(::Type{WorkflowStep}) = WorkflowStep(title = PrimitiveString("New workflow"))
+is_explorer_entry_type(::Type{WorkflowStep}) = true
 
-# The name of a tab that shows a node of a workflow, its journal or a catalog: the
-# text that names the node, or the folder.
+# A plan of work is a side area, as an explorer is: a pane that a program opens
+# goes to the documents, and not into the group of the plan.
+accepts_opened_file(::WorkflowStep) = false
+
+# The name of a tab that shows a node of a workflow or its journal: the text that
+# names the node.
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =
     get_workflow_node_title(node).value
 get_document_title(journal::WorkflowJournal) =
     journal.workflow === nothing ? "Journal" : "Journal of " * get_document_title(journal.workflow)
-get_document_title(catalog::WorkflowCatalog) = "Workflows in " * basename(catalog.folder)
 
 # ── The values of the fields ─────────────────────────────────────────────
 
@@ -244,15 +261,29 @@ end
     get_workflow_states(node) -> Tuple
 
 The states that `node` can have, in the order that a press steps through them.
+
+Use it to list the states that a step or an option can have.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    states_1 = get_workflow_states(step_1)
+
+See also `get_next_workflow_state` and `change_workflow_state!`.
+
+For the assistant.
 """
+function get_workflow_states end
+
 get_workflow_states(::WorkflowStep) = WORKFLOW_STEP_STATES
 get_workflow_states(::WorkflowOption) = WORKFLOW_OPTION_STATES
+get_workflow_states(node::ReferencedDocument) = get_workflow_states(get_document(node))
 
 """
     is_workflow_node(document) -> Bool
 
 Whether `document` is a node of the tree of a workflow: a step, a decision or
-an option. A node has a journal and cards.
+an option. A node has a journal and elements.
 """
 is_workflow_node(document) = document isa Union{WorkflowStep, WorkflowDecision, WorkflowOption}
 
@@ -261,20 +292,48 @@ is_workflow_node(document) = document isa Union{WorkflowStep, WorkflowDecision, 
 
 The text that names `node`: the title of a step or an option, the question of a
 decision.
+
+Use it to read the words that name a step, an option or a decision.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    title_1 = get_workflow_node_title(step_1)
+
+See also `get_workflow_node_children` and `get_workflow_states`.
+
+For the assistant.
 """
+function get_workflow_node_title end
+
 get_workflow_node_title(node::WorkflowStep) = node.title
 get_workflow_node_title(node::WorkflowOption) = node.title
 get_workflow_node_title(node::WorkflowDecision) = node.question
+get_workflow_node_title(node::ReferencedDocument) = get_workflow_node_title(get_document(node))
 
 """
     get_workflow_node_children(node) -> CellVector
 
 The nodes below `node` in the tree: the children of a step or an option, the
 options of a decision.
+
+Use it to walk down the tree of a workflow one level at a time.
+
+# Example
+
+    step_1 = WorkflowStep(title = PrimitiveString("Write the view"), state = :active)
+    children_1 = get_workflow_node_children(step_1)
+
+See also `get_workflow_node_title` and `add_workflow_step!`.
+
+For the assistant.
 """
+function get_workflow_node_children end
+
 get_workflow_node_children(node::WorkflowStep) = node.children
 get_workflow_node_children(node::WorkflowOption) = node.children
 get_workflow_node_children(node::WorkflowDecision) = node.options
+get_workflow_node_children(node::ReferencedDocument) = get_workflow_node_children(get_document(node))
 
 # The name of the field that `get_workflow_node_children` reads.
 _get_children_field(::Union{WorkflowStep, WorkflowOption}) = :children

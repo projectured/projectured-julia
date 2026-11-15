@@ -57,11 +57,13 @@ has_document_duplicate(::AssistantList) = false
 is_walk_opaque(::AssistantList) = true
 
 # In a tree the list has a node for each assistant, and an assistant has its work
-# below it: its subagents, then its background tasks.
+# and its conversation below it: its subagents, its background tasks, then the
+# turns of its conversation.
 get_tree_children_steps(::AssistantList) = ((FieldReferenceStep("assistants"),),)
 get_tree_children_steps(::Assistant) =
     ((FieldReferenceStep("agent_work"), FieldReferenceStep("subagents")),
-     (FieldReferenceStep("agent_work"), FieldReferenceStep("background_tasks")))
+     (FieldReferenceStep("agent_work"), FieldReferenceStep("background_tasks")),
+     (FieldReferenceStep("conversation"), FieldReferenceStep("turns")))
 
 # The list says how many of its assistants work, and how many wait for the person.
 function get_document_decoration(list::AssistantList)
@@ -72,7 +74,34 @@ function get_document_decoration(list::AssistantList)
     working > 0 && push!(conditions, DocumentCondition(:running))
     waiting > 0 && push!(conditions, DocumentCondition(:waiting; count = waiting))
     counts = working == 0 ? DocumentCount[] : [DocumentCount(string(working, " working"); role = :accent)]
-    DocumentDecoration(; icon = :chats, conditions, counts)
+    DocumentDecoration(; icon = :chats, conditions, counts,
+                       tooltip = () -> TooltipNote(; title = "Assistants", text = "Every assistant conversation of this window.",
+                                                   facts = ["Assistants" => string(length(assistants)),
+                                                            "Working" => string(working),
+                                                            "Waiting" => string(waiting)]))
+end
+
+# The number of a new assistant in the window of `editor`: the lowest that no
+# assistant in a tab of that window has. With no editor, or an editor that shows no
+# window, 1. The read of the tabs records no reader, so a computation that makes an
+# assistant does not compute again when a tab opens.
+function _compute_assistant_number(editor)
+    editor isa Editor || return 1
+    tree = try
+        get_window_tree(getfield(editor, :document))
+    catch
+        nothing
+    end
+    tree isa PaneTree ? _compute_assistant_number(tree) : 1
+end
+
+function _compute_assistant_number(tree::PaneTree)
+    taken = run_without_cell_tracking(() -> Set(a.number for a in collect_pane_tab_contents(tree, Assistant)))
+    number = 1
+    while number in taken
+        number += 1
+    end
+    number
 end
 
 """
@@ -82,7 +111,19 @@ The list of the open assistants of the session of `editor`: by default the edito
 of the evaluation, or of the loop that runs the calling code. Each editor has its
 own, made at the first call. With no editor, such as while a file loads before
 its window exists, a new list, which nothing keeps and no window links.
+
+Use it to read the assistants that the window holds open.
+
+# Example
+
+    list_1 = get_session_assistant_list()
+
+See also `describe_assistant_activity` and `collect_pane_tab_contents`.
+
+For the assistant.
 """
+function get_session_assistant_list end
+
 get_session_assistant_list(; editor = find_evaluation_editor()) =
     editor isa Editor ? get_session_document!(AssistantList, editor, AssistantList) : AssistantList()
 
@@ -154,8 +195,19 @@ its window, and every other list that a tab of the tree holds.
 """
 function link_assistant_list!(list::AssistantList, tree::PaneTree)
     set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
-    set_assistant_list_opener!(list, (editor, assistant) ->
-        show_document!(assistant; title = get_document_title(assistant), editor))
+    set_assistant_list_opener!(list, _show_and_focus_assistant!)
+end
+
+# What a press of Show does: the tab of `assistant`, or a new one, comes to the
+# front, and as a press of the person it also takes the focus.
+function _show_and_focus_assistant!(editor, assistant::Assistant)
+    show_document!(assistant; title = get_document_title(assistant), editor)
+    found = search_references(editor.document,
+                              node -> node isa PaneTab &&
+                                      PaneModule.find_pane_tab_layer(node, layer -> layer === assistant) !== nothing;
+                              walk = DocumentWalk(; descend = is_pane_search_step))
+    isempty(found) || focus_pane!(first(found); editor)
+    nothing
 end
 
 """

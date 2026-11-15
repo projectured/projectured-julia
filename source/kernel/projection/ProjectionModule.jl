@@ -1,8 +1,9 @@
 """
     ProjectionModule
 
-Shared projection interface. Declares the four generic functions every
-projection implements — `print_document`, `read_intent`,
+The four functions that every projection implements to print a document, read an
+intent and map a reference forward and backward. The module declares the four
+generic functions every projection implements — `print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward` — dispatched on by all
 projection types, primitive and higher-order alike. Keeping the interface here
 avoids circular dependencies between projection modules.

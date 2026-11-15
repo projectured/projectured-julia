@@ -21,6 +21,7 @@ ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedFSMTest = "01095f28-dae7-4131-b352-cd496415c16e"
 ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedGitTest = "dcef5d19-7c0f-4b29-b074-9ab4a028bfd1"
 ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJSONTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
@@ -35,6 +36,7 @@ ProjecturedMathTest = "35efe23a-a24b-424c-93f0-086222c9adeb"
 ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedODBCTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
+ProjecturedLanguageServerTest = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
 ProjecturedPDFTest = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
@@ -43,6 +45,7 @@ ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
 ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSDLTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedResearchTest = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
 ProjecturedSQLTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
@@ -74,6 +77,7 @@ ProjecturedDatabaseTest = {path = "../ProjecturedDatabaseTest"}
 ProjecturedFSMTest = {path = "../ProjecturedFSMTest"}
 ProjecturedFormulaTest = {path = "../ProjecturedFormulaTest"}
 ProjecturedGraphTest = {path = "../ProjecturedGraphTest"}
+ProjecturedGitTest = {path = "../ProjecturedGitTest"}
 ProjecturedJSON = {path = "../ProjecturedJSON"}
 ProjecturedJSONTest = {path = "../ProjecturedJSONTest"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
@@ -87,6 +91,7 @@ ProjecturedMarkdownTest = {path = "../ProjecturedMarkdownTest"}
 ProjecturedMathTest = {path = "../ProjecturedMathTest"}
 ProjecturedODBCTest = {path = "../ProjecturedODBCTest"}
 ProjecturedOllamaTest = {path = "../ProjecturedOllamaTest"}
+ProjecturedLanguageServerTest = {path = "../ProjecturedLanguageServerTest"}
 ProjecturedPDFTest = {path = "../ProjecturedPDFTest"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
@@ -94,6 +99,7 @@ ProjecturedPivotTest = {path = "../ProjecturedPivotTest"}
 ProjecturedProcessTest = {path = "../ProjecturedProcessTest"}
 ProjecturedRSTTest = {path = "../ProjecturedRSTTest"}
 ProjecturedSDLTest = {path = "../ProjecturedSDLTest"}
+ProjecturedResearchTest = {path = "../ProjecturedResearchTest"}
 ProjecturedSQLTest = {path = "../ProjecturedSQLTest"}
 ProjecturedSequenceChartTest = {path = "../ProjecturedSequenceChartTest"}
 ProjecturedTulipTest = {path = "../ProjecturedTulipTest"}

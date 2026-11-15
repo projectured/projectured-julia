@@ -1,6 +1,6 @@
 # Packages
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [system-anatomy.md](../design/system-anatomy.md)
 
 What a package here is for, what it may depend on, and which one you load.
 
@@ -24,9 +24,8 @@ Every stem has up to five packages, and the suffix says which kind it is:
 
 Here no build leaf is checked in. `ProjecturedBuilder` is the tool that drives
 a build, and each build writes the package that PackageCompiler compiles, under
-`build/app/<name>/`. That package is a leaf: nothing depends on it, and its
-`@compile_workload` runs the workload of the binary. A tool is not a stem
-artifact at all.
+`build/app/<name>/`. That package is a leaf: nothing depends on it. A tool is not
+a stem artifact at all.
 
 `Example`, `Test`, `Repl` and `Build` are the only reserved suffixes. A package
 whose name merely begins with another's — `ProjecturedODBC`, `ProjecturedTulip`
@@ -42,18 +41,19 @@ FooRepl     -> ProjecturedTest and what a prompt needs          (leaf)
 FooBuild    -> FooExample                                       (leaf)
 ```
 
-**Nothing may depend on a `Repl` or a `Build` package.** That is not a matter of
-taste; it is the whole mechanism, and [the next section](#why-the-leaf-matters)
-says why. `test_package_graph()` asserts it, along with two more:
+**Nothing may depend on a `Repl` or a `Build` package.** A leaf is what a person
+or a binary loads last, and nothing builds on it. `test_package_graph()` asserts
+it, along with these:
 
 - an example package is a dependency only of a leaf, an example or a test;
-- a `@compile_workload` lives in a leaf, in the entry file of a package that a
-  user loads and whose first window it compiles, or in the entry file of a
-  package whose slice has natural rows (see
-  [the next section](#why-the-leaf-matters));
-- a package whose slice has natural rows compiles them with
-  `@compile_workload run_natural_rows_workload(<Domain>Module)` in its entry
-  file.
+- a package compiles ahead of time only with the one `@compile_ahead` at the end
+  of its entry file, and it depends on `ProjecturedPrecompile` (see
+  [the next section](#how-a-package-compiles-ahead));
+- a package whose slice has natural rows runs
+  `run_natural_rows_workload(<Domain>Module)` in the workload of its
+  `@compile_ahead`;
+- a package whose slice has a file of a workload runs
+  `run_file_workload(<Domain>Module.<Type>)` in that workload too.
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
@@ -61,7 +61,7 @@ says why. `test_package_graph()` asserts it, along with two more:
 backends and the eighteen domain packages, none of which has a third-party
 dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedACP`, `ProjecturedMCP`,
-`ProjecturedWeb`, `ProjecturedDataFrames` or
+`ProjecturedWeb`, `ProjecturedDataFrames`, `ProjecturedLanguageServer` or
 `ProjecturedAdaptagrams`, each of which owns one. The umbrella `Projectured`
 depends on `ProjecturedPlatform` and `AutoIntegration`, and re-exports only the
 names of `ProjecturedPlatform.EssentialsModule`. AutoIntegration loads each
@@ -82,33 +82,39 @@ installs every third-party package that the six integrations own, because
 this package; a user who does not stays with the ones installed by name. See
 [autointegration.md](../package/autointegration/autointegration.md).
 
-## Why the leaf matters
+## How a package compiles ahead
 
-A package image is built with exactly that package's dependencies present. So
-compiled code survives only in a package that nothing depends on and nothing
-loads after — the leaf the alias loads. Everything below it has its compiled
-code **invalidated** when the session finishes loading, because a method added
-later can void a call site that was already compiled, and a session ends up
-loading a great many packages that add methods to `Base` functions.
+Julia compiles a function at its first call, and a new process forgets what the
+last one compiled. So each package compiles its code ahead of time, into its
+image, with the one mechanism of
+[compile-ahead.md](../design/compile-ahead.md): the call `@compile_ahead` of
+`ProjecturedPrecompile` at the end of its entry file.
 
-Measured, a first paint of a JSON document in a fresh session:
+```julia
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    run_natural_rows_workload(JsonModule)
+    run_file_workload(JsonModule.JsonFile)
+end
+```
 
-| | first paint |
-| --- | ---: |
-| with no workload anywhere | 8.36 s |
-| with a workload in the leaf | **0.66 s** |
+The workload drives the package as a person does. The preference
+`precompile_calls` of the package chooses what its build compiles: `"none"`,
+`"recorded"`, the calls of the files in its folder `precompile/`, which is the
+default, or `"live"`, a run of the workload. The preference `precompile_failure`
+chooses what a failure does. [precompile.md](../package/tool/precompile/precompile.md)
+says how the package works and how a recording is made.
 
-That is why the workload of the development session lives in a leaf, and why
-the body it calls — `ProjecturedExample.precompile_workload(level)` — is an
-ordinary function rather than code inside the macro. Both leaves call the same
-one.
+A package with no workload of its own writes `@compile_ahead` alone. It still
+compiles the calls that an application records for it, because a recording
+gives each call to the lowest package that sees each type that the call names.
 
 ### A package that a user loads compiles its own first window
 
 A user of the released packages loads no leaf of ours: a session writes `using
 Projectured, DataFrames, SimpleDirectMediaLayer`, and its first window must not
 wait for the compiler. So each package that such a session loads and whose code
-the first window runs holds a `@compile_workload` in its entry file:
+the first window runs has the first window in its workload:
 `ProjecturedPlatform`, `ProjecturedDataFrames` and `ProjecturedSDL`. Each calls
 `run_display_workload` of the platform, which runs the first window of
 `display_in_editor`, with a backend that has no device or with an offscreen SDL
@@ -117,13 +123,9 @@ window, and gives it the gestures of a first look.
 Every first window builds the natural table of the display, with the rows of
 each domain that the session has loaded, also when it shows no document of that
 domain. A slice has natural rows when it calls a `register_natural_…!`
-function or defines a method of `make_graphics_projection` for a type. So a
-package whose slice has natural rows compiles them in its entry file too:
-
-```julia
-using PrecompileTools: @compile_workload
-@compile_workload run_natural_rows_workload(JsonModule)
-```
+function or defines a method of `make_graphics_projection` for a type. So the
+workload of a package whose slice has natural rows calls
+`run_natural_rows_workload(<Domain>Module)`.
 
 `run_natural_rows_workload` runs the `__init__` of the module, where the domain
 registers its rows, and builds the table as the display does. The workload runs
@@ -160,6 +162,41 @@ Measured on the session of the README, the first frame of a data frame of
 | with no workload in a package | 48.3 s |
 | with a workload in each package, and the three rules | **0.75 s** |
 
+### A package compiles the gestures of its home
+
+After the first window, a person clicks a menu, a tool of the toolbar, a file and
+the assistant. Each gesture runs code that the first window did not run. So the
+workload of each package runs the gestures whose code it holds, the gestures of
+its home:
+
+| Package | The gestures of its home |
+| --- | --- |
+| `ProjecturedPlatform` | the application window (`run_window_workload`): each item of each menu but File › Exit, each tool of the toolbar, a text file and a `.pred` file opened and edited, the Explorer and its context menu, a new tab named in the name buffer, F1, the command palette, and an assistant turn with a tool call |
+| `ProjecturedSDL` | the same list on an `SdlBackend`, with each input in the event queue of SDL (`run_sdl_window_workload`) |
+| a package whose slice has a file of a workload | the gestures of a file of its format (`run_file_workload`): open it from the Files pane, click in it, type, save, undo, and the name buffer |
+| `ProjecturedExample` | each example, opened in a window and sent one event of each kind (`run_example_workload`) |
+
+A slice has a file of a workload when it defines a method of
+`make_workload_file`. A domain with a file format gives a file of that format; a
+domain with no file format gives a `.pred` file that holds one of its documents.
+
+A gesture runs through the real loop of the editor. The workload finds each
+target in what the window drew, gives the inputs to the backend as a device gives
+them, and waits until the window is quiet. The body of a workload lets a fault
+through: it throws an error that names each step whose target the window did not
+draw and each fault that a barrier of the editor caught. A test of the package
+calls the body in a normal process (`test_window_workload`, `test_sdl_workload`,
+`test_file_workloads`). In a build, the preference `precompile_failure` of the
+package says what the error does.
+
+To build a package quickly while you change it, set its preference in
+`LocalPreferences.toml`:
+
+```toml
+[ProjecturedPlatform]
+precompile_calls = "none"
+```
+
 ## The session
 
 ```bash
@@ -170,66 +207,17 @@ jp   # julia --project=environment/all -i -e 'using Revise, ProjecturedREPL'
 expect: `run_example`, `test_all`, `SdlBackend`, every document and projection
 constructor. Revise stays in the alias and out of the package's dependencies: it
 must be loaded before the packages it tracks, and as a dependency its position
-in the load order is the resolver's business. **Nothing may be loaded after the
-leaf.**
+in the load order is the resolver's business.
 
-How much the build compiles is a Preference, so changing it rebuilds:
-
-```julia
-julia> get_workload()          # what this session was built with
-julia> set_workload!(:recorded)  # then restart
-```
-
-| level | what the build does |
-| --- | --- |
-| `:none` | nothing; for a day spent editing the kernel |
-| `:recorded` | replays the statement files `package/*/precompile/*.txt` — the default |
-| `:live` | runs `ProjecturedExample.precompile_workload()` |
-
-`:recorded` replays a list that a person recorded by driving the editor, rather
-than a workload somebody wrote. That is why it is the only level that compiles
-the **reader**: a workload prints atoms, and an atom is never read. Measured on
-the json example, the first click costs 475 ms at `:recorded` and 2600 ms at
-`:live`, of which the read half is 221 ms against 1494 ms.
-
-Record again with `record_precompile_statements()` when the statement files fall
-behind the code. It goes stale gracefully: a statement that names nothing is skipped.
-The build says how many were skipped, warning past a tenth of them.
-Recording needs a display: the driver opens a real window.
-
-**Set `workload = :none` before you record, and put it back after.** A trace
-reports what actually had to be COMPILED, and a `:recorded` build already holds
-the old list in its image — so those methods never compile, never reach the
-trace, and never reach the new list. Recording on top of `:recorded` therefore
-yields the *residue*: measured on 2026-09-10, 6963 statements sharing 174 entries
-with the 12760 it would have replaced. It looks like a recording and it is a
-downgrade, and each repeat shrinks the list again.
-
-The same run at `:none` gave 12342 statements. Of the 7485 the old list held and
-it dropped, 7033 — 94 % — no longer resolved at all, so the old list was more
-than half dead. 452 still resolved: a recording replaces, it does not merge, and
-that is the price of a generated file that stays reproducible from its driver.
+`ProjecturedREPL` has no workload of its own. The session gets its compiled code
+from the images of the packages below it, as their preference
+`precompile_calls` says. Record the calls of a package again when its code moves:
 
 ```julia
-julia> set_workload!(:none)        # then restart
-julia> record_precompile_statements()
-julia> set_workload!(:recorded)    # then restart; the next build replays the new list
+julia> using ProjecturedPrecompile
+julia> record_package_calls!("ProjecturedJSON")   # one package
+julia> record_repository_calls!()                 # each package of the repository
 ```
-
-**Check a new recording before you keep it.** Compare its files with the ones in git: a
-comparable SIZE says the recording was made against a bare build, and the
-fraction of the dropped entries that no longer resolve says whether the old list
-was stale or the new run missed coverage.
-
-Each level caches its own image, so switching back to one you have built is
-instant. `~/.julia/compiled/*/ProjecturedREPL/` grows accordingly
-(13 MB at `:none`, 149 MB at `:live`, 217 MB at `:recorded`). `Pkg.gc()` clears
-what you no longer use.
-
-A binary makes its own choice: the `workload` keyword of `build_executable`
-is the expression that the generated package runs in its `@compile_workload`.
-The `projectured` binary runs `warm_application()`, which opens the application
-once without a window.
 
 ## What depends on what
 
@@ -303,6 +291,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedACP` | Kernel | JSON3 |
+| `ProjecturedLanguageServer` | Domain, Editor, FileFormat, Graphics, Projection, Serialization, Style, Text, Undo, Widget | JSON3 |
 | `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
 | `ProjecturedMCP` | Kernel, McpLog | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
@@ -328,6 +317,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedREPL` **(leaf)** | ProjecturedAll, Example, Test, Sdl |
 | `build/app/<name>` **(leaf, written by a build)** | the packages the build names |
 | `ProjecturedBuilder` (tool) | — |
+| `ProjecturedPrecompile` (tool, released) | — (PrecompileTools, Preferences, TOML); each package that compiles ahead depends on it |
 
 ### Why each third-party dependency is there
 
@@ -343,7 +333,8 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
   edits.
 - **PackageCompiler**, **FixedPointNumbers** — building the binary. A leaf;
   nothing depends on it.
-- **PrecompileTools**, **Preferences** — the workload mechanism itself.
+- **PrecompileTools**, **Preferences** — the mechanism that compiles ahead,
+  through `ProjecturedPrecompile`, which no domain names directly.
 
 **No domain package has a third-party dependency, and none should acquire one.**
 A domain that needs one — a real SQL grammar, say — stops being a domain and
@@ -356,7 +347,7 @@ becomes an optional stem like `ProjecturedODBC`, named in the table above.
    domain, [domain-inventory.md](../design/domain-inventory.md) has the rest.
 2. Give it the kinds it needs, with the reserved suffixes.
 3. Name every third-party dependency in the table above, with its reason.
-4. Do not depend on a leaf. Put a `@compile_workload` in a leaf, or in a
-   package that a user loads, by the rules of
-   [the section above](#a-package-that-a-user-loads-compiles-its-own-first-window).
+4. Do not depend on a leaf. End the entry file with one `@compile_ahead`, with
+   the workload of the home of the package, by the rules of
+   [the section above](#how-a-package-compiles-ahead).
 5. Run `test_package_graph()` — it asserts 2 and 4, and it fails loudly.

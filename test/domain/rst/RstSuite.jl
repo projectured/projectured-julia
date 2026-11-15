@@ -27,10 +27,11 @@ function test_rst()
         test_rst_round_trip()
         test_rst_embed_card()
         test_rst_theme()
+        test_rst_to_syntax()
         test_rst_link_target()
         test_rst_link_gestures()
     end
 end
 
 export test_rst, test_rst_layering, test_rst_parser
-export test_rst_round_trip, test_rst_embed_card, test_rst_theme, test_rst_link_target, test_rst_link_gestures
+export test_rst_round_trip, test_rst_embed_card, test_rst_theme, test_rst_to_syntax, test_rst_link_target, test_rst_link_gestures

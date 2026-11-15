@@ -50,6 +50,11 @@ end
 
 _nav_make_site(shelf; folder = "") = NavigatorTestSite(_nav_make_linked_page(_nav_make_shelf()), shelf, folder, nothing)
 
+# A scheme that the test reads, as a package reads the documents of its scheme:
+# `test-book:///<title>` names a new book of that title, with no chapter.
+ProjecturedPlatform.LinkModule.find_url_document(::Val{Symbol("test-book")}, url::Url) =
+    NavigatorTestBook(decode_url_text(url.path[2:end]), _nav_vector(NavigatorTestChapter[]), nothing)
+
 # The glyph of the icon of Open in a tab.
 const _NAV_OPEN_TAB = string(Char(0xe0b9))
 
@@ -65,6 +70,7 @@ end
 @document struct NavigatorTestFile <: FileDocument
     filename::String
     content::Any
+    disk::FileDiskState = FileDiskState()
 end
 
 # A content of a tab that holds a navigator in a field, as an explorer holds the
@@ -127,10 +133,12 @@ function test_open_page_operation()
         answer = read_rooted_operation(editor, @reference(navigator, content.children[2]),
                                        OpenPageOperation(nothing, EmptyReference()))
         @test !(answer isa OpenPageOperation)
+        before = navigator.selection
         evaluate_operation(editor, answer)
         run_frame!(editor)
         @test get_navigator_page(navigator) === shelf
-        @test _nav_is(navigator.selection, @reference(navigator, content.children[2]))
+        # The open shows the page and moves no selection.
+        @test navigator.selection == before
         @test _nav_has_texts(backend, "VerticalLayout", _NAV_CHOICES, "Shelf")
     end
 
@@ -158,9 +166,12 @@ function test_open_page_operation()
         run_frame!(editor)
         click = _nav_click(backend, "Open B")
         @test click !== nothing
+        before = string(strip_reference_types(get_selection(editor.document)))
         _nav_press!(editor, backend, click)
         @test get_navigator_page(navigator) === shelf.books[2]
         @test length(_nav_tabs(editor)) == 2
+        # The open shows the book and moves no selection.
+        @test string(strip_reference_types(get_selection(editor.document))) == before
     end
 
     @testset "an open that no navigator takes opens a navigator tab" begin
@@ -235,6 +246,36 @@ function test_open_page_operation()
         @test get_navigator_page(tabs[2].content) === shelf.books[2]
     end
 
+    @testset "a link to an address whose document a package reads opens the document as a page" begin
+        @test find_url_document(Url("TEST-BOOK:///Z")).title == "Z"
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf)
+        editor, backend = _nav_editor(navigator; tabs = true)
+        place = @reference(editor.document, root.tabs[1].content.content)
+        # With Ctrl, the link opens the document in a new tab.
+        before = length(_nav_tabs(editor))
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("test-book:///Y"; place = :new_tab)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test length(_nav_tabs(editor)) == before + 1
+        @test get_navigator_page(last(_nav_tabs(editor)).content).title == "Y"
+        # An open of the address itself, as a link of a widget answers, opens a new tab.
+        evaluate_operation(editor, OpenUrlOperation(Url("test-book:///X")))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test length(_nav_tabs(editor)) == before + 2
+        @test get_navigator_page(last(_nav_tabs(editor)).content).title == "X"
+        # The link visits the document, and the visit before it is the way back.
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("test-book:///Z")))
+        run_frame!(editor)
+        page = get_navigator_page(navigator)
+        @test page isa NavigatorTestBook && page.title == "Z"
+        @test length(navigator.back) == 1
+        # Any other scheme still opens in the program of the system.
+        @test_logs (:warn, "No program of the system opened the address.") match_mode = :any evaluate_operation(
+            editor, OpenUrlOperation(Url("other-scheme:///X")))
+    end
+
     @testset "a new tab of a document opens over the content of the navigator that holds it" begin
         shelf = _nav_make_shelf()
         site = _nav_make_site(shelf)
@@ -282,7 +323,7 @@ function test_open_page_operation()
         @test answer isa OpenFileOperation && answer.path == path
         @test answer.file_wrap(PrimitiveString("x")) isa Navigator
         # The navigator holds the file, and an editor with settings puts a history
-        # around the navigator, so it records the edits of every page.
+        # inside the file, around its content, so it records the edits of the file.
         for (settings, has_history) in ((make_settings(), true), (false, false))
             editor = build_editor(_nav_make_shelf(), _nav_natural(); backend = HeadlessBackend(),
                                   devices = Device[Keyboard(), Mouse(), Display()], window = false, tabs = true,
@@ -293,14 +334,14 @@ function test_open_page_operation()
             run_frame!(editor)
             found = only(search_documents(editor.document, node -> node isa Navigator && node.content isa TextFile))
             @test found.content.filename == path
-            buffers = search_documents(editor.document, node -> node isa UndoBuffer && node.content === found)
-            @test length(buffers) == (has_history ? 1 : 0)
+            @test (found.content.content isa UndoBuffer) == has_history
+            @test isempty(search_documents(editor.document, node -> node isa UndoBuffer && node.content === found))
         end
     end
 
     @testset "a navigator that an open makes from a file tab keeps the file as its content" begin
         shelf = _nav_make_shelf()
-        file = NavigatorTestFile("shelf.txt", shelf, nothing)
+        file = NavigatorTestFile("shelf.txt", shelf)
         editor, backend = _nav_editor(file; tabs = true)
         open = OpenPageOperation(nothing, @reference(editor.document, root.tabs[1].content.content.books[2]))
         evaluate_operation(editor, open)

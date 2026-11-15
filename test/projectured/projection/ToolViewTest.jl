@@ -60,10 +60,10 @@ end
 end
 
 @testset "the file explorer opens by name, seeded" begin
-    # `Workspace()` holds no folder, and an empty explorer shows nothing. A
-    # person who opens one by name gets the working directory in it.
-    explorer = make_insertion_document(Workspace)
-    @test length(explorer.folders) == 1
+    # An explorer of no folder shows nothing. A person who opens one by name
+    # gets the working directory in it.
+    explorer = make_insertion_document(WorkspaceExplorer)
+    @test length(explorer.workspace.folders) == 1
     @test resolve_insertion(Document, "file explorer") === WorkspaceExplorer
     @test get_pane_tab_title_string(PaneTab("", explorer)) == "Explorer"
     @test !occursin("no natural rendering", render(explorer))
@@ -279,9 +279,11 @@ session_editor = Editor(PrimitiveString("x"), NaturalToGraphics(measure = _stub)
                         backend = HeadlessBackend(), devices = Device[])
 log = get_session_message_log(; editor = session_editor)
 feed = MessageLogFeed(store = get_session_message_log_store(), log = log)
+# The store can hold lines that another test of the session logged, and lines
+# that a take of another test moved past: the feed reads past both, and the log
+# starts empty.
+drain_changes!(feed, nothing)
 clear_message_log!(log)
-# The store can hold lines that another test of the session logged.
-take_message_lines!(get_session_message_log_store())
 previous = install_message_log_capture!()
 try
     @testset "the capture records and forwards" begin

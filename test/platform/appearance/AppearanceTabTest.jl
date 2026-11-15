@@ -54,6 +54,48 @@ function _at_find_iomap(iomap, ::Type{T}; depth = 12) where {T}
     nothing
 end
 
+# Each IO map of type `T` in the IO map tree under `iomap`, by its fields and the
+# vectors and tuples that hold them, each once. With `is_dict_walked`, also by the
+# values of a dictionary, where a lazy list keeps the maps of its children.
+function _at_collect_iomaps(iomap, ::Type{T}, found = Any[], seen = Base.IdSet{Any}(); depth = 40,
+                            is_dict_walked::Bool = false) where {T}
+    (depth == 0 || iomap in seen) && return found
+    push!(seen, iomap)
+    iomap isa T && push!(found, iomap)
+    for name in fieldnames(typeof(iomap))
+        value = getfield(iomap, name)
+        value isa Cell && (value = value[])
+        candidates = value isa AbstractVector ? value :
+                     is_dict_walked && value isa AbstractDict ? collect(values(value)) : (value,)
+        for candidate in candidates
+            candidate isa Cell && (candidate = candidate[])
+            (candidate isa Document || candidate isa Projection || candidate === nothing ||
+             candidate isa Number || candidate isa AbstractString || candidate isa AbstractDict ||
+             candidate isa Function || candidate isa Module || candidate isa Type || candidate isa Symbol) && continue
+            _at_collect_iomaps(candidate, T, found, seen; depth = depth - 1, is_dict_walked)
+        end
+    end
+    found
+end
+
+# The tables of the controls of the tab and of the views of its parts, in one: the
+# command of each button, the write of each spin box and choice, the edit of each
+# colour text and the fold of each card, as the view that holds the control reads
+# it.
+function _at_tables(iomap)
+    tables = (commands = IdDict{Any,Any}(), writes = IdDict{Any,Any}(), edits = IdDict{Any,Any}(),
+              folds = IdDict{Any,Any}())
+    for found in _at_collect_iomaps(iomap, Union{AppearanceToWidgetIoMap, AppearancePartToWidgetIoMap})
+        for name in keys(tables)
+            merge!(tables[name], getproperty(found, name))
+        end
+    end
+    tables
+end
+
+# The card of the theme type named `name` in the folds of `tables`.
+_at_fold_card(tables, name) = only(card for (card, (_, fold_name)) in tables.folds if fold_name == name)
+
 # The width of each card in the IO map tree under `value`, in the order of the
 # tree, by the fields of each IO map and the vectors and tuples that hold its
 # children. A card inside a card is not counted.
@@ -61,7 +103,7 @@ function _at_collect_card_widths(value; found = Int[])
     value isa Cell && (value = value[])
     if value isa AbstractVector || value isa Tuple
         foreach(child -> _at_collect_card_widths(child; found), value)
-    elseif value isa ChildrenIoMap && value.input isa WidgetCard
+    elseif value isa WidgetModule.WidgetCardToGraphicsCanvasIoMap
         output = value.output isa Cell ? value.output[] : value.output
         push!(found, Int(output.w))
     elseif value isa IoMap
@@ -71,6 +113,13 @@ function _at_collect_card_widths(value; found = Int[])
         end
     end
     found
+end
+
+# A theme whose fields name roles of the font theme, in the two forms that a
+# field holds.
+@theme struct ThTabFonts
+    role::ThemeFont = FontRole(:quiet)
+    text::ThemeText = TextRole(:text_muted; font_role = :quiet)
 end
 
 _at_click(x, y, time) =(MouseDown(:left, x, y, ModifierKeys(); time),
@@ -83,7 +132,7 @@ measure = FixedMeasure(8, 12, 4, 0)
 offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
 
 @testset "an Appearance draws as the card Scale, with a row for the zoom and for each scale" begin
-    appearance = Appearance(font_scale = 1.25)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.25))
     output = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer).output
     texts = first.(_at_collect_texts(output))
     for name in ("Save", "Load", "Scale", "Zoom", "Text", "Icons", "Spacing", "Controls", "Corners",
@@ -95,9 +144,9 @@ offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}(
 end
 
 @testset "the Reset all of the card Scale resets the scales, and that of the card Colors the colour settings" begin
-    appearance = Appearance(font_scale = 1.25, color_mode = :dark)
+    appearance = Appearance(scale = AppearanceScale(font_scale = 1.25), colors = AppearanceColors(color_mode = :dark))
     iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     resets = [op for (action, op) in tab.commands if action.label == "Reset all"]
     @test length(resets) == 2
     is_step = op -> op isa AdjustScaleOperation || op isa AdjustZoomOperation
@@ -105,9 +154,27 @@ end
     @test length(scale.operations) == 7 && all(op -> op.delta == 0, scale.operations)
     colors = only(op for op in resets if !all(is_step, op.operations))
     fields = (:color_mode, :color_contrast, :color_palette, :color_accent, :color_neutral)
-    @test all(op -> op isa ReplaceReferencedValueOperation && op.document === appearance, colors.operations)
+    @test all(op -> op isa ReplaceReferencedValueOperation && op.document === appearance.colors, colors.operations)
     @test [op.reference.head for op in colors.operations] == [FieldReferenceStep(String(f)) for f in fields]
-    @test [op.value for op in colors.operations] == [getproperty(Appearance(), f) for f in fields]
+    @test [op.value for op in colors.operations] == [getproperty(Appearance().colors, f) for f in fields]
+end
+
+@testset "a glyph button says what it changes, and its current value" begin
+    appearance = Appearance()
+    iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    buttons = _find_widgets_below(tab.child_iomap.input, WidgetButton)
+    note(label) = _read_widget_note(first(button for button in buttons if button.action.label == label))
+    smaller = note("−")
+    @test smaller.title == "Smaller"
+    @test smaller.facts == ["Now" => "100%"]
+    @test note("+").title == "Larger"
+    reset = note("Reset")
+    @test reset.title == "Reset"
+    @test reset.facts == ["Now" => "100%", "Default" => "100%"]
+    @test note("‹").title == "Previous" && note("›").title == "Next"
+    @test all(button -> _read_widget_note(button) !== nothing,
+              [button for button in buttons if button.action.label in ("−", "+", "‹", "›", "Reset")])
 end
 
 @testset "a press of a button of a row answers the step of its factor" begin
@@ -123,7 +190,7 @@ end
     end
     plus = press("Text", "+")
     @test plus isa AdjustScaleOperation && plus.scale === :font_scale && plus.delta == 1
-    @test plus.appearance === appearance
+    @test plus.document === appearance.scale
     minus = press("Zoom", "−")
     @test minus isa AdjustZoomOperation && minus.delta == -1
     reset = press("Spacing", "Reset")
@@ -135,13 +202,17 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     theme = get_theme(appearance, WidgetTheme)
     get_scaled_theme!(appearance, FaultTheme)
+    appearance.editor_themes.open_names = ["WidgetTheme"]
+    appearance.tool_themes.open_names = ["FaultTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    # The draw of the tab makes the controls of the two open cards.
+    _at_collect_texts(iomap.output)
+    tab = _at_tables(iomap)
     @test tab !== nothing
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     unwrap(operation) = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
     # The spin box of the gap between items: a step to 5 writes `Spacing(5)`.
-    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == 2 &&
+    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == get_theme_defaults(WidgetTheme).item_gap &&
                translate(ReplaceReferencedValueOperation(w, "value", 5)) |> unwrap |>
                (op -> op.reference.head == FieldReferenceStep("item_gap")))
     write = unwrap(translate(ReplaceReferencedValueOperation(box, "value", 5)))
@@ -160,25 +231,25 @@ end
     @test length(preset.operations) == length(get_theme_field_names(FaultTheme))
     evaluate_operation(nothing, preset)
     @test fault.message_text == ProjecturedPlatform.FaultViewModule.make_fault_log_panel_theme().message_text
-    # The step of a font goes to the next font file, at the same size.
+    # The `font` of the widget theme names a role of the font theme: the step goes to
+    # the next role.
     font_step = only(op for (action, op) in tab.commands if action.label == "›" &&
                      unwrap(op).document === theme &&
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
-    @test next_font.size == theme.font.size && next_font.family != theme.font.family
-    # The step of a weight goes to the next weight of the family: Ubuntu has a
+    @test next_font isa FontRole && next_font.role !== theme.font.role
+    # The step of a weight goes to the next weight of the role: Ubuntu has a
     # medium face between the regular and the bold.
     # The "+" of a scale row adjusts a scale; the "+" of the font writes the theme.
     writes_font(op) = unwrap(op) isa ReplaceReferencedValueOperation && unwrap(op).document === theme &&
                       unwrap(op).reference.head == FieldReferenceStep("font")
     weight_step = only(op for (action, op) in tab.commands if action.label == "+" && writes_font(op))
     heavier = unwrap(weight_step).value
-    @test (heavier.family, heavier.size, heavier.weight) == (theme.font.family, theme.font.size, 500)
+    @test (heavier.role, heavier.weight) == (theme.font.role, 500)
     # The checkbox of the font makes it italic and keeps the rest.
     italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_font(write(true)))
     italic = unwrap(translate(ReplaceReferencedValueOperation(italic_box, "content", true))).value
-    @test italic.italic && (italic.family, italic.size, italic.weight) ==
-                           (theme.font.family, theme.font.size, theme.font.weight)
+    @test italic.italic && (italic.role, italic.weight) == (theme.font.role, theme.font.weight)
 end
 
 @testset "every card is as wide as the pane, and follows the width of the offer" begin
@@ -190,7 +261,9 @@ end
         _at_collect_card_widths(tab)
     end
     # The two cards of settings and a card for each theme of the appearance.
-    @test length(widths[1]) == length(widths[2]) == 2 + 1 + length(appearance.themes)
+    # The two cards of settings, the colour theme, the font theme, and a card for
+    # each theme of the appearance.
+    @test length(widths[1]) == length(widths[2]) == 2 + 2 + length(appearance.themes)
     @test all(==(first(widths[1])), widths[1])
     @test all(==(first(widths[2])), widths[2])
     @test first(widths[1]) - first(widths[2]) == 300
@@ -204,12 +277,12 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     order = [findfirst(==(t), texts)
-             for t in ("Save", "Scale", "Colors", "Editor", "Color", "Widget", "Syntax", "Tools", "Fault")]
+             for t in ("Save", "Scale", "Colors", "Editor", "Color", "Font", "Widget", "Syntax", "Tools", "Fault")]
     @test all(!isnothing, order) && issorted(order)
     # Every section is closed: a card draws its title and no field.
     @test !("primary" in texts) && !("item gap" in texts)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    card = only(c for (c, name) in tab.folds if name == "WidgetTheme")
+    tab = _at_tables(iomap)
+    card = _at_fold_card(tab, "WidgetTheme")
     @test card.collapsed
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     fold = translate(ToggleCollapseOperation(card))
@@ -217,13 +290,13 @@ end
     # The fold is the state of the tab: the card follows it, and no view prints again.
     @test !is_appearance_change(appearance, fold)
     evaluate_operation(nothing, fold)
-    @test appearance.open_sections == ["WidgetTheme"]
+    @test appearance.editor_themes.open_names == ["WidgetTheme"]
     @test !card.collapsed
     evaluate_operation(nothing, translate(ToggleCollapseOperation(card)))
-    @test isempty(appearance.open_sections) && card.collapsed
+    @test isempty(appearance.editor_themes.open_names) && card.collapsed
     # An open section shows its fields, the docstring of a field on a row under
     # the row of its name, at the start of the row, and the summary of its theme.
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
     texts = _at_collect_texts(iomap.output)
     name = only(t for t in texts if t[1] == "item gap")
@@ -244,7 +317,7 @@ end
     appearance = Appearance()
     get_scaled_theme!(appearance, SyntaxTheme)
     syntax = get_theme(appearance, SyntaxTheme)
-    appearance.open_sections = ["SyntaxTheme"]
+    appearance.editor_themes.open_names = ["SyntaxTheme"]
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
@@ -252,38 +325,114 @@ end
     @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
     @test format_theme_color(syntax.bool_text.color) == "@boolean_literal"
     @test "@boolean_literal" in texts
-    # The base font of the theme shows its family once; a role shows its size in
-    # percent of the base.
-    @test count(==("Ubuntu Mono"), texts) == 1
-    @test "% of font" in texts
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    # A text role that names a role of the font theme shows the name of the role and
+    # has no size, because a role never changes its size.
+    @test "document_code" in texts
+    tab = _at_tables(iomap)
     before = syntax.bool_text
+    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                           op.reference.head == FieldReferenceStep("bool_text")
     # The button › of the colour of `bool_text` writes a text role with the next
     # role of the colour theme and the same font role.
     next_role = only(op for (action, op) in tab.commands if action.label == "›" &&
-                     op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                     op.reference.head == FieldReferenceStep("bool_text"))
+                     writes_bool_text(op) && op.value.color != before.color)
     @test next_role.value isa TextRole && next_role.value.font == before.font
     @test next_role.value.color == ColorRole(:null_literal)
+    # The button › of the font role writes the next role of the font theme and keeps the colour.
+    next_font = only(op for (action, op) in tab.commands if action.label == "›" &&
+                     writes_bool_text(op) && op.value.color == before.color)
+    @test next_font.value.font isa FontRole && next_font.value.font.role !== :document_code
     # The button "Step" writes the step of a ramp that the role names, so the field
     # leaves the role and keeps its colour, and still follows the mode.
-    to_step = only(op for (action, op) in tab.commands if action.label == "Step" &&
-                   op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                   op.reference.head == FieldReferenceStep("bool_text"))
+    to_step = only(op for (action, op) in tab.commands if action.label == "Step" && writes_bool_text(op))
     @test to_step.value.color == get_color_theme(appearance).boolean_literal
     @test to_step.value.color isa PaletteColor && to_step.value.font == before.font
     # The step to a heavier weight sets the weight of the role and keeps the colour.
-    step = only(op for (action, op) in tab.commands if action.label == "+" &&
-                op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                op.reference.head == FieldReferenceStep("bool_text"))
-    @test step.value.font.weight == 700 && step.value.font.relative_size == 1.0
+    step = only(op for (action, op) in tab.commands if action.label == "+" && writes_bool_text(op))
+    @test step.value.font.weight == 700 && step.value.font.role === :document_code
     @test step.value.color == before.color
-    # The size of the role in percent writes its relative size.
-    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
-                           op.reference.head == FieldReferenceStep("bool_text")
-    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 100 &&
-               writes_bool_text(write(150)))
-    @test tab.writes[box](150).value.font.relative_size == 1.5
+    @test !any(w isa WidgetSpinBox && writes_bool_text(write(150)) for (w, write) in tab.writes)
+end
+
+@testset "a text role with an exact font has the controls of its colour and of an exact font" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, TooltipTheme)
+    tooltip = get_theme(appearance, TooltipTheme)
+    appearance.editor_themes.open_names = ["TooltipTheme"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    @test "Lucide" in texts
+    tab = _at_tables(iomap)
+    before = tooltip.warning_mark
+    writes_mark(op) = op isa ReplaceReferencedValueOperation && op.document === tooltip &&
+                      op.reference.head == FieldReferenceStep("warning_mark")
+    # The size of the exact font writes a text role that keeps the font family and the colour.
+    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 13 &&
+               writes_mark(write(20)))
+    written = tab.writes[box](20).value
+    @test written isa TextRole && written.font == StyleFont("Lucide", 20)
+    @test written.color == before.color
+end
+
+@testset "the font card has a control for each step, and the two families step through the font families" begin
+    appearance = Appearance()
+    fonts = get_font_theme(appearance)
+    appearance.editor_themes.open_names = ["FontTheme"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    _at_collect_texts(iomap.output)
+    tab = _at_tables(iomap)
+    writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === fonts &&
+                             op.reference.head == FieldReferenceStep(name)
+    # The size: a press on + of the spin box of `quiet` writes the step at 13.
+    size_box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 12 &&
+                    writes_field(write(13), "quiet") && !writes_field(write(13), "section") &&
+                    !writes_field(write(13), "column") && !writes_field(write(13), "badge"))
+    @test tab.writes[size_box](13).value == FontStep(:sans, 13)
+    # The kind: the second choice writes the mono family and keeps the rest.
+    kind = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_field(write(2), "quiet"))
+    @test kind.selected == 1
+    @test tab.writes[kind](2).value == FontStep(:mono, 12)
+    # The weight steps through the weights of the family of the kind, and italic keeps the rest.
+    heavier = only(op for (action, op) in tab.commands if action.label == "+" && writes_field(op, "quiet"))
+    @test heavier.value == FontStep(:sans, 12; weight = 500)
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_field(write(true), "quiet"))
+    @test tab.writes[italic_box](true).value == FontStep(:sans, 12; italic = true)
+    # The two families step through the font families.
+    families = filter(f -> !(f in ("Lucide", "Noto Emoji")), get_font_families())
+    next = only(op for (action, op) in tab.commands if action.label == "›" && writes_field(op, "sans_family"))
+    @test next.value == families[mod1(findfirst(==("Ubuntu"), families) + 1, length(families))]
+    @test any(writes_field(op, "mono_family") for (action, op) in tab.commands if action.label == "‹")
+end
+
+@testset "a font role that names a role of the font theme steps through the roles and keeps its name" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, ThTabFonts)
+    theme = get_theme(appearance, ThTabFonts)
+    appearance.document_themes.open_names = ["ThTabFonts"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    @test count(==("quiet"), texts) == 2
+    @test !("% of font" in texts)
+    tab = _at_tables(iomap)
+    writes_field(op, name) = op isa ReplaceReferencedValueOperation && op.document === theme &&
+                             op.reference.head == FieldReferenceStep(name)
+    font_of(op) = op.value isa TextRole ? op.value.font : op.value
+    for (field, make) in (("role", font -> font), ("text", font -> TextRole(font, ColorRole(:text_muted))))
+        step(label, same) = only(op for (action, op) in tab.commands if action.label == label &&
+                                 writes_field(op, field) && (font_of(op).role == :quiet) == same)
+        @test font_of(step("›", false)) == FontRole(:badge)
+        @test font_of(step("‹", false)) == FontRole(:column)
+        # A weight step keeps the name of the role.
+        @test font_of(step("+", true)) == FontRole(:quiet; weight = 500)
+    end
+    @test tab.writes !== nothing
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_field(write(true), "role"))
+    @test tab.writes[italic_box](true).value == FontRole(:quiet; italic = true)
+    @test only(op for (action, op) in tab.commands if action.label == "+" && writes_field(op, "text")).value.color ==
+          ColorRole(:text_muted)
 end
 
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin
@@ -303,7 +452,7 @@ end
     end
     run_frame!(editor)
     run_frame!(editor)
-    @test appearance.font_scale == 1.1
+    @test appearance.scale.font_scale == 1.1
     texts = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
     # The new print shows the same tab: the appearance, not the first document.
     @test "110%" in first.(texts)
@@ -326,7 +475,7 @@ end
         run_frame!(editor)
     end
     drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = 1.0))
     _, x, y = only(t for t in drawn() if t[1] == "Spacing")
     send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 2.0))
@@ -365,7 +514,7 @@ end
         run_frame!(editor)
         time[] += 1.0
     end
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
     # The widget theme is one section of many, one for each loaded domain, so the
     # place of the tab, which the appearance holds, brings its row into the window.
@@ -404,13 +553,13 @@ end
     # A write into a document that is no theme of the appearance stays as it is.
     other = ReplaceReferencedValueOperation(WidgetTheme(), "item_gap", Spacing(7))
     @test wrap(other) === other
-    @test wrap(ReplaceReferencedValueOperation(appearance, "open_sections", String[])) isa
+    @test wrap(ReplaceReferencedValueOperation(appearance.editor_themes, "open_names", String[])) isa
           ReplaceReferencedValueOperation
     inverse = make_inverse_operation(nothing, step)
     @test inverse isa ReplaceThemeValueOperation
-    @test inverse.operation.value == Spacing(2)
+    @test inverse.operation.value == Spacing(get_theme_defaults(WidgetTheme).item_gap)
     @test_throws ArgumentError ReplaceThemeValueOperation(
-        ReplaceReferencedValueOperation(appearance, "zoom", 2.0))
+        ReplaceReferencedValueOperation(appearance.scale, "zoom", 2.0))
 end
 
 @testset "Ctrl+Z in the history of the window takes back a change of a theme, and the view shows it" begin
@@ -436,7 +585,7 @@ end
         time[] += 1.0
     end
     drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
-    appearance.open_sections = ["WidgetTheme"]
+    appearance.editor_themes.open_names = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
     _, _, row_y = only(t for t in drawn() if t[1] == "primary")
     appearance.scroll_position = Point2D(0, max(0, row_y - 300))
@@ -466,11 +615,11 @@ end
         @test name in texts
     end
     # A setting that follows the system shows the value of the system.
-    appearance.system_colors = SystemColors(; mode = :dark)
+    appearance.colors.system_colors = SystemColors(; mode = :dark)
     @test "system (dark)" in first.(_at_collect_texts(print_document(projection, nothing, appearance, offer).output))
-    appearance.system_colors = SystemColors()
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance &&
+    appearance.colors.system_colors = SystemColors()
+    tab = _at_tables(iomap)
+    writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance.colors &&
                                 op.reference.head == FieldReferenceStep(String(field))
     next_mode = only(op for (action, op) in tab.commands if action.label == "›" && writes_setting(op, :color_mode))
     @test next_mode.value === :light
@@ -479,15 +628,15 @@ end
                            if action.label == "‹" && writes_setting(op, :color_accent))
     @test previous_accent.value === :teal
     evaluate_operation(nothing, next_mode)
-    @test appearance.color_mode === :light
+    @test appearance.colors.color_mode === :light
     # The card of the colour theme holds the theme of the present mode and contrast.
-    appearance.color_mode = :dark
+    appearance.colors.color_mode = :dark
     theme = get_color_theme(appearance)
     @test theme === appearance.color_themes[:dark]
-    appearance.open_sections = ["ColorTheme"]
+    appearance.editor_themes.open_names = ["ColorTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    @test "ColorTheme" in collect(values(tab.folds))
+    tab = _at_tables(iomap)
+    @test "ColorTheme" in [last(fold) for fold in values(tab.folds)]
     texts = first.(_at_collect_texts(iomap.output))
     @test "keyword" in texts && "violet" in texts
     writes_role(op, role) = op isa ReplaceReferencedValueOperation && op.document === theme &&
@@ -505,10 +654,76 @@ end
     @test !any(action.label == "Reset" && writes_role(op, :keyword) for (action, op) in tab.commands)
     evaluate_operation(nothing, fix)
     iomap = print_document(projection, nothing, appearance, offer)
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    tab = _at_tables(iomap)
     reset = only(op for (action, op) in tab.commands if action.label == "Reset" && writes_role(op, :keyword))
     @test reset.value == make_color_theme(:dark).keyword
     @test format_style_color(fix.value) in first.(_at_collect_texts(iomap.output))
+end
+
+@testset "a colour text of a card that opens after the print takes a typed digit" begin
+    # A closed card has no controls at the print, and a fold prints nothing again,
+    # so the controls that the card makes when it opens hold their paths themselves.
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"))
+    run_frame!(editor)
+    appearance = find_editor_appearance(; editor)
+    theme = get_theme(appearance, WidgetTheme)
+    theme.primary = resolve_theme_color(theme.primary, appearance)
+    before = format_style_color(theme.primary)
+    time = Ref(1.0)
+    send!(events...) = begin
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+        time[] += 1.0
+    end
+    drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    printed = editor.iomap
+    @test !("primary" in first.(drawn()))
+    # The write that a press on the chevron of the card answers.
+    evaluate_operation(nothing, ProjecturedPlatform.AppearanceModule._make_fold_operation(appearance.editor_themes,
+                                                                                         "WidgetTheme"))
+    run_frame!(editor)
+    @test editor.iomap === printed
+    _, _, row_y = only(t for t in drawn() if t[1] == "primary")
+    appearance.scroll_position = Point2D(0, max(0, row_y - 300))
+    run_frame!(editor)
+    x, y = _at_find_row_button(drawn(), "primary", before)
+    send!(_at_click(x - 1, y, time[])...)
+    send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
+    send!(KeyPress('f'; time = time[]))
+    @test format_style_color(theme.primary) == "#f" * before[3:end]
+end
+
+@testset "a closed card makes its controls when it opens, and keeps them when it opens again" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, FaultTheme)
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    # The draw of the tab makes the controls of each card that shows them.
+    _at_collect_texts(iomap.output)
+    tab = _at_tables(iomap)
+    @test isempty(tab.writes)
+    @test isempty(tab.edits)
+    card = _at_fold_card(tab, "WidgetTheme")
+    toggle() = evaluate_operation(nothing,
+        ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, ToggleCollapseOperation(card)))
+    toggle()
+    @test !card.collapsed
+    @test "item gap" in first.(_at_collect_texts(iomap.output))
+    # The open card holds the theme, and the view of the theme holds the controls.
+    @test !isempty(_at_tables(iomap).writes)
+    controls = Set(keys(_at_tables(iomap).writes))
+    toggle()
+    @test card.collapsed
+    @test !("item gap" in first.(_at_collect_texts(iomap.output)))
+    toggle()
+    @test "item gap" in first.(_at_collect_texts(iomap.output))
+    @test Set(keys(_at_tables(iomap).writes)) == controls
 end
 
 end

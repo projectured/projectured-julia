@@ -76,6 +76,7 @@ read_intent(p::FormulaIdentifierToSyntaxLeaf, recursion, change::Intent, iomap) 
 #   :code   → recurse into `code`                         → children [code]
 #   :result → recurse into `result`                       → children [result]
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
+#             (a function shows no value: name " = " code, and the mark "⋯" while it computes)
 #
 # In edit mode the draft takes the place of the code, and no value shows, because
 # the stored value belongs to the code: `:both` is name " = " draft.
@@ -118,6 +119,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     # The stored value, and a mark while a computation of it runs. A print runs no
     # code of the formula.
     result_leaf = SyntaxLeaf(TextString(() -> _format_stored_formula_value(f), p.result))
+    mark_leaf = SyntaxLeaf(TextString("⋯", p.result); open=TextString(" ", p.op.font))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(f, path -> begin
@@ -133,6 +135,9 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                 SyntaxDocument[result_leaf]
             elseif f.draft !== nothing  # :both, in edit mode
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output]
+            elseif _has_function_value(f)  # :both, a function: its equation
+                f.is_computing ? SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output, mark_leaf] :
+                                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output]
             else  # :both (default)
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
@@ -357,9 +362,25 @@ function _read_rename(env::FormulaEnvironment, answer::Intent)
     name = splice_string(formula.name, steps[4].start, steps[4].stop, edit.replacement)
     writes, reason = _make_rename_writes(env, formula, name)
     reason === nothing || return Intent(answer.gesture, nothing, reason, "formula")
-    isempty(writes) && return answer
-    Intent(answer.gesture, CompoundOperation(Any[edit, writes...]),
+    # A name that adds, removes or changes the parameter changes what the formula
+    # and the formulas that name it mean, so the formula computes again.
+    changes_parameter = _find_formula_parameter(formula) != _find_formula_parameter(name)
+    isempty(writes) && !changes_parameter && return answer
+    operations = Any[edit, writes...]
+    changes_parameter && push!(operations, ComputeFormulasOperation(env, FormulaFormula[formula]))
+    Intent(answer.gesture, CompoundOperation(operations),
            "Rename the formula and its uses", "formula")
+end
+
+# Whether the math notation reads a name; `f(` is half a name and reads as none.
+function _is_readable_name(name::AbstractString)
+    try
+        parse_math(String(name))
+        return true
+    catch e
+        e isa ErrorException || rethrow()
+    end
+    false
 end
 
 # The writes that give each use of `formula` the name `name`, and `nothing`; or no
@@ -371,7 +392,7 @@ function _make_rename_writes(env::FormulaEnvironment, formula::FormulaFormula, n
     holder = resolve(env, name)
     for (index, user) in enumerate(env.formulas)
         if !(user.code isa JuliaDocument)
-            any(used -> resolve(env, used) === formula, _find_readable_names(user.code)) &&
+            any(used -> resolve(env, used) === formula, _find_readable_names(user)) &&
                 return (Any[], "The math formula $(user.name) uses the name, and a rename " *
                                "does not rewrite math")
             continue
@@ -381,10 +402,12 @@ function _make_rename_writes(env::FormulaEnvironment, formula::FormulaFormula, n
         isempty(uses) && continue
         holder === nothing || holder === formula ||
             return (Any[], "The formula $(holder.name) has the name $name")
-        scopes = _find_identifier_scopes(user.code)
+        scopes = _find_identifier_scopes(user)
         places = _collect_node_steps!(IdDict{Any,Vector{Any}}(), user.code, uses, Any[])
         for use in uses
             spelling = use.name == formula.name ? name : get_formula_key(name)
+            # A name that does not read yet, such as `f(`, gives the use no name.
+            _is_readable_name(name) || continue
             spelling in scopes[use] &&
                 return (Any[], "A local $spelling of $(user.name) would take the use")
             reference = Reference(FieldReferenceStep("formulas"), ElementReferenceStep(index),

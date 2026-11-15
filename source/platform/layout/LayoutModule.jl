@@ -1,10 +1,10 @@
 """
     LayoutModule
 
-Generic, content-driven layout documents. Each layout type holds an
-ordered `children::CellVector` of arbitrary `Document`s and a few
-axis-specific knobs (alignment, gap, max extent). Layouts are *not*
-tied to widgets — children can be any document type that has a
+Layout documents that arrange child documents in a row, a column, a grid, a flow, a
+stack or at anchors. Each layout type holds an ordered `children::CellVector` of
+arbitrary `Document`s and a few axis-specific knobs (alignment, gap, max extent).
+Layouts are *not* tied to widgets — children can be any document type that has a
 projection to `GraphicsCanvas`.
 
 Layouts have no `position`/`size` of their own; their projected
@@ -22,6 +22,7 @@ using ..EventModule
 using ..FocusModule
 using ..GestureModule
 using ..GraphicsModule
+import ..GraphicsModule: find_first_baseline
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule
@@ -32,7 +33,10 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
+import ..SerializationModule: is_pred_constructible
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..OperationModule: evaluate_operation, get_wrapped_operation, rewrap_operation, operation_reference,
+                          retarget_operation
 
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis,
        compute_axis_offsets, find_axis_band, compute_axis_extents, layout_min,
@@ -48,15 +52,21 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
        ScrollLayoutToGraphicsCanvas, LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap,
-       get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell
+       get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell, compute_grid_places
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
-export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context
+export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,
+       with_visible_size, get_visible_width, get_visible_height
 export read_child_event, make_layout_selection_ring
+export PlaceBlocks, get_block_total, get_total_before, find_place_at
+export KeepPointOperation, RevealPartOperation
 
 
 include("LayoutDocument.jl")
 include("ConstraintSolver.jl")
+include("PlaceBlocks.jl")
+include("KeepPointOperation.jl")
+include("RevealPartOperation.jl")
 include("LayoutToGraphics.jl")
 include("LayoutList.jl")
 include("GridList.jl")

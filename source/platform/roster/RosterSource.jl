@@ -19,6 +19,8 @@ Use it to give a roster the items of a collection in a document.
     Roster(CollectionItems(@reference(results)); columns = ["name", "status"])
 
 See also `Roster` and `show_roster!`.
+
+For the assistant.
 """
 struct CollectionItems
     collection::Any
@@ -29,20 +31,35 @@ collect_roster_parts(source::CollectionItems, link) = Any[source]
 # A source is data, so a file that keeps a roster writes its source.
 is_pred_constructible(::Type{CollectionItems}) = true
 
+# Each item of a collection at a reference has its place there: the reference and
+# its index, which the walk of the collection knows. A collection given as itself
+# has no place in the link.
 function collect_roster_items(source::CollectionItems, link, part)
-    collection = source.collection isa Reference ?
-        try_evaluate_reference(link, source.collection, nothing) : source.collection
+    reference = source.collection
+    collection = reference isa Reference ? try_evaluate_reference(link, reference, nothing) : reference
     collection === nothing && return RosterItem[]
-    RosterItem[RosterItem(item) for item in collection]
+    reference isa Reference || return RosterItem[RosterItem(item) for item in collection]
+    RosterItem[RosterItem(item, nothing, extend_reference(reference, ElementReferenceStep(j)))
+               for (j, item) in enumerate(collection)]
 end
 
 """
-    ItemsWithin(source, type)
+    ItemsWithin(source, type; descend = nothing, enter_field = nothing)
 
 The documents of `type` inside each item of `source`, at any depth. Each item of
-`source` is one part, so a change inside one item gathers the documents of that
-item again and of no other. The row of each such document holds the item of
-`source` that holds it, which the key `within` names.
+`source` is one part, and the inside of each document that it finds is a part of
+its own ([`get_roster_item_inside`](@ref)): the search of a part stops at each
+document of `type` and reads nothing inside it. So a change inside one document
+gathers the documents inside that document again, and of no other. The row of
+each such document holds the item of `source` that holds it, which the key
+`within` names.
+
+`descend` and `enter_field` are the functions of the same names of
+`walk_document`, which each search of a part and of an inside takes, or `nothing`
+for a search that enters every child and reads every field. Give them when the
+documents can lie only in some parts of an item, so that a search reads nothing
+else. A file writes each by its name, so each must be a function with a name that
+its package lets a file name (`is_pred_constructible`).
 
 Use it to give a roster the documents of one type that lie inside other items.
 
@@ -51,12 +68,30 @@ Use it to give a roster the documents of one type that lie inside other items.
     # every call in the files of the tabs, each with its file
     Roster(ItemsWithin(TabDocuments(FileDocument), JuliaCall); columns = ["callee", "within.name"])
 
+    # every task of the groups of a list, and the tasks of their inner groups
+    Roster(ItemsWithin(CollectionItems(@reference(groups)), TaskDocument; enter_field = is_task_search_field))
+
 See also `Roster` and `TabDocuments`.
+
+For the assistant.
 """
 struct ItemsWithin
     source::Any
     type::Type
+    descend::Any
+    enter_field::Any
 end
+
+ItemsWithin(source, type::Type; descend = nothing, enter_field = nothing) =
+    ItemsWithin(source, type, descend, enter_field)
+ItemsWithin(; source, type::Type, descend = nothing, enter_field = nothing) =
+    ItemsWithin(source, type, descend, enter_field)
+
+# A file writes the functions of the searches only when the source has them.
+pred_arguments(source::ItemsWithin) =
+    ((), Pair{Symbol,Any}[:source => source.source, :type => source.type,
+                          (name => getfield(source, name) for name in (:descend, :enter_field)
+                           if getfield(source, name) !== nothing)...])
 
 get_roster_item_type(source::ItemsWithin) = source.type
 
@@ -64,10 +99,51 @@ is_pred_constructible(::Type{ItemsWithin}) = true
 
 collect_roster_parts(source::ItemsWithin, link) =
     Any[entry.item for part in collect_roster_parts(source.source, link)
-                   for entry in collect_roster_items(source.source, link, part)]
+                   for entry in _collect_items_and_insides(source.source, link, part)]
+
+# The items of `part` of `source` and the items inside each of them, in the order
+# of a search: what a roster gathers of one part, without a cell for each inside.
+function _collect_items_and_insides(source, link, part)
+    found = RosterItem[]
+    for entry in collect_roster_items(source, link, part)
+        push!(found, entry)
+        inside = get_roster_item_inside(source, entry)
+        inside === nothing || append!(found, _collect_items_and_insides(source, link, inside))
+    end
+    found
+end
+
+# The inside of a document that `ItemsWithin` found, as a part of its own: the
+# document, and the item of the outer source that holds it.
+struct _ItemInside
+    item::Any
+    outer::Any
+end
+
+get_roster_item_inside(source::ItemsWithin, entry::RosterItem) = _ItemInside(entry.item, entry.within)
 
 collect_roster_items(source::ItemsWithin, link, outer) =
-    RosterItem[RosterItem(found, outer) for found in search_documents(outer, node -> node isa source.type; limit = nothing)]
+    RosterItem[RosterItem(found, outer)
+               for found in _search_items(source, outer, node -> node isa source.type, nothing)]
+
+# The documents inside a found document, each read up to itself. The search does
+# not go back into the item of the outer source, which a document can name.
+collect_roster_items(source::ItemsWithin, link, inside::_ItemInside) =
+    RosterItem[RosterItem(found, inside.outer)
+               for found in _search_items(source, inside.item, node -> node !== inside.item && node isa source.type,
+                                          inside.outer)]
+
+# The documents that `predicate` keeps in `root`, each read up to itself, by the
+# functions of the searches of `source`; the search does not enter `outer`.
+function _search_items(source::ItemsWithin, root, predicate, outer)
+    descend = something(source.descend, _is_any_step)
+    enter_field = something(source.enter_field, _is_any_step)
+    walk = DocumentWalk(; descend = (parent, child) -> child !== outer && descend(parent, child),
+                        enter_field = (node, name) -> is_field_entered(node, name) && enter_field(node, name))
+    search_documents(root, predicate; limit = nothing, enter_matches = false, walk)
+end
+
+_is_any_step(_, _) = true
 
 # The stores that a slice registers as a source, by name. The table is filled when
 # each slice loads (its `__init__`), as the rows of the natural renderer are, so a
@@ -98,7 +174,19 @@ end
 
 The names of the stores that the loaded slices registered as sources, in the order
 of their names.
+
+Use it to list the stores that a roster can take its rows from.
+
+# Example
+
+    names_1 = get_roster_source_names()
+
+See also `describe_roster`.
+
+For the assistant.
 """
+function get_roster_source_names end
+
 get_roster_source_names() = sort!(collect(keys(_ROSTER_SOURCES)))
 
 """
@@ -115,6 +203,8 @@ Use it to give a roster the records of a store, such as the log.
     show_roster!(StoreRecords(:log); columns = ["level", "message"])
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 struct StoreRecords
     name::Symbol

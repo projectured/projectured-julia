@@ -16,10 +16,10 @@ function test_dbcatalog_theme()
 
     plain = draw(Appearance())
     @test !isempty(plain)
-    @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw(Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test DbCatalogColumnToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), DbCatalogTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), DbCatalogTheme)
     leaf = DbCatalogColumnToSyntaxLeaf(; style = get_db_catalog_style(theme, :column_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(DbCatalogTheme(), :column_text).color)

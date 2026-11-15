@@ -63,6 +63,42 @@ GraphGraphToGraphLayout(engine::GraphLayoutEngine = make_deferred_layout_engine(
                                 (Int(extent[1]), Int(extent[2])),
                             Int(border), constraints)
 
+# The context of a part of a graph that the graph prints through its recursion:
+# the content of a vertex or the label of an edge. It offers no room on either
+# axis, so the part takes the size that it needs. A part that fills the room it
+# gets, such as a table, would otherwise take all the room that the host offers
+# the graph, and push the other vertices out of the view.
+_make_graph_part_context(ctx, document, steps...) =
+    with_exact_size(make_child_context(ctx, document, steps...); width = nothing, height = nothing)
+
+# The vertices, by `objectid`, that a `:pin` or a `:start` of `constraints` places.
+_collect_placed_vertices(constraints::Vector) =
+    Set{UInt}(objectid(constraint.target) for constraint in constraints
+              if constraint.kind === :pin || constraint.kind === :start)
+
+# A `:start` at its last corner for each vertex of `graph` in `corners`, when
+# `engine` takes a start. A vertex in `placed` has a place already, and gets none.
+function _make_kept_starts(engine::GraphLayoutEngine, graph::GraphGraph, corners::IdDict,
+                           placed::Set{UInt})
+    (isempty(corners) || !(:start in get_supported_constraint_kinds(engine))) &&
+        return GraphConstraint[]
+    GraphConstraint[GraphConstraint(vertex, :start, corners[vertex])
+                    for vertex in layout_vertices(graph)
+                    if haskey(corners, vertex) && !(objectid(vertex) in placed)]
+end
+
+# The corner of each vertex of `graph` that the engine placed by itself: a vertex
+# in `placed` is left out.
+function _collect_vertex_corners(graph::GraphGraph, positions::Dict, placed::Set{UInt})
+    corners = IdDict{Any,Tuple{Int,Int}}()
+    for vertex in layout_vertices(graph)
+        objectid(vertex) in placed && continue
+        position = get(positions, objectid(vertex), nothing)
+        position === nothing || (corners[vertex] = (position[1], position[2]))
+    end
+    corners
+end
+
 _canvas_wh(im) = begin
     o = im === nothing ? nothing : im.output
     o isa GraphicsCanvas ? (Int(o.w), Int(o.h)) : (60, 30)
@@ -80,13 +116,21 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v = graph.vertices[i]
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
-                push!(ims, print_child(recursion, content, make_child_context(ctx, graph, (@reference_step vertices), (@reference_step [i]), (@reference_step content))))
+                push!(ims, print_child(recursion, content, _make_graph_part_context(ctx, graph, (@reference_step vertices), (@reference_step [i]), (@reference_step content))))
             else
                 push!(ims, nothing)
             end
         end
         ims
     end)
+
+    # The corner of each vertex that the last run of the engine placed by itself.
+    # The next run starts each of them there, so a change of a size moves only the
+    # boxes that overlap after it, and a new vertex is placed among the others. A
+    # vertex that a constraint placed keeps no corner, so the undo of a drop puts
+    # it back where the engine places it. A new print starts with no corner, and
+    # lays out the graph from the start.
+    last_corners = Ref(IdDict{Any,Tuple{Int,Int}}())
 
     # Run the engine (keyed on the live sizes + topology + constraints). Held in
     # one cell so it re-runs only when a size, the vertex/edge list or a
@@ -100,16 +144,19 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v isa GraphVertex || continue
             sizes[objectid(v)] = _canvas_wh(i <= length(ims) ? ims[i] : nothing)
         end
-        # The graph's own constraints come last, so a pin that the person dropped
-        # wins over a pin of the projection.
-        constraints = vcat(p.constraints === nothing ? GraphConstraint[] : p.constraints(graph),
-                           graph.constraints)
-        positions, routes = layout_graph(p.engine, graph, sizes, constraints;
-                                         extent = p.extent, border = p.border)
-        # Which engine really ran is decided inside this cell, because an engine
+        # Which engine really runs is decided inside this cell, because an engine
         # that defers its choice reads the vertex count to make it.
-        name = layout_engine_name(resolve_layout_engine(p.engine, length(sizes)))
-        (positions, routes, name)
+        engine = resolve_layout_engine(p.engine, length(sizes))
+        # The graph's own constraints come last, so a pin that the person dropped
+        # wins over a pin of the projection, and both win over the last corners.
+        given = vcat(p.constraints === nothing ? GraphConstraint[] : p.constraints(graph),
+                     graph.constraints)
+        placed_by_given = _collect_placed_vertices(given)
+        constraints = vcat(_make_kept_starts(engine, graph, last_corners[], placed_by_given), given)
+        positions, routes = layout_graph(engine, graph, sizes, constraints;
+                                         extent = p.extent, border = p.border)
+        last_corners[] = _collect_vertex_corners(graph, positions, placed_by_given)
+        (positions, routes, layout_engine_name(engine))
     end)
 
     vertex_layouts = CellVector(@computation begin
@@ -146,7 +193,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         Cell(@computation graph.highlight_vertex),
         Cell(@computation graph.highlight_edge),
         Cell(@computation placed[][3]),
-        Cell(graph), Cell(nothing),
+        Cell(graph), Cell(nothing), Cell(nothing), Cell(nothing),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
         end),
@@ -159,21 +206,28 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
     iomap
 end
 
-# vertices[i].rest... ↔ vertex_layouts[i].vertex.rest...
+# vertices[i].rest... ↔ vertex_layouts[i].vertex.rest..., and the same for an edge:
+# edges[i].rest... ↔ edge_layouts[i].edge.rest...
 # The content sub-tree rides unchanged under `.vertex`, so no per-child iomap
 # delegation is needed here.
 function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphLayout
         ::GraphGraph.vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.^(rest))
+        ::GraphGraph.edges[i].rest... => (@reference ::GraphLayout.edge_layouts::CellVector[i]::EdgeLayout.edge.^(rest))
         __ => nothing
     end
 end
 
+# The path of the graph gets the type of each node from the graph itself. A part
+# that got its gesture by a route, as a part of a drag does, answers through the
+# drawing with the steps of the route and no node types, and a path that goes on
+# from here must name every one.
 function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphGraph
-        ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
+        ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference iomap.input vertices[i].^(rest))
+        ::GraphLayout.edge_layouts[i].edge.rest... => (@reference iomap.input edges[i].^(rest))
         __ => nothing
     end
 end

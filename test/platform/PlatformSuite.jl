@@ -32,13 +32,14 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "collection" => [],
     "component" => [],
     "serialization" => [],
-    "style" => ["serialization", "settings"],
-    "appearance" => ["domain", "graphics", "layout", "natural", "primitive", "projection", "screen",
-                     "serialization", "style", "syntax", "text", "tooltip", "widget"],
+    "style" => ["collection", "serialization", "settings"],
+    "appearance" => ["collection", "domain", "graphics", "layout", "natural", "primitive", "projection",
+                     "screen", "serialization", "style", "syntax", "text", "tooltip", "tree", "widget"],
     "settingsmanaging" => ["collection", "domain", "graphics", "layout", "natural", "primitive",
-                           "projection", "screen", "serialization", "settings", "style", "widget"],
+                           "projection", "screen", "serialization", "settings", "style", "tooltip",
+                           "tree", "widget"],
     "domain" => [],
-    "settings" => [],
+    "settings" => ["collection"],
     "focus" => ["collection"],
     "plot" => ["style"],
     "primitive" => [],
@@ -47,7 +48,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "dragging" => ["collection", "projection"],
     "arrangement" => ["collection", "domain", "layout", "primitive", "projection"],
     "graphics" => ["collection", "projection", "style"],
-    "layout" => ["collection", "focus", "graphics", "projection", "style"],
+    "layout" => ["collection", "focus", "graphics", "projection", "serialization", "style"],
     "screen" => ["collection", "dragtracking", "gesturetracking", "graphics", "primitive",
                  "projection", "settings"],
     "text" => ["collection", "domain", "graphics", "layout", "primitive", "projection", "style"],
@@ -61,61 +62,70 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "roster" => ["arrangement", "collection", "domain", "focus", "layout", "natural", "primitive",
                  "projection", "screen", "serialization", "style", "widget"],
     "tree" => ["collection", "domain", "graphics", "natural", "projection", "roster", "screen",
-               "serialization", "style", "widget"],
+               "serialization", "style", "text", "widget"],
+    "link" => ["domain", "layout", "primitive", "projection", "style", "syntax", "text", "tree", "widget"],
     "systemprocess" => ["collection", "domain", "focus", "graphics", "layout", "projection",
-                        "roster", "serialization", "style", "tree", "widget"],
+                        "roster", "serialization", "style", "text", "tooltip", "tree", "widget"],
     "workplan" => ["collection", "domain", "layout", "natural", "projection", "roster", "serialization", "style",
                    "tree", "widget"],
     "pane" => ["arrangement", "clipboard", "collection", "domain", "dragging", "focus", "graphics",
                "layout", "primitive", "projection", "roster", "screen", "serialization", "style",
-               "widget"],
+               "text", "tooltip", "widget"],
     "reflection" => ["collection", "widget"],
-    "inspector" => ["domain", "natural", "projection", "screen", "serialization", "style",
-                    "text"],
+    "inspector" => ["domain", "natural", "projection", "screen", "serialization", "style", "text",
+                    "tooltip"],
+    "outline" => ["domain", "layout", "style", "tooltip", "widget"],
     "syntax" => ["arrangement", "collection", "domain", "natural", "primitive", "projection", "style",
-                 "text"],
+                 "text", "widget"],
     "fault" => ["collection", "domain", "focus", "graphics", "natural", "projection", "roster",
                 "serialization", "settings", "style", "syntax", "text", "tooltip", "widget"],
-    "fileformat" => ["collection", "domain", "layout", "natural", "primitive", "projection", "roster",
-                     "serialization", "style", "syntax", "text", "tree", "widget"],
+    "fileformat" => ["arrangement", "collection", "domain", "graphics", "layout", "natural", "primitive",
+                     "projection", "roster", "serialization", "style", "syntax", "text", "tooltip", "tree",
+                     "widget"],
     "filechange" => ["domain", "fileformat", "serialization"],
-    "filesystem" => ["collection", "domain", "filechange", "fileformat", "focus", "graphics", "layout", "natural",
-                     "pane", "primitive", "projection", "serialization", "settingsmanaging",
-                     "style", "syntax", "text", "tree", "undo", "widget"],
+    "filesystem" => ["collection", "domain", "filechange", "fileformat", "focus", "graphics",
+                     "layout", "natural", "pane", "primitive", "projection", "serialization",
+                     "settingsmanaging", "style", "syntax", "text", "tooltip", "tree", "undo",
+                     "widget"],
     "gesturehelp" => ["collection", "graphics", "projection", "screen", "style", "syntax",
-                      "text"],
-    "gesturelog" => ["collection", "domain", "graphics", "natural", "projection",
-                     "serialization", "style", "syntax", "text"],
+                      "text", "widget"],
+    "gesturelog" => ["collection", "domain", "graphics", "natural", "projection", "serialization",
+                     "style", "syntax", "text", "tooltip", "widget"],
     "assistant" => ["collection", "conversation", "domain", "focus", "graphics", "layout",
-                    "natural", "navigator", "pane", "primitive", "projection", "roster",
-                    "screen", "serialization", "style", "systemprocess", "task",
-                    "terminal", "text", "tree", "widget", "workplan"],
+                    "natural", "navigator", "pane", "primitive", "projection", "roster", "screen",
+                    "serialization", "style", "systemprocess", "task", "terminal", "text",
+                    "tooltip", "tree", "widget", "workplan"],
     "terminal" => ["domain", "layout", "natural", "primitive", "projection", "style", "widget"],
     "conversation" => ["collection", "domain", "focus", "layout", "natural", "primitive",
-                       "projection", "serialization", "style", "text", "widget"],
+                       "projection", "serialization", "style", "text", "tooltip", "tree", "widget"],
     "shell" => ["appearance", "assistant", "clipboard", "conversation", "domain", "explorer", "fault", "fileformat",
                 "filesystem", "focus", "gesturehelp", "gesturelog", "graphics", "help", "inspector",
-                "log", "natural", "pane", "projection", "screen", "settings", "settingsmanaging",
+                "log", "natural", "navigator", "pane", "projection", "screen", "settings", "settingsmanaging",
                 "statistics", "style", "syntax", "text", "tooltip", "widget"],
-    "help" => ["domain", "natural", "serialization", "style", "syntax", "text"],
-    "log" => ["collection", "domain", "natural", "roster", "serialization", "style", "syntax", "text"],
+    "help" => ["collection", "domain", "layout", "natural", "projection", "serialization", "style", "syntax",
+               "text", "tooltip", "tree", "widget"],
+    "log" => ["collection", "domain", "natural", "roster", "serialization", "style", "syntax",
+              "text", "tooltip"],
     "mcplog" => ["collection", "domain", "layout", "natural", "primitive", "projection", "roster",
-                 "serialization", "shell", "style", "widget"],
-    "task" => ["collection", "domain", "focus", "graphics", "layout", "natural", "navigator", "pane", "primitive",
-               "projection", "roster", "serialization", "style", "systemprocess", "tree", "widget"],
+                 "serialization", "shell", "style", "tooltip", "widget"],
+    "task" => ["arrangement", "collection", "domain", "focus", "graphics", "layout", "natural", "navigator", "pane", "primitive",
+               "projection", "roster", "serialization", "style", "systemprocess", "text", "tooltip", "tree", "widget"],
     "statistics" => ["collection", "domain", "layout", "natural", "projection", "roster",
-                     "serialization", "style", "widget"],
+                     "serialization", "style", "tooltip", "widget"],
     "undo" => ["collection", "fileformat", "graphics", "natural", "projection", "settings", "style",
                "syntax", "text"],
-    "explorer" => ["collection", "domain", "focus", "layout", "navigator", "pane", "projection", "serialization",
-                   "style", "task", "tree", "widget"],
-    "navigator" => ["collection", "domain", "filesystem", "layout", "natural", "pane", "primitive", "projection",
-                    "screen", "serialization", "style", "syntax", "text", "widget"],
+    "explorer" => ["collection", "domain", "fileformat", "focus", "gesturehelp", "layout", "navigator", "pane",
+                   "projection", "roster", "serialization", "style", "task", "tooltip", "tree", "widget"],
+    "navigator" => ["collection", "domain", "filesystem", "layout", "link", "natural", "pane", "primitive", "projection",
+                    "screen", "serialization", "style", "syntax", "text", "tooltip", "widget"],
     "gesturetracking" => ["settings"],
     "dragtracking" => [],
     "display" => ["collection", "graphics", "layout", "natural", "screen", "style", "widget"],
     "essentials" => ["display", "natural", "style"],
-    "application" => ["appearance", "arrangement", "assistant", "clipboard", "collection", "conversation",
+    "backgroundwork" => ["arrangement", "collection", "domain", "layout", "projection", "roster",
+                         "serialization", "style", "tooltip", "widget"],
+    "application" => ["appearance", "arrangement", "assistant", "backgroundwork", "clipboard", "collection",
+                      "conversation", "display",
                       "domain", "explorer", "fault", "fileformat", "filesystem", "focus", "gesturehelp",
                       "gesturelog", "graphics", "help", "inspector", "log", "mcplog",
                       "natural", "navigator", "pane", "primitive", "projection", "roster",
@@ -180,11 +190,14 @@ function test_platform()
         test_graphics()
         test_pointer_shape()
         test_affine_transform()
+        test_image()
+        test_image_head()
         test_font_metrics()
         test_text_measure()
         test_line_spacing()
         test_theme()
         test_color_theme()
+        test_font_theme()
         test_font_fallback()
         test_font_face()
         test_graphics_layout()
@@ -196,6 +209,7 @@ function test_platform()
         test_text_pattern()
         test_pane_surgery()
         test_document_read()
+        test_following_document()
         test_pane_geometry()
         test_document_duplicate()
         # text / graphics projections
@@ -215,6 +229,7 @@ function test_platform()
         test_text_to_graphics()
         test_text_line_model()
         test_inline_image_caret()
+        test_image_to_widget()
         test_word_wrapping()
         test_filtered_text_to_text()
         test_text_first_line()
@@ -223,6 +238,7 @@ function test_platform()
         test_syntax_node_view()
         test_text_line_numbering()
         test_highlighted_text_to_text()
+        test_marked_text_to_text()
         test_selection_inverting()
         # widget projections
         test_object_to_widget()
@@ -235,6 +251,8 @@ function test_platform()
         test_widget_text_editing()
         test_widget_button_behavior()
         test_widget_button_labels()
+        test_widget_link()
+        test_link()
         test_widget_slider_drag()
         test_widget_scroll_bar()
         test_widget_live_values()
@@ -244,7 +262,10 @@ function test_platform()
         test_size_range_composite()
         test_size_range_one_child()
         test_size_range_main_axis()
+        test_layout_rules()
         test_widget_card_fold()
+        test_widget_label_caret()
+        test_widget_fact_group()
         test_widget_selection()
         test_selection_walking()
         test_gesture_tracking()
@@ -284,11 +305,13 @@ function test_platform()
         test_widget_table_list()
         test_widget_table_header_levels()
         test_layout_list()
-        test_widget_table_list_header_floor()
+        test_widget_table_list_column_share()
         test_widget_table_cell_order()
         test_widget_table_part_selection()
         test_arrangement()
         test_arrangement_filter_sort()
+        test_arrangement_filter_language()
+        test_widget_column_header()
         test_arrangement_natural()
         test_arrangement_menu()
         test_arrange_collection_operation()
@@ -298,16 +321,28 @@ function test_platform()
         test_arrangement_group()
         test_roster()
         test_roster_table()
+        test_record_table()
+        test_roster_header()
         test_roster_sources()
         test_roster_facets()
         test_roster_program()
         test_document_tree()
         test_explorer()
+        test_explorer_row_notes()
+        test_background_work()
         test_document_decoration()
         test_system_process()
         test_work_plan()
         test_frozen_table_headers()
         test_widget_text_wrap()
+        test_widget_text_fit()
+        test_widget_printer_projection()
+        test_widget_gap_role()
+        test_widget_menu_keys()
+        test_letter_match()
+        test_outline()
+        test_elements()
+        test_insertion_choices()
         test_widget_tab_strip()
         test_widget_tab_label()
         test_mcp_log_pane()
@@ -316,10 +351,16 @@ function test_platform()
         test_task_execution()
         test_task_group()
         test_build_step()
+        test_program_task()
         test_task_document()
+        test_task_kind_facets()
+        test_feed_frame_guards()
         test_task_views()
+        test_task_group_table()
         test_task_pages()
         test_task_group_verbs()
+        test_task_work_item()
+        test_task_list_pane()
         test_widget_split_pane()
         test_pane_to_widget()
         test_pane_reader()
@@ -341,27 +382,36 @@ function test_platform()
         # interaction decorators
         test_clipboard()
         test_tooltip()
+        test_tooltip_note()
         test_window_fit()
+        test_window_placement()
         test_window_wrapper()
         test_document_composition()
         test_tabs_wrapper()
         test_split_pane_drag()
+        test_split_pane_band()
         test_part_pointer_shape()
         test_routed_gesture()
         test_layout_point()
         test_widget_point()
         test_column_chooser()
         test_widget_swatch()
+        test_slot_space()
         test_baseline_alignment()
         test_widget_forward()
         test_widget_round_trip()
         test_scroll_pane_hover()
+        test_scroll_pane_show()
         test_scroll_pane_bar()
         test_widget_table_bar()
         test_widget_rows_scroll()
         test_widget_popup_example()
         # generic drivers over visual examples
         test_collapse_roundtrip()
+        test_part_click(text_example)
+        test_application_workload()
+        test_window_workload()
+        test_file_workload()
 
 
         # the suites of the slices that had a test package of their own
@@ -393,6 +443,7 @@ function test_platform_examples()
 end
 
 export test_platform, test_platform_layering, test_platform_examples
+export test_feed_frame_guards
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity
@@ -402,9 +453,9 @@ export test_versioning_to_any
 export test_text_file, test_marker_language, test_pred_file
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference
-export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback, test_font_face,
+export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_image, test_image_head, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback, test_font_face,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
-       test_primitive, test_primitive_type_in, test_pane_surgery, test_document_read, test_pane_geometry, test_pane_to_widget,
+       test_primitive, test_primitive_type_in, test_pane_surgery, test_document_read, test_following_document, test_pane_geometry, test_pane_to_widget,
        test_pane_reader, test_pane_gestures, test_pane_drag,
        test_pane_rename, test_pane_construct, test_interface_api
 export test_projection_template_hygiene, test_projection_template_fixed_children
@@ -413,31 +464,35 @@ export test_projection_template_conditional_children,
        test_projection_template_reconciled_children, test_projection_template_value_field,
        test_projection_template_wirings
 export test_plot_geometry,
-       test_syntax_to_text, test_introduced_part_round_trip, test_every_kind_of_path, test_output_paths, test_primitive_to_text, test_text_to_graphics, test_text_line_model, test_inline_image_caret,
+       test_syntax_to_text, test_introduced_part_round_trip, test_every_kind_of_path, test_output_paths, test_primitive_to_text, test_text_to_graphics, test_text_line_model, test_inline_image_caret, test_image_to_widget,
        test_word_wrapping, test_filtered_text_to_text, test_text_first_line, test_text_view, test_syntax_leaf_view, test_syntax_node_view, test_text_line_numbering,
-       test_highlighted_text_to_text, test_selection_inverting
+       test_highlighted_text_to_text, test_marked_text_to_text, test_selection_inverting
 export test_reflection_to_widget
 export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot, test_text_pattern
 export test_object_to_widget, test_find_bar_view_to_widget,
-       test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
+       test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_link, test_link, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_layout_rules, test_widget_card_fold, test_widget_fact_group, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_text_and_syntax_themes, test_tool_themes, test_help_themes, collect_font_sizes, draw_font_sizes, draw_texts, test_appearance_wrapper, test_appearance_tab, test_appearance_file, test_settings, test_settings_wrapper, test_settings_tab, test_navigator_document, test_navigator_gestures, test_open_page_operation, test_navigator, test_navigator_visits, test_navigator_choices, test_navigator_address, test_navigator_to_widget, test_widget_tree,
-       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_widget_table_cell_order, test_widget_table_part_selection, test_arrangement,  test_arrangement_filter_sort, test_arrangement_natural, test_arrangement_menu, test_arrange_collection_operation, test_arrangement_quick_text, test_arrangement_find, test_arrangement_program, test_arrangement_group, test_roster, test_roster_table, test_roster_sources, test_roster_facets, test_roster_program, test_document_tree, test_explorer, test_document_decoration, test_system_process, test_work_plan, test_widget_table_header_levels, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_tab_label, test_mcp_log_pane, test_terminal, test_task_result, test_task_execution, test_task_group, test_build_step, test_task_document, test_task_views, test_task_group_scale, test_task_group_verbs, test_widget_split_pane, test_widget_transform_pane,
+       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_column_share, test_widget_table_cell_order, test_widget_table_part_selection, test_arrangement,  test_arrangement_filter_sort, test_arrangement_filter_language, test_widget_column_header, test_arrangement_natural, test_arrangement_menu, test_arrange_collection_operation, test_arrangement_quick_text, test_arrangement_find, test_arrangement_program, test_arrangement_group, test_roster, test_roster_table, test_record_table, test_roster_header, test_roster_sources, test_roster_facets, test_roster_program, test_document_tree, test_explorer, test_explorer_row_notes, test_background_work, test_document_decoration, test_system_process, test_work_plan, test_widget_table_header_levels, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_text_fit, test_widget_printer_projection, test_widget_gap_role, test_widget_menu_keys, test_letter_match, test_outline, test_elements, test_insertion_choices, test_widget_tab_strip, test_widget_tab_label, test_mcp_log_pane, test_terminal, test_task_result, test_task_execution, test_task_group, test_build_step, test_program_task, test_task_document, test_task_kind_facets, test_task_views, test_task_group_table, test_task_group_scale, test_task_group_verbs, test_task_work_item, test_task_list_pane, test_widget_split_pane, test_widget_transform_pane,
        test_layout_closeout, test_grid_span, test_widget_forms, test_anchor_point, test_anchored_layout,
        test_scroll_layout, test_scroll_pane_parts, test_text_gutter,
        test_text_folding
-export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,
-       test_tabs_wrapper, test_split_pane_drag, test_part_pointer_shape, test_routed_gesture,
-       test_layout_point, test_widget_point, test_column_chooser, test_widget_swatch, test_baseline_alignment,
+export test_clipboard, test_tooltip, test_tooltip_note, test_window_fit, test_window_placement, test_window_wrapper, test_document_composition,
+       test_tabs_wrapper, test_split_pane_drag, test_split_pane_band, test_part_pointer_shape, test_routed_gesture,
+       test_layout_point, test_widget_point, test_column_chooser, test_widget_swatch, test_slot_space, test_baseline_alignment,
        test_widget_forward,
        test_widget_round_trip,
-       test_scroll_pane_hover, test_scroll_pane_bar, test_widget_table_bar,
+       test_scroll_pane_hover, test_scroll_pane_show, test_scroll_pane_bar, test_widget_table_bar,
        test_widget_rows_scroll,
-       test_widget_popup_example, test_collapse_roundtrip
+       test_widget_popup_example, test_collapse_roundtrip,
+       test_application_workload, test_window_workload, test_file_workload
 export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,
        explore_tree_selections, test_tree_navigation
 export walk_typein, test_typein
+export is_link_text_underlined
+export walk_part_clicks, test_part_click
+export CATALOG_TESTERS, test_catalog_examples, find_catalog_coverage_gap, test_atom_coverage
 export test_click_roundtrip, test_text_navigation_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _segment_x_at,
        _path_contains_projection_reference

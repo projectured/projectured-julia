@@ -10,9 +10,17 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, JuliaDocstring,
+using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaBegin, JuliaToplevel, JuliaDocstring,
                                     JuliaComment, JuliaMultilineComment, JuliaEndOfLineComment
 using ProjecturedPlatform.NaturalModule: print_natural_text
+
+# The file `path` of a slice of `package`: under `source/` in this repository, and
+# beside the entry file of the installed package in a release copy, which puts
+# `source/<path>` at `src/<path>`.
+function _find_parser_test_source(package::Module, path::String)
+    repository = joinpath(@__DIR__, "..", "..", "..", "..", "source", path)
+    isfile(repository) ? repository : joinpath(dirname(pathof(package)), path)
+end
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.
@@ -26,14 +34,14 @@ function _julia_prints_back(source::AbstractString)
         print_natural_text(parse_julia(printed)) == printed
 end
 
-# Whether the statements of `block`, or of the block that `source` parses to, are
-# of `types`, in order.
-function _has_julia_statements(block::JuliaBlock, types...)
+# Whether the statements of `block`, or of the top level that `source` parses to,
+# are of `types`, in order.
+function _has_julia_statements(block::Union{JuliaBlock, JuliaToplevel}, types...)
     statements = [s for s in block.statements]
     length(statements) == length(types) && all(map(isa, statements, collect(types)))
 end
 _has_julia_statements(source::AbstractString, types...) =
-    (document = parse_julia(source); document isa JuliaBlock && _has_julia_statements(document, types...))
+    (document = parse_julia(source); document isa JuliaToplevel && _has_julia_statements(document, types...))
 
 # The statements of the body of the one struct in `text`, as Julia parses them,
 # with no line numbers. A docstring loses the break at its end, which a single
@@ -134,12 +142,64 @@ function test_julia_parser()
                        _julia_round_trip("function f(x)::Int\n    x\nend"))
     end
 
+    @testset "a long function keeps its keyword parameters after the `;`" begin
+        for code in ("function g(x; y = 1)\n  x\nend", "function g(; y = 1, z)\n  y\nend",
+                     "function g(x::T; scale = 1.5)::T where {T}\n  x\nend")
+            @test _julia_round_trip(code) == code
+        end
+        # The positional and the keyword parameters are two lists, as the
+        # arguments of a call are.
+        g = parse_julia("function g(x; y = 1)\n    x\nend")
+        @test length(g.params) == 1 && length(g.keyword_parameters) == 1
+    end
+
+    @testset "a lambda keeps its keyword parameters after the `;`" begin
+        # The block form `(x; y = 1)` and the tuple form `(x, z; y = 1, w)`.
+        for code in ("(x; y = 1) -> x + y", "(x, z; y = 1, w) -> x", "(; y = 1) -> y")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+        # The long anonymous form prints as a lambda, with its keyword parameters.
+        long_form = "g = function (x; y = 1)\n    x + y\nend"
+        @test _julia_round_trip(long_form) == "g = (x; y = 1) -> x + y"
+        @test _julia_prints_back(long_form)
+        l = parse_julia("(x, z; y = 1, w) -> x")
+        @test length(l.parameters) == 2 && length(l.keyword_parameters) == 2
+    end
+
     @testset "blocks that carry a body" begin
         @test _julia_round_trip("let x = 1\n    x + 1\nend") ==
               "let x = 1\n  x + 1\nend"
         @test _julia_round_trip("map(xs) do x\n    x + 1\nend") ==
               "map(xs) do x\n  x + 1\nend"
         @test occursin("module M", _julia_round_trip("module M\n    const A = 1\nend"))
+    end
+
+    @testset "a body with no statement keeps its `end` on a line of its own" begin
+        for code in ("while false\nend", "for x in 1:2\nend", "if true\nend",
+                     "if a\n  x\nelseif b\nend", "if a\nelse\n  x\nend",
+                     "try\ncatch\nend", "try\n  f()\ncatch exception\nend",
+                     "try\n  f()\nfinally\nend", "struct S\nend", "module M\nend",
+                     "function h()\nend", "map(xs) do x\nend",
+                     "while a\n  while b\n  end\n  x\nend")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+    end
+
+    @testset "a `begin … end` that is not a body keeps its `begin` and its `end`" begin
+        for code in ("x = begin\n  a = 1\n  a + 1\nend", "@testset \"a\" begin\n  x = 1\nend",
+                     "if c\n  begin\n    y\n  end\nend", "f(begin\n  a\nend)",
+                     "g = x -> begin\n  a\n  b\nend")
+            @test _julia_round_trip(code) == code
+            @test _julia_prints_back(code)
+        end
+        # The body of a construct is a block of its own, not a `begin … end`.
+        @test parse_julia("while c\n    x\nend").body isa JuliaBlock
+        @test parse_julia("x = begin\n    1\nend").value isa JuliaBegin
+        # A long anonymous function of several statements prints as a lambda with a
+        # `begin … end`, because a lambda writes no `end` of its own.
+        @test _julia_round_trip("g = function (x)\n    a\n    b\nend") == "g = (x) -> begin\n  a\n  b\nend"
     end
 
     @testset "the smaller gaps" begin
@@ -230,10 +290,11 @@ function test_julia_parser()
     @testset "a real file keeps every comment, in order" begin
         # Files of this repository that the printer prints back exactly, with
         # many comments, and with a `#` inside a string.
-        root = joinpath(@__DIR__, "..", "..", "..", "..")
-        for path in ("source/domain/julia/JuliaCodePieces.jl", "source/domain/julia/JuliaExpression.jl",
-                     "source/domain/julia/JuliaFile.jl", "source/platform/syntax/FaultToSyntax.jl")
-            text = read(joinpath(root, path), String)
+        for (package, path) in ((ProjecturedJulia, "domain/julia/JuliaCodePieces.jl"),
+                                (ProjecturedJulia, "domain/julia/JuliaExpression.jl"),
+                                (ProjecturedJulia, "domain/julia/JuliaFile.jl"),
+                                (ProjecturedPlatform, "platform/syntax/FaultToSyntax.jl"))
+            text = read(_find_parser_test_source(package, path), String)
             printed = print_natural_text(parse_julia(text))
             missing_comments = String[]
             position = 1
@@ -269,9 +330,23 @@ function test_julia_parser()
         @test parse_julia("x = 1;").trailing_semicolon
         @test !parse_julia("a; b").trailing_semicolon
         # A line of its own in a block of lines keeps its `;` too.
-        @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\n  y = 2;"
+        @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\ny = 2;"
         # A `;` inside a `begin` block separates statements of that block.
-        @test parse_julia("begin a; b end") isa JuliaBlock
+        semicolons = parse_julia("begin a; b end")
+        @test semicolons isa JuliaBegin && length(semicolons.body.statements) == 2
+    end
+
+    @testset "the top level of a file prints each statement on its line, with no indentation" begin
+        for code in ("x = 1\ny = x + 1", "function f(x)\n  x + 1\nend\nf(2)",
+                     "a = 1\nb = 2; c = 3\nd = 4", "x = 1\ny = 2;", "# c\nx = 1")
+            document = parse_julia(code)
+            @test document isa JuliaToplevel && !document.on_one_line
+            @test print_natural_text(document) == code
+        end
+        @test parse_julia("a; b").on_one_line
+        empty = parse_julia("")
+        @test empty isa JuliaToplevel && isempty(empty.statements)
+        @test print_natural_text(empty) == ""
     end
 
     @testset "a whole file is a document" begin

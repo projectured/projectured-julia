@@ -1,6 +1,6 @@
 # Reflection
 
-> **Kind:** design · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
 
 The reflection slice of `ProjecturedPlatform` shows any Julia value on the screen with no projection written for it. It keeps a bounded shadow of the value, a tree of `ReflectedNode`, and draws the tree as a `WidgetTree` whose chevrons grow the shadow one level at a time. This document says how the shadow, the view and the value viewer fit together, and how this path differs from `ObjectToWidget` and `NaturalToGraphics`; [bounded-sync.md](bounded-sync.md) describes the bounded walk in detail.
 
@@ -71,8 +71,7 @@ It registers nothing. It adds methods to the three open functions of the kernel 
 shadow = reflect_document(value, DepthPolicy(depth = 1, elements = 20))
 sync_reflection!(shadow, value, DepthPolicy(depth = 1, elements = 20))
 projection = ChainingProjection(ReflectionToWidget(),
-                                WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
-                                                 measure = FontFileMeasure()))
+                                WidgetToGraphics(; measure = FontFileMeasure()))
 run_value_viewer(Dict("a" => 1, "b" => [1, 2, 3]))   # the tree, one level at a time
 run_value_viewer(value; tree = false)                # the flat view
 ```

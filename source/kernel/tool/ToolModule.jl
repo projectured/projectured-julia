@@ -2,7 +2,7 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Ten fragments share this namespace:
+be asked to read. Twelve fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
   `ApiEntry` lines of the API that a set declares, the `MeaningModel` and the
@@ -19,20 +19,26 @@ be asked to read. Ten fragments share this namespace:
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
   the `EvaluationResult` of each call, their persistent scratch namespace, which
-  prints to the output of each evaluation, and `get_evaluation_editor`, the editor
-  of the evaluation that a verb takes when its caller names none.
+  prints to the output of each evaluation, `get_evaluation_editor`, the editor
+  of the evaluation that a verb takes when its caller names none, and
+  `find_evaluation_starter`, who asked for the code of the evaluation.
 - [`SearchQuery.jl`](SearchQuery.jl) — what a search query says: keywords with
   their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
   documentation readers and the two search functions over them.
 - [`DocstringSummary.jl`](DocstringSummary.jl) — `compute_docstring_summary`, the
-  first paragraph of the docstring of a type, which the Help lists and the cards
-  of the appearance and the settings tabs show.
+  first paragraph of the docstring of a type or a module, which the help and the
+  cards of the appearance and the settings tabs show, `find_docstring_text`, its
+  whole text, and `collect_field_docstrings`, the docstrings of its fields, which
+  the page of a type in the help shows.
 - [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
   means, where the vectors of that rank are kept, and how a guide section's
   meaning rank joins the rank of its words.
 - [`RelevanceSearch.jl`](RelevanceSearch.jl) — how a `RelevanceModel` ranks a
   description, its context and each thing a search could find, read together.
+- [`AssistantMark.jl`](AssistantMark.jl) — `ASSISTANT_MARK`, the line of a docstring
+  that offers a name to a model, and `collect_marked_api`, the declaration that the
+  marks of the loaded modules make.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
@@ -62,10 +68,10 @@ A few values of the layer are process-global, each for a reason:
 - `_MEANING_FOLDER` and `_MEANING_WAIT_SECONDS` say where the vector files go and
   how long a search waits for a build. A test sets them.
 
-`_EVALUATION_EDITOR`, `_EVALUATION_OUTPUT`, `_CURRENT_CODE_UNIT` and
-`_CURRENT_STOP_SCOPE` are `ScopedValue`s, not one of these: each value belongs to
-one evaluation and to the tasks that it starts, so two evaluations that run at the
-same time each see their own.
+`_EVALUATION_EDITOR`, `_EVALUATION_STARTER`, `_EVALUATION_OUTPUT`,
+`_CURRENT_CODE_UNIT` and `_CURRENT_STOP_SCOPE` are `ScopedValue`s, not one of
+these: each value belongs to one evaluation and to the tasks that it starts, so
+two evaluations that run at the same time each see their own.
 """
 module ToolModule
 
@@ -75,7 +81,8 @@ using ..FaultModule
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        RelevanceModel, set_relevance_model!,
        get_api_entry_names,
-       get_api_entry_bindings, get_api_source_name, describe_api, register_guide_root!,
+       get_api_entry_bindings, get_api_source_name, describe_api, API_INDEX_PRESETS, register_guide_root!,
+       ASSISTANT_MARK, has_assistant_mark, collect_marked_api,
        register_tool!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, list_resources, find_resource,
        read_resource, describe_resources,
@@ -91,14 +98,14 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        keep_tool_call_value!, take_tool_call_value!,
        get_last_evaluation_exception, get_evaluation_exception_count,
        MissingEvaluationEditorException, get_evaluation_editor, find_evaluation_editor,
-       run_with_evaluation_editor,
+       run_with_evaluation_editor, find_evaluation_starter, run_with_evaluation_starter,
        describe_value_for_person,
        list_guides, read_guide, read_guide_section,
        list_modules, list_types, list_functions,
        read_module_documentation, read_type_documentation, read_function_documentation,
        read_value_documentation,
        search_guides, search_api,
-       compute_docstring_summary, strip_code_marks,
+       compute_docstring_summary, find_docstring_text, collect_field_docstrings, strip_code_marks,
        SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 
 include("Tool.jl")
@@ -111,6 +118,7 @@ include("Documentation.jl")
 include("DocstringSummary.jl")
 include("MeaningSearch.jl")
 include("RelevanceSearch.jl")
+include("AssistantMark.jl")
 include("DefaultTools.jl")
 
 end # module

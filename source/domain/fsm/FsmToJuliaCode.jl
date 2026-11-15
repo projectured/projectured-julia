@@ -237,7 +237,7 @@ function _transition_body(machine::FsmMachine, state::FsmState,
     action === nothing || append!(statements, _statements(action))
     target = transition.target
     if target isa FsmState
-        push!(statements, _call("fsm_goto!", _field("m", get_fsm_field_name(machine)),
+        push!(statements, _call("record_fsm_transition!", _field("m", get_fsm_field_name(machine)),
                                 _id(get_fsm_state_constant_name(machine, target)), JuliaInteger(Int(index))))
         entry = target.entry
         if entry !== nothing
@@ -289,10 +289,13 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
     flat_index = Dict{FsmTransition,Int}(t => i for (i, t) in enumerate(flat))
     fsm = _field("m", get_fsm_field_name(machine))
 
-    # The state dispatch inside the cascade loop.
+    # The state dispatch inside the cascade loop. A state with no transition has
+    # no branch: nothing fires there, and the pass settles as it does when no
+    # branch fires.
     state_branch = nothing
     for state in reverse(get_fsm_states(machine))
-        condition = JuliaBinaryOperation(:(==), _call("fsm_state", fsm),
+        any(t -> t isa FsmTransition, state.transitions) || continue
+        condition = JuliaBinaryOperation(:(==), _call("get_fsm_state", fsm),
                                   _id(get_fsm_state_constant_name(machine, state)))
         body = _state_branch(component, machine, state, flat_index)
         state_branch = JuliaIf(condition, _block(body),
@@ -301,7 +304,7 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
 
     loop_body = JuliaBlock(JuliaDocument[
         JuliaAssignment(_id("_fired"), JuliaBool(false)),
-        JuliaAssignment(_id("_from"), _call("fsm_state", fsm)),
+        JuliaAssignment(_id("_from"), _call("get_fsm_state", fsm)),
         state_branch === nothing ? JuliaBlock(JuliaDocument[]) : state_branch,
         # Nothing fired: the machine has settled.
         JuliaIf(JuliaUnaryOperation(:!, _id("_fired")),
@@ -314,26 +317,26 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
         JuliaAssignment(_id("_is_event"), JuliaBool(false)),
         JuliaAssignment(_id("_steps"), JuliaBinaryOperation(:+, _id("_steps"), JuliaInteger(1))),
         JuliaIf(JuliaBinaryOperation(:(>), _id("_steps"), _id("FSM_CASCADE_LIMIT")),
-                JuliaBlock(JuliaDocument[_call("fsm_cascade_error", fsm)]),
+                JuliaBlock(JuliaDocument[_call("make_fsm_cascade_error", fsm)]),
                 JuliaBlock(JuliaDocument[])),
     ])
 
     statements = JuliaDocument[
-        _call("fsm_enter!", fsm),
+        _call("enter_fsm!", fsm),
         JuliaAssignment(_id("_is_event"), JuliaBinaryOperation(:(!=), _id("event"), _int32(0))),
         JuliaAssignment(_id("_consumed"), JuliaUnaryOperation(:!, _id("_is_event"))),
         JuliaAssignment(_id("_steps"), JuliaInteger(0)),
         JuliaWhile(JuliaBool(true), loop_body),
-        _call("fsm_leave!", fsm),
+        _call("leave_fsm!", fsm),
     ]
     # The unhandled policy. `:ignore` writes nothing at all — an unlisted
     # (state, event) pair is legal, which is what TCP's empty `default:` means.
     if machine.on_unhandled !== :ignore
         push!(statements, JuliaIf(JuliaCall(_id("!"), JuliaDocument[_id("_consumed")]),
-            JuliaBlock(JuliaDocument[_call("fsm_unhandled_error", fsm, _id("event"))]),
+            JuliaBlock(JuliaDocument[_call("make_fsm_unhandled_error", fsm, _id("event"))]),
             JuliaBlock(JuliaDocument[])))
     end
-    push!(statements, _call("fsm_drain!", fsm))
+    push!(statements, _call("drain_fsm!", fsm))
     push!(statements, JuliaReturn(JuliaNothing()))
 
     JuliaFunction(_id(dispatch_function_name(machine)),
@@ -406,8 +409,8 @@ declares is present: its `usings`, the state and event constants, the host
 struct and its constructor, one dispatch function per machine, the timer
 expiry callbacks, and the author's own helpers spliced verbatim at the end.
 
-`wrap_module = false` returns the bare `JuliaBlock` of top-level statements
-instead of a module. That is what a host package needs when the generated file
+`wrap_module = false` returns the `JuliaToplevel` of the statements instead of a
+module. That is what a host package needs when the generated file
 is `include`d into an existing module rather than standing alone as a file —
 the 10BASE-T1S slice, where nine files make up one module, is the case that
 asked for it.
@@ -430,8 +433,8 @@ function generate_component(component::FsmComponent; wrap_module::Bool = true)
     for helper in component.helpers
         push!(statements, helper)
     end
-    body = JuliaBlock(statements)
-    wrap_module ? JuliaModuleDefinition(module_name(component), body) : body
+    wrap_module ? JuliaModuleDefinition(module_name(component), JuliaBlock(statements)) :
+                  JuliaToplevel(statements)
 end
 
 """
@@ -439,11 +442,26 @@ end
 
 The generated code as Julia source, through the ordinary `print_natural_text`
 path, with a header naming the machine it came from.
+
+Use it to see the Julia code that a state machine generates.
+
+# Example
+
+    component_1 = FsmComponent("Blinker"; machines = [FsmMachine("Main"; states = [FsmState("IDLE")])])
+    text_1 = generate_component_text(component_1; wrap_module = false)
+
+See also `get_fsm_transitions`.
+
+For the assistant.
 """
+function generate_component_text end
+
 generate_component_text(component::FsmComponent; wrap_module::Bool = true) =
     "# Generated from the state machine `" * component.name *
     "` — edit the machine, not this file.\n\n" *
     print_natural_text(generate_component(component; wrap_module = wrap_module)) * "\n"
+generate_component_text(component::ReferencedDocument; keywords...) =
+    generate_component_text(get_document(component); keywords...)
 
 """
     export_component(component::FsmComponent, path::AbstractString; wrap_module = true)

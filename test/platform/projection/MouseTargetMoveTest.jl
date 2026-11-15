@@ -146,7 +146,7 @@ ProjectionModule.read_intent(p::MtmHeldObjectView, iomap::SimpleIoMap, op::Compo
 # The widget stage, where a reflected object goes through `ReflectionToWidget`.
 function _mtm_reflection_stage()
     base = vcat(LayoutToGraphics().dispatch,
-                WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _mtm_measure()).dispatch)
+                WidgetToGraphics(; measure = _mtm_measure()).dispatch)
     RecursiveProjection(TypeDispatchingProjection(vcat(base, Pair{Type,Any}[
         AReflectedNode => ChainingProjection(ReflectionToWidget(),
                                              RecursiveProjection(TypeDispatchingProjection(base)))])))
@@ -195,6 +195,56 @@ projection = make_widget_projection_example(measure = _mtm_measure())
     @test built[] == 3
 end
 
+@testset "a holder that builds a new list at each refresh lets the rows of the old lists go" begin
+    # As the table of the frame statistics does: each refresh builds a new list of
+    # rows. The walk keeps the nodes of a few lists, and no row of the lists before.
+    refresh = Cell(1)
+    buttons = WeakRef[]
+    table = WidgetTable(; column_headers = Any["row"], cells = ListNode(CellVector(Cell[])))
+    set_cell_computation!(getfield(table, :cells), () -> begin
+        button = Cell(WidgetButton("row $(refresh[])"))
+        push!(buttons, WeakRef(button))
+        ListNode(CellVector(Cell[button]))
+    end)
+    path = Cell(nothing)
+    follow_output_mouse_target!(table, () -> path[])
+    for k in 2:300
+        refresh[] = k
+        getfield(table, :cells)[]
+    end
+    GC.gc(true)
+    @test buttons[1].value === nothing
+    @test count(button -> button.value !== nothing, buttons) <=
+          FocusModule._FOLLOWED_LIST_SWEEP_MINIMUM + 2
+    # The walk still follows the list that the holder holds now.
+    head = getfield(table, :cells)[]
+    set_cell_value!(path, _mtm_path(FieldReferenceStep("cells"), ElementReferenceStep(1),
+                                    ElementReferenceStep(1)))
+    @test get_mouse_target(head.value[1]) == EmptyReference()
+end
+
+@testset "a print that walks its widgets does not compute again when a field of them changes" begin
+    # The walk sets the paths of the widgets once; the cell that holds the print
+    # reads no field of them, such as the state of a button.
+    state = Cell(false)
+    item = WidgetToolbarItem("Zoom out")
+    set_cell_computation!(getfield(item, :enabled), () -> state[])
+    toolbar = WidgetToolbar(Any[item])
+    prints = Ref(0)
+    print_cell = Cell(@computation begin
+        prints[] += 1
+        follow_output_mouse_target!(toolbar, () -> nothing)
+        follow_output_selection!(toolbar, () -> nothing)
+        toolbar
+    end)
+    @test print_cell[] === toolbar
+    @test item.enabled == false
+    state[] = true
+    @test item.enabled == true
+    @test print_cell[] === toolbar
+    @test prints[] == 1
+end
+
 @testset "across a composite of buttons" begin
     one = WidgetButton("One"; size = Point2D(80, 30))
     two = WidgetButton("Two"; size = Point2D(80, 30), position = Point2D(0, 40))
@@ -236,11 +286,14 @@ end
     card = WidgetCard(; title = "Card", content = layout)
     iomap = print_document(projection, card)
     children(i) = (FieldReferenceStep("children"), ElementReferenceStep(i))
-    _mtm_move!(card, iomap, 20, 70)
+    # The first button stands under the title of the card and the padding of its
+    # content, and the second under it.
+    first_y = get_theme_defaults(WidgetTheme).container_padding + 28 + 15
+    _mtm_move!(card, iomap, 20, first_y)
     @test get_mouse_target(card) == _mtm_path(FieldReferenceStep("content"), children(1)...)
     @test get_mouse_target(layout) == _mtm_path(children(1)...)
     @test get_mouse_target(a) == EmptyReference()
-    _mtm_move!(card, iomap, 20, 100)
+    _mtm_move!(card, iomap, 20, first_y + 30)
     @test get_mouse_target(layout) == _mtm_path(children(2)...)
     @test get_mouse_target(a) === nothing
     @test get_mouse_target(b) == EmptyReference()
@@ -296,7 +349,9 @@ end
     right = WidgetButton("R"; size = Point2D(80, 30))
     split_pane = WidgetSplitPane(:horizontal, Any[left, right]; sizes = [150, 150])
     (screen, play!) = _mtm_screen(_mtm_window(:w, 0, split_pane))
-    play!(WindowInput(:w, MouseMove(5, 5; time = 0.0)))
+    # Each slot gives its slot padding, so the button stands that far inside it.
+    slot = get_theme_defaults(WidgetTheme).slot_padding
+    play!(WindowInput(:w, MouseMove(Int(slot.left[]) + 5, Int(slot.top[]) + 5; time = 0.0)))
     @test get_mouse_target(split_pane) == _mtm_path(_mtm_elements(1)...)
     @test get_mouse_target(left) == EmptyReference()
     # In the left slot but off its button: the split pane itself.

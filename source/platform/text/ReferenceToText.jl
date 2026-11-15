@@ -52,20 +52,18 @@ _article(name::AbstractString) =
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToText(; font=…, style=…)
+    ReferenceToText(; style=…)
 
 Projection that renders a `Reference` as a single-line, color-coded
 `TextBlock`. Mirrors the shape of `Base.show` for references but each
 token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 
-`font` is the font of every token, and `style` holds the values of a
-[`ReferenceTheme`](@ref) as one `NamedTuple`; both default to the default theme. A
-builder gives `get_reference_style(theme, :font)` and
+`style` holds the values of a [`ReferenceTheme`](@ref) as one `NamedTuple`, and
+every token takes its `font`. It defaults to the default theme. A builder gives
 `make_theme_values_field(ReferenceTheme, theme)` to follow a theme.
 """
 @projection UntrackedCell struct ReferenceToText
-    font::StyleFont = get_reference_style(nothing, :font)
     style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 
@@ -147,7 +145,7 @@ _emit_path_short!(::Vector{TextDocument}, t, font, ::EmptyReference) = nothing
 
 function _short_text(p::ReferenceToText, ref)
     t = unwrap_cell(p.style)
-    font = p.font
+    font = t.font
     spans = TextDocument[]
     if ref === nothing
         push!(spans, _tok("(no selection)", font, t.punctuation_color))
@@ -175,7 +173,7 @@ print_document(p::ReferenceToText, recursion, ref::ConcreteReference, ctx) =
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToHumanReadableText(; document, font=…, style=…)
+    ReferenceToHumanReadableText(; document, style=…)
 
 Projection that renders a `Reference` as a multi-line narrative
 `TextBlock`. One phrase per line, in **reverse order** (innermost step
@@ -189,12 +187,11 @@ document is captured at construction time — reactive callers should
 rebuild the projection inside a `Cell` keyed on the document if they
 need live updates.
 
-`font` is the font of every line, and `style` holds the values of a
-[`ReferenceTheme`](@ref) as one `NamedTuple`; both default to the default theme.
+`style` holds the values of a [`ReferenceTheme`](@ref) as one `NamedTuple`, and
+every line takes its `font`. It defaults to the default theme.
 """
 @projection UntrackedCell struct ReferenceToHumanReadableText
     document::Any
-    font::StyleFont = get_reference_style(nothing, :font)
     style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 
@@ -314,7 +311,7 @@ _walk_long!(::Vector{Vector{TextDocument}}, t, font,
 
 function _long_text(p::ReferenceToHumanReadableText, ref)
     t = unwrap_cell(p.style)
-    font = p.font
+    font = t.font
     if ref === nothing
         return TextBlock(TextLine(_tok("no selection", font, t.punctuation_color)))
     elseif ref isa EmptyReference

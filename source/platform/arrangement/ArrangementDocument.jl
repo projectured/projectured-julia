@@ -80,9 +80,11 @@ end
 
 A condition on one item: the value at the path `key` inside the item, read with
 [`get_arrangement_value`](@ref), compared with `value` by `operator`, one of
-`:equal`, `:not_equal`, `:less`, `:greater`, `:at_most`, `:at_least` and
-`:contains`. The empty path is the item itself, and a `key` that is `nothing`
-stands for any value inside the item.
+`:equal`, `:not_equal`, `:less`, `:greater`, `:at_most`, `:at_least`,
+`:contains` and `:matches`. The value of `:matches` is a filter text, such as
+`"= failed, error"` or `"> 0.2"`, in the language of the field under the header
+of a column ([`parse_filter_text`](@ref)). The empty path is the item itself, and
+a `key` that is `nothing` stands for any value inside the item.
 """
 @document struct ArrangementCondition
     key::Any

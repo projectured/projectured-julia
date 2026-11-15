@@ -27,15 +27,20 @@ function print_document(p::ExplorerSectionToWidget, recursion, section::Explorer
         isempty(entries) && return Cell[Cell(WidgetLabel("This section has no entry."))]
         Cell[Cell(_make_entry_card(p, section, k, entries[k])) for k in eachindex(entries)]
     end)
+    follow_built_children!(body)
     title = WidgetText(""; width = _TITLE_FIELD_WIDTH)
     set_cell_computation!(getfield(title, :content), () -> String(section.title))
     set_output_path_computations!(title, section, path -> _map_title_field_path(path))
-    root = VerticalLayout(Any[title, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
+    root = VerticalLayout(Any[title, LayoutConstraint(WidgetScrollPane(body; grows = (width = false, height = true));
+                                                     width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
     iomap = ChildrenIoMap(p, section, root, Cell(Any[]))
     # The part under the pointer, so a link lights and takes a press, and the
     # selection, so a key goes to the field of the title that holds the caret.
-    set_output_path_computations!(root, section, path -> map_reference_forward(p, iomap, path); dormant = false)
+    # Each widget of the page holds its part of both. The field of the title has its
+    # own map, so the walk leaves it out.
+    follow_widget_output!(root, section, path -> map_reference_forward(p, iomap, path);
+                          is_followed = node -> is_widget_or_layout(node) && node !== title)
     iomap
 end
 
@@ -75,20 +80,14 @@ function _make_entry_card(p::ExplorerSectionToWidget, section::ExplorerSection, 
     title = _make_section_link(section, format_tree_node_label(entry), place)
     lines = Any[_make_section_link(section, format_tree_node_label(child), concat_references(place, reference))
                 for (reference, child) in collect_tree_children(entry; limit = p.limit)]
-    isempty(lines) && return WidgetCard(; title)
-    WidgetCard(; title, content = VerticalLayout(lines; child_width = Fill))
+    tooltip = make_decoration_note(get_document_decoration(entry))
+    isempty(lines) && return WidgetCard(; title, tooltip)
+    WidgetCard(; title, content = VerticalLayout(lines; child_width = Fill), tooltip)
 end
 
-# A link to the part at `reference` from `section`: a press opens its page here,
-# and Ctrl+press in a new tab.
-function _make_section_link(section::ExplorerSection, text::AbstractString, reference::Reference)
-    open(place) = (_, _) -> OpenPageOperation(section, reference, place)
-    WidgetButton(text; gestures = GestureBinding[
-        GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
-                       description = "Open as a page", domain = "explorer"),
-        GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), open(:new_tab);
-                       description = "Open in a new tab", domain = "explorer")])
-end
+# A link to the part at `reference` from `section`.
+_make_section_link(section::ExplorerSection, text::AbstractString, reference::Reference) =
+    WidgetLink(text, DocumentLocator(section, reference))
 
 # A section draws as its page inside any document that a renderer draws. The cards
 # come back through the recursion of the renderer.

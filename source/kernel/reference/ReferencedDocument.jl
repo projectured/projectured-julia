@@ -38,33 +38,17 @@ replaces what the reference names.
     first_child.name                   # the name, a plain string
 
 See also `get_document`, `get_reference` and `find_referenced_document`.
+
+For the assistant.
 """
 struct ReferencedDocument{T}
     document::T
     reference::Reference
 end
 
-"""
-    get_document(x) -> T
-
-The document that `x` references, as it was when it was found. Given any value
-that is not a referenced document, it answers that value, so code that unwraps
-works on a referenced document and on a plain one alike.
-
-Use it to get the document itself, to check its type or to hand it to a
-function that has no method for a referenced document.
-
-# Example
-
-    tab_1 = find_pane("items.json")
-    items_1 = get_document(get_edited_document(tab_1))   # the data, without its reference
-
-See also `get_reference` and `get_edited_document`.
-"""
-function get_document end
-
+# The document of a referenced document; the document layer answers any other
+# value as it is.
 get_document(x::ReferencedDocument) = getfield(x, :document)
-get_document(x) = x
 
 """
     get_reference(x::ReferencedDocument) -> Reference
@@ -74,25 +58,64 @@ The complete reference to the document of `x`, from the root it was found from.
 Use it to get the place and not the document, such as a reference to
 extend, to compare, or to evaluate again.
 
+Any other value has no place, and throws an `ArgumentError` that says how to get a
+part. A function that needs the place of its argument reads it here, so it refuses
+a plain document with the same error.
+
 # Example
 
     tab_1 = find_pane("items.json")
     tab_reference_1 = get_reference(tab_1)   # from the root of the editor's document
 
 See also `get_document` and `find_pane_reference`.
+
+For the assistant.
 """
 function get_reference end
 
 get_reference(x::ReferencedDocument) = getfield(x, :reference)
 
-# A value that a read answers as a referenced document: a document or a collection.
-# Any other value is a leaf and is answered as it is.
-_is_referenced_value(value) =
-    value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple
+# How to get a value with a place, for the errors that refuse a value without one.
+const _PART_ADVICE = "Pass a part, a document with its place: a read of a part gives one, " *
+                     "and so does `search_documents(editor.document, query; places = true)`."
 
-# What a write stores: the document of a referenced document, so the tree never
-# holds a referenced document.
-_get_stored_value(value) = value isa ReferencedDocument ? get_document(value) : value
+get_reference(x) =
+    throw(ArgumentError(string("A ", nameof(typeof(x)), " has no place, because it is not a part. ", _PART_ADVICE)))
+
+# Whether a method of `f` takes a part as its argument at `position`.
+function _is_part_taken(f, position::Int)
+    for method in methods(f)
+        parameters = Base.unwrap_unionall(method.sig).parameters
+        position < length(parameters) || continue
+        parameter = parameters[position + 1]
+        parameter isa TypeVar && (parameter = parameter.ub)
+        parameter isa Type && parameter !== Any || continue
+        typeintersect(parameter, ReferencedDocument) === Union{} || return true
+    end
+    false
+end
+
+# The hint that Julia prints below a `MethodError` when an argument is a plain
+# document where a method of the function takes a part.
+function _print_part_hint(io::IO, exception::MethodError, argument_types, keyword_types)
+    f, arguments = exception.f, exception.args
+    if f === Core.kwcall && length(arguments) >= 2
+        f, arguments = arguments[2], arguments[3:end]
+    end
+    f isa Function || return
+    for (position, argument) in enumerate(arguments)
+        argument isa Document && _is_part_taken(f, position) || continue
+        print(io, "\nThe argument ", position, " is a plain document, a ", nameof(typeof(argument)),
+              ", and `", nameof(f), "` takes a part there. ", _PART_ADVICE)
+        return
+    end
+end
+
+# A value that a read answers as a referenced document: a document, a collection or
+# a record, which is a named tuple. Any other value is a leaf and is answered as it is.
+_is_referenced_value(value) =
+    value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple ||
+    value isa NamedTuple
 
 # `value` as a referenced document one `step` below the document of `x`. The step
 # records the type of the node it stands on, and the reference ends on the type of
@@ -113,10 +136,12 @@ end
 function _find_referenced_value(x::ReferencedDocument, value)
     _is_referenced_value(value) || return value
     document = get_document(x)
-    # The search answers the path to the value itself, with its types recorded. The
-    # step that it records for a key of a dictionary is the key as a string, so a key
-    # of another type gives a path that does not lead back to the value.
-    found = search_references(document, node -> node === value; raw = true)
+    # The search answers every path to the value itself, with its types recorded, so
+    # a value at two places has two. The step that it records for a key of a
+    # dictionary is the key as a string, so a key of another type gives a path that
+    # does not read back, and the search leaves it out.
+    found = search_references(document, node -> node === value; raw = true,
+                              walk = DocumentWalk(; policy = :once_per_path))
     length(found) == 1 || return value
     try_evaluate_reference(document, only(found)) === value || return value
     ReferencedDocument(value, concat_references(get_reference(x), only(found)))
@@ -132,8 +157,11 @@ function Base.getproperty(x::ReferencedDocument, name::Symbol)
     _make_stepped_value(x, FieldReferenceStep(String(name)), value)
 end
 
+# A write through a referenced document stores the document of its value, so the
+# tree never holds a referenced document, also in a collection that is no
+# document of `@document`.
 Base.setproperty!(x::ReferencedDocument, name::Symbol, value) =
-    setproperty!(get_document(x), name, _get_stored_value(value))
+    setproperty!(get_document(x), name, get_document(value))
 
 Base.propertynames(x::ReferencedDocument, private::Bool = false) =
     propertynames(get_document(x), private)
@@ -147,12 +175,12 @@ Base.keys(x::ReferencedDocument) = keys(get_document(x))
 Base.haskey(x::ReferencedDocument, key) = haskey(get_document(x), key)
 
 Base.setindex!(x::ReferencedDocument, value, key) =
-    setindex!(get_document(x), _get_stored_value(value), key)
+    setindex!(get_document(x), get_document(value), key)
 
 Base.push!(x::ReferencedDocument, values...) =
-    (push!(get_document(x), map(_get_stored_value, values)...); x)
+    (push!(get_document(x), map(get_document, values)...); x)
 Base.insert!(x::ReferencedDocument, index::Integer, value) =
-    (insert!(get_document(x), index, _get_stored_value(value)); x)
+    (insert!(get_document(x), index, get_document(value)); x)
 Base.deleteat!(x::ReferencedDocument, index) = (deleteat!(get_document(x), index); x)
 
 # The step from a collection to the value at `key`: the entry of a dictionary, for
@@ -243,10 +271,21 @@ _show_referenced_document_header(io::IO, x::ReferencedDocument{T}) where {T} =
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Document} = convert(T, get_document(x))
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Reference} = convert(T, get_reference(x))
 
-search_documents(x::ReferencedDocument, predicate; keywords...) =
-    search_documents(get_document(x), predicate; keywords...)
+# A search of a part answers places by default, each after the place of the part.
+function search_documents(x::ReferencedDocument, predicate; walk::DocumentWalk = DocumentWalk(),
+                          places::Bool = true, keywords...)
+    places || return search_documents(get_document(x), predicate; walk, places = false, keywords...)
+    _search_places((node, reference) -> ReferencedDocument(node, reference), ReferencedDocument,
+                   get_document(x), predicate, walk, get_reference(x); keywords...)
+end
 search_documents(x::ReferencedDocument, query::Union{AbstractString, Regex}; keywords...) =
-    search_documents(get_document(x), query; keywords...)
+    search_documents(x, make_string_predicate(query); keywords...)
+
+search_references(x::ReferencedDocument, predicate; walk::DocumentWalk = DocumentWalk(), keywords...) =
+    _search_places((node, reference) -> reference, Reference, get_document(x), predicate, walk, get_reference(x);
+                   keywords...)
+search_references(x::ReferencedDocument, query::Union{AbstractString, Regex}; keywords...) =
+    search_references(x, make_string_predicate(query); keywords...)
 get_wrapped_document(x::ReferencedDocument) = get_wrapped_document(get_document(x))
 
 """
@@ -265,17 +304,25 @@ a field, so the locator stays right when that field gets another document.
 
 Use it to keep where a document is, and to find the document there again later.
 
+A locator names a document and holds none: a walk of the documents stops at it,
+so a document that keeps a locator, such as a link, is not a parent of the
+document that the locator names.
+
 # Example
 
     locator = DocumentLocator(root, get_reference(x))
     x = find_referenced_document(locator)
 
 See also `find_referenced_document` and `get_reference`.
+
+For the assistant.
 """
 struct DocumentLocator{S}
     start::S
     reference::Reference
 end
+
+DocumentModule.is_walk_opaque(::DocumentLocator) = true
 
 # What `try_evaluate_reference` answers when the reference reaches no node, apart
 # from every value a node can hold.
@@ -298,6 +345,8 @@ Use it to find a document again after the tree changed, or to bring a
     tab_2 = find_referenced_document(locator_1)   # the tab as it is now
 
 See also `DocumentLocator` and `get_reference`.
+
+For the assistant.
 """
 function find_referenced_document end
 
@@ -339,6 +388,8 @@ part, read fresh at the call.
     get_parent(parent, @reference(parent, child))   # parent itself
 
 See also `find_pane` and `get_reference`.
+
+For the assistant.
 """
 function get_parent end
 
@@ -379,6 +430,8 @@ without knowing which layers hold it.
     data = get_edited_document(tab)      # the document the tab shows, through its layers
 
 See also `get_document` and `find_pane`.
+
+For the assistant.
 """
 function get_edited_document end
 

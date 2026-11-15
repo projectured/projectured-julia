@@ -2,6 +2,21 @@
 # `MessageLogEntry`, one captured log record, and the bounded buffer that keeps
 # the most recent ones.
 
+"""
+    MessageLogEntry(level, message)
+
+One captured log record: its `level` and its `message`.
+
+Use it to read one message of the log, for example to find the errors.
+
+# Example
+
+    entries_1 = search_documents(get_edited_document(find_pane("Log")), part -> part isa MessageLogEntry)
+
+See also `MessageLog`, `find_pane` and `search_documents`.
+
+For the assistant.
+"""
 @document struct MessageLogEntry
     level::String
     message::String
@@ -13,6 +28,17 @@ end
 The buffer. `entries` holds at most `capacity` entries, oldest first. `count` is
 the number of entries that were recorded, including the entries that the buffer
 dropped.
+
+Use it to read the log messages that the editor captured.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Log"))
+    log_1 isa MessageLog
+
+See also `MessageLogEntry`, `find_pane` and `get_edited_document`.
+
+For the assistant.
 """
 @document struct MessageLog
     entries::CellVector = CellVector()
@@ -86,6 +112,8 @@ its level.
     println(print_natural_text(get_session_message_log()))
 
 See also `get_session_fault_log`, `get_session_gesture_log`.
+
+For the assistant.
 """
 function get_session_message_log end
 
@@ -106,5 +134,16 @@ function get_document_decoration(log::MessageLog)
     counts = DocumentCount[]
     errors > 0 && push!(counts, DocumentCount(string(errors, errors == 1 ? " error" : " errors"); role = :error))
     warnings > 0 && push!(counts, DocumentCount(string(warnings, warnings == 1 ? " warning" : " warnings"); role = :warning))
-    DocumentDecoration(; icon = :scroll_text, counts)
+    DocumentDecoration(; icon = :scroll_text, counts, tooltip = () -> _make_message_log_note(log))
+end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many entries it kept and recorded, and how many are errors and warnings.
+function _make_message_log_note(log::MessageLog)
+    levels = [lowercase(entry.level) for entry in log.entries]
+    facts = Pair{String,Any}["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                             "Recorded" => string(log.count),
+                             "Errors" => string(count(level -> startswith(level, "error"), levels)),
+                             "Warnings" => string(count(level -> startswith(level, "warn"), levels))]
+    TooltipNote(; title = "Log", text = "What the program said in this session.", facts)
 end

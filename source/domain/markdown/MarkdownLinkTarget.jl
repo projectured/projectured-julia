@@ -1,7 +1,8 @@
-# Fragment of `MarkdownModule` — a link: the gestures that follow it, and what its
-# target names, for a navigator whose content is a page: `#slug` names a heading
-# of the page, a relative path names a file beside the file of the page, and a URL
-# names nothing here.
+# Fragment of `MarkdownModule` — a link: the gestures that follow it, the link that
+# it is, and what its target names, for a navigator whose content is a page:
+# `#slug` names a heading of the page, a relative path names a file beside the file
+# of the page, and an address of the web or of mail names a place outside the
+# editor.
 
 # ── The gestures of a link ────────────────────────────────────────────────────
 #
@@ -22,7 +23,7 @@ _make_link_binding(modifiers::Vector{Symbol}, place::Symbol, description::String
 const _MARKDOWN_LINK_BINDINGS = GestureBinding[
     _make_link_binding([:ctrl], :here, "Follow the link"),
     _make_link_binding([:ctrl, :shift], :new_tab, "Open the link in a new tab"),
-    make_tooltip_binding(link -> isempty(link.url) ? nothing : PrimitiveString(link.url);
+    make_tooltip_binding(link -> isempty(link.url) ? nothing : TooltipNote(; title = "Link", facts = ["Target" => link.url]);
                          description = "Show the target of the link")]
 
 @gestures MarkdownLink begin
@@ -34,6 +35,14 @@ const _RENDERED_LINK_BINDINGS = GestureBinding[
     _make_link_binding([:ctrl], :new_tab, "Open the link in a new tab")]
 
 get_projection_gesture_bindings(::MarkdownLinkToStyledNode, iomap) = _RENDERED_LINK_BINDINGS
+
+# ── The link that it is ──────────────────────────────────────────────────────
+
+# A link of Markdown is a link: its target is its address, which the page resolves
+# when it is relative, and its face is its text.
+is_link(::MarkdownLink) = true
+get_link_target(link::MarkdownLink) = Url(link.url)
+get_link_content(link::MarkdownLink) = link.content
 
 # ── What a target names ───────────────────────────────────────────────────────
 
@@ -57,16 +66,29 @@ function compute_markdown_heading_slug(heading::MarkdownHeading)
     String(take!(buffer))
 end
 
-# A page names its headings; it has no file, so it names no file.
-find_navigator_target(root::MarkdownRoot, target::AbstractString) =
-    _find_markdown_heading(root, target, ReferenceStep[])
+# A heading says its anchor and its level when the pointer rests on it.
+const _MARKDOWN_HEADING_BINDINGS = GestureBinding[
+    make_tooltip_binding(heading -> TooltipNote(; title = "Heading",
+                             facts = ["Anchor" => "#" * compute_markdown_heading_slug(heading),
+                                      "Level" => string(heading.level)]);
+                         description = "Show the anchor of the heading")]
 
-# A file names the headings of its page, and a file beside it by a relative path,
-# when that file exists; the part after `#` in such a path is not followed.
+@gestures MarkdownHeading begin
+    splice(_MARKDOWN_HEADING_BINDINGS)
+end
+
+# A page names its headings and an address outside the editor; it has no file, so
+# it names no file.
+find_navigator_target(root::MarkdownRoot, target::AbstractString) =
+    something(_find_markdown_heading(root, target, ReferenceStep[]), find_web_url(target), Some(nothing))
+
+# A file names the headings of its page, an address outside the editor, and a file
+# beside it by a relative path, when that file exists; the part after `#` in such
+# a path is not followed.
 function find_navigator_target(file::MarkdownFile, target::AbstractString)
     startswith(target, "#") &&
         return _find_markdown_heading(get_file_content(file), target, ReferenceStep[FieldReferenceStep("content")])
-    _find_link_file(file.filename, target)
+    something(find_web_url(target), _find_link_file(file.filename, target), Some(nothing))
 end
 
 function _find_markdown_heading(root, target::AbstractString, steps::Vector{ReferenceStep})

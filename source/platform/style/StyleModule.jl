@@ -1,23 +1,33 @@
 """
     StyleModule
 
-Color style value type and named color constants, the palettes and the colour
-theme, the fonts, the geometry, the themes and the appearance. Colors are stored
-as normalized Float64 components in [0, 1].
+Colors with named constants, palettes, color themes, fonts, geometry and the
+appearance of a view. Colors are stored as normalized Float64 components in [0, 1].
 """
 module StyleModule
 
+using ..BackendModule
 using ..CellModule
+using ..CellStructModule
+using ..CollectionModule
 using ..DocumentModule
+using ..EditorModule
+using ..OperationModule
 using ..ReferenceModule
 using ..SettingsModule
 using ..EventModule
+using ..SerializationModule
 
 import TOML
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..SerializationModule: is_pred_constructible
+import ..DocumentModule: copy_document, get_document_title, get_view_state_fields,
+                          replace_wrapped_document!
+import ..OperationModule: evaluate_operation
+import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document,
+                              get_file_domain,
+                              is_editable_file_type, read_file_content, register_file_document_type!
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
@@ -71,17 +81,20 @@ export Inset, Point2D, inset_default,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
        AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
        apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-export ImageDocument, set_cell_computation!
+export ImageDocument, get_shown_picture, set_cell_computation!, read_image_size,
+       get_image_natural_size
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
-export FontRole, TextRole, apply_font_role, get_role_base, ThemeText, ThemeFont
+export FontRole, TextRole, ThemeText, ThemeFont
+export FontStep, FontTheme, get_font_theme, resolve_font_role
 export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize, IconSize,
        scale_length, convert_theme_value, @theme, make_scaled_theme, get_theme_field_names,
        get_theme_type, get_theme_presets, find_theme_field_text, get_theme_field_texts,
        get_base_theme, get_theme_appearance, make_theme_cell, get_theme_defaults,
        make_style_field, make_theme_values_field,
        get_appearance_file, save_appearance!, load_appearance!
-export COLOR_MODES, COLOR_CONTRASTS, Appearance, scale_theme_value, get_scaled_theme!,
+export COLOR_MODES, COLOR_CONTRASTS, Appearance, AppearanceScale, AppearanceColors, ThemeGroup,
+       get_theme_place, scale_theme_value, get_scaled_theme!,
        set_theme!, get_theme, get_theme_value, get_theme_values
 export ColorTheme, COLOR_VARIANTS, get_color_variant, make_color_theme, make_color_themes,
        get_color_theme, resolve_theme_color, get_color_mode, get_color_contrast,
@@ -109,6 +122,7 @@ include("FontFace.jl")
 include("TextMeasure.jl")
 include("LineSpacing.jl")
 include("Geometry.jl")
+include("ImageHead.jl")
 include("Image.jl")
 include("StyleStroke.jl")
 include("StyleText.jl")
@@ -116,5 +130,14 @@ include("FontRole.jl")
 include("Theme.jl")
 include("Appearance.jl")
 include("ColorTheme.jl")
+include("FontTheme.jl")
+
+# One module, one `__init__`. Registration is runtime state that a precompiled
+# image does not keep.
+function __init__()
+    for extension in (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+        register_file_document_type!(extension, ImageFile)
+    end
+end
 
 end # module

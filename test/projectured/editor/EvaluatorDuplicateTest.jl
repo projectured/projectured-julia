@@ -24,12 +24,13 @@ function test_evaluator_duplicate()
     end
 
     # An evaluator after two evaluations: code that parses into a Julia document,
-    # and code that keeps its string because of its comment.
+    # and code that keeps its string, because the print would write its
+    # juxtaposed product `2x` as `2 * x`.
     function make_session(tools)
         toplevel = make_insertion_document(EvaluatorToplevel)
         editor = _EvaluatorToplevelMockEditor(toplevel, tools)
         evaluate_code!(editor, toplevel, "x = 1 + 1")
-        evaluate_code!(editor, toplevel, "\"a;\" * \"b\" # a comment keeps the string")
+        evaluate_code!(editor, toplevel, "y = 2x + 1")
         toplevel, editor
     end
 

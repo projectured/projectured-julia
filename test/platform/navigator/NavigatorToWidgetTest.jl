@@ -34,6 +34,8 @@ function _nav_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     y = oy + Int(canvas.y)
     for element in canvas.elements
         element = element isa Cell ? element[] : element
+        # A list yields its nodes, and a node holds its graphic.
+        element isa ListNode && (element = element.value)
         if element isa GraphicsText
             push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
         elseif element isa GraphicsCanvas
@@ -46,7 +48,9 @@ function _nav_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     found
 end
 
-_nav_texts(backend) = _nav_drawn(last(rendered_output(backend)))
+# The frame of an editor with a window is the screen, whose first window holds the page.
+_nav_texts(backend) = (frame = last(rendered_output(backend));
+                       _nav_drawn(hasproperty(frame, :windows) ? frame.windows[1].content : frame))
 _nav_has_text(backend, text) = any(entry -> occursin(text, entry[1]), _nav_texts(backend))
 
 # Whether the frame draws `texts` one after the other, as the items of an address.
@@ -259,10 +263,11 @@ function test_navigator_to_widget()
         navigator.address_draft.view = :types
         shelf.books[2].chapters = _nav_vector(NavigatorTestChapter[])
         iomap = print_document(make_navigator_projection(), nothing, navigator, nothing)
-        address = iomap.output.children[1].children[5]
+        (address, mark, cut) = iomap.output.children[1].children[5:7]
         @test address isa WidgetLabel
-        @test endswith(address.content, "✗ [1]")
         @test occursin("::NavigatorTestBook.chapters", address.content)
+        @test mark isa WidgetIcon && mark.name === :x && mark.role === :error
+        @test cut isa WidgetLabel && cut.content == "[1]"
     end
 
     @testset "undo records no visit in an editor" begin

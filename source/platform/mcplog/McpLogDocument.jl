@@ -9,6 +9,16 @@ One call that the server answered: `time` it came (seconds since the epoch), the
 the `arguments` as text (the code itself for `execute_julia_code`), the
 `answer`, the `duration` in seconds that the call held the editor, and whether
 it was a `fault`.
+
+Use it to read one call that the MCP server answered: its method, name, arguments and answer.
+
+# Example
+
+    calls_1 = search_documents(get_edited_document(find_pane("MCP log")), part -> part isa McpCallEntry)
+
+See also `McpLog`, `find_pane` and `search_documents`.
+
+For the assistant.
 """
 @document struct McpCallEntry
     time::Float64
@@ -27,6 +37,17 @@ The calls of the session, oldest first, at most `capacity` of them. `count`,
 `faults` and `held` count every call, the faults, and the seconds that the calls
 held the editor, also the calls that the log dropped. `shown` is what the pane
 lists: `"all"`, `"tools"` or `"faults"`.
+
+Use it to read the calls of the session and how long they held the editor.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("MCP log"))
+    log_1 isa McpLog
+
+See also `McpCallEntry`, `find_pane` and `get_edited_document`.
+
+For the assistant.
 """
 @document struct McpLog
     entries::CellVector = CellVector()
@@ -82,10 +103,19 @@ make_pred_document(::Type{<:McpLog}, positional, keywords) = get_session_mcp_log
 # The log of the calls of a client fails while one of its calls was a fault.
 function get_document_decoration(log::McpLog)
     faults = log.faults
-    faults == 0 && return DocumentDecoration(; icon = :plug)
+    tooltip = () -> _make_mcp_log_note(log)
+    faults == 0 && return DocumentDecoration(; icon = :plug, tooltip)
     DocumentDecoration(; icon = :plug, conditions = [DocumentCondition(:failed)],
-                       counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)])
+                       counts = [DocumentCount(string(faults, faults == 1 ? " fault" : " faults"); role = :error)],
+                       tooltip)
 end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many calls it kept, recorded and how many failed.
+_make_mcp_log_note(log::McpLog) =
+    TooltipNote(; title = "MCP log", text = "The calls that a client made to this editor.",
+                facts = ["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                         "Recorded" => string(log.count), "Faults" => string(log.faults)])
 
 # The command of the log, with no key: a person runs it from the command palette
 # or the menu of its row, and the count of the faults goes back to zero.

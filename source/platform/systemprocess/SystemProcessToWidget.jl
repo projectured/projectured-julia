@@ -3,7 +3,7 @@
 # cells of its facts, so a sample that changes the load draws one line again.
 
 """
-    SystemProcessToWidget(; gap, padding)
+    SystemProcessToWidget(; gap, button_gap)
 
 Prints a [`SystemProcess`](@ref) as its page: the process id and the command,
 the folder, the state, the start and the time since it, the processor load, the
@@ -11,17 +11,19 @@ memory and the threads, and two buttons. Interrupt sends `SIGINT` and Stop
 sends `SIGTERM`, each only to the process that the page shows
 ([`interrupt_system_process!`](@ref), [`stop_system_process!`](@ref)). The time
 since the start reads the time of the last sample, so the page reads no clock.
-A long command wraps at the edge of the page between its words. `padding` is the
-space between the edge of the page and what it shows.
+A long command wraps at the edge of the page between its words. The page has no
+padding of its own: the slot that holds it gives the space around it.
 """
 @projection UntrackedCell struct SystemProcessToWidget
     gap::Int = get_widget_style(nothing, :label_gap)
-    padding::Int = get_widget_style(nothing, :container_padding)
+    button_gap::Int = get_widget_style(nothing, :button_gap)
 end
 
 function print_document(p::SystemProcessToWidget, recursion, process::SystemProcess, context)
-    interrupt = WidgetButton("Interrupt"; action = _ -> (interrupt_system_process!(process); nothing))
-    stop = WidgetButton("Stop"; action = _ -> (stop_system_process!(process); nothing))
+    interrupt = WidgetButton("Interrupt"; action = _ -> (interrupt_system_process!(process); nothing),
+                            tooltip = "Send SIGINT to the program, as Ctrl+C does.")
+    stop = WidgetButton("Stop"; action = _ -> (stop_system_process!(process); nothing),
+                       tooltip = "Send SIGTERM: ask the program to end.")
     column = VerticalLayout(Any[
         _build_command_line(p, process),
         WidgetLabel(() -> "folder " * (isempty(process.folder) ? "unknown" : process.folder)),
@@ -30,14 +32,13 @@ function print_document(p::SystemProcessToWidget, recursion, process::SystemProc
         WidgetLabel(() -> string("processor ", _format_processor_load(process.processor_load),
                                  " · memory ", format_memory_size(process.memory),
                                  " · threads ", process.thread_count)),
-        HorizontalLayout(Any[interrupt, stop]; vertical_align = :center, gap = p.gap)];
+        HorizontalLayout(Any[interrupt, stop]; vertical_align = :center, gap = p.button_gap)];
         gap = p.gap, child_width = Fill)
-    inset = Inset(p.padding, p.padding, p.padding, p.padding)
-    root = WidgetComposite(Any[column]; padding = inset, child_width = Fill)
+    root = WidgetComposite(Any[column]; child_width = Fill)
     iomap = ChildrenIoMap(p, process, root, Cell(Any[]))
-    # The part under the pointer, so a button lights and takes a press.
-    follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(process, path -> map_reference_forward(p, iomap, path)))
+    # The selection and the part under the pointer, so a part is drawn marked, and a
+    # button lights and takes a press.
+    follow_widget_output!(root, process, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 
@@ -48,7 +49,7 @@ function _build_command_line(p::SystemProcessToWidget, process::SystemProcess)
     set_cell_computation!(getfield(line.children, :elements), () ->
         Cell[Cell(WidgetLabel(String(word)))
              for word in [string(process.process_id); split(process.command)]])
-    line
+    follow_built_children!(line)
 end
 
 # The start of a process and the time from it to the last sample: `started
@@ -75,9 +76,10 @@ function make_graphics_projection(::Type{SystemProcess}; measure, appearance)
     theme = get_scaled_theme!(appearance, WidgetTheme)
     ChainingProjection(
         SystemProcessToWidget(; gap = get_widget_style(theme, :label_gap),
-                              padding = get_widget_style(theme, :container_padding)),
+                              button_gap = get_widget_style(theme, :button_gap)),
         RecursiveProjection(FaultCatchingProjection(
             inner = WidgetToGraphics(; measure, theme,
-                                     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
+                                     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme),
+                                     text_theme = get_scaled_theme!(appearance, TextTheme)),
             substitute = FaultToGraphics())))
 end

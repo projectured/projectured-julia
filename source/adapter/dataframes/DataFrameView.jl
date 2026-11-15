@@ -93,6 +93,18 @@ function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anc
     _set_path_fields!(_set_kept_row_computations!(view))
 end
 
+# A view is a table of the table interface: all the rows of its frame, whatever
+# rows its query keeps, as a spreadsheet makes a pivot of its whole source range.
+# A part of a view is a part of its frame, so an edit in the part writes the frame.
+is_table(::DataFrameView) = true
+get_table_row_count(view::DataFrameView) = get_table_row_count(view.frame)
+get_table_column_names(view::DataFrameView) = get_table_column_names(view.frame)
+get_table_column_type(view::DataFrameView, column::AbstractString) = get_table_column_type(view.frame, column)
+get_table_value(view::DataFrameView, row::Integer, column::AbstractString) = get_table_value(view.frame, row, column)
+find_table_column(view::DataFrameView, column::AbstractString) = find_table_column(view.frame, column)
+make_table_part(view::DataFrameView, rows::AbstractVector{<:Integer}) = make_table_part(view.frame, rows)
+make_table_document(view::DataFrameView, columns::Vector{String}) = make_table_document(view.frame, columns)
+
 """
     DataFrameViewRows(view)
 
@@ -250,6 +262,47 @@ function jump_to_row(view::DataFrameView, row::Integer)
         ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "top_row", 1))])
 end
 
+"""
+    jump_to_row!(view, row; editor = get_evaluation_editor()) -> view
+
+Show the kept row at the place `row` at the top of the table `view`, as Ctrl+Home
+and Ctrl+End do, and answer `view`. The place counts the rows that the filter of
+the view keeps, from 1. A place out of range is the first or the last row. The
+data and the filter do not change, and it is no step of the undo. `view` is a
+table of the window, as a part.
+
+Use it to show the person a row of a long table.
+
+# Example
+
+    jump_to_row!(table_1, 120)
+
+See also `make_change`.
+
+For the assistant.
+"""
+function jump_to_row! end
+
+jump_to_row!(view::ReferencedDocument, row::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "jump_to_row!") do
+        apply_change!(make_change(jump_to_row!, view, row; editor); editor)
+        view
+    end
+
+make_change(::typeof(jump_to_row!), view::ReferencedDocument, row::Integer; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        document = get_document(view)
+        document isa DataFrameView ||
+            throw(ArgumentError("The part is a " * string(nameof(typeof(document))) * ", not a table of a data frame."))
+        operation = jump_to_row(document, row)
+        operation === nothing && throw(ArgumentError("The table keeps no row, so it has no row to show."))
+        description = string("Show the row ", row, " of the table")
+        reference = extend_reference(get_reference(view), FieldReferenceStep("anchor"))
+        rooted = find_rooted_operation(editor, reference, relative -> operation; description)
+        rooted === nothing && throw(ArgumentError("No reader of the window carries a change of the table."))
+        RootedOperation(rooted, description)
+    end
+
 # A right click on the corner of the table opens the menu of the view
 # (`compute_context_menu`), which shows the hidden columns again.
 const _DATA_FRAME_VIEW_MENU =
@@ -299,6 +352,12 @@ end
 make_data_frame_cell(value, type::Type = typeof(value)) =
     WidgetLabel(_get_cell_text(value); tooltip = "A value of type $(typeof(value)) takes no key here")
 
+# Whether `make_data_frame_cell` shows `value`, of a column of element type
+# `type`, as a label: a value that no primitive document holds.
+_is_shown_as_label(value::Union{Bool, Real, AbstractString}, type::Type) = false
+_is_shown_as_label(::Missing, type::Type) = _find_primitive_type(nonmissingtype(type)) === nothing
+_is_shown_as_label(value, type::Type) = true
+
 # The primitive document of the values of a column of element type `type`, or
 # `nothing` for a type that no primitive document holds.
 function _find_primitive_type(type::Type)
@@ -340,6 +399,38 @@ function _start_made_rows!(made::_MadeRows, key)
     nothing
 end
 
+# The last list of rows or of row headers that a table of a view got, for what it
+# shows and for the kept rows of the view. A new anchor moves the head inside this
+# list when a walk built the node at the new place, so the nodes, their rows and
+# their links stay, and the grid of the table finds the new head among the nodes
+# that it linked.
+mutable struct _MadeList
+    key::Any          # what the list shows, or nothing
+    kept::Any         # the kept rows of the view when the list was made, or nothing
+    place::Int        # the place of the head among the kept rows
+    head::Any         # the head, a ListNode, or nothing
+end
+
+_MadeList() = _MadeList(nothing, nothing, 0, nothing)
+
+# The node at the place `place` of the list that `made` keeps, when that list
+# shows `key` for the same `kept` rows and a walk built the links to the node.
+# The node becomes the head that `made` keeps. `nothing` otherwise.
+function _find_moved_list_head!(made::_MadeList, key, kept::Vector{Int}, place::Int)
+    (made.head isa ListNode && made.kept === kept && isequal(made.key, key)) || return nothing
+    node = find_computed_list_node(made.head, place - made.place + 1)
+    node === nothing || (made.place = place; made.head = node)
+    node
+end
+
+# Keeps `head`, a new list that shows `key` for the `kept` rows, with its head at
+# the place `place`, in `made`, and answers it. A list of no rows is kept as none.
+function _keep_made_list!(made::_MadeList, key, kept::Vector{Int}, place::Int, head)
+    made.key, made.kept, made.place = key, kept, place
+    made.head = head isa ListNode ? head : nothing
+    head
+end
+
 # The row of number `i` in the frame for a link of this list: the row made under
 # this list or the list before it, or a new one that `make_row(i)` makes.
 function _take_made_row!(make_row, made::_MadeRows, i::Int)
@@ -354,13 +445,28 @@ end
 # vector as no rows. A row is a vector of its cells in the `columns` that the view
 # shows, or, when `column_anchor` is given, a list of them with its head at that
 # column. A cell shows the document of its value, or the document of its entry
-# while it is open. `made` gives a row that the list before made the same object.
+# while it is open. When only the anchor is new, the head moves inside the list
+# that `list` keeps, where a walk built it. Else `made` gives a row that the list
+# before made the same object.
 function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
-                        anchor::Int, column_anchor, made::_MadeRows)
+                        anchor::Int, column_anchor, made::_MadeRows, list::_MadeList)
+    key = (objectid(view.frame), view.frame_version, columns, column_anchor)
+    place = clamp(anchor, 1, max(1, length(kept)))
+    moved = _find_moved_list_head!(list, key, kept, place)
+    moved === nothing || return moved
+    _keep_made_list!(list, key, kept, place, _make_new_row_list(view, columns, kept, place, column_anchor, made, key))
+end
+
+# A new list of the `kept` rows with its head at the place `place`, for
+# `_make_row_list`; `key` names what it shows.
+function _make_new_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
+                            place::Int, column_anchor, made::_MadeRows, key)
     frame = view.frame
-    _start_made_rows!(made, (objectid(frame), view.frame_version, columns, column_anchor))
+    _start_made_rows!(made, key)
     isempty(kept) && return CellVector()
-    types = Dict(name => eltype(frame[!, name]) for name in columns)
+    # One type of the dictionary for every frame: the row closures capture it, so
+    # the calls that the workload recorded fit a frame of any column types.
+    types = Dict{String,Type}(name => eltype(frame[!, name]) for name in columns)
     shown(i, name) = (base = make_data_frame_cell(frame[i, name], types[name]);
                       () -> _get_shown_cell_document(view, i, name, base))
     function row_of(i)
@@ -370,7 +476,7 @@ function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vect
         foreach(((cell, name),) -> set_cell_computation!(cell, shown(i, name)), zip(cells, columns))
         CellVector(cells)
     end
-    make_index_list(length(kept), anchor, k -> _take_made_row!(row_of, made, kept[k]))
+    make_index_list(length(kept), place, k -> _take_made_row!(row_of, made, kept[k]))
 end
 
 # The document that the cell in row `i` of the frame and column `name` shows: the

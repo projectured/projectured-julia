@@ -56,5 +56,17 @@ rows_drawn = Set(t[3] for t in ProjecturedPivotTest._pivot_texts(print_document(
                                                                                 context).output))
 @test "country :: String" in rows_drawn && "DE" in rows_drawn
 
+# A pivot of a view of the frame, as a tab shows the frame, and of the referenced
+# document that a read of the tab answers, pivots the frame; a cell of its rows
+# view still writes the frame.
+frame_view = ProjecturedDataFrames.DataFrameView(frame)
+for source in (frame_view, ReferencedDocument(frame_view, EmptyReference()))
+    view_pivot = make_pivot_table(source; rows = ["region"], columns = ["year"], cells = ["country", "amount"],
+                                  cell_view = PivotRowsView())
+    @test get_pivot_row_count(view_pivot.cross_table) == 2
+    view_cell = view_pivot.cells[1][1]
+    @test view_cell isa ProjecturedDataFrames.DataFrameView && parent(view_cell.frame) === frame
+end
+
 end
 end

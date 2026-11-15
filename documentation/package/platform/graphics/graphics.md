@@ -1,6 +1,6 @@
 # Graphics domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../text/text.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [style.md](../style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../text/text.md)
 
 The graphics slice of `ProjecturedPlatform` holds the drawing primitives that every chain of projections ends in: text, boxes, lines, curves, canvases and viewports, each a reactive document. A backend paints them, and a hit test finds the primitive under the pointer. This document says how a canvas is built and tested, how a click leaves the graphics stage, and how a canvas is saved to a file.
 
@@ -30,11 +30,15 @@ An arc covers the same ring as a `GraphicsCircle` with the same radius and a bor
 
 `y` of a `GraphicsText` is the top of its box, and the baseline is `y` plus the ascent that [`compute_text_extent`](../style/style.md) gives for `text` and `font`. The box is the ascent plus the descent high. Every backend draws the baseline there, and a layout that puts texts of different fonts on one baseline sets each `y` to the baseline minus that text's own ascent.
 
-The spline and arrowhead geometry is computed here, by `tessellate_spline` and `build_polyline_arrowhead`, so each backend draws the same points. The backends draw only the translation and the scale of a viewport transform.
+An image draws only inside its `x`, `y`, `w`, `h` box. A backend that clips can therefore read the place and the size of an image whose box misses the clip and no other cell: the SDL backend does, so the `data` of such an image, which on a picture is the demand of its pixels, is read in the frame in which the box meets the clip ([sdl.md](../../backend/sdl/sdl.md)).
+
+The spline and arrowhead geometry is computed here, by `tessellate_spline`, `build_polyline_arrowhead` and `compute_polyline_before_arrowheads`, so each backend draws the same points. The backends draw only the translation and the scale of a viewport transform.
+
+An arrowhead points along the last `arrow_size` pixels of its line: its axis goes from the point of the line that far back from the tip, by length along the line, to the tip. So the arrowhead of a curve that still bends near its tip sits on the curve, and not only on its last sample. The line that a backend strokes is `compute_polyline_before_arrowheads`: the line without those pixels at each end with an arrowhead. It ends on the axis, inside the base of the arrowhead, so a bent line does not show beside the arrowhead and a thick line does not show past its tip. The SDL and the PDF backends stroke that line and fill the triangles; the web backend sends both to its client, which fills the triangles that it gets.
 
 ### The canvas and the hit test
 
-`GraphicsCanvas.elements` is a `CellVector` or a `ListNode`. A `ListNode` can be a list without an end in either direction; see [collection.md](../collection/collection.md). `layout` names the axis along which the canvas can grow without an end: `layout_none`, `layout_horizontal` or `layout_vertical`. A backend paints only the elements between the edges of its clip. On a `CellVector` canvas with a layout and elements that do not overlap, it starts at `compute_first_visible_index(canvas, edge)`, a binary search for the last element that starts at or before the near edge, and it stops at the first element past the far edge. A `ListNode` is walked both ways from its head to the edges. The backend does not read the content of an element that it does not paint. The dirty walk and `hit_element_at` follow the same rule.
+`GraphicsCanvas.elements` is a `CellVector` or a `ListNode`. A `ListNode` can be a list without an end in either direction; see [collection.md](../collection/collection.md). `layout` names the axis along which the canvas can grow without an end: `layout_none`, `layout_horizontal` or `layout_vertical`. A backend paints only the elements between the edges of its clip. On a `CellVector` canvas with a layout and elements that do not overlap, it starts at `compute_first_visible_index(canvas, edge)`, a binary search for the last element that starts at or before the near edge, and it stops at the first element past the far edge. A `ListNode` is walked both ways from its head to the edges. The backend does not read the content of an element that it does not paint. The dirty walk and `hit_element_at` follow the same rule. A list can be endless, and only a layout with no overlap stops a walk at the edges, so a canvas over a `ListNode` must have a `layout` and `overlapping_elements = false`. `check_list_canvas` refuses any other with an `ArgumentError`: the keyword constructor of `GraphicsCanvas` calls it, and so do `hit_element_at` and the render of a backend, because a cell can give the list after the canvas is made.
 
 `hit_element_at(canvas, x, y)` returns the offset of the first element that contains the point, or `nothing`. Every caller in `source/` tests only for `nothing`. The test for each shape:
 
@@ -46,7 +50,7 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 
 A canvas with a `w` or `h` that is not zero first clips the point to its own box. This clip is what keeps a text on the left of a row from taking the clicks of its right neighbour. An auto-sized canvas, with `w` and `h` zero, does not clip.
 
-**The producer declares that elements do not overlap, and nothing checks it.** With `overlapping_elements = false` and a `layout`, the renderer and the hit test stop at the first element past the visible edge or past the point. A `GraphicsFence` in the element list states that the elements before it and after it do not overlap on the layout axis. It draws nothing, and both the renderer and the hit test skip it. A canvas that declares no overlap and has overlapping elements misses hits.
+**The producer declares that elements do not overlap, and nothing checks it.** With `overlapping_elements = false` and a `layout`, the renderer and the hit test stop at the first element past the visible edge or past the point. A `GraphicsFence` in the element list states that the elements before it and after it do not overlap on the layout axis. It draws nothing, and both the renderer and the hit test skip it. A canvas that declares no overlap and has overlapping elements misses hits. A row or a column of a vector declares its order this way: its output holds the canvas of the children, with the axis of the layout and no overlap, beside the selection ring, which lies over a child. The ring is not in the ordered canvas, because the early stop would end the walk at the first child past the far edge and never reach a ring placed after it.
 
 `has_declared_extent(canvas)` is true for a canvas with a layout, elements that do not overlap, and `w > 0` and `h > 0`. Such a canvas declares its extent: `get_graphics_size` and the dirty bounds take its box and do not walk its elements, so a size query reads no element of a long list.
 
@@ -91,6 +95,18 @@ Every move of the pointer, with a button held or not, names the part under the p
 
 The container finds the child that the pointer leaves from its own mouse target (`get_mouse_target` of the kernel), and joins the two answers with `join_move_answers`, the answer of the child that the pointer leaves first.
 
+### A view draws a child at a place
+
+A view that draws the print of a part of its input over its own canvas, at a place of its choice, keeps that child as `(; x, y, w, h, iomap, steps)`: the rectangle in the frame of the view, the IO map of the child, and the steps from the input of the view to the input of the child. `DrawnChild.jl` holds the routing, with no type of a part in it:
+
+- `find_drawn_child_at(children, x, y)` is the first child whose rectangle holds the point.
+- `read_drawn_child_event(document, child, event)` gives a pointer gesture to the child in its own frame, and its answer comes back in the frame of the view, with the steps of the child in front of each path. A dwell and a right click that the child does not answer go out over `document`, the input of the view.
+- `read_drawn_child_move(document, children, event)` gives a move to the child under the point, and the leave to the child that the mouse target of `document` names when the pointer is off it now.
+- `map_drawn_child_point(document, child, x, y)` is the path of the part of the child under a point, for the backward map of the view.
+- `find_drawn_child_path(path, steps)` is the part of a path of the view below the steps of a child, or `nothing`: the part of the mouse target that the child holds.
+
+The chart and the sequence chart draw their buttons and their scroll bars this way.
+
 ### A route moves the point
 
 A change with a route ([projection-system.md](../../kernel/projection-system.md#the-intent-the-reader-threads)) that reaches a container whose children sit in frames of their own gets the point of a pointer gesture moved into the frame of the child the route names, the same move the container gives a gesture it hands to that child at a point. `read_child_by_route(projection, recursion, change, iomap, child)` is the hook: the kernel's default reads `child` with `change` unchanged, and a container that draws its children in frames of their own adds a method for its own projection.
@@ -109,7 +125,7 @@ A dwell goes by its position, as a click does: each container gives it to the ch
 - `read_child_part_gesture(child_iomap, gesture)` is the answer of the documents inside a child that did not answer: the backward map of the point names the part, and the documents on that path read the gesture with their tables, the part first. `read_child_event` of the layout package calls it, and the window calls it for its content. So a text, which draws a whole document as one leaf, gives a dwell to the part of the document under the pointer.
 - `read_container_gesture(answer, gesture, document; steps)` is the answer of a container after the child at the point answered: the documents of its own stretch, from the one above the child up to its input, read the gesture with their tables. It calls `read_gesture_outward` of the kernel, which keeps the rule of the walk: a document reads when nothing deeper answered or when the deeper answer collects, a collected answer of the same kind is joined, and any other answer ends the walk.
 
-A point in the answer moves back into the frame of each container on the way out, so a tooltip opens beside the pointer, and a context menu opens at it ([context-menu.md](../widget/context-menu.md)).
+A point in the answer moves back into the frame of each container on the way out, so a tooltip opens below and right of the pointer, and a context menu opens at it ([context-menu.md](../widget/context-menu.md)).
 
 ### The box of a part
 

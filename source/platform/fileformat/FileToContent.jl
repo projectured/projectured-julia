@@ -33,15 +33,64 @@ FileToContent(; content = nothing, accepts = _ -> true) = FileToContent(content,
 _get_content_recursion(p::FileToContent, recursion, document) =
     (p.content === nothing || !p.accepts(document)) ? recursion : p.content
 
+# The files on the path from the window to a place, outermost first: the property
+# of a context that the print of a file gives to everything below it. A file that
+# appears on its own path is a repeat.
+const _PATH_FILES_PROPERTY = :path_files
+
+_get_path_files(ctx) = get_property(ctx, _PATH_FILES_PROPERTY, ())
+
+# A repeat draws as a closed card with the title and the path of its file, which
+# opens to the content of the file. While the card is closed it has no content, so
+# it prints nothing below it; the card of this one place holds the state, and the
+# content that it shows has this file on its path, so a repeat inside it is closed
+# again.
+function _make_repeated_file_card(file::FileDocument)
+    card = WidgetCard(; title = get_document_title(file),
+                      description = format_home_path(String(get_filename(file))),
+                      collapsible = true, collapsed = true)
+    # A card prints its content once. The layout holds the content in a list that
+    # follows the state of the card, so the content is printed when the card opens.
+    body = VerticalLayout(CellVector(@computation card.collapsed === true ? Any[] : Any[get_file_content(file)]),
+                          Cell(:left), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing))
+    set_cell_value!(getfield(card, :content), body)
+    card
+end
+
+# The map of a repeat: the file draws as the closed card that `inner_iomap` maps. The
+# card reads the gestures of its place, and the map gives a parent no path inside it.
+@iomap struct RepeatedFileIoMap
+    projection::Any
+    input::Any          # the file
+    output::Any         # the output of the card
+    inner_iomap::Any    # the map of the card
+end
+
+get_child_iomaps(iomap::RepeatedFileIoMap) = Any[iomap.inner_iomap]
+
+# The baseline of the card, so a row aligns a repeat as it aligns the card.
+function find_first_baseline(iomap::RepeatedFileIoMap)
+    card = iomap.inner_iomap
+    card.output === iomap.output ? find_first_baseline(card) : nothing
+end
+
 function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
+    path_files = _get_path_files(ctx)
+    if any(on_path -> on_path === file, path_files)
+        card = print_child(recursion, _make_repeated_file_card(file), ctx)
+        return RepeatedFileIoMap(p, file, Cell(card.output), Cell(card))
+    end
+    ctx = with_property(ctx, _PATH_FILES_PROPERTY, (path_files..., file))
     step = @reference_step(content)
     # Single-child reconciliation (`make_reconciled_child_iomap_cell`, not the plural
     # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a
     # collection, so there is exactly one child to reconcile by identity.
     # Reading `get_file_content(file)` inside the thunk is what makes the
-    # printed output re-derive when `Ctrl+O` replaces the cell wholesale.
+    # printed output re-derive when `F5` replaces the cell wholesale. The thunk also
+    # asks for the read of the file when a change is unread, as the view of a file does,
+    # so a place that draws a file with no view reads it at its first draw.
     child = make_reconciled_child_iomap_cell(
-        () -> get_file_content(file),
+        () -> (demand_file_text(file); get_file_content(file)),
         v -> print_child(_get_content_recursion(p, recursion, v), v, make_child_context(ctx, file, step)))
     ContentIoMap(p, file, Cell(@computation child[].output),
                  Cell(@computation child[]))
@@ -52,9 +101,16 @@ end
 # child projection's forward image of `rest`.
 # A gesture goes to the content first, and its answer comes back with the step
 # `content` in front. When the content does not answer, the file's own gestures
-# answer: Ctrl+S and Ctrl+O. A collection takes both, merged, and an operation
+# answer: Ctrl+S and F5. A collection takes both, merged, and an operation
 # with a route follows it through `content`.
 const _CONTENT_STEPS = (FieldReferenceStep("content"),)
+
+# The card of a repeat reads the gesture itself, by its coordinates, so a click on its
+# chevron folds it.
+function read_intent(p::FileToContent, recursion, change::Intent, iomap::RepeatedFileIoMap)
+    card = iomap.inner_iomap
+    read_intent(get_iomap_projection(card), recursion, change, card)
+end
 
 function read_intent(p::FileToContent, recursion, change::Intent, iomap::ContentIoMap)
     child = iomap.inner_iomap
@@ -86,12 +142,16 @@ function read_intent(p::FileToContent, recursion, change::Intent, iomap::Content
     Intent(change.gesture, answer)
 end
 
-read_intent(p::FileToContent, iomap::ContentIoMap, payload) =
+read_intent(p::FileToContent, iomap::Union{ContentIoMap, RepeatedFileIoMap}, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Only a real collection merges; anything else a reader answered is not one.
 _get_collected_intents(operation::CollectedIntentsOperation) = operation
 _get_collected_intents(::Any) = nothing
+
+# The paths of the file are not mapped into a repeat, so a selection does not go into it.
+map_reference_forward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing
+map_reference_backward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing
 
 function map_reference_forward(::FileToContent, iomap::ContentIoMap, reference)
     @reference_case reference begin
@@ -120,8 +180,11 @@ end
 function __init__()
     register_natural_graphics!(:fileformat, (; measure, appearance) -> Pair{Type,Any}[
         FileDocument => FileToContent(),
-        FilePage => ChainingProjection(FilePageToWidget(_find_widget_theme(appearance)),
+        FileView => ChainingProjection(FileViewToWidget(_find_widget_theme(appearance)),
                                        VerticalLayoutToGraphicsCanvas()),
+        OpenFileList => ChainingProjection(
+            OpenFileListToWidget(; gap = get_widget_style(_find_widget_theme(appearance), :section_gap)),
+            GridLayoutToGraphicsCanvas()),
     ])
 end
 

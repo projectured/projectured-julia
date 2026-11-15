@@ -30,7 +30,8 @@ function make_gesture_map_syntax_projection(; theme = nothing)
                        description = get_style(:map_description_text), muted = get_style(:map_muted_text))
 end
 
-# One leaf per row ("<gesture> — <description>"), preceded by a domain heading
+# One node per row, the gesture and the description in their own styles
+# ("<gesture> — <description>"), preceded by a domain heading
 # whenever the domain changes; joined by newlines so the Syntax→Text layer lays it
 # out as a vertical list.
 function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::PrinterContext)
@@ -48,12 +49,12 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
         gesture_style = runnable ? p.gesture : p.muted
         desc_style = runnable ? p.description : p.muted
         suffix = runnable ? "" : "  (n/a)"
-        # gesture cell + connective + description cell, all in one leaf's value. A row
-        # with no gesture reads "by name" in the gesture column: that is how a user
+        # A row with no gesture reads "by name" in the gesture column: that is how a user
         # reaches it, from the command palette.
-        text = string("  ", isempty(row.gesture) ? "by name" : row.gesture,
-                      " — ", row.description, suffix)
-        push!(children, SyntaxLeaf(TextString(text, desc_style)))
+        gesture = string("  ", isempty(row.gesture) ? "by name" : row.gesture)
+        push!(children, SyntaxNode(SyntaxDocument[
+            SyntaxLeaf(TextString(gesture, gesture_style)),
+            SyntaxLeaf(TextString(string(" — ", row.description, suffix), desc_style))]))
     end
     out = SyntaxNode(children; sep = "\n")
     return SimpleIoMap(p, doc, out)

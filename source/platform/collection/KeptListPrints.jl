@@ -30,11 +30,13 @@ The count of a kept element is a computation, so the path of its print follows
 the element when it moves. One walk for each head counts the elements, and the
 count of an element reads it. On each side of the head the walk goes as far as
 the elements linked under this head and under the head before it, and it reads
-no link past them, so it builds no element of a lazy list that no link built. An
-element that is linked past the walk takes the count of its link. An element
-that the walk finds at two places, the same object or an equal value that is no
-mutable object, is kept at neither, and each of its prints takes the count of its
-link.
+no link past them, so it builds no element of a lazy list that no link built.
+When the new head is a node that the head before linked, the walk measures the
+links of the head before from that node, so it reaches the same nodes; a new
+head of another list takes their counts as they are. An element that is linked
+past the walk takes the count of its link. An element that the walk finds at two
+places, the same object or an equal value that is no mutable object, is kept at
+neither, and each of its prints takes the count of its link.
 
 Use it in a view that prints each element of a `ListNode`, such as the rows of a
 grid of a list.
@@ -49,7 +51,9 @@ mutable struct KeptListPrints
     counts::Cell                      # element => its count from the head, or _REPEATED_LIST_ELEMENT
     lowest::Int                       # the lowest count linked under this head, or 1 for none
     highest::Int                      # the highest count linked under this head, or 0 for none
-    extent::Tuple{Int,Int}            # the lowest and the highest count linked under the head before it
+    nodes::IdDict{Any,Int}            # node of the list => the count of its link under this head
+    extent::Tuple{Int,Int}            # the lowest and the highest count linked under the head before it,
+                                      # counted from this head
 end
 
 """
@@ -63,38 +67,46 @@ Use it when a view of a list prints, and give it to the computation of the head
 of the view.
 """
 function make_kept_list_prints(head)
-    keep = KeptListPrints(head, IdDict{Any,Any}(), IdDict{Any,Any}(), Cell(nothing), 1, 0, (1, 0))
+    keep = KeptListPrints(head, IdDict{Any,Any}(), IdDict{Any,Any}(), Cell(nothing), 1, 0,
+                          IdDict{Any,Int}(), (1, 0))
     set_cell_computation!(keep.counts, () -> _count_kept_list_elements(keep))
     keep
 end
 
 """
-    start_kept_list_head!(keep)
+    start_kept_list_head!(keep, head)
 
-Starts a new head of the list: the prints linked under the head before wait for
-one head, and the prints that waited go.
+Starts `head`, the new head of the list: the prints linked under the head before
+wait for one head, and the prints that waited go. The counts that the head
+before linked stay the reach of the walk. When `head` is a node that the head
+before linked at the count `k`, each of those counts is `k - 1` less from `head`.
 
 Use it where the view reads a new head, before it links an element of it.
 """
-function start_kept_list_head!(keep::KeptListPrints)
-    keep.extent = (keep.lowest, keep.highest)
+function start_kept_list_head!(keep::KeptListPrints, head)
+    linked = get(keep.nodes, head, nothing)
+    shift = linked === nothing ? 0 : linked - 1
+    keep.extent = (keep.lowest - shift, keep.highest - shift)
     keep.lowest, keep.highest = 1, 0
+    keep.nodes = IdDict{Any,Int}()
     keep.before = keep.current
     keep.current = IdDict{Any,Any}()
     nothing
 end
 
 """
-    note_kept_list_link!(keep, k)
+    note_kept_list_link!(keep, k, node)
 
-Notes that the view linked an element at the count `k` under this head, so the
-walk of the counts reaches it when it runs again.
+Notes that the view linked the element of `node`, a node of the list, at the
+count `k` under this head, so the walk of the counts reaches it when it runs
+again, and a new head at `node` counts from it.
 
 Use it where the view links an element, after its print.
 """
-function note_kept_list_link!(keep::KeptListPrints, k::Int)
+function note_kept_list_link!(keep::KeptListPrints, k::Int, node)
     keep.lowest = min(keep.lowest, k)
     keep.highest = max(keep.highest, k)
+    keep.nodes[node] = k
     nothing
 end
 

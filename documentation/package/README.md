@@ -1,6 +1,6 @@
 # The package documents
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../design/system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](../design/domain-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../design/system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](../design/domain-anatomy.md)
 
 This folder has one folder for each slice, and each folder has the design document of its package: how the package works, how it fits with the others, why it is built so, and how to use it. The tables below list every document. A few folders also hold a detail guide next to the design document.
 
@@ -31,7 +31,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `component` | [component.md](platform/component/component.md) | the master-detail component document |
 | `projection` | [projection.md](platform/projection/projection.md), with [generic-projections.md](platform/projection/generic-projections.md) and [higher-order-projections.md](platform/projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |
-| `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+press |
+| `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+double click |
 | `gesturetracking` | [gesturetracking.md](platform/gesturetracking/gesturetracking.md) | runs the recognitions of gestures over the inputs |
 | `versioning` | [versioning.md](platform/versioning/versioning.md) | the versions of a document |
 | `plot` | [plot.md](platform/plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |
@@ -48,10 +48,12 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `natural` | [natural.md](platform/natural/natural.md) | the natural notation of each domain, and the renderer of any document |
 | `roster` | [roster.md](platform/roster/roster.md) | a list of the items of a source across the session, such as the open files or the tasks, with their facets as the columns of a table |
 | `tree` | [tree.md](platform/tree/tree.md) | a document of any type, with the documents under it, as a tree: the generics that make a node, the open nodes, and the open of a page |
+| `link` | [link.md](platform/link/link.md) | a link as data: the functions of a link, the general `Link`, the address `Url` with its pieces and its text line, and the view that draws any link as a `WidgetLink` |
 | `explorer` | [explorer.md](platform/explorer/explorer.md) | a tree of sections and entries beside a navigator: what an editor holds in one tab, with add, remove, filter, dashboards, and the content kept for the next start |
 | `systemprocess` | [systemprocess.md](platform/systemprocess/systemprocess.md) | the processes of the operating system as documents: a tree, a page with Interrupt and Stop, and a roster source |
 | `workplan` | [workplan.md](platform/workplan/workplan.md) | the plan of an agent as documents: steps with five statuses, blocked steps, the progress, and the views |
 | `syntax` | [syntax.md](platform/syntax/syntax.md) | the syntax tree, the insertion leaf, and syntax to text |
+| `outline` | [outline.md](platform/outline/outline.md) | the theme and the parts of an outline of records with an author and a time, such as a study or a workflow |
 | `inspector` | [inspector.md](platform/inspector/inspector.md) | the inspector views of a reference and of the selection |
 | `gesturehelp` | [gesturehelp.md](platform/gesturehelp/gesturehelp.md) | the help window and the command palette |
 | `gesturelog` | [gesturelog.md](platform/gesturelog/gesturelog.md) | the log of the gestures of the session |
@@ -68,8 +70,9 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `terminal` | [terminal.md](platform/terminal/terminal.md) | a program with its output lines and an input line, with no terminal device |
 | `task` | [task.md](platform/task/task.md) | a piece of work that runs as a task and ends with a result, in the words of `opp_repl`: its execution, a group of tasks, their documents and panes, the verbs, and how a domain adds a kind |
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
+| `backgroundwork` | [backgroundwork.md](platform/backgroundwork/backgroundwork.md) | the log of the work that background cells do |
 | `shell` | [shell.md](platform/shell/shell.md) | the wrappers and the chrome of a window |
-| `help` | [help.md](platform/help/help.md) | the document types, the projections and the page about the program that the Help menu opens |
+| `help` | [help.md](platform/help/help.md) | the trees of the document types and of the projections, by package and by module, and the page about the program, which the Help menu opens |
 | `conversation` | [conversation.md](platform/conversation/conversation.md), with [transcript.md](platform/conversation/transcript.md) | the evaluator and the conversation documents |
 | `assistant` | [assistant.md](platform/assistant/assistant.md) | the chat with a model beside the panes of a window |
 | `application` | [application.md](platform/application/application.md) | the window of files, the Files pane and the assistant, and the command line of a binary |
@@ -95,6 +98,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `ProjecturedAnthropic` | [anthropic.md](adapter/anthropic/anthropic.md) | the language model backend for a Claude model over the Anthropic API |
 | `ProjecturedOllama` | [ollama.md](adapter/ollama/ollama.md) | the language model backend for a model on a local Ollama server, and its meaning vectors |
 | `ProjecturedACP` | [acp.md](adapter/acp/acp.md) | the connection to an external agent over the Agent Client Protocol, with Claude Code as its built-in agent |
+| `ProjecturedLanguageServer` | [languageserver.md](adapter/languageserver/languageserver.md) | a C or C++ file whose names take the colours of their kinds from a language server, `clangd` |
 | `ProjecturedOpenRouter` | [openrouter.md](adapter/openrouter/openrouter.md) | the relevance model on the Decisions API of OpenRouter |
 | `ProjecturedMCP` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](adapter/tulip/tulip.md) | the constraint solver of the layout |
@@ -105,8 +109,10 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 
 | Package | Document | What it holds |
 | --- | --- | --- |
-| `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
+| `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads |
 | `ProjecturedBuilder` | [builder.md](tool/builder/builder.md) | the build of a native binary |
+| `ProjecturedBuild` | [builder.md](tool/builder/builder.md) | the package of the binary `projectured`: its packages and its workload |
+| `ProjecturedPrecompile` | [precompile.md](tool/precompile/precompile.md) | the one mechanism that compiles a package ahead of time, and the recording |
 
 ## AutoIntegration
 

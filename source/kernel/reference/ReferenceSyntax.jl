@@ -128,7 +128,19 @@ end
     parse_reference_path(ex) -> Vector{ReferenceSyntaxStep}
 
 Parse a rootless path expression into the shared step AST (left = outermost).
+
+Use it to read the steps of a path that is written as an expression.
+
+# Example
+
+    steps_1 = parse_reference_path(:(items[i].name))
+
+See also `get_reference_steps` and `search_references`.
+
+For the assistant.
 """
+function parse_reference_path end
+
 function parse_reference_path(ex)
     steps = ReferenceSyntaxStep[]
     _parse_ref_path!(steps, ex)

@@ -32,7 +32,7 @@ _al_measure = FixedMeasure(10, 15, 5, 0)
 
 _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = _al_measure).dispatch)))
+    WidgetToGraphics(; measure = _al_measure).dispatch)))
 
 _al_label(text) = VerticalLayout(Any[WidgetLabel(text)]; gap = 0)
 
@@ -138,16 +138,19 @@ function test_anchored_layout()
         note = AnchoredEntry(WidgetLabel("12 waiting");
                              target = alone, placement = :right, offset_x = 6)
         iomap = print_document(renderer, AnchoredLayout(content, Any[note]))
-        # The content is the first entry, and the label inside it the part there.
+        # The content is the first entry, and the caret in the text of the label
+        # inside it the part there.
         on_content = map_reference_backward(renderer, iomap, PointReferenceStep(5, 5))
         @test strip_reference_types(on_content) ==
               extend_reference(EmptyReference(), FieldReferenceStep("content"),
-                               FieldReferenceStep("children"), RangeReferenceStep(0, 1))
+                               FieldReferenceStep("children"), RangeReferenceStep(0, 1),
+                               FieldReferenceStep("content"), RangeReferenceStep(0, 0))
         # The annotation is drawn over the content, past its right edge.
         on_note = map_reference_backward(renderer, iomap, PointReferenceStep(120, 5))
         @test strip_reference_types(on_note) ==
               extend_reference(EmptyReference(), FieldReferenceStep("children"),
-                               RangeReferenceStep(0, 1))
+                               RangeReferenceStep(0, 1),
+                               FieldReferenceStep("content"), RangeReferenceStep(0, 0))
     end
 
     @testset "a target named by reference is resolved through the content" begin
@@ -163,7 +166,7 @@ function test_anchored_layout()
         renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
             Pair{Type,Any}[VerticalLayout => _AlBoxes()],
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+            WidgetToGraphics(;
                              measure = _al_measure).dispatch)))
         output = print_document(renderer, AnchoredLayout(content, Any[note])).output
 

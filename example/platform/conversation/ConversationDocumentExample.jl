@@ -30,8 +30,8 @@ end
 # The conversation the assistant example starts with: every kind of part the
 # transcript draws, so a person who runs `run_example(assistant_example)` sees
 # each header and each fold at once. The replies are made up; each evaluation
-# holds the result it would give. A resource read starts folded, as the agent
-# loop folds one; the failed evaluation starts with its error folded, as the
+# holds the result it would give. A resource read starts folded, as the
+# transcript folds one; the failed evaluation starts with its error folded, as the
 # form's own default says; every other fold starts open.
 function make_assistant_conversation_document_example()
     ConversationConversation([
@@ -63,8 +63,7 @@ function make_assistant_conversation_document_example()
                                                "# Orientation\n\n" *
                                                "The editor holds one document and one projection. The projection " *
                                                "prints the document, and reads a gesture back into an operation."),
-                                           tool_use_id = "tu_2");
-                             collapsed = true),
+                                           tool_use_id = "tu_2")),
             ConversationPart(EvaluatorForm(make_evaluator_arguments_text(Dict("query" => "make_child_context", "kind" => "function"));
                                            tool_name = "search_api",
                                            input = Dict{String,Any}("query" => "make_child_context", "kind" => "function"),

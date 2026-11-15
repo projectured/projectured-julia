@@ -51,7 +51,7 @@ make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
 
 """
     FaultLogOverlayProjection(; inner, log, theme = make_fault_log_panel_theme(),
-                                content = …, anchor = :bottom_left,
+                                widget_theme = nothing, content = …, anchor = :bottom_left,
                                 margin, padding, radius, background)
 
 Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
@@ -85,11 +85,12 @@ end
 
 function FaultLogOverlayProjection(; inner, log::FaultLog,
                                      theme = make_fault_log_panel_theme(),
+                                     widget_theme = nothing,
                                      content = make_fault_log_content_projection(
                                          syntax = make_fault_log_panel_syntax_projection(; theme)),
                                      anchor::Symbol = :bottom_left,
                                      margin::Integer = get_theme_value(theme, :panel_margin),
-                                     padding::Integer = get_theme_value(theme, :panel_padding),
+                                     padding::Integer = unwrap_cell(get_widget_style(widget_theme, :container_padding)),
                                      radius::Integer = get_theme_value(theme, :panel_radius),
                                      background::StyleColor = get_theme_value(theme, :panel_background))
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||

@@ -89,6 +89,9 @@ ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::In
     input::Any
     output::Any
     geometry::Cell      # the laid-out frame: ranges, plot rect, scales, ticks
+    toolbar::Cell       # the print of the buttons while they show, or nothing
+    horizontal_scroll_bar::Cell  # the print of the bar under the plot while it is there, or nothing
+    vertical_scroll_bar::Cell    # the print of the bar right of the plot while it is there, or nothing
 end
 
 # ── Data ranges ──────────────────────────────────────────────────────────
@@ -109,6 +112,9 @@ end
 
 _series_x_bounds(s::ChartLineSeries) = get_column_bounds(s.x)
 _series_x_bounds(s::ChartScatterSeries) = get_column_bounds(s.x)
+# A function series spans its own x range and none otherwise; it samples the window
+# that the other series give.
+_series_x_bounds(s::ChartFunctionSeries) = s.x_range
 # A histogram spans its outermost edges, whatever the values do.
 _series_x_bounds(s::ChartHistogramSeries) = get_column_bounds(s.binedges)
 # A strip reaches past its last sample when it is told where the trace ends.
@@ -119,8 +125,16 @@ function _series_x_bounds(s::ChartStripSeries)
 end
 _series_x_bounds(::Any) = nothing
 
-_series_y_bounds(s::ChartLineSeries) = get_column_bounds(s.y)
-_series_y_bounds(s::ChartScatterSeries) = get_column_bounds(s.y)
+_series_y_bounds(s::Union{ChartLineSeries,ChartScatterSeries}) = _join_bounds(
+    get_column_bounds(s.y),
+    s.lower === nothing ? nothing : get_column_bounds(s.lower),
+    s.upper === nothing ? nothing : get_column_bounds(s.upper))
+
+# The bounds that hold every one of `bounds`, a missing one left out.
+function _join_bounds(bounds...)
+    found = filter(b -> b !== nothing, collect(bounds))
+    isempty(found) ? nothing : (minimum(first, found), maximum(last, found))
+end
 # A strip has no y data of its own: which row it occupies depends on the other
 # strips, so the extent is contributed by `_data_bounds` over the whole set.
 _series_y_bounds(::Any) = nothing
@@ -162,21 +176,42 @@ function _strip_rows(series, chart::Chart)
     (rows, k)
 end
 
+# The first visible matrix series as `(index, series)`, or `nothing`. A chart draws
+# one matrix: the first.
+function _find_shown_matrix(series)
+    for (index, s) in series
+        s isa ChartMatrixSeries && return (index, s)
+    end
+    nothing
+end
+
+# Whether a chart of a category axis shows matrices and nothing else. Its y axis
+# then names the rows of the matrix, and its rows fill the plot.
+_is_matrix_chart(chart::Chart, series) =
+    get_chart_axis_family(chart.x_axis) === :category && !isempty(series) &&
+    all(s -> s isa ChartMatrixSeries, (s for (_, s) in series))
+
 # The data extent of everything drawn, before padding or axis overrides. Bar
 # series live on a category axis, where x is the category index and y has to
 # include the baseline the bars grow from.
 function _data_bounds(series, chart::Chart)
     if get_chart_axis_family(chart.x_axis) === :category
         n = length(chart.x_axis.categories)
-        yb = (chart.bar_baseline, chart.bar_baseline)
-        if chart.bar_placement === :stacked
-            yb = merge_bounds(yb, _stacked_bounds(series, n))
-        else
-            for (_, s) in series
-                s isa ChartBarSeries || continue
-                yb = merge_bounds(yb, get_column_bounds(s.values))
+        matrix = _find_shown_matrix(series)
+        yb = nothing
+        if matrix === nothing || any(s -> s isa ChartBarSeries, (s for (_, s) in series))
+            yb = (chart.bar_baseline, chart.bar_baseline)
+            if chart.bar_placement === :stacked
+                yb = merge_bounds(yb, _stacked_bounds(series, n))
+            else
+                for (_, s) in series
+                    s isa ChartBarSeries || continue
+                    yb = merge_bounds(yb, get_column_bounds(s.values))
+                end
             end
         end
+        # A matrix claims one integer row for each of its rows, as strips do.
+        matrix === nothing || (yb = merge_bounds(yb, (0.5, length(matrix[2].rows) + 0.5)))
         return ((0.5, n + 0.5), yb)
     end
     xb = nothing; yb = nothing
@@ -190,7 +225,79 @@ function _data_bounds(series, chart::Chart)
     # disagreed about would jump under the first zoom.
     k = count(s -> s isa ChartStripSeries, (s for (_, s) in series))
     k > 0 && (yb = merge_bounds(yb, (0.5, k + 0.5)))
+    # A function series holds the y range with its samples over the fit of the x
+    # bounds; the window of a zoom is sampled by the layout.
+    if xb !== nothing
+        lower, upper = _fit_range(xb, chart.x_axis, 0.02)
+        for (_, s) in series
+            s isa ChartFunctionSeries || continue
+            window = _find_function_window(s, lower, upper)
+            window === nothing && continue
+            samples = _compute_function_samples(s, window...)
+            yb = merge_bounds(yb, get_column_bounds(samples.y))
+        end
+    end
     (xb, yb)
+end
+
+# The part of the x window `lower`..`upper` that a function series samples: the
+# window, or its part inside the `x_range` of the series; `nothing` when the
+# series has none.
+function _find_function_window(s::ChartFunctionSeries, lower::Real, upper::Real)
+    s.x_range === nothing && return (Float64(lower), Float64(upper))
+    from, to = max(Float64(lower), s.x_range[1]), min(Float64(upper), s.x_range[2])
+    from < to ? (from, to) : nothing
+end
+
+"""
+    _compute_function_samples(series, lower, upper) -> (x, y, reason)
+
+The samples of a function series over `lower`..`upper`: `sample_count` points
+evenly spaced, each `Float64(callable(x))` called through `Base.invokelatest`, and
+the reason that it has none, or `nothing`. A call that raises, or a value that is
+no real number, stops the samples and gives the reason. A value that is not finite
+is no sample. A callable that is a `Function` gives no number at the x where it
+stopped; any other callable, such as a formula, says why in its own words.
+"""
+function _compute_function_samples(s::ChartFunctionSeries, lower::Real, upper::Real)
+    xs = collect(range(Float64(lower), Float64(upper); length = s.sample_count))
+    ys = Float64[]
+    sampled = Float64[]
+    for x in xs
+        value = try
+            Base.invokelatest(s.callable, x)
+        catch exception
+            return (x = Float64[], y = Float64[], reason = _get_function_fault_reason(s, x, exception))
+        end
+        value isa Real || return (x = Float64[], y = Float64[], reason = _get_function_fault_reason(s, x, nothing))
+        isfinite(value) || continue
+        push!(sampled, x)
+        push!(ys, Float64(value))
+    end
+    (x = sampled, y = ys, reason = nothing)
+end
+
+_get_function_fault_reason(s::ChartFunctionSeries, x::Real, exception) =
+    exception !== nothing && !(s.callable isa Function) ? sprint(showerror, exception) :
+    "gives no number at x = " * format_tick(x)
+
+# The samples of each function series over the window `view`, by series position.
+# A chart whose series give no x range at all leaves a function series with no
+# range to sample.
+function _compute_function_series_samples(series, view)
+    samples = Dict{Int,Any}()
+    has_range = any(s -> _series_x_bounds(s) !== nothing, (s for (_, s) in series))
+    for (index, s) in series
+        s isa ChartFunctionSeries || continue
+        if !has_range
+            samples[index] = (x = Float64[], y = Float64[], reason = "no x range; give x_range")
+            continue
+        end
+        window = _find_function_window(s, view.x_min, view.x_max)
+        samples[index] = window === nothing ? (x = Float64[], y = Float64[], reason = nothing) :
+                         _compute_function_samples(s, window...)
+    end
+    samples
 end
 
 # Stacked bars reach as high as the running sum in the tallest category, not as
@@ -233,6 +340,12 @@ window before zooming or panning relative to it.
 function resolve_view(plot::ChartPlot)
     v = plot.view
     v isa ChartView && return v
+    _compute_fit_view(plot)
+end
+
+# The window that fits the visible data: what a plot shows before a zoom, and the
+# extent that a scroll of the wheel stays inside.
+function _compute_fit_view(plot::ChartPlot)
     chart = plot.chart
     chart isa Chart || return ChartView(0.0, 1.0, 0.0, 1.0)
     series = _visible_series(chart)
@@ -241,9 +354,95 @@ function resolve_view(plot::ChartPlot)
     # push half a category of empty space in at each end.
     x0, x1 = get_chart_axis_family(chart.x_axis) === :category ?
         (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02)
-    y0, y1 = _fit_range(yb, chart.y_axis, 0.08)
+    # The rows of a matrix fill the plot as the slots of a category axis do.
+    y0, y1 = _is_matrix_chart(chart, series) && yb !== nothing && yb[2] > yb[1] ? yb :
+        _fit_range(yb, chart.y_axis, 0.08)
     ChartView(x0, x1, y0, y1)
 end
+
+# The y window that fits the data inside the x window of `view`, padded as the fit
+# pads it: what a fit of the y axis shows after a zoom on x. A chart of strips
+# keeps its rows, and a window with no data in it fits all the data.
+function _compute_shown_y_fit(plot::ChartPlot, view::ChartView)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    chart isa Chart || return (fit.y_min, fit.y_max)
+    series = _visible_series(chart)
+    yb = _compute_shown_y_bounds(series, chart, view)
+    yb === nothing && return (fit.y_min, fit.y_max)
+    _fit_range(yb, chart.y_axis, 0.08)
+end
+
+# The y bounds of what the series draw inside the x window of `view`, or `nothing`
+# when they draw nothing there or are strips, which keep their rows.
+function _compute_shown_y_bounds(series, chart::Chart, view::ChartView)
+    lo, hi = view.x_min, view.x_max
+    if get_chart_axis_family(chart.x_axis) === :category
+        # A matrix keeps its rows, as strips do.
+        _find_shown_matrix(series) === nothing || return nothing
+        n = length(chart.x_axis.categories)
+        shown = max(1, ceil(Int, lo - 0.5)):min(n, floor(Int, hi + 0.5))
+        isempty(shown) && return nothing
+        yb = (chart.bar_baseline, chart.bar_baseline)
+        for c in shown
+            total = 0.0
+            for (_, s) in series
+                (s isa ChartBarSeries && c <= length(s.values)) || continue
+                v = Float64(s.values[c])
+                isfinite(v) || continue
+                chart.bar_placement === :stacked ? (total += abs(v)) : (yb = merge_bounds(yb, (v, v)))
+            end
+            chart.bar_placement === :stacked && (yb = merge_bounds(yb, (0.0, total)))
+        end
+        return yb
+    end
+    any(s -> s isa ChartStripSeries, (s for (_, s) in series)) && return nothing
+    yb = nothing
+    for (_, s) in series
+        yb = merge_bounds(yb, _compute_shown_series_y_bounds(s, lo, hi))
+    end
+    for (_, samples) in _compute_function_series_samples(series, view)
+        yb = merge_bounds(yb, get_column_bounds(samples.y))
+    end
+    yb
+end
+
+# The y bounds of a series inside the x window `lo`..`hi`. A line is ascending in x,
+# so a binary search finds its part; a scatter cloud is read point by point.
+function _compute_shown_series_y_bounds(s::ChartLineSeries, lo::Real, hi::Real)
+    i0, i1 = get_visible_range(s.x, lo, hi)
+    i1 < i0 && return nothing
+    shown(column) = column === nothing ? nothing :
+                    get_column_bounds(@view column[i0:min(i1, length(column))])
+    _join_bounds(shown(s.y), shown(s.lower), shown(s.upper))
+end
+
+function _compute_shown_series_y_bounds(s::ChartScatterSeries, lo::Real, hi::Real)
+    yb = nothing
+    for i in 1:min(length(s.x), length(s.y))
+        lo <= Float64(s.x[i]) <= hi || continue
+        for column in (s.y, s.lower, s.upper)
+            (column === nothing || i > length(column)) && continue
+            v = Float64(column[i])
+            isfinite(v) && (yb = merge_bounds(yb, (v, v)))
+        end
+    end
+    yb
+end
+
+# A histogram holds the bins that overlap the window, from zero.
+function _compute_shown_series_y_bounds(s::ChartHistogramSeries, lo::Real, hi::Real)
+    values = _histogram_shown_values(s)
+    yb = nothing
+    for k in 1:min(length(values), length(s.binedges) - 1)
+        (s.binedges[k + 1] >= lo && s.binedges[k] <= hi) || continue
+        v = Float64(values[k])
+        isfinite(v) && (yb = merge_bounds(yb, (min(v, 0.0), max(v, 0.0))))
+    end
+    yb
+end
+
+_compute_shown_series_y_bounds(::Any, ::Real, ::Real) = nothing
 
 # ── Layout ───────────────────────────────────────────────────────────────
 
@@ -264,10 +463,34 @@ _axis_shows_labels(axis) = (axis isa ChartAxis || axis isa ChartCategoryAxis) &&
 # bars already fill, so a category axis carries no grid of its own.
 _axis_grid(axis) = axis isa ChartAxis ? axis.grid : :none
 
-# Ticks and their labels for the x axis. A numeric axis picks round numbers; a
-# category axis puts one tick per slot and thins the labels to whatever fits,
-# which is what keeps a ten-thousand-category axis from emitting ten thousand
-# text elements.
+# Whether a numeric axis names its whole numbers.
+_has_axis_names(axis) = axis isa ChartAxis && axis.names !== nothing && !isempty(axis.names)
+
+# The ticks of an axis that names its whole numbers: each whole number from `lo` to
+# `hi` that has a name, every `k`-th so that labels of `label_px` fit `span_px`,
+# with their names.
+function _compute_named_ticks(names, lo::Real, hi::Real, span_px::Real, label_px::Real)
+    count = length(names)
+    first_shown = lo <= 1 ? 1 : (lo > count ? count + 1 : ceil(Int, lo))
+    last_shown = hi >= count ? count : (hi < 1 ? 0 : floor(Int, hi))
+    first_shown <= last_shown || return (Float64[], String[])
+    shown = first_shown:label_step(last_shown - first_shown + 1, span_px, label_px):last_shown
+    (Float64.(shown), String[string(names[i]) for i in shown])
+end
+
+# A value on `axis` as a readout says it: the name of the nearest whole number on an
+# axis that has one, else the number.
+function _format_axis_value(axis, value::Real)
+    if _has_axis_names(axis) && isfinite(value) && 0.5 <= value < length(axis.names) + 0.5
+        return string(axis.names[round(Int, value)])
+    end
+    format_tick(value)
+end
+
+# Ticks and their labels for the x axis. A numeric axis picks round numbers, or
+# its named whole numbers; a category axis puts one tick per slot and thins the
+# labels to whatever fits, which is what keeps a ten-thousand-category axis from
+# emitting ten thousand text elements.
 function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font, t)
     if axis isa ChartCategoryAxis
         cats = axis.categories
@@ -277,6 +500,10 @@ function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font
         k = label_step(n, span_px, widest + t.padding)
         idx = [i for i in 1:k:n if view.x_min <= i <= view.x_max]
         (Float64.(idx), String[String(cats[i]) for i in idx])
+    elseif _has_axis_names(axis)
+        widest = maximum((first(compute_text_extent(p.measure, string(name), font)) for name in axis.names); init=0)
+        ticks, labels = _compute_named_ticks(axis.names, view.x_min, view.x_max, span_px, widest + t.padding)
+        (ticks, axis.show_labels ? labels : String[])
     else
         ticks = _axis_ticks(axis, view.x_min, view.x_max, span_px, t.tick_spacing)
         step = _tick_step(ticks)
@@ -322,7 +549,7 @@ A zero index is an entry that names no series, which is what keeps a state entry
 inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
 """
-function _legend_items(chart::Chart, series, t)
+function _legend_items(chart::Chart, series, t, samples = Dict{Int,Any}())
     cycle = _get_color_cycle(chart.style, t)
     items = Tuple{Int,String,Any}[]
     states = Tuple{Int,String,Any}[]
@@ -335,12 +562,27 @@ function _legend_items(chart::Chart, series, t)
                 any(it -> it[2] == label && it[3] == color, states) && continue
                 push!(states, (0, label, color))
             end
+        elseif s isa ChartMatrixSeries
+            # A matrix names the values of its lightest and of its darkest shade.
+            color = get_series_color(s.color, index, cycle)
+            push!(items, (index, _series_label(s), color))
+            range = _compute_matrix_range(s)
+            if range !== nothing
+                push!(states, (0, format_tick(range[1]), _get_matrix_shade(color, 1)))
+                range[2] > range[1] &&
+                    push!(states, (0, format_tick(range[2]), _get_matrix_shade(color, _MATRIX_LEVELS)))
+            end
         elseif s isa ChartPieSeries
             # A pie is one colour for each slice: an entry for each, under its series.
             for (k, category) in enumerate(s.categories)
                 own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
                 push!(items, (index, string(category), get_series_color(own, k, cycle)))
             end
+        elseif s isa ChartFunctionSeries
+            # A function series that draws no line says why after its label.
+            reason = haskey(samples, index) ? samples[index].reason : nothing
+            label = reason === nothing ? _series_label(s) : _series_label(s) * ": " * reason
+            push!(items, (index, label, get_series_color(s.color, index, cycle)))
         else
             push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle)))
         end
@@ -351,31 +593,35 @@ end
 # The legend's items and the box that holds them, before it is positioned, in
 # series order unless the legend asks for a dictionary sort. `font` is the
 # legend's own font, which may differ from the axis font the frame draws with.
+# The rows of strips or of a matrix fill a plot (`filled`), so an inside legend
+# of such a plot goes below it.
 function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
-                      font::StyleFont, w::Int, h::Int, t)
+                      font::StyleFont, w::Int, h::Int, t, samples = Dict{Int,Any}(); filled::Bool = false)
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
-    items = _legend_items(chart, series, t)
+    items = _legend_items(chart, series, t, samples)
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
+    position = filled && legend.position === :inside ? :below : legend.position
     sizes = Tuple{Int,Int}[_get_text_size(p.measure, it[2], font) for it in items]
-    horizontal = legend.position in (:above, :below) ||
-                 (legend.position === :inside && legend.anchor in (:north, :south))
+    horizontal = position in (:above, :below) ||
+                 (position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * t.padding : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * t.padding
     box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=t.swatch,
                                 gap=t.legend_gap, line_gap=t.legend_line_gap, pad=t.legend_padding)
-    (; position = legend.position, anchor = legend.anchor, border = legend.border,
+    (; position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
        gap = t.legend_gap, x = 0, y = 0)
 end
 
 # Put the box where `position` and `anchor` say. An outside legend is anchored
 # within the strip already reserved for it; an inside one within the plot
-# rectangle itself.
-function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
+# rectangle itself. A legend below starts under the ticks and the labels of the x
+# axis, which take `axis_h` under the plot.
+function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t, axis_h)
     plan === nothing && return nothing
     bw, bh = plan.box_w, plan.box_h
     pad = t.padding
@@ -387,7 +633,7 @@ function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, 
         x, y = plot_x + dx, top - bh - pad
     elseif plan.position === :below
         dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
-        x, y = plot_x + dx, h - bottom + pad
+        x, y = plot_x + dx, h - bottom + axis_h + pad
     elseif plan.position === :left
         _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
         x, y = pad, plot_y + dy
@@ -426,6 +672,7 @@ function _legend_elements!(out, g)
     style = g.style
     t = g.theme_values
     text_color = _or(style.title_color, t.text_color)
+    label_color = _or(style.title_color, t.legend_color)
     box = plan.box
 
     # Opaque, because a bordered rect paints the border colour underneath its
@@ -455,7 +702,7 @@ function _legend_elements!(out, g)
         line = g.measure_legend_label(label)
         th = line.height
         push!(out, GraphicsText(label, x + t.swatch + t.legend_gap, cy - th ÷ 2 + line.text_y;
-                                font = plan.font, color = text_color))
+                                font = plan.font, color = label_color))
     end
 
     # Whatever did not fit is accounted for rather than silently dropped.
@@ -480,11 +727,14 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     style = chart.style
     title_font = _or(style.title_font, t.title_font)
     axis_font = _or(style.axis_font, t.axis_font)
+    axis_title_font = _or(style.axis_font, t.axis_title_font)
     legend_font = _or(style.legend_font, t.legend_font)
 
     view = resolve_view(plot)
     x_axis, y_axis = chart.x_axis, chart.y_axis
     series = _visible_series(chart)
+    # The functions are called here, once for each window of the plot.
+    function_samples = _compute_function_series_samples(series, view)
 
     title = chart.title
     if isempty(title)
@@ -501,7 +751,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         y_title_h = 0
         y_title_text_y = 0
     else
-        y_title_line = compute_line_box(p.measure, y_title, axis_font)
+        y_title_line = compute_line_box(p.measure, y_title, axis_title_font)
         y_title_h = y_title_line.height + t.axis_title_gap
         y_title_text_y = y_title_line.text_y
     end
@@ -510,7 +760,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         x_title_h = 0
         x_title_text_y = 0
     else
-        x_title_line = compute_line_box(p.measure, x_title, axis_font)
+        x_title_line = compute_line_box(p.measure, x_title, axis_title_font)
         x_title_h = x_title_line.height + t.axis_title_gap
         x_title_text_y = x_title_line.text_y
     end
@@ -525,10 +775,19 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     # series visible — or none at all — and the numeric path runs untouched.
     strip_rows, strip_count = _strip_rows(series, chart)
     strip_only = strip_count >= 1 && all(s -> s isa ChartStripSeries, (s for (_, s) in series))
+    # The same mode for a chart of a matrix: the y axis names its rows.
+    matrix = get_chart_axis_family(x_axis) === :category ? _find_shown_matrix(series) : nothing
+    matrix_only = _is_matrix_chart(chart, series)
 
     if strip_only
         yticks = Float64[Float64(strip_rows[i]) for (i, _) in series]
         ylabels = _axis_shows_labels(y_axis) ? [_series_label(s) for (_, s) in series] : String[]
+    elseif matrix_only
+        yticks, ylabels = _compute_matrix_row_ticks(p, matrix[2], view, prov_h, axis_font, y_axis)
+    elseif _has_axis_names(y_axis)
+        label_height = compute_line_box(p.measure, "0", axis_font).height
+        yticks, ylabels = _compute_named_ticks(y_axis.names, view.y_min, view.y_max, prov_h, label_height + 2)
+        y_axis.show_labels || (ylabels = String[])
     else
         yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h, t.tick_spacing)
         ylabels = _axis_shows_labels(y_axis) ?
@@ -536,7 +795,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     end
     xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t)
     # A chart of pie series has no axes: no ticks and no labels.
-    pie = !isempty(series) && all(s -> s isa ChartPieSeries, (s for (_, s) in series))
+    pie = _is_pie_chart(series)
     if pie
         yticks, ylabels = Float64[], String[]
         xticks, xlabels = empty(xticks), String[]
@@ -557,7 +816,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
 
     # An outside legend reserves a strip, shrinking the plot; an inside one
     # overlays it and takes nothing.
-    legend = _legend_plan(p, chart, series, legend_font, w, h, t)
+    legend = _legend_plan(p, chart, series, legend_font, w, h, t, function_samples; filled = strip_only || matrix_only)
     if legend !== nothing && legend.position !== :inside
         legend.position === :above && (top += legend.box_h + t.padding)
         legend.position === :below && (bottom += legend.box_h + t.padding)
@@ -569,7 +828,15 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     plot_y = top
     plot_w = max(w - left - right, 20)
     plot_h = max(h - top - bottom, 20)
-    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
+    # The labels of the x axis were thinned for a provisional width; long labels of
+    # the y axis or a legend at a side can leave the plot narrower, so they are
+    # thinned again for the width that the plot has.
+    if !pie && plot_w < prov_w
+        xticks, xlabels = _x_ticks_labels(p, x_axis, view, plot_w, axis_font, t)
+        xsizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in xlabels]
+    end
+    axis_h = t.tick_length + (isempty(xlabels) ? 0 : label_h + t.label_gap)
+    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t, axis_h)
 
     xlog = x_axis isa ChartAxis && x_axis.log
     ylog = y_axis isa ChartAxis && y_axis.log
@@ -593,18 +860,26 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     strip_spans = Dict{Int,Vector{Tuple{Int,Int,Int}}}(
         i => _compute_strip_spans(xs, view, s)
         for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
+    # The cells of the matrix, computed here for the reason of the strip spans.
+    matrix_shape = matrix === nothing ? nothing :
+        _compute_matrix_shape(p, xs, ys, view, chart, matrix[2], style, axis_font)
 
     (; w, h, chart, style, theme_values = t, view, series, legend,
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
-       point_cache, strip_spans, strip_rows, strip_count, strip_only, pie,
+       point_cache, function_samples, strip_spans, strip_rows, strip_count, strip_only, pie,
+       matrix, matrix_only, matrix_shape,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
-       title, title_font, axis_font, legend_font, title_h, title_text_y,
+       title, title_font, axis_font, axis_title_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
 end
 
 # ── Pie ──────────────────────────────────────────────────────────────────
+
+# Whether the visible `series` of a chart are pies: such a chart has no axes and no
+# window.
+_is_pie_chart(series) = !isempty(series) && all(s -> s isa ChartPieSeries, (s for (_, s) in series))
 
 # The slices of the first visible pie series, in the coordinates of the plot: an
 # arc as wide as its radius for each slice, from the top, clockwise, in the
@@ -650,7 +925,7 @@ function _frame_elements!(out, g)
 
     # In row-label mode the y ticks name the strips rather than measuring
     # anything, so a gridline through each would just underline the bands.
-    if grid_y !== :none && !g.strip_only
+    if grid_y !== :none && !g.strip_only && !g.matrix_only
         for tick in g.yticks
             y = round(Int, to_pixel(g.ys, tick))
             (py <= y <= py + ph) || continue
@@ -693,16 +968,17 @@ function _frame_elements!(out, g)
     _selection_elements!(out, g)
 
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font, color = text_color))
+        push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font,
+                                color = _or(style.title_color, t.title_color)))
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.
     isempty(g.y_title) ||
         push!(out, GraphicsText(g.y_title, px, t.padding + g.title_h + g.y_title_text_y;
-                                font = g.axis_font, color = text_color))
+                                font = g.axis_title_font, color = text_color))
     isempty(g.x_title) ||
         push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - t.padding - g.x_title_h + 2 + g.x_title_text_y;
-                                font = g.axis_font, color = text_color))
+                                font = g.axis_title_font, color = text_color))
     out
 end
 
@@ -803,6 +1079,8 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     color = _draw_color(g, index, s.color)
     pts = _series_points(g, index, s)
     isempty(pts) && return out
+    # A band lies under the line, and a whisker over it.
+    s.interval_style === :band && _interval_band!(out, g, s, color)
 
     if s.draw_style === :pins
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
@@ -817,6 +1095,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
                                         dash=_dash_pattern(s.line_style, t)))
     end
 
+    s.interval_style === :whisker && _interval_whiskers!(out, g, s, color)
     shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     # Markers only while they still read as individual points; past that they
     # merge into a smear and the line already carries the shape.
@@ -825,6 +1104,26 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
             _marker!(out, shape, x, y, s.symbol_size, color)
         end
     end
+    out
+end
+
+# ── Function ─────────────────────────────────────────────────────────────
+
+# Pixel points of a function series: its samples, in the local frame of the plot.
+# A value far off the window is clamped, so a pixel stays an integer.
+function _compute_function_points(g, index::Int, s::ChartFunctionSeries)
+    samples = get(g.function_samples, index, nothing)
+    samples === nothing && return Tuple{Int,Int}[]
+    ox, oy = g.plot_x, g.plot_y
+    pixel(scale, value) = round(Int, clamp(to_pixel(scale, value), -1e6, 1e6))
+    Tuple{Int,Int}[(pixel(g.xs, x) - ox, pixel(g.ys, y) - oy) for (x, y) in zip(samples.x, samples.y)]
+end
+
+function _function_elements!(out, g, index::Int, s::ChartFunctionSeries)
+    pts = _series_points(g, index, s)
+    length(pts) >= 2 || return out
+    push!(out, GraphicsPolyline(pts; color = _draw_color(g, index, s.color), width = max(s.line_width, 1),
+                                dash = _dash_pattern(s.line_style, g.theme_values)))
     out
 end
 
@@ -853,6 +1152,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         return out
     end
 
+    _interval_whiskers!(out, g, s, color)
     shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     shape === :none && return out
     seen = Set{Tuple{Int,Int}}()
@@ -866,6 +1166,60 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         _marker!(out, shape, px, py, s.symbol_size, color)
     end
     out
+end
+
+# ── Intervals ────────────────────────────────────────────────────────────
+
+# The places of the values of `s` whose interval shows: in the visible window,
+# with a finite value and finite bounds.
+function _interval_indices(g, s)
+    (s.lower === nothing || s.upper === nothing) && return Int[]
+    n = min(length(s.x), length(s.y), length(s.lower), length(s.upper))
+    Int[i for i in 1:n
+        if (x = Float64(s.x[i]); g.view.x_min <= x <= g.view.x_max) &&
+           isfinite(Float64(s.lower[i])) && isfinite(Float64(s.upper[i]))]
+end
+
+# A whisker at each value: a vertical line between the bounds, with a cap at
+# each end. Past the marker limit the whiskers would merge into a smear, so they
+# do not draw.
+function _interval_whiskers!(out, g, s, color)
+    indices = _interval_indices(g, s)
+    (isempty(indices) || length(indices) > g.style.marker_limit) && return out
+    ox, oy = g.plot_x, g.plot_y
+    cap = max(2, s.symbol_size ÷ 2 + 1)
+    for i in indices
+        px = round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox
+        top = round(Int, to_pixel(g.ys, Float64(s.upper[i]))) - oy
+        bottom = round(Int, to_pixel(g.ys, Float64(s.lower[i]))) - oy
+        push!(out, GraphicsLine(px, top, px, bottom; color))
+        push!(out, GraphicsLine(px - cap, top, px + cap, top; color))
+        push!(out, GraphicsLine(px - cap, bottom, px + cap, bottom; color))
+    end
+    out
+end
+
+# A band between the bounds, in the color of the series made lighter.
+function _interval_band!(out, g, s, color)
+    indices = _interval_indices(g, s)
+    length(indices) >= 2 || return out
+    ox, oy = g.plot_x, g.plot_y
+    pixel(i, bound) = (round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox,
+                       round(Int, to_pixel(g.ys, Float64(bound[i]))) - oy)
+    points = vcat([pixel(i, s.upper) for i in indices], [pixel(i, s.lower) for i in reverse(indices)])
+    push!(out, GraphicsPolygon(points; color = StyleColor(color.red, color.green, color.blue, color.alpha * 0.25)))
+    out
+end
+
+# The interval of the value of `s` that draws at the pixel `(px, py)`, or
+# `nothing`: the nearest value along x that has one.
+function _find_interval_at(g, s, px::Integer)
+    (s isa Union{ChartLineSeries,ChartScatterSeries}) || return nothing
+    indices = _interval_indices(g, s)
+    isempty(indices) && return nothing
+    x = to_data(g.xs, px + g.plot_x)
+    nearest = argmin(i -> abs(Float64(s.x[i]) - x), indices)
+    (Float64(s.lower[nearest]), Float64(s.upper[nearest]))
 end
 
 # ── Bars ─────────────────────────────────────────────────────────────────
@@ -1130,6 +1484,224 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     out
 end
 
+# ── Matrices ─────────────────────────────────────────────────────────────
+#
+# A matrix draws a cell for each value, in a shade of its colour. A cell narrower
+# or lower than a few pixels folds with its neighbours into one block, which shows
+# the greatest value of the block, so the cost of a matrix depends on the size of
+# the plot and not on the size of the matrix.
+
+# The count of the shades of a matrix. Quantized shades let neighbour blocks of
+# one shade merge into one rectangle.
+const _MATRIX_LEVELS = 8
+
+# The most labels of cells that one layout measures.
+const _MATRIX_LABEL_LIMIT = 2000
+
+# The rows that the y axis names in the window of `view`, from the top: every
+# `k`-th row, so that the names fit the height. Answers the ticks and the names.
+function _compute_matrix_row_ticks(p::ChartPlotToGraphicsCanvas, s::ChartMatrixSeries, view,
+                                   span_px, font, axis)
+    count = length(s.rows)
+    shown = Int[r for r in 1:count if view.y_min <= count - r + 1 <= view.y_max]
+    isempty(shown) && return (Float64[], String[])
+    height = compute_line_box(p.measure, "0", font).height
+    k = label_step(length(shown), span_px, height + 2)
+    rows = shown[1:k:end]
+    ticks = Float64[count - r + 1 for r in rows]
+    (ticks, _axis_shows_labels(axis) ? String[string(s.rows[r]) for r in rows] : String[])
+end
+
+# The groups of consecutive indices from `first` to `last` that draw as one span,
+# each at least `min_px` pixels long, as `(first index, last index, lower pixel,
+# upper pixel)`. `edges(i)` answers the two pixel edges of index `i`.
+function _group_matrix_spans(edges, first::Int, last::Int, min_px::Int)
+    groups = NTuple{4,Int}[]
+    i = first
+    while i <= last
+        a, b = edges(i)
+        lower, upper = min(a, b), max(a, b)
+        j = i
+        while upper - lower < min_px && j < last
+            j += 1
+            a, b = edges(j)
+            lower, upper = min(lower, a, b), max(upper, a, b)
+        end
+        push!(groups, (i, j, round(Int, lower), round(Int, upper)))
+        i = j + 1
+    end
+    groups
+end
+
+# The cell of the greatest value in the rows `ra:rb` and the columns `ca:cb`, as
+# `(row, column, value)`, or `nothing` when every cell there is empty.
+function _find_matrix_block_peak(s::ChartMatrixSeries, ra::Int, rb::Int, ca::Int, cb::Int)
+    peak = nothing
+    for row in ra:rb, column in ca:cb
+        value = _find_matrix_value(s, row, column)
+        value === nothing && continue
+        (peak === nothing || value > peak[3]) && (peak = (row, column, value))
+    end
+    peak
+end
+
+"""
+    _compute_matrix_shape(p, xs, ys, view, chart, series, style, font) -> NamedTuple
+
+What a matrix draws in the window of `view`, in absolute pixels: the groups of the
+rows and of the columns, the blocks as `(left, top, width, height, shade)`, the
+labels that fit their cells as `(x, y, text, shade)`, the range of the values, and
+whether the cells are large enough for a gap between them.
+"""
+function _compute_matrix_shape(p::ChartPlotToGraphicsCanvas, xs, ys, view, chart::Chart,
+                               s::ChartMatrixSeries, style, font)
+    columns = length(chart.x_axis.categories)
+    count = length(s.rows)
+    range = _compute_matrix_range(s)
+    c0 = max(1, ceil(Int, view.x_min - 0.5))
+    c1 = min(columns, floor(Int, view.x_max + 0.5))
+    r0 = max(1, count + 1 - floor(Int, view.y_max + 0.5))
+    r1 = min(count, count + 1 - ceil(Int, view.y_min - 0.5))
+    min_px = max(style.bin_fold_px + 1, 3)
+    column_groups = c0 <= c1 ?
+        _group_matrix_spans(c -> (to_pixel(xs, c - 0.5), to_pixel(xs, c + 0.5)), c0, c1, min_px) :
+        NTuple{4,Int}[]
+    row_groups = r0 <= r1 ?
+        _group_matrix_spans(r -> (to_pixel(ys, count - r + 1.5), to_pixel(ys, count - r + 0.5)),
+                            r0, r1, min_px) :
+        NTuple{4,Int}[]
+    blocks = NTuple{5,Int}[]
+    labels = Tuple{Int,Int,String,Int}[]
+    folded = any(group -> group[1] != group[2], column_groups) ||
+             any(group -> group[1] != group[2], row_groups)
+    gap = !folded && !isempty(column_groups) && !isempty(row_groups) &&
+          minimum(group -> group[4] - group[3], column_groups) >= 6 &&
+          minimum(group -> group[4] - group[3], row_groups) >= 6
+    range === nothing && return (; range, column_groups, row_groups, blocks, labels, gap)
+    measured = 0
+    for (ra, rb, top, bottom) in row_groups
+        run = nothing
+        for (ca, cb, left, right) in column_groups
+            peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+            if peak === nothing
+                run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+                run = nothing
+                continue
+            end
+            level = _get_matrix_level(peak[3], range, s.log, _MATRIX_LEVELS)
+            if gap
+                push!(blocks, (left, top, right - left, bottom - top, level))
+            elseif run !== nothing && run[3] == level && run[2] == left
+                run = (run[1], right, level)
+            else
+                run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+                run = (left, right, level)
+            end
+            (s.show_labels && ra == rb && ca == cb && measured < _MATRIX_LABEL_LIMIT) || continue
+            text = _get_matrix_label(s, ra, ca)
+            isempty(text) && continue
+            measured += 1
+            line = compute_line_box(p.measure, text, font)
+            (line.width + 4 <= right - left && line.height + 2 <= bottom - top) || continue
+            push!(labels, (left + (right - left - line.width) ÷ 2,
+                           top + (bottom - top - line.height) ÷ 2 + line.text_y, text, level))
+        end
+        run === nothing || push!(blocks, (run[1], top, run[2] - run[1], bottom - top, run[3]))
+    end
+    (; range, column_groups, row_groups, blocks, labels, gap)
+end
+
+# The colour of the shade `level`: the colour of the series, more opaque for a
+# greater value, as the folded cloud of a scatter series shades its density.
+_get_matrix_shade(color::StyleColor, level::Integer) =
+    StyleColor(color.red, color.green, color.blue, color.alpha * (0.15 + 0.85 * level / _MATRIX_LEVELS))
+
+# The opaque colour that `color` gives over `background`.
+_blend_color_over(color::StyleColor, background::StyleColor) =
+    StyleColor(background.red + (color.red - background.red) * color.alpha,
+               background.green + (color.green - background.green) * color.alpha,
+               background.blue + (color.blue - background.blue) * color.alpha, 1.0)
+
+function _draw_matrix_cells!(out, g)
+    g.matrix === nothing && return out
+    index, s = g.matrix
+    shape = g.matrix_shape
+    ox, oy = g.plot_x, g.plot_y
+    t = g.theme_values
+    color = _draw_color(g, index, s.color)
+    gap = shape.gap ? 1 : 0
+    for (left, top, width, height, level) in shape.blocks
+        push!(out, GraphicsRect(left - ox, top - oy, max(width - gap, 1), max(height - gap, 1);
+                                color = _get_matrix_shade(color, level)))
+    end
+    for (x, y, text, level) in shape.labels
+        shown = _blend_color_over(_get_matrix_shade(color, level), t.plot_background)
+        push!(out, GraphicsText(text, x - ox, y - oy; font = g.axis_font,
+                                color = _strip_label_color(shown, t.text_color, t.strip_contrast_text)))
+    end
+    out
+end
+
+# The group of rows and the group of columns of the block under the absolute pixel
+# `x`, `y`, or `nothing` when no block of the matrix is there.
+function _find_matrix_block(g, x::Integer, y::Integer)
+    g.matrix === nothing && return nothing
+    shape = g.matrix_shape
+    column = findfirst(group -> group[3] <= x < group[4], shape.column_groups)
+    row = findfirst(group -> group[3] <= y < group[4], shape.row_groups)
+    (column === nothing || row === nothing) && return nothing
+    (shape.row_groups[row], shape.column_groups[column])
+end
+
+# The cell under the absolute pixel `x`, `y` as `(series_index, sample_index)`:
+# the cell whose value the block shows. An empty block selects no cell.
+function _find_matrix_sample(g, x::Integer, y::Integer)
+    block = _find_matrix_block(g, x, y)
+    block === nothing && return nothing
+    (ra, rb, _, _), (ca, cb, _, _) = block
+    index, s = g.matrix
+    peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+    peak === nothing ? nothing : (index, _get_matrix_sample_index(s, peak[1], peak[2]))
+end
+
+# The selected cell, outlined where it is drawn: the block that holds it.
+function _outline_selected_matrix_cell!(out, g, index::Int, s::ChartMatrixSeries, k::Integer)
+    (g.matrix === nothing || g.matrix[1] != index) && return out
+    cell = _get_matrix_cell(s, k)
+    cell === nothing && return out
+    row, column = cell
+    shape = g.matrix_shape
+    rows = findfirst(group -> group[1] <= row <= group[2], shape.row_groups)
+    columns = findfirst(group -> group[1] <= column <= group[2], shape.column_groups)
+    (rows === nothing || columns === nothing) && return out
+    _, _, top, bottom = shape.row_groups[rows]
+    _, _, left, right = shape.column_groups[columns]
+    t = g.theme_values
+    _outline!(out, left - g.plot_x, top - g.plot_y, max(right - left, 1), max(bottom - top, 1),
+              t.selected_edge, t.selected_width)
+end
+
+# What the pointer is over inside a matrix: the row, the column and the value of
+# the cell that its block shows, and the label of the cell.
+function _format_matrix_readout(g, x::Integer, y::Integer)
+    block = _find_matrix_block(g, x, y)
+    block === nothing && return nothing
+    (ra, rb, _, _), (ca, cb, _, _) = block
+    _, s = g.matrix
+    peak = _find_matrix_block_peak(s, ra, rb, ca, cb)
+    peak === nothing && return nothing
+    row, column, value = peak
+    categories = g.chart.x_axis.categories
+    name = column <= length(categories) ? string(categories[column]) : string(column)
+    text = string(_series_label(s), "  ", string(s.rows[row]), ", ", name, ": ", format_tick(value))
+    label = _get_matrix_label(s, row, column)
+    isempty(label) || (text = string(text, " (", label, ")"))
+    _add_link_readout(text, find_chart_sample_link(s, _get_matrix_sample_index(s, row, column)))
+end
+
+# A readout names the link of its sample, which Ctrl and a click follow.
+_add_link_readout(text::AbstractString, link) = link === nothing ? text : string(text, "  link: ", link)
+
 # ── Overlay ──────────────────────────────────────────────────────────────
 #
 # What is drawn over the series inside the plot viewport: the crosshair with its
@@ -1170,6 +1742,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         series = g.chart.series[sample[1]]
         if series isa ChartStripSeries
             _selected_strip!(out, g, sample[1], series, sample[2])
+        elseif series isa ChartMatrixSeries
+            _outline_selected_matrix_cell!(out, g, sample[1], series, sample[2])
         else
             point = get_chart_sample(series, sample[2])
             if point isa Tuple && length(point) == 2
@@ -1196,8 +1770,10 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         # Inside a band, the y coordinate is a row number and reading it back as
         # a value would be meaningless — the state holding there is the answer.
         strip = _strip_readout(g, cursor[1], cy + g.plot_y)
+        strip === nothing && (strip = _format_matrix_readout(g, cx + g.plot_x, cy + g.plot_y))
         label = strip === nothing ?
-            string(format_tick(cursor[1]), ", ", format_tick(cursor[2])) : strip
+            string(_format_axis_value(g.chart.x_axis, cursor[1]), ", ", _format_axis_value(g.chart.y_axis, cursor[2])) :
+            strip
         push!(out, GraphicsText(label, cx + 6, cy - 18; font = g.axis_font, color = text_color))
         return out
     end
@@ -1206,8 +1782,18 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     color = get_series_color(g.chart.series[index].color, index, _get_color_cycle(g.style, g.theme_values))
     push!(out, GraphicsCircle(px, py, 4; color, border_width=t.border_width, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
-                   format_tick(to_data(g.xs, px + g.plot_x)), ", ",
-                   format_tick(to_data(g.ys, py + g.plot_y)))
+                   _format_axis_value(g.chart.x_axis, to_data(g.xs, px + g.plot_x)), ", ",
+                   _format_axis_value(g.chart.y_axis, to_data(g.ys, py + g.plot_y)))
+    # A value with an interval says it beside the value.
+    interval = _find_interval_at(g, g.chart.series[index], px)
+    interval === nothing ||
+        (label *= string("  [", format_tick(interval[1]), ", ", format_tick(interval[2]), "]"))
+    # A series with links names the link of the sample under the point.
+    if hasproperty(g.chart.series[index], :links) && g.chart.series[index].links !== nothing
+        hit = _sample_hit(g, px + g.plot_x, py + g.plot_y)
+        hit === nothing || hit[1] != index ||
+            (label = _add_link_readout(label, find_chart_sample_link(g.chart.series[index], hit[2])))
+    end
     # Flip the readout to the other side of the cursor near the right edge so it
     # is never clipped away by the viewport.
     line = g.measure_label(label)
@@ -1252,14 +1838,16 @@ function _strip_readout(g, at::Real, y::Integer)
         (band[1] <= y <= band[2]) || continue
         k = _strip_sample_at(g, s, at)
         k === nothing && continue
-        return string(_series_label(s), "  ", strip_state_name(s, s.values[k]),
-                      " @ ", format_tick(Float64(at)))
+        return _add_link_readout(string(_series_label(s), "  ", strip_state_name(s, s.values[k]),
+                                        " @ ", format_tick(Float64(at))),
+                                 find_chart_sample_link(s, k))
     end
     nothing
 end
 
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartScatterSeries) = _scatter_elements!(out, g, index, s)
+_series_elements!(out, g, index::Int, s::ChartFunctionSeries) = _function_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartHistogramSeries) = _histogram_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartStripSeries) = _strip_elements!(out, g, index, s)
 # Bar series are drawn as a group rather than one at a time: how wide a bar is
@@ -1295,6 +1883,30 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, w, h, t)
     end)
+    # The buttons print while the pointer is over the chart, and a bar while the
+    # chart is zoomed on its axis, through the recursion, which
+    # `make_chart_projection` gives a printer of each. Each wish is a cell of its
+    # own, so a move between the parts of the chart does not print them again.
+    wants_toolbar = Cell(@computation _is_chart_toolbar_wanted(plot, geometry[]))
+    toolbar = Cell(@computation wants_toolbar[] ?
+        print_child(recursion, plot.toolbar,
+                    with_free_axis(with_free_axis(make_child_context(ctx, FieldReferenceStep("toolbar")),
+                                                  :x), :y)) : nothing)
+    # A bar is as long as its edge of the plot area, and as thick as its printer
+    # makes it. The bar under the plot stops before the bar right of it.
+    wants_vertical = Cell(@computation _is_chart_scroll_bar_wanted(plot.vertical_scroll_bar, geometry[]))
+    vertical_length = Cell(@computation (g = geometry[]; g === nothing ? 0 : g.plot_h))
+    vertical = Cell(@computation wants_vertical[] ?
+        print_child(recursion, plot.vertical_scroll_bar,
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep("vertical_scroll_bar"));
+                                    width = nothing, height = vertical_length)) : nothing)
+    wants_horizontal = Cell(@computation _is_chart_scroll_bar_wanted(plot.horizontal_scroll_bar, geometry[]))
+    horizontal_length = Cell(@computation (g = geometry[]; bar = vertical[];
+        g === nothing ? 0 : g.plot_w - (bar === nothing ? 0 : Int(bar.output.w))))
+    horizontal = Cell(@computation wants_horizontal[] ?
+        print_child(recursion, plot.horizontal_scroll_bar,
+                    with_exact_size(make_child_context(ctx, FieldReferenceStep("horizontal_scroll_bar"));
+                                    width = horizontal_length, height = nothing)) : nothing)
 
     elements = CellVector(@computation begin
         g = geometry[]
@@ -1314,7 +1926,8 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         if g.pie
             _pie_elements!(series_out, g)
         elseif family === :category
-            _bar_elements!(series_out, g, drawable)
+            _draw_matrix_cells!(series_out, g)
+            _bar_elements!(series_out, g, [(i, s) for (i, s) in drawable if s isa ChartBarSeries])
         else
             for (index, s) in drawable
                 _series_elements!(series_out, g, index, s)
@@ -1325,6 +1938,10 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)
+        # The bars, and the buttons over everything.
+        for part in reverse(_find_shown_chart_parts(g, plot, toolbar[], horizontal[], vertical[]))
+            push!(out, GraphicsViewport(part.x, part.y, part.w, part.h, part.iomap.output))
+        end
         out
     end)
 
@@ -1336,8 +1953,87 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                             Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry)
+    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar, horizontal, vertical)
 end
+
+# Whether the buttons of `plot` show: while the pointer is over the chart and no
+# drag runs, on a chart that has a window.
+_is_chart_toolbar_wanted(plot::ChartPlot, g) =
+    g !== nothing && !g.pie && plot.toolbar !== nothing && plot.drag_anchor === nothing &&
+    get_mouse_target(plot) !== nothing
+
+# Where the buttons of the print `toolbar` show, of `count` buttons: the top-right
+# corner of the chart, as `(; x, y, w, h, iomap)`, or `nothing` when they do not
+# show, or when the plot is narrower than four buttons or lower than two.
+function _find_shown_chart_toolbar(g, toolbar, count::Integer)
+    (g === nothing || toolbar === nothing || count == 0) && return nothing
+    canvas = toolbar.output
+    canvas isa GraphicsCanvas || return nothing
+    w, h = Int(canvas.w), Int(canvas.h)
+    (w > 0 && h > 0) || return nothing
+    (g.plot_w >= 4 * w / count && g.plot_h >= 2 * h) || return nothing
+    inset = max(1, g.theme_values.padding ÷ 2)
+    (; x = g.w - w - inset, y = inset, w, h, iomap = toolbar)
+end
+
+_count_chart_buttons(plot::ChartPlot) = plot.toolbar === nothing ? 0 : length(plot.toolbar.elements)
+
+# Whether the bar `bar` of a plot is there: while the window does not show all the
+# data on its axis, on a chart that has a window.
+_is_chart_scroll_bar_wanted(bar, g) =
+    g !== nothing && !g.pie && bar !== nothing && bar.thumb_size < 1
+
+# The parts that only the plot holds and that show now, the buttons first, as the
+# children that the chart draws (`find_drawn_child_at`), with the field that holds
+# each: the buttons in the top-right corner of the chart, the vertical bar along the
+# right edge of the plot area, and the horizontal bar along its bottom edge.
+function _find_shown_chart_parts(g, plot::ChartPlot, toolbar, horizontal, vertical)
+    parts = NamedTuple[]
+    g === nothing && return parts
+    part(field, x, y, w, h, iomap) = (; field, x, y, w, h, iomap, steps = (FieldReferenceStep(field),))
+    shown = _find_shown_chart_toolbar(g, toolbar, _count_chart_buttons(plot))
+    shown === nothing || push!(parts, part("toolbar", shown.x, shown.y, shown.w, shown.h, toolbar))
+    if vertical !== nothing && vertical.output isa GraphicsCanvas
+        w, h = Int(vertical.output.w), Int(vertical.output.h)
+        push!(parts, part("vertical_scroll_bar", g.plot_x + g.plot_w - w, g.plot_y, w, h, vertical))
+    end
+    if horizontal !== nothing && horizontal.output isa GraphicsCanvas
+        w, h = Int(horizontal.output.w), Int(horizontal.output.h)
+        push!(parts, part("horizontal_scroll_bar", g.plot_x, g.plot_y + g.plot_h - h, w, h, horizontal))
+    end
+    parts
+end
+
+_find_shown_chart_parts(iomap::ChartPlotToGraphicsCanvasIoMap) =
+    _find_shown_chart_parts(iomap.geometry, iomap.input, iomap.toolbar,
+                            iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
+
+get_child_iomaps(iomap::ChartPlotToGraphicsCanvasIoMap) =
+    Any[child for child in (iomap.toolbar, iomap.horizontal_scroll_bar, iomap.vertical_scroll_bar)
+        if child !== nothing]
+
+"""
+    make_chart_projection(; measure, theme = nothing, widget_theme = WidgetTheme(),
+                          width = 760, height = 460, minimum_width = 120,
+                          minimum_height = 80) -> Projection
+
+A chart view: a `Chart` through `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`
+to a `GraphicsCanvas`, with the buttons that show while the pointer is over the
+chart and the bars of a zoomed chart. `theme`, the size and the minimum size are
+those of the renderer of the chart; `widget_theme` is that of the buttons and the
+bars.
+
+The renderer prints the buttons and the bars through its recursion, and this
+projection gives it a recursion that prints them, so a chart shows them in any
+host. A chain of the two stages built by hand must give a recursion that prints a
+`WidgetToolbar`, a `WidgetToolbarItem` and a `WidgetScrollBar`.
+"""
+make_chart_projection(; measure::TextMeasure, widget_theme = WidgetTheme(), kwargs...) =
+    NestingProjection(ChainingProjection(ChartToChartPlot(), ChartPlotToGraphicsCanvas(; measure, kwargs...));
+                      recursion = TypeDispatchingProjection(
+                          WidgetToolbar => WidgetToolbarToGraphicsCanvas(widget_theme; measure),
+                          WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(widget_theme; measure),
+                          WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(widget_theme)))
 
 # A chart-shaped placeholder for a `ChartNothing`/`ChartInsertion` root, so an
 # empty chart still occupies its space and reads as a chart rather than
@@ -1372,6 +2068,10 @@ function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
     canvas = iomap.output
     canvas isa GraphicsCanvas && canvas.w > 0 && canvas.h > 0 &&
         !_in_rect(x, y, Int(canvas.x), Int(canvas.y), Int(canvas.w), Int(canvas.h)) && return nothing
+    # The buttons and the bars are on top of every part: a point on them is the
+    # part of them there.
+    shown = find_drawn_child_at(_find_shown_chart_parts(iomap), x, y)
+    shown === nothing || return map_drawn_child_point(plot, shown, x, y)
     index = _legend_hit(g, x, y)
     index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
                                         get_chart_part_reference(:legend, plot)
@@ -1458,26 +2158,47 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input
+    # A chart with no axes, a pie, has no window: it takes no view gesture, so the
+    # page around it gets the turn and the keys.
+    has_window = !g.pie
+    # The buttons and the bars are on top: a press, a release, a click, a dwell and
+    # a right click on them go to them, in their frame.
+    parts = _find_shown_chart_parts(iomap)
+    if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell}
+        part = find_drawn_child_at(parts, event.x, event.y)
+        part === nothing || return _read_chart_part_event(plot, part, event)
+    end
 
     if event isa MouseScroll
-        return _scroll_intent(g, plot, event)
-    elseif event isa MouseDown && event.button === :left
-        return _drag_start(g, plot, event)
+        return has_window ? _scroll_intent(g, plot, event) : nothing
+    elseif event isa MouseDown && event.button in (:left, :middle)
+        return has_window ? _drag_start(g, plot, event) : nothing
     elseif event isa Union{KeyDown, KeyPress}
-        return _key_intent(g, plot, event)
-    elseif event isa DragMove
-        # The drag comes by the path of the plot, also off the plot.
-        return _drag_move(g, plot, event)
-    elseif event isa DragEnd
-        return _drag_end(g, plot, event)
-    elseif event isa DragCancel
+        return has_window ? _key_intent(g, plot, event) : nothing
+    elseif event isa Union{DragMove, DragEnd, DragCancel}
+        # The drag comes by the path of the plot, also off the plot: the drag of
+        # the thumb of a bar, which the chart keeps, or a band or a pan.
+        bar = _read_chart_scroll_bar_drag(plot, event)
+        bar === nothing || return bar
+        event isa DragMove && return _drag_move(g, plot, event)
+        event isa DragEnd && return _drag_end(g, plot, event)
         return _cancel_drag(plot)
     elseif event isa MouseMove
-        return _track_cursor(g, plot, event.x, event.y)
+        return _read_chart_move(g, plot, parts, event)
+    elseif is_outward_gesture(event)
+        # A dwell and a right click go to the part at their point, and then out to
+        # the plot, whose menu holds the view actions.
+        return read_child_part_gesture(iomap, event)
     elseif event isa MouseClick && event.button === :left
-        # A double click anywhere in the plot means "show me everything again".
-        if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
-            return _set_view(plot, nothing)
+        # A double click in the plot shows all the data again, and a double click
+        # on an axis fits that axis. A fit that changes nothing goes on to the
+        # click, which selects the axis.
+        if has_window && event.count >= 2
+            _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) &&
+                return _set_view(plot, nothing)
+            fit = _is_over_x_axis(g, event.x, event.y) ? _fit_axis_view(plot, :x) :
+                  _is_over_y_axis(g, event.x, event.y) ? _fit_axis_view(plot, :y) : nothing
+            fit === nothing || return fit
         end
         index = _legend_hit(g, event.x, event.y)
         if index isa Int && index > 0
@@ -1491,14 +2212,66 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         part = _part_hit(g, event.x, event.y)
         part === nothing || return ReplaceSelectionOperation(get_chart_part_reference(part, plot))
         # A click on a data point selects the point; anywhere else on a series'
-        # geometry selects the series.
+        # geometry selects the series. Ctrl and a click on a point with a link
+        # follow the link, and Ctrl+Shift opens it in a new tab, as on a link of
+        # the source view of a Markdown page, where a plain click places the caret.
         hit = _sample_hit(g, event.x, event.y)
+        if hit !== nothing && event.modifiers.ctrl
+            link = find_chart_sample_link(g.chart.series[hit[1]], hit[2])
+            link === nothing ||
+                return OpenPageOperation(nothing, EmptyReference(), event.modifiers.shift ? :new_tab : :here;
+                                         target = link)
+        end
         hit === nothing ||
             return ReplaceSelectionOperation(chart_plot_sample_reference(plot, hit[1], hit[2]))
         index = _series_hit(g, event.x, event.y)
         index === nothing || return ReplaceSelectionOperation(get_chart_series_reference(index, plot))
     end
     nothing
+end
+
+# ── The buttons and the bars in the frame of the chart ───────────────────
+
+# A move of the pointer: on a button or a bar it goes to that part and clears the
+# readout; elsewhere it tracks the readout. The part that the pointer leaves gets
+# the leave, so a press released off a button ends.
+function _read_chart_move(g, plot::ChartPlot, parts, event::MouseMove)
+    answer = read_drawn_child_move(plot, parts, event)
+    on_part = find_drawn_child_at(parts, event.x, event.y) !== nothing
+    join_move_answers(answer, on_part ? _clear_cursor(plot) : _track_cursor(g, plot, event.x, event.y))
+end
+
+# The answer of a button or a bar to a pointer gesture on it. A press on the thumb
+# of a bar starts a drag that the chart keeps, and a write of the value of a bar
+# moves the view.
+function _read_chart_part_event(plot::ChartPlot, part, event)
+    answer = read_drawn_child_event(plot, part, event)
+    (is_outward_gesture(event) || part.field == "toolbar") && return answer
+    bar = getproperty(plot, Symbol(part.field))
+    event isa MouseDown && (answer = keep_owned_scroll_bar_drag(answer, bar, event))
+    _convert_chart_scroll_bar_answer(plot, answer)
+end
+
+# The answer of a bar whose thumb the chart drags to a part of that drag, with the
+# value made the move of the view, or `nothing` when no thumb is dragged.
+function _read_chart_scroll_bar_drag(plot::ChartPlot, event)
+    for bar in (plot.horizontal_scroll_bar, plot.vertical_scroll_bar)
+        bar === nothing && continue
+        answer = read_scroll_bar_drag(bar, event)
+        answer === nothing || return _convert_chart_scroll_bar_answer(plot, answer)
+    end
+    nothing
+end
+
+# `answer` with each write of the value of a bar of `plot` made the move of the
+# view to that value. A move that changes nothing is left out.
+function _convert_chart_scroll_bar_answer(plot::ChartPlot, answer)
+    for (bar, axis) in ((plot.horizontal_scroll_bar, :x), (plot.vertical_scroll_bar, :y))
+        bar === nothing && continue
+        answer = convert_scroll_bar_value_writes(answer, bar,
+                                                 value -> _move_chart_view_to_bar_value(plot, axis, value))
+    end
+    answer
 end
 
 # ── View interaction ─────────────────────────────────────────────────────
@@ -1510,6 +2283,52 @@ end
 const _ZOOM_STEP = 1.15      # per wheel notch
 const _PAN_STEP = 0.1        # fraction of the window per keyboard pan
 const _DRAG_MIN = 6          # a rubber band smaller than this is a click, not a zoom
+const _THIN_BAND_MAX = 20    # a band thinner than this across one axis can zoom the other alone
+
+# The strips of the axes: under the plot for the x axis, left of it for the y axis,
+# and not on a legend there. Ctrl and the wheel zoom one axis there, a drag pans it,
+# and a double click fits it.
+_is_over_x_axis(g, x::Integer, y::Integer) =
+    y >= g.plot_y + g.plot_h && g.plot_x <= x <= g.plot_x + g.plot_w && _legend_hit(g, x, y) === nothing
+_is_over_y_axis(g, x::Integer, y::Integer) =
+    x <= g.plot_x && g.plot_y <= y <= g.plot_y + g.plot_h && _legend_hit(g, x, y) === nothing
+
+# The write of the view with one axis fitted: the x axis to all the data, the y
+# axis to the data that the x window shows. A fit that changes nothing writes
+# nothing.
+function _fit_axis_view(plot::ChartPlot, axis::Symbol)
+    view = resolve_view(plot)
+    fit = _compute_fit_view(plot)
+    axis === :x &&
+        return _set_view(plot, _make_chart_view(fit, (fit.x_min, fit.x_max), (view.y_min, view.y_max)))
+    y = compute_limited_window(_compute_shown_y_fit(plot, view); extent = (fit.y_min, fit.y_max),
+                               log = _is_log_axis(plot.chart.y_axis))
+    _set_view(plot, _make_chart_view(fit, (view.x_min, view.x_max), y))
+end
+
+# The axes that a band of `w` by `h` pixels zooms: both; the x axis alone when the
+# band is thin across it, or the y axis alone, as Plotly does; or none, for a band
+# that did not grow. A band is thin across an axis when it is less high there than
+# 0.6 of its length, and less than `_THIN_BAND_MAX`.
+function _find_band_axes(w::Integer, h::Integer)
+    _is_thin_band(h, w) && return :x
+    _is_thin_band(w, h) && return :y
+    (w >= _DRAG_MIN && h >= _DRAG_MIN) ? :both : nothing
+end
+
+_is_thin_band(across::Integer, along::Integer) =
+    along >= _DRAG_MIN && across < min(max(0.6 * along, _DRAG_MIN), _THIN_BAND_MAX)
+
+# The rectangle that a band from the press `ax`, `ay` to `x`, `y` draws: across the
+# whole plot on an axis that it does not zoom, so the person sees what the release
+# does.
+function _get_band_rect(g, ax::Integer, ay::Integer, x::Integer, y::Integer)
+    w, h = abs(x - ax), abs(y - ay)
+    axes = _find_band_axes(w, h)
+    axes === :x && return (min(ax, x), g.plot_y, w, g.plot_h)
+    axes === :y && return (g.plot_x, min(ay, y), g.plot_w, h)
+    (min(ax, x), min(ay, y), w, h)
+end
 
 _compound(a, b) = a === nothing ? b : b === nothing ? a :
                   CompoundOperation(Operation[a, b])
@@ -1526,91 +2345,264 @@ _write_view_state(plot::ChartPlot, field::AbstractString, value) =
 _set_view(plot::ChartPlot, view) =
     isequal(plot.view, view) ? nothing : _write_view_state(plot, "view", view)
 
-# Scale a window about a fixed data point, so whatever is under the cursor stays
-# under the cursor.
-function _zoom_about(view::ChartView, fx::Real, fy::Real, kx::Real, ky::Real)
-    ChartView(fx - (fx - view.x_min) * kx, fx + (view.x_max - fx) * kx,
-              fy - (fy - view.y_min) * ky, fy + (view.y_max - fy) * ky)
+# Whether an axis zooms and pans in its log space.
+_is_log_axis(axis) = axis isa ChartAxis && axis.log
+
+# The view of a window on each axis: `nothing` when the two windows are the fit,
+# so a chart that shows all its data follows a change of the data.
+_make_chart_view(fit::ChartView, x, y) =
+    (x == (fit.x_min, fit.x_max) && y == (fit.y_min, fit.y_max)) ? nothing :
+    ChartView(x[1], x[2], y[1], y[2])
+
+# The write of `view` scaled by `kx` and `ky` about the data point `fx`, `fy`, or
+# about the middle of an axis that has no point, inside the limits of the fit. A
+# factor of 1 leaves its axis alone. A zoom at a limit writes nothing.
+function _zoom_view(plot::ChartPlot, view::ChartView, kx::Real, ky::Real;
+                    fx = nothing, fy = nothing)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = (view.x_min, view.x_max)
+    y = (view.y_min, view.y_max)
+    kx == 1 || (x = compute_zoomed_window(x, kx; extent = (fit.x_min, fit.x_max), focus = fx,
+                                          log = _is_log_axis(chart.x_axis)))
+    ky == 1 || (y = compute_zoomed_window(y, ky; extent = (fit.y_min, fit.y_max), focus = fy,
+                                          log = _is_log_axis(chart.y_axis)))
+    _set_view(plot, _make_chart_view(fit, x, y))
 end
 
-_pan_by(view::ChartView, dx::Real, dy::Real) =
-    ChartView(view.x_min + dx, view.x_max + dx, view.y_min + dy, view.y_max + dy)
+# The write of `view` moved by `fraction_x` and `fraction_y` of its spans toward
+# the high ends of the axes, inside the fit. A move that the fit stops writes
+# nothing.
+function _pan_view(plot::ChartPlot, view::ChartView, fraction_x::Real, fraction_y::Real)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = (view.x_min, view.x_max)
+    y = (view.y_min, view.y_max)
+    fraction_x == 0 ||
+        (x = compute_panned_window(x, fraction_x; extent = (fit.x_min, fit.x_max),
+                                   log = _is_log_axis(chart.x_axis)))
+    fraction_y == 0 ||
+        (y = compute_panned_window(y, fraction_y; extent = (fit.y_min, fit.y_max),
+                                   log = _is_log_axis(chart.y_axis)))
+    _set_view(plot, _make_chart_view(fit, x, y))
+end
 
-# The wheel zooms; over an axis strip it zooms only that axis, which is how a
-# chart offers per-axis zoom without a separate control. Shift turns it into a
-# pan, matching the scroll convention everywhere else in the editor.
-function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
+# The write of the window `x` by `y` inside the limits of the fit: the end of a
+# band zoom.
+function _limit_view(plot::ChartPlot, x, y)
+    chart = plot.chart
+    fit = _compute_fit_view(plot)
+    x = compute_limited_window(x; extent = (fit.x_min, fit.x_max), log = _is_log_axis(chart.x_axis))
+    y = compute_limited_window(y; extent = (fit.y_min, fit.y_max), log = _is_log_axis(chart.y_axis))
+    _set_view(plot, _make_chart_view(fit, x, y))
+end
+
+# The view actions that the keys, the menu and the buttons share: each answers the
+# write of the view, or `nothing` at a limit.
+_zoom_in_view(plot::ChartPlot) =
+    _has_chart_window(plot) ? _zoom_view(plot, resolve_view(plot), 1 / _ZOOM_STEP, 1 / _ZOOM_STEP) : nothing
+_zoom_out_view(plot::ChartPlot) =
+    _has_chart_window(plot) ? _zoom_view(plot, resolve_view(plot), _ZOOM_STEP, _ZOOM_STEP) : nothing
+_show_all_view(plot::ChartPlot) = _set_view(plot, nothing)
+
+# Whether a plot has a window to move: an empty chart and a chart of pie series
+# have no axes.
+_has_chart_window(plot::ChartPlot) =
+    plot.chart isa Chart && !_is_pie_chart(_visible_series(plot.chart))
+
+# ── The menu and the buttons ─────────────────────────────────────────────
+
+"""
+    compute_context_menu(plot::ChartPlot) -> WidgetMenu | Nothing
+
+The menu that a right click on a chart opens: "Zoom in", "Zoom out", "Show all
+the data", "Fit the x axis" and "Fit the y axis", each with its key. An item
+whose action changes nothing is disabled. A chart with no window, a pie, has no
+menu.
+"""
+function compute_context_menu(plot::ChartPlot)
+    _has_chart_window(plot) || return nothing
+    item(label, operation, keys) =
+        WidgetMenuItem(label; keys, enabled = operation !== nothing,
+                       operation = something(operation, DoNothingOperation()))
+    WidgetMenu(Any[item("Zoom in", _zoom_in_view(plot), Any["Ctrl+="]),
+                   item("Zoom out", _zoom_out_view(plot), Any["Ctrl+-"]),
+                   item("Show all the data", _show_all_view(plot), Any["Ctrl+0"]),
+                   item("Fit the x axis", _fit_axis_view(plot, :x), Any["Double click on the x axis"]),
+                   item("Fit the y axis", _fit_axis_view(plot, :y), Any["Double click on the y axis"])])
+end
+
+get_document_gesture_bindings_own(::Type{ChartPlot}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu; description = "Show the menu of the chart")]
+
+"""
+    make_chart_buttons(plot) -> WidgetToolbar
+
+The buttons that show over `plot` while the pointer is over the chart: "Zoom in",
+"Zoom out" and "Show all the data". A press does what the key of the button does,
+and the tooltip names the key. A button whose action changes nothing is disabled,
+so "Show all the data" is disabled while the chart shows all its data.
+"""
+function make_chart_buttons(plot::ChartPlot)
+    function button(label, icon, key, action)
+        item = WidgetToolbarItem(label; icon, focusable = false, tooltip = "$label ($key)",
+            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> action(plot);
+                                                     description = label, domain = "chart")])
+        set_cell_computation!(getfield(item, :enabled), () -> action(plot) !== nothing)
+        item
+    end
+    WidgetToolbar(Any[button("Zoom in", :zoom_in, "Ctrl+=", _zoom_in_view),
+                      button("Zoom out", :zoom_out, "Ctrl+-", _zoom_out_view),
+                      button("Show all the data", :maximize, "Ctrl+0", _show_all_view)])
+end
+
+"""
+    make_chart_scroll_bar(plot, axis) -> WidgetScrollBar
+
+The bar of `plot` along `axis`, `:x` or `:y`, which the renderer draws along the
+bottom or the right edge of the plot area. Its thumb is the part of the data that
+the window shows on that axis, and its value the place of the window, from the
+left and from the top, both in the space of the axis. It is there while the
+window does not show all the data on that axis. A write of its value moves the
+view, and the chart keeps the drag of its thumb.
+"""
+function make_chart_scroll_bar(plot::ChartPlot, axis::Symbol)
+    bar = WidgetScrollBar(axis === :x ? :horizontal : :vertical)
+    place = Cell(@computation _get_chart_scroll_bar_place(plot, axis))
+    set_cell_computation!(getfield(bar, :value), () -> place[][1])
+    set_cell_computation!(getfield(bar, :thumb_size), () -> place[][2])
+    bar
+end
+
+# The window, the extent and the kind of `axis` of `plot`, as the window
+# arithmetic takes them.
+function _get_chart_axis_window(plot::ChartPlot, view::ChartView, fit::ChartView, axis::Symbol)
+    axis === :x && return ((view.x_min, view.x_max), (fit.x_min, fit.x_max), _is_log_axis(plot.chart.x_axis))
+    ((view.y_min, view.y_max), (fit.y_min, fit.y_max), _is_log_axis(plot.chart.y_axis))
+end
+
+# The value and the thumb of the bar of `axis`. A y axis grows up, so the value of
+# its bar is 0 at the top of the data.
+function _get_chart_scroll_bar_place(plot::ChartPlot, axis::Symbol)
+    _has_chart_window(plot) || return (0.0, 1.0)
+    window, extent, log = _get_chart_axis_window(plot, resolve_view(plot), _compute_fit_view(plot), axis)
+    value = compute_window_scroll_bar_value(window; extent, log)
+    (axis === :x ? value : 1.0 - value, compute_window_scroll_bar_thumb(window; extent, log))
+end
+
+# The write of the view with the window of `axis` at the place `value` of its bar.
+function _move_chart_view_to_bar_value(plot::ChartPlot, axis::Symbol, value::Real)
+    _has_chart_window(plot) || return nothing
     view = resolve_view(plot)
+    fit = _compute_fit_view(plot)
+    window, extent, log = _get_chart_axis_window(plot, view, fit, axis)
+    moved = compute_window_at_scroll_bar_value(window, axis === :x ? value : 1.0 - value; extent, log)
+    axis === :x && return _set_view(plot, _make_chart_view(fit, moved, (view.y_min, view.y_max)))
+    _set_view(plot, _make_chart_view(fit, (view.x_min, view.x_max), moved))
+end
+
+# Ctrl and the wheel zoom; over an axis strip they zoom only that axis, which is
+# how a chart offers per-axis zoom without a separate control. A plain turn
+# scrolls the window up and down, and Shift and the wheel, or a turn across,
+# scroll it across, as a scroll pane does: a turn away from the person shows what
+# is above, or what is to the left. A scroll stops at the edges of the fit of the
+# data, and a turn that moves nothing is not the chart's, so the page around a
+# chart that shows all its data scrolls.
+function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
+    over_plot = _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
+    over_x = _is_over_x_axis(g, event.x, event.y)
+    over_y = _is_over_y_axis(g, event.x, event.y)
+    (over_plot || over_x || over_y) || return nothing
+    view = resolve_view(plot)
+    event.modifiers.ctrl || return _scroll_view(plot, view, event)
+
     notches = event.dy != 0 ? event.dy : event.dx
     notches == 0 && return nothing
-
-    over_plot = _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
-    over_x = event.y >= g.plot_y + g.plot_h && g.plot_x <= event.x <= g.plot_x + g.plot_w
-    over_y = event.x <= g.plot_x && g.plot_y <= event.y <= g.plot_y + g.plot_h
-    (over_plot || over_x || over_y) || return nothing
-
-    if event.modifiers.shift
-        frac = _PAN_STEP * notches
-        return _set_view(plot, over_y ?
-            _pan_by(view, 0.0, (view.y_max - view.y_min) * frac) :
-            _pan_by(view, (view.x_max - view.x_min) * frac, 0.0))
-    end
-
     k = _ZOOM_STEP^(-notches)
     fx = to_data(g.xs, clamp(event.x, g.plot_x, g.plot_x + g.plot_w))
     fy = to_data(g.ys, clamp(event.y, g.plot_y, g.plot_y + g.plot_h))
     kx = over_y ? 1.0 : k
     ky = over_x ? 1.0 : k
-    _set_view(plot, _zoom_about(view, fx, fy, kx, ky))
+    _zoom_view(plot, view, kx, ky; fx, fy)
+end
+
+# The scroll of `view` by a turn of the wheel with no Ctrl: `_PAN_STEP` of the
+# window for each notch, and the fraction of a notch from a touchpad, inside the
+# fit of the data. Shift makes a turn go across also when the backend gives it as
+# a vertical turn.
+function _scroll_view(plot::ChartPlot, view::ChartView, event::MouseScroll)
+    turn_x, turn_y = event.precise_dx, event.precise_dy
+    across = event.modifiers.shift || (turn_x != 0 && turn_y == 0)
+    turn = across ? (turn_x != 0 ? turn_x : turn_y) : turn_y
+    turn == 0 && return nothing
+    across && return _pan_view(plot, view, -_PAN_STEP * turn, 0.0)
+    _pan_view(plot, view, 0.0, _PAN_STEP * turn)
 end
 
 # Dragging in the plot draws a rubber band and commits it as the new window;
-# with Shift it pans instead. There is no precedent for a rubber band in this
-# codebase, so the lifecycle mirrors the splitter drag: the anchor goes down on
-# press and starts the drag of the plot, the rectangle grows on each `DragMove`,
-# and `DragEnd` either commits or — if the band never grew past a few pixels —
-# leaves the window alone. The anchor keeps the view of the press as the plot
-# holds it, so `DragCancel` puts back a pan.
+# with Shift or the middle button it pans instead, and a drag on an axis pans that
+# axis. The lifecycle mirrors the splitter drag: the anchor goes down on press and
+# starts the drag of the plot, the rectangle grows on each `DragMove`, and
+# `DragEnd` either commits or — if the band never grew past a few pixels — leaves
+# the window alone. The anchor keeps the view of the press as the plot holds it,
+# so `DragCancel` puts back a pan.
 function _drag_start(g, plot::ChartPlot, event::MouseDown)
-    _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
-    mode = event.modifiers.shift ? :pan : :zoom
-    # The pointer keeps the arrow of the press while the drag is on.
+    mode = _find_drag_mode(g, event)
+    mode === nothing && return nothing
+    # A pan shows the closed hand while the drag is on; a band keeps the arrow of
+    # the press.
     CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor",
                           (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys, plot.view)),
         StartDragOperation(EmptyReference(), nothing),
-        make_screen_pointer_shape_operation(:arrow)])
+        make_screen_pointer_shape_operation(mode === :zoom ? :arrow : :closed_hand)])
+end
+
+# What a press starts: in the plot a band zoom, or a pan with Shift or the middle
+# button; on an axis a pan of that axis; elsewhere nothing.
+function _find_drag_mode(g, event::MouseDown)
+    pan = event.button === :middle || event.modifiers.shift
+    _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) && return pan ? :pan : :zoom
+    _is_over_x_axis(g, event.x, event.y) && return :pan_x
+    _is_over_y_axis(g, event.x, event.y) && return :pan_y
+    nothing
 end
 
 function _drag_move(g, plot::ChartPlot, event::DragMove)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
     ax, ay, mode, start_view, xs, ys = anchor
-    if mode === :pan
+    if mode !== :zoom
         # Pan against the window and the scales the drag started from, so a slow
         # drag does not accumulate rounding, and a move to the point of the last
-        # move gives the same window, which is not written again.
-        dx = (to_data(xs, ax) - to_data(xs, event.x))
-        dy = (to_data(ys, ay) - to_data(ys, event.y))
-        return _set_view(plot, _pan_by(start_view, dx, dy))
+        # move gives the same window, which is not written again. The distance is
+        # the part of the pixel span of each axis, so the value under the press
+        # stays under the pointer on a log axis too. A pan of one axis leaves the
+        # other alone.
+        fraction_x = mode === :pan_y ? 0.0 : (ax - event.x) / (xs.p1 - xs.p0)
+        fraction_y = mode === :pan_x ? 0.0 : (ay - event.y) / (ys.p1 - ys.p0)
+        return _pan_view(plot, start_view, fraction_x, fraction_y)
     end
-    _rect_op(plot, (min(ax, event.x), min(ay, event.y),
-                    abs(event.x - ax), abs(event.y - ay)))
+    _rect_op(plot, _get_band_rect(g, ax, ay, event.x, event.y))
 end
 
 function _drag_end(g, plot::ChartPlot, event::DragEnd)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
-    ax, ay, mode, _ = anchor
+    ax, ay, mode, start_view = anchor
     clear = CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor", nothing),
         _write_view_state(plot, "drag_rect", nothing),
         make_screen_pointer_shape_operation(nothing)])
-    (mode === :zoom && abs(event.x - ax) >= _DRAG_MIN && abs(event.y - ay) >= _DRAG_MIN) || return clear
+    mode === :zoom || return clear
+    axes = _find_band_axes(abs(event.x - ax), abs(event.y - ay))
+    axes === nothing && return clear
 
-    x0, x1 = minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
-    y0, y1 = minmax(to_data(g.ys, ay), to_data(g.ys, event.y))
-    _compound(_set_view(plot, ChartView(x0, x1, y0, y1)), clear)
+    x = axes === :y ? (start_view.x_min, start_view.x_max) :
+        minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
+    y = axes === :x ? (start_view.y_min, start_view.y_max) :
+        minmax(to_data(g.ys, ay), to_data(g.ys, event.y))
+    _compound(_limit_view(plot, x, y), clear)
 end
 
 _rect_op(plot::ChartPlot, rect) =
@@ -1625,37 +2617,56 @@ function _cancel_drag(plot::ChartPlot)
         _write_view_state(plot, "drag_anchor", nothing),
         _write_view_state(plot, "drag_rect", nothing),
         make_screen_pointer_shape_operation(nothing)])
-    (anchor !== nothing && anchor[3] === :pan) || return clear
+    (anchor !== nothing && anchor[3] !== :zoom) || return clear
     _compound(_set_view(plot, anchor[7]), clear)
 end
 
 # Keyboard view control. This lives in the reader rather than in a `@gestures`
 # block because the window belongs to the plot, and a document gesture only ever
 # sees the chart.
+#
+# - Ctrl+=, Ctrl+- and Ctrl+0 zoom in, zoom out and show all the data, before the
+#   zoom of the interface reads them, as a transform pane does. At a limit the key
+#   is not the chart's, so Ctrl+0 on a chart that shows all its data resets the
+#   zoom of the interface.
+# - Page Up and Page Down scroll a page up and down, and with Alt a page across,
+#   as in a spreadsheet. A page is the window.
+# - Shift and an arrow pan a tenth of the window. Bare and Alt arrows belong to
+#   selection navigation, as everywhere else in the editor, and Ctrl+Shift and an
+#   arrow move the selected series, so this reader declines them.
 function _key_intent(g, plot::ChartPlot, event::KeyDown)
-    # Bare and Alt arrows belong to selection navigation, as everywhere else in
-    # the editor, so panning takes Shift and this reader declines the rest.
-    event.modifiers.shift || return nothing
+    m = event.modifiers
+    m.meta && return nothing
+    key = event.key
+    if m.ctrl
+        (m.shift || m.alt) && return nothing
+        key === :equals && return _zoom_in_view(plot)
+        key === :minus && return _zoom_out_view(plot)
+        key === :zero && return _show_all_view(plot)
+        return nothing
+    end
+    if key in (:page_up, :page_down) && !m.shift
+        page = key === :page_up ? 1.0 : -1.0
+        return m.alt ? _pan_view(plot, resolve_view(plot), -page, 0.0) :
+                       _pan_view(plot, resolve_view(plot), 0.0, page)
+    end
+    (m.shift && !m.alt) || return nothing
     view = resolve_view(plot)
-    w = view.x_max - view.x_min
-    h = view.y_max - view.y_min
-    event.key === :left && return _set_view(plot, _pan_by(view, -w * _PAN_STEP, 0.0))
-    event.key === :right && return _set_view(plot, _pan_by(view, w * _PAN_STEP, 0.0))
-    event.key === :up && return _set_view(plot, _pan_by(view, 0.0, h * _PAN_STEP))
-    event.key === :down && return _set_view(plot, _pan_by(view, 0.0, -h * _PAN_STEP))
+    key === :left && return _pan_view(plot, view, -_PAN_STEP, 0.0)
+    key === :right && return _pan_view(plot, view, _PAN_STEP, 0.0)
+    key === :up && return _pan_view(plot, view, 0.0, _PAN_STEP)
+    key === :down && return _pan_view(plot, view, 0.0, -_PAN_STEP)
     nothing
 end
 
-# Zoom and reset arrive as characters rather than named keys.
+# Zoom and reset arrive as characters rather than named keys. A character typed
+# with Ctrl or Alt is the key of the `KeyDown` reader, or of the editor.
 function _key_intent(g, plot::ChartPlot, event::KeyPress)
-    event.char == '0' && return _set_view(plot, nothing)
-    view = resolve_view(plot)
-    cx = (view.x_min + view.x_max) / 2
-    cy = (view.y_min + view.y_max) / 2
-    event.char in ('+', '=') &&
-        return _set_view(plot, _zoom_about(view, cx, cy, 1 / _ZOOM_STEP, 1 / _ZOOM_STEP))
-    event.char == '-' &&
-        return _set_view(plot, _zoom_about(view, cx, cy, _ZOOM_STEP, _ZOOM_STEP))
+    m = event.modifiers
+    (m.ctrl || m.alt || m.meta) && return nothing
+    event.char == '0' && return _show_all_view(plot)
+    event.char in ('+', '=') && return _zoom_in_view(plot)
+    event.char == '-' && return _zoom_out_view(plot)
     nothing
 end
 
@@ -1731,7 +2742,8 @@ function _sample_hit(g, x::Integer, y::Integer)
     # A point within reach wins: it is a smaller target than a whole band, so
     # the click that could have meant either meant the point.
     best === nothing || return best
-    _strip_sample_hit(g, x, y)
+    strip = _strip_sample_hit(g, x, y)
+    strip === nothing ? _find_matrix_sample(g, x, y) : strip
 end
 
 # The segment a click lands on, as `(series_index, sample_index)`. The index is
@@ -1774,6 +2786,9 @@ _series_points(g, index::Int, s::ChartLineSeries) =
     get!(() -> _line_points(g, s), g.point_cache, index)
 
 _hit_points(g, index::Int, s::ChartLineSeries) = _series_points(g, index, s)
+_series_points(g, index::Int, s::ChartFunctionSeries) =
+    get!(() -> _compute_function_points(g, index, s), g.point_cache, index)
+_hit_points(g, index::Int, s::ChartFunctionSeries) = _series_points(g, index, s)
 _hit_points(g, index::Int, s::ChartScatterSeries) =
     get!(() -> _scatter_points(g, s), g.point_cache, index)
 

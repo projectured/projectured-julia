@@ -1,10 +1,11 @@
 """
     WidgetModule
 
-The widget document domain. Widgets are UI-layer documents that sit above
-the graphics domain and below application-specific projections. Each widget
-type subtypes the abstract WidgetDocument base (itself a Document) and
-carries reactive Cell fields for all mutable properties.
+Widget documents: labels, buttons, checkboxes, lists, tables, trees, menus, dialogs,
+tabs and other parts of a screen. Widgets are UI-layer documents that sit above the
+graphics domain and below application-specific projections. Each widget type
+subtypes the abstract WidgetDocument base (itself a Document) and carries reactive
+Cell fields for all mutable properties.
 """
 module WidgetModule
 
@@ -33,27 +34,29 @@ using ..ScreenModule
 using ..SelectionModule
 using ..StyleModule
 using ..TextModule
+using ..ToolModule
 using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
-                         get_document_title
-import ..DomainModule: compute_context_menu
+                         get_document_title, is_walk_opaque, get_view_state_fields
+import ..DomainModule: accepts_pasted_text, compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
                           is_collecting_operation, join_collected_operations,
-                          operation_reference, retarget_operation, describe_operation
+                          operation_reference, retarget_operation, describe_operation,
+                          get_wrapped_operation, rewrap_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
 
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, CloseTabOperation, OpenTabOperation,
-       DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-       EndSplitterDragOperation, SetTableColumnWidthOperation, CommitTableCellOperation,
+       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+       EndSplitterDragOperation, SetSplitterUnderPointerOperation, SetTableColumnWidthOperation, CommitTableCellOperation,
        DropTableCellOperation, EditTableCellOperation, read_table_column_drag, Shortcut,
        matches_action_shortcut,
        InvokeActionOperation, resolve_action,
@@ -64,7 +67,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        make_widget_table_row_selection, get_widget_table_selected_row, get_widget_table_column_count, get_widget_table_row_count,
        resolve_toggle_group_write, resolve_slider_write
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
-       WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
+       WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas, WidgetLinkToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
        WidgetContextMenuToGraphicsCanvasIoMap,
        WidgetDialogToGraphicsCanvas, WidgetDialogToGraphicsCanvasIoMap,
@@ -77,7 +80,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme, make_widget_theme,
+       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
        WidgetSliderToGraphicsCanvasIoMap,
@@ -85,28 +88,39 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
-export make_decoration_icon, make_decoration_badges
+export make_decoration_icon, make_decoration_badges, make_decoration_note, make_fault_report_note
+export DrawnTextLine, find_drawn_caret, map_drawn_caret_forward, map_drawn_place_backward,
+       make_drawn_selection_elements, read_drawn_text_key, read_drawn_text_pointer,
+       find_drawn_click_selection
+export is_widget_or_layout, follow_widget_output!, follow_built_children!
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,
        make_object_field_widget_dispatch, make_object_field_widget
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
-export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag
+export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag,
+       keep_owned_scroll_bar_drag, convert_scroll_bar_value_writes
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_operation,
        make_find_bar_placement_operation
 export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
-       make_context_menu_binding
-export OpenPageOperation
+       make_context_menu_binding, make_menu_button_binding
+export OpenPageOperation, make_open_page_gestures, make_target_open_operation
 export OpenFileOperation
+export find_sort_state, compute_clicked_sort_keys, make_sort_glyph, make_filter_field, make_field_child_reference,
+       make_labeled_field, compute_value_counts, make_value_list_dialog
 export AddExplorerEntryOperation
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
-export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
+export make_shell_top_placement
+export find_letter_match, find_letter_matches
+export WidgetChoice, WidgetChoiceList, make_insertion_choice, make_choice_list_operation,
+       WidgetChoiceListToWidget
+export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetLink, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetTabLabel, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetIconMark, WidgetIcon, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgressBar, WidgetProgressRing, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetSwatch, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetFact, WidgetFactGroup, WidgetSpinBox, WidgetList, WidgetTable, WidgetTableRows, WidgetTableRow, WidgetTableColumns, WidgetTableColumn, WidgetTree, Action, compute_code_pieces
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
        WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
@@ -119,11 +133,13 @@ include("WidgetDocument.jl")
 include("WidgetValueSlot.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
+include("DrawnTextLine.jl")
 include("WidgetToGraphics.jl")
 include("WidgetDecoration.jl")
 include("FaultToWidget.jl")
 include("WidgetTableParts.jl")
 include("WidgetTableHeaderLevels.jl")
+include("WidgetColumnHeader.jl")
 include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
@@ -136,6 +152,9 @@ include("OpenPageOperation.jl")
 include("OpenFileOperation.jl")
 include("AddExplorerEntryOperation.jl")
 include("ContextMenuWindow.jl")
+include("ShellPlacement.jl")
 include("DocumentComposition.jl")
+include("LetterMatch.jl")
+include("WidgetChoiceList.jl")
 
 end # module

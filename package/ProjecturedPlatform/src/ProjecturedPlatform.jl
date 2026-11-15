@@ -61,6 +61,8 @@ include("../../../source/platform/inspector/InspectorModule.jl")
 include("../../../source/platform/pane/PaneModule.jl")
 include("../../../source/platform/reflection/ReflectionModule.jl")
 include("../../../source/platform/syntax/SyntaxModule.jl")
+include("../../../source/platform/link/LinkModule.jl")
+include("../../../source/platform/outline/OutlineModule.jl")
 include("../../../source/platform/appearance/AppearanceModule.jl")
 include("../../../source/platform/fault/FaultViewModule.jl")
 include("../../../source/platform/fileformat/FileFormatModule.jl")
@@ -72,6 +74,7 @@ include("../../../source/platform/gesturelog/GestureLogModule.jl")
 include("../../../source/platform/help/HelpModule.jl")
 include("../../../source/platform/log/MessageLogModule.jl")
 include("../../../source/platform/statistics/FrameStatisticsModule.jl")
+include("../../../source/platform/backgroundwork/BackgroundWorkModule.jl")
 include("../../../source/platform/navigator/NavigatorModule.jl")
 include("../../../source/platform/task/TaskModule.jl")
 include("../../../source/platform/explorer/ExplorerModule.jl")
@@ -107,13 +110,18 @@ end
 using .DisplayModule
 export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 
-# The first window of a session, with a backend that has no device, so that this
-# image holds the code of the editor, the window and its tools.
-using PrecompileTools: @setup_workload, @compile_workload
-@setup_workload begin
-    @compile_workload begin
-        run_display_workload(make_workload_table())
-    end
+# The workload of this package: the first window of a session, with a backend
+# that has no device, so that the image holds the code of the editor, the window
+# and its tools. Then the gestures of the application window, so that a click on
+# a menu, a tool of the toolbar, a file or the assistant compiles nothing.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    run_display_workload(make_workload_table())
+    # Each slice registers its rows in its `__init__`, which runs when the package
+    # loads, after its workload. Without them the window would show its parts as
+    # reflected structs.
+    run_module_initializers!(@__MODULE__)
+    ApplicationModule.run_window_workload()
 end
 
 end # module ProjecturedPlatform

@@ -1,16 +1,15 @@
-# The chart pipeline: Chart → ChartPlot → GraphicsCanvas, two stages chained.
+# The chart pipeline: Chart → ChartPlot → GraphicsCanvas, the view that
+# `make_chart_projection` builds.
 #
-# A chart renders straight to graphics, so unlike the syntax-backed domains it
-# needs no recursion — nothing inside a chart is a foreign document. What it does
-# need is a size: the fallback below applies when no parent layout has allocated
-# one, which is why the standalone examples ask for a bigger canvas than the ones
-# sharing a two-by-two grid.
+# A chart renders straight to graphics, and the view prints its buttons through a
+# recursion of its own, so it needs none from its host. What it does need is a
+# size: the fallback below applies when no parent layout has allocated one, which
+# is why the standalone examples ask for a bigger canvas than the ones sharing a
+# two-by-two grid.
 
 make_chart_pipeline_example(; measure=FontFileMeasure(),
                             width::Integer=760, height::Integer=460) =
-    ChainingProjection(
-        ChartToChartPlot(),
-        ChartPlotToGraphicsCanvas(measure=measure, width=width, height=height))
+    make_chart_projection(; measure, width, height)
 
 make_chart_line_projection_example(; measure=FontFileMeasure()) =
     make_chart_pipeline_example(; measure=measure)
@@ -39,8 +38,7 @@ end
 # back to the series' own cells. Two projections over one document — which is
 # what makes a chart property editable without a bespoke property editor.
 function make_chart_inspector_projection_example(; measure=FontFileMeasure())
-    font = StyleFont("Ubuntu Mono", 20)
-    w2g = WidgetToGraphics(font; measure=measure)
+    w2g = WidgetToGraphics(; measure=measure)
     # Named fields, not reflection over everything: the data columns are not
     # properties, and a form with one row per sample would be both useless and,
     # at a million samples, unusable.

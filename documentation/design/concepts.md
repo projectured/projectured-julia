@@ -1,6 +1,6 @@
 # Concepts
 
-> **Kind:** design · **Status:** current · **Stands on:** [product-vision.md](../requirement/product-vision.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [product-vision.md](../requirement/product-vision.md)
 
 What ProjecturEd is, and the five ideas that carry it: data, views, edits, selection and the tool set. Read this first. It uses no code; [engineer-tour.md](engineer-tour.md) derives the same system in code.
 

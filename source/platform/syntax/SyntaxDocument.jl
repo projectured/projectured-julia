@@ -62,7 +62,7 @@ get_syntax_children(::SyntaxDocument) = nothing
 # The one place the two kinds of compound genuinely differ. A sequence's child `i` is
 # `.children[i]`; a wrapper's only child is `.content`. Everything else — the splice
 # printer, both mappers, both readers, tree navigation, collapse resolution, the flat
-# metric — is written against these two functions and so does not care which it has.
+# metric — is written against these functions and so does not care which it has.
 
 """
     build_syntax_child_path(doc, i, inner) -> Reference
@@ -84,6 +84,19 @@ build_syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
 
 build_syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
     ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
+
+"""
+    make_syntax_child_steps(doc, i) -> Tuple
+
+The steps from `doc` down into its `i`-th child, with no types: `.children` and `[i]`
+for a sequence, `.content` for a wrapper. They are the steps of
+[`build_syntax_child_path`](@ref), for a caller that types them against the document
+itself, as `make_child_context` does. Reads nothing from the document.
+"""
+make_syntax_child_steps(::SyntaxSequence, i::Int) =
+    (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
+
+make_syntax_child_steps(::SyntaxWrapper, ::Int) = (FieldReferenceStep("content"),)
 
 """
     peel_child_step(path) -> (i, tail) | nothing
@@ -538,17 +551,26 @@ is_syntax_collapsible(::SyntaxNode)  = true
 const _CLOSING_DELIMITER_FIELDS = ("close", "closing_delimiter")
 
 """
-    is_on_closing_delimiter(selection) -> Bool
+    is_on_closing_delimiter(selection; from = 0) -> Bool
 
 Whether `selection`, the selection that a document holds, is a caret on the closing
 delimiter that the projection of that document to syntax printed, such as the `}`
-of an object. A container rule that leaves a key to its parent there asks this.
+of an object, at the offset `from` of the text of the delimiter or after it. A
+selection of the whole delimiter is on it. A container rule that leaves a key to
+its parent there asks this.
+
+A delimiter that starts with a break, such as `"\\n}"`, gives the length of the
+break as `from`. The caret before the break stands at the end of the line of the
+last child, so it is not on the `}`.
 """
-function is_on_closing_delimiter(selection)
+function is_on_closing_delimiter(selection; from::Integer = 0)
     is_introduced_reference(selection) || return false
     output = strip_reference_types(selection.head.output_path)
-    return output isa ConcreteReference && output.head isa FieldReferenceStep &&
-           output.head.name in _CLOSING_DELIMITER_FIELDS
+    (output isa ConcreteReference && output.head isa FieldReferenceStep &&
+     output.head.name in _CLOSING_DELIMITER_FIELDS) || return false
+    caret = output.tail
+    (caret isa ConcreteReference && caret.head isa ARangeReferenceStep) || return true
+    return caret.head.start >= from
 end
 
 # Canonical keyword constructor: `children` leads positionally. Its only job is to
@@ -615,7 +637,7 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 # fires it, so the table that *fires* is exactly the one gesture-help enumerates.
 # Any projection whose input is a compound (e.g. `SyntaxToText`) reaches it through
 # that interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs
-# and Alt+click stays in `SyntaxToText`'s 4-arg reader.
+# and the Alt+double click stays in `SyntaxToText`'s 4-arg reader.
 #
 # The table is registered on `SyntaxCompound`, not on `SyntaxNode`: the registry
 # collects a type's own bindings plus every supertype's, so one declaration covers
@@ -627,9 +649,14 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 # The entire mapping is geometry-free — it walks the compound tree and its
 # selection *paths* (e.g. `.children[i].children[j]…∅`):
 # - Ctrl+Alt+Home → select the root node (∅)
+# - Ctrl+A        → select the root node (∅): no part holds the range of the whole
+#                   text that the text table answers, so the key comes here
 # - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
 # - Alt+arrow     → tree-navigate from any selection (enter structural)
-# - plain arrow   → tree-navigate, but only once a whole element is selected
+# - plain arrow   → tree-navigate, but only once a whole element is selected; a
+#                   plain Left or Right declines on an element that has a
+#                   character, and the text puts the caret at its start or its
+#                   end, so they move to a sibling only from an element with none
 #
 # Gestures match modifiers *exactly*: each rule names its exact modifier set, so a
 # bare arrow (`KeyDown(k;)` — note the `;`: no modifiers held) and an `Alt+arrow`
@@ -646,11 +673,12 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 @gestures SyntaxCompound begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => _toggle_syntax_cursor(doc, doc.selection)
     when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
         _navigate_syntax_tree(doc, doc.selection, k)
     when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
-        _is_tree_selection(doc.selection) ? _navigate_syntax_tree(doc, doc.selection, k) : nothing
+        _navigate_selected_syntax_node(doc, doc.selection, k)
 end
 
 # The key helpers of a syntax node or leaf read the caret `selection` over `node`:
@@ -664,11 +692,36 @@ function _toggle_syntax_cursor(node, selection)
     new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
 end
 
-# An arrow, with Alt or on a whole node: the next node of the tree in `direction`.
+# An arrow with Alt: the next node of the tree in `direction`.
 function _navigate_syntax_tree(node::SyntaxCompound, selection, direction::Symbol)
     new_path = _tree_navigate(node, selection, direction)
     new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
 end
+
+# A plain arrow on a whole node: the next node of the tree in `direction`. The text
+# takes a plain Left or Right on an element that has a character and puts the caret
+# at its start or its end.
+function _navigate_selected_syntax_node(node::SyntaxCompound, selection, direction::Symbol)
+    _is_tree_selection(selection) || return nothing
+    direction in (:left, :right) && _has_rendered_text(_find_selected_node(node, selection)) && return nothing
+    _navigate_syntax_tree(node, selection, direction)
+end
+
+# The node that the tree selection `sel` names inside `node`, or `nothing`.
+function _find_selected_node(node::SyntaxDocument, sel)
+    sel = _unwrap_projection_ref(sel)
+    sel isa EmptyReference && return node
+    node isa SyntaxCompound || return nothing
+    step = peel_child_step(sel)
+    step === nothing && return nothing
+    (index, rest) = step
+    children = get_syntax_children(node)
+    (children !== nothing && 1 <= index <= length(children)) || return nothing
+    _find_selected_node(children[index], rest)
+end
+
+_has_rendered_text(node::SyntaxDocument) = !isempty(render(node))
+_has_rendered_text(::Nothing) = false
 
 # A whole-element selection of a projection-introduced sub-node (e.g. Julia's
 # `function name(params)` header) is carried as `ProjectionReferenceStep(_, .children[i]…)`
@@ -843,5 +896,6 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
 @gestures SyntaxLeaf begin
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => _toggle_syntax_cursor(doc, doc.selection)
 end

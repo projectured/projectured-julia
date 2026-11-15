@@ -1,6 +1,6 @@
 # Component
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [document.md](../../kernel/document.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [document.md](../../kernel/document.md)
 
 The component slice of `ProjecturedPlatform` is meant to hold components: reusable units of a user interface, such as a master-detail view, that combine widgets and behave as one. It holds one document type and no projection yet. This document says what exists, what does not, and where the plan for the rest is.
 

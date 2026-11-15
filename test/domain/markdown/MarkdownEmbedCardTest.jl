@@ -42,7 +42,7 @@ layout_of(page) = print_document(MarkdownRootToVerticalLayout(), nothing, page,
     card = children[3]
     @test card isa WidgetCard
     @test card.content === file
-    @test card.title.content == "numbers.txt"
+    @test card.title == "numbers.txt"
     @test card.collapsible == true
 end
 

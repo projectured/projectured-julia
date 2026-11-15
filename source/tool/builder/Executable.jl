@@ -160,21 +160,36 @@ function resolve_app_project(project::AbstractString; precompile::Bool = true)
 end
 
 """
-    build_executable(context; name, packages, main, workload, preferences,
-                       fonts, assets, usage, log_level, imports, init, stand_ins,
+    build_executable(context; name, packages, main, precompile_calls, preferences,
+                       performance_counters, fonts, assets, usage, log_level, imports,
+                       init, stand_ins,
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
-                       compile_app) -> String
+                       prelink, compile_app, reactive, tracked, refresh_trace, server,
+                       image, delta_optimization, found, compact, trimmed) -> String
 
 Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
 
 - `main` — an `Expr` whose value is the exit code, and the body of `julia_main`.
-- `workload` — an `Expr` compiled ahead of time, or `nothing` for a build that
-  compiles nothing beyond what loading touches.
+- `precompile_calls` — what each package of the build that compiles ahead
+  compiles into the image: `"none"`, `"recorded"` or `"live"`, as the preference
+  of the same name of `ProjecturedPrecompile` says. The build writes it for each
+  such package, so the image does not depend on the preferences of the person
+  who builds.
 - `preferences` — what the image carries, from [`make_baked_preference`](@ref)
-  and [`make_exposed_preferences`](@ref).
+  and [`make_exposed_preferences`](@ref). Julia reads a preference only for a
+  package that the project lists, so the package of each preference joins
+  `imports` when `packages` and `imports` do not name it.
+- `performance_counters` — compile the performance counters of the editor into
+  the image, with the preference `performance_counters` of `ProjecturedKernel`,
+  so the frame statistics of a window show the cell counts of each part of a
+  frame. A build of packages that do not hold the kernel ignores it. The default
+  is [`is_performance_counters_requested`](@ref), the environment variable
+  `PROJECTURED_PERFORMANCE_COUNTERS`, so a script that builds, or that runs from
+  source, takes the switch from its environment. A reactive rebuild keeps the
+  image of its founding build, so a reactive build refuses it.
 - `fonts` — bundle the text faces. A binary that draws needs them and a binary
   that draws nothing does not; see [`bundle_fonts!`](@ref) for why they cannot
   travel any other way.
@@ -214,12 +229,63 @@ output directory.
 - `extra_info` — text [`build_info`](@ref) appends after everything it records
   itself, for a caller whose build does something this core does not know
   about.
+- `prelink` — restore the image once, in the build, at the address that the
+  linker gave it, and write the restored image back into the program, so a
+  start applies a short list of pointers and not the whole restore. It needs
+  Linux, a Julia whose runtime knows `--sysimage-prelink`, and an image of one
+  code variant. A build on another system builds without it and says nothing;
+  a build with another Julia, or for several code variants, says so and builds
+  without it.
 - `compile_app` — the function that turns the written package into a bundle:
   `compile_app(project, output, name; force, optimization, debug_info,
-  strip_metadata, cpu_target, incremental, filter_stdlibs, statements)`. The
-  default, [`compile_app!`](@ref), is the plain path with the released
-  PackageCompiler and its own launcher. A caller that links its own launcher,
-  trims, or rebuilds reactively passes one of its own.
+  strip_metadata, cpu_target, incremental, filter_stdlibs)`. By default, on
+  Linux, [`compile_linked_app!`](@ref): the launcher of this builder linked with
+  the image into one program, prelinked when `prelink` holds; on another
+  system, [`compile_app!`](@ref), with the launcher of PackageCompiler. A caller
+  that trims passes one of its own. A reactive build does not call it.
+- `reactive` — compile through `PackageCompiler.materialize_app` in place of
+  `compile_app`. `true` founds a store under the output on the first build, and
+  every later build of the same output reads the tracked sources from disk and
+  compiles the edit and no more. `:auto`, the default, founds a store when the
+  output holds none and rebuilds when it holds one. With another Julia than the
+  reactive one, it builds plain and says what the reactive build gives, and it
+  refuses to build plain over a store. A build that asks for a fresh image or
+  for the performance counters builds plain. With `compile = false`, it writes
+  the package that the store of the output was founded for. `false` builds
+  plain although a store exists, and the store goes with the old output. A
+  reactive build needs the reactive Julia, see [`has_reactive_julia`](@ref),
+  and the branch `reactive` of the fork of PackageCompiler, and it builds on the
+  image of the running Julia like `incremental`. See `ReactiveBuild.jl`.
+- `server` — rebuild through the compiler server that stays between builds
+  (the default), or in a child process. The first rebuild starts the server.
+  The defaults of this keyword and of `image`, `delta_optimization`, `found`,
+  `compact` and `trimmed` are the variables of the reactive compiler
+  (`JULIA_REACTIVE_SERVER`, `_IMAGE_WRITE`, `_DELTA_OPT`, `_FOUNDING`,
+  `_COMPACT`, `_TRIM`), so a gate of the compiler drives a build through the
+  environment and a flag of the command line overrides it.
+- `image` — how a rebuild writes the image: `:overlay` (the default), a shared
+  object beside the base with the patches and the new objects of the edit, and
+  no link of the whole image; `:pages`, the pages of the base that the process
+  wrote; `:whole`, the whole image.
+- `delta_optimization` — the `-O` level of the code of a rebuild, 0 to 3; by
+  default the `optimization` of the build.
+- `found` — found the store again now: a whole build. `compact = (saves,
+  growth)` does the same by itself after that growth of the image since the
+  founding, or, for a store that writes pages or whole images, after that many
+  rebuilds.
+- `trimmed` — write the trimmed product of the image beside the bundle, under
+  `<output>/trimmed`; an edit that makes a call site dynamic is then refused.
+- `tracked` — the files that a reactive rebuild watches, as `file =>
+  "Module"`, the module being the one whose `include` loads the file. By
+  default the sources of every package in `packages`, by
+  [`collect_tracked_sources`](@ref). The store adds the sources of every path
+  package of the Manifest of the build, on the founding and on each rebuild,
+  so a file that joins one of them is tracked from that rebuild on.
+- `refresh_trace` — before a reactive rebuild, run the workload once more from
+  the current binary and add what it compiles to the trace of the store, the
+  roots of the image. An edit that calls new code needs it once, or the binary
+  compiles the new code at every start. It needs a store; a founding build
+  refuses it.
 
 The caller's active environment is restored on the way out: the build has to
 activate the package it wrote, and a prompt must not be left in it.
@@ -227,8 +293,9 @@ activate the package it wrote, and a prompt must not be left in it.
 function build_executable(context::BuildContext; name::AbstractString,
                             packages,
                             main::Expr,
-                            workload::Union{Expr,Nothing} = nothing,
+                            precompile_calls::AbstractString = "recorded",
                             preferences = Preference[],
+                            performance_counters::Bool = is_performance_counters_requested(),
                             fonts::Bool = false,
                             assets = Pair{String,String}[],
                             usage::Union{Usage,Nothing} = nothing,
@@ -250,16 +317,68 @@ function build_executable(context::BuildContext; name::AbstractString,
                             force::Bool = true,
                             logfile::Union{AbstractString,Nothing} = nothing,
                             extra_info::AbstractString = "",
-                            compile_app = compile_app!)
+                            prelink::Bool = true,
+                            compile_app = nothing,
+                            reactive::Union{Bool,Symbol} = :auto,
+                            tracked::Union{Vector{Pair{String,String}},Nothing} = nothing,
+                            refresh_trace::Bool = false,
+                            server::Bool = get(ENV, "JULIA_REACTIVE_SERVER", "1") == "1",
+                            image::Symbol = Symbol(get(ENV, "JULIA_REACTIVE_IMAGE_WRITE", "overlay")),
+                            delta_optimization::Integer = parse(Int, get(ENV, "JULIA_REACTIVE_DELTA_OPT", string(optimization))),
+                            found::Bool = get(ENV, "JULIA_REACTIVE_FOUNDING", "") == "1",
+                            compact::Tuple{Int,Float64} = _get_reactive_compact_default(),
+                            trimmed::Bool = get(ENV, "JULIA_REACTIVE_TRIM", "off") != "off")
     0 <= optimization <= 3 ||
         error("build_executable: `optimization` is 0 to 3, not $optimization")
     0 <= debug_info <= 2 ||
         error("build_executable: `debug_info` is 0 to 2, not $debug_info")
     isempty(packages) &&
         error("build_executable: a binary with no package holds nothing")
+    precompile_calls in PRECOMPILE_CALLS_VALUES ||
+        error("build_executable: `precompile_calls` is one of " *
+              join(PRECOMPILE_CALLS_VALUES, ", ") * ", not $(repr(precompile_calls))")
     # Absolute, because the report runs the executable from wherever the caller
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
+    prelink = _choose_prelink(prelink, cpu_target, compile)
+    if compile_app === nothing
+        compile_app = !Sys.islinux() ? compile_app! :
+            (project, out, program; keywords...) ->
+                compile_linked_app!(project, out, program; keywords..., prelink)
+    end
+    reactive = _choose_reactive_build(reactive, output, incremental, performance_counters, compile)
+    _check_reactive_options(reactive, incremental, performance_counters, tracked,
+                            refresh_trace, image, delta_optimization, found, trimmed)
+    if reactive
+        extra_info *= REACTIVE_RECORD_LINE
+        caller_after_write = after_write
+        reactive_after_write, compile_app =
+            _make_reactive_steps(context, name, packages, output, tracked, found,
+                                 refresh_trace, server, image, delta_optimization,
+                                 compact, trimmed, prelink)
+        after_write = project -> begin
+            caller_after_write === nothing || caller_after_write(project)
+            reactive_after_write(project)
+        end
+    end
+    # The switch of the counters is a preference of the kernel, which reads it when
+    # it compiles. A binary that does not hold the kernel has no counters.
+    performance_counters &&
+        "ProjecturedKernel" in _collect_local_dependencies(context, (packages..., imports...)) &&
+        (preferences = Any[preferences,
+                           make_baked_preference("ProjecturedKernel", "performance_counters", true)])
+    # What each package that compiles ahead compiles into the image.
+    compiling = [package for package in _collect_local_dependencies(context, (packages..., imports...))
+                 if is_compiling_package(get_package_directory(context, package))]
+    preferences = Any[preferences;
+                      [make_baked_preference(package, "precompile_calls", String(precompile_calls))
+                       for package in sort!(collect(compiling))]]
+    # The reader of each preference goes into the written package, or Julia does
+    # not read the preference and the image holds the default.
+    named = String[String(package) for package in (packages..., imports...)]
+    imports = String[String[String(package) for package in imports];
+                     _collect_preference_readers(preferences, named,
+                                                 get_app_module_name(name))]
 
     missing_sources = collect_missing_sources(context, vcat(collect(packages), collect(imports)))
     isempty(missing_sources) ||
@@ -267,10 +386,10 @@ function build_executable(context::BuildContext; name::AbstractString,
               "[sources] of its user do not give: " *
               join(["$package needs $dependency" for (package, dependency) in missing_sources], ", "))
 
-    info = build_info(; name, packages, main, workload, preferences,
+    info = build_info(; name, packages, main, precompile_calls, preferences,
                         optimization, debug_info, cpu_target, assets, incremental,
                         log_level, extra_info, stand_ins)
-    project = write_app_package(context; name, packages, imports, init, main, workload,
+    project = write_app_package(context; name, packages, imports, init, main,
                                  info, usage, log_level, stand_ins)
     write_preferences(preferences, project)
     after_write === nothing || after_write(project)
@@ -282,8 +401,7 @@ function build_executable(context::BuildContext; name::AbstractString,
     compile || return project
 
     compile! = () -> compile_app(project, output, name; force, optimization, debug_info,
-                                  strip_metadata, cpu_target, incremental, filter_stdlibs,
-                                  statements = context.statements)
+                                  strip_metadata, cpu_target, incremental, filter_stdlibs)
     if logfile === nothing
         compile!()
     else
@@ -305,27 +423,25 @@ end
 
 """
     compile_app!(project, output, name; force, optimization, debug_info,
-                  strip_metadata, cpu_target, incremental, filter_stdlibs,
-                  statements) -> String
+                  strip_metadata, cpu_target, incremental, filter_stdlibs) -> String
 
-Compile `project` into `output`, with the released PackageCompiler's own
-launcher: one executable, `name => "julia_main"`, and nothing more.
+Compile `project` into `output`, with the launcher of PackageCompiler: one
+executable, `name => "julia_main"`, and nothing more.
 
-**The plain path.** A caller that links its own launcher, prelinks, trims, or
-rebuilds reactively passes a `compile_app` of its own to
-[`build_executable`](@ref) instead of this one.
+**The path on a system other than Linux.** On Linux a build links the
+launcher of this builder with the image, [`compile_linked_app!`](@ref); a caller
+that trims passes a `compile_app` of its own to [`build_executable`](@ref), and a
+reactive build compiles through `materialize_app`.
 """
 function compile_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                        force::Bool = true, optimization::Integer = 3, debug_info::Integer = 1,
                        strip_metadata::Bool = false, cpu_target::AbstractString = "",
-                       incremental::Bool = true, filter_stdlibs::Bool = false,
-                       statements::Union{AbstractString,Nothing} = nothing)
+                       incremental::Bool = true, filter_stdlibs::Bool = false)
     arguments = `-O$(optimization) -g$(debug_info)`
     strip_metadata && (arguments = `$arguments --strip-metadata`)
     @info "Compiling $name" incremental
-    # Splatted in only when it has a value: `create_app` takes a `String` for
-    # each and refuses `nothing`, so an absent one has to be absent rather than
-    # empty.
+    # Splatted in only when it has a value: `create_app` takes a `String` and
+    # refuses `nothing`, so an absent one has to be absent rather than empty.
     _create_app(project, output;
                 executables = [String(name) => "julia_main"],
                 force = force,
@@ -333,9 +449,7 @@ function compile_app!(project::AbstractString, output::AbstractString, name::Abs
                 filter_stdlibs = filter_stdlibs,
                 include_lazy_artifacts = true,
                 sysimage_build_args = arguments,
-                (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...,
-                (statements !== nothing && isfile(statements) ?
-                     (; precompile_statements_file = statements) : ())...)
+                (isempty(cpu_target) ? () : (; cpu_target = String(cpu_target)))...)
     output
 end
 
@@ -353,7 +467,7 @@ for its project directory and opened a window, so a measurement taken with
 get_smoke_flag() = "--build-info"
 
 """
-    build_info(; name, packages, main, workload, preferences, optimization,
+    build_info(; name, packages, main, precompile_calls, preferences, optimization,
                  debug_info, cpu_target, assets, incremental, log_level,
                  extra_info, stand_ins) -> String
 
@@ -364,15 +478,14 @@ values the build used, so it cannot drift from what was built.
 `extra_info`, when given, is appended after everything this writes itself — for
 a caller whose build does something this core does not know about.
 """
-function build_info(; name, packages, main, workload, preferences,
+function build_info(; name, packages, main, precompile_calls = "recorded", preferences,
                       optimization, debug_info, cpu_target, assets = Pair{String,String}[],
                       incremental::Bool = false, log_level::Symbol = :warn,
                       extra_info::AbstractString = "", stand_ins = StandIn[])
     lines = ["$name, built $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")) by ProjecturedBuilder",
              "packages: " * join(packages, ", "),
              "main: " * string(Base.remove_linenums!(copy(main))),
-             "workload: " * (workload === nothing ? "none" :
-                             string(Base.remove_linenums!(copy(workload)))),
+             "precompile_calls: " * String(precompile_calls),
              "compiled at -O$optimization -g$debug_info" *
                  (isempty(cpu_target) ? "" : " for $cpu_target"),
              "logs from $log_level and up, unless --log-level says another"]

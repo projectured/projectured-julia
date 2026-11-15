@@ -92,7 +92,10 @@ function test_data_frame_view()
 
         @testset "the header names each column and its type" begin
             view = DataFrameView(make_data_frame_example(rows = 3))
-            io = print_document(projection, nothing, view, context())
+            # A header is no floor of its column, so the window is wide enough for each column to
+            # hold its header in one line.
+            wide = with_exact_size(PrinterContext(); width = Cell(Int32(1400)), height = Cell(Int32(300)))
+            io = print_document(projection, nothing, view, wide)
             found = Set(t[3] for t in _data_frame_texts(io.output))
             @test "id :: Int64" in found
             @test "name :: String" in found
@@ -114,10 +117,11 @@ function test_data_frame_view()
             io = print_document(scaled, nothing, view, context())
             view_projection = _data_frame_view_iomap(io).projection
             step = view_projection.row_step
-            # The padding of a cell is the control padding of the theme, 5 above
-            # and 5 below, so a spacing scale of 2 adds 10 to the step of a row.
-            appearance.spacing_scale = 2.0
-            @test view_projection.row_step == step + 10
+            # The padding of a cell is the control padding of the theme, so a
+            # spacing scale of 2 adds its height to the step of a row.
+            padding = get_theme_defaults(WidgetTheme).control_padding
+            appearance.scale.spacing_scale = 2.0
+            @test view_projection.row_step == step + Int(padding.top[]) + Int(padding.bottom[])
             size_of(text, canvas) = begin
                 found = Ref(0)
                 walk(node) = if node isa GraphicsCanvas
@@ -131,7 +135,7 @@ function test_data_frame_view()
                 found[]
             end
             plain = size_of("id :: Int64", io.output)
-            appearance.font_scale = 2.0
+            appearance.scale.font_scale = 2.0
             large = size_of("id :: Int64", print_document(scaled, nothing, view, context()).output)
             @test plain > 0 && large == 2 * plain
         end
@@ -215,10 +219,41 @@ function test_data_frame_view()
             # line, 16 pixels, past three hundred rows.
             getfield(view, :scroll_position)[] = Point2D(0, 300 * step + 16 - turn)
             before = y_of("305"; limit = 400)       # 304 rows from the anchor
+            table = _data_frame_view_iomap(io).table
+            head = table.cells
             evaluate_operation(nothing, wheel(-1))
             @test view.anchor == 301
+            # The head moves inside the list: the new head is the node of row 301
+            # that the walk built, so its rows and their links stay.
+            @test table.cells === find_list_node(head, 301)
             @test y_of("305") == before - turn
             @test reads[] < 1000
+        end
+
+        @testset "through a real editor, a selected cell stays selected when a far turn moves the anchor" begin
+            view = DataFrameView(DataFrame(id = 1:1000, name = ["row $k" for k in 1:1000]))
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  tabs = false, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "row 1")
+            send!(MouseDown(:left, x + 2, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 2, y + 2, ModifierKeys(); time = 1.05))
+            selected = get_reference_steps(strip_reference_types(view.selection))
+            @test selected[1:3] == [FieldReferenceStep("rows"), RangeReferenceStep(0, 1), RangeReferenceStep(1, 2)]
+            # Each turn comes a second after the last, so no two make a fast run. The
+            # turn that takes the row at the top more than 200 rows from the head
+            # moves the anchor.
+            for n in 1:400
+                send!(MouseScroll(0, -1, x, y + 40, ModifierKeys(); time = 2.0 + n))
+                view.anchor == 1 || break
+            end
+            @test view.anchor > 1
+            # The table counts the selection from its new head, and the view keeps
+            # the same cell of the frame.
+            @test get_reference_steps(strip_reference_types(view.selection)) == selected
         end
 
         @testset "a frame of many columns draws them as a list, and a far turn moves the column anchor" begin
@@ -306,6 +341,21 @@ function test_data_frame_view()
             found = Set(t[3] for t in _data_frame_texts(io.output))
             @test "id :: Int64" in found
             @test _read_data_frame_key(projection, io, :end) === nothing
+        end
+
+        @testset "a view that gets only a maximum of the height takes the height of its rows" begin
+            limited = with_size_range(with_exact_size(PrinterContext(); width = Cell(Int32(600)));
+                                      height = (nothing, Cell(Int32(480))))
+            one = print_document(projection, nothing, DataFrameView(make_data_frame_example(rows = 1)), limited)
+            many = print_document(projection, nothing, DataFrameView(make_data_frame_example(rows = 80)), limited)
+            step = _data_frame_view_iomap(one).projection.row_step
+            # The expression bar, the header row and one row, with some space.
+            @test Int(one.output.h) <= 6 * step
+            @test "item 1" in Set(t[3] for t in _data_frame_texts(one.output))
+            # Eighty rows stop at the maximum, and the table scrolls them.
+            @test Int(many.output.h) == 480
+            @test "item 80" ∉ Set(t[3] for t in _data_frame_texts_in_body(many))
+            @test _read_data_frame_key(projection, many, :end) !== nothing
         end
     end
 end

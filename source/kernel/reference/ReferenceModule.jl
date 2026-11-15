@@ -1,17 +1,16 @@
 """
     ReferenceModule
 
-**Paths into documents**. A reference is a linked list
-of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, …),
-forming a `Reference` (an `EmptyReference` or a
+References: paths into documents, and the searches that find a document or the place
+of one. A reference is a linked list of typed steps (`RangeReferenceStep`,
+`FieldReferenceStep`, …), forming a `Reference` (an `EmptyReference` or a
 `ConcreteReference`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
-navigation and DSL behaviours through this module's extension seams. The
-path-producing reflection search (`search_references`) also lives here: it walks
-an arbitrary document and *produces* a reference path for every matching node, so
-it belongs with the paths it emits (the value-collecting `search_documents`
-sibling, which needs no reference machinery, lives one layer down in the document
-layer).
+navigation and DSL behaviours through this module's extension seams. The two
+searches of the documents also live here, `search_documents` and
+`search_references`: they walk an arbitrary document with the walk of the document
+layer and answer each match, or its place as a reference, so they belong with the
+references they make.
 
 The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@reference_step` construction DSL are one module, because they are
@@ -22,7 +21,8 @@ The module lives in twelve fragments that share this namespace:
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
   or `nothing`), and the open generics higher packages add methods to
-  (`get_reference_step_kind`, `evaluate_reference_step`, and the reference-step DSL seams).
+  (`get_reference_step_kind`, `evaluate_reference_step`, `has_reference_step_child`, and the
+  reference-step DSL seams).
 - [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
   (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, the `Position` a cursor
   evaluates to), each step type packaged with its own `show`, `==`, and seam
@@ -36,8 +36,9 @@ The module lives in twelve fragments that share this namespace:
   `is_valid_reference`) and the "types always present" invariant
   (`annotate_reference_types`, `strip_reference_types`, `fold_reference_types`,
   `get_reference_node_type`, `is_fully_typed_reference`).
-- [`ReferenceSearch.jl`](ReferenceSearch.jl) — the path-producing reflection
-  search (`search_references`) over documents.
+- [`ReferenceSearch.jl`](ReferenceSearch.jl) — the two searches of the documents:
+  `search_documents`, which answers the matches or each with its place, and
+  `search_references`, which answers the places.
 - [`ReferenceSyntax.jl`](ReferenceSyntax.jl) — the **Julia surface grammar of the
   DSLs**, parsed once into one step AST (`ReferenceSyntaxStep`). `@reference`,
   `@reference_case` and `@reference_rules` are *lowerings* of that AST. The string
@@ -93,7 +94,7 @@ using ..DocumentModule
 using ..FaultModule
 
 # Imported to extend: a referenced document is read by these as its document.
-import ..DocumentModule: search_documents, get_wrapped_document
+import ..DocumentModule: get_wrapped_document, get_document
 
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
@@ -105,6 +106,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ARangeReferenceStep, AFieldReferenceStep, ATypeReferenceStep,
        MRangeReferenceStep, MFieldReferenceStep, MTypeReferenceStep,
        MElementReferenceStep, MPositionReferenceStep,
+       make_range_reference_step, get_range_direction, get_range_ends,
        EmptyReference, ConcreteReference, extend_reference, concat_references, get_reference_steps,
        evaluate_reference, try_evaluate_reference, copy_reference,
        is_valid_reference, is_element_reference_step,
@@ -112,8 +114,8 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ReferenceTypeMismatchException,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
-       search_references,
-       get_reference_step_kind, evaluate_reference_step,
+       search_documents, search_references,
+       get_reference_step_kind, evaluate_reference_step, has_reference_step_child,
        build_reference_step, match_reference_step, match_reference_step_value,
        get_reference_step_subpath_args,
        ReferenceRules, ReferenceRule, ReferenceRuleAnswer,
@@ -123,7 +125,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        parse_reference_path, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one
-       ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document,
+       ReferencedDocument, get_reference, DocumentLocator, find_referenced_document,
        get_edited_document, get_parent
 
 include("ReferenceInterface.jl")
@@ -138,5 +140,9 @@ include("ReferenceRules.jl")
 include("ReferencePatternString.jl")
 include("ReferenceBuilder.jl")
 include("ReferencedDocument.jl")
+
+# A `MethodError` for a plain document where a function takes a part says how to
+# get a part.
+__init__() = Base.Experimental.register_error_hint(_print_part_hint, MethodError)
 
 end # module

@@ -23,7 +23,7 @@ Call it while an editor is built, after the defaults and the file, so a variable
 wins for one run.
 """
 function read_settings_environment!(settings::Settings, environment = ENV)
-    for group in values(settings.groups)
+    for group in settings.groups
         T = get_settings_group_type(group)
         for (name, variable) in pairs(get_setting_environment_names(T))
             text = strip(get(environment, variable, ""))

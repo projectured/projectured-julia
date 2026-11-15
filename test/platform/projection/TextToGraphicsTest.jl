@@ -6,6 +6,49 @@ function _ttg_key_event(key, modifiers)
                             KeyPress(character, modifiers; time = 0.0)
 end
 
+# A text of `size` lines, `line 1` to `line size`, in one font.
+_ttg_make_long_text(size::Int) =
+    TextBlock((TextLine(TextString("line $i", StyleFont("Ubuntu Mono", 20), color_white)) for i in 1:size)...)
+
+# The caret that `iomap` draws: the third element of the canvas of the text.
+_ttg_get_caret(iomap) = unwrap_cell(unwrap_cell(getfield(iomap.output, :elements))[3])
+
+# The place and the size of `caret`, read as the renderer reads them.
+_ttg_read_caret(caret) = (Int(caret.x), Int(caret.y), Int(caret.w), Int(caret.h))
+
+# The bytes that four gestures cost in a text of `size` lines: the caret after a
+# move from the third line to the fourth, and the read of the key Down, of a typed
+# character and of a click on the fourth line. Each gesture runs three times before
+# it is measured, so the measure counts no compilation.
+function _ttg_measure_gesture_bytes(size::Int)
+    block = _ttg_make_long_text(size)
+    projection = TextToGraphics(measure = FixedMeasure(10, 15, 5, 0))
+    iomap = print_document(projection, block)
+    caret = _ttg_get_caret(iomap)
+    third, fourth = (TextModule.make_flat_caret_reference(TextModule.get_flat_base(block, Int[line, 1]) + 2)
+                     for line in (3, 4))
+    down = KeyDown(:down, ModifierKeys(); time = 0.0)
+    typed = KeyPress('x', ModifierKeys(); time = 0.0)
+    click = MouseClick(:left, 25, 65; time = 0.0)
+    for place in (third, fourth, third)
+        set_selection!(block, place)
+        _ttg_read_caret(caret)
+        read_intent(projection, iomap, down)
+        read_intent(projection, iomap, typed)
+        read_intent(projection, iomap, click)
+    end
+    set_selection!(block, fourth)
+    caret_bytes = @allocated _ttg_read_caret(caret)
+    key_bytes = @allocated read_intent(projection, iomap, down)
+    type_bytes = @allocated read_intent(projection, iomap, typed)
+    click_bytes = @allocated read_intent(projection, iomap, click)
+    (caret = caret_bytes, key = key_bytes, type = type_bytes, click = click_bytes)
+end
+
+# Whether `large` bytes are flat against `small` bytes, as the frame guards bound
+# them: at most `FLAT_ALLOCATION_RATIO` times, and a count under 4 kB counts as 4 kB.
+_ttg_is_flat(small::Integer, large::Integer) = large <= FLAT_ALLOCATION_RATIO * max(small, 4096)
+
 function test_text_to_graphics()
 _test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
@@ -547,8 +590,122 @@ press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), Ke
 @test press("", 0, :down) === nothing
 # A text with no glyph keeps its one line of height.
 @test Int(print_document(p, block("", 0)).output.h) == 18
+# A caret at the start of a line whose first span is empty stands on that span,
+# which draws no place, because the glyph of "b" gives the places of its line.
+# The keys move it from the place of its flat offset.
+text_run(text) = TextString(text, StyleFont("Ubuntu Mono", 20), color_red)
+spans_block(k) = set_selection!(TextBlock(TextLine(text_run("a")), TextLine(text_run("")), TextLine(text_run(""), text_run("b"))),
+                                TextModule.make_flat_caret_reference(k))
+press_spans(k, key) = (op = read_intent(p, print_document(p, spans_block(k)), KeyDown(key, ModifierKeys(); time = 0.0));
+                       op === nothing ? nothing : flat(op))
+@test TextModule.get_flat_cursor_coordinate(spans_block(3)) == (span = [3, 1], char = 0)
+@test press_spans(3, :up) == 2
+@test press_spans(3, :end) == 4
+@test press_spans(4, :home) == 3
+@test press_spans(2, :down) == 3
+@test press_spans(3, :down) === nothing
 
 end # @testset "TextToGraphics empty line"
+
+@testset "TextToGraphics draws the caret of a range at its moving end, and the keys move it" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+block(text, selection) = set_selection!(make_text_block(text, style), selection)
+forward(s, e) = TextModule.make_flat_range_reference(s, e)
+backward(s, e) = TextModule.make_flat_range_reference(s, e; direction = :backward)
+# The caret is the rect of the width of a caret; the highlight is wider.
+carets(canvas) = [(r.x, r.y) for r in _rects(canvas) if r.w == 2]
+@test carets(print_document(p, block("abcd", forward(1, 3))).output) == [(30, 0)]
+@test carets(print_document(p, block("abcd", backward(1, 3))).output) == [(10, 0)]
+
+# "ab", a break, then "cd": "c" is at 3 and the end is 5.
+ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+press(selection, key, modifiers) =
+    (op = read_intent(p, print_document(p, block("ab\ncd", selection)), KeyDown(key, modifiers; time = 0.0));
+     op === nothing ? nothing : ends(op))
+shift = ModifierKeys(; shift = true)
+# Shift moves the moving end and keeps the anchor.
+@test press(backward(4, 5), :up, shift) == (1, 5, :backward)
+@test press(forward(3, 4), :up, shift) == (1, 3, :backward)
+@test press(backward(3, 4), :end, shift) == (4, 5, :forward)
+@test press(forward(0, 1), :down, shift) == (0, 4, :forward)
+# A plain key moves from the moving end, and the range becomes a caret.
+@test press(backward(0, 2), :down, ModifierKeys()) == (3, 3, :forward)
+@test press(forward(0, 2), :down, ModifierKeys()) == (5, 5, :forward)
+@test press(backward(3, 5), :home, ModifierKeys()) == (3, 3, :forward)
+
+end # @testset "TextToGraphics caret of a range"
+
+@testset "TextToGraphics Home goes to the first character that is not a space" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+block(text, selection) = set_selection!(make_text_block(text, style), selection)
+caret(k) = TextModule.make_flat_caret_reference(k)
+backward(s, e) = TextModule.make_flat_range_reference(s, e; direction = :backward)
+ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+press(text, selection, modifiers = ModifierKeys()) =
+    ends(read_intent(p, print_document(p, block(text, selection)), KeyDown(:home, modifiers; time = 0.0)))
+shift = ModifierKeys(; shift = true)
+# The first press skips the spaces at the start of the line, and a press there goes
+# to the start of the row.
+@test press("    foo", caret(7)) == (4, 4, :forward)
+@test press("    foo", caret(4)) == (0, 0, :forward)
+@test press("    foo", caret(2)) == (4, 4, :forward)
+@test press("foo", caret(2)) == (0, 0, :forward)
+@test press("x\n  ab", caret(6)) == (4, 4, :forward)
+# A line of spaces only: the first place after its spaces is its end.
+@test press("   ", caret(1)) == (3, 3, :forward)
+# Shift moves the moving end in the same way.
+@test press("    foo", caret(6), shift) == (4, 6, :backward)
+@test press("    foo", backward(4, 6), shift) == (0, 6, :backward)
+# On a later row of a wrapped line, Home goes to the start of the row.
+wrapped = ChainingProjection(WordWrapping(measure = m, max_width = 80), TextToGraphics(measure = m))
+press_wrapped(k) = (text = block("  aaaa bbbb", caret(k));
+                    get_flat_range(text, read_intent(wrapped, print_document(wrapped, text),
+                                                     KeyDown(:home, ModifierKeys(); time = 0.0)).path))
+@test press_wrapped(4) == (2, 2)
+@test press_wrapped(9) == (7, 7)
+
+end # @testset "TextToGraphics Home goes to the first character that is not a space"
+
+@testset "TextToGraphics Page Up and Page Down move the caret by the height that shows" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+# Ten lines of two characters: line `k` starts at the flat offset `3k`, and each
+# line is 18 pixels high.
+block(selection) = set_selection!(make_text_block(join(("a$k" for k in 0:9), "\n"), style), selection)
+caret(k) = TextModule.make_flat_caret_reference(k)
+three_lines = with_visible_size(PrinterContext(); height = Cell(54))
+press(selection, key, modifiers = ModifierKeys(); context = three_lines) =
+    read_intent(p, print_document(p, nothing, block(selection), context), KeyDown(key, modifiers; time = 0.0))
+ends(op) = (h = strip_reference_types(op.operation.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
+# The caret goes three lines down at its x, and the answer asks a scroll pane to
+# scroll as far, so the caret keeps its row on the screen.
+down = press(caret(4), :page_down)
+@test down isa KeepPointOperation
+@test (ends(down), down.move) == ((13, 13, :forward), (0, 54))
+up = press(caret(13), :page_up)
+@test (ends(up), up.move) == ((4, 4, :forward), (0, -54))
+# The caret stops at the first and at the last line, and where it can not move,
+# the key goes on.
+first_line = press(caret(4), :page_up)
+@test (ends(first_line), first_line.move) == ((1, 1, :forward), (0, -18))
+@test ends(press(caret(25), :page_down)) == (28, 28, :forward)
+@test press(caret(28), :page_down) === nothing
+# Shift moves the moving end and keeps the anchor.
+@test ends(press(caret(4), :page_down, ModifierKeys(; shift = true))) == (4, 13, :forward)
+@test ends(press(caret(13), :page_up, ModifierKeys(; shift = true))) == (4, 13, :backward)
+# With Ctrl the key goes on, as it does where no height shows.
+@test press(caret(4), :page_down, ModifierKeys(; ctrl = true)) === nothing
+@test press(caret(4), :page_down; context = PrinterContext()) === nothing
+
+end # @testset "TextToGraphics Page Up and Page Down move the caret by the height that shows"
 
 # A text reference maps forward to the characters of the text node that draws it,
 # so the box of a part of a text is exact: here each character is 10 pixels wide.
@@ -681,5 +838,41 @@ click = read_intent(p, iomap, MouseClick(:left, 41, 20; time = 0.0))
 @test is_reference_equal(click.path, TextModule.make_flat_caret_reference(10))
 
 end # @testset "TextToGraphics starts a row at each soft break of a line"
+
+# A gesture costs the lines that it touches: a caret move, the key Down, a typed
+# character and a click cost the same bytes in a text of 100 lines and in a text of
+# 10_000 lines.
+@testset "TextToGraphics costs a gesture the lines that it touches" begin
+    small = _ttg_measure_gesture_bytes(100)
+    large = _ttg_measure_gesture_bytes(10_000)
+    @test _ttg_is_flat(small.caret, large.caret)
+    @test _ttg_is_flat(small.key, large.key)
+    @test _ttg_is_flat(small.type, large.type)
+    @test _ttg_is_flat(small.click, large.click)
+end
+
+# A move of the pointer lights the delimiters around the part under it in a new
+# colour. A new colour reaches only the text that draws it: the caret and the
+# layout of the line stay valid.
+@testset "TextToGraphics draws a new colour of a span with no new layout" begin
+    # The first line has a colour that changes, as the colour of a delimiter does.
+    font = StyleFont("Ubuntu Mono", 20)
+    lit = TextString(Cell("line 1"), font, Cell(color_white), Cell(nothing), Cell(nothing), Cell(nothing),
+                     Cell(nothing))
+    block = TextBlock(TextLine(lit), TextLine(TextString("line 2", font, color_white)),
+                      TextLine(TextString("line 3", font, color_white)))
+    projection = TextToGraphics(measure = FixedMeasure(10, 15, 5, 0))
+    iomap = print_document(projection, set_selection!(block, TextModule.make_flat_caret_reference(2)))
+    caret = _ttg_get_caret(iomap)
+    @test _ttg_read_caret(caret) == (20, 0, 2, 20)
+    @test [text.color for text in _texts(iomap.output)] == [color_white, color_white, color_white]
+    layout = iomap.line_cells(1).layout
+    @test is_cell_valid(layout)
+    block.elements[1].elements[1].font_color = color_red
+    @test is_cell_valid(getfield(caret, :x))
+    @test is_cell_valid(layout)
+    @test [text.color for text in _texts(iomap.output)] == [color_red, color_white, color_white]
+    @test _ttg_read_caret(caret) == (20, 0, 2, 20)
+end
 
 end # test_text_to_graphics

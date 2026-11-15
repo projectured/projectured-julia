@@ -2,18 +2,21 @@
 # rows, the value of a column of a row, and the key of a row in an arrangement.
 
 """
-    RosterItem(item, within = nothing)
+    RosterItem(item, within = nothing, place = nothing)
 
-One item that a source of a roster gives, and the item of an outer source that
-holds it, or `nothing`. `ItemsWithin` gives the file of each call it gathers, so a
-row of a call can show its file.
+One item that a source of a roster gives, the item of an outer source that holds
+it, or `nothing`, and its place: the path of the item from the link of the
+roster, or `nothing`. `ItemsWithin` gives the file of each call it gathers, so a
+row of a call can show its file. `CollectionItems` of a reference gives the place
+of each item in the collection, which it knows while it gathers them.
 """
 struct RosterItem
     item::Any
     within::Any
+    place::Any
 end
 
-RosterItem(item) = RosterItem(item, nothing)
+RosterItem(item, within = nothing) = RosterItem(item, within, nothing)
 
 """
     RosterRow
@@ -34,15 +37,43 @@ the value cell of that column ([`find_arrangement_key_value`](@ref)).
     values::Any
 end
 
+# One key of a column as the value cells of the rows compute it, made once for the
+# rows of one roster: whether it starts at `within`, its first name after that,
+# the path of the names from the first one on and the path after it, and for each
+# facet type of item ([`get_item_facet_type`](@ref)) whether the first name is a
+# facet of the items of that type.
+struct _RosterKey
+    is_within::Bool
+    head::Union{String,Nothing}
+    facet::Symbol
+    path::Reference
+    rest::Reference
+    facets::IdDict{Type,Bool}
+end
+
+function _RosterKey(key::AbstractString)
+    names = String.(split(key, '.'))
+    from = names[1] == "within" ? 2 : 1
+    head = from > length(names) ? nothing : names[from]
+    path(names) = extend_reference(EmptyReference(), (FieldReferenceStep(name) for name in names)...)
+    _RosterKey(from == 2, head, Symbol(something(head, "")), path(names[from:end]), path(names[(from + 1):end]),
+               IdDict{Type,Bool}())
+end
+
 """
     make_roster_row(item, within, columns) -> RosterRow
 
 The row of `item`, held by `within`, with one value cell for each key of
 `columns`, which [`compute_roster_value`](@ref) computes.
 """
-function make_roster_row(item, within, columns)
+make_roster_row(item, within, columns) =
+    _make_roster_row(item, within, columns, _RosterKey[_RosterKey(key) for key in columns])
+
+# The row of `item`, whose value cells compute `keys`, the keys of `columns`, which
+# the rows of one roster share.
+function _make_roster_row(item, within, columns, keys::Vector{_RosterKey})
     row = RosterRow(Cell(item), Cell(within), Cell(columns), Cell(nothing), Cell(nothing))
-    row.values = CellVector(Cell[Cell(Computation(() -> compute_roster_value(row, key))) for key in columns])
+    row.values = CellVector(Cell[Cell(Computation(() -> _compute_roster_key_value(row, key))) for key in keys])
     row
 end
 
@@ -56,20 +87,22 @@ item. A first name that is a facet of the type of the item
 it a path inside that value. Any other key is a path of fields inside the item.
 A path that reaches nothing gives `nothing`.
 """
-function compute_roster_value(row::RosterRow, key::AbstractString)
-    names = split(key, '.')
-    String(names[1]) == "within" && return _compute_key_value(row.within, names, 2)
-    _compute_key_value(row.item, names, 1)
+compute_roster_value(row::RosterRow, key::AbstractString) = _compute_roster_key_value(row, _RosterKey(key))
+
+# The value of `key` of `row`: the value of a facet and a path inside it, or a path
+# of fields.
+function _compute_roster_key_value(row::RosterRow, key::_RosterKey)
+    item = key.is_within ? row.within : row.item
+    (key.head === nothing || item === nothing) && return item
+    is_facet = get!(() -> has_item_facet(item, key.head), key.facets, get_item_facet_type(item))
+    is_facet ? _follow_path(compute_item_facet(item, Val(key.facet)), key.rest) : _follow_path(item, key.path)
 end
 
-# The value at the key `names[from:end]` of `item`: a facet and a path inside it,
-# or a path of fields.
-function _compute_key_value(item, names, from::Int)
-    (from > length(names) || item === nothing) && return item
-    head = String(names[from])
-    _has_item_facet(typeof(item), head) &&
-        return _follow_names(compute_item_facet(item, Val(Symbol(head))), names, from + 1)
-    _follow_names(item, names, from)
+# The value at the path of fields `path` inside `value`, or `value` for the empty path.
+function _follow_path(value, path::Reference)
+    path isa EmptyReference && return value
+    value === nothing && return nothing
+    try_evaluate_reference(value, path, nothing)
 end
 
 # The value at the names `names[from:end]` inside `value`, a path of fields.
@@ -180,21 +213,46 @@ format_roster_value(value::Document) = something(get_document_title(value), stri
 format_roster_value(value) = string(value)
 
 """
-    Roster(source; columns = String[], title = "Roster")
+    format_roster_column_label(key) -> String
+
+The text that the header of the column `key` shows: the key with a space for each
+underscore, so `expected_result` shows `expected result`. The key itself, which
+names the column in a filter and a sort, does not change.
+"""
+format_roster_column_label(key::AbstractString) = replace(key, '_' => ' ')
+
+"""
+    Roster(source; columns = String[], title = "Roster", shares = nothing, marked = nothing)
 
 A list of the members of one kind, gathered from anywhere in a session: the items
 of `source`, one row for each item ([`RosterRow`](@ref)), with the columns named
 by the keys of `columns`. `title` is the title of its tab.
 
+`shares` is a vector of weights, one for each column, that divide the width of a
+table of the rows in their ratio, or `nothing` for equal shares. `marked` is the
+item whose row the table marks as the selected row, or `nothing`; a selection in
+the rows takes the place of the mark while it is there. `anchor` is the item whose
+row is at the head of the list of a table of the rows, or `nothing` for a table
+that keeps its own head. A table that scrolls far from the head writes the item
+there, as view state, and the owner of the roster takes the write.
+
 `rows` is a `CellVector{RosterRow}` that keeps its identity: its elements compute
-from the parts of the source, and the roster keeps one cell for each part and one
-row for each item. So a change inside one part gathers that part again, and a row
-of an item that stays keeps its cells. An item that two parts give is one row.
+from the parts of the source, and the roster keeps one cell for each part, one
+cell for the inside of each item that the source gathers inside
+([`get_roster_item_inside`](@ref)), and one row for each item. So a change inside
+one part gathers that part again, a change inside one item gathers its inside
+again, and a row of an item that stays keeps its cells. An item that two parts
+give is one row.
 
 `link` is the document of the window that shows the roster, which a source reads,
 such as the tabs of the window; `nothing` until the window links it
 ([`link_roster!`](@ref)), and a roster with no link has no rows. No document holds
 the editor, and the link is no editor.
+
+`index` is a `RosterIndex`, computed from the rows and from the items that the
+parts gathered: the place that the source gave for each item, and the index of
+the row of each item. It computes again after the rows do, when a reader reads
+it ([`get_roster_item_place`](@ref), [`find_roster_row`](@ref)).
 
 A filter, a sort, a group and the first items of an arrangement act on `rows` as
 on any collection.
@@ -206,6 +264,8 @@ Use it to list the members of one kind from the whole window, as the rows of a t
     roster_1 = Roster(TabDocuments(FileDocument); columns = ["name", "has_edits"], title = "Files")
 
 See also `show_roster!` and `describe_roster_sources`.
+
+For the assistant.
 """
 @document struct Roster <: Document
     source::Any
@@ -213,16 +273,167 @@ See also `show_roster!` and `describe_roster_sources`.
     title::String
     rows::Any
     link::Any
+    index::Any
+    shares::Any
+    marked::Any
+    anchor::Any
 end
 
-function Roster(source; columns = String[], title::AbstractString = "Roster")
+function Roster(source; columns = String[], title::AbstractString = "Roster", shares = nothing, marked = nothing)
     roster = Roster(Cell(source), Cell(collect(String, columns)), Cell(String(title)), Cell(nothing),
-                    Cell(nothing), Cell(nothing))
+                    Cell(nothing), Cell(nothing), Cell(shares), Cell(marked), Cell(nothing), Cell(nothing))
     rows = CellVector{RosterRow}()
-    memo = _RosterMemo(nothing, nothing, nothing, IdDict{Any,Any}(), IdDict{Any,Any}())
+    memo = _RosterMemo(nothing, nothing, nothing, _RosterKey[], IdDict{Any,Any}(), IdDict{Any,Any}(), IdDict{Any,Any}())
     set_cell_computation!(getfield(rows, :elements), () -> _compute_roster_slots(roster, memo))
     roster.rows = rows
+    set_cell_computation!(getfield(roster, :index), () -> _compute_roster_index(roster, memo))
     roster
+end
+
+"""
+    RosterIndex(places, rows)
+
+What a roster knows of each of its items, by the identity of the item: `places`
+holds the place that the source gave, the path of the item from the link of the
+roster, and `rows` holds the index of the row of the item in `rows` of the roster.
+An item with no place has no entry in `places`.
+"""
+struct RosterIndex
+    places::IdDict{Any,Any}
+    rows::IdDict{Any,Int}
+end
+
+# The index of the rows and of the places that the parts gave, after the rows
+# computed: it reads the rows, and then the items that each part gathered for them.
+function _compute_roster_index(roster::Roster, memo)
+    rows = IdDict{Any,Int}()
+    for (k, row) in enumerate(roster.rows)
+        rows[row.item] = k
+    end
+    places = IdDict{Any,Any}()
+    for items in Iterators.flatten((values(memo.parts), (inside.items for inside in values(memo.insides)))),
+        entry in something(items[], ())
+        (entry.place === nothing || haskey(places, entry.item)) || (places[entry.item] = entry.place)
+    end
+    RosterIndex(places, rows)
+end
+
+"""
+    get_roster_item_place(roster, k) -> Reference or nothing
+
+The place of the item of the row `k` of `roster`: the path of the item from the
+link of the roster, as its source gave it while it gathered the item. `nothing`
+when the source gives no place, or when `roster` has no row `k`. It reads the
+index of the roster and searches nothing.
+
+# Example
+
+    get_roster_item_place(Roster(CollectionItems(@reference(files))), 2)   # files[2]
+
+See also `find_roster_row` and `RosterItem`.
+"""
+function get_roster_item_place(roster::Roster, k::Integer)
+    rows = roster.rows
+    1 <= k <= length(rows) || return nothing
+    get(roster.index.places, rows[k].item, nothing)
+end
+
+"""
+    find_roster_row(roster, item) -> Int or nothing
+
+The index of the row of `item` in `rows` of `roster`, by the identity of the
+item, or `nothing` when no row shows it. It reads the index of the roster and
+searches nothing.
+
+See also `get_roster_item_place`.
+"""
+find_roster_row(roster::Roster, item) = get(roster.index.rows, item, nothing)
+
+"""
+    find_held_item_path(holder, step, path) -> Reference or nothing
+
+The place in `holder` of the item that `path` reaches through a row of the roster
+that `holder` keeps in its field `step`, with the rest of `path` after it: for
+`table.document.rows[k].item.<rest>`, the place of the item of row `k`, such as
+`files[2].<rest>`. The field holds an `ArrangementDocument` around a `Roster`, or
+the `Roster` alone, and the link of the roster is `holder`. `nothing` when the row
+has no place, and for any other path, such as a cell of a facet or an entry of the
+arrangement.
+
+A page that shows such a roster as its table opens the item of a row at that
+place ([`retarget_held_row_open`](@ref)).
+
+# Example
+
+    find_held_item_path(list, FieldReferenceStep("table"), path)   # files[2]
+
+See also `get_roster_item_place`.
+"""
+function find_held_item_path(holder, step::FieldReferenceStep, path)
+    roster, prefix = _find_held_roster(holder, step)
+    (roster === nothing || !(path isa ConcreteReference)) && return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    n = length(prefix)
+    (length(steps) >= n + 3 && all(steps[i] == prefix[i] for i in 1:n) &&
+     steps[n + 1] == FieldReferenceStep("rows") && _is_index_step(steps[n + 2]) &&
+     steps[n + 3] == FieldReferenceStep("item")) || return nothing
+    place = get_roster_item_place(roster, steps[n + 2].start + 1)
+    place === nothing && return nothing
+    concat_references(place, _drop_reference_steps(path, n + 3))
+end
+
+"""
+    retarget_held_row_open(operation, holder, step) -> operation
+
+`operation`, with each open of a page that names an item through a row of the
+roster that `holder` keeps in its field `step` retargeted to the place of the item
+([`find_held_item_path`](@ref)). A page that shows the roster as its table calls
+it in its reader, so the link of a row and a double click on a row open the item
+with the address of its place, such as `files[2]`, and not of the arrangement,
+the roster and the row. The selection of a row stays the path of the row, which
+the table shows.
+
+# Example
+
+    retarget_held_row_open(answer.operation, list, FieldReferenceStep("table"))
+"""
+function retarget_held_row_open end
+
+function retarget_held_row_open(operation::CompoundOperation, holder, step::FieldReferenceStep)
+    parts = Any[retarget_held_row_open(part, holder, step) for part in operation.operations]
+    all(k -> parts[k] === operation.operations[k], eachindex(parts)) ? operation : CompoundOperation(parts)
+end
+
+function retarget_held_row_open(operation::WrappingOperation, holder, step::FieldReferenceStep)
+    inner = get_wrapped_operation(operation)
+    retargeted = retarget_held_row_open(inner, holder, step)
+    retargeted === inner ? operation : rewrap_operation(operation, retargeted)
+end
+
+function retarget_held_row_open(operation::OpenPageOperation, holder, step::FieldReferenceStep)
+    operation.document === nothing || return operation
+    place = find_held_item_path(holder, step, operation.reference)
+    place === nothing ? operation : retarget_operation(operation, place)
+end
+
+retarget_held_row_open(operation, holder, ::FieldReferenceStep) = operation
+
+# The roster that `holder` keeps in its field `step`, alone or in an arrangement,
+# with its link at `holder`, and the steps from `holder` to it; `(nothing, ())`
+# for a field that holds no such roster.
+function _find_held_roster(holder, step::FieldReferenceStep)
+    table = try_evaluate_reference(holder, ConcreteReference(step, EmptyReference()), nothing)
+    roster, prefix = table isa ArrangementDocument ? (table.document, (step, FieldReferenceStep("document"))) :
+                                                     (table, (step,))
+    (roster isa Roster && roster.link === holder) ? (roster, prefix) : (nothing, ())
+end
+
+# `path` after its first `n` steps, with the types that it holds.
+function _drop_reference_steps(path, n::Int)
+    for _ in 1:n
+        path = get_reference_tail(path)
+    end
+    path
 end
 
 get_document_title(roster::Roster) = roster.title
@@ -250,14 +461,18 @@ function link_roster!(roster::Roster, link)
     roster
 end
 
-# What the rows of a roster keep from one computation to the next: the cell of the
-# items of each part, and the slot of the row of each item. A change of the
-# source, of the columns or of the link starts them again.
+# What the rows of a roster keep from one computation to the next: the keys of the
+# columns, which all rows share, the cell of the items of each part, the cell of the
+# items inside each item with the item of the outer source that it was made for, and
+# the slot of the row of each item. A change of the source, of the columns or of the
+# link starts them again.
 mutable struct _RosterMemo
     source::Any
     columns::Any
     link::Any
+    keys::Vector{_RosterKey}
     parts::IdDict{Any,Any}
+    insides::IdDict{Any,Any}
     rows::IdDict{Any,Any}
 end
 
@@ -272,28 +487,56 @@ function _compute_roster_slots(roster::Roster, memo::_RosterMemo)
     link === nothing && return Cell[]
     if !(memo.source === source && memo.columns === columns && memo.link === link)
         memo.source, memo.columns, memo.link = source, columns, link
+        memo.keys = _RosterKey[_RosterKey(key) for key in columns]
         memo.parts = IdDict{Any,Any}()
+        memo.insides = IdDict{Any,Any}()
         memo.rows = IdDict{Any,Any}()
     end
     parts = IdDict{Any,Any}()
-    rows = IdDict{Any,Any}()
-    slots = Cell[]
+    gather = (source = source, link = link, columns = columns, memo = memo, insides = IdDict{Any,Any}(),
+              rows = IdDict{Any,Any}(), slots = Cell[])
     for part in collect_roster_parts(source, link)
         items = get(memo.parts, part, nothing)
         items === nothing && (items = Cell(Computation(() -> collect_roster_items(source, link, part))))
         parts[part] = items
-        for entry in items[]
-            haskey(rows, entry.item) && continue
-            slot = get(memo.rows, entry.item, nothing)
-            (slot === nothing || peek(getfield(peek(slot), :within)) !== entry.within) &&
-                (slot = Cell(make_roster_row(entry.item, entry.within, columns)))
-            rows[entry.item] = slot
-            push!(slots, slot)
-        end
+        _add_roster_slots!(gather, items[])
     end
     memo.parts = parts
-    memo.rows = rows
-    slots
+    memo.insides = gather.insides
+    memo.rows = gather.rows
+    gather.slots
+end
+
+# The slot of the row of each item of `entries` that has no row yet, each followed
+# by the slots of the items inside it, which the cell of its inside gathers.
+function _add_roster_slots!(gather, entries)
+    memo = gather.memo
+    for entry in entries
+        haskey(gather.rows, entry.item) && continue
+        slot = get(memo.rows, entry.item, nothing)
+        (slot === nothing || peek(getfield(peek(slot), :within)) !== entry.within) &&
+            (slot = Cell(_make_roster_row(entry.item, entry.within, gather.columns, memo.keys)))
+        gather.rows[entry.item] = slot
+        push!(gather.slots, slot)
+        part = get_roster_item_inside(gather.source, entry)
+        part === nothing && continue
+        inside = get(memo.insides, entry.item, nothing)
+        if inside === nothing || inside.within !== entry.within
+            (source, link) = (gather.source, gather.link)
+            inside = (items = Cell(Computation(() -> _collect_inside_items(source, link, part))), within = entry.within)
+        end
+        gather.insides[entry.item] = inside
+        items = inside.items[]
+        items === nothing || _add_roster_slots!(gather, items)
+    end
+end
+
+# The items inside one item, or `nothing` when there are none. `nothing` is a plain
+# value, so a change inside an item that holds no items stops at the cell of its
+# inside, and the slots do not compute again.
+function _collect_inside_items(source, link, part)
+    items = collect_roster_items(source, link, part)
+    isempty(items) ? nothing : items
 end
 
 # A row says what its item says.

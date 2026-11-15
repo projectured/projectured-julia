@@ -195,6 +195,20 @@ function _read_bmp_pixels(filename::AbstractString)
      end for y in 0:height - 1, x in 0:width - 1]
 end
 
+# A take gives each event of its timeline the time of its frame, and a point of the
+# frame the place in the window at the zoom of the frame. Every other field stays.
+function test_video_restamp_event()
+@testset "a take stamps an event with the time of its frame" begin
+    VIDEO = ProjecturedVideo.VideoModule
+    scroll = MouseScroll(0, -3, 480, 600; time = 0.0, precise_dy = -2.5)
+    stamped = VIDEO._restamp_event(scroll, 7.0, 2.0)
+    @test (stamped.dx, stamped.dy, stamped.x, stamped.y) == (0, -3, 240, 300)
+    @test (stamped.precise_dx, stamped.precise_dy, stamped.time) == (0.0, -2.5, 7.0)
+    down = VIDEO._restamp_event(MouseDown(:left, 90, 82, ModifierKeys(); time = 0.0), 3.0, 1.0)
+    @test (down.button, down.x, down.y, down.time) == (:left, 90, 82, 3.0)
+end
+end
+
 function test_video_pointer_shape()
 @testset "the pointer of a video has the picture of the shape under it" begin
     VIDEO = ProjecturedVideo.VideoModule

@@ -44,6 +44,11 @@ reroot_operation(op::CompoundOperation, steps::Tuple) =
 reroot_operation(op::WrappingOperation, steps::Tuple) =
     rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
+# A call with an operation of an unknown type dispatches when it runs. Inference
+# that used the few methods of the kernel would make the caller invalid as soon as
+# a package loaded later adds its method.
+Base.Experimental.@max_methods 1 function operation_reference end
+
 operation_reference(op) = nothing
 operation_reference(op::ReplaceSelectionOperation) = op.path
 # A carried root is the place of the write, so only a document-rooted write
@@ -61,9 +66,11 @@ retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
 is_self_contained_operation(op) = false
 # These name no place in a document, so each travels up a chain as it is: the
 # no-op, the quit, the new print of the view, the flip of the node that it
-# carries, the move of the selection at the root, and the timer of the editor.
+# carries, the move of the selection at the root, the selection of a document that
+# it carries, and the timer of the editor.
 is_self_contained_operation(::Union{DoNothingOperation, QuitEditorOperation,
                                     InvalidateProjectionOperation,
                                     ToggleCollapseOperation,
                                     SelectNextInsertionOperation,
+                                    SelectDocumentOperation,
                                     SetTimerOperation}) = true

@@ -1,9 +1,10 @@
 """
     ChartModule
 
-The chart domain: a chart document, the plot it becomes, the projection that
-draws the plot, and the reference step that names one sample inside it. This
-file holds the step, because the rest of the slice is written in terms of it.
+Chart documents: a chart, the plot that it becomes, the projection that draws the
+plot, and a reference to one sample. A reference step names one sample inside a
+chart. This file holds the step, because the rest of the slice is written in terms
+of it.
 
 The `ChartSampleReferenceStep` step type — a reference step naming one sample
 inside a chart series.
@@ -28,19 +29,28 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+    get_child_iomaps
+import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..DomainModule: compute_context_menu
+import ..DisplayModule: make_workload_file
+import ..EditorModule: make_change
+import ..DocumentModule: get_document_title, has_document_duplicate
+import ..PaneModule: describe_document
 
 export ChartSampleReferenceStep
 export ChartTheme, ScaledChartTheme
 export ChartSeries, get_chart_series_family, get_chart_axis_family,
-       get_selected_series_index, move_series, remove_series,
+       get_selected_series_index, move_series, remove_series, move_series!, remove_series!,
        collect_chart_parts, get_chart_part_index,
-       get_chart_sample, make_chart_sample_reference, get_selected_sample
+       get_chart_sample, make_chart_sample_reference, get_selected_sample, find_chart_sample_link
 export ChartView, get_chart_view, is_point_in_chart_view
 export ChartToChartPlot, ChartToChartPlotIoMap
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
-       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
-export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartPieSeries, ChartHistogramSeries, ChartStripSeries, strip_state_name
+       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference,
+       make_chart_buttons, make_chart_scroll_bar, make_chart_projection
+export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartFunctionSeries, ChartBarSeries, ChartPieSeries, ChartHistogramSeries, ChartStripSeries, ChartMatrixSeries, strip_state_name
+export CHART_INTERVAL_STYLES
 export FrameTimeSeriesToChart
 
 
@@ -57,20 +67,23 @@ include("FrameTimeSeriesToChart.jl")
 # renderer builds its own projection instances.
 function __init__()
     register_natural_graphics!(:frame_time_series, (; measure, appearance) -> Pair{Type,Any}[
-        FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
-                                              ChartPlotToGraphicsCanvas(measure = measure,
-                                                  theme = get_scaled_theme!(appearance, ChartTheme))),
+        FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(),
+            make_chart_projection(; measure, theme = get_scaled_theme!(appearance, ChartTheme),
+                                  widget_theme = get_scaled_theme!(appearance, WidgetTheme))),
     ])
     register_natural_graphics!(:chart, (; measure, appearance) -> Pair{Type,Any}[
-        Chart => ChainingProjection(ChartToChartPlot(),
-                                    ChartPlotToGraphicsCanvas(measure = measure,
-                                        theme = get_scaled_theme!(appearance, ChartTheme))),
+        Chart => make_chart_projection(; measure, theme = get_scaled_theme!(appearance, ChartTheme),
+                                       widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
     ])
-    register_assistant_api!(ChartModule => (:Chart, :ChartLineSeries, :ChartScatterSeries,
-                                            :ChartBarSeries, :ChartPieSeries, :ChartHistogramSeries,
-                                            :ChartAxis, :ChartCategoryAxis, :ChartLegend);
-        description = "A chart is `Chart(title, [ChartLineSeries(label, xs, ys)])`, with " *
-                      "a series of each kind, and `open_pane!` draws it.")
+    register_assistant_api!(Any[];
+        description = "A chart is a `Chart` that draws series of numbers, such as lines and bars.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{Chart}) =
+    (; name = "a.pred",
+     text = print_pred_text(Chart("Queue delay", [ChartLineSeries("q1", collect(0.0:1.0:10.0),
+                                                                  collect(10.0:-1.0:0.0))])),
+     shown = r"Queue delay")
 
 end # module

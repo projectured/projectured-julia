@@ -1,6 +1,23 @@
 # The text of each span of each line of `block`, in order.
 _s2t_span_texts(block) = [span.content for line in block.elements for span in line.elements]
 
+# A recursion that records the path of the context of each child that a node
+# printer prints through it, and prints that child with `inner`.
+struct _SyntaxChildPathRecorder
+    inner::Any
+    paths::Vector{Any}
+end
+
+function ProjectionModule.print_document(recorder::_SyntaxChildPathRecorder,
+                                         ::_SyntaxChildPathRecorder, input, ctx)
+    push!(recorder.paths, ctx.reference[])
+    print_document(recorder.inner, recorder.inner, input, ctx)
+end
+
+# The type that each node of `path` records, the terminal last.
+_s2t_path_types(path::EmptyReference) = Any[path.type]
+_s2t_path_types(path::ConcreteReference) = Any[path.type; _s2t_path_types(path.tail)]
+
 function test_syntax_to_text()
 @testset "SyntaxToText" begin
 
@@ -66,6 +83,37 @@ end
     inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(\n", close="\n)", indentation=1)
     outer = SyntaxNode(SyntaxDocument[inner]; open="[\n", close="\n]", indentation=1)
     @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
+end
+
+@testset "the band of a delimiter of a child covers its characters in the widened lines" begin
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="[\n", close="\n]", sep=",\n",
+                       indentation=1)
+    outer = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="[\n", close="\n]", sep=",\n", indentation=1)
+    iomap = print_document(pipe, outer)
+    text = get_flat_string(iomap.output)
+    band(path) = (b = map_reference_forward(iomap.projection, iomap, path).head; text[(b.start + 1):b.stop])
+    # The closing delimiter of the child is on a line of its own, which the parent
+    # indents, so its band reaches the `]` past the wider indentation.
+    @test band(@reference(outer, children[2].close)) == "\n  ]"
+    @test band(@reference(outer, children[2].open)) == "[\n"
+    @test band(@reference(outer, close)) == "\n]"
+end
+
+@testset "an Alt+double click on a delimiter of only whitespace selects the leaf or the node that holds it" begin
+    operator = SyntaxLeaf("=="; open = "  ", close = "  ")
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), operator, SyntaxLeaf("y")]; open = "(", close = ")")
+    iomap = print_document(pipe, node)
+    @test get_flat_string(iomap.output) == "(x  ==  y)"
+    alt = MouseClick(:left, 0, 0, 2, ModifierKeys(alt = true); time = 0.0)
+    whole(k) = strip_reference_types(read_intent(iomap.projection, pipe,
+        Intent(alt, ReplaceSelectionOperation(_S2T._flat_text_path(k))), iomap).operation.path)
+    # Between the two spaces before `==`: the space draws nothing, so the leaf of the
+    # operator is the part.
+    @test whole(3) == strip_reference_types(@reference(node, children[2]))
+    # A delimiter that draws a character stays the part.
+    @test whole(0) == strip_reference_types(@reference(node, open))
+    # Inside the value of the operator, the value stays the part.
+    @test whole(5) == strip_reference_types(@reference(node, children[2].value))
 end
 
 @testset "a value with a break is lines, which follow the code around them" begin
@@ -198,6 +246,18 @@ end
     @test length(after) == 5
     @test after[1] === before[1]
     @test after[2] === before[2]
+end
+
+@testset "each empty line is a line of its own" begin
+    # A separator of two breaks leaves an empty line between the children, at one
+    # indentation, so the empty lines have the same spans and the same indentation.
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:3];
+                      open="[\n", close="\n]", sep=",\n\n", indentation=1)
+    output = print_document(pipe, node).output
+    lines = collect(output.elements)
+    @test _line_texts(output) == ["[", "  1,", "  ", "  2,", "  ", "  3", "]"]
+    @test lines[3] !== lines[5]
+    @test length(Base.IdSet{Any}(lines)) == length(lines)
 end
 end # let
 end # @testset "SyntaxToText lines"
@@ -438,26 +498,42 @@ root   = EmptyReference()
 child1 = @reference(node, children[1])            # .children[1]∅
 child2 = @reference(node, children[2])            # .children[2]∅
 
-@testset "plain arrows drive the tree once a whole element is selected" begin
+@testset "plain Up and Down drive the tree once a whole element is selected" begin
     @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
-    @test is_reference_equal(op_path(child1, :right), child2)   # next sibling
-    @test is_reference_equal(op_path(child2, :left),  child1)   # previous sibling
     @test is_reference_equal(op_path(child1, :up),    root)     # child → parent
 end
 
-@testset "plain arrows match their Alt counterparts in structural mode" begin
+@testset "plain Up and Down match their Alt counterparts in structural mode" begin
     alt = ModifierKeys(alt=true)
-    for (sel, key) in ((root, :down), (child1, :right), (child2, :left), (child1, :up))
+    for (sel, key) in ((root, :down), (child1, :up))
         @test is_reference_equal(op_path(sel, key), op_path(sel, key, alt))
     end
 end
 
+@testset "a plain Left or Right puts the caret at the start or the end of a whole element" begin
+    # Before the opening quote of the first leaf, and after the closing quote of
+    # the second, as on a range of their characters. The end of the last leaf is
+    # the start of the closing delimiter of the node, which the backward map names.
+    @test is_reference_equal(op_path(child1, :left),  @reference(node, children[1].open{0}))
+    @test is_reference_equal(op_path(child2, :right), @reference(node, close{0}))
+end
+
+@testset "a plain Left or Right on a whole element with no character moves to its sibling" begin
+    bare = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf(""), SyntaxLeaf("b")]; sep=",")
+    clear_selection!(bare)
+    set_selection!(bare, @reference(bare, children[2]))
+    op = read_intent(s2st, print_document(s2st, bare), KeyDown(:right, ModifierKeys(); time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    @test is_reference_equal(op.path, @reference(bare, children[3]))
+end
+
 @testset "edges no-op" begin
+    alt = ModifierKeys(alt=true)
     # :up at the root has no parent → the reader declines (nothing).
     @test read_key(root, :up) === nothing
-    # :left at the first sibling / :right at the last stay put (same path).
-    @test is_reference_equal(op_path(child1, :left),  child1)
-    @test is_reference_equal(op_path(child2, :right), child2)
+    # Alt+Left at the first sibling / Alt+Right at the last stay put (same path).
+    @test is_reference_equal(op_path(child1, :left, alt),  child1)
+    @test is_reference_equal(op_path(child2, :right, alt), child2)
 end
 
 @testset "plain arrows with a character cursor are not tree navigation" begin
@@ -610,11 +686,12 @@ end
     concat = @reference(node, children[2])                 # the concatenation
     inner1 = @reference(node, children[2].children[1])     # the leaf "a" inside it
 
-    @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
-    @test is_reference_equal(op_path(child1, :right), concat)   # step onto the concatenation
-    @test is_reference_equal(op_path(concat, :down),  inner1)   # descend INTO it
-    @test is_reference_equal(op_path(inner1, :up),    concat)   # and back out
-    @test is_reference_equal(op_path(concat, :left),  child1)   # step back off it
+    alt = ModifierKeys(alt=true)
+    @test is_reference_equal(op_path(root,   :down),  child1)        # root → first child
+    @test is_reference_equal(op_path(child1, :right, alt), concat)   # step onto the concatenation
+    @test is_reference_equal(op_path(concat, :down),  inner1)        # descend INTO it
+    @test is_reference_equal(op_path(inner1, :up),    concat)        # and back out
+    @test is_reference_equal(op_path(concat, :left, alt),  child1)   # step back off it
 end
 end # let
 
@@ -784,6 +861,21 @@ end
     end
 end
 
+@testset "the print gives a child the path that its compound gives it" begin
+    # The context of a child holds its path, typed at each node: `.content` below a
+    # wrapper, `.children[i]` below a sequence.
+    wrapper = SyntaxDelimitation(SyntaxLeaf("x"); opening_delimiter="(", closing_delimiter=")")
+    sequence = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="[", close="]", sep=",")
+    for (node, steps) in ((wrapper, [Any[FieldReferenceStep("content")]]),
+                          (sequence, [Any[FieldReferenceStep("children"), RangeReferenceStep(0, 1)],
+                                      Any[FieldReferenceStep("children"), RangeReferenceStep(1, 2)]]))
+        recorder = _SyntaxChildPathRecorder(s2st, Any[])
+        get_flat_string(print_document(s2st.child, recorder, node, PrinterContext()).output)
+        @test [collect(Any, get_reference_steps(path)) for path in recorder.paths] == steps
+        @test all(path -> all(!isnothing, _s2t_path_types(path)), recorder.paths)
+    end
+end
+
 @testset "wrappers stack" begin
     text(d) = get_flat_string(print_document(s2st, d).output)
     kids() = SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]
@@ -835,5 +927,17 @@ end
 end # let
 
 end # @testset "Syntax wrappers"
+
+@testset "the key of an output line has one type for every count of spans" begin
+    line(spans) = SyntaxModule._LineRecord(spans, 0, false, nothing)
+    key(record) = SyntaxModule._make_output_line_key(record)
+    five = line([TextString(string(k)) for k in 1:5])
+    @test isconcretetype(typeof(key(five)))
+    @test typeof(key(line([TextString("a")]))) === typeof(key(five))
+    # The same spans in the same order give the same key, so the line is reused.
+    @test isequal(key(line(copy(five.spans))), key(five))
+    @test hash(key(line(copy(five.spans)))) == hash(key(five))
+    @test !isequal(key(line(reverse(five.spans))), key(five))
+end
 
 end # test_syntax_to_text

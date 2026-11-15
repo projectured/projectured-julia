@@ -1,10 +1,10 @@
 """
     ClockModule
 
-The animation clock. A `Clock` holds a time in seconds in a reactive cell, and a
-computation that reads the time computes again after each write of a new time.
-Each `Clock` is independent: a write invalidates only the cells that read that
-clock, so one process can hold many clocks, each with readers of its own.
+Clocks for animations: each holds a time in seconds, and a computation that reads
+it computes again when the time changes. A `Clock` holds its time in a reactive
+cell. Each `Clock` is independent: a write invalidates only the cells that read
+that clock, so one process can hold many clocks, each with readers of its own.
 
 A clock has two reads:
 

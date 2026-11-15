@@ -1,6 +1,6 @@
 # The animation clock
 
-> **Kind:** reference · **Status:** current · **Stands on:** [cell.md](cell.md), [struct.md](struct.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [cell.md](cell.md), [struct.md](struct.md)
 
 This guide says what a clock holds, how a computation reads it, who writes it and
 when, and how a document that animates gets the clock of the editor that shows it.

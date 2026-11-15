@@ -134,12 +134,16 @@ function _index_prefix(selection)
     ConcreteReference(selection.type, selection.head, EmptyReference())
 end
 
-# Wire a widget's selection cell to the forward image of `source`'s selection.
+# Wire a widget's selection cell to the forward image of `source`'s selection,
+# and its mouse target cell to the image of the mouse target of `source`.
 # `get_routing` answers the part of the selection that the widget needs, which is
-# the routing prefix unless the caller says more.
-function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix)
+# the routing prefix unless the caller says more, and `get_target_routing` the
+# part of the mouse target.
+function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix;
+                             get_target_routing = get_routing)
     source_selection = getfield(source, :selection)
     map_forward(path) = map_reference_forward(projection, iomap, get_routing(path))
+    map_target_forward(path) = map_reference_forward(projection, iomap, get_target_routing(path))
     set_cell_computation!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
@@ -149,7 +153,7 @@ function _forward_selection!(widget, source, projection, iomap, get_routing = _i
     end)
     hasfield(typeof(widget), :mouse_target) &&
         set_cell_computation!(getfield(widget, :mouse_target),
-                              () -> map_mouse_target_forward(source, map_forward))
+                              () -> map_mouse_target_forward(source, map_target_forward))
 end
 
 # ── PaneTree ───────────────────────────────────────────────────────────────
@@ -157,10 +161,12 @@ end
 # The tree is transparent: it prints as its root, and adds one field step to the
 # paths that pass through it.
 function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
+    # The splits read the tree, for the group that fills the window.
+    root_ctx = with_property(ctx, :pane_tree, tree)
     root_iomap = make_reconciled_child_iomap_cell(
         () -> tree.root,
         root -> _recurse(recursion, root,
-                         make_child_context(ctx, tree, (@reference_step root))))
+                         make_child_context(root_ctx, tree, (@reference_step root))))
     available = (get_exact_width(ctx) === nothing || get_exact_height(ctx) === nothing) ?
                 nothing : (get_exact_width(ctx), get_exact_height(ctx))
 
@@ -284,12 +290,17 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     # so the slots keep their intrinsic sizes.
     preferred = available === nothing ? nothing : 0
 
+    # The slots follow the elements and nothing else. The weight and the maximum of
+    # a slot are cells of its constraint, so a drag of a divider of the tree changes
+    # the shares, a maximize closes the slots of the other groups, and the split pane
+    # prints no slot again: the view state of each group, such as the place of a
+    # divider inside it, stays.
+    tree = get_property(ctx, :pane_tree, nothing)
     pane = WidgetSplitPane(axis, Any[])
     set_cell_computation!(pane, () -> begin
         iomaps = element_iomaps[]
-        weights = get_pane_normalized_weights(get_pane_weights(split))
-        Any[_constrain(iomaps[i].output, horizontal,
-                       i <= length(weights) ? weights[i] : 1.0, preferred)
+        Any[_constrain(iomaps[i].output, horizontal, () -> _get_pane_slot_weight(split, i),
+                       () -> _get_pane_slot_maximum(tree, split, i), preferred)
             for i in eachindex(iomaps)]
     end)
 
@@ -298,9 +309,31 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     iomap
 end
 
-_constrain(child, horizontal::Bool, weight::Float64, preferred) =
-    horizontal ? LayoutConstraint(child; weight_width = weight, preferred_width = preferred) :
-                 LayoutConstraint(child; weight_height = weight, preferred_height = preferred)
+# The share of the element `index` of `split`.
+function _get_pane_slot_weight(split::PaneSplit, index::Int)
+    weights = get_pane_normalized_weights(get_pane_weights(split))
+    index <= length(weights) ? weights[index] : 1.0
+end
+
+# The maximum extent of the element `index` of `split`: 0 while a group that the
+# element does not hold fills the window, which closes its slot, and none otherwise.
+function _get_pane_slot_maximum(tree, split::PaneSplit, index::Int)
+    tree isa PaneTree || return nothing
+    group = find_pane_maximized_group(tree)
+    (group === nothing || index > length(split.elements)) && return nothing
+    any(member -> member === group, get_pane_groups(split.elements[index])) ? nothing : 0
+end
+
+# `child` in a constraint whose weight and maximum on the axis of the split
+# `weight` and `maximum` compute. Neither is read here, so the list of slots reads
+# neither.
+function _constrain(child, horizontal::Bool, weight::Function, maximum::Function, preferred)
+    constraint = horizontal ? LayoutConstraint(child; preferred_width = preferred) :
+                              LayoutConstraint(child; preferred_height = preferred)
+    set_cell_computation!(getfield(constraint, horizontal ? :weight_width : :weight_height), weight)
+    set_cell_computation!(getfield(constraint, horizontal ? :max_width : :max_height), maximum)
+    constraint
+end
 
 function map_reference_forward(::PaneSplitToWidgetSplitPane,
                                iomap::PaneSplitToWidgetSplitPaneIoMap, reference)
@@ -356,21 +389,18 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
             (iomap = child, pane = child.output)
         end)
 
-    # Every group offers the whole vocabulary: close a tab, open one, grab one, and
-    # duplicate one whose content has a duplicate. That question is answered from
-    # the type of the content, so the strip reads no cell of the content to ask it.
-    pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
-                            duplicable = true)
+    # Every group offers the whole vocabulary of the strip: close a tab, open one,
+    # and grab one. The other commands of a tab are in the menu of its header.
+    pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true)
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[WidgetTabPage(_make_tab_label(tabs[i]), entries[i].pane, nothing,
-                          has_document_duplicate(entries[i].iomap.input))
-            for i in eachindex(entries)]
+        Any[_make_tab_page(pane, i, tabs[i], entries[i].pane) for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
-    _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection))
+    _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection);
+                        get_target_routing = _get_group_target_routing)
     iomap
 end
 
@@ -386,26 +416,100 @@ function _make_tab_label(tab::PaneTab)
                    badges = () -> title.badges, tooltip = () -> title.tooltip)
 end
 
-# The part of a group's selection that its tabbed pane needs. A live caret in the
-# name of a tab passes whole, because the tab bar draws it; everything else is the
-# routing prefix. A group that lost the focus shows no caret in a name.
+# The part of a group's selection that its tabbed pane needs. A live caret or range
+# in the name of a tab passes whole, because the tab bar draws it and reads the
+# keys in it; everything else is the routing prefix. A group that lost the focus
+# shows no caret in a name.
 _get_group_routing(group::PaneGroup, selection) =
-    (is_live_selection(group) && _is_title_caret(selection)) ? selection : _index_prefix(selection)
+    (is_live_selection(group) && _is_place_in_tab_name(selection)) ? selection : _index_prefix(selection)
 
-_is_title_caret(selection) = (@reference_case selection begin
-    ::PaneGroup.tabs[i].rest... => _find_title_caret_position(rest) !== nothing
+# The page of tab `i` of the strip `pane`, which shows `content`. The strip is the
+# output of this projection, so the close button of the page holds the part of the
+# mouse target of the strip that names it, as each output path does: the button
+# shows its surface under the pointer by its own mouse target.
+function _make_tab_page(pane::WidgetTabbedPane, i::Int, tab::PaneTab, content)
+    page = WidgetTabPage(_make_tab_label(tab), content)
+    set_output_path_computations!(page.close, pane, path -> _get_close_button_path(path, i))
+    page
+end
+
+# The part of `path`, a path of the strip, below the close button of tab `i`, or
+# `nothing` when `path` does not name that button.
+function _get_close_button_path(path, i::Int)
+    path isa ConcreteReference || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    (length(steps) >= 3 && steps[1] == FieldReferenceStep("selector_element_pairs") &&
+     steps[2] isa RangeReferenceStep && steps[2].start + 1 == i &&
+     steps[3] == FieldReferenceStep("close")) || return nothing
+    foldr(ConcreteReference, steps[4:end]; init = EmptyReference())
+end
+
+# The part of a group's mouse target that its tabbed pane needs. A path into the
+# title of a tab passes whole, because the strip draws the title as the header of
+# the tab, and shows the close button of the header under the pointer, and so does
+# a path to the close button, which shows its surface under the pointer;
+# everything else is the routing prefix.
+_get_group_target_routing(path) =
+    (_is_tab_title_path(path) || _is_tab_close_path(path)) ? path : _index_prefix(path)
+
+_is_tab_title_path(path) = (@reference_case path begin
+    ::PaneGroup.tabs[i].rest... => _is_title_path(rest)
 end) === true
 
-# The caret position in the name of a tab, or `nothing` when the path below the
-# tab is not a caret in its name.
-_find_title_caret_position(rest) = @reference_case rest begin
-    ::PaneTab.title.name.value{k} => k
+_is_tab_close_path(path) = (@reference_case path begin
+    ::PaneGroup.tabs[i].rest... => _is_close_button_reference(rest)
+end) === true
+
+# The close button of a tab is a part that this projection puts in the strip, and
+# it has no place in the group. A path names it as the tab and a step that this
+# projection introduced, whose output path is the field of the button in the page.
+const _CLOSE_BUTTON_PATH = Reference(FieldReferenceStep("close"))
+
+# Whether `rest`, a path below a tab, names its close button.
+_is_close_button_reference(rest) =
+    rest isa ConcreteReference && _is_close_button_step(rest.head)
+
+_is_close_button_step(step) =
+    step isa ProjectionReferenceStep && step.projection isa PaneGroupToWidgetTabbedPane &&
+    collect(get_reference_steps(strip_reference_types(step.output_path))) == [FieldReferenceStep("close")]
+
+# Whether `rest`, a path below a tab page of the widget, goes into its close
+# button.
+_is_close_path(rest) = (@reference_case rest begin
+    ::WidgetTabPage.close.inner... => true
+end) === true
+
+_is_place_in_tab_name(selection) = (@reference_case selection begin
+    ::PaneGroup.tabs[i].rest... => _find_title_range(rest) !== nothing
+end) === true
+
+# The place in the name of a tab, a caret or a range, as its range step, or
+# `nothing` when the path below the tab is no place in its name.
+_find_title_range(rest) = @reference_case rest begin
+    ::PaneTab.title.name.value{s:e} => _get_last_range_step(rest)
 end
 
-# The caret position in the name that a tab page of the widget holds.
-_find_selector_caret_position(rest) = @reference_case rest begin
-    ::WidgetTabPage.selector.text{k} => k
+# Whether `rest`, a path below a tab, goes into its title.
+_is_title_path(rest) = (@reference_case rest begin
+    ::PaneTab.title.inner... => true
+end) === true
+
+# The place in the name that a tab page of the widget holds, as its range step.
+_find_selector_range(rest) = @reference_case rest begin
+    ::WidgetTabPage.selector.text{s:e} => _get_last_range_step(rest)
 end
+
+# Whether `rest`, a path below a tab page of the widget, goes into its selector,
+# the header of the tab.
+_is_selector_path(rest) = (@reference_case rest begin
+    ::WidgetTabPage.selector.inner... => true
+end) === true
+
+_get_last_range_step(reference) = last(get_reference_steps(strip_reference_types(reference)))
+
+# A range in the name of a tab, or in the text of its label, in the direction of
+# the range.
+_make_name_range_step(range) = RangeReferenceStep(range.start, range.stop, get_range_direction(range))
 
 function map_reference_forward(::PaneGroupToWidgetTabbedPane,
                                iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
@@ -413,12 +517,20 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
         ::PaneGroup.tabs[i].rest... => begin
             entries = iomap.content_iomaps
             (1 <= i <= length(entries)) || return nothing
-            # A caret in the name is a caret in the name the tab page holds.
-            k = _find_title_caret_position(rest)
-            k === nothing ||
-                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String{k}::Position
+            # A place in the name is the place in the name the tab page holds.
+            range = _find_title_range(rest)
+            range === nothing ||
+                return concat_references(
+                    @reference(::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String),
+                    ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
+            # The header is the view of the title, so any other part of the title is
+            # the header, as the pointer on the header is the title.
+            _is_title_path(rest) &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel
+            _is_close_button_reference(rest) &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.close::WidgetToolbarItem
             # The node at `[i]` is the tab page, and the content is its `element`. A
-            # selection that names the tab whole, or its title whole, names the page.
+            # selection that names the tab whole names the page.
             inside = _get_tab_content_path(rest)
             inside === nothing &&
                 return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage
@@ -446,7 +558,7 @@ function _get_tab_content_path(rest)
     end
 end
 
-function map_reference_backward(::PaneGroupToWidgetTabbedPane,
+function map_reference_backward(p::PaneGroupToWidgetTabbedPane,
                                 iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
     # The tabbed pane is the view of the group, whole.
     reference isa EmptyReference && return EmptyReference(PaneGroup)
@@ -459,9 +571,24 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             # tab and nothing in it.
             tab = @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
             rest isa EmptyReference && return tab
-            k = _find_selector_caret_position(rest)
-            k === nothing ||
-                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String{k}::Position
+            # A place in the text of the label is the place in the name, while it
+            # is inside the name: a name with no text shows a stand-in, which no
+            # edit reaches.
+            range = _find_selector_range(rest)
+            if range !== nothing
+                name = something(iomap.input.tabs[i].title.name.value, "")
+                range.stop <= length(name) || return nothing
+                return concat_references(
+                    @reference(::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String),
+                    ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
+            end
+            # The header of a tab is the view of its title, so any other part of
+            # the header names the title whole, as the pointer on it does.
+            _is_selector_path(rest) &&
+                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle
+            # The close button of a tab is a part that this projection put there.
+            _is_close_path(rest) &&
+                return concat_references(tab, make_introduced_reference(p, PaneTab, _CLOSE_BUTTON_PATH))
             # `concat_references`, not the `^` splice of `@reference`: the splice
             # hoists the spliced path's leading type onto the node before it, so a
             # content path that starts at its own checkpoint would overwrite
@@ -471,7 +598,7 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
                 ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
             inside = _after_element_step(rest)
             # `.element` and nothing after it names the tab's CONTENT, whole — not
-            # the tab. An Alt+click on a pane answers this, and so does a
+            # the tab. An Alt+double click on a pane answers this, and so does a
             # document-replace that swaps the whole content, such as the one the
             # Insert key makes on an empty tab. Answering the tab there would write
             # the new document over the `PaneTab` itself and take the layout with
@@ -512,19 +639,22 @@ end
 # re-targets through `map_reference_backward`: its bare
 # `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`.
 #
-# An Alt+click inside a page names an object in the tab's document. When the
-# content's projection maps it back to a whole document, the answer is that
-# document. A caret, or a place the content's projection introduced, names the
-# innermost document on its path: the one that holds the caret, or the one the
-# projection printed the place for. Any other answer — the tab, because the
+# An Alt+double click inside a page names a part of the tab's document: the innermost
+# whole part that the answer of the content reaches (`find_whole_part`), a
+# document, a value that a field or one element holds, or a part that the
+# content's projection drew. An answer that reaches no such part names the
+# innermost document on its path, and any other answer — the tab, because the
 # content maps nothing back — names the tab's content, as a whole.
 function _select_page_content(tree::PaneTree, widget_operation, answer)
     (widget_operation isa ReplaceSelectionOperation && _is_inside_page(widget_operation.path)) ||
         return answer
     answer isa ReplaceSelectionOperation || return answer
-    target = try_evaluate_reference(tree, answer.path, nothing)
-    (target isa Document && !(target isa PaneDocument)) && return answer
-    innermost = _find_innermost_document_path(tree, answer.path)
+    whole = find_whole_part(tree, answer.path)
+    selected = whole === answer.path ? answer : ReplaceSelectionOperation(whole)
+    has_introduced_step(whole) && return selected
+    target = try_evaluate_reference(tree, whole, nothing)
+    (is_whole_selection(tree, whole) && !(target isa PaneDocument)) && return selected
+    innermost = _find_innermost_document_path(tree, whole)
     innermost === nothing || return ReplaceSelectionOperation(innermost)
     rest = _after_field(answer.path, "root")
     rest === nothing && return answer
@@ -537,13 +667,10 @@ function _select_page_content(tree::PaneTree, widget_operation, answer)
 end
 
 # The longest prefix of `path` that names a document inside a tab, or `nothing`.
-# The walk stops before a place a projection introduced, skips a collection, and
-# gives up at a pane.
+# The walk skips a collection, and gives up at a pane.
 function _find_innermost_document_path(tree::PaneTree, path)
     steps = collect(get_reference_steps(strip_reference_types(path)))
-    introduced = findfirst(step -> step isa ProjectionReferenceStep, steps)
-    longest = introduced === nothing ? length(steps) - 1 : introduced - 1
-    for n in longest:-1:1
+    for n in (length(steps) - 1):-1:1
         prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
         node = try_evaluate_reference(tree, prefix, nothing)
         node isa PaneDocument && return nothing
@@ -580,13 +707,6 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
     make_pane_open_tab_operation(iomap.input, group, p.new_tab())
 end
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::DuplicateTabOperation)
-    group = _pane_node_for(iomap, operation.widget)
-    group isa PaneGroup || return nothing
-    make_pane_duplicate_tab_operation(iomap.input, group, operation.tab_index)
-end
-
 read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation) =
     _press_tab(iomap, operation, nothing)
 
@@ -614,6 +734,8 @@ read_intent(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
         operation      # a split a tab's content built: it keeps its own sizes
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
+read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+            operation::SetSplitterUnderPointerOperation) = operation
 
 # The drag of a tab needs the raw gesture beside the operation that the layers
 # below made of it: the press keeps its point, and a move with a button held

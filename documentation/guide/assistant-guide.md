@@ -1,6 +1,6 @@
 # The assistant
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 How to run the AI assistant inside ProjecturEd: a local model through Ollama, or Claude through the Anthropic API. It says what the assistant can do, what it costs to set up, and where it stops.
 
@@ -71,6 +71,14 @@ npm install -g @agentclientprotocol/claude-agent-acp
 bin/projectured --assistant=acp --agent-command=claude-agent-acp
 ```
 
+Codex, the agent of OpenAI, runs through the adapter `codex-acp`, which also needs Node.js 22 or newer. It signs in with your ChatGPT account or with an API key:
+
+```sh
+bin/projectured --assistant=acp --agent-command="npx -y @agentclientprotocol/codex-acp"
+```
+
+When Codex is not signed in, the conversation shows a button for each way to sign in: "ChatGPT" opens the sign-in in the browser, and "API Key" reads `CODEX_API_KEY` or `OPENAI_API_KEY` from the environment of the editor.
+
 The settings tab keeps the command for the next start. A session in Julia loads the client by name: `using ProjecturedACP`.
 
 When the agent asks to run a tool, the conversation shows a card with its answers, and the agent waits for your click. Escape stops the turn of the agent. ProjecturEd reads no key and no token of the agent: the agent signs in with its own sign-in, and its use counts as its provider decides.
@@ -82,7 +90,7 @@ The assistant has a set of tools, and the same set is what an external client ge
 | Tool | What it does |
 | --- | --- |
 | `search_api` | finds a module, a type or a function of the loaded packages, by name, by pattern or by description |
-| `search_guides`, `read_resource` | reads the guides of this repository |
+| `search_guides`, `read_resource` | reads the guides of this repository: the guides for users by default, and the guides for developers with `audience` |
 | `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor; a verb acts on that editor, so the code does not pass it |
 | the operations | changes the data with the same edits as your key presses |
 

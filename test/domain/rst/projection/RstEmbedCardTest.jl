@@ -26,7 +26,7 @@ inside = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
     @test children[1] === section
     @test children[2] isa WidgetCard
     @test children[2].content === top
-    @test children[2].title.content == "top.txt"
+    @test children[2].title == "top.txt"
     forward = map_reference_forward(iomap.projection, iomap, into("elements", 2, inside))
     @test forward.tail.tail.head.name == "content"
     @test forward.tail.tail.tail.head.name == "content"

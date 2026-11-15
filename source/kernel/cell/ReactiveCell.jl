@@ -21,7 +21,9 @@
 # but a newer value comes later, such as the default of a value that a task still
 # reads. A computation that reads a provisional cell is provisional itself, and a
 # write of a value is final. The flag is no state of invalidation: a provisional
-# cell is valid, and the walk of a write treats it as any valid cell.
+# cell is valid, and the walk of a write treats it as any valid cell. A provisional
+# value that asks again, because its run asked for its newer value nowhere that
+# keeps the ask, computes again at each read by a computation until a run asks.
 @enum _CellState::UInt8 begin
     _VALID
     _INVALID
@@ -29,6 +31,16 @@
     _COMPUTING
     _MAYBE_INVALID
     _CHECKING
+end
+
+# A cell that a computation read, and the place of the reader in the readers of
+# that cell: the `dependents` of `cell` hold the reader at `place`. A removal of the
+# reader from those readers takes the place with no scan. The field is an
+# `AbstractCell`, because the reactive kind is not defined yet; it holds a
+# `ReactiveCell`.
+struct _Dependency
+    cell::AbstractCell
+    place::Int
 end
 
 """
@@ -80,18 +92,22 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # cell, or marked itself provisional. The field fits beside `state`, so it does
     # not make a cell larger.
     is_provisional::Bool
+    # Whether the provisional value asks again: the last computation read a cell
+    # that asks again, or marked itself so. It fits beside `is_provisional`.
+    is_asking_again::Bool
     # The length of `dependents` after its last sweep of collected readers.
     swept_length::UInt32
     # The cells that the last computation read, in the order of the first read of
-    # each. The edges are strong, so a cell keeps alive the cells that it computes
-    # from. A check of a "maybe invalid" cell follows the order.
-    dependencies::Union{Nothing, Vector{ReactiveCell}}
+    # each, with the place of this cell in the readers of each. The edges are
+    # strong, so a cell keeps alive the cells that it computes from. A check of a
+    # "maybe invalid" cell follows the order.
+    dependencies::Union{Nothing, Vector{_Dependency}}
     # The cells that read this one. The edges are weak, so a cell does not keep
     # its readers alive.
     dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, _VALID, false, UInt32(0), nothing, nothing)
+        new{T}(value, nothing, _VALID, false, false, UInt32(0), nothing, nothing)
     # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
     # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
     # field can not hold a placeholder. An invalid cell makes `_recompute!` assign
@@ -102,6 +118,7 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         c.computation = marker.computation
         c.state = _INVALID
         c.is_provisional = false
+        c.is_asking_again = false
         c.swept_length = UInt32(0)
         c.dependencies = nothing
         c.dependents = nothing
@@ -123,49 +140,67 @@ end
 # build can not enumerate a free parameter, so a body specialized on `T` would
 # leave these calls unresolved.
 @inline _get_dependencies!(@nospecialize(c::ReactiveCell)) =
-    (d = c.dependencies; d === nothing ? (c.dependencies = ReactiveCell[]) : d)
+    (d = c.dependencies; d === nothing ? (c.dependencies = _Dependency[]) : d)
 
-# Put `c` after the dependencies that the run of `observer` read, unless it is the
-# last of them. Answers whether it put it. A run that reads a cell again after
-# another one leaves a repeat, which `_remove_repeated_dependencies!` takes out
-# when the run ends.
+# Put `c` after the dependencies that the run of `observer` read, with the place
+# of `observer` in the readers of `c`, unless it is the last of them. A run that
+# reads a cell again after another one leaves a repeat, which
+# `_remove_repeated_dependencies!` takes out when the run ends.
 @inline function _record_dependency!(@nospecialize(observer::ReactiveCell), @nospecialize(c::ReactiveCell))
     deps = _get_dependencies!(observer)
     n = length(deps)
-    n > 0 && (@inbounds deps[n]) === c && return false
-    push!(deps, c)
-    true
+    n > 0 && (@inbounds deps[n]).cell === c && return nothing
+    push!(deps, _Dependency(c, _register_dependent!(c, observer)))
+    nothing
 end
 
 # The count of dependencies up to which the end of a run finds a repeat by a scan,
 # and past which it finds it with a set.
 const _DEPENDENCY_SCAN_LIMIT = 32
 
-# Keep the first of each cell in the dependencies of `c`, in their order.
+# Keep the first of each cell in the dependencies of `c`, in their order, and
+# take the entry of each repeat out of the readers of its cell.
 function _remove_repeated_dependencies!(@nospecialize(c::ReactiveCell))
     deps = c.dependencies
     (deps === nothing || length(deps) < 2) && return nothing
     kept = 0
+    repeats = nothing
     if length(deps) <= _DEPENDENCY_SCAN_LIMIT
         @inbounds for i in eachindex(deps)
             d = deps[i]
             is_repeat = false
             for k in 1:kept
-                deps[k] === d && (is_repeat = true; break)
+                deps[k].cell === d.cell && (is_repeat = true; break)
             end
-            is_repeat || (kept += 1; deps[kept] = d)
+            if is_repeat
+                repeats === nothing && (repeats = _Dependency[])
+                push!(repeats, d)
+            else
+                kept += 1
+                deps[kept] = d
+            end
         end
     else
-        seen = Base.IdSet{ReactiveCell}()
+        seen = Base.IdSet{AbstractCell}()
         @inbounds for i in eachindex(deps)
             d = deps[i]
-            d in seen && continue
-            push!(seen, d)
+            if d.cell in seen
+                repeats === nothing && (repeats = _Dependency[])
+                push!(repeats, d)
+                continue
+            end
+            push!(seen, d.cell)
             kept += 1
             deps[kept] = d
         end
     end
     resize!(deps, kept)
+    repeats === nothing && return nothing
+    # The repeats go from the highest place down, so the last entry that moves into
+    # a free place was put after the repeat, by another reader, and is never a
+    # repeat that waits for its removal.
+    sort!(repeats; by = d -> d.place, rev = true)
+    foreach(d -> _remove_dependent!(d.cell::ReactiveCell, d.place, c), repeats)
     nothing
 end
 @inline _get_dependents!(@nospecialize(c::ReactiveCell)) =
@@ -282,15 +317,25 @@ function Base.getindex(c::ReactiveCell)
     observer = _record_read!(c)
     if c.state !== _VALID
         _bring_up_to_date_for!(c, observer)
-    elseif c.is_provisional && observer !== nothing && c.computation !== nothing
-        # A provisional value computes again for each computation that reads it,
-        # so a value that is still to come asks again where it is used now, also
-        # when it computed before in a place that asked nobody.
+    elseif c.is_provisional && observer !== nothing && c.computation !== nothing &&
+           (c.is_asking_again || _IS_RECOMPUTING_PROVISIONAL_CELLS[])
+        # A provisional value that asks again computes again for each computation
+        # that reads it, so it asks where it is used now, also when it computed
+        # before in a place that kept no ask. A value that asked stays as it is
+        # until its newer value comes.
         _recompute_for!(c, observer)
     end
     # A reader of a provisional value is provisional too.
-    c.is_provisional && observer !== nothing && (observer.is_provisional = true)
+    c.is_provisional && observer !== nothing && _mark_provisional_reader!(observer, c)
     return c.value
+end
+
+# Make `observer`, which read the provisional cell `c`, provisional, and make it
+# ask again when `c` asks again.
+@inline function _mark_provisional_reader!(observer::ReactiveCell, c::ReactiveCell)
+    observer.is_provisional = true
+    c.is_asking_again && (observer.is_asking_again = true)
+    nothing
 end
 
 # Compute `c` again for a read by `observer`, as `_bring_up_to_date_for!` does.
@@ -298,7 +343,7 @@ end
     try
         _recompute!(c)
     catch
-        c.is_provisional && (observer.is_provisional = true)
+        c.is_provisional && _mark_provisional_reader!(observer, c)
         rethrow()
     end
     nothing
@@ -310,7 +355,7 @@ end
     try
         _bring_up_to_date!(c)
     catch
-        c.is_provisional && observer !== nothing && (observer.is_provisional = true)
+        c.is_provisional && observer !== nothing && _mark_provisional_reader!(observer, c)
         rethrow()
     end
     nothing
@@ -323,7 +368,7 @@ end
     isempty(stack) && return nothing
     observer = stack[end]
     observer === c && return nothing
-    _record_dependency!(observer, c) && _register_dependent!(c, observer)
+    _record_dependency!(observer, c)
     observer
 end
 
@@ -352,7 +397,7 @@ function _check_dependencies!(@nospecialize(c::ReactiveCell), in_check::Bool)
     deps = c.dependencies
     if deps !== nothing
         for i in eachindex(deps)
-            d = @inbounds deps[i]
+            d = (@inbounds deps[i]).cell::ReactiveCell
             d.state === _VALID && continue
             try
                 _bring_up_to_date!(d, true)
@@ -402,6 +447,7 @@ function _recompute!(c::ReactiveCell)
     had_value = c.state !== _FAILED && isdefined(c, :value)
     old = had_value ? c.value : nothing
     was_provisional = c.is_provisional
+    was_asking_again = c.is_asking_again
     stack = _get_computing_stack()
     _detach_upstream!(c)
     @count_performance :computes
@@ -409,6 +455,7 @@ function _recompute!(c::ReactiveCell)
     c.state = _COMPUTING
     # The run starts final; a read of a provisional cell makes it provisional.
     c.is_provisional = false
+    c.is_asking_again = false
     value = try
         _run_computation(c.computation)
     catch
@@ -429,13 +476,15 @@ function _recompute!(c::ReactiveCell)
     if c.state === _COMPUTING
         c.value = value
         c.state = _VALID
-        if had_value && _is_plain_value(value) && old === value && was_provisional == c.is_provisional
+        if had_value && _is_plain_value(value) && old === value && was_provisional == c.is_provisional &&
+           was_asking_again == c.is_asking_again
             @count_performance :stops
         else
             _invalidate_maybe_invalid_readers!(c)
         end
     else
         c.is_provisional = false
+        c.is_asking_again = false
         isdefined(c, :value) || (c.value = value)
     end
 end
@@ -530,6 +579,7 @@ function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     c.value = converted
     c.state = _VALID
     c.is_provisional = false
+    c.is_asking_again = false
     _invalidate_dependents!(c)
     return value
 end
@@ -604,6 +654,7 @@ function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where 
     nothing isa T && (c.value = nothing)
     c.state = _INVALID
     c.is_provisional = false
+    c.is_asking_again = false
     _invalidate_dependents!(c)
     return c
 end
@@ -651,7 +702,7 @@ of cells, to refuse at once.
 is_computation_running() = !isempty(_get_computing_stack())
 
 """
-    mark_computation_provisional!() -> nothing
+    mark_computation_provisional!(; ask_again = false) -> nothing
 
 Make the value of the computation that runs now provisional: a newer value comes
 later. The computation answers what it has, such as its last value or a default,
@@ -661,7 +712,12 @@ from final values only.
 Use it in a computation whose value comes from outside the loop and is not there
 yet, such as the record of a file that a task still reads. The computation must
 also read the cell that the final value arrives in, so the write of that cell
-makes it compute again.
+makes it compute again. Until then, a read takes the provisional value as it is.
+
+`ask_again = true` says that the computation could ask for its newer value
+nowhere that keeps the ask, such as a read inside a walk that starts no work: the
+value then computes again at each read by a computation, and so does each
+computation that reads it, until a run asks.
 
 # Example
 
@@ -677,17 +733,40 @@ computation that runs, and so does code that runs with no reader, such as
 computation whose first attempt fails in an older world, and that runs again in
 the newest one, keeps the flag of both attempts, as it keeps the cells that both
 read; the next change of a cell that it read clears it. See also
-`is_cell_provisional`.
+`is_cell_provisional` and `run_recomputing_provisional_cells`.
 """
-function mark_computation_provisional!()
+function mark_computation_provisional!(; ask_again::Bool = false)
     stack = _get_computing_stack()
     isempty(stack) && throw(ArgumentError(
         "mark_computation_provisional! marks the computation that records its reads, and none " *
         "does here: no computation runs, or the code runs with no reader, as in " *
         "run_without_cell_tracking, an UntrackedCell or a read on another task"))
     stack[end].is_provisional = true
+    ask_again && (stack[end].is_asking_again = true)
     nothing
 end
+
+# Whether a read by a computation computes each provisional cell again, also one
+# that asked for its newer value.
+const _IS_RECOMPUTING_PROVISIONAL_CELLS = ScopedValue(false)
+
+"""
+    run_recomputing_provisional_cells(f) -> value of f()
+
+Run `f()`, and compute each provisional cell again at each read by a computation
+inside it, also a cell that asked for its newer value already. Outside it, a
+provisional value computes again only while it asks again
+(`mark_computation_provisional!`).
+
+Use it where the computations below a value must ask again for a new collector of
+the asks, such as a wait for the final value that computes the asked values
+itself, on the calling task.
+
+# Example
+
+    value = run_recomputing_provisional_cells(() -> Cell(@computation shown[])[])
+"""
+run_recomputing_provisional_cells(f) = with(f, _IS_RECOMPUTING_PROVISIONAL_CELLS => true)
 
 # ── untracked read ───────────────────────────────────────────────────────────
 
@@ -717,11 +796,12 @@ end
 # ── the upstream edge ────────────────────────────────────────────────────────
 
 function _detach_upstream!(c::ReactiveCell)
-    c.dependencies === nothing && return
-    for dependency in c.dependencies
-        _unregister_dependent!(dependency, c)
+    deps = c.dependencies
+    deps === nothing && return
+    for dependency in deps
+        _remove_dependent!(dependency.cell::ReactiveCell, dependency.place, c)
     end
-    empty!(c.dependencies)
+    empty!(deps)
 end
 
 # ── the downstream edge ──────────────────────────────────────────────────────
@@ -742,60 +822,86 @@ end
 #
 # A run detaches its cell from every cell that it read before it starts
 # (`_detach_upstream!`), so the reader of a read in a run is new to the list of
-# the cell that it reads, unless the run read that cell already. A record puts
-# the reader at the end with no scan. A run that reads a cell again after another
-# reader came puts a second entry of itself there; the next run, or a write,
-# removes both, because a detach removes every entry of its reader. Collected
-# readers are swept when a list grows to twice its length after the last sweep,
-# and by every detach, so the list stays within about twice its live readers.
+# the cell that it reads, unless the run read that cell already. A record puts the
+# reader at the end with no scan, and the reader keeps that place beside the cell
+# in its `dependencies`. A run that reads a cell again after another one puts a
+# second entry there, and the end of the run takes it out again. A removal takes
+# the entry at its place: the last entry of the list moves into the place, and the
+# reader of the moved entry learns its new place, with a scan of its own
+# dependencies. So a detach costs no scan of a list of readers, also of a cell that
+# thousands of cells read. Collected readers are swept when a list grows to twice
+# its length after the last sweep, so the list stays within about twice its live
+# readers.
 
 # `@nospecialize` on both: `observer` comes from the computing stack and `c` from
 # the `dependencies` of another cell, and both of those hold `ReactiveCell` with a
 # free parameter. The body walks a `Vector{WeakRef}` and compares with `===`; it
-# never reads `T`.
+# never reads `T`. Answers the place of the new entry.
 function _register_dependent!(@nospecialize(c::ReactiveCell),
                               @nospecialize(observer::ReactiveCell))
     ds = _get_dependents!(c)
-    n = length(ds)
-    # A run that reads `c` again finds itself at the end, where its first read put
-    # it, unless another reader came after it.
-    n > 0 && (@inbounds ds[n]).value === observer && return nothing
+    length(ds) + 1 > 2 * Int(c.swept_length) + _SWEEP_MINIMUM && _sweep_dependents!(c, ds)
     push!(ds, WeakRef(observer))
-    n + 1 > 2 * Int(c.swept_length) + _SWEEP_MINIMUM && _sweep_dependents!(c, ds)
-    return nothing
+    return length(ds)
 end
 
 # The length under which a list of readers is not swept.
 const _SWEEP_MINIMUM = 8
 
-# Remove the entries of collected readers from `ds`, the readers of `c`.
+# Remove the entries of collected readers from `ds`, the readers of `c`. Each live
+# entry that moves tells its reader its new place.
 function _sweep_dependents!(@nospecialize(c::ReactiveCell), ds::Vector{WeakRef})
     kept = 0
     @inbounds for i in eachindex(ds)
         entry = ds[i]
-        entry.value === nothing && continue
+        reader = entry.value
+        reader === nothing && continue
         kept += 1
-        ds[kept] = entry
+        if kept != i
+            ds[kept] = entry
+            _move_dependency_place!(reader::ReactiveCell, c, i, kept)
+        end
     end
     resize!(ds, kept)
     c.swept_length = UInt32(kept)
     return nothing
 end
 
-# The mirror of `_register_dependent!`. Here `c` is the one with a free
-# parameter: `_detach_upstream!` takes it out of `dependencies`, a
-# `Vector{ReactiveCell}`.
-function _unregister_dependent!(@nospecialize(c::ReactiveCell),
-                                @nospecialize(observer::ReactiveCell))
+# The mirror of `_register_dependent!`: take the entry of `reader` at `place` out
+# of the readers of `c`. The last entry moves into the place. A place that does not
+# hold `reader`, as after a test cleared an entry by hand, is found by a scan.
+function _remove_dependent!(@nospecialize(c::ReactiveCell), place::Int,
+                            @nospecialize(reader::ReactiveCell))
     ds = c.dependents
     ds === nothing && return nothing
-    i, n = 1, length(ds)
-    @inbounds while i <= n
-        v = ds[i].value
-        if v === nothing || v === observer
-            ds[i] = ds[n]; pop!(ds); n -= 1
-        else
-            i += 1
+    n = length(ds)
+    if !(1 <= place <= n && (@inbounds ds[place]).value === reader)
+        found = findfirst(entry -> entry.value === reader, ds)
+        found === nothing && return nothing
+        place = found
+    end
+    if place != n
+        moved = @inbounds ds[n]
+        @inbounds ds[place] = moved
+        other = moved.value
+        other === nothing || _move_dependency_place!(other::ReactiveCell, c, n, place)
+    end
+    pop!(ds)
+    return nothing
+end
+
+# The dependency of `reader` on `c` at the place `from` of the readers of `c`
+# moved to the place `to`. The place tells two entries of one reader apart, as a
+# repeat in a run that is not over leaves them.
+function _move_dependency_place!(@nospecialize(reader::ReactiveCell), @nospecialize(c::ReactiveCell),
+                                 from::Int, to::Int)
+    deps = reader.dependencies
+    deps === nothing && return nothing
+    @inbounds for k in eachindex(deps)
+        d = deps[k]
+        if d.cell === c && d.place == from
+            deps[k] = _Dependency(c, to)
+            return nothing
         end
     end
     return nothing

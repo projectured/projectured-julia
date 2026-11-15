@@ -22,7 +22,12 @@
 #   inverse of the placeholder's Insert gesture, or to what the option `cancel`
 #   gives;
 # - with the option `commit_at_key`, a key whose text names a document replaces
-#   the insertion with it at once, with the caret where the key left it.
+#   the insertion with it at once, with the caret where the key left it;
+# - with the option `popup`, the first key opens the list of the kinds that the
+#   typed text names under the field, a `WidgetChoiceList` in the context menu
+#   window. The next keys type into the list, which writes the text of the field
+#   too; Up and Down move its row, Return makes the kind of the row, and Escape
+#   closes the list and keeps the field.
 #
 # The candidates, names (`JsonString` / `json string`, prefix-free inside a
 # domain scope), and constructors all come from `DomainModule`'s
@@ -52,6 +57,9 @@ struct InsertionToSyntaxLeaf <: Projection
     # `nothing`, or (ins) -> Document: what Escape puts in place of the insertion;
     # `nothing` puts the empty document of its domain.
     cancel::Any
+    # Whether the first key opens the list of the kinds that the typed text names
+    # under the field, which the next keys type into (`_make_insertion_popup_operation`).
+    popup::Bool
     # The label (prefix/suffix), the editable value, and the completion hint
     # share a font but are coloured distinctly, so each is its own StyleText.
     # The value's colour is only the *neutral* (`:empty`) colour — a non-empty
@@ -78,10 +86,10 @@ end
 
 function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
                                completion = name_completion, commit_at_key = nothing,
-                               cancel = nothing, theme = nothing,
+                               cancel = nothing, popup::Bool = false, theme = nothing,
                                label = nothing, value = nothing, hint = nothing,
                                placeholder::Union{Nothing,AbstractString,Function} = nothing)
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel,
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel, popup,
                           something(label, get_syntax_style(theme, :label_text)),
                           something(value, get_syntax_style(theme, :typed_text)),
                           something(hint, get_syntax_style(theme, :hint_text)),
@@ -92,7 +100,7 @@ function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::Abst
 end
 
 _with_insertion_place(p::InsertionToSyntaxLeaf, place) =
-    InsertionToSyntaxLeaf(p.prefix, p.suffix, p.commit, p.completion, p.commit_at_key, p.cancel,
+    InsertionToSyntaxLeaf(p.prefix, p.suffix, p.commit, p.completion, p.commit_at_key, p.cancel, p.popup,
                           p.label, p.value, p.hint, p.wrong_color, p.found_color, p.placeholder,
                           place)
 
@@ -142,7 +150,8 @@ function map_reference_forward(p::InsertionToSyntaxLeaf, iomap, reference)
         # A caret on the label or the hint, which this projection printed.
         proj(^(p), inner) => inner
         value{s:e} => begin
-            inner = @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+            (a, m) = get_range_ends(reference)
+            inner = @reference ::SyntaxLeaf.value::TextString{a:m}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
         end
     end
@@ -161,7 +170,10 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
         ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ∅ => whole                                 # whole content leaf → whole insertion
-            ::SyntaxLeaf.value{s:e} => @reference ::DocumentInsertion.value::String{s:e}::Position
+            ::SyntaxLeaf.value{s:e} => begin
+                (a, m) = get_range_ends(leaf_path)
+                @reference ::DocumentInsertion.value::String{a:m}::Position
+            end
             # The hint, and a placeholder in its place, is no text of the name: a
             # caret on it is the caret at the end of the name.
             ::SyntaxLeaf.close{k} => ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),
@@ -267,26 +279,26 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePa
         make_path_operation(op, make_introduced_reference(p, iomap, path))
 end
 
-# A text edit lowered onto the buffer's rendered value span (the pipeline turns a
+# A text edit lowered onto the buffer's rendered value span (the text domain turns a
 # keystroke into a `ReplaceStringRangeOperation` before it reaches here) backward-maps
-# to the buffer's own `value[range]` — the same value the `Insert character` gesture
-# edits. An edit on a label/hint span has no value pre-image and declines. Without this
-# the generic leaf reader has no `ReplaceStringRangeOperation` method and typing into the
-# buffer through the full projection throws.
+# to the buffer's own `value[range]`. This is the one way a key edits the buffer. An
+# edit on a label/hint span has no value pre-image and declines.
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     mapped = map_reference_backward(p, iomap, op.reference)
     mapped === nothing && return nothing
-    _make_insertion_key_operation(p, iomap.input, ReplaceStringRangeOperation(mapped, op.replacement))
+    _add_insertion_popup(p, iomap.input,
+                         _make_insertion_key_operation(p, iomap.input, ReplaceStringRangeOperation(mapped, op.replacement)))
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
 # `read_projection_gesture` -- so the same set that fires is what a listing
-# shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
-# Commit / Cancel are projection-specific (they call `p.commit` / abort to a
-# `DocumentNothing`), which is why this stays a projection table rather than a
-# document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`).
-# Operations capture `p`/`ins` and return `nothing` to decline (no value cursor /
-# commit refused).
+# shows. The keys that edit the text of the buffer are the text domain's: its
+# edit comes back through the reader of `ReplaceStringRangeOperation` above. This
+# table holds the keys that mean something to an insertion: Commit and Cancel
+# call `p.commit` or abort to a `DocumentNothing`, which is why this stays a
+# projection table rather than a document-level `@gestures`. ModifierKeys are
+# matched loosely (`mods=nothing`). Operations capture `p`/`ins` and return
+# `nothing` to decline (no value cursor / commit refused).
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     # The rule that printed the insertion holds its place. A dispatch table passes the
     # rule of the table, so the printed one comes from the iomap.
@@ -308,19 +320,6 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         GestureBinding(KeyPressPattern('\t'),
                        (doc, event) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:backspace),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           delete_insertion_text_operation(ins, :backspace));
-                       description = "Delete backward", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:delete),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           delete_insertion_text_operation(ins, :delete));
-                       description = "Delete forward", domain = "insertion"),
-        # A type-in holds one line, so it takes printable text only.
-        GestureBinding(KeyPressPattern(nothing; guard = event -> !any(iscntrl, event.text)),
-                       (doc, event) -> _make_insertion_key_operation(p, ins,
-                                           insert_insertion_text_operation(ins, event.text));
-                       description = "Insert character", domain = "insertion"),
         # Insert widens the insertion of a domain to the insertion of every domain, with
         # the same text, where the place admits a `DocumentInsertion` as it is: a
         # person can then type a document of any domain there.
@@ -338,12 +337,6 @@ function _make_insertion_widen_operation(ins)
     text = something(ins.value, "")
     make_replace_document_operation(EmptyReference(),
                                     with_value_caret(DocumentInsertion(text), length(text)))
-end
-
-# Insert printable text at the value cursor; nothing without a value[range] cursor.
-function insert_insertion_text_operation(ins, text)
-    range = _value_range(ins)
-    range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(range), text)
 end
 
 # Commit the typed value through the projection's `commit` callback; nothing when
@@ -372,6 +365,38 @@ function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
         make_replace_document_operation(EmptyReference(), document)
 end
 
+# `operation`, an edit of the text of `ins`, and with the option `popup`, when the
+# edit types text, the list of the kinds that the text after the edit names, which
+# opens under the field.
+function _add_insertion_popup(p::InsertionToSyntaxLeaf, ins, operation)
+    (p.popup && operation isa ReplaceStringRangeOperation && !isempty(operation.replacement)) ||
+        return operation
+    range = find_value_range(operation.reference)
+    range === nothing && return operation
+    typed = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
+    CompoundOperation(Any[operation, _make_insertion_popup_operation(p, ins, typed)])
+end
+
+"The most kinds that the list of an insertion shows; more typed text narrows it."
+const _INSERTION_POPUP_ROWS = 12
+
+# The list of the kinds that `typed` names in the place of the insertion, the
+# whole-name matches first, which opens under the field. Its typed text writes the
+# text of the field, and a choice puts a new document of its kind in place of the
+# insertion.
+function _make_insertion_popup_operation(p::InsertionToSyntaxLeaf, ins, typed::AbstractString)
+    root = get_insertion_root(typeof(ins))
+    place = _get_insertion_place(p)
+    find = query -> WidgetChoice[make_insertion_choice(T)
+                                 for T in first(find_insertion_choices(root, query; place), _INSERTION_POPUP_ROWS)]
+    choose = T -> make_replace_document_operation(EmptyReference(), make_insertion_document(T))
+    edit = query -> ReplaceStringRangeOperation(
+        _value_path(RangeReferenceStep(0, length(something(ins.value, "")))), query)
+    list = WidgetChoiceList(; query = String(typed), prompt = "Kind", placeholder = "type a kind",
+                            empty = "No kind matches", find, choose, edit)
+    make_choice_list_operation("Kinds", list)
+end
+
 # Append the completion policy's Tab extension at the end of the buffer, caret
 # after it; nothing without a value cursor or with nothing to extend.
 function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
@@ -382,22 +407,7 @@ function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
     ReplaceStringRangeOperation(_value_path(RangeReferenceStep(n, n)), extension)
 end
 
-# Backspace/Delete range computation; nothing at the value boundary.
-function delete_insertion_text_operation(ins, dir::Symbol)
-    range = _value_range(ins)
-    range === nothing && return nothing
-    n = length(something(ins.value, ""))
-    new_range = if range.start != range.stop
-        range
-    elseif dir === :backspace
-        range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
-    else  # :delete
-        range.stop < n ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
-    end
-    new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
-end
-
-# The projection's own table first (buffer editing / commit / cancel / Tab);
+# The projection's own table first (commit / cancel / Tab / widen);
 # when every binding declines — e.g. a printable char with no value cursor —
 # fall through to the input document's own gesture table, exactly like the
 # generic `read_intent` leaf default this method shadows. That keeps the
@@ -447,13 +457,15 @@ default_completion(name::AbstractString) =
 """
     DocumentInsertionToSyntaxLeaf(; theme = nothing)
 
-The domain-independent insertion: `"Insert a new <name> here"`, committing via
-`default_factory` (type a domain name + Enter). `theme` is a `SyntaxTheme`, a
-scaled one, or `nothing` for the default styles.
+The domain-independent insertion: the typed name of a kind, committing via
+`default_factory` (type a domain name + Enter). An empty buffer shows "Type a kind",
+pale, which goes at the first key, and the first key opens the list of the kinds
+that the text names under the field (the option `popup`). `theme` is a
+`SyntaxTheme`, a scaled one, or `nothing` for the default styles.
 """
 DocumentInsertionToSyntaxLeaf(; theme = nothing) =
     InsertionToSyntaxLeaf((ins, text, place::Type = Any) -> default_factory(text; place);
-                          prefix = "Insert a new ", suffix = " here", theme)
+                          placeholder = DOCUMENT_INSERTION_PLACEHOLDER, popup = true, theme)
 
 """
     DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing,
@@ -504,10 +516,8 @@ InsertionNothingToSyntaxLeaf(; theme = nothing) =
 # the raw path. A cursor on the label is carried on the placeholder as a
 # projection-introduced caret (`proj(p, value{k})`, from the generic backward
 # below); forward-mapping unwraps it to the leaf's own `value{k}`, so the label is
-# char-navigable via `ProjectionReferenceStep` steps (like every literal leaf). Copying
-# the raw path instead left the leaf holding a `proj(p, …)` cursor that
-# `SyntaxLeafToText` cannot place, so navigation stalled at the label. The forward
-# ref-break (fill `iomap_cell` after) mirrors the compound printers.
+# char-navigable via `ProjectionReferenceStep` steps (like every literal leaf). The
+# forward ref-break (fill `iomap_cell` after) mirrors the compound printers.
 function print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx)
     iomap_cell = Cell(nothing)
     leaf = SyntaxLeaf(TextString(_nothing_label(doc), p.style);

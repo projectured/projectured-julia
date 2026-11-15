@@ -1,6 +1,6 @@
 # JSON domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [reference.md](../../kernel/reference.md)
 
 The JSON domain, `ProjecturedJSON`, holds JSON data as a tree of reactive documents. It is the reference domain: [the shape of every domain](../../../design/domain-anatomy.md) names a JSON file for each part, so this document covers only what is special to JSON. It describes the document types, the gestures and the parser subset, and it shows the reference paths into a JSON tree.
 
@@ -72,6 +72,10 @@ default styles for `nothing`, and the insertion and the empty placeholder, which
 registration gives the scaled theme of the `Appearance` of the editor, so the view
 follows its scales, and the appearance tab shows a section for `JsonTheme`.
 
+### The tooltip of a part
+
+A JSON file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)).
+
 ## How it fits
 
 `ProjecturedJSON` depends on the kernel and the platform. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.
@@ -84,7 +88,7 @@ A model reads and writes a JSON document as its text: `print_natural_text` print
 
 - **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See [plan/pending/catalog-all-documents.md](../../../../plan/pending/catalog-all-documents.md).
 - **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See [plan/done/json-contextual-gestures.md](../../../../plan/done/json-contextual-gestures.md) and [plan/done/structural-keys-from-the-caret.md](../../../../plan/done/structural-keys-from-the-caret.md).
-- **A caret on a delimiter belongs to the node that printed the delimiter.** The caret after `"x"` in `{"a": {"b": "x"}}` is a projection step of the nested object, so a `,` there adds an entry to the nested object. On the closing `}` or `]` of a container, the `,` rules decline (`is_on_closing_delimiter` of the syntax slice), and the parent container adds the entry. The caret thus leaves a nested container with `Right`, past its closing delimiter.
+- **A caret on a delimiter belongs to the node that printed the delimiter.** The caret after `"x"` in `{"a": {"b": "x"}}` is a projection step of the nested object. The closing delimiter of a container is `"\n}"` or `"\n]"`, a break and then the bracket, and this caret stands before the break, at the end of the line of the last value, so a `,` there adds an entry to the nested object. On the closing `}` or `]` itself, after the break, the `,` rules decline (`is_on_closing_delimiter` of the syntax slice, with `from = 1`), and the parent container adds the entry. The caret thus leaves a nested container with `Right`, past its closing delimiter.
 - **An entry is retyped through its value.** A retype of the pair would lose the key. `_json_replaceable` holds the rule.
 - **The sort and the move back to the key have no key.** Tab and the printable keys already have a meaning in an entry. The command palette reaches the two rules by name.
 - **A sorted view and a sorted document are two things.** `json_sorted_example` sorts the entries in the view with a `SortingAtProjection` and does not change the document. The sort rule changes the order in the document.

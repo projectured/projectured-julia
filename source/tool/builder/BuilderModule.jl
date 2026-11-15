@@ -18,6 +18,10 @@ this repository.
 runs. `PackageRelease.jl` writes the other form a user can install: a copy of the
 packages in which each package folder holds everything it reads, for a registry.
 `build_projectured_package_release!(output)` writes the one of this repository.
+
+`ReactiveBuild.jl` is the build that founds a store under the bundle and then
+compiles the edit and no more, through the branch `reactive` of the fork of
+PackageCompiler and the reactive Julia.
 """
 module BuilderModule
 
@@ -26,15 +30,24 @@ import Pkg
 import TOML
 using SHA: sha256
 using Preferences: set_preferences!
+using ProjecturedPrecompile: PRECOMPILE_CALLS_VALUES, is_compiling_package
 
 export BuildContext, get_package_directory, has_package_directory, collect_missing_sources,
        get_package_uuid, make_projectured_build_context
-export Preference, make_baked_preference, make_exposed_preferences, write_preferences
+export run_with_slow_output
+export Preference, make_baked_preference, make_exposed_preferences,
+       is_performance_counters_requested, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
-export get_app_module_name, LOG_LEVEL_NAMES, write_app_package, StandIn, write_if_changed
+export get_app_module_name, prepare_program_start!, LOG_LEVEL_NAMES, write_app_package,
+       StandIn, write_if_changed
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
+export LAUNCHER, REACTIVE_HEADROOM, get_object_archive, compile_linked_app!,
+       link_executable!, prelink_executable!, strip_bundle!
+export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
+       print_reactive_status!, stop_reactive_server, watch_reactive_store!,
+       has_reactive_julia, describe_reactive_build
 export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
        get_hidden_directories, make_hidden_command, check_relocation, write_readme,
        report_distribution
@@ -54,22 +67,23 @@ export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_SOURCE_OFFERS,
        MOZILLA_PUBLIC_LICENSE_URL, PROJECTURED_JOINED_PACKAGE_URLS,
        PROJECTURED_PACKAGE_READMES, collect_projectured_release_packages,
        build_projectured_package_release!, check_projectured_copy
-export CLAUDE_CODE_ACP_WORKLOAD, make_claude_code_acp_build_context,
-       build_claude_code_acp_executable
 export get_fixed_build_binary, get_build_invocation, BUILD_BINARIES, BUILD_OPTIONS,
-       format_build_usage, parse_build_arguments, run_build_command
+       REACTIVE_BUILD_OPTIONS, apply_reactive_build_option!, run_reactive_build_action!,
+       format_build_usage, parse_build_arguments, run_build_command, is_build_refusal
 
 include("BuildContext.jl")
+include("LauncherOutput.jl")
 include("Preference.jl")
 include("Usage.jl")
 include("AppPackage.jl")
 include("Executable.jl")
+include("LinkedExecutable.jl")
+include("ReactiveBuild.jl")
 include("Distribution.jl")
 include("LicenceTexts.jl")
 include("SourceArchive.jl")
 include("PackageRelease.jl")
 include("ProjecturedProgram.jl")
-include("ClaudeCodeAcpProgram.jl")
 include("BuildCommand.jl")
 
 end # module BuilderModule

@@ -9,9 +9,9 @@ function test_math_theme()
     document = parse_math("x = a + 1")
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     @test MathVariableToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), MathTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), MathTheme)
     leaf = MathVariableToSyntaxLeaf(; style = get_math_style(theme, :variable_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(MathTheme(), :variable_text).color)
@@ -24,7 +24,7 @@ end
 
 @testset "the typeset form of a formula follows the scale of the appearance" begin
     document = parse_math("x = a + 1")
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), MathTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), MathTheme)
     projection = RecursiveProjection(MathToGraphics(; measure = FixedMeasure(8, 12, 4, 0), theme))
     offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
     sizes = collect_font_sizes(print_document(projection, nothing, document, offer).output)

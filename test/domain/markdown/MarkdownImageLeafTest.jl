@@ -45,6 +45,16 @@ function test_markdown_image_leaf()
             @test document.elements[1].content[2] isa MarkdownImage
         end
     end
+
+    # The image span asks for the size of its file, and the pixels have no read.
+    @testset "the image span asks for the size" begin
+        file = normpath(image)
+        ProjecturedPlatformTest.test_image_span_size_work(file) do
+            node = print_document(MarkdownImageToStyledNode(), nothing, MarkdownImage("logo", file),
+                                  PrinterContext()).output
+            node.children[2].value
+        end
+    end
 end
 end # test_markdown_image_leaf
 

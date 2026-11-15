@@ -1,8 +1,7 @@
 """
     MessageLogModule
 
-A record of what the program said — a document that holds the last N log
-messages a Julia logger captured.
+The message log: a document that holds the last log messages that a Julia logger captured.
 
 The buffer has a fixed size. `record_message!` appends one entry and deletes
 the oldest entry when the buffer is full. The entries live in a `CellVector`,
@@ -32,6 +31,7 @@ using ..TextModule
 using ..FeedModule
 using ..EditorModule
 using ..ToolModule
+using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title

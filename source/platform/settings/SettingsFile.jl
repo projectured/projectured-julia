@@ -71,7 +71,7 @@ function _read_settings_values(settings::Settings, path::AbstractString)
         return found
     end
     groups = Dict(get_settings_name(get_settings_group_type(group)) => group
-                  for group in values(settings.groups))
+                  for group in settings.groups)
     for (table, keys) in tables
         group = get(groups, table, nothing)
         if group === nothing || !(keys isa AbstractDict)

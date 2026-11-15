@@ -1,6 +1,6 @@
 # The natural notation
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
 
 The natural slice of `ProjecturedPlatform` is the registry through which a domain says what its text looks like, which file extension it owns, and how a document of any domain reaches the screen with no projection written for the caller. It holds two tables: the rung table, which `print_natural_text` and `parse_natural_text` read, and the renderer table, which `NaturalToGraphics` reads. This document says what each table holds, how the second takes the rows of the first, and in which order the renderer tries its rows.
 
@@ -75,11 +75,13 @@ The `make` of a row of the rung table takes the same keywords: `(; appearance)` 
 3. `get_natural_graphics_entries`: the domains that draw themselves;
 4. a `PrimitiveDocument` as plain text, through `PrimitiveToText` and `TextToGraphics`;
 5. the fallback rows for exact types;
-6. `DocumentNothing` as the phrase "empty document", a `GraphicsDocument` as itself through `GraphicsToGraphics`, `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
+6. `DocumentNothing` as the phrase "empty document", a `GraphicsDocument` as itself through `GraphicsToGraphics`, an `ImageDocument` through `ImageToWidget`, `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
 7. the fallback rows for `Any`;
 8. `Any` as the phrase "no natural rendering for T".
 
-**A primitive document draws as plain text** (row 4). A cell of a table, an element of a collection and a value in a tab show a string with no quotes, because the column, the field or the tab says the type. A primitive inside a syntax tree keeps its syntax leaf and its quotes: the syntax table prints that tree child by child, and there the quotes tell `"2"` from `2`. The text domain has the type-in of a number and the keys of a Bool; see [primitive.md](../primitive/primitive.md).
+**A picture draws as the label that shows it** (row 6). `ImageToWidget` prints an `ImageDocument` through a `WidgetLabel`, which draws the pixels at their natural size, or smaller in their shape to fit the maximum of its slot (`_fit_image_size`). The slot decides the size: a place that gives no limit, such as a scroll pane at its natural size, shows the pixels as they are. An `Image` whose size is not known yet draws a box with its path, and after a failed read it draws the path and the reason. The print reads `failure` and `get_image_natural_size` of the `Image`, which asks a task for the size in the head of the file, and never its pixels, so only the paint of a backend asks for a decode. The projection has no part of its own, and has no key.
+
+**A primitive document draws as plain text** (row 4). A cell of a table, an element of a collection and a value in a tab show a string with no quotes, because the column, the field or the tab says the type. A primitive inside a syntax tree keeps its syntax leaf and its quotes: the syntax table prints that tree child by child, and there the quotes tell `"2"` from `2`. The text domain has the type-in of a number and the keys of a Bool; see [primitive.md](../primitive/primitive.md). `make_natural_primitive_row(; measure, appearance)` makes that row. `NaturalToGraphics` uses it, and a view with a table of its own, such as the pane of a task group, puts it in its dispatch, so the primitives of a document in that view draw as they draw in a tab.
 
 The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch(; appearance)`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries(; appearance)` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 7, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 8, and the renderer never raises an error.
 

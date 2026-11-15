@@ -20,20 +20,21 @@ function test_conversation_theme()
 @testset "the conversation projections follow the scales of the appearance" begin
 
 defaults = ConversationTheme()
-scales = Appearance(font_scale = 1.5, spacing_scale = 1.5)
+scales = Appearance(scale = AppearanceScale(font_scale = 1.5, spacing_scale = 1.5))
 theme = get_scaled_theme!(scales, ConversationTheme)
+widget_theme = get_scaled_theme!(scales, WidgetTheme)
 
-@testset "ConversationConversationToWidgetComposite reads the gap between turns" begin
+@testset "ConversationConversationToWidgetComposite reads the section gap of the widget theme between turns" begin
     plain = ConversationConversationToWidgetComposite()
-    @test plain.turn_gap == 8
+    @test plain.section_gap == 8
     @test !hasfield(ConversationConversationToWidgetComposite, :theme)
-    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationConversation)
-    @test scaled.turn_gap == round(Int, 8 * 1.5)
+    scaled = _find_conversation_rule(ConversationToWidget(; theme, widget_theme), ConversationConversation)
+    @test scaled.section_gap == round(Int, 8 * 1.5)
 end
 
 @testset "ConversationTurnToWidgetComposite reads the role's label, its glyph and the gaps" begin
     plain = ConversationTurnToWidgetComposite()
-    @test (plain.part_gap, plain.role_gap) == (8, 10)
+    @test (plain.section_gap, plain.label_gap) == (8, 6)
     for (text_field, icon_field) in (
         (:user_role_text, :user_role_icon),
         (:assistant_role_text, :assistant_role_icon),
@@ -46,25 +47,28 @@ end
         @test icon.font.size == 14 && icon.font.family == "Lucide"
         @test is_color_equal(icon.color, color)
     end
-    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationTurn)
-    @test (scaled.part_gap, scaled.role_gap) == (round(Int, 8 * 1.5), round(Int, 10 * 1.5))
+    scaled = _find_conversation_rule(ConversationToWidget(; theme, widget_theme), ConversationTurn)
+    @test (scaled.section_gap, scaled.label_gap) == (round(Int, 8 * 1.5), round(Int, 6 * 1.5))
     @test scaled.user_role_text.font.size == round(Int, 13 * 1.5)
     @test scaled.user_role_icon.font.size == round(Int, 14 * 1.5)
 end
 
-@testset "ConversationPartToWidget reads the kind tag, the sections and their indent" begin
+@testset "ConversationPartToWidget reads the text of a message, the kind tag, the sections and their indent" begin
     plain = ConversationPartToWidget()
-    @test plain.kind_text.font.size == 11 && plain.kind_text.font.weight == 700
-    @test plain.section_text.font.size == 11 && plain.section_text.font.weight == 400
-    @test plain.error_text.font.size == 11 && plain.error_text.font.weight == 700
+    @test plain.message_text.font == StyleFont("Ubuntu", 14)
+    @test is_color_equal(plain.message_text.color, get_theme_value(defaults, :message_text).color)
+    @test plain.kind_text.font.size == 13 && plain.kind_text.font.weight == 500
+    @test plain.section_text.font.size == 12 && plain.section_text.font.weight == 400
+    @test plain.error_text.font.size == 12 && plain.error_text.font.weight == 700
     @test is_color_equal(plain.error_text.color, get_theme_value(defaults, :error_text).color)
-    @test plain.section_gap == 10
+    @test plain.section_gap == 8
     @test (plain.section_padding.top[], plain.section_padding.bottom[],
            plain.section_padding.left[], plain.section_padding.right[]) == (0, 0, 12, 0)
 
-    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationPart)
-    @test scaled.kind_text.font.size == round(Int, 11 * 1.5)
-    @test scaled.section_gap == round(Int, 10 * 1.5)
+    scaled = _find_conversation_rule(ConversationToWidget(; theme, widget_theme), ConversationPart)
+    @test scaled.message_text.font.size == round(Int, 14 * 1.5)
+    @test scaled.kind_text.font.size == round(Int, 13 * 1.5)
+    @test scaled.section_gap == round(Int, 8 * 1.5)
     @test scaled.section_padding.left[] == round(Int, 12 * 1.5)
     @test scaled.section_padding.top[] == 0
 end
@@ -72,26 +76,28 @@ end
 @testset "EvaluatorFormToVerticalLayout reads the prompts, and EvaluatorToplevelToWidgetComposite its gaps" begin
     plain = EvaluatorFormToVerticalLayout()
     @test (plain.row_gap, plain.prompt_gap) == (4, 8)
-    @test plain.prompt_text.font.size == 14 && plain.prompt_text.font.family == "Ubuntu Mono"
+    @test plain.prompt_text.font.size == 13 && plain.prompt_text.font.family == "Ubuntu Mono"
     @test plain.prompt_text.font.weight == 400
     @test is_color_equal(plain.prompt_text.color, get_theme_value(defaults, :prompt_text).color)
     @test is_color_equal(plain.error_prompt_text.color, get_theme_value(defaults, :error_prompt_text).color)
 
     scaled = make_evaluator_form_projection(; theme)
-    @test scaled.prompt_text.font.size == round(Int, 14 * 1.5)
+    @test scaled.prompt_text.font.size == round(Int, 13 * 1.5)
     @test scaled.row_gap == round(Int, 4 * 1.5)
 
     top_plain = EvaluatorToplevelToWidgetComposite()
-    @test (top_plain.element_gap, top_plain.row_gap, top_plain.option_gap) == (8, 4, 12)
-    top_scaled = make_evaluator_toplevel_projection(; theme)
+    @test (top_plain.element_gap, top_plain.row_gap, top_plain.button_gap) == (8, 4, 8)
+    top_scaled = make_evaluator_toplevel_projection(; theme, widget_theme)
     @test top_scaled.element_gap == round(Int, 8 * 1.5)
-    @test top_scaled.option_gap == round(Int, 12 * 1.5)
+    @test top_scaled.button_gap == round(Int, 8 * 1.5)
 end
 
-@testset "ConversationComposerToWidget reads the composer's font, its gap and its colors" begin
+@testset "ConversationComposerToWidget reads the composer's fonts, its gap and its colors" begin
     plain = ConversationComposerToWidget()
-    @test plain.code_font == StyleFont("Ubuntu Mono", 14)
-    @test plain.part_gap == 8
+    @test plain.code_font == StyleFont("Ubuntu Mono", 13)
+    # A typed message draws in the font that the transcript draws it in when it is sent.
+    @test plain.message_text.font == ConversationPartToWidget().message_text.font
+    @test plain.section_gap == 8
     @test is_color_equal(plain.plain_color, get_theme_value(defaults, :plain_color))
     @test is_color_equal(plain.placeholder_color, get_theme_value(defaults, :placeholder_color))
     @test is_color_equal(plain.valid_color, get_theme_value(defaults, :valid_color))
@@ -101,12 +107,13 @@ end
     # evaluation the same way, from the same fields.
     @test is_color_equal(plain.section_text.color, get_theme_value(defaults, :section_text).color)
 
-    scaled = make_conversation_composer_projection(; theme)
+    scaled = make_conversation_composer_projection(; theme, widget_theme)
     # A theme that is not scaled reads as at no scale.
     @test make_conversation_composer_projection(; theme = ConversationTheme()).code_font ==
-          StyleFont("Ubuntu Mono", 14)
-    @test scaled.code_font == StyleFont("Ubuntu Mono", 21)
-    @test scaled.part_gap == round(Int, 8 * 1.5)
+          StyleFont("Ubuntu Mono", 13)
+    @test scaled.code_font == StyleFont("Ubuntu Mono", round(Int, 13 * 1.5))
+    @test scaled.message_text.font == StyleFont("Ubuntu", 21)
+    @test scaled.section_gap == round(Int, 8 * 1.5)
 end
 
 @testset "ConversationToWidget gives the same theme to its three composites" begin
@@ -115,7 +122,7 @@ end
         ConversationTurn(:assistant, [ConversationPart("there")])])
     plain_output = print_document(RecursiveProjection(ConversationToWidget()), conversation).output
     @test plain_output.gap == 8
-    scaled_output = print_document(RecursiveProjection(ConversationToWidget(; theme)), conversation).output
+    scaled_output = print_document(RecursiveProjection(ConversationToWidget(; theme, widget_theme)), conversation).output
     @test scaled_output.gap == round(Int, 8 * 1.5)
     turn_card = scaled_output.children[1]
     role_label = turn_card.title.children[2]

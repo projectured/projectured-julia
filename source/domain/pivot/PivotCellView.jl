@@ -37,7 +37,19 @@ end
 
 The name of a kind of view of a cell for a person, as the menu of the cell view
 and the Cells row of the bar show it.
+
+Use it to name a kind of cell view in words, such as `numbers` or `bar charts`.
+
+# Example
+
+    name_1 = describe_pivot_cell_view(PivotBarChartView)
+
+See also `describe_pivot_measure`.
+
+For the assistant.
 """
+function describe_pivot_cell_view end
+
 describe_pivot_cell_view(::Type{PivotNumberView}) = "numbers"
 describe_pivot_cell_view(::Type{PivotRowsView}) = "rows"
 describe_pivot_cell_view(type::Type{<:PivotCellView}) = string(nameof(type))
@@ -55,18 +67,47 @@ get_pivot_cell_view_lines(::PivotCellView) = 10
     get_pivot_measures(pivot::PivotTable) -> Vector
 
 The measures of `pivot`, or the count of the rows when it has none.
+
+Use it to read what a pivot computes in each cell.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], measures = [PivotMeasure("amount", :sum)])
+    measures_1 = get_pivot_measures(pivot_1)
+
+See also `describe_pivot_measure` and `make_pivot_table`.
+
+For the assistant.
 """
+function get_pivot_measures end
+
 function get_pivot_measures(pivot::PivotTable)
     measures = collect(pivot.measures)
     isempty(measures) ? Any[PivotMeasure("", :count)] : measures
 end
+
+get_pivot_measures(pivot::ReferencedDocument) = get_pivot_measures(get_document(pivot))
 
 """
     describe_pivot_measure(measure::PivotMeasure) -> String
 
 The name of a measure for a person: `count`, or the aggregate and its column,
 such as `sum(amount)`.
+
+Use it to name a measure in words, such as `sum(amount)`.
+
+# Example
+
+    measure_1 = PivotMeasure("amount", :sum)
+    name_1 = describe_pivot_measure(measure_1)
+
+See also `get_pivot_measures` and `format_pivot_value`.
+
+For the assistant.
 """
+function describe_pivot_measure end
+
 describe_pivot_measure(measure) =
     measure.aggregate === :count ? "count" : string(measure.aggregate, "(", measure.column, ")")
 
@@ -76,7 +117,19 @@ describe_pivot_measure(measure) =
 The text of a value in a header or a cell: a whole number with no fraction, any
 other number with at most two decimal places, `missing` as the word, and any
 other value as `string` prints it.
+
+Use it to write a value of a pivot as it appears in a header or a cell.
+
+# Example
+
+    text_1 = format_pivot_value(12.345)
+
+See also `describe_pivot_measure` and `get_pivot_measures`.
+
+For the assistant.
 """
+function format_pivot_value end
+
 format_pivot_value(value::AbstractString) = String(value)
 format_pivot_value(value::Integer) = string(value)
 format_pivot_value(value::AbstractFloat) =

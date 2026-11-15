@@ -36,6 +36,13 @@ end
 
 const _DOCTREE_HOLD_EVENTS = Tuple{Symbol,String}[]
 
+# A layer that shows another document, as a file or a history does.
+@document struct _DocTreeLayer
+    inner::Any
+end
+
+DocumentModule.get_edited_field(::_DocTreeLayer) = :inner
+
 # A node that says whether it has children: `true`, `false`, or `nothing` while
 # that is not known, whatever its collection holds.
 @document struct _DocTreeKnown
@@ -73,6 +80,21 @@ function TreeModule.format_tree_node_label(node::_DocTreeNode)
 end
 
 _doctree_node(name, children...) = _DocTreeNode(name, CellVector(Any[children...]))
+
+# A node whose tooltip says a fact that changes often, which only the tooltip reads.
+@document struct _DocTreeNoted
+    name::String
+    position::Int
+end
+
+function TreeModule.format_tree_node_label(node::_DocTreeNoted)
+    _DOCTREE_LABEL_COUNTS[node] = get(_DOCTREE_LABEL_COUNTS, node, 0) + 1
+    node.name
+end
+
+ProjecturedPlatform.DomainModule.get_document_decoration(node::_DocTreeNoted) =
+    ProjecturedPlatform.DomainModule.DocumentDecoration(;
+        icon = :file, tooltip = () -> TooltipNote(; facts = ["Position" => string(node.position)]))
 
 # A root with two parts and a note; the first part holds two nodes.
 function _doctree_make()
@@ -134,6 +156,18 @@ function test_document_tree()
         read = parse_pred_text(print_pred_text(DocumentTree(PrimitiveString("x"); title = "Leaf")))
         @test read isa DocumentTree && read.title == "Leaf" && read.root.value == "x"
         @test _doctree_is_open(read, read.root)
+    end
+
+    @testset "a layer has the children of the document that it shows" begin
+        inner = FieldReferenceStep("inner")
+        layer = _DocTreeLayer(_DocTreeLayer(_doctree_make()))
+        @test get_tree_children_steps(layer) ==
+              ((inner, inner, FieldReferenceStep("parts")), (inner, inner, FieldReferenceStep("notes")))
+        @test has_tree_children(layer)
+        @test get_tree_children_steps(_DocTreeLayer(_DocTreeLeaf(1))) == ()
+        @test !has_tree_children(_DocTreeLayer(_DocTreeLeaf(1)))
+        widget = print_document(projection, nothing, DocumentTree(layer), nothing).output
+        @test [child.label for child in widget.roots[1].children] == ["alpha", "beta", "gamma"]
     end
 
     @testset "a path maps both ways" begin
@@ -306,7 +340,7 @@ function test_document_tree()
         # The chain of a window: each widget behind a fault barrier, as
         # `make_graphics_projection(DocumentTree)` builds it.
         widgets = RecursiveProjection(FaultCatchingProjection(
-            inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)),
+            inner = WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)),
             substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
         chain = ChainingProjection(projection, widgets)
         context = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(200)))
@@ -484,6 +518,22 @@ function test_document_tree()
         @test widget.roots[1].children[1].children === under
     end
 
+    @testset "a fact that only the tooltip reads changes the note and not the row" begin
+        noted = _DocTreeNoted("moving", 1)
+        root = _doctree_node("root", noted)
+        tree = DocumentTree(root)
+        tree.expanded = IdDict{Any,Any}(root => IdDict{Any,Any}())
+        widget = print_document(projection, nothing, tree, nothing).output
+        row() = widget.roots[1].children[1]
+        before, count = row(), _DOCTREE_LABEL_COUNTS[noted]
+        @test row().tooltip isa Function
+        @test row().tooltip().facts == ["Position" => "1"]
+        noted.position = 7
+        # The row is the same row, and its label was not computed again.
+        @test row() === before && _DOCTREE_LABEL_COUNTS[noted] == count
+        @test row().tooltip().facts == ["Position" => "7"]
+    end
+
     @testset "the verb shows a tree in a tab" begin
         root = _doctree_make()
         editor, backend = _nav_editor(PrimitiveString("start"); tabs = true)
@@ -517,7 +567,8 @@ function test_document_tree()
 
     @testset "a double click on a row of a roster opens its item in a navigator, and Back returns" begin
         items = CellVector(Any[_doctree_node("first"), _doctree_node("second")])
-        roster = link_roster!(Roster(CollectionItems(items); columns = ["name"], title = "Nodes"), items)
+        # The first column is a link, so the double click is on the name, a label.
+        roster = link_roster!(Roster(CollectionItems(items); columns = ["type", "name"], title = "Nodes"), items)
         navigator = Navigator(roster)
         editor, backend = _nav_editor(navigator)
         click = _nav_click(backend, "second")

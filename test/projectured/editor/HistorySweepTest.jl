@@ -1,8 +1,10 @@
 # The history holds the edits a person makes, and nothing else: a gesture that
 # only changes what the window shows adds no step. Two sweeps say so. The first
 # presses such gestures in the application window and asks both histories, the
-# window's and the file's. The second moves the pointer and turns the wheel over
-# every example, and asks the history's own filter about each answer.
+# window's and the file's: the window has the Files tool in a group at its left, as
+# a person who moves it there has it, and the file in front of the Explorer. The
+# second moves the pointer and turns the wheel over every example, and asks the
+# history's own filter about each answer.
 
 using Test
 
@@ -41,7 +43,8 @@ function test_history_sweep()
                 json = joinpath(dir, "a.json")
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
                 document, scene, composed, iomap =
-                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")))
+                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
+                                    files = true, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 buffers = search_documents(scene, node -> node isa UndoBuffer)
                 window = only(buffer for buffer in buffers if buffer.content isa PaneTree)
@@ -54,9 +57,9 @@ function test_history_sweep()
                 place(text, band) = first((x, y) for (t, x, y) in drawn() if t == text && x in band)
                 none = ModifierKeys()
                 alt = ModifierKeys(alt = true)
-                click((x, y); modifiers = none) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
+                click((x, y); modifiers = none, count = 1) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
                                                    MouseUp(:left, x + 3, y + 3, modifiers; time = 0.0),
-                                                   MouseClick(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
+                                                   MouseClick(:left, x + 3, y + 3, count, modifiers; time = 0.0)]
                 key_downs(names...; modifiers = none) = [KeyDown(name, modifiers; time = 0.0) for name in names]
                 left, middle, right = 0:300, 300:1090, 1090:1600
 
@@ -73,14 +76,14 @@ function test_history_sweep()
                         () -> [MouseMove(x, y; time = 0.0) for x in 20:120:1580 for y in 20:120:980],
                     "a click on a row of the Files pane" => () -> click(place("alpha", left)),
                     "Down and Up in the Files pane" => () -> key_downs(:down, :up),
-                    "Alt+click on a row" => () -> click(place("beta", left); modifiers = alt),
+                    "Alt+double click on a row" => () -> click(place("beta", left); modifiers = alt, count = 2),
                     "a folder closes and opens" => fold_twice,
                     "the wheel over the Files pane" => () -> [MouseScroll(0, -1, 100, 300; time = 0.0), MouseScroll(0, 1, 100, 300; time = 0.0)],
                     "a click in the file" => () -> click(place("Alice", middle)),
                     "arrow keys in the file" => () -> key_downs(:right, :left, :end, :home),
                     "Shift+Right in the file" => () -> key_downs(:right; modifiers = ModifierKeys(shift = true)),
                     "Alt+Up and Alt+Down in the file" => () -> key_downs(:up, :down; modifiers = alt),
-                    "Alt+click in the file" => () -> click(place("Alice", middle); modifiers = alt),
+                    "Alt+double click in the file" => () -> click(place("Alice", middle); modifiers = alt, count = 2),
                     "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300; time = 0.0), MouseScroll(0, 1, 700, 300; time = 0.0)],
                     "a click on the tab title of the Files pane" => () -> click(place("Files", left)),
                     "a click on the tab title of the file" => () -> click(place("a.json", 290:1100)),
@@ -123,7 +126,8 @@ function test_history_sweep()
                 json = joinpath(dir, "a.json")
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\"}"), json)
                 document, scene, composed, iomap =
-                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")))
+                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
+                                    files = true, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 buffers = search_documents(scene, node -> node isa UndoBuffer)
                 window = only(buffer for buffer in buffers if buffer.content isa PaneTree)

@@ -24,6 +24,7 @@ using ProjecturedMarkdownTest
 using ProjecturedRSTTest
 using ProjecturedBookTest
 using ProjecturedWorkflowTest
+using ProjecturedResearchTest
 using ProjecturedMathTest
 using ProjecturedJuliaTest
 using ProjecturedSQLTest
@@ -35,11 +36,12 @@ using ProjecturedDBCatalogTest
 using ProjecturedFormulaTest
 using ProjecturedFSMTest
 using ProjecturedProcessTest
+using ProjecturedGitTest
 using ProjecturedPivotTest
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedWorkflowTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDBCatalogTest, ProjecturedFormulaTest, ProjecturedFSMTest, ProjecturedGraphTest, ProjecturedJSONTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedPivotTest, ProjecturedRSTTest, ProjecturedSequenceChartTest, ProjecturedSQLTest, ProjecturedXMLTest, ProjecturedYAMLTest)
+for _src in (ProjecturedBookTest, ProjecturedWorkflowTest, ProjecturedResearchTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDBCatalogTest, ProjecturedFormulaTest, ProjecturedFSMTest, ProjecturedGraphTest, ProjecturedJSONTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedGitTest, ProjecturedPivotTest, ProjecturedRSTTest, ProjecturedSequenceChartTest, ProjecturedSQLTest, ProjecturedXMLTest, ProjecturedYAMLTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
@@ -113,6 +115,9 @@ using ProjecturedOllamaTest
 # The suite of the ACP client. It talks to a fake agent in this process and to a
 # small child process, so it needs no Node.js and no sign-in.
 using ProjecturedACPTest
+# The suite of the language server adapter. A server in this process answers it;
+# its tests with `clangd` skip themselves when it is not installed.
+using ProjecturedLanguageServerTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
 # A pivot of a data frame names two packages that do not depend on each other.
@@ -142,6 +147,7 @@ include("CallSiteTest.jl")
 include("SearchRankingTest.jl")
 include("PackageGraphTest.jl")
 include("FirstWindowTest.jl")
+include("GestureCompileTest.jl")
 include("IntegrationLoadingTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
@@ -164,10 +170,17 @@ include("editor/ConversationPanelTest.jl")
 include("editor/ConversationParsingTest.jl")
 include("editor/ConversationSerializationTest.jl")
 include("editor/AssistantMvpTest.jl")
+# After the file above: it uses the scripted rounds that the file above makes.
+include("editor/AssistantStreamTest.jl")
+include("performance/WindowFrameGuardTest.jl")
 include("editor/MessageLogFeedTest.jl")
 include("editor/FrameStatisticsFeedTest.jl")
 include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
+include("editor/ClipboardEditTest.jl")
+include("editor/FileWorkloadTest.jl")
+include("editor/ScrollWorkTest.jl")
+include("editor/PointedPartTest.jl")
 include("editor/HistorySweepTest.jl")
 include("editor/FileWatchWindowTest.jl")
 include("editor/InsertionInTabTest.jl")
@@ -185,6 +198,7 @@ include("projection/DocumentInsertionTest.jl")
 include("projection/DraggingProjectionTest.jl")
 include("projection/GestureHelpTest.jl")
 include("projection/TextRangeSelectionTest.jl")
+include("projection/TextKeysTest.jl")
 include("projection/TextClipboardTest.jl")
 include("projection/GestureLogProjectionTest.jl")
 include("projection/ConversationTranscriptTest.jl")
@@ -200,6 +214,7 @@ include("projection/TableSelectionTest.jl")
 include("projection/TableCellEditingTest.jl")
 include("serializer/FileProjectTest.jl")
 include("serializer/WorkflowFileTest.jl")
+include("editor/ResearchCombinationTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/SerializationTest.jl")
 include("editor/ExampleTest.jl")
@@ -224,6 +239,7 @@ function test_documents()
         test_constraint_solver()     # Tulip-backed LP constraint layout
         test_serialization()         # round-trips the ProjecturedExample fixtures
         test_workflow_file()         # a workflow in a .pred file, with markers into other files
+        test_research_combinations() # the items of a study in a report, a workflow card and a window
         test_pivot_data_frame()      # a pivot of a data frame, against DataFrames
         test_formula_examples()      # the formula examples take a key and Enter
     end
@@ -242,6 +258,7 @@ function test_projections()
         test_gesture_map()
         test_gesture_help()
         test_text_range_selection()
+        test_text_keys()
         test_text_clipboard()
         test_db_catalog_sql()
         test_widget_popup_example()
@@ -472,11 +489,13 @@ function test_all()
     test_platform()
     test_json()
     test_yaml()
+    test_git()
     test_xml()
     test_markdown()
     test_rst()
     test_book()
     test_workflow()
+    test_research()
     test_math()
     test_julia()
     test_sql()
@@ -492,6 +511,7 @@ function test_all()
     test_anthropic()
     test_ollama()
     test_acp()
+    test_languageserver()
     test_dataframes()
     test_integration()
     end
@@ -578,18 +598,25 @@ function test_integration()
     # A JSON part of a Markdown document, in the view of the document and at a
     # place of its own.
     test_markdown_json_view()
-    # The first window of a data frame compiles little in a fresh process.
-    test_first_window_compiles_little()
+    # The guards of the first window and of the gestures of the binary are
+    # measurements: `tool/measure-compile-ahead.jl` runs them, by hand and before
+    # each release, as documentation/design/compile-ahead.md (U7) says.
     # Every gesture that changes no document leaves the history as it was.
     test_history_sweep()
     test_file_watch_window()
     test_julia_typein()
     test_conversation_editor()
     test_assistant_mvp()
+    test_assistant_stream()
+    test_window_frame_guards()
     test_assistant_duplicate()
     test_message_log_feed()
     test_frame_statistics_feed()
     test_application()
+    test_clipboard_edits()
+    test_file_workloads()
+    test_scroll_work()
+    test_pointed_part()
     test_insertion_in_tab()
     test_tool_views()
     test_selection_inspector()
@@ -637,7 +664,7 @@ export test_all, test_integration, test_repository, test_umbrella_loads_integrat
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation, test_style
 export test_kernel, test_platform, test_domain
-export test_first_window_compiles_little
+export test_first_window_compiles_little, test_gestures_compile_little
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale, test_search_corpus, test_call_site, test_search_ranking
 export test_type_reference, test_gesture_pattern, test_gesture_binding, test_focusing,
@@ -669,10 +696,10 @@ export test_click_roundtrip, test_click_roundtrips, test_text_navigation_invaria
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
-export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
+export test_assistant_mvp, test_assistant_stream, test_window_frame_guards, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip, test_markdown_json_view
-export test_application, test_history_sweep, test_file_watch_window, test_insertion_in_tab,
+export test_application, test_file_workloads, test_scroll_work, test_pointed_part, test_history_sweep, test_file_watch_window, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
        test_value_viewer, test_referenced_document_editor, test_assistant_verbs,
@@ -692,5 +719,5 @@ export test_pane_tab_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_assistant_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
 export test_command_palette, test_command_palette_decorator, test_document_insertion
-export test_gesture_log, test_file_project, test_workflow_file
+export test_gesture_log, test_file_project, test_workflow_file, test_research_combinations
 export test_marker_vocabulary

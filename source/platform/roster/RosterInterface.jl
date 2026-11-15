@@ -33,6 +33,19 @@ There is no default method, for the reason of `collect_roster_parts`.
 function collect_roster_items end
 
 """
+    get_roster_item_inside(source, entry::RosterItem) -> part or nothing
+
+The inside of the item of `entry` as a part of `source` of its own, or `nothing`
+when `source` gathers nothing inside its items. The roster keeps one computed
+cell for the inside of each item, by the identity of the item, which
+[`collect_roster_items`](@ref) of that part fills. So a source that finds items
+inside items does not read the inside of an item where it finds the item, and a
+change inside one item gathers the inside of that item again, and of no other.
+The default is `nothing`.
+"""
+function get_roster_item_inside end
+
+"""
     get_roster_item_type(source) -> Type
 
 The type of the items of `source`, which [`describe_item_facets`](@ref) reads to
@@ -66,6 +79,27 @@ for its name, such as `compute_item_facet(file::FileDocument, ::Val{:folder})`.
 function compute_item_facet end
 
 """
+    get_item_facet_type(item) -> Type
+
+The type whose facets `item` has, which a roster reads once for each such type to
+find whether a name is a facet ([`has_item_facet`](@ref)). Two items that answer
+the same type must answer the same for every name. The default is `typeof(item)`.
+"""
+function get_item_facet_type end
+
+"""
+    has_item_facet(item, name) -> Bool
+
+Whether `name` is a facet of `item`: a value that [`compute_item_facet`](@ref)
+computes. A roster calls it for the first item of each
+[`get_item_facet_type`](@ref) and keeps the answer for the others. The default
+answers whether the type of `item` or a supertype declares the facet
+([`get_item_facets`](@ref)); a kind of item whose facets depend on more than its
+type adds a method.
+"""
+function has_item_facet end
+
+"""
     make_item_facet_operation(item, name::Val, value) -> Operation or nothing
 
 The edit that gives the facet `name` of `item` the value `value`, as an
@@ -73,3 +107,26 @@ operation, or `nothing` when the facet takes no edit. The default answers
 `nothing`, so a facet is read only unless its slice gives the edit.
 """
 function make_item_facet_operation end
+
+"""
+    make_roster_cell(cells, item, key, value) -> widget
+
+The widget of one cell of a table of rows: `item` is the item of the row, `key`
+the name of the column, and `value` the cell that holds the value of the column
+for that row. `cells` is the field `cells` of the [`RosterRowsToWidget`](@ref)
+that prints the table. The method for `nothing` makes the label of the text of the
+value ([`format_roster_value`](@ref)); the table shows a document that is a value
+itself, and the link of the item in the first column, when `cells` is `nothing`.
+
+A page that draws other cells puts its own `RosterRowsToWidget`, with its `cells`
+value, in the dispatch of its widgets, and adds a method for the type of that
+value. The widget that the method makes behaves as a text cell does: a press there
+selects the item of the row, and the row keeps its cells while it stays.
+
+A method that returns `nothing` for an item leaves the cell to the table: the
+table then makes the default cell of that item, as it does for `cells` of
+`nothing`, which is the link of the item in the first column, and a document that
+is a value, shown itself. So a page that draws the cells of one kind of item gives
+the other items the cells of every other table.
+"""
+function make_roster_cell end

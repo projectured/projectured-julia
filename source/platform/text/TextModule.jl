@@ -1,10 +1,9 @@
 """
     TextModule
 
-The text domain: a block of styled spans, the reference steps that address a
-character range inside it, the projections that render it to graphics and to a
-string, and the decorating projections that wrap, filter, highlight, number and
-invert it.
+Styled text documents: a block of spans, the projections that draw it as graphics or
+print it as a string, and the projections that wrap, filter, highlight, number and
+invert it. Reference steps address a character range inside a block.
 
 This file holds `TextSpanReferenceStep`, because the rest of the slice is
 written in terms of the reference steps.
@@ -35,6 +34,7 @@ using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
 import ..GraphicsModule: find_first_baseline
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..OperationModule
@@ -47,6 +47,7 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
+import ..DocumentModule: replace_wrapped_document!, get_edited_field
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -55,8 +56,8 @@ import ..ProjectionAlgebraModule: make_content_view
 export TextSpanReferenceStep
 export TextColumnReferenceStep
 export TextRangeReferenceStep, is_text_caret
-export set_cell_computation!, get_flat_length, get_flat_offsets, get_flat_string, get_flat_selection, make_hinted_text, make_text_block,
-       get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation,
+export set_cell_computation!, get_flat_length, get_flat_offsets, get_flat_string, get_flat_selection, make_hinted_text, make_text_block, append_text!,
+       get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation, changes_lines,
        get_flat_caret, get_flat_range, _lower_text_range
 export SpanPath, get_flat_base, make_flat_caret_reference, make_flat_range_reference,
        get_flat_cursor_coordinate, is_structural_selection, is_text_element_write
@@ -72,9 +73,11 @@ export WordWrapping, WordWrappingIoMap
 export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
-export TextView, TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
+export TextView, make_text_view, TextViewToGraphics, TextViewToGraphicsIoMap
+export TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
 export TextBlockToGraphicsCanvas, TextBlockToGraphicsCanvasIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
+export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks, make_marked_text_lines
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
@@ -101,6 +104,7 @@ include("TextPattern.jl")
 include("FilteredTextToText.jl")
 include("TextFirstLine.jl")
 include("HighlightedTextToText.jl")
+include("MarkedTextToText.jl")
 include("SelectionInverting.jl")
 include("PrimitiveToText.jl")
 include("ReferenceTheme.jl")

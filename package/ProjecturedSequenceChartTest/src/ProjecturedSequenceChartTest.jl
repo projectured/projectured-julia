@@ -44,6 +44,8 @@ end
 include("../../../test/domain/sequencechart/projection/SequenceChartGeometryTest.jl")
 include("../../../test/domain/sequencechart/projection/SequenceChartProjectionTest.jl")
 include("../../../test/domain/sequencechart/projection/SequenceChartThemeTest.jl")
+include("../../../test/domain/sequencechart/editor/SequenceChartVerbsTest.jl")
+include("../../../test/domain/sequencechart/editor/SequenceChartViewGestureTest.jl")
 
 include("../../../test/domain/sequencechart/SequenceChartSuite.jl")
 

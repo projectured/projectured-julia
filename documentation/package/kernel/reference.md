@@ -1,6 +1,6 @@
 # References
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 References are path-like pointers into document trees. A reference is a
 sequence of typed *steps* that descend one level at a time through a document
@@ -27,8 +27,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
         │                        Reference abstract types, the Reference
         │                        union, and the open generics higher packages
-        │                        add methods to (get_reference_step_kind, evaluate_reference_step, and
-        │                        the reference-step DSL seams)
+        │                        add methods to (get_reference_step_kind, evaluate_reference_step,
+        │                        has_reference_step_child, and the reference-step DSL seams)
         ├─ ReferenceStep.jl    — the kernel step types (RangeReferenceStep,
         │                        FieldReferenceStep, TypeReferenceStep) and the Position
         │                        a cursor evaluates to, each packaged with its
@@ -113,8 +113,8 @@ namespace), not separate modules.
   `M…` name is the plain layout. The layer also calls `walk_document` for
   `search_references`, `get_document_cell_type` for the type that a path records,
   `get_edited_field` for `get_edited_document`, and `is_element_collection`. It
-  imports `search_documents` and `get_wrapped_document` to extend them for a
-  `ReferencedDocument`.
+  imports `search_documents`, `get_wrapped_document` and `get_document` to extend
+  them for a `ReferencedDocument`.
 
 The layer imports no projection, no operation and no device. This is what keeps
 the reference layer below the selection and operation layers.
@@ -128,7 +128,7 @@ Each step descends one level into a document tree. The full vocabulary:
 | `FieldReferenceStep("foo")` | the field named `foo` | resolved by `getfield(doc, :foo)`, unwrapping a `Cell` if needed — struct field names are public API |
 | `ElementReferenceStep(i)` | the *i*-th element of a sequence | constructor alias for `RangeReferenceStep(i-1, i)`; 1-based (Julia convention) |
 | `PositionReferenceStep(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReferenceStep(k, k)`; a zero-width cursor, 0-based |
-| `RangeReferenceStep(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
+| `RangeReferenceStep(s, e[, direction])` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases; `direction` is the end that moves |
 | `ProjectionReferenceStep(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
 | `PointReferenceStep(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
 | `TextRangeReferenceStep(s, e)` / `TextColumnReferenceStep` / `TextSpanReferenceStep` | a text selection — stream cursor / column box / bounding box | visual `text/`; text-domain endpoints, same `(start, stop)` payload, the type selects the geometry |
@@ -177,6 +177,19 @@ Both are encoded as the same underlying `RangeReferenceStep(start, stop)`: `[i]`
 `{1:3}` and `[2, 3]` are therefore the same step. Write whichever counts what
 you are thinking about: an insert counts boundaries, and a selection of items
 counts items.
+
+**A range has a direction.** `start <= stop` always holds, and the third field,
+`direction`, names the end of a selected range that a key or a drag moves:
+`:forward`, the default, moves `stop`, and `:backward` moves `start`. The other
+end is the anchor, and the caret of a text range is drawn at the end that moves.
+`{i:j}` writes the anchor first, so `{5:3}` is the backward range from 3 to 5, and
+the step prints so. A pattern `{s:e}` in `@reference_case` binds the ordered ends,
+`s = 3` and `e = 5`. A caret is always forward. `make_range_reference_step(anchor,
+moving)` makes a step from two ends in either order, and
+`get_range_direction(reference)` reads the direction of the last step of a
+reference. A map that builds the range of its output from the numbers of the
+range of its input copies the direction with them, so a selection keeps its
+direction from the root to the text and back.
 
 The same convention applies regardless of what the items are. In an array, `[1]`
 is the first element and `{0}` is the cursor before it. In a string, `[1]` is
@@ -322,6 +335,18 @@ roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal
 - `is_valid_reference(document, path)` (the two-argument, document-aware method)
   is `true` iff every node type holds along the whole path.
 
+A walk that answers for a path that does not fit — `try_evaluate_reference`,
+`get_valid_reference_prefix` and `annotate_reference_types` — asks
+`has_reference_step_child(step, document)` before each step, and a "no" ends the
+walk with no exception. A field step answers whether the struct has the field or
+the dict has the key, as a `String` or a `Symbol`. An element step answers whether
+its index is inside the length of an array or of a string, counted in characters
+for a string, and a cursor always answers `true`. A step of any other kind answers
+`true`, and its evaluation decides. The reason is cost: a throw records a
+backtrace of the whole stack, and a print deep in a tree walks a path for each
+child. A step type of a higher package that can miss adds a method, so that its
+walks throw nothing either.
+
 Checkpoints are created programmatically, not by hand:
 
 - `annotate_reference_types(document, path)` returns `path` with each node's
@@ -407,7 +432,15 @@ reaches — a document, a collection, or any other value.
 It acts like the document it holds. Reading or writing a property, indexing,
 iteration, `length`, `isempty`, `keys`, `haskey`, `get`, `values`, `setindex!`,
 `push!`, `insert!` and `deleteat!` all go to the document. A write stores the
-document of a `ReferencedDocument` it is given, so the tree never holds one. A read
+document of a `ReferencedDocument` it is given, so the tree never holds one. The
+rule is in the document layer: `get_document`, a function of `DocumentModule`,
+answers the document of a referenced document and any other value as it is, and
+the constructor and the setter that `@document` generates store
+`get_stored_value` of each value: `get_document` of it, and for a plain vector
+that holds a part, a new vector of the `get_document` of each element. So a
+document that is built from a value that a read answered holds the document too,
+a list that is built from parts holds their documents, and no maker or verb
+unwraps a value on its own. A read
 that answers a document or a collection answers a `ReferencedDocument` too, with
 the reference extended by the field or the index that reached it; a read that
 answers a leaf value — a string, a number, a `Bool`, `nothing` — answers that
@@ -438,6 +471,21 @@ type asks `get_document(x)` first. `convert` to a document type converts
 `get_document(x)` to it, and `convert` to `Reference` converts `get_reference(x)`
 to it, so a `ReferencedDocument` fits where either is wanted.
 
+A plain document has no place. `get_reference` of any value that is not a part
+throws an `ArgumentError`, and a function that needs the place of its argument
+reads it there, so it refuses a plain document with the same error. A function
+that takes only a part refuses a plain document with Julia's `MethodError`, and
+`ReferenceModule` registers a hint for it: when an argument is a `Document` where
+a method of the function takes a `ReferencedDocument`, the error says so. Both
+errors say how to get a part: a read of a part, or
+`search_documents(editor.document, query; places = true)`.
+
+A function that needs no place takes a part as well as a plain document. For each
+parameter of a document type, it has one more method that takes a
+`ReferencedDocument` there and calls the function again with `get_document(x)`.
+Such a function answers what the plain document gives, so its answer does not
+keep the place.
+
 `get_parent(root, x)` answers the document that holds `x`, read from `root` at the
 call: one step up the reference of `x`, and past each collection on the way, so
 the parent of an element of a vector field is the document that has the field,
@@ -454,7 +502,9 @@ is replaced. That function
 answers a `ReferencedDocument`, or `nothing` when the reference no longer reaches
 a node, so a `ReferencedDocument` found before an edit is brought up to date
 after it: `find_referenced_document(DocumentLocator(start, get_reference(old)))`
-reads the same place again.
+reads the same place again. A locator names a document and holds none, so a walk
+of the documents stops at it (`is_walk_opaque`): a document that keeps a
+locator, such as a link, is not a parent of the document that the locator names.
 
 `get_edited_document(x)` follows a chain of layers down to the document a person
 edits: a tab wraps what it shows, a file wraps the document read from it, a
@@ -536,9 +586,9 @@ type of each node on its reference, as the selection does
 reaches in the printed output with `find_reference_box` of the graphics package:
 `(x, y, width, height)` in the frame of the output. `visible = true` cuts the
 box to what the viewports on the way show, and a box that none shows is
-`nothing`. `find_part_place` of the screen package does both from a wrapper at
-the screen and answers the bottom left corner of the box, where a window that a
-command opens, such as a tooltip with no pointer, stands. The round trip test of
+`nothing`. `find_window_part_box` of the screen package does both for a placement and
+answers the box in screen coordinates, where a window that a command opens, such as a
+tooltip with no pointer, stands below it. The round trip test of
 the widget examples, `test_widget_round_trip()`, ties the two maps together:
 each displayed part maps forward, and a point where its node draws something
 maps back to the part or to a part inside it.

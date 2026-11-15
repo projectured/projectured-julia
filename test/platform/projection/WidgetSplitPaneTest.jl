@@ -13,7 +13,7 @@ _proj() = make_widget_projection_example(measure = _stub)
 # own IoMap rather than the chain's.
 _direct() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _stub).dispatch)))
+    WidgetToGraphics(; measure = _stub).dispatch)))
 _label(text) = WidgetLabel(text)
 
 # The whole drawn tree as a string, viewports included.
@@ -82,8 +82,10 @@ end
 
 # Every rectangle a print produced. The splitter is the only one a split of two
 # labels draws, so this reads it back.
+# A band that shows no color, as at rest, is no divider and is left out.
 function _rects(node, acc = Tuple{Int,Int,Int,Int}[])
     if node isa GraphicsRect
+        node.color.alpha == 0 && return acc
         push!(acc, (Int(node.x[]), Int(node.y[]), Int(node.w[]), Int(node.h[])))
     elseif node isa GraphicsCanvas
         for e in node.elements; _rects(e, acc); end
@@ -99,29 +101,34 @@ function _offered(pane, width, height)
     print_document(_proj(), nothing, pane, ctx)
 end
 
+# The IoMap of the split itself, which holds the slots, for a stated offer.
+function _offered_split(pane, width, height)
+    ctx = PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}())
+    print_document(_direct(), nothing, pane, ctx)
+end
+
 _pair() = Any[_label("one"), _label("two")]
 _INSET = Inset(8, 8, 8, 8)
 
 @testset "a bordered split stays inside the size it reports" begin
-    # A split divides the space inside its own box model. It used to lay its
-    # children out from the content offset and still divide the whole offer, so
-    # the last slot and the splitter ran past the far edge by the inset, and the
-    # canvas claimed a size smaller than it drew.
+    # A split divides the space inside its own box model, and two panes that
+    # declare nothing share it: the splitter is in the middle, the first pane
+    # takes the odd pixel, and the splitter stays inside the inset.
     plain = _offered(WidgetSplitPane(:horizontal, _pair()), 400, 300)
     inset = _offered(WidgetSplitPane(:horizontal, _pair(); border = _INSET), 400, 300)
 
     px, py, pw, ph = only(_rects(plain.output))
     ix, iy, iw, ih = only(_rects(inset.output))
-    @test (px, py) == (0, 0)
+    @test (px, py) == (200, 0)               # (400 - 1) ÷ 2, and the odd pixel
     @test ph == 300                          # the whole offer, with nothing taken
-    @test (ix, iy) == (8, 8)                 # the splitter starts inside the inset
+    @test iy == 8                            # the splitter starts inside the inset
+    @test 8 < ix < 400 - 8 - iw
     @test ih == ph - 16                      # and it ends inside it
     @test iw == pw
 
-    # The size the parent sees is the content plus the box model, so the cross
-    # axis still fills the offer.
-    @test Int(inset.output.w[]) == Int(plain.output.w[]) + 16
-    @test Int(inset.output.h[]) == Int(plain.output.h[])
+    # The split fills the offer, with its box model inside it.
+    @test Int(inset.output.w[]) == Int(plain.output.w[]) == 400
+    @test Int(inset.output.h[]) == Int(plain.output.h[]) == 300
 end
 
 @testset "a stacked bordered split does the same on its own axis" begin
@@ -130,13 +137,63 @@ end
 
     px, py, pw, ph = only(_rects(plain.output))
     ix, iy, iw, ih = only(_rects(inset.output))
-    @test (px, py) == (0, 0)
+    @test (px, py) == (0, 150)               # (300 - 1) ÷ 2, and the odd pixel
     @test pw == 400
-    @test (ix, iy) == (8, 8)
+    @test ix == 8
+    @test 8 < iy < 300 - 8 - ih
     @test iw == pw - 16
     @test ih == ph
-    @test Int(inset.output.h[]) == Int(plain.output.h[]) + 16
-    @test Int(inset.output.w[]) == Int(plain.output.w[])
+    @test Int(inset.output.h[]) == Int(plain.output.h[]) == 300
+    @test Int(inset.output.w[]) == Int(plain.output.w[]) == 400
+end
+
+@testset "a content slot takes the height of its child, and the others share the rest" begin
+    for height in (300, 500)
+        pane = WidgetSplitPane(:vertical, Any[
+            LayoutConstraint(_label("fills"); preferred_height = 0, weight_height = 1.0),
+            LayoutConstraint(_label("fixed"); height = Fixed(60)),
+            LayoutConstraint(_label("content"); height = Content)])
+        iomap = _offered_split(pane, 400, height)
+        children = getfield(iomap, :child_iomaps)[]
+        ys = [Int(entry[2][]) for entry in children]
+        content_height = Int(children[3][3].output.h[])
+        @test content_height > 0
+        # Each splitter is one pixel: the slots are the distances between the tops.
+        splitter = ys[3] - ys[2] - 60
+        @test splitter >= 1
+        @test Int(iomap.output.h[]) == height
+        @test height - ys[3] == content_height
+        @test ys[2] - ys[1] - splitter == height - content_height - 60 - 2 * splitter
+    end
+end
+
+@testset "a slot with no size and no weight takes an equal share of an offer, not its content" begin
+    pane = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(_label("fills"); preferred_height = 0, weight_height = 1.0),
+        _label("bare")])
+    children = getfield(_offered_split(pane, 400, 300), :child_iomaps)[]
+    # The two slots share the 299 px past the 1 px divider: 150 above it, and the
+    # bare slot starts under it.
+    @test Int(children[2][2][]) == 151
+end
+
+@testset "a slot with a weight and no preferred height takes its child up to its share" begin
+    # A short child keeps its height, and the slot after it takes the rest.
+    short = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(_label("short"); height = Content, weight_height = 1.0),
+        LayoutConstraint(_label("rest"); height = Fill)])
+    children = getfield(_offered_split(short, 400, 300), :child_iomaps)[]
+    drawn = Int(children[1][3].output.h[])
+    @test 0 < drawn < 150
+    @test Int(children[2][2][]) == drawn + 1
+    # A child taller than its share keeps the share, as a weighted slot does: the
+    # two slots share the 299 px past the 1 px divider.
+    tall = WidgetSplitPane(:vertical, Any[
+        LayoutConstraint(VerticalLayout(Any[_label("line $k") for k in 1:30]); height = Content, weight_height = 1.0),
+        LayoutConstraint(_label("rest"); height = Fill)])
+    children = getfield(_offered_split(tall, 400, 300), :child_iomaps)[]
+    @test Int(children[1][3].output.h[]) > 150
+    @test Int(children[2][2][]) == 151
 end
 
 end # testset

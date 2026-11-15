@@ -572,25 +572,31 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedDataFrames]]
-deps = ["DataFrames", "PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["DataFrames", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedDataFrames"
 uuid = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
-deps = ["Preferences"]
+deps = ["Preferences", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedKernel"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["FileWatching", "PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
+deps = ["FileWatching", "Printf", "ProjecturedKernel", "ProjecturedPrecompile", "Serialization", "TOML"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"
 
+[[deps.ProjecturedPrecompile]]
+deps = ["PrecompileTools", "Preferences", "TOML"]
+path = "../../package/ProjecturedPrecompile"
+uuid = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+version = "0.1.0"
+
 [[deps.ProjecturedSDL]]
-deps = ["PrecompileTools", "ProjecturedKernel", "ProjecturedPlatform", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
 path = "../../package/ProjecturedSDL"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"

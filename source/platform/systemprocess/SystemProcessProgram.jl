@@ -21,6 +21,8 @@ of a simulation, the shells and the commands of a terminal.
 
 See also `describe_system_process_tree`, which writes the same tree once as
 text, and `show_document_tree!`.
+
+For the assistant.
 """
 function show_system_process_tree! end
 
@@ -28,24 +30,24 @@ function show_system_process_tree!(root_process_ids; title::AbstractString = _fo
                                    editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "show_system_process_tree!") do
         tree = SystemProcessTree(root_process_ids; title)
-        feed = _get_system_process_feed!(editor)
-        push!(feed.trees, tree)
+        push!(_get_system_process_feed(editor).trees, tree)
         show_document_tree!(tree; title, editor)
     end
 end
 
-# The feed of the trees of processes of `editor`, which the first tree adds.
-function _get_system_process_feed!(editor)
+# The feed of the trees of processes of `editor`, which the editor got when it
+# was made.
+function _get_system_process_feed(editor)
     for feed in editor.feeds
         feed isa SystemProcessFeed && return feed
     end
-    feed = SystemProcessFeed()
-    push!(editor.feeds, feed)
-    feed
+    throw(ArgumentError("The editor has no SystemProcessFeed, so a tree would not follow " *
+                        "its processes. Make it with build_editor, whose wrapper " *
+                        "system_process gives the feed."))
 end
 
 """
-    describe_system_process_tree(root_process_ids) -> Text
+    describe_system_process_tree(root_process_ids) -> String
 
 The processes under `root_process_ids` as text, read from `/proc` once: a line
 for each process, indented under its parent, with the process id, the command,
@@ -62,19 +64,21 @@ does now.
 
 See also `show_system_process_tree!`, which shows the tree in a tab and keeps it
 up to date.
+
+For the assistant.
 """
 function describe_system_process_tree end
 
 function describe_system_process_tree(root_process_ids)
-    isdir("/proc") || return Text("This system has no /proc, so no process can be read.")
+    isdir("/proc") || return "This system has no /proc, so no process can be read."
     records = read_system_processes(root_process_ids)
-    isempty(records) && return Text(string("No process of ", join(root_process_ids, ", "), " runs."))
+    isempty(records) && return string("No process of ", join(root_process_ids, ", "), " runs.")
     by_id = Dict(record.process_id => record for record in records)
     lines = String[]
     for process_id in root_process_ids
         haskey(by_id, process_id) && _describe_process!(lines, by_id, by_id[process_id], 0)
     end
-    Text(join(lines, "\n"))
+    join(lines, "\n")
 end
 
 function _describe_process!(lines, by_id, record::SystemProcessRecord, depth::Int)

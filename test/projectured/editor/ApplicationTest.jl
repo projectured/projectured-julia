@@ -5,6 +5,7 @@
 # the screen.
 
 using Test
+import ProjecturedPlatform.ApplicationModule: RestoreExplorerContentOperation
 
 # `evaluate_operation` reads `document` and `iomap` of an editor.
 mutable struct _AppFakeEditor; document::Any; iomap::Any; end
@@ -33,8 +34,10 @@ _app_plain(operation) =
 _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
 
 # Every string a printed window draws, so a case asks what is on the screen and
-# not what a document holds.
+# not what a document holds. A list of graphics, such as the rows that a table
+# builds for its height, yields its nodes, and a node holds its graphic.
 function _app_drawn_strings(node, found = String[])
+    node = _app_graphic(node)
     node === nothing && return found
     if hasproperty(node, :elements)
         foreach(element -> _app_drawn_strings(element, found), node.elements)
@@ -78,13 +81,25 @@ end
 # would acquire the folders of the window, so each folder is read at once, as a
 # script reads a folder that it shows. With `files`, the Files tool is a group of
 # its own at the left of the window, as a person who moves it there has it.
-function _app_make_window(paths; files::Bool = false, keywords...)
+function _app_make_window(paths; files::Bool = false, focus_file::Bool = false, keywords...)
     document, projection = make_application_window(paths; keywords...)
+    focus_file && _app_focus_first_file!(document)
     files && _app_add_files_group!(document, get(keywords, :root, pwd()))
     for workspace in search_documents(document, node -> node isa Workspace)
         foreach(folder -> read_filesystem_folder!(folder.directory), workspace.folders)
     end
     (document, projection)
+end
+
+# The selection on the content of the first file of the window of `document`: the
+# file that the view of its tab holds, as a press on its tab gives it: the window
+# opens on the Explorer, the tab before it.
+function _app_focus_first_file!(document)
+    steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
+    at = findlast(==(FieldReferenceStep("tabs")), steps)
+    steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("file"))
+    set_selection!(document, extend_reference(EmptyReference(), steps...))
+    document
 end
 
 # The Files group at the left of the pane tree of `document`, over `root`. Each
@@ -112,8 +127,8 @@ function _app_add_files_group!(document, root)
     document
 end
 
-function _app_make_scene(paths, dir; assistant = nothing, files::Bool = false)
-    document, projection = _app_make_window(paths; root = dir, assistant = assistant, files)
+function _app_make_scene(paths, dir; assistant = nothing, files::Bool = false, focus_file::Bool = false)
+    document, projection = _app_make_window(paths; root = dir, assistant = assistant, files, focus_file)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -152,7 +167,7 @@ function _app_find_stray_live_selections(root)
         end
     end
     mark_path!(root, get_selection(root))
-    documents = search_documents(root, node -> node isa Document; descend = is_pane_search_step)
+    documents = search_documents(root, node -> node isa Document; walk = DocumentWalk(; descend = is_pane_search_step))
     for document in documents
         has_dormant_selection(document) && mark_path!(document, get_selection(document))
     end
@@ -213,7 +228,7 @@ function _app_find_stray_selections_in_contents(root)
     end
     mark_path!(root, get_selection(root))
     documents = search_documents(root, node -> node isa Document;
-                                 descend = _app_is_content_search_step)
+                                 walk = DocumentWalk(; descend = _app_is_content_search_step))
     for document in documents
         has_dormant_selection(document) && mark_path!(document, get_selection(document))
     end
@@ -224,8 +239,10 @@ end
 # Every string a printed window draws, at its position in the window. A cell is
 # read for its value, because a printed tree holds cells.
 _app_value(v) = v isa Cell ? _app_value(v[]) : v
+# A node of a list of graphics holds its graphic.
+_app_graphic(v) = (v = _app_value(v); v isa ListNode ? _app_graphic(v.value) : v)
 function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
-    node = _app_value(node)
+    node = _app_graphic(node)
     node === nothing && return found
     x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
     y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
@@ -233,6 +250,9 @@ function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
         push!(found, (String(_app_value(node.text)), x, y))
     elseif hasproperty(node, :elements)
         foreach(element -> _app_drawn_at(element, x, y, found), _app_value(node.elements))
+    elseif node isa GraphicsViewport
+        # A viewport shows its content moved by its offset, as a scrolled pane does.
+        _app_drawn_at(node.content, x + round(Int, node.transform.e), y + round(Int, node.transform.f), found)
     elseif hasproperty(node, :content)
         _app_drawn_at(node.content, x, y, found)
     end
@@ -316,12 +336,22 @@ end
 function test_application()
     @testset "application" begin
         @testset "the assistant pane" begin
-            @test make_application_assistant(:none) === nothing
+            unset = make_application_assistant(:none)
+            @test unset isa Assistant && unset.backend === :none
+            @test occursin("No model backend is chosen", get_application_greeting_text(:none))
             assistant = make_application_assistant(:ollama; model = "small")
             @test assistant isa Assistant
             @test assistant.backend === :ollama && assistant.model == "small"
+            # The mode of the tools of an external agent is auto unless a setting names another.
+            @test make_application_assistant(:acp).agent_mode == "auto"
+            @test make_application_assistant(:acp; agent_mode = "plan").agent_mode == "plan"
             @test_throws ErrorException make_application_assistant(:unknown)
             @test occursin("ANTHROPIC_API_KEY", get_application_greeting_text(:anthropic))
+            # The greeting is Markdown, so it draws in the theme of a reply, and
+            # the model reads the text that it was written as.
+            greeting = only(assistant.conversation.turns[1].parts)
+            @test greeting.content isa MarkdownDocument
+            @test AssistantModule._part_text(greeting) == get_application_greeting_text(:ollama)
         end
 
         @testset "the assistant's verbs" begin
@@ -348,14 +378,21 @@ function test_application()
             # readers and cells. The probe is a name no declared docstring
             # mentions: `print_natural_text` is declared, and its docstring names
             # `print_document`, so a search for that one finds it.
-            refusal = search_api(set, "read_intent")
+            refusal = search_api(set, "apply_reference_rules")
             @test occursin("No API matches", refusal)
-            @test occursin("FileFormatModule: make_file_tab", refusal)
-            @test !occursin("No API matches", search_api(ToolSet(), "read_intent"))
+            @test occursin("FileFormatModule", refusal)
+            @test !occursin("No API matches", search_api(ToolSet(), "apply_reference_rules"))
 
-            @test occursin("FileFormatModule", APPLICATION_SYSTEM)
-            @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
-            # The paragraph that every window of the editor holds.
+            # The text of the window, then the index of its names: the full one
+            # for a large model, and the compact one for a local model.
+            full = make_application_system()
+            @test startswith(full, APPLICATION_SYSTEM)
+            @test occursin("FileFormatModule", full)
+            @test endswith(full, describe_api_index(make_editor_api(), :anthropic))
+            @test endswith(make_application_system(; backend = :ollama),
+                           describe_api_index(make_editor_api(), :ollama))
+            @test length(make_application_system(; backend = :ollama)) < length(full)
+            # The rules that every window of the editor holds.
             @test occursin(EDITOR_SYSTEM, APPLICATION_SYSTEM)
 
             # The text of what a tab holds, by the path the prompt names. A file
@@ -392,6 +429,7 @@ function test_application()
             start = get_settings_group!(make_application_settings(nothing; agent_command = "my-agent"),
                                         StartSettings)
             @test start.agent_command == "my-agent"
+            @test start.agent_mode == DEFAULT_AGENT_MODE == "auto"
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",
@@ -442,16 +480,6 @@ function test_application()
             @test occursin("no display", last(report)) && occursin("Stacktrace", last(report))
         end
 
-        @testset "the warm-up of a build" begin
-            document = @test_logs min_level = Base.CoreLogging.Warn warm_application()
-            # The warm-up ends in the tab it made with the Insert key, and the tab
-            # holds the document that the typed name commits. A warm-up that
-            # stops short of it leaves the first key in the name buffer to compile.
-            @test document !== nothing
-            focus = get_pane_focus(_app_window(document))
-            @test focus !== nothing && focus[1].tabs[focus[2]].content isa EvaluatorToplevel
-        end
-
         dir = mktempdir()
         paths = _app_write_files(dir)
         @testset "the application window" begin
@@ -460,6 +488,10 @@ function test_application()
                 tree = _app_window(document)
                 path = repr(strip_reference_types(get_selection(tree)))
                 @test startswith(path, ".root.")
+                # The window opens on the Explorer, also with two files open, with the
+                # keyboard on the root of its tree.
+                focus = get_pane_focus(tree)
+                @test focus[1].tabs[focus[2]].content isa Explorer && endswith(path, ".content.tree.root")
                 level(node) = repr(strip_reference_types(get_selection(node)))
                 @test level(scene) == ".windows[1].content.content.content.content" * path
                 @test level(scene.windows[1]) == ".content.content.content.content" * path
@@ -532,6 +564,44 @@ function test_application()
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
+            @testset "the tooltip of an assistant button stays while the pointer rests on it" begin
+                # The assistant pane is a view: it makes its buttons, so a point on
+                # one maps back to an introduced reference, and the answer of the
+                # button names it by its path after the view.
+                document, projection = _app_make_window(paths[1:1]; root = dir,
+                                                        assistant = make_application_assistant(:none))
+                editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
+                                      window = (; title = "ProjecturEd", width = 1280, height = 800,
+                                                opened_window_projections = vcat(
+                                                    Pair{Type,Any}[make_natural_tooltip_row(;
+                                                        measure = FixedMeasure(8, 12, 4, 0))],
+                                                    make_opened_window_projections())))
+                run_frame!(editor)
+                send!(event) = (push_event!(editor.backend, WindowInput(:ProjecturEd, event));
+                                run_frame!(editor))
+                windows() = _app_value(get_iomap_output(editor.iomap).windows)
+                tips() = [w for w in windows() if _app_value(w.style) === :tooltip]
+                said() = [text for tip in tips() for text in _app_drawn_strings(tip.content)]
+                drawn = _app_drawn_at(windows()[1].content)
+                place(code) = only((x + 4, y + 6) for (text, x, y) in drawn if text == string(Char(code)))
+                stop, camera = place(0xe167), place(0xe064)
+                # A rest on the stop button opens its tooltip.
+                t = time() - 60
+                send!(MouseMove(stop[1] - 40, stop[2] - 40; time = t))
+                send!(MouseMove(stop...; time = t + 2))
+                foreach(_ -> run_frame!(editor), 1:3)
+                @test "Stop the turn." in said()
+                # The move that the backend sends after the frame that opened it,
+                # to the same point, leaves it open. Its time is late, so no other
+                # rest ends in these frames.
+                send!(MouseMove(stop...; time = time() + 3600))
+                @test "Stop the turn." in said()
+                # A move to the next button closes it.
+                send!(MouseMove(camera...; time = time() + 3600))
+                @test !("Stop the turn." in said())
+            end
+
             @testset "the settings button opens the settings of the editor in a tab" begin
                 document, projection = _app_make_window(paths[1:1]; root = dir,
                                                                assistant = nothing)
@@ -588,7 +658,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
-                                             descend = is_pane_search_step))
+                                             walk = DocumentWalk(; descend = is_pane_search_step)))
                 list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 try
@@ -640,7 +710,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
-                                             descend = is_pane_search_step))
+                                             walk = DocumentWalk(; descend = is_pane_search_step)))
                 list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 fire!(event) = _app_apply!(editor, _app_fire(editor.projection, editor.iomap, event))
@@ -710,6 +780,17 @@ function test_application()
                 given = make_application_settings(path; assistant = :anthropic, mcp = true)
                 start = get_settings_group!(given, StartSettings)
                 @test (start.assistant, start.model, start.mcp) == (:anthropic, "small", true)
+                # The index of the assistant: the automatic preset follows the backend,
+                # and a part that the settings set wins over the preset.
+                write(path, "[assistant_index]\ntypes = \"names\"\n")
+                index_settings = get_settings_group!(make_application_settings(path), AssistantIndexSettings)
+                @test (index_settings.preset, index_settings.types) == (:automatic, :names)
+                api = make_editor_api()
+                @test describe_api_index(api, :anthropic) == describe_api(api; preset = :full)
+                @test describe_api_index(api, :ollama) == describe_api(api; preset = :compact)
+                @test describe_api_index(api, :ollama; settings = index_settings) ==
+                      describe_api(api; preset = :compact, types = :names)
+                @test length(describe_api_index(api, :ollama)) < length(describe_api_index(api, :anthropic))
                 # The history of a file tab keeps the steps of the setting.
                 document = make_application_document(paths[1:1]; root = dir, settings)
                 buffer = first(search_documents(document, node -> node isa UndoBuffer))
@@ -734,8 +815,9 @@ function test_application()
                 opened = open_pane!(PrimitiveString("hello"); title = "Hello", editor)
                 @test startswith(repr(strip_reference_types(get_reference(opened))), ".windows[1].")
                 @test title(opened) == "Hello"
+                # The open places the tab, and the focus stays on the Explorer.
                 @test let (group, index) = get_pane_focus(tree)
-                    get_pane_tab_title_string(group.tabs[index]) == "Hello"
+                    get_pane_tab_title_string(group.tabs[index]) == "Explorer"
                 end
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
                 @test length(history) == steps + 1          # an open is one undo step
@@ -777,7 +859,7 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
-                layout = String(show_layout(; editor).content)
+                layout = show_layout(; editor)
                 lines = split(chomp(layout), "\n")
                 @test startswith(lines[1], "(root)") && occursin("::ScreenDocument", lines[1])
                 @test any(line -> occursin("::PaneTree", line) &&
@@ -835,12 +917,12 @@ function test_application()
 
             @testset "Ctrl+S saves the focused file" begin
                 json = joinpath(dir, "a.json")
-                document, scene, composed, iomap = _app_make_scene([json], dir)
+                document, scene, composed, iomap = _app_make_scene([json], dir; focus_file = true)
                 editor = _AppFakeEditor(scene, iomap)
                 operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
-                # The page of the file answers its own save, which checks the disk first.
-                @test _app_plain(operation) isa SaveFilePageOperation
-                tab = find_page_file(_app_plain(operation).page)
+                # The save of the file checks the disk first.
+                @test _app_plain(operation) isa SaveFileOperation
+                tab = _app_plain(operation).file
                 @test tab.filename == json
                 get_wrapped_document(tab.content).entries[1].value.value = "Bob"
                 evaluate_operation(editor, operation)
@@ -918,12 +1000,18 @@ function test_application()
                 @test popup isa WidgetMenu
                 @test [string(item.action.label) for item in popup.elements] == ["✓ High", "   Max"]
                 # The tab shows the title that the agent gives its session, and the
-                # line beside the menus the usage of its context.
+                # line beside the menus the usage of its context. The row is full, so
+                # the line is cut with "…" where the row ends, and stays one line on
+                # the line of the menus.
                 chat.agent_title = "Reply with OK"
                 chat.agent_usage = AgentUsageUpdate(36012, 1000000, nothing, "")
-                texts = [text for (text, _, _) in drawn()]
+                found = drawn()
+                texts = [text for (text, _, _) in found]
                 @test "Reply with OK" in texts
-                @test "36k / 1M" in texts
+                (_, mode_x, mode_y) = only(entry for entry in found if entry[1] == "Mode: Manual")
+                usage = only(text for (text, x, y) in found if x > mode_x && abs(y - mode_y) < 10)
+                @test endswith(usage, "…") && !isempty(chop(usage)) && startswith("36k / 1M", chop(usage))
+                @test !any(text -> text in ("36k", "/", "1M"), texts)
             end
 
             @testset "a press on a menu name opens its menu as a window under the name" begin
@@ -961,11 +1049,12 @@ function test_application()
                 drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
                 (fx, fy) = only((x, y) for (text, x, y) in drawn if text == "File")
                 (vx, vy) = only((x, y) for (text, x, y) in drawn if text == "View")
-                labels(menu) = [string(item.action.label) for item in menu.elements]
+                labels(menu) = [string(item.action.label) for item in menu.elements
+                                if item isa WidgetMenuItem]
                 view = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "View")
                 fire(MouseClick(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
-                @test labels(scene.windows[2].content) == ["New tab", "Close tab"]
+                @test labels(scene.windows[2].content) == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
                 # The press goes down first, and closes the menu of File.
                 fire(MouseDown(:left, vx + 2, vy + 2; time = 0.0))
                 @test length(scene.windows) == 1
@@ -985,7 +1074,7 @@ function test_application()
                 # The popup window draws the commands of the menu, in its own frame.
                 shown = print_document(composed, scene)
                 items = _app_drawn_at(get_iomap_output(shown).windows[2].content)
-                @test [text for (text, _, _) in items] == ["New tab", "Close tab"]
+                @test [text for (text, _, _) in items] == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
                 # A press on a command in the popup window runs it and closes the popup.
                 (nx, ny) = only((x, y) for (text, x, y) in items if text == "New tab")
                 before = _app_count_tabs(_app_window(document))
@@ -1009,37 +1098,43 @@ function test_application()
                 @test !any(text -> occursin("document types", text), drawn())
                 _app_apply!(editor, InvokeActionOperation(action("Documents")))
                 tabs() = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
-                # The list opens inside a scroll pane, so the tab shows it there.
+                # The tree opens in a navigator, so the tab shows it there.
                 shown(tab) = (content = get_wrapped_document(tab.content);
-                              content isa WidgetScrollPane ? content.content : content)
+                              content isa Navigator ? content.content : content)
                 @test count(tab -> shown(tab) isa DocumentTypeList, tabs()) == 1
-                # The heading and the first entry of the list, which the tab shows
-                # without a scroll.
+                # The line and a group of the root page: the acquire of the tab
+                # built the groups.
                 @test any(text -> occursin("document types", text), drawn())
-                @test "AboutPage" in drawn()
+                @test "Platform" in drawn()
                 _app_apply!(editor, InvokeActionOperation(action("About")))
                 @test count(tab -> get_wrapped_document(tab.content) isa AboutPage, tabs()) == 1
                 @test "ProjecturEd" in drawn()
             end
 
-            @testset "a wheel over the list of document types moves its rows" begin
-                # The list is longer than its tab, and a tab page gets no scroll of
-                # its own: the list scrolls because it opens in a scroll pane.
+            @testset "a double click opens a group of a tree of the help, and a wheel over its table moves its rows" begin
+                # The table of the 42 groups of the platform is longer than its tab, and
+                # it scrolls its rows in the height that the tab gives it.
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 help = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "Help")
-                documents = only(item.action for item in help.submenu.elements
-                                 if string(item.action.label) == "Documents")
-                _app_apply!(editor, InvokeActionOperation(documents))
+                projections = only(item.action for item in help.submenu.elements
+                                   if string(item.action.label) == "Projections")
+                _app_apply!(editor, InvokeActionOperation(projections))
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
-                place() = only((x, y) for (text, x, y) in drawn() if text == "AboutPage")
-                (x, y) = place()
+                place(name) = first((x, y) for (text, x, y) in drawn() if text == name)
+                (x, y) = place("Platform")
+                operation = _app_fire(composed, editor.iomap,
+                                      MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(); time = 0.0))
+                @test operation isa Operation
+                _app_apply!(editor, operation)
+                @test any(text == "Widget" for (text, _, _) in drawn())
+                (x, y) = place("Appearance")
                 operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, x + 10, y + 5; time = 0.0))
                 @test operation isa Operation
                 _app_apply!(editor, operation)
                 # A wheel turned towards the person moves the rows up.
-                @test place()[2] < y
+                @test place("Appearance")[2] < y
             end
 
             @testset "the toolbar holds the tools, and draws no word" begin
@@ -1049,9 +1144,9 @@ function test_application()
                 # Assistants button lists the assistant tabs, so every window has it.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
+                       "Frame statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
-                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
+                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Frame statistics", "Frame times",
                              "Appearance")
                     @test !any(text -> occursin(word, text), drawn)
                 end
@@ -1070,10 +1165,10 @@ function test_application()
                 # A tab of its own, and not a page in the navigator of the explorer.
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
                 # The group of the files, where a file from the explorer opens too. A
-                # file tab shows the page of its file, which holds the file in a
-                # scroll pane.
-                @test any(tab -> tab.content isa FilePage && tab.content.content isa WidgetScrollPane &&
-                                 is_file_document(find_page_file(tab.content)),
+                # file tab shows a view of its file, which holds the file in a scroll
+                # pane.
+                @test any(tab -> tab.content isa FileView && tab.content.scroll isa WidgetScrollPane &&
+                                 is_file_document(tab.content.file),
                           group.tabs)
             end
 
@@ -1135,12 +1230,19 @@ function test_application()
                 @test "2" in drawn()
                 @test length(carets()) == 1
                 @test only(carets())[2] > y_of("2")
-                # The prompts stand in one column. The second line of the code and
-                # the result stand right of it, where the code starts.
-                x_of(word) = only(x for (text, x, _) in drawn_at() if text == word)
-                prompts_x = unique(x for (text, x, _) in drawn_at() if text in (">", "="))
+                # The prompts stand in one column. The evaluated code draws as
+                # Julia, whose `=` operator is a text too, so a prompt is a `>` or
+                # an `=` with no text left of it on its line.
+                texts = drawn_at()
+                is_line_start(x, y) = all(other -> other[3] != y || other[2] >= x, texts)
+                prompts_x = unique(x for (text, x, y) in texts if text in (">", "=") && is_line_start(x, y))
                 @test length(prompts_x) == 1
-                @test x_of("x + 1") == x_of("x = 1") == x_of("2") > only(prompts_x)
+                # The second line of the code and the result stand right of it,
+                # where the code starts: the `x` that starts each line of the code.
+                x_of(word) = only(x for (text, x, _) in texts if text == word)
+                starts = [x for (text, x, _) in texts if text == "x"]
+                @test length(starts) == 2 && allequal(starts)
+                @test first(starts) == x_of("2") > only(prompts_x)
             end
 
             @testset "Up and Down in the evaluator recall its history through the window" begin
@@ -1187,8 +1289,8 @@ function test_application()
                 press!(key(:down))
                 @test shown() == ""
                 # The forms above keep their code.
-                @test [print_natural_text(evaluator.elements[1].form),
-                       evaluator.elements[2].form.value] == ["a = 1", "b = 2\nb + 1"]
+                @test [print_natural_text(evaluator.elements[i].form) for i in 1:2] ==
+                      ["a = 1", "b = 2\nb + 1"]
             end
 
             @testset "a structured form takes keys through the window, and Enter evaluates it" begin
@@ -1237,7 +1339,7 @@ function test_application()
             end
 
             @testset "a noted object pasted into a form runs as itself, and its tab draws the change" begin
-                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; focus_file = true)
                 editor = Editor(scene, composed; backend = ConsoleBackend(),
                                 devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
@@ -1249,12 +1351,13 @@ function test_application()
                 type!(text) = foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 at(word) = [(x, y) for (text, x, y) in drawn() if text == word]
-                # Alt+click on the JSON of the file tab selects the string under the
-                # pointer, Alt+Up walks out to the file, and Ctrl+N notes it: the
-                # clipboard holds the file itself.
+                # Alt+double click on the JSON of the file tab selects the text under the
+                # pointer, Alt+Up widens it to the JSON string and walks out to the file,
+                # and Ctrl+N notes it: the clipboard holds the file itself.
                 selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                 (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, ax + 5, ay + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                 @test selected() isa JsonString
                 for _ in 1:8
                     selected() isa JsonFile && break
@@ -1276,10 +1379,11 @@ function test_application()
                 type!("x.content.content.entries[1].value.value = \"Bob\"")
                 # Tab commits the hole into a tree of the code.
                 press!(KeyPress('\t'; time = 0.0))
-                # Alt+click on `x` selects it whole, and Ctrl+V puts the noted file
+                # Alt+double click on `x` selects it whole, and Ctrl+V puts the noted file
                 # there, which the code draws as its label.
                 (xx, xy) = only(at("x"))
-                press!(MouseClick(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, xx + 3, xy + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                 press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
                 @test "⟨a.json⟩" in [text for (text, _, _) in drawn()]
                 @test _app_plain(press!(KeyPress('\n'; time = 0.0))) isa
@@ -1300,7 +1404,7 @@ function test_application()
                 buffer = Ref("")
                 set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = text; true))
                 try
-                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; focus_file = true)
                     editor = Editor(scene, composed; backend = ConsoleBackend(),
                                     devices = Device[Display(), Keyboard(), Mouse()])
                     editor.iomap = iomap
@@ -1313,9 +1417,11 @@ function test_application()
                     selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                     copy_reference!() = _app_plain(press!(KeyDown(:c, ModifierKeys(ctrl = true, shift = true); time = 0.0)))
                     (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                    # Alt+click selects the string under the pointer, Alt+Up walks out
+                    # Alt+double click selects the text under the pointer, Alt+Up widens it to
+                    # the JSON string and walks out
                     # to the file, and Ctrl+Shift+C copies its reference as code.
-                    press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                    press!(MouseClick(:left, ax + 5, ay + 5, 2, ModifierKeys(alt = true); time = 0.0))
+                    press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
                     @test selected() isa JsonString
                     for _ in 1:8
                         selected() isa JsonFile && break
@@ -1324,8 +1430,8 @@ function test_application()
                     file = selected()
                     @test file isa JsonFile
                     @test copy_reference!() isa CopyReferenceOperation
-                    @test startswith(buffer[], "evaluate_reference(editor.document, @reference(editor.document, ")
-                    code = buffer[]
+                    code = read_os_clipboard()
+                    @test startswith(code, "evaluate_reference(editor.document, @reference(editor.document, ")
                     # Ctrl+V at the caret of a form types the code, and Enter gives the
                     # file itself.
                     toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
@@ -1365,11 +1471,11 @@ function test_application()
                 end
                 # A click as the editor gets it: the button down, the button up, and
                 # the press that the gesture recognizer makes of the two.
-                function click!(x, y; alt = false)
+                function click!(x, y; alt = false, count = 1)
                     modifiers = ModifierKeys(alt = alt)
                     fire!(MouseDown(:left, x, y, modifiers; time = 0.0))
                     fire!(MouseUp(:left, x, y, modifiers; time = 0.0))
-                    fire!(MouseClick(:left, x, y, 1, modifiers; time = 0.0))
+                    fire!(MouseClick(:left, x, y, count, modifiers; time = 0.0))
                 end
                 key!(name; modifiers...) = fire!(_app_key_event(name, ModifierKeys(; modifiers...)))
                 type!(text) = foreach(character -> fire!(KeyPress(character; time = 0.0)), text)
@@ -1407,8 +1513,8 @@ function test_application()
                 @test circle isa GraphicsCircle
                 (cx, cy, radius) = only(circles(content()))
                 @test radius == 10
-                # Note the circle: Alt+click on it selects the result itself.
-                click!(cx, cy; alt = true)
+                # Note the circle: Alt+double click on it selects the result itself.
+                click!(cx, cy; alt = true, count = 2)
                 key!(:n; ctrl = true)
                 @test only(search_documents(document, node -> node isa ClipboardSlice)).slice === circle
                 # A click on the empty space below the forms puts the caret back in
@@ -1421,7 +1527,8 @@ function test_application()
                 type!("x.radius = 30")
                 key!(:tab)
                 (xx, xy) = only((x, y) for (text, x, y) in drawn() if text == "x")
-                click!(xx + 3, xy + 5; alt = true)
+                click!(xx + 3, xy + 5; alt = true, count = 2)
+                key!(:up; alt = true)
                 key!(:v; ctrl = true)
                 @test "⟨GraphicsCircle⟩" in [text for (text, _, _) in drawn()]
                 key!(:return)
@@ -1502,7 +1609,7 @@ function test_application()
                 # A pane is closed as the assistant closes one, by its complete reference.
                 close!(type) = close_pane!(only(search_references(scene,
                     node -> node isa PaneTab && get_wrapped_document(node.content) isa type;
-                    descend = is_pane_search_step)); editor)
+                    walk = DocumentWalk(; descend = is_pane_search_step))); editor)
                 @test [string(item.action.label) for item in toolbar.elements][3] == "Assistant"
 
                 # While the assistant is open, the button reaches it and makes none.
@@ -1523,7 +1630,7 @@ function test_application()
                 @test again.model == "small"
                 @test again.context == 4096
                 @test get_pane_tab_title_string(group.tabs[index]) == "Assistant"
-                greeting(assistant) = get_flat_string(assistant.conversation.turns[1].parts[1].content)
+                greeting(assistant) = AssistantModule._part_text(assistant.conversation.turns[1].parts[1])
                 @test greeting(again) == greeting(started)
                 @test occursin("Ollama", greeting(again))
 
@@ -1600,7 +1707,11 @@ function test_application()
                 value(v) = v isa Cell ? value(v[]) : v
                 output = value(get_iomap_output(editor.iomap))
                 canvas = value(value(output.windows)[end].content)
-                @test any(text -> startswith(text, "Message log:"), _app_drawn_strings(canvas))
+                # The note says the name of the tool as its title, and what the tool
+                # shows as its text.
+                drawn = _app_drawn_strings(canvas)
+                @test "Message log" in drawn
+                @test "What the program said in this session." in drawn
                 # The window says its bounds and is printed at its maximum, so
                 # what it holds fits: a name of one line needs neither the whole
                 # width nor the whole height a tooltip may take.
@@ -1794,7 +1905,7 @@ function test_application()
 
             # The ring shows a selection that ends at the Files pane. A row the
             # person selects is inside it, so the ring is off.
-            @testset "a click selects a row inside the Files pane, and Alt+click the Files pane" begin
+            @testset "a click and an Alt+double click select a row inside the Files pane" begin
                 document, scene, composed, iomap = _app_make_scene(String[], dir; files = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
@@ -1828,7 +1939,14 @@ function test_application()
                 opened = _app_fire(composed, editor.iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
-                @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+                # An Alt+double click on the row selects the file of the row as a whole, the
+                # innermost part under the pointer, so the ring is off.
+                @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
+                      ReplaceSelectionOperation
+                @test selected_file() == joinpath(dir, "a.json")
+                @test isempty(ring())
+                # An Alt+double click below the rows selects the Files pane as a whole.
+                @test press!(MouseClick(:left, x + 3, y + 400, 2, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test endswith(path(), ".tabs[1].content")
                 @test length(ring()) == 1
@@ -1842,7 +1960,7 @@ function test_application()
             window() = begin
                 assistant = Assistant(; llm = FakeLlm("ok"))
                 document, scene, composed, iomap =
-                    _app_make_scene(paths[1:1], dir; assistant = assistant)
+                    _app_make_scene(paths[1:1], dir; assistant = assistant, focus_file = true)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -1861,7 +1979,7 @@ function test_application()
             focus_draft!(w) = begin
                 draft = w.assistant.draft
                 where = first(search_references(w.scene, node -> node === draft;
-                                                descend = _app_is_content_search_step))
+                                                walk = DocumentWalk(; descend = _app_is_content_search_step)))
                 _app_apply!(w.editor, ReplaceSelectionOperation(
                     concat_references(where, make_draft_caret_reference(draft))))
             end
@@ -1872,7 +1990,7 @@ function test_application()
                 focus_draft!(w)
                 type!(w, "hi")
                 @test holds_one_path(w)
-                @test w.press!(KeyPress('\t'; time = 0.0)) isa ComposerInsertPartOperation
+                @test w.press!(KeyDown(:insert, ModifierKeys(); time = 0.0)) isa ComposerInsertPartOperation
                 @test holds_one_path(w)
                 @test w.press!(KeyDown(:escape, ModifierKeys(); time = 0.0)) isa ComposerRevertOperation
                 @test holds_one_path(w)
@@ -1903,8 +2021,9 @@ function test_application()
                 draft = w.assistant.draft
                 @test get_selection(draft) === nothing
                 @test get_stored_selection(draft) !== nothing
-                # The focus comes back to the assistant, and the caret with it.
-                focus_pane!(find_pane_reference("Assistant"; editor = w.editor); editor = w.editor)
+                # The focus comes back to the assistant, and the caret with it. An
+                # untitled assistant is called by the first line of its first prompt.
+                focus_pane!(find_pane_reference("hello"; editor = w.editor); editor = w.editor)
                 @test holds_one_path(w)
                 @test get_selection(draft) !== nothing
                 @test carets(w) == 1
@@ -1924,15 +2043,14 @@ function test_application()
                       if occursin("Alice", text)]
                 w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
                 @test holds_one_path(w)
-                # Ctrl+O answers the load of the page of the file and a selection of the
-                # whole file.
-                reload = w.press!(KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
+                # F5 answers the reload of the file and a selection of the whole file.
+                reload = w.press!(KeyDown(:f5, ModifierKeys(); time = 0.0))
                 @test reload isa CompoundOperation
-                @test any(operation -> operation isa LoadFilePageOperation, reload.operations)
+                @test any(operation -> operation isa ReloadFileOperation, reload.operations)
                 @test holds_one_path(w)
                 @test evaluate_reference(w.scene, get_selection(w.scene)) isa JsonFile
                 @test _app_plain(_app_fire(w.composed, w.editor.iomap,
-                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFilePageOperation
+                                           KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFileOperation
             end
 
             @testset "the evaluator" begin
@@ -1946,7 +2064,7 @@ function test_application()
                 @test carets(w) == 1
                 @test holds_one_path(w)
                 evaluator = only(search_documents(w.document, node -> node isa EvaluatorToplevel;
-                                                  descend = _app_is_content_search_step))
+                                                  walk = DocumentWalk(; descend = _app_is_content_search_step)))
                 set_os_clipboard_backend!(read = () -> "1 + 41", write = text -> true)
                 try
                     w.press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
@@ -1974,7 +2092,7 @@ function test_application()
             end
         end
 
-        # A file opened from the explorer takes a click, a key and an Alt+click in
+        # A file opened from the explorer takes a click, a key and an Alt+double click in
         # its document, as the document alone takes them.
         @testset "a click in a file opened from the explorer reaches its document" begin
             document, scene, composed, iomap = _app_make_scene(paths[2:2], dir; files = true)
@@ -1990,7 +2108,7 @@ function test_application()
             press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
             @test press!(KeyPress('\n'; time = 0.0)) isa OpenFileOperation
             file = only(search_documents(document, node -> node isa JsonFile;
-                                         descend = _app_is_content_search_step))
+                                         walk = DocumentWalk(; descend = _app_is_content_search_step)))
             name() = get_wrapped_document(file.content).entries[1].value.value
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
@@ -2002,9 +2120,92 @@ function test_application()
             @test occursin("x", name()) && length(name()) == length("Alice") + 1
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("lice", text))
-            @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+            @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
                   ReplaceSelectionOperation
+            press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
             @test evaluate_reference(scene, get_selection(scene)) isa JsonString
+        end
+
+        @testset "a drag of the divider between the groups keeps the divider of the Explorer where a drag put it" begin
+            mktempdir() do place
+                settings = make_settings()
+                document = make_application_document(String[]; root = place, settings,
+                                                     assistant = make_application_assistant(:none))
+                backend = HeadlessBackend()
+                editor = build_editor(document, make_application_projection(); backend, settings,
+                                      window = (; title = "ProjecturEd", width = 1600, height = 1000,
+                                                opened_window_projections = make_opened_window_projections()),
+                                      make_application_wrappers(; root = place, document)...)
+                start_application!(editor)
+                drain_operations!(editor)
+                run_frame!(editor)
+                content() = get_iomap_output(editor.iomap).windows[1].content
+                send!(event) = (push_event!(backend, WindowInput(:ProjecturEd, event)); run_frame!(editor); run_frame!(editor))
+                function drag!(from, to, time)
+                    send!(MouseDown(:left, from, 500, ModifierKeys(); time))
+                    send!(MouseMove(to, 500, MouseButtons(:left), ModifierKeys(); time = time + 0.1))
+                    send!(MouseUp(:left, to, 500, ModifierKeys(); time = time + 0.2))
+                end
+                # The middle of each divider on the line y = 500, where the pointer is
+                # a double arrow: the one inside the Explorer, then the one between the
+                # Explorer group and the assistant.
+                function dividers()
+                    xs = filter(x -> find_pointer_shape(content(), x, 500) === :double_arrow_horizontal, 0:1599)
+                    starts = [x for (i, x) in enumerate(xs) if i == 1 || xs[i - 1] != x - 1]
+                    ends = [x for (i, x) in enumerate(xs) if i == length(xs) || xs[i + 1] != x + 1]
+                    [(first + last) ÷ 2 for (first, last) in zip(starts, ends)]
+                end
+                (inner, outer) = dividers()
+                drag!(inner, inner + 100, 1.0)
+                @test dividers() == [inner + 100, outer]
+                # The groups print nothing again, so the Explorer keeps its divider.
+                drag!(outer, outer - 100, 2.0)
+                @test dividers() == [inner + 100, outer - 100]
+            end
+        end
+
+        @testset "a start restores the explorer after the documents of the window, so a card and a tab of one file hold one document" begin
+            mktempdir() do place
+                notes_path = joinpath(place, "notes.txt")
+                write(notes_path, "notes on disk\n")
+                state = joinpath(place, "state", "explorer.pred")
+                # The steps of `run_application` up to its loop, with no window on the screen.
+                function start(paths)
+                    settings = make_settings()
+                    document = make_application_document(paths; root = place, settings,
+                                                         assistant = make_application_assistant(:none))
+                    editor = build_editor(document, make_application_projection(); backend = HeadlessBackend(), settings,
+                                          window = (; title = "ProjecturEd", width = 1600, height = 1000,
+                                                    opened_window_projections = make_opened_window_projections()),
+                                          make_application_wrappers(; root = place, document)...)
+                    start_application!(editor)
+                    editor
+                end
+                last_editor = start(String[])
+                editor = start([notes_path])
+                try
+                    # The last window of the folder kept a card of notes.txt.
+                    drain_operations!(last_editor)
+                    card = DashboardCard("notes", open_file_document!(notes_path; editor = last_editor))
+                    save_explorer_content!(ExplorerSection("Explorer", Any[Dashboard("Held", Any[card])]), state;
+                                           folder = place, editor = last_editor)
+                    # The next start shows notes.txt in a tab, and posts the load after the acquire of the window.
+                    # Before the drain, the tab holds the one file document of the window.
+                    tab_file = only(search_documents(editor.document, node -> node isa FileDocument))
+                    @test abspath(get_filename(tab_file)) == abspath(notes_path)
+                    post_operation!(editor, RestoreExplorerContentOperation(state; folder = place))
+                    drain_operations!(editor)
+                    restored = only(only(get_session_explorer_content(; editor).entries).cards)
+                    @test restored.content === tab_file
+                    @test find_open_file_document(notes_path; editor) === tab_file
+                    @test count(==(abspath(notes_path)), collect_open_file_paths(; editor)) == 1
+                    run_frame!(editor)
+                    @test count(==(abspath(notes_path)), collect_open_file_paths(; editor)) == 1
+                finally
+                    foreach(step -> step(last_editor), last_editor.stop_steps)
+                    foreach(step -> step(editor), editor.stop_steps)
+                end
+            end
         end
         rm(dir; recursive = true)
     end

@@ -86,16 +86,12 @@ function test_gallery_wrappers()
         @test _gw_count_texts(_gw_render(projection, document)) == bare + 8
     end
 
-    @testset "the command type-in overlay leaves the render unchanged while closed" begin
+    @testset "the command palette leaves the render unchanged" begin
         projection = make_command_palette_decorator_projection(make_json_projection_example())
         @test projection isa CommandPaletteDecoratorProjection
-        # The palette draws nothing until its gesture opens it, so the content
-        # renders exactly as it does without the wrapper.
+        # The palette opens in a window of its own, so the content renders exactly
+        # as it does without the wrapper.
         @test _gw_count_texts(_gw_render(projection, make_json_document_example())) == bare
-        # Each call gets its own palette: the overlay is drawn INTO a window, so two
-        # windows must not share one open flag.
-        other = make_command_palette_decorator_projection(make_json_projection_example())
-        @test projection.state !== other.state
     end
 
     # `_build_window_scene` lifts a seeded selection from the innermost document
@@ -126,7 +122,7 @@ function test_gallery_wrappers()
         end
     end
 
-    @testset "a right click opens a menu that draws in its own window" begin
+    @testset "a right click opens a menu that draws in its own window, and Escape closes it" begin
         # The gallery draws a window that opens later, such as the menu of a
         # right click, through the rows of the widgets.
         example = only(e for e in examples if e.name == "pivot")
@@ -144,6 +140,13 @@ function test_gallery_wrappers()
         send!(MouseUp(:right, x + 3, y + 3, ModifierKeys(); time = 1.15))
         menu = only(window for window in windows() if window.id !== main.id)
         @test "Show the totals" in [t[3] for t in _gw_texts(menu.content)]
+        # An Escape closes the menu and goes no further. A second Escape, which
+        # nothing takes, quits the example.
+        send!(KeyDown(:escape, ModifierKeys(); time = 1.2))
+        @test only(windows()).id === main.id
+        push_event!(backend, WindowInput(main.id, KeyDown(:escape, ModifierKeys(); time = 1.3)))
+        @test EditorModule.run_read_stage!(editor)
+        @test editor.operation isa QuitEditorOperation
     end
 end
 end

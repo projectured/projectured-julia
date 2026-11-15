@@ -41,8 +41,9 @@ end
     TaskNotStarted
 
 What a task of a group ended with when the preparation of the group ended with
-a result that is not expected: `CANCEL`, with a reason that names the
-preparation and its result. The task never started.
+a result that is not expected, or when a task of a group that stops at a
+failure did: `CANCEL`, with a reason that names the preparation or the task and
+its result. The task never started.
 """
 struct TaskNotStarted <: TaskResult
     task::AbstractTask
@@ -68,7 +69,12 @@ What a group looks like at one moment, in one value, for a reader of the screen:
   seconds left, from the mean time of a finished task, the tasks left and the job
   count; `rate` — the tasks finished in a minute;
 - `slowest` — the task that took the longest so far, as its parameters and its
-  seconds, or `nothing`.
+  seconds, or `nothing`;
+- `reasons` — the unexpected leaf results counted by reason, one row
+  `(reason, count, names)` for each reason: the leaves that gave it, and the
+  parameters of their tasks, each once, in the order of the tasks; the most
+  frequent reason first, and reasons of equal count in the order they came in.
+  A leaf is a result with no inner results ([`get_inner_task_results`](@ref)).
 """
 struct TaskGroupSummary
     total::Int
@@ -85,6 +91,7 @@ struct TaskGroupSummary
     remaining::Union{Float64,Nothing}
     rate::Union{Float64,Nothing}
     slowest::Union{Tuple{String,Float64},Nothing}
+    reasons::Vector{Tuple{String,Int,Vector{String}}}
 end
 
 """
@@ -100,6 +107,9 @@ groups, so that a summary needs no walk of every task:
   expected and how many were not;
 - `details` — the detail of each unexpected result by its place: its reason, or
   its code when it gives none;
+- `leaves` — the unexpected leaf results of each unexpected result by its place,
+  each as `(reason, name)`: the reason or the code of the leaf, and the
+  parameters of its task;
 - `duration_sum`, `duration_count`, `slowest` — the times of the tasks that have
   both a start and an end, and the one that took the longest, as its parameters
   and its seconds;
@@ -117,6 +127,7 @@ mutable struct TaskGroupTally
     num_expected::Dict{String,Int}
     num_unexpected::Dict{String,Int}
     details::Dict{Int,String}
+    leaves::Dict{Int,Vector{Tuple{String,String}}}
     duration_sum::Float64
     duration_count::Int
     slowest::Union{Tuple{String,Float64},Nothing}
@@ -148,7 +159,7 @@ is_walk_opaque(::TaskGroupRuntime) = true
 
 """
     TaskGroup(tasks; name = "task", action = "", jobs = get_default_job_count(),
-              codes = nothing, preparation = nothing)
+              stop_at_failure = false, codes = nothing, preparation = nothing)
 
 A group of tasks and what became of each: `MultipleTasks` of `opp_repl`.
 `runs[i]` is `nothing` until `tasks[i]` starts, and the [`TaskExecution`](@ref) of
@@ -157,7 +168,13 @@ entry in place and renumbers nothing.
 
 `name` is a noun and `action` a verb in its `-ing` form, as `opp_repl` writes
 them: `"fingerprint test"` and `"Checking fingerprint"`. `jobs` is how many tasks
-go at once; one job is the sequential case. `codes` are the result codes of the
+go at once; one job is the sequential case. `stop_at_failure` says that a task
+needs the tasks before it: when a task ends with a result that is not expected,
+no more task starts, the tasks that go run to their end, and each task that did
+not start ends `CANCEL` with the reason `Not started: checkout ended ERROR`. With
+one job the group is a chain; with more jobs it stops as `make` stops without
+`-k`. A run again of the failed task and of the tasks that did not start follows
+the same rule. `codes` are the result codes of the
 group, by default those of its first task.
 
 `runtime.finish`, when it is set, is called with the group when the last task
@@ -187,12 +204,28 @@ is not one of the tasks: the counts, the codes, the result and the places of
 the group are those of its tasks. `runtime.preparation_run` is its execution of
 the last start, and `runtime.on_preparation`, when it is set, is called with
 that execution when the preparation starts.
+
+Use it to build the work that `run_tasks!` starts: a chain of programs, each of
+which needs the one before it, or a set of programs that run at once. The default
+of `jobs` is the count of processor threads, so the tasks of a chain would run at
+once: give `jobs = 1` and `stop_at_failure = true`.
+
+# Example
+
+    TaskGroup([ProgramTask(`make cleanall`; working_directory = "/work/inet", name = "clean"),
+               ProgramTask(`make -j8`; working_directory = "/work/inet", name = "build")];
+              name = "rebuild", jobs = 1, stop_at_failure = true)
+
+See also `run_tasks!`, `ProgramTask`.
+
+For the assistant.
 """
 @document [M, C] struct TaskGroup <: AbstractTask
     tasks::Vector{AbstractTask}
     name::String
     action::String
     jobs::Int
+    stop_at_failure::Bool
     codes::ResultCodes
     preparation::Union{AbstractTask,Nothing}
     stopping::Bool
@@ -207,12 +240,13 @@ end
 
 function TaskGroup(tasks::AbstractVector{<:AbstractTask}; name::AbstractString = "task",
                    action::AbstractString = "", jobs::Integer = get_default_job_count(),
+                   stop_at_failure::Bool = false,
                    codes::Union{ResultCodes,Nothing} = nothing,
                    preparation::Union{AbstractTask,Nothing} = nothing)
     resolved = codes !== nothing ? codes :
                isempty(tasks) ? RUN_RESULT_CODES : get_result_codes(first(tasks))
     group = TaskGroup(AbstractTask[t for t in tasks], String(name), String(action),
-                      max(1, Int(jobs)), resolved, preparation, false, nothing, nothing,
+                      max(1, Int(jobs)), stop_at_failure, resolved, preparation, false, nothing, nothing,
                       Union{TaskExecution,Nothing}[nothing for _ in tasks], nothing, nothing,
                       nothing, TaskGroupRuntime())
     group.tally = _make_task_group_tally(group)
@@ -227,7 +261,8 @@ get_result_codes(group::TaskGroup) = group.codes
 # the group, or before anyone else holds the group.
 function _make_task_group_tally(group::TaskGroup)
     tally = TaskGroupTally(0, Int[], 0, Set{Int}(), Dict{String,Int}(), Dict{String,Int}(),
-                           Dict{Int,String}(), 0.0, 0, nothing, nothing)
+                           Dict{Int,String}(), Dict{Int,Vector{Tuple{String,String}}}(),
+                           0.0, 0, nothing, nothing)
     for (index, task) in enumerate(group.tasks)
         if task isa TaskGroup
             push!(tally.inner, index)
@@ -252,7 +287,10 @@ function _add_task_result!(tally::TaskGroupTally, index::Int, task, result::Task
     expected = is_expected(result)
     counts = expected ? tally.num_expected : tally.num_unexpected
     counts[result.result] = get(counts, result.result, 0) + 1
-    expected || (tally.details[index] = _has_text(result.reason) ? result.reason : result.result)
+    if !expected
+        tally.details[index] = _has_text(result.reason) ? result.reason : result.result
+        tally.leaves[index] = _collect_unexpected_leaves!(Tuple{String,String}[], result, task)
+    end
     if started !== nothing && ended !== nothing
         duration = ended - started
         tally.duration_sum += duration
@@ -261,6 +299,25 @@ function _add_task_result!(tally::TaskGroupTally, index::Int, task, result::Task
             (tally.slowest = (format_task_parameters(task), duration))
     end
     tally
+end
+
+# The unexpected leaves of `result` as `(reason, name)`: the reason of a leaf, or
+# its code when it gives none, and the parameters of its task, or those of
+# `outer`, the task that ended with `result`, when the leaf has no task.
+function _collect_unexpected_leaves!(leaves::Vector{Tuple{String,String}}, result::TaskResult,
+                                     outer)
+    inner = get_inner_task_results(result)
+    if isempty(inner)
+        is_expected(result) && return leaves
+        task = result.task === nothing ? outer : result.task
+        push!(leaves, (_has_text(result.reason) ? result.reason : result.result,
+                       format_task_parameters(task)))
+    else
+        for leaf in inner
+            _collect_unexpected_leaves!(leaves, leaf, outer)
+        end
+    end
+    leaves
 end
 
 # The driver of a group runs on a task of the default pool, and the loop and any
@@ -358,7 +415,8 @@ format_task_group_close_description(group::TaskGroup) =
 
 _describe_group(action::AbstractString, group::TaskGroup) =
     (isempty(action) ? "" : action * " ") * group.name * " (" *
-    string(length(group.tasks)) * (is_concurrent(group) ? " concurrent)" : " sequential)")
+    string(length(group.tasks)) * (is_concurrent(group) ? " concurrent" : " sequential") *
+    (group.stop_at_failure ? ", stops at a failure)" : ")")
 
 """
     compute_task_group_indices(group, which) -> Vector{Int}
@@ -439,8 +497,10 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
     finished = Channel{Int}(max(1, length(indices)))
     next = 1
     active = 0
+    failure = nothing
     while next <= length(indices) || active > 0
-        while !_is_task_group_stopping(group) && next <= length(indices) && active < group.jobs
+        while failure === nothing && !_is_task_group_stopping(group) && next <= length(indices) &&
+              active < group.jobs
             index = indices[next]
             next += 1
             active += 1
@@ -466,12 +526,30 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
             on_change === nothing || on_change(group)
         end
         active == 0 && break
-        _record_task_end!(group, take!(finished))
+        ended = take!(finished)
+        _record_task_end!(group, ended)
         active -= 1
+        if group.stop_at_failure && failure === nothing
+            result = _get_task_result(group, ended)
+            result === nothing || is_expected(result) ||
+                (failure = string("Not started: ", format_task_parameters(group.tasks[ended]),
+                                  " ended ", result.result))
+        end
         on_change === nothing || on_change(group)
     end
     close(finished)
+    if failure !== nothing && !_is_task_group_stopping(group)
+        for index in indices[next:end]
+            _end_unstarted_task!(group, index, failure, on_start, on_finish, on_change)
+        end
+    end
     _finish_drive!(group)
+end
+
+# The result of the task at `index`, or `nothing` before it ends.
+function _get_task_result(group::TaskGroup, index::Int)
+    run = lock(() -> group.runs[index], group.runtime.lock)
+    run === nothing ? nothing : lock(() -> run.result, run.runtime.lock)
 end
 
 # The end of a start of the group: its `finish`, and the time.
@@ -689,7 +767,7 @@ function measure_task_group_progress(group::TaskGroup)
 end
 
 # The tallies of the group and of its inner groups, summed: the unexpected
-# details in the order of the tasks, and the executions that run.
+# details and leaves in the order of the tasks, and the executions that run.
 mutable struct _TaskGroupSum
     total::Int
     finished::Int
@@ -697,6 +775,7 @@ mutable struct _TaskGroupSum
     num_expected::Dict{String,Int}
     num_unexpected::Dict{String,Int}
     details::Vector{String}
+    leaves::Vector{Tuple{String,String}}
     duration_sum::Float64
     duration_count::Int
     slowest::Union{Tuple{String,Float64},Nothing}
@@ -704,7 +783,7 @@ mutable struct _TaskGroupSum
 end
 
 _TaskGroupSum() = _TaskGroupSum(0, 0, TaskExecution[], Dict{String,Int}(), Dict{String,Int}(),
-                                String[], 0.0, 0, nothing, nothing)
+                                String[], Tuple{String,String}[], 0.0, 0, nothing, nothing)
 
 function _sum_task_group_tally!(tallied::_TaskGroupSum, group::TaskGroup)
     places = lock(group.runtime.lock) do
@@ -727,12 +806,17 @@ function _sum_task_group_tally!(tallied::_TaskGroupSum, group::TaskGroup)
         if slowest !== nothing && (tallied.slowest === nothing || slowest[2] > tallied.slowest[2])
             tallied.slowest = slowest
         end
-        sort!(Tuple{Int,Union{String,Nothing}}[[(i, d) for (i, d) in tally.details];
-                                                [(i, nothing) for i in tally.inner]]; by = first)
+        sort!(Tuple{Int,Union{String,Nothing},Vector{Tuple{String,String}}}[
+                  [(i, d, tally.leaves[i]) for (i, d) in tally.details];
+                  [(i, nothing, Tuple{String,String}[]) for i in tally.inner]]; by = first)
     end
-    for (index, detail) in places
-        detail === nothing ? _sum_task_group_tally!(tallied, group.tasks[index]) :
-                             push!(tallied.details, detail)
+    for (index, detail, leaves) in places
+        if detail === nothing
+            _sum_task_group_tally!(tallied, group.tasks[index])
+        else
+            push!(tallied.details, detail)
+            append!(tallied.leaves, leaves)
+        end
     end
     tallied
 end
@@ -811,6 +895,7 @@ function TaskGroupResult(results::AbstractVector; codes::ResultCodes,
 end
 
 get_result_codes(result::TaskGroupResult) = result.codes
+get_inner_task_results(result::TaskGroupResult) = result.results
 
 # The worst case of the rule of `opp_repl`: the first code, in the order of
 # `codes`, that has an expected result; then the last code that has an
@@ -998,25 +1083,46 @@ function compute_task_group_summary(group::TaskGroup; now::Real = time())
                      sum(values(num_unexpected); init = 0) == 0, words,
                      _format_unexpected_details(tallied.details, finished),
                      total == 0 ? 1.0 : clamp(progress / total, 0.0, 1.0),
-                     elapsed, remaining, rate, tallied.slowest)
+                     elapsed, remaining, rate, tallied.slowest,
+                     _compute_reason_rows(tallied.leaves))
+end
+
+# One row `(reason, count, names)` for each reason of the leaves: the count of the
+# leaves, the names each once in the order they came in; the most frequent
+# first, and a stable sort keeps reasons of equal count in the order they came in.
+function _compute_reason_rows(leaves::Vector{Tuple{String,String}})
+    rows = Tuple{String,Int,Vector{String}}[]
+    places = Dict{String,Int}()
+    seen = Set{Tuple{String,String}}()
+    for (reason, name) in leaves
+        index = get!(places, reason) do
+            push!(rows, (reason, 0, String[]))
+            length(rows)
+        end
+        (_, count, names) = rows[index]
+        (reason, name) in seen || (push!(seen, (reason, name)); push!(names, name))
+        rows[index] = (reason, count + 1, names)
+    end
+    sort!(rows; by = row -> row[2], rev = true, alg = MergeSort)
 end
 
 """
     get_task_group_counts(summary) -> NamedTuple
 
 The parts of a summary that change only when a task starts or ends: `total`,
-`finished`, `running`, `pending`, `counts`, `result` and `is_expected`. A view of
+`finished`, `running`, `pending`, `counts`, `result`, `is_expected` and
+`reasons`. A view of
 them is not drawn again at each sync.
 """
 get_task_group_counts(summary::TaskGroupSummary) =
     (total = summary.total, finished = summary.finished, running = summary.running,
      pending = summary.pending, counts = summary.counts, result = summary.result,
-     is_expected = summary.is_expected)
+     is_expected = summary.is_expected, reasons = summary.reasons)
 
 # ── The shadow ───────────────────────────────────────────────────────────────
 
 # The fields that a shadow takes; it holds no `runs`, `tally` or `runtime`.
-const _GROUP_SHADOW_FIELDS = (:name, :action, :jobs, :codes, :stopping, :start_time,
+const _GROUP_SHADOW_FIELDS = (:name, :action, :jobs, :stop_at_failure, :codes, :stopping, :start_time,
                               :end_time, :summary, :counts)
 
 # The summary of the group now, kept in the group with its counts.
@@ -1039,7 +1145,8 @@ reads the run of that task. Make it on the editor task.
 function make_task_group_shadow(group::TaskGroup)
     _refresh_task_group_summary!(group)
     lock(group.runtime.lock) do
-        ACTaskGroup(group.tasks, group.name, group.action, group.jobs, group.codes,
+        ACTaskGroup(group.tasks, group.name, group.action, group.jobs, group.stop_at_failure,
+                    group.codes,
                     group.preparation, group.stopping, group.start_time, group.end_time,
                     Union{TaskExecution,Nothing}[], nothing, group.summary, group.counts, nothing)
     end

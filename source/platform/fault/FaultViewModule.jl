@@ -1,8 +1,8 @@
 """
     FaultViewModule
 
-What a fault looks like to a person: the log that collects the faults, the panel
-and the tab that show it, the safe mode, and the gestures of a mark.
+How a person sees a fault: the log, the panel and the tab that show it, the safe
+mode, and the gestures of a mark.
 
 The kernel's `FaultModule` holds what a fault **is** — the record, the store,
 the barrier helper and the report cascade — and names no document and no

@@ -1,8 +1,8 @@
 """
     ProcessModule
 
-The process document domain: an algorithm as a **structured flowchart** —
-steps, decisions, loops and jumps that nest and run to completion.
+Process documents: an algorithm as a structured flowchart of steps, decisions, loops
+and jumps that nest.
 
 A process is the run-to-completion complement of a state machine. An
 `FsmState` is where control *rests*, waiting for an event; a `ProcessStep` is

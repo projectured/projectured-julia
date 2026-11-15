@@ -1,6 +1,6 @@
 # Drag tracking
 
-> **Kind:** design · **Status:** current · **Stands on:** [gesture.md](../../kernel/gesture.md), [operation.md](../../kernel/operation.md), [mouse-target.md](../../kernel/mouse-target.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [gesture.md](../../kernel/gesture.md), [operation.md](../../kernel/operation.md), [mouse-target.md](../../kernel/mouse-target.md)
 
 The dragtracking slice of `ProjecturedPlatform` keeps the path of the part whose drag is on, and gives that part the parts of its drag, `DragMove`, `DragEnd` and `DragCancel`, wherever the pointer is. A part starts its own drag with a `StartDragOperation` in its answer, and keeps its own state of what the drag does. This document says how the wrapper keeps the path, how the drags of the editor use it, and how a global drag finds where it lands.
 

@@ -14,6 +14,7 @@ using ProjecturedMarkdownExample
 using ProjecturedRSTExample
 using ProjecturedBookExample
 using ProjecturedWorkflowExample
+using ProjecturedResearchExample
 using ProjecturedMathExample
 using ProjecturedJuliaExample
 using ProjecturedSQLExample
@@ -25,6 +26,7 @@ using ProjecturedDBCatalogExample
 using ProjecturedFormulaExample
 using ProjecturedFSMExample
 using ProjecturedProcessExample
+using ProjecturedGitExample
 using ProjecturedPivotExample
 using ProjecturedConversationExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
@@ -38,7 +40,7 @@ import ProjecturedPlatformExample: print_example, write_example_pdf
 for _src in (ProjecturedKernelExample, ProjecturedPlatformExample,
              ProjecturedJSONExample, ProjecturedYAMLExample, ProjecturedXMLExample, ProjecturedMarkdownExample, ProjecturedRSTExample, ProjecturedBookExample,
              ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSQLExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
-             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedPivotExample, ProjecturedConversationExample, ProjecturedWorkflowExample)
+             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedGitExample, ProjecturedPivotExample, ProjecturedConversationExample, ProjecturedWorkflowExample, ProjecturedResearchExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue
@@ -72,6 +74,7 @@ include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "MarkdownJsonViewDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "WorkflowCompleteDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "TableDocumentExample.jl"))
@@ -110,13 +113,16 @@ include(joinpath(_EXAMPLE_DIR, "SearchGuideCorpus.jl"))
 export run_value_viewer, make_value_viewer, make_value_viewer_feeds
 # LiveExamples moved to the opt-in ProjecturedSDLExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
-# The workload body comes last, so it can reach everything above it. The
-# recording machinery beside it reaches nothing here — what to drive and which
-# list to replay belong to the leaf being built.
+# The walks over the atoms, and the workload of this package, which opens each
+# example: last, so that they reach everything above them.
 include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
-include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
+include(joinpath(_EXAMPLE_DIR, "ExampleWorkload.jl"))
 
-export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example
+export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example, workflow_example, workflow_journal_example,
+       workflow_goal_example, workflow_steps_example, workflow_substeps_example,
+       workflow_open_decision_example, workflow_explored_example, workflow_recorded_example,
+       workflow_elements_example, workflow_complete_example, research_example,
+       research_framed_example, research_grounded_example, research_planned_example, research_contested_example
 export assistant_work_example
 export build_file_editor, clipboard_example, conversation_editor_example
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
@@ -129,11 +135,14 @@ export chart_example, chart_line_example, chart_bar_example,
 export sequencechart_example, sequencechart_vertical_example,
        sequencechart_linear_example, sequencechart_large_example,
        sequencechart_inspector_example, sequencechart_pair_example
-export fsm_example, fsm_toggle_example, fsm_diagram_example
+export fsm_example, fsm_toggle_example, fsm_crossing_example, fsm_alternating_bit_example,
+       fsm_diagram_example, fsm_alternating_bit_diagram_example
 export pivot_example
 export process_example, process_drain_example, process_diagram_example
 export make_fsm_document_example, make_fsm_projection_example,
        make_fsm_tcp_document_example, make_fsm_toggle_document_example,
+       make_fsm_crossing_document_example, make_fsm_alternating_bit_document_example,
+       make_fsm_alternating_bit_diagram_document_example,
        make_fsm_variable_document_example, make_fsm_timer_document_example,
        make_fsm_event_document_example, make_fsm_state_document_example,
        make_fsm_transition_document_example, make_fsm_insertion_document_example,
@@ -148,7 +157,7 @@ export make_process_document_example, make_process_projection_example,
        make_process_diagram_document_example, make_process_diagram_projection_example,
        make_process_break_document_example, make_process_continue_document_example,
        make_process_terminal_document_example, make_process_edge_label_document_example
-export graph_example, graphics_image_example, json_example, json_insertion_example
+export graph_example, graph_services_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_book_document_example, make_book_projection_example, make_clipboard_document
@@ -173,6 +182,7 @@ export make_formula_grid_projection_example
 export make_formula_report_document_example, make_formula_report_projection_example
 export make_markdown_json_view_document_example, make_markdown_json_view_projection_example,
        make_markdown_json_to_syntax, markdown_json_view_example
+export make_workflow_complete_document_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,
@@ -280,10 +290,7 @@ export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example,
 export versioning_example, warm_file_editor, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export precompile_atoms, precompile_atom_parsers
-export precompile_workload
-export record_precompile_statements, trace_precompile_statements, replay_precompile_statements,
-       clean_precompile_trace, write_precompile_statements,
-       bind_loaded_modules!, PRECOMPILE_STALE_RATIO
+export run_example_workload
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
@@ -332,6 +339,7 @@ export make_widget_alert_document_example, make_widget_skeleton_document_example
 export make_widget_toggle_document_example, make_widget_toggle_group_document_example
 export make_widget_select_document_example, make_widget_textarea_document_example
 export make_widget_accordion_document_example, make_widget_table_document_example
+export make_widget_fact_group_document_example
 export make_widget_table_offered_document_example, make_widget_table_frozen_document_example
 export make_widget_tree_document_example
 export make_widget_popup_document_example, make_widget_popup_projection_example
@@ -392,8 +400,10 @@ export widget_progress_bar_example, widget_progress_ring_example, widget_slider_
 export widget_avatar_example, widget_alert_example, widget_skeleton_example, widget_swatch_example
 export widget_toggle_example, widget_toggle_group_example, widget_select_example
 export widget_textarea_example, widget_accordion_example, widget_table_example, widget_tree_example
+export widget_fact_group_example
 export widget_table_offered_example, widget_table_frozen_example
 export widget_disabled_example, widget_focus_example
+export layout_text_above_table_example, layout_scroll_area_in_page_example, layout_fill_in_scroll_area_example, layout_shares_example, layout_row_edge_example, layout_rows_in_slot_and_page_example
 export layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, files_example
 export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example
 export lazy_example, lazy_bidirectional_example
@@ -420,5 +430,9 @@ export SCALE_SEARCH_MODULE_NAMES, SCALE_SEARCH_QUESTIONS, get_scale_search_modul
        measure_projectured_search_scale!, GUIDE_SEARCH_QUESTIONS
 export make_dragging_document_example, make_dragging_projection_example
 export dragging_example
+
+# The workload of this package: each example, opened and driven.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead run_example_workload()
 
 end

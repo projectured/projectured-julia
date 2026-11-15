@@ -11,13 +11,16 @@ of the editor, a project, a dashboard, another section. A section links its
 entries and does not own them, so one document can be an entry of many sections,
 and a removal of an entry leaves the document as it is.
 
-Use it as the root of an [`Explorer`](@ref), and to group the entries in it.
+Use it to group the entries of an explorer, such as the documents of one study,
+and as the root of an [`Explorer`](@ref).
 
 # Example
 
     section_1 = ExplorerSection("Tools", Any[get_session_task_group_list()])
 
-See also `Explorer` and `get_session_explorer_content`.
+See also `find_explorer_content` and `open_explorer_page!`.
+
+For the assistant.
 """
 @document struct ExplorerSection <: Document
     title::String
@@ -28,7 +31,14 @@ get_document_title(section::ExplorerSection) = section.title
 
 get_tree_children_steps(::ExplorerSection) = ((FieldReferenceStep("entries"),),)
 format_tree_node_label(section::ExplorerSection) = section.title
-get_document_decoration(::ExplorerSection) = DocumentDecoration(; icon = :layers)
+get_document_decoration(section::ExplorerSection) =
+    DocumentDecoration(; icon = :layers, tooltip = () -> _make_section_note(section))
+
+# What a row of a section says when the pointer rests on it: how many entries it
+# holds, and the keys that rename it and add an entry.
+_make_section_note(section::ExplorerSection) =
+    TooltipNote(; title = section.title, facts = ["Entries" => string(length(section.entries))],
+                keys = vcat(find_bound_keys(Explorer, "Rename"), find_bound_keys(Explorer, "Add an entry")))
 
 # A person adds a new empty section by name, as an entry of a section or in a tab.
 get_insertion_aliases(::Type{ExplorerSection}) = ["section"]
@@ -117,6 +127,12 @@ make_pred_document(::Type{<:Explorer}, positional, keywords) = Explorer(first(po
 get_document_title(::Explorer) = "Explorer"
 get_document_decoration(::Explorer) = DocumentDecoration(; icon = :folder_tree)
 
+# The explorer keeps the place on the page while the keys are in the tree, and the
+# place in the tree while the keys are on the page, as a split pane keeps the side
+# that had the focus. So each page keeps where the keys were, and a double press
+# puts them back there.
+has_dormant_selection(::Explorer) = true
+
 # An explorer holds its tree and its navigator, so the open nodes of the tree and
 # the page of the navigator start what they need, such as the read of a folder,
 # while the explorer is shown.
@@ -182,7 +198,8 @@ function _find_window_explorer_content(editor::Editor)
     tree isa PaneTree || return nothing
     for group in get_pane_groups(tree), tab in group.tabs
         found = search_documents(tab.content, document -> document isa Explorer;
-                                 maxdepth = _EXPLORER_SEARCH_DEPTH, descend = _is_held_document)
+                                 maxdepth = _EXPLORER_SEARCH_DEPTH,
+                                 walk = DocumentWalk(; descend = _is_held_document))
         isempty(found) || return getfield(first(found), :tree)[].root
     end
     nothing
@@ -195,3 +212,139 @@ const _EXPLORER_SEARCH_DEPTH = 3
 # The search enters a document that a field holds, and no collection, so it reads
 # no lazy part of a content.
 _is_held_document(_, child) = child isa Document && !is_element_collection(child)
+
+"""
+    find_explorer_content(; editor = get_evaluation_editor()) -> ReferencedDocument or nothing
+
+The root section of the explorer of the window, as a part of the window: it acts
+like the section and carries its complete reference from the root, through the
+first tab that shows an explorer of it. So a verb that edits a collection edits
+its entries as a person does, and undo takes the edit back. `nothing` when no tab
+shows the explorer.
+
+Use it to read the entries of the explorer, to add a document to it, such as a
+dashboard, and to find an entry for `describe_commands` and `open_explorer_page!`.
+
+# Example
+
+    content_1 = find_explorer_content()
+    [format_tree_node_label(entry) for entry in content_1.entries]
+    insert_elements!(content_1.entries, length(content_1.entries) + 1,
+                     [Dashboard("Queue study", [DashboardCard("Tasks", get_session_task_group_list())])])
+
+See also `ExplorerSection`, `Dashboard`, `describe_commands`, `open_explorer_page!`.
+
+For the assistant.
+"""
+function find_explorer_content end
+
+function find_explorer_content(; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "find_explorer_content") do
+        root = getfield(editor, :document)
+        content = get_session_explorer_content(; editor)
+        is_shown = document -> document isa Explorer && getfield(document, :tree)[].root === content
+        for tab_reference in search_references(root, node -> node isa PaneTab;
+                                               walk = DocumentWalk(; descend = is_pane_search_step), limit = nothing)
+            tab = evaluate_reference(root, tab_reference)
+            for found in search_references(tab.content, is_shown; maxdepth = _EXPLORER_SEARCH_DEPTH,
+                                           walk = DocumentWalk(; descend = _is_held_document), limit = 1)
+                steps = (get_reference_steps(strip_reference_types(tab_reference))..., FieldReferenceStep("content"),
+                         get_reference_steps(strip_reference_types(found))...,
+                         FieldReferenceStep("tree"), FieldReferenceStep("root"))
+                return ReferencedDocument(content, annotate_reference_types(root, _make_steps(steps...)))
+            end
+        end
+        nothing
+    end
+end
+
+"""
+    open_explorer_page!(part; editor = get_evaluation_editor()) -> String
+
+Show the page of `part` in the navigator of the explorer, beside its tree, and open
+the rows of the tree above it so its row shows, as a press on a link on a page
+does. The selection of the person does not move. `part` is a node of the content
+of the explorer, such as an entry of [`find_explorer_content`](@ref), or a part of
+a document that an entry holds, such as a task group of the task list, also when
+another tab shows it. A part that the explorer does not hold is refused: add its
+document to the explorer first.
+
+Use it to show the person a document in the explorer, such as a new dashboard, in
+place of a new tab.
+
+# Example
+
+    content_1 = find_explorer_content()
+    open_explorer_page!(content_1.entries[1])
+
+See also `find_explorer_content`, `open_page!`.
+
+For the assistant.
+"""
+function open_explorer_page! end
+
+function open_explorer_page!(part::ReferencedDocument; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "open_explorer_page!") do
+        change = _make_explorer_page_change(editor, part)
+        change === nothing || apply_change!(change; editor)
+    end
+    "The explorer shows the page of " * describe_document(part) * "."
+end
+
+make_change(::typeof(open_explorer_page!), part::ReferencedDocument; editor = get_evaluation_editor()) =
+    run_on_editor_task!(editor; description = "make_change") do
+        change = _make_explorer_page_change(editor, part)
+        change === nothing &&
+            throw(ArgumentError("The explorer shows the page of " * describe_document(part) *
+                                " already, so there is no change to make."))
+        change
+    end
+
+# The change that shows the page of `part` in the navigator of the explorer and
+# opens the rows of the tree above it; `nothing` when the explorer shows it already.
+function _make_explorer_page_change(editor, part::ReferencedDocument)
+    content = find_explorer_content(; editor)
+    content === nothing && throw(ArgumentError("No tab of the window shows the explorer."))
+    address = _find_explorer_address(editor, content, part)
+    address === nothing &&
+        throw(ArgumentError("The explorer holds no " * describe_document(part) * ". Add it to the explorer " *
+                            "first, with an insert into `find_explorer_content().entries`."))
+    steps = get_reference_steps(strip_reference_types(get_reference(content)))
+    place = annotate_reference_types(getfield(editor, :document), _make_steps(steps[1:(end - 2)]...))
+    explorer = evaluate_reference(getfield(editor, :document), place)
+    operations = Any[]
+    visit = make_navigator_open_operation(getfield(explorer, :navigator)[], address)
+    visit === nothing || push!(operations, _get_visit_writes(visit))
+    reveal = make_tree_reveal_operation(getfield(explorer, :tree)[], address)
+    reveal === nothing || push!(operations, reveal)
+    isempty(operations) && return nothing
+    description = "Show " * describe_document(part) * " in the explorer"
+    rooted = read_rooted_operation(editor, place, CompoundOperation(operations); description)
+    rooted === nothing && throw(ArgumentError("The window can not show this part in the explorer."))
+    RootedOperation(rooted, description)
+end
+
+# The path of `part` from the root section `content` of the explorer: the rest of
+# its reference when the reference goes through the section; else the path where
+# an entry holds the nearest document on the reference of the part
+# (`find_navigator_address`), with the rest of the reference after that document;
+# `nothing` when the section holds none of them.
+function _find_explorer_address(editor, content::ReferencedDocument, part::ReferencedDocument)
+    prefix = get_reference_steps(strip_reference_types(get_reference(content)))
+    steps = collect(get_reference_steps(strip_reference_types(get_reference(part))))
+    length(steps) >= length(prefix) && steps[1:length(prefix)] == collect(prefix) &&
+        return _make_steps(steps[(length(prefix) + 1):end]...)
+    nodes = Any[getfield(editor, :document)]
+    for step in steps
+        node = try_evaluate_reference(nodes[end], extend_reference(EmptyReference(), step), missing)
+        node === missing && break
+        push!(nodes, node)
+    end
+    for count in (length(nodes) - 1):-1:1
+        nodes[count + 1] isa Document || continue
+        held = find_navigator_address(get_document(content), nodes[count + 1])
+        held === nothing ||
+            return concat_references(strip_reference_types(held), _make_steps(steps[(count + 1):end]...))
+    end
+    nothing
+end

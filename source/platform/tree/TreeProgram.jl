@@ -21,6 +21,8 @@ agent started.
     show_document_tree!(plan; title = "Plan")
 
 See also `show_roster!`, which shows the members of one kind as a table.
+
+For the assistant.
 """
 function show_document_tree! end
 

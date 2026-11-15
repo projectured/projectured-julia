@@ -1,10 +1,11 @@
 """
     FsmModule
 
-The state machine document domain: an `FsmComponent` groups extended-state
-variables, timers, event declarations and one or more `FsmMachine`s (PLCA needs
-two machines over one variable set), plus arbitrary Julia helper items so a
-component projects to a complete, runnable module.
+State machine documents: a component that groups variables, timers, events and one
+or more machines of states and transitions. An `FsmComponent` groups extended-state
+variables, timers, event declarations and one or more `FsmMachine`s (PLCA needs two
+machines over one variable set), plus arbitrary Julia helper items so a component
+projects to a complete, runnable module.
 
 The domain includes:
 - **Declarations**: `FsmVariable`, `FsmTimer`, `FsmEvent`

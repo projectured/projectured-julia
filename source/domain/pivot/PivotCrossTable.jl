@@ -13,6 +13,16 @@
 The value of a dimension in the key of a total: the part of every value of the
 dimension. A key `("EU", PivotTotal())` is the subtotal of the region EU, and a
 key of only `PivotTotal()` values is the total. A header shows it as `total`.
+
+Use it to name a total in a key, such as a key that `find_pivot_value` reads.
+
+# Example
+
+    find_pivot_value(pivot_1, ("EU", PivotTotal()), PivotTotal())
+
+See also `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotTotal end
 
@@ -23,6 +33,16 @@ const _PIVOT_TOTAL = PivotTotal()
 
 The value of a number in a dimension with bins: the bin from `low`, which it
 holds, to `high`, which it does not. Bins follow each other by `low`.
+
+Use it to name a bin in a key of a dimension with bins.
+
+# Example
+
+    find_pivot_value(pivot_1, PivotBin(10.0, 20.0), 2025)
+
+See also `PivotDimension`, `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotBin
     low::Float64
@@ -36,6 +56,16 @@ Base.isless(a::PivotBin, b::PivotBin) = isless(a.low, b.low)
 
 The value of a date in a dimension by month. Months follow each other by year,
 then by month.
+
+Use it to name a month in a key of a dimension of dates by month.
+
+# Example
+
+    find_pivot_value(pivot_1, PivotMonth(2025, 3), ())
+
+See also `PivotDimension`, `find_pivot_value`.
+
+For the assistant.
 """
 struct PivotMonth
     year::Int
@@ -95,17 +125,71 @@ end
 # finds its number too.
 _make_key_index(keys::Vector{Tuple}) = Dict{Tuple,Int}(key => k for (k, key) in enumerate(keys))
 
+"""
+    get_pivot_row_count(cross::PivotCrossTable) -> Int
+
+The number of rows of the cross table `cross`, the totals among them.
+
+Use it to know how many rows a pivot shows.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    count_1 = get_pivot_row_count(pivot_1.cross_table)
+
+See also `get_pivot_column_count` and `compute_pivot_cross_table`.
+
+For the assistant.
+"""
+function get_pivot_row_count end
+
+"""
+    get_pivot_column_count(cross::PivotCrossTable) -> Int
+
+The number of columns of the cross table `cross`, the totals among them.
+
+Use it to know how many columns a pivot shows.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    count_1 = get_pivot_column_count(pivot_1.cross_table)
+
+See also `get_pivot_row_count` and `compute_pivot_cross_table`.
+
+For the assistant.
+"""
+function get_pivot_column_count end
+
 get_pivot_row_count(cross::PivotCrossTable) = length(cross.row_keys)
 get_pivot_column_count(cross::PivotCrossTable) = length(cross.column_keys)
 
 """
     find_pivot_part_rows(cross, row, column) -> Union{AbstractVector{Int}, Nothing}
+    find_pivot_part_rows(cross, row_key::Tuple, column_key::Tuple) -> Union{AbstractVector{Int}, Nothing}
 
-The rows of the source in the cell of row `row` and column `column` of `cross`,
-in the order of the source; `nothing` when no row of the source has that row
-key and that column key. The part of a total is gathered from the parts of the
-details that it covers.
+The numbers of the rows of the source in a cell of `cross`, the cross table of a
+pivot, in the order of the source: the cell of row `row` and column `column`, or
+the cell of the row with the key `row_key` and the column with the key
+`column_key`. Answer `nothing` when a key does not occur, or no row of the source
+has both. The part of a total is gathered from the parts of the details that it
+covers.
+
+Use it to find which rows of the source a cell of a pivot counts.
+
+# Example
+
+    pivot_1 = get_edited_document(find_pane("Sales"))
+    rows_1 = find_pivot_part_rows(pivot_1.cross_table, ("EU", "DE"), (2025,))
+
+See also `find_pivot_value`, `PivotRowsView`.
+
+For the assistant.
 """
+function find_pivot_part_rows end
+
 function find_pivot_part_rows(cross::PivotCrossTable, row::Integer, column::Integer)
     rows, columns = cross.row_details[row], cross.column_details[column]
     if length(rows) == 1 && length(columns) == 1
@@ -120,13 +204,6 @@ function find_pivot_part_rows(cross::PivotCrossTable, row::Integer, column::Inte
     isempty(gathered) ? nothing : sort!(gathered)
 end
 
-"""
-    find_pivot_part_rows(cross, row_key::Tuple, column_key::Tuple) -> Union{AbstractVector{Int}, Nothing}
-
-The rows of the source in the cell of the row with the key `row_key` and the
-column with the key `column_key`; `nothing` when either key does not occur, or
-no row has both.
-"""
 function find_pivot_part_rows(cross::PivotCrossTable, row_key::Tuple, column_key::Tuple)
     row = get(cross.row_index, row_key, nothing)
     column = get(cross.column_index, column_key, nothing)
@@ -154,7 +231,21 @@ values does not make a table of thousands of columns.
 With `totals`, a subtotal row follows each run of an outer row dimension, a
 total row follows every row, and a total column every column. A run whose key
 prefix is in `collapsed` shows only its subtotal row, with or without `totals`.
+
+Use it to find which rows of a table fall in each cell of a pivot, with the keys of its rows and columns and their totals.
+
+# Example
+
+    sales_1 = [(region = "EU", year = 2024, amount = 12.0), (region = "US", year = 2024, amount = 30.0)]
+    pivot_1 = make_pivot_table(sales_1; rows = ["region"], columns = ["year"])
+    cross_1 = compute_pivot_cross_table(pivot_1)
+
+See also `make_pivot_table`, `get_pivot_row_count` and `get_pivot_column_count`.
+
+For the assistant.
 """
+function compute_pivot_cross_table end
+
 function compute_pivot_cross_table(pivot::PivotTable)
     pivot.source_version
     compute_pivot_cross_table(pivot.source, collect(pivot.row_dimensions), collect(pivot.column_dimensions);
@@ -190,6 +281,8 @@ function compute_pivot_cross_table(table, row_dimensions::AbstractVector, column
     PivotCrossTable(row_keys, column_keys, _make_key_index(row_keys), _make_key_index(column_keys),
                     part_rows, part_ranges, row_details, column_details, detail_rows, width)
 end
+
+compute_pivot_cross_table(pivot::ReferencedDocument) = compute_pivot_cross_table(get_document(pivot))
 
 # The keys of an axis, and the range of the details that each covers: the
 # details, a subtotal after each run of an outer level with `totals` or when its
@@ -429,4 +522,58 @@ function compute_pivot_measure(table, rows::AbstractVector{<:Integer}, measure)
     aggregate === :minimum && return minimum(present)
     aggregate === :maximum && return maximum(present)
     throw(ArgumentError("a pivot measure has no aggregate :$aggregate"))
+end
+
+"""
+    find_pivot_value(pivot, row_key, column_key = (); measure = 1) -> value or nothing
+
+The value of measure number `measure` of `pivot` in the cell of the row with the
+key `row_key` and the column with the key `column_key`: the number that the cell
+shows. A key is a tuple of the values of the row or the column dimensions, in
+their order, such as `("EU", "DE")`. One value is the key of one dimension, and
+`()` is the key of a pivot with no dimension there. The key of a total holds
+`PivotTotal()`, and it occurs while the pivot shows its totals. Answer `nothing`
+when a key does not occur, or no row of the source has both keys.
+
+Use it to read one value of a pivot that is too large to read in its display.
+
+# Example
+
+    pivot_1 = get_edited_document(find_pane("Sales"))
+    find_pivot_value(pivot_1, ("EU", "DE"), 2025)
+    find_pivot_value(pivot_1, ("EU", PivotTotal()), 2025; measure = 2)
+
+See also `move_pivot_field!`, `make_pivot_table`.
+
+For the assistant.
+"""
+function find_pivot_value end
+
+# @optional: the column key is a coordinate of the cell, as the row key is, and a pivot with no
+# column dimension reads its value with the empty key.
+find_pivot_value(pivot::ReferencedDocument, row_key, column_key = (); measure::Integer = 1) =
+    find_pivot_value(get_document(pivot), row_key, column_key; measure)
+
+# @optional: the column key is a coordinate of the cell, as the row key is, and a pivot with no
+# column dimension reads its value with the empty key.
+function find_pivot_value(pivot::PivotTable, row_key, column_key = (); measure::Integer = 1)
+    row_key = _check_pivot_key(row_key, pivot.row_dimensions, "row")
+    column_key = _check_pivot_key(column_key, pivot.column_dimensions, "column")
+    measures = get_pivot_measures(pivot)
+    1 <= measure <= length(measures) ||
+        throw(ArgumentError(string("The pivot has no measure ", measure, ". Its measures: ",
+                                   join((describe_pivot_measure(m) for m in measures), ", "), ".")))
+    rows = find_pivot_part_rows(pivot.cross_table, row_key, column_key)
+    rows === nothing ? nothing : compute_pivot_measure(pivot.source, rows, measures[measure])
+end
+
+# A key as a tuple, with one value for each dimension of `dimensions`. A key of
+# another length is refused, and the refusal names the dimensions.
+function _check_pivot_key(key, dimensions, kind::String)
+    key = key isa Tuple ? key : (key,)
+    count = length(dimensions)
+    length(key) == count && return key
+    names = join((dimension.column for dimension in dimensions), ", ")
+    throw(ArgumentError(string("The ", kind, " key ", repr(key), " has ", length(key), " values, and the pivot has ",
+                               count, " ", kind, " dimensions", count == 0 ? "" : ": " * names, ".")))
 end

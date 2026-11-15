@@ -46,13 +46,14 @@ read_intent(::ObjectFieldToValue, iomap::SimpleIoMap, operation) = operation
 
 function map_reference_forward(p::ObjectFieldToValue, iomap::SimpleIoMap, reference)
     range = find_object_field_range(iomap.input, reference)
-    range === nothing || return make_flat_range_reference(range...)
+    range === nothing || return make_flat_range_reference(range...; direction = get_range_direction(reference))
     invoke(map_reference_forward, Tuple{Projection, Any, Any}, p, iomap, reference)
 end
 
 function map_reference_backward(p::ObjectFieldToValue, iomap::SimpleIoMap, reference)
     flat = strip_reference_types(reference)
     (flat isa ConcreteReference && flat.head isa TextRangeReferenceStep && flat.tail isa EmptyReference) &&
-        return make_object_field_range_reference(iomap.input, flat.head.start, flat.head.stop)
+        return make_object_field_range_reference(iomap.input, flat.head.start, flat.head.stop;
+                                                 direction = flat.head.direction)
     invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
 end

@@ -1,0 +1,253 @@
+# A scroll costs what comes into view. Three panes of the application scroll by
+# the wheel: a Julia file in a focused tab, the Files pane and a data frame. Each
+# frame is painted by the walk of the partial paint into an offscreen renderer,
+# and its pixels are compared with a full paint. The test counts the work of each
+# frame: the boxes that it copies, the leaves that it draws, and the elements,
+# records and guards of its walk, and the graphics that stay in view and that a
+# move enters, which a window twice as tall does not double, and which a notch
+# deep in a table does not raise. When the table moves the head of its rows, its
+# list is built no further than at its top. The counts hold on a busy machine,
+# where a time does not.
+
+using Test
+
+const _SW_SDL = ProjecturedSDL.SdlModule
+const _SW_WIDTH, _SW_HEIGHT = 1600, 1000
+const _SW_BACKGROUND = (0xff, 0xff, 0xff, 0xff)
+
+_sw_read_pixels(off) = (_SW_SDL.SDL_RenderFlush(off.renderer); s = unsafe_load(off.surface);
+                        copy(unsafe_wrap(Array, Ptr{UInt32}(s.pixels), (Int(s.pitch) ÷ 4, Int(s.h)))))
+
+# The window of the application over a Julia file of `count` functions, with its
+# tab focused, as a person who opened the file has it, in a window `height` pixels
+# high.
+function _sw_make_julia_editor(backend, count::Int; height::Int = _SW_HEIGHT)
+    directory = mktempdir()
+    path = joinpath(directory, "values.jl")
+    write(path, join(["# The value $k.\nfunction value_$k(x)\n    x + $k\nend\n" for k in 1:count], "\n"))
+    document, projection = make_application_window([path]; root = mkpath(joinpath(directory, "empty")),
+                                                   assistant = nothing)
+    _app_focus_first_file!(document)
+    build_editor(document, projection; backend, tabs = false,
+                 window = (; title = "ProjecturEd", width = _SW_WIDTH, height,
+                           opened_window_projections = make_opened_window_projections()))
+end
+
+# The Files pane over 50 folders and 450 files, in a window `height` pixels high.
+function _sw_make_files_editor(backend; height::Int = _SW_HEIGHT)
+    folder = mktempdir()
+    foreach(k -> mkpath(joinpath(folder, string("d", lpad(k, 3, '0')))), 1:50)
+    foreach(k -> write(joinpath(folder, string("f", lpad(k, 3, '0'), ".jl")), ""), 1:450)
+    explorer = WorkspaceExplorer(Workspace([WorkspaceFolder("folder", folder)]))
+    foreach(f -> read_filesystem_folder!(f.directory), explorer.workspace.folders)
+    build_editor(explorer; backend, window = (; title = "Files", width = _SW_WIDTH, height), tabs = (; title = "Files"))
+end
+
+# A data frame of 1000 rows, in a window `height` pixels high.
+function _sw_make_data_frame_editor(backend; height::Int = _SW_HEIGHT)
+    frame = DataFrames.DataFrame(id = 1:1000, name = ["row $k" for k in 1:1000], value = [k / 7 for k in 1:1000])
+    build_editor(ProjecturedDataFrames.DataFrameView(frame); backend,
+                 window = (; title = "Data", width = _SW_WIDTH, height), tabs = (; title = "Data"))
+end
+
+# True when the notches of `frames` enter at most 10% more kept graphics in all
+# than the same notches of `reference`. A notch enters the graphics that the edges
+# cut, and those differ from notch to notch.
+_sw_enters_as_few(frames, reference) =
+    10 * sum(f.work[4] for f in frames) <= 11 * sum(r.work[4] for r in reference)
+
+# The count of the nodes of a lazy list from `head` on, `head` too, that a walk
+# built: the links after it that `count_computed_nodes` counts, which computes no
+# link and depends on none.
+_sw_count_built_rows(head) = 1 + ProjecturedPlatform.CollectionModule._count_computed_links(head, :next)
+
+# The canvases of `canvas` that the paint of `res` draws with more than `limit`
+# elements and no layout, or with overlap, as their counts of elements. A walk and
+# a paint visit each element of such a canvas, whatever the view shows.
+function _sw_find_unlaid_canvases(res, canvas; limit::Int = 200)
+    SDL = _SW_SDL
+    found = Int[]
+    function visit_canvas(canvas, key, ox, oy, edges)
+        elements = canvas.elements
+        layout = canvas.layout
+        early = SDL._is_early_stop_layout(canvas)
+        if elements isa ListNode
+            early || return nothing
+            for node in SDL._collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+                value = node.value
+                visit(value, SDL._make_placement_key(value, SDL._make_placement_key(node, key)), ox, oy, edges)
+            end
+            return nothing
+        end
+        early || length(elements) <= limit || push!(found, length(elements))
+        for i in SDL._compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+            elem = elements[i]
+            elem isa GraphicsFence && continue
+            SDL._is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+            visit(elem, SDL._make_placement_key(elem, key), ox, oy, edges)
+        end
+    end
+    function visit(elem, key, ox, oy, edges)
+        haskey(res.painted.origins, key) || return nothing
+        if elem isa GraphicsCanvas
+            visit_canvas(elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
+        elseif elem isa GraphicsViewport
+            box, content, transform = SDL._get_viewport_geometry(elem, ox, oy)
+            place = SDL._compute_viewport_content_place(box, content, transform, edges)
+            place === nothing ||
+                visit_canvas(content, SDL._make_placement_key(content, key), place...)
+        end
+        nothing
+    end
+    visit_canvas(canvas, SDL._make_placement_key(canvas, UInt(0)), 0, 0,
+                 SDL._ClipEdges(0, 0, res.width, res.height))
+    found
+end
+
+# The frames of `notches` turns of the wheel at `(x, y)` in the window `id` of
+# `editor`, after a first paint and `depth` turns that are painted and not counted.
+# Each frame tells whether its pixels equal a full paint, the boxes that it copied,
+# the leaves that it drew, the leaves that a paint of the whole window draws, and
+# the counts of its walk. Also the canvases with no layout that the last frame
+# drew. The window is `height` pixels high.
+function _sw_scroll(editor, backend, id::Symbol, x::Int, y::Int; notches::Int = 6, height::Int = _SW_HEIGHT,
+                    depth::Int = 0)
+    SDL = _SW_SDL
+    width, background = _SW_WIDTH, _SW_BACKGROUND
+    partial = SDL.open_offscreen_renderer(width, height; supersample = 1, density = 1)
+    full = SDL.open_offscreen_renderer(width, height; supersample = 1, density = 1)
+    frames = NamedTuple[]
+    canvas() = last(rendered_output(backend)).windows[1].content
+    try
+        state = SDL.make_offscreen_paint_state(partial)
+        foreach(_ -> run_frame!(editor), 1:3)
+        SDL.render_offscreen_changes!(partial, state, canvas(); background)
+        for n in 1:depth
+            push_event!(backend, WindowInput(id, MouseScroll(0, -1, x, y, ModifierKeys(); time = 10.0 + n)))
+            run_frame!(editor)
+            SDL.render_offscreen_changes!(partial, state, canvas(); background)
+        end
+        for n in 1:notches
+            push_event!(backend, WindowInput(id, MouseScroll(0, -1, x, y, ModifierKeys(); time = 10.0 + depth + n)))
+            run_frame!(editor)
+            SDL.render_offscreen_changes!(partial, state, canvas(); background)
+            painted = state.res.painted
+            SDL._render_canvas_offscreen!(full, canvas(), width, height, background)
+            same = _sw_read_pixels(partial) == _sw_read_pixels(full)
+            whole = SDL._paint_dirty_rects!(full.renderer, canvas(), [(0, 0, width, height)], background,
+                                            width, height, 1.0; records = state.res.dirty_bounds).drawn
+            push!(frames, (; same, copies = length(state.last_copies), drawn = state.last_drawn, whole,
+                           work = (painted.visits, painted.recordings, painted.new_guards, painted.kept_entries)))
+        end
+        (frames, _sw_find_unlaid_canvases(state.res, canvas()))
+    finally
+        SDL.close_offscreen_renderer(partial)
+        SDL.close_offscreen_renderer(full)
+    end
+end
+
+"""
+    test_scroll_work()
+
+A scroll of a Julia file in a focused tab, of the Files pane and of a data frame
+paints the pixels of a full paint, copies the boxes whose content only moved,
+draws a small part of what the window shows, and does work that does not grow
+with the length of the file, with the height of the window or with the depth of
+the scroll. The notch that moves the head of the table of a data frame builds
+its list of rows no further than a table at its top builds it.
+"""
+function test_scroll_work()
+@testset "a scroll costs what comes into view" begin
+    @testset "a Julia file in a focused tab" begin
+        short_backend, long_backend = HeadlessBackend(), HeadlessBackend()
+        short = _sw_make_julia_editor(short_backend, 200)
+        long = _sw_make_julia_editor(long_backend, 800)
+        short_frames, _ = _sw_scroll(short, short_backend, :ProjecturEd, 700, 500)
+        frames, unlaid = _sw_scroll(long, long_backend, :ProjecturEd, 700, 500)
+        @test all(f -> f.same, frames)
+        # The gutter and the text are two boxes that move.
+        @test all(f -> f.copies == 2, frames)
+        # With the copy, a notch draws less than 60% of the leaves that the window
+        # shows: 34% to 55% here. A paint of the boxes draws about 89% of them.
+        @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
+        # A file four times as long costs the same work.
+        @test [f.work for f in frames] == [f.work for f in short_frames]
+        # A move records only the graphics that come into view, and makes only the
+        # guards whose reads change: 29 to 60 records and 24 to 39 guards in a
+        # notch, where a record of the moved content wrote 860 and made 504.
+        @test all(f -> f.work[2] <= 80 && f.work[3] <= 60, frames)
+        @test isempty(unlaid)
+        # A window twice as high enters no more of what stays in view.
+        tall_backend = HeadlessBackend()
+        tall = _sw_make_julia_editor(tall_backend, 800; height = 2 * _SW_HEIGHT)
+        tall_frames, _ = _sw_scroll(tall, tall_backend, :ProjecturEd, 700, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
+    end
+    @testset "the Files pane" begin
+        backend = HeadlessBackend()
+        frames, unlaid = _sw_scroll(_sw_make_files_editor(backend), backend, :Files, 300, 500)
+        @test all(f -> f.same, frames)
+        @test all(f -> f.copies == 1, frames)
+        @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
+        # 14 to 20 records and 5 or 6 guards in a notch, where a record of the moved
+        # content wrote 306 and made 52.
+        @test all(f -> f.work[2] <= 30 && f.work[3] <= 12, frames)
+        @test isempty(unlaid)
+        tall_backend = HeadlessBackend()
+        tall_frames, _ = _sw_scroll(_sw_make_files_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
+                                    :Files, 300, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
+    end
+    @testset "a data frame" begin
+        backend = HeadlessBackend()
+        frames, unlaid = _sw_scroll(_sw_make_data_frame_editor(backend), backend, :Data, 700, 500)
+        @test all(f -> f.same, frames)
+        @test all(f -> f.copies >= 1, frames)
+        @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
+        # 86 to 170 records and 54 to 120 guards in a notch, where a record of the
+        # moved content wrote 1831 at the first notch and more at each one after.
+        @test all(f -> f.work[2] <= 200 && f.work[3] <= 150, frames)
+        @test isempty(unlaid)
+        tall_backend = HeadlessBackend()
+        tall_frames, _ = _sw_scroll(_sw_make_data_frame_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,
+                                    :Data, 700, 500; height = 2 * _SW_HEIGHT)
+        @test all(f -> f.same, tall_frames)
+        @test _sw_enters_as_few(tall_frames, frames)
+        # 60 notches down the table, a notch enters no more than a notch at its top.
+        deep_backend = HeadlessBackend()
+        deep_frames, _ = _sw_scroll(_sw_make_data_frame_editor(deep_backend), deep_backend, :Data, 700, 500;
+                                    depth = 60)
+        @test all(f -> f.same, deep_frames)
+        @test _sw_enters_as_few(deep_frames, frames)
+    end
+    @testset "a data frame at the move of the head of its table" begin
+        # The SDL backend paints only the rows in view, as the application does; the
+        # headless backend reads 200 rows of the drawing from its head, more than the
+        # view shows.
+        backend = SdlBackend()
+        try
+            editor = _sw_make_data_frame_editor(backend)
+            window = get_iomap_output(editor.iomap).windows[1]
+            foreach(_ -> run_frame!(editor), 1:5)
+            table = ProjecturedDataFramesTest._find_iomap_of(
+                editor.iomap, ProjecturedDataFrames.DataFramesModule.DataFrameViewToWidgetIoMap)
+            view = table.input
+            at_top = _sw_count_built_rows(table.table.cells)
+            for n in 1:300
+                push!(backend.pending_inputs,
+                      WindowInput(window.id, MouseScroll(0, -1, 700, 500, ModifierKeys(); time = 1000.0 + n)))
+                run_frame!(editor)
+                view.anchor == 1 || break
+            end
+            @test view.anchor > 1
+            # The new head is the row at the top, so the list is built as far as at
+            # the top of the frame: to the first row past the view.
+            @test _sw_count_built_rows(table.table.cells) <= at_top + 2
+        finally
+            quit_backend!(backend)
+        end
+    end
+end
+end

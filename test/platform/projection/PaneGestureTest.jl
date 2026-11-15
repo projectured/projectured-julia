@@ -251,5 +251,108 @@ end
     @test whole_content(1)
 end
 
+@testset "Ctrl+M maximizes the focused group, and Ctrl+M again gives back the layout" begin
+    tree, group, editor = _seeded()
+    _press!(editor, _ctrl(:backslash))             # a second group, on the right
+    right = tree.root.elements[2]
+    split = tree.root
+    @test _press!(editor, _ctrl(:m)) !== nothing
+    @test tree.maximized === right
+    @test find_pane_maximized_group(tree) === right
+    # The layout stays as it is.
+    @test tree.root === split
+    @test split.elements[1] === group && split.elements[2] === right
+    # A new tab and a tab switch stay inside the group, and keep the maximize.
+    _press!(editor, _ctrl(:t))
+    _press!(editor, _ctrl(:page_down))
+    @test get_pane_focus(tree) == (right, 1)
+    @test find_pane_maximized_group(tree) === right
+    @test _press!(editor, _ctrl(:m)) !== nothing
+    @test tree.maximized === nothing
+    @test find_pane_maximized_group(tree) === nothing
+end
+
+@testset "Ctrl+M does nothing with one group, or with no focus" begin
+    tree, group, editor = _seeded()
+    @test _press!(editor, _ctrl(:m)) === nothing
+    @test tree.maximized === nothing
+    tree = PaneTree(PaneSplit(:vertical, Any[PaneGroup(PaneTab[_tab("a")]),
+                                             PaneGroup(PaneTab[_tab("b")])]))
+    editor = _PaneGestureMockEditor(tree)
+    @test _press!(editor, _ctrl(:m)) === nothing
+    @test tree.maximized === nothing
+end
+
+@testset "a focus move to a different group ends the maximize" begin
+    # Two groups side by side, the right one maximized.
+    function maximized()
+        tree, group, editor = _seeded()
+        _press!(editor, _ctrl(:backslash))
+        right = tree.root.elements[2]
+        _press!(editor, _ctrl(:m))
+        @test find_pane_maximized_group(tree) === right
+        (tree, group, right, editor)
+    end
+    # Ctrl+Tab, and the way back does not maximize again.
+    tree, group, right, editor = maximized()
+    _press!(editor, _ctrl(:tab))
+    @test get_pane_focus(tree)[1] === group
+    @test tree.maximized === nothing
+    _press!(editor, _ctrl(:tab))
+    @test get_pane_focus(tree)[1] === right
+    @test find_pane_maximized_group(tree) === nothing
+    # Ctrl+Alt and an arrow, to the neighbour in the layout.
+    tree, group, right, editor = maximized()
+    _press!(editor, _ctrl_alt(:left))
+    @test get_pane_focus(tree)[1] === group
+    @test tree.maximized === nothing
+    # A split of the maximized group gives the focus to the new group.
+    tree, group, right, editor = maximized()
+    _press!(editor, _ctrl(:backslash))
+    @test get_pane_focus(tree)[1] !== right
+    @test tree.maximized === nothing
+    # A close of its last tab removes the group.
+    tree, group, right, editor = maximized()
+    _press!(editor, _ctrl(:w))
+    @test tree.root === group
+    @test tree.maximized === nothing
+    # A program that focuses a tab, or opens one with the focus, in the other group.
+    tree, group, right, editor = maximized()
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 2))
+    @test tree.maximized === nothing
+    tree, group, right, editor = maximized()
+    evaluate_operation(editor, make_pane_open_tab_operation(tree, group, _tab("c")))
+    @test get_pane_focus(tree) == (group, 3)
+    @test tree.maximized === nothing
+    # A program that opens a tab without the focus, or a split beside the
+    # maximized group, leaves the focus and the maximize.
+    tree, group, right, editor = maximized()
+    evaluate_operation(editor, make_pane_open_tab_operation(tree, group, _tab("c"); focus = false))
+    evaluate_operation(editor, make_pane_split_operation(tree, right; orientation = :horizontal,
+                                                         side = :below, tab = _tab("d"), focus = false))
+    @test get_pane_focused_group(tree) === right
+    @test find_pane_maximized_group(tree) === right
+    # A selection that goes to the other group by another way shows the layout,
+    # because the window never hides the group that has the focus.
+    tree, group, right, editor = maximized()
+    evaluate_operation(editor, ReplaceSelectionOperation(get_pane_tab_reference(tree, group, 1)))
+    @test tree.maximized === right
+    @test find_pane_maximized_group(tree) === nothing
+    # A selection outside the layout keeps the maximize.
+    tree, group, right, editor = maximized()
+    evaluate_operation(editor, ReplaceSelectionOperation(EmptyReference(PaneTree)))
+    @test find_pane_maximized_group(tree) === right
+end
+
+@testset "a search finds a maximized group once, and a save drops the maximize" begin
+    tree, group, editor = _seeded()
+    _press!(editor, _ctrl(:backslash))
+    right = tree.root.elements[2]
+    _press!(editor, _ctrl(:m))
+    @test tree.maximized === right
+    @test length(search_references(tree, node -> node === right)) == 1
+    @test first.(last(pred_arguments(tree))) == [:root]
+end
+
 end # testset
 end # function

@@ -156,7 +156,19 @@ The tree the one-line linear form of a formula stands for: what
 reads to an assignment of a fraction. A script takes one atom without braces
 too, `ρ^n`, and a symbol reads as its glyph or as its name, `ρ` or `\\rho`.
 An error names the position of what the reader could not read.
+
+Use it to read a formula in its one-line linear form into a document that you can open in a pane or edit.
+
+# Example
+
+    math_1 = parse_math("p = (1 - ρ) ρ^n")
+
+See also `parse_julia` and `find_math_symbol_name`.
+
+For the assistant.
 """
+function parse_math end
+
 function parse_math(text::AbstractString)
     p = _MathCursor(_tokenize_math(text), 1, Set{String}(), String[])
     _at(p, :end) && error("math: the line is empty")
@@ -284,6 +296,8 @@ end
 function _parse_scripted(p::_MathCursor)
     base = _parse_atom(p)
     base isa MathFunction && base.base !== nothing && return _parse_superscript(p, base)
+    call = _parse_subscripted_call(p, base)
+    call === nothing || return _parse_superscript(p, call)
     subscript = nothing
     superscript = nothing
     if _at(p, :operator, "_")
@@ -298,6 +312,23 @@ function _parse_scripted(p::_MathCursor)
     MathScript(base; subscript = subscript, superscript = superscript)
 end
 
+# A letter or a symbol with a braced subscript and `(` directly after it,
+# `S_{pure}(G)`, is a call as a word with a base is; the cursor stays where it
+# was when the subscript is not followed by `(`.
+function _parse_subscripted_call(p::_MathCursor, base)
+    base isa MathVariable || (base isa MathSymbol && _is_letter_glyph(get_math_symbol_glyph(base.name))) ||
+        return nothing
+    _at(p, :operator, "_") && _peek(p, 1).kind === :open && _peek(p, 1).text == "{" || return nothing
+    index = p.index
+    _next!(p)
+    subscript = _parse_script(p)
+    if _at(p, :open, "(") && !_peek(p).space_before
+        return _parse_call(p, base isa MathVariable ? base.name : get_math_symbol_glyph(base.name), subscript)
+    end
+    p.index = index
+    nothing
+end
+
 # A function with a base, `log_{2}(x)`, has spent its subscript; a superscript may follow.
 function _parse_superscript(p::_MathCursor, base)
     _at(p, :operator, "^") || return base
@@ -305,11 +336,17 @@ function _parse_superscript(p::_MathCursor, base)
     MathScript(base; superscript = _parse_script(p))
 end
 
-# `{…}` holds any expression; without braces a script is one atom.
+# `{…}` holds any expression, or a list of them with a comma between two, which
+# reads as `:comma` operations from the left: `U_{slotted,5}`. Without braces a
+# script is one atom.
 function _parse_script(p::_MathCursor)
     if _at(p, :open, "{")
         _next!(p)
         content = _parse_assignment(p)
+        while _at(p, :comma)
+            _next!(p)
+            content = MathBinaryOperation(:comma, content, _parse_assignment(p))
+        end
         _expect!(p, :close, "}")
         return content
     end
@@ -337,6 +374,7 @@ function _parse_atom(p::_MathCursor)
         return _parse_word(p, token)
     elseif kind === :glyph
         _next!(p)
+        _at(p, :open, "(") && !_peek(p).space_before && return _parse_call(p, token.text, nothing)
         return MathSymbol(_MATH_GLYPH_NAMES[token.text])
     elseif kind === :command
         _next!(p)
@@ -366,6 +404,16 @@ function _parse_atom(p::_MathCursor)
     end
     _refuse(p, "an operand")
 end
+
+# A symbol that is a letter, `ρ`, is a call when `(` follows it directly.
+function _parse_symbol(p::_MathCursor, name::Symbol)
+    glyph = get_math_symbol_glyph(name)
+    _is_letter_glyph(glyph) && _at(p, :open, "(") && !_peek(p).space_before &&
+        return _parse_call(p, glyph, nothing)
+    MathSymbol(name)
+end
+
+_is_letter_glyph(glyph::AbstractString) = length(glyph) == 1 && isletter(first(glyph))
 
 function _number(token::_MathToken)
     text = token.text
@@ -509,7 +557,7 @@ function _parse_command(p::_MathCursor, token::_MathToken)
         _expect!(p, :close, "}")
         return MathCases(cases)
     end
-    haskey(_MATH_SYMBOLS, Symbol(name)) && return MathSymbol(Symbol(name))
+    haskey(_MATH_SYMBOLS, Symbol(name)) && return _parse_symbol(p, Symbol(name))
     haskey(_MATH_OPERATOR_NAMES, name) &&
         error("math: the operator \\", name, " needs an operand before it, at position ", token.position)
     error("math: unknown command \\", name, " at position ", token.position)

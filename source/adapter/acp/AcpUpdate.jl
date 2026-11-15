@@ -162,8 +162,14 @@ function _read_tool_call(update::Dict{String,Any})
                         input = input isa Dict{String,Any} ? input : nothing,
                         output,
                         output_mime_type = resource === nothing ? nothing : _find_string(resource, "mimeType"),
-                        output_uri = resource === nothing ? nothing : _find_string(resource, "uri"))
+                        output_uri = resource === nothing ? nothing : _find_string(resource, "uri"),
+                        terminal_ids = content isa Vector{Any} ? _find_terminal_ids(content) : nothing)
 end
+
+# The ids of the terminals that the content of a tool call shows, in their order.
+_find_terminal_ids(content::Vector{Any}) =
+    String[string(get(item, "terminalId", "")) for item in content
+           if item isa Dict{String,Any} && get(item, "type", "") == "terminal"]
 
 # The `_meta.claudeCode` of an object of the protocol, where the Claude agents of
 # ACP put what the protocol has no field for; `nothing` when it has none.

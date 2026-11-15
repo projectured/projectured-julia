@@ -20,9 +20,12 @@ docstring for the `pred_ref(...)` marker convention.
 @document struct JuliaFile <: FileDocument
     filename::String
     content::Document = JuliaNothing()
+    disk::FileDiskState = FileDiskState()
 end
 
-emit_text(f::JuliaFile) = print_natural_text(get_file_content(f))
+# The text of the file ends with a line break, which the print of its last statement
+# does not write.
+emit_text(f::JuliaFile) = print_natural_text(get_file_content(f)) * "\n"
 
 function _is_marker_call(node::JuliaCall)
     callee = node.callee
@@ -68,7 +71,20 @@ A macro that DECLARES rather than decorates states the name itself
 instead of wrapping a definition that carries one, so its first
 argument is the name: `@header Ipv4Header begin … end` is found under
 `"Ipv4Header"`.
+
+Use it to find the name that a statement of a Julia file defines.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1")
+    name_1 = get_julia_definition_name(julia_1)
+
+See also `find_julia_definition` and `parse_julia`.
+
+For the assistant.
 """
+function get_julia_definition_name end
+
 get_julia_definition_name(::Any) = nothing
 get_julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
 get_julia_definition_name(n::JuliaStruct)       = _julia_header_name(n.header)
@@ -108,7 +124,20 @@ when there is more than one — an ambiguous embed would silently show
 the wrong half of a file, so it is not allowed. Method overloads of one
 function are the common case of that and must be embedded by wrapping
 them, not by name.
+
+Use it to take one definition out of a Julia file by its name.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1\\ng(x) = x * 2")
+    definition_1 = find_julia_definition(julia_1, "g")
+
+See also `get_julia_definition_name` and `parse_julia`.
+
+For the assistant.
 """
+function find_julia_definition end
+
 function find_julia_definition(document, name::AbstractString)
     doc = is_file_document(document) ? get_file_content(document) : document
     doc isa JuliaDocument ||
@@ -124,10 +153,37 @@ function find_julia_definition(document, name::AbstractString)
     matches[1]
 end
 
-_julia_toplevel_statements(doc::JuliaBlock) =
+_julia_toplevel_statements(doc::JuliaToplevel) =
     Any[s isa Cell ? s[] : s for s in getfield(doc, :statements)[]]
 _julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
 
 _julia_definition_names(doc) =
     String[n for n in (get_julia_definition_name(s) for s in _julia_toplevel_statements(doc))
              if n !== nothing]
+
+# ── What the pointer is on ──────────────────────────────────────────────────
+
+# The file says what a call is, for a call that no node says anything of: the note
+# of the function of the same name in the file, its signature and, when it has
+# one, its docstring. With no pointer on the file, it says the selected call.
+function _make_julia_call_note(file::JuliaFile)
+    found = find_pointed_part(file)
+    found === nothing && return nothing
+    place = findlast(document -> document isa JuliaCall, found.documents)
+    place === nothing && return nothing
+    callee = found.documents[place].callee
+    callee isa JuliaIdentifier || return nothing
+    documented = search_documents(file, node -> node isa JuliaDocstring && node.subject isa JuliaFunction &&
+                                                _julia_signature_name(node.subject.name) == callee.name;
+                                  limit = nothing)
+    isempty(documented) || return _make_julia_docstring_note(first(documented))
+    defined = search_documents(file, node -> node isa JuliaFunction && _julia_signature_name(node.name) == callee.name;
+                               limit = nothing)
+    isempty(defined) ? nothing : _make_julia_function_note(first(defined))
+end
+
+# The table of the file: a dwell answers the note of the call under the pointer.
+const _JULIA_FILE_BINDINGS = GestureBinding[
+    make_tooltip_binding(_make_julia_call_note; description = "Show the function that is called")]
+
+get_document_gesture_bindings_own(::Type{JuliaFile}) = _JULIA_FILE_BINDINGS

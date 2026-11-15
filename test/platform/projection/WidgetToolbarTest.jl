@@ -69,7 +69,7 @@ end
 # light of the theme, with the outline and the corners of a control, as a
 # `WidgetButton` draws them.
 @testset "a lit toolbar item shows the outline of a button" begin
-    theme = make_scaled_theme(make_widget_theme())
+    theme = make_scaled_theme(WidgetTheme())
     item = WidgetToolbarItem("Run"; icon = :play)
     c = print_document(proj, item).output
     rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
@@ -114,8 +114,8 @@ end
 _items(io) = sort!([c for c in map(_unwrap, io.output.elements) if c isa GraphicsCanvas],
                    by = c -> Int(c.x))
 _centre(c) = (Int(c.x) + Int(c.w[]) ÷ 2, Int(c.y) + Int(c.h[]) ÷ 2)
-_press(io, (x, y); modifiers = _mods) = begin
-    answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing), io)
+_press(io, (x, y); modifiers = _mods, count = 1) = begin
+    answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, count, modifiers; time = 0.0), nothing), io)
     answer isa Intent ? answer.operation : answer
 end
 
@@ -131,9 +131,9 @@ end
     @test Int(short.w[]) == Int(long.w[])
     @test Int(short.w[]) == Int(short.h[])
     @test Int(short.w[]) == 16 + 8
-    # A band can offer the size of the window. The item stays as large as what
-    # it shows, or it would take every press below it.
-    offered = PrinterContext(EmptyReference(), Cell(1600), Cell(1000), Dict{Symbol,Any}())
+    # A toolbar gives its items a bounded range, so an item in a band that is the
+    # size of the window stays as large as what it shows, and takes no press below it.
+    offered = with_bounded_size(PrinterContext(EmptyReference()); width = Cell(1600), height = Cell(1000))
     tall = print_document(proj, nothing, WidgetToolbarItem("Log"; icon = :list,
                                                            padding = Inset(4, 4, 4, 4)), offered).output
     @test (Int(tall.w[]), Int(tall.h[])) == (16 + 8, 16 + 8)
@@ -184,12 +184,14 @@ end
     @test _press(io, _centre(io.output)) === nothing
 end
 
-@testset "Alt and a press select a toolbar item, and run nothing" begin
-    # The layers above turn a declined Alt press into a selection of the item,
-    # and the tooltip probe finds the item with the same press.
+@testset "Alt and a double click select a toolbar item, and run nothing" begin
+    # The layers above turn a declined Alt+double click into a selection of the
+    # item, and the tooltip probe finds the item with the same press.
     io = print_document(proj, WidgetToolbarItem("Log"; icon = :list))
     @test _press(io, _centre(io.output)) isa InvokeActionOperation
     @test !(_press(io, _centre(io.output); modifiers = ModifierKeys(alt = true)) isa
+            InvokeActionOperation)
+    @test !(_press(io, _centre(io.output); modifiers = ModifierKeys(alt = true), count = 2) isa
             InvokeActionOperation)
 
     # In a toolbar the selection names the item under the pointer, not the
@@ -197,7 +199,7 @@ end
     tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
                            WidgetToolbarItem("Log"; icon = :list)])
     io = print_document(proj, tb)
-    op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true))
+    op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true), count = 2)
     @test op isa ReplaceSelectionOperation
     @test try_evaluate_reference(tb, op.path, missing) === tb.elements[2]
 end
@@ -214,7 +216,7 @@ _toolbar_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operat
 # and of no other, and its layer shows the pressed color until the up. The down
 # is the answer of the item, so it moves no focus.
 @testset "a held toolbar item shows its press" begin
-    theme = make_scaled_theme(make_widget_theme())
+    theme = make_scaled_theme(WidgetTheme())
     tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
                            WidgetToolbarItem("Log"; icon = :list)])
     io = print_document(proj, tb)
@@ -270,9 +272,9 @@ end
     dwell(item) = let operation = read_gesture(item, MouseDwell(0, 0; time = 0.0))
         operation === nothing ? nothing : only(get_wrapped_operation(operation).layers)[2]
     end
-    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
-    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard,
-                                  tooltip = "Every gesture")).value == "Every gesture"
+    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard)).title == "Gesture log"
+    note = dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard, tooltip = "Every gesture"))
+    @test (note.title, note.text) == ("Gesture log", "Every gesture")
     @test dwell(WidgetToolbarItem(""; icon = :keyboard)) === nothing
 end
 

@@ -378,7 +378,7 @@ evaluate_operation(editor, operation::RetryBarrierPrintOperation) =
 _is_plain_left_click(gesture) =
     gesture isa MouseClick && gesture.button === :left && gesture.modifiers == ModifierKeys()
 
-# An Alt+press names a mark, as it names anything else on the screen: the report
+# An Alt+double click names a mark, as it names anything else on the screen: the report
 # is not a child of the part that failed, and no field or index reaches it, so
 # the path is a drawn-object step from that part. A plain click tries the part
 # again. Every other gesture goes to the bindings of the report, which answer the

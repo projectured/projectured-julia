@@ -1,10 +1,12 @@
 """
     GraphicsModule
 
-The `PointReferenceStep` step type — a reference step that identifies a point
-within an element by pixel coordinates relative to that element's origin.
-Lives with the graphics slice because pixel coordinates are the graphics
-domain's own vocabulary; the kernel reference layer never names it.
+Graphics documents: text, rectangles, lines, circles, arcs, polygons, splines,
+images and canvases, which a window draws. The `PointReferenceStep` step type is a
+reference step that identifies a point within an element by pixel coordinates
+relative to that element's origin. Lives with the graphics slice because pixel
+coordinates are the graphics domain's own vocabulary; the kernel reference layer
+never names it.
 
 Registered as a `:terminal` step type (identifies a location but does not
 descend), and registers its own `.point(x, y)` entries with the kernel
@@ -35,15 +37,17 @@ export PointReferenceStep, RegionReferenceStep, find_reference_point, find_refer
 export compute_part_at_point, is_outward_gesture, read_child_part_gesture,
        read_container_gesture, read_child_move, read_child_leave, get_child_frame_offset,
        read_routed_child_in_frame, read_routed_entry_child
+export find_drawn_child_at, find_drawn_child_path, read_drawn_child_event, read_drawn_child_move,
+       map_drawn_child_point
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
+       set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead, compute_polyline_before_arrowheads,
        is_point_near_polyline, is_point_in_polygon
 export GraphicsCanvasToGraphicsImage, GraphicsCaching, GraphicsToGraphics
-export is_infinite_canvas, compute_first_visible_index, has_declared_extent
+export is_infinite_canvas, compute_first_visible_index, has_declared_extent, check_list_canvas
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export ContentBounds, get_content_box, extend_content_bounds!, extend_canvas_bounds!,
        extend_element_bounds!, get_canvas_content_bounds
-export make_selection_ring, find_first_baseline
+export make_selection_ring, find_first_baseline, find_first_baseline_in_entries
 export GraphicsTheme, ScaledGraphicsTheme
 export POINTER_SHAPES, find_pointer_shape
 export map_operation_position, shift_operation_position, shift_event_position, map_event_position
@@ -62,6 +66,7 @@ include("SelectionRing.jl")
 include("OperationPosition.jl")
 include("EventPosition.jl")
 include("ChildMove.jl")
+include("DrawnChild.jl")
 include("ReferenceBox.jl")
 include("Baseline.jl")
 

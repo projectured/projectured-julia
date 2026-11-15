@@ -41,9 +41,12 @@ BackendModule.write_to_devices!(b::HeadlessBackend, devices, document) =
 # items of a group.
 const _PAINTED_FIELDS = (:windows, :content, :canvas, :elements, :children, :items)
 
-# How many links of a list that no paint reached yet one paint reads: a list of
-# rows can be endless, and a backend paints only the rows in its viewport.
-const _FRESH_LINKS_PER_PAINT = 200
+# How many links of a lazy list a paint reads, from the link where it reaches the
+# list: a list of rows can be endless, and a backend paints only the rows in its
+# viewport. A paint follows no computed link past them, also one that an earlier
+# paint or another computation made, so each paint reaches as far as the one
+# before it, and a frame with no input makes no link.
+const _PAINTED_LINKS = 200
 
 # Read every part of `document` once, in the order of a paint, the parts of a part
 # after it in their own order, so a line of text that stands below another one
@@ -81,18 +84,17 @@ function _paint_headless!(document)
     nothing
 end
 
-# The values of the links of a list from `link` on: every link that a computation
-# made already, and at most `_FRESH_LINKS_PER_PAINT` new ones.
+# The values of the links of a list from `link` on, as far as the place
+# `_PAINTED_LINKS` along the computed links, the cells that make the next link.
+# A link that holds a written value makes nothing, so the paint follows it past
+# that place.
 function _paint_list!(pending, seen, link)
-    fresh = _FRESH_LINKS_PER_PAINT
+    place = 1
     while true
         push!(pending, getfield(link, :value))
         next = getfield(link, :next)
         if next isa AbstractCell
-            if !is_cell_valid(next)
-                fresh <= 0 && return nothing
-                fresh -= 1
-            end
+            place >= _PAINTED_LINKS && is_computed_cell(next) && return nothing
             next = try
                 next[]
             catch exception
@@ -103,6 +105,7 @@ function _paint_list!(pending, seen, link)
         (next === nothing || haskey(seen, next)) && return nothing
         seen[next] = nothing
         link = next
+        place += 1
     end
 end
 BackendModule.take_from_devices!(b::HeadlessBackend, devices) =

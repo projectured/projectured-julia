@@ -51,6 +51,17 @@ end
 @test place_of("Fields")[2] < place_of("Columns")[2] < place_of("Rows")[2] < place_of("Values")[2]
 @test place_of("Fields")[2] <= place_of("quarter")[2] < place_of("Columns")[2]
 
+# A badge of a zone says what it holds, and how to move it.
+badges(field) = ProjecturedPlatformTest._find_widgets_below(
+    PivotModule._make_pivot_zone_row(PivotTableToWidget(), pivot, field), WidgetBadge)
+note_of(badge) = ProjecturedPlatformTest._read_widget_note(badge)
+dimension_note = note_of(first(badges("row_dimensions")))
+@test dimension_note.title == "region"
+@test first.(dimension_note.facts) == ["Distinct values", "Order", "Limit"]
+@test !isempty(dimension_note.keys) && dimension_note.hint !== nothing
+measure_note = note_of(first(badges("measures")))
+@test measure_note.title == "sum(amount)" && measure_note.facts == ["Aggregate" => "sum", "Column" => "amount"]
+
 # ── The headers ──────────────────────────────────────────────────────────────
 
 @test count(==("2024"), drawn) == 1 && count(==("2025"), drawn) == 1
@@ -76,23 +87,29 @@ cell = only(t for t in found if t[3] == expected && t[2] == place_of("DE")[2])
 
 # ── A press ──────────────────────────────────────────────────────────────────
 
-press(x, y; alt = false) = begin
+press(x, y; alt = false, count = 1) = begin
     change = read_intent(projection, nothing,
-                         Intent(MouseClick(:left, x + 2, y + 2, ModifierKeys(alt = alt); time = 0.0), nothing), io)
+                         Intent(MouseClick(:left, x + 2, y + 2, count, ModifierKeys(alt = alt); time = 0.0), nothing), io)
     change isa Intent ? change.operation : change
 end
 cell_path(r, c) = ConcreteReference(FieldReferenceStep("cells"), ConcreteReference(RangeReferenceStep(r - 1, r),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
 row_path(r) = ConcreteReference(FieldReferenceStep("cells"),
     ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
+# A press on the text of a cell puts the caret in its label, which is the cell of
+# the pivot, and a press on its padding selects the row.
 op = press(cell[1], cell[2])
+@test op isa ReplaceSelectionOperation && strip_reference_types(op.path) ==
+      concat_references(cell_path(1, 1), ConcreteReference(FieldReferenceStep("content"),
+                                                           ConcreteReference(RangeReferenceStep(0, 0), EmptyReference())))
+op = press(cell[1] - 3, cell[2])
 @test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == row_path(1)
-op = press(cell[1], cell[2]; alt = true)
+op = press(cell[1], cell[2]; alt = true, count = 2)
 @test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == cell_path(1, 1)
 # A run of the row headers is a part of the table that the pivot does not name.
-# An Alt+press selects it, and a plain press selects the row under the pointer.
+# An Alt+double click selects it, and a plain press selects the row under the pointer.
 us = place_of("US")
-run_op = press(us[1], us[2]; alt = true)
+run_op = press(us[1], us[2]; alt = true, count = 2)
 @test run_op isa ReplaceSelectionOperation
 @test strip_reference_types(run_op.path).head isa ProjectionReferenceStep
 op = press(us[1], us[2])
@@ -110,6 +127,16 @@ replace_selection!(pivot, run_op.path)
 @test strip_reference_types(table.selection) ==
       ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(2, 3),
           ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))
+
+# ── The part under the pointer lights in the table ──────────────────────────
+
+# The table holds the cell that the mouse target of the pivot names, so it lights
+# the row of that cell. A badge of the bar is no part of the table.
+replace_mouse_target!(pivot, cell_path(2, 1))
+@test strip_reference_types(table.mouse_target) == cell_path(2, 1)
+replace_mouse_target!(pivot, PivotModule._make_pivot_zone_item_path("row_dimensions", 1))
+@test table.mouse_target === nothing
+replace_mouse_target!(pivot, nothing)
 
 # ── A pivot with no dimension on an axis ────────────────────────────────────
 

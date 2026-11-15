@@ -6,56 +6,14 @@ end
 """
     test_data_frame_filter()
 
-The filters of a view: the language of the text of a filter, the rows that pass
-every filter, the table that shows them with their row numbers, and the pattern
-that keeps the columns by their names.
+The filters of a view: the rows that pass every filter, the table that shows
+them with their row numbers, and the pattern that keeps the columns by their
+names. The language of the text of a filter is the one of the platform
+(`test_arrangement_filter_language`).
 """
 function test_data_frame_filter()
     @testset "the filters of a view" begin
         module_ = ProjecturedDataFrames.DataFramesModule
-        parse(text, type) = module_._parse_column_filter(text, type)
-        # The values of `values` that the text of a filter keeps.
-        kept(text, values) = (condition = parse(text, eltype(values));
-                              [value for value in values if condition(value)])
-        numbers = collect(1:20)
-        words = ["item 1", "Item 2", "item 12", "other", "a, b"]
-
-        @testset "the language of a filter" begin
-            @test parse("", Int) === nothing
-            @test parse("   ", Int) === nothing
-            @test kept("> 17", numbers) == [18, 19, 20]
-            @test kept(">= 19", numbers) == [19, 20]
-            @test kept("< 3", numbers) == [1, 2]
-            @test kept("<= 2", numbers) == [1, 2]
-            @test kept("5..7", numbers) == [5, 6, 7]
-            @test kept("= 4, 9", numbers) == [4, 9]
-            @test kept("!= 1", numbers[1:3]) == [2, 3]
-            # A text with no operator: the printed value contains it, in any case.
-            @test kept("1", numbers[1:12]) == [1, 10, 11, 12]
-            @test kept("ITEM", words) == ["item 1", "Item 2", "item 12"]
-            @test kept("/^item [0-9]\$/", words) == ["item 1"]
-            @test kept("= item 1, other", words) == ["item 1", "other"]
-            @test kept("= \"a, b\"", words) == ["a, b"]
-            @test kept("= true", [true, false, true]) == [true, true]
-        end
-
-        @testset "missing passes only missing" begin
-            values = Union{Int,Missing}[1, missing, 3]
-            @test isequal(kept("missing", values), [missing])
-            @test kept("!missing", values) == [1, 3]
-            @test kept("> 0", values) == [1, 3]
-            @test kept("!= 1", values) == [3]
-        end
-
-        @testset "a text that does not parse gives its reason" begin
-            @test parse("> abc", Int) isa String
-            @test parse("> 3", String) isa String
-            @test parse("1..x", Int) isa String
-            @test parse("/[/", String) isa String
-            @test parse("=", String) isa String
-            @test parse("= maybe", Bool) isa String
-        end
-
         projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
         context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)),
                                     height = Cell(Int32(300)))
@@ -165,6 +123,26 @@ function test_data_frame_filter()
             steps = get_reference_steps(strip_reference_types(op.path))
             @test steps[1:4] == filter_steps(2)
             @test steps[5] isa RangeReferenceStep
+        end
+
+        @testset "through a real editor, a press in a field of the filter row puts the caret in the filter, and a key edits it" begin
+            view = DataFrameView(make_frame())
+            set_filter!(view, "name", "item")
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  tabs = false, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "item")
+            # A press past the end of the text puts the caret at its end. The table
+            # answers a press with the selection and the start of a drag of the text.
+            send!(MouseDown(:left, x + 40, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 40, y + 2, ModifierKeys(); time = 1.05))
+            @test get_reference_steps(strip_reference_types(view.selection)) ==
+                  [filter_steps(2)..., RangeReferenceStep(4, 4)]
+            send!(KeyPress('5'; time = 1.2))
+            @test module_._find_column_filter(view.query, "name").text == "item5"
         end
 
         @testset "a key in a field edits the filter, and the view shows the result from its start" begin

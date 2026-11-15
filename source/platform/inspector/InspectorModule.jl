@@ -19,6 +19,7 @@ using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
 using ..TextModule
+using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title

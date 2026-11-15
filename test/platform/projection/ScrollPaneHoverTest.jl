@@ -12,15 +12,20 @@
 # go to the row drawn at the end.
 
 _scroll_pane_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
+    WidgetToGraphics(;
                      measure = FontFileMeasure()).dispatch))
 
 _scroll_pane_list() =
     WidgetList(["row $i" for i in 1:40]; selected = 0, width = 200)
 
-# A content of rows that the pane scrolls: a list in a stack, which gives the list
-# no slot, so the list is as tall as its rows and does not scroll itself.
+# A content of rows that the pane scrolls: a list in a stack, in a pane that grows
+# on its height (`_scroll_pane_page`), which gives the stack no edge there, so the
+# list is as tall as its rows and does not scroll itself.
 _scroll_pane_rows(list = _scroll_pane_list()) = VerticalLayout(Any[list])
+
+# A pane of 200 × 200 whose content grows on its height.
+_scroll_pane_page(content; kw...) =
+    WidgetScrollPane(content; size = Point2D(200, 200), grows = (width = false, height = true), kw...)
 
 # The row a pointer event resolves to, whatever form the answer takes.
 function _scroll_pane_row(projection, iomap, evt)
@@ -37,7 +42,7 @@ _scroll_pane_viewport(iomap) = only(e for e in iomap.output.elements if e isa Gr
 function test_scroll_pane_hover()
     @testset "a list that scrolls under a still pointer lights the row now under it" begin
         list = _scroll_pane_list()
-        pane = WidgetScrollPane(_scroll_pane_rows(list); size = Point2D(200, 200))
+        pane = _scroll_pane_page(_scroll_pane_rows(list))
         projection = _scroll_pane_projection()
         iomap = print_document(projection, pane)
         driver = MttDriver(projection, pane)
@@ -75,15 +80,14 @@ function test_scroll_pane_hover()
     @testset "a pane that follows the end routes a press to what it draws" begin
         projection = _scroll_pane_projection()
         following = print_document(projection,
-            WidgetScrollPane(_scroll_pane_rows(); size = Point2D(200, 200), follow_end = true))
+            _scroll_pane_page(_scroll_pane_rows(); follow_end = true))
         room = Int(following.content_iomap.output.h) - 200
         @test room > 0
         @test Int(_scroll_pane_viewport(following).content.y) == -room
         scrolled = print_document(projection,
-            WidgetScrollPane(_scroll_pane_rows(); size = Point2D(200, 200),
-                             scroll_position = Point2D(0, room)))
+            _scroll_pane_page(_scroll_pane_rows(); scroll_position = Point2D(0, room)))
         unscrolled = print_document(projection,
-            WidgetScrollPane(_scroll_pane_rows(); size = Point2D(200, 200)))
+            _scroll_pane_page(_scroll_pane_rows()))
         for y in (10, 100, 190)
             press = MouseClick(:left, 20, y; time = 0.0)
             row = _scroll_pane_row(projection, following, press)
@@ -119,8 +123,12 @@ function test_scroll_pane_hover()
             WidgetScrollPane(make_card(false); size = Point2D(200, 200),
                              scroll_position = Point2D(0, room)))
         # The press lands past the card's padding and chevron column, on the
-        # last row of the list.
-        press = MouseClick(:left, 60, 160; time = 0.0)
+        # last line of pixels of the last row of the list: above the border of
+        # the list, and the padding and the border of the card, at the bottom of
+        # the pane.
+        theme = get_theme_defaults(WidgetTheme)
+        border = Int(theme.border_width)
+        press = MouseClick(:left, 60, 200 - border - theme.container_padding - border - 1; time = 0.0)
         @test string(_scroll_pane_row(projection, following, press)) ==
               ".content.content.items[40]"
         @test _scroll_pane_row(projection, following, press) ==
@@ -133,8 +141,7 @@ function test_scroll_pane_hover()
     @testset "a pane follows a cell a document owns" begin
         projection = _scroll_pane_projection()
         owned = Cell(true)
-        pane = WidgetScrollPane(_scroll_pane_rows(); size = Point2D(200, 200),
-                                follow_end = owned)
+        pane = _scroll_pane_page(_scroll_pane_rows(); follow_end = owned)
         @test getfield(pane, :follow_end) === owned
         iomap = print_document(projection, pane)
         room = Int(iomap.content_iomap.output.h) - 200

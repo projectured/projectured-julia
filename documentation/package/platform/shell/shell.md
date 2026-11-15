@@ -1,6 +1,6 @@
 # Shell
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [screen.md](../screen/screen.md), [pane.md](../pane/pane.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [screen.md](../screen/screen.md), [pane.md](../pane/pane.md)
 
 The shell slice of `ProjecturedPlatform` holds everything that a window has besides the document in it: the wrappers that a binary stacks over its window, and the chrome that the window is drawn in. One slice holds both, so two binaries show one interface and can not drift into two lists. This document says why the wrappers have their order, how the chrome is a document, how the toolbar reaches the tools, and what does not work yet.
 
@@ -17,9 +17,9 @@ A window is a document and a projection built by `build_editor` with a keyword f
 | Ctrl+Z takes back a change that belongs to no file | `undo` | undo | `:container => 5` |
 | The menu bar, the toolbar and the status bar | `shell` | shell | `:container => 10` |
 | Tab and Shift+Tab start over at the ends of the window | `focus_cycling` | focus | `:container => 20` |
-| Alt+click, the Alt+arrow walk, and the clipboard | `clipboard` | clipboard | `:container => 30` |
+| Alt+double click, the Alt+arrow walk, and the clipboard | `clipboard` | clipboard | `:container => 30` |
 | F1 opens the list of the gestures that work here | `gesture_help` | gesturehelp | `:container => 40` |
-| Ctrl+Shift+P opens the command palette | `command_palette` | gesturehelp | `:container => 50` |
+| Ctrl+Shift+P opens the command palette, a list at the top of the window | `command_palette` | gesturehelp | `:container => 50` |
 | Every gesture of the session, recorded | `gesture_log` | gesturelog | `:container => 90` |
 
 **The order is fixed by what each wrapper reads.** From the inside out: `undo` sits next to the tabs, because it must hold every change below it, down to the pane tree itself. `shell` is around it and inside everything else, so a command of a band finds the pane tree in its content, and a verb that reads the pane tree goes past the chrome with `get_wrapped_document`. `focus_cycling` is around the chrome, so the cycle of Tab goes through the bands too, and not only through the panes. `clipboard` is around the cycle of the focus, so the Alt+arrow walk and the clipboard reach into the bands. `gesture_help` and `command_palette` are around the clipboard, so their lists name the gestures of the walk and of the clipboard too. `gesture_log` is outermost in this layer, so it sees every operation that the window makes, from any wrapper inside it.
@@ -34,6 +34,8 @@ Four more features fill what a tool of the toolbar shows, instead of nesting aro
 | The Assistants pane lists the assistants of the tabs | `assistant_list` | assistant | `:screen => 40` |
 
 [log.md](../log/log.md), [statistics.md](../statistics/statistics.md), [fault.md](../fault/fault.md) and [assistant.md](../assistant/assistant.md#the-assistants-pane) describe each one; [gesturelog.md](../gesturelog/gesturelog.md) describes `gesture_log` above.
+
+The `background_work` wrapper is in the same layer, at `:screen => 20`. It has no toolbar button: the Editor section of the explorer holds the log, and [backgroundwork.md](../backgroundwork/backgroundwork.md) describes it.
 
 - **The light under the pointer is not a wrapper.** The screen gives each move to the window that the pointer leaves and to the window at the point, and each container gives it on to its children in the same way. Each document on the path writes its `mouse_target`, so a toolbar button goes dark when the pointer goes to a row in a pane, or from a window to a popup. [widget.md](../widget/widget.md) describes the light.
 - **The tooltip window and the context menu window are wrappers that the window wrapper places.** A part answers a dwell or a right click from its own gesture table. The `tooltip` and `context_menu` wrappers of `build_editor`, on by default in the layer `:window` before the `window` wrapper, give `wrap_tooltip_window` and `wrap_context_menu_window` to it through `EditorParts.window_wrappers`, and it puts them around the screen inside the trackers. [tooltip.md](../tooltip/tooltip.md) and [context-menu.md](../widget/context-menu.md) describe them.
@@ -52,13 +54,17 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 ### The menu bar
 
-Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about, gesture_help, command_palette)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program. Gestures and Command palette come first, each only when its keyword is true.
+Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with "New tab" (Ctrl+T), "Open file…" (Ctrl+O), "Go to file…" (Ctrl+P), "Close tab" (Ctrl+W), a `WidgetSeparator`, and "Exit" (Ctrl+Q). Exit quits the editor, as the close button of the window does. "Open file…" calls `open_file_dialog!` in the folder of the file of the focused tab, else in the first folder of the Explorer, else in the current folder. "Go to file…" calls `open_file_search!` ([below](#go-to-file)). The shell fires a menu shortcut before the focused part reads the key, so Ctrl+Q, Ctrl+O and Ctrl+P work wherever the focus is. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about, gesture_help, command_palette)` makes Help, with the commands that open the tree of the document types, the tree of the projections and the page about the program. Gestures and Command palette come first, each only when its keyword is true.
 
 `make_window_menu_bar(; extra, about, gesture_help, command_palette)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
 
-Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. The list of document types and the list of projections are longer than a pane, and a tab page gets no scroll of its own, so each opens inside a `WidgetScrollPane`, with the title of the list; `_find_tool_tab` looks into the scroll pane. A saved window keeps the list in its scroll pane, and where it was scrolled. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
+Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. A person goes through a tree of the help one group at a time, so each tree opens in a `Navigator` (`_make_navigating_tool`), whose tab is called by its page; `_find_tool_tab` looks into the navigator. A saved window keeps the tree and the address of its page. [help.md](../help/help.md) describes the trees and their pages. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
 
 **Gestures and Command palette do what F1 and Ctrl+Shift+P do.** Each opens its tool, or closes it when it is open. The tool belongs to its wrapper, `gesture_help` or `command_palette`, which is around the shell, so a callback that has only the editor can not reach it. The command sends `ToggleGestureHelpOperation` or `ToggleCommandPaletteOperation` with `read_rooted_operation`, and the place is the `content` of the shell. The readers carry the operation to the content and lift it up again, so it passes every wrapper around the shell. The wrapper that owns it answers what its key answers, and the command posts what reaches the root. The shell is the first one on the path of the selection, else the only shell of the document, so the items work with and without panes. The rows of the help follow the selection, as for F1, so the place does not change them. An item carries no key, because the key reaches the wrapper itself and a menu item draws no key, and its tooltip names the key. The `shell` wrapper gives each keyword from the wrappers that are on.
+
+### Go to file
+
+`open_file_search!(; editor)` (`FileSearch.jl`) finds a file by its name. It takes the folders of the `Workspace` entries of the Explorer content (`get_session_explorer_content`, also the entries inside its sections) and gives them to the list of files of the editor, `WorkspaceFileList` of [filesystem.md](../filesystem/filesystem.md#the-files-of-the-workspace-folders). It asks for a new read of the folders. It then opens `make_workspace_file_search` in the context menu window, with `make_shell_top_placement`, so the list stands at the top of the window below the bands. The open goes through `_post_shell_content_operation!`, as the commands of the Help menu do. The shell owns this code because the filesystem slice does not depend on the explorer slice, and so it can not find the folders of the Explorer.
 
 ### How a host adds a command
 
@@ -102,11 +108,11 @@ The message log needs no feed from the caller: its wrapper installs the capture 
 
 ### The `shell` wrapper
 
-`shell = true | (; assistant, explorer, files, about, status_bar, measure, appearance)` is the wrapper of `build_editor` that puts the root document in the chrome of a window. It is off by default. It acts in the layer `:container` with the number 10, so it is around the pane tree that the `tabs` wrapper makes and around the `undo` wrapper when that is on too, and inside the cycle of Tab. The bands are the menu bar, the toolbar and the status bar of this slice, drawn with the widget theme of `appearance`, which defaults to the `Appearance` of the `appearance` wrapper of the same editor. The wrapper adds the rows of `make_opened_window_projections` to the windows that open later, so the menus of the bar draw.
+`shell = true | (; assistant, explorer, files, about, status_bar, measure, appearance, tools, menus)` is the wrapper of `build_editor` that puts the root document in the chrome of a window. It is off by default. It acts in the layer `:container` with the number 10, so it is around the pane tree that the `tabs` wrapper makes and around the `undo` wrapper when that is on too, and inside the cycle of Tab. The bands are the menu bar, the toolbar and the status bar of this slice, drawn with the widget theme of `appearance`, which defaults to the `Appearance` of the `appearance` wrapper of the same editor. The wrapper adds the rows of `make_opened_window_projections` to the windows that open later, so the menus of the bar draw. The option `tools` gives the host's buttons to `extra` of the toolbar, and the option `menus` gives the host's menus to `extra` of the menu bar, so they stand between View and Help.
 
 A toolbar button and a menu item for a tool that shows what the window records appear only when the wrapper that fills that tool is also on; [the toolbar section above](#the-toolbar-opens-the-tools) says which. `shell` alone, with none of the four, builds a toolbar with the explorer, the evaluator, the selection, the appearance and the settings, and no button for any of the four. It has no assistant either, because an assistant needs a model, which the `assistant` option gives. The screen slice's `show_document!` looks through the shell exactly as it looks through the clipboard and the undo buffer, so a later document still opens in a tab and not in a window of its own; see [screen.md](../screen/screen.md#one-window-on-one-document). The display slice turns the wrapper on.
 
-**An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
+**An Alt+double click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+double click over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
 
 ### The pointer in a shell
 
@@ -120,11 +126,11 @@ The `context_menu` field of `WidgetShell` holds the menu of the window itself. T
 
 ### The file dialogs
 
-`open_file_dialog!(; directory)` and `save_file_dialog!(file; directory)` open a `WidgetDialog` over a `FileSystemChooser` as a window of its own. Both are built on `make_file_dialog`, because the chooser only chooses a path. The open command then applies `OpenFileOperation`, and the save command sets `file.filename` and applies `SaveFileOperation`. [filesystem.md](../filesystem/filesystem.md) describes the chooser.
+`open_file_dialog!(; directory)` and `save_file_dialog!(file; directory)` open a `WidgetDialog` over a `FileSystemChooser` as a window of its own. Both are built on `open_path_dialog!(take; directory, title, confirm)`, which opens the dialog of `make_file_dialog` and gives the chosen path to `take` when the person confirms, because the chooser only chooses a path. A host opens a dialog of its own with it, such as one that chooses the folder of a project. The open command then applies `OpenFileOperation`, and the save command sets `file.filename` and applies `SaveFileOperation`. [filesystem.md](../filesystem/filesystem.md) describes the chooser.
 
 ## How it fits
 
-The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, graphics, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
+The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, graphics, help, navigator, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents, and the navigator slice the navigator that a tree opens in; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
 The [application slice](../application/application.md) builds its window with the wrappers of `build_editor` and the chrome of this slice, and a downstream window host uses the same toolbar. The [display slice](../display/display.md) turns the `shell` wrapper on by its keyword, and does not depend on this slice. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
 

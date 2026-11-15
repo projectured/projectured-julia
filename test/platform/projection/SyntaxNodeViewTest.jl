@@ -129,7 +129,7 @@ end
 end
 
 @testset "A click puts the caret of the view that it hits" begin
-    place_y = Int(iomap.output.elements[2].y)
+    place_y = Int(iomap.output.elements[1].elements[2].y)
     # x = 25 is between the caret 2 and the caret 3 of `[ab, cdXe]`: `.children[1].value{1}`.
     @test press!(MouseClick(:left, 25, place_y + 5; time = 0.0)) isa ReplaceSelectionOperation
     @test stored(view_b) == in_child(1, 1) && is_live_selection(view_b)
@@ -189,7 +189,7 @@ end
     # fixed measure puts `…` from x = 10 to x = 20, and the vertical layout hits it
     # with the width of the font, about 7 pixels, so x = 16 is on it and nearest the
     # boundary after it.
-    @test read!(MouseClick(:left, 16, Int(folded_iomap.output.elements[1].y) + 5; time = 0.0)) isa ToggleFoldOperation
+    @test read!(MouseClick(:left, 16, Int(folded_iomap.output.elements[1].elements[1].y) + 5; time = 0.0)) isa ToggleFoldOperation
     @test !fold_a.collapsed && fold_b.collapsed && !tree.collapsed
     @test drawn() == [open_text, closed_text, open_text]
 end

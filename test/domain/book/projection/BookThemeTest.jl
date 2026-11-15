@@ -25,10 +25,10 @@ function test_book_theme()
     plain = draw_book_font_sizes(document, Appearance())
     @test !isempty(plain)
     @test maximum(plain) > minimum(plain)
-    @test draw_book_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_book_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
 
     @test BookParagraphToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), BookTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), BookTheme)
     leaf = BookParagraphToSyntaxLeaf(; style = get_book_style(theme, :paragraph_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(BookTheme(), :paragraph_text).color)

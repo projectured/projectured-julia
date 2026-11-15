@@ -1,6 +1,6 @@
 # Tutorial: Adding a New Domain
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
 
 This tutorial walks through adding a complete new domain to ProjecturEd:
 document types, projection to Syntax, reader, example, and test.
@@ -183,8 +183,9 @@ names a role of the colour theme, such as `:definition` or `:link`
 ([style.md](../package/platform/style/style.md#colours)), and not a fixed
 colour: the style guard that `test_style()` runs over `source/` fails on a
 `@theme` declaration that names a fixed palette colour instead (see
-[testing-guide.md](testing-guide.md#the-style-guard)). `BookmarkTheme` holds
-the base font and the two text roles that color a title and an address:
+[testing-guide.md](testing-guide.md#the-style-guard)). Each font names a role
+of the font theme in the same way. `BookmarkTheme` holds the two text roles of a
+title and an address:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────
@@ -199,25 +200,27 @@ The colors and the fonts of a list of bookmarks: a title and an address.
 `@theme` declares it, so `ScaledBookmarkTheme` holds each value times its scale.
 """
 @theme struct BookmarkTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a bookmark."
-    title_text::ThemeText = TextRole(:definition; weight = 700)
+    title_text::ThemeText = TextRole(:definition; font_role = :document_code, weight = 700)
     "The address of a bookmark."
-    url_text::ThemeText = TextRole(:link)
+    url_text::ThemeText = TextRole(:link; font_role = :document_code)
 end
 ```
 
-`TextRole(:definition; weight = 700)` is `TextRole(ColorRole(:definition); weight = 700)`:
-the bold weight of the title is its own, and its colour is the role
-`definition` of the colour theme, the name of a declared thing. `url_text`
-takes the role `link`, the role of a link, a URL and a cross-reference.
+`TextRole(:definition; font_role = :document_code, weight = 700)` is
+`TextRole(ColorRole(:definition); font_role = :document_code, weight = 700)`.
+Its colour is the role `definition` of the colour theme, the name of a declared
+thing. Its font is the role `document_code` of the font theme, the code in a
+document, and the bold weight of the title is its own. `url_text` takes the
+colour role `link`, the role of a link, a URL and a cross-reference.
 Naming a role, and not a fixed colour, is what lets the colour settings of the
 appearance — the mode, the palette, the accent and the rest — recolour a
 bookmark with every other domain.
 
-The texts are roles over the base font `font`, so a person who changes the
-family or the size of `font` changes both. A projection holds a `StyleText`:
+A list of bookmarks is code in a document, so both texts take `document_code`.
+A person who changes that role in the appearance tab changes both, with the code
+of every other domain. [type-rules.md](../rule/type-rules.md) says which role a
+text takes, and when a text holds an exact font. A projection holds a `StyleText`:
 the theme gives the text that each role gives. `@theme` also writes and exports
 `get_bookmark_style(theme, name)`, which gives the style of the field `name`: a
 cell that reads a `BookmarkTheme`, scaled or not, or the plain value of the
@@ -314,6 +317,16 @@ julia> iomap.output.selection   # forward-mapped with no mapper of your own
 - See [macros.md](../package/kernel/macros.md#projection_template) for the
   full marker-word table (`bound`, `project`, `collection`, `tokens`,
   `sections`) and [the projection system guide](../package/kernel/projection-system.md).
+
+### The space of a slot
+
+A printer that draws a canvas of its own, with no widget around it, takes the space that its slot gives into its shape. The slot of a tab page and of a split pane gives the space in the printer context, as `ctx.space`, a tuple `(left, top, right, bottom)` of pixels. A printer that does not read it draws at the edge of its slot, with no space, where a widget has 8 px. So such a printer does three things:
+
+1. It reads `ctx.space`, and 0 on each side where the context is `nothing`.
+2. It draws its content inside the space, and its extent holds the space on each side, as it holds a margin.
+3. It puts the space into its IO map, so a reader that maps a point to a reference takes the space off the point first.
+
+`TextToGraphics` does this: [source/platform/text/TextToGraphics.jl](../../source/platform/text/TextToGraphics.jl) keeps `space` in `TextToGraphicsIoMap`. A printer that passes a context to a child prints the child with the same context, and the child takes the space once. A printer that draws graphics of its own with a context that it received gives them 0, so the space does not reach them a second time. A printer that sits inside a widget box, as the printers of the chart and the graph domains do, takes no space, because the widget box holds it. [spacing-rules.md](../rule/spacing-rules.md#4-who-gives-a-space) says who gives the space and how each part passes it.
 
 ### When the template is not enough
 
@@ -529,11 +542,11 @@ BookmarkList
   `register_natural_…!` function, or defines a method of
   `make_graphics_projection` for one of its types, every first window of a
   session that loads the package builds them. End the root module with a workload that compiles
-  them, and add `PrecompileTools` to its `[deps]`:
+  them, and add `ProjecturedPrecompile` to its `[deps]` and `[sources]`:
 
   ```julia
-  using PrecompileTools: @compile_workload
-  @compile_workload run_natural_rows_workload(BookmarkModule)
+  using ProjecturedPrecompile: @compile_ahead
+  @compile_ahead run_natural_rows_workload(BookmarkModule)
   ```
 
   [package-rules.md](../rule/package-rules.md#a-package-that-a-user-loads-compiles-its-own-first-window)

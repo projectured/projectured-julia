@@ -579,6 +579,19 @@ make_widget_accordion_document_example() =
         ("Is it styled?",     "Yes. It comes with default styles that match the theme."),
     ]; position = Point2D(40, 40), expanded=1)
 
+# WidgetChoiceList — a list that a person types into, with two choices, the
+# first of them the current one.
+function make_widget_choice_list_document_example()
+    choices = WidgetChoice[WidgetChoice("one"), WidgetChoice("two")]
+    WidgetChoiceList(; current = "one", find = query -> filter(choice -> occursin(query, choice.label), choices),
+                     choose = value -> nothing)
+end
+
+# WidgetFactGroup — a titled group of facts; the last value is a document.
+make_widget_fact_group_document_example() =
+    WidgetFactGroup(["configuration" => "Fifo1", "run" => "#0", "exit code" => "0",
+                     "state" => WidgetBadge("Done")]; title = "Run", position = Point2D(40, 40))
+
 # WidgetTable — a data table.
 make_widget_table_document_example() =
     WidgetTable(["Invoice", "Status", "Method", "Amount"],
@@ -785,3 +798,15 @@ make_widget_tabbed_pane_atom_document_example() =
 # above (which stacks pressed and unpressed).
 make_widget_toggle_atom_document_example() =
     WidgetToggle("Bold"; position = Point2D(40, 40), pressed=true)
+
+# WidgetLink — a link whose target is a text file that is not on disk.
+make_widget_link_document_example() =
+    WidgetLink("Notes", TextFile("notes.txt", "A note."); position = Point2D(40, 40))
+
+# WidgetIcon — a file icon with a dot at its bottom right.
+make_widget_icon_document_example() =
+    WidgetIcon(:file; bottom_right = WidgetIconMark(:dot))
+
+# WidgetFactGroup — a titled group of three plain facts.
+make_widget_fact_group_atom_document_example() =
+    WidgetFactGroup(["configuration" => "General", "run" => "#0", "exit code" => "0"]; title = "Run")

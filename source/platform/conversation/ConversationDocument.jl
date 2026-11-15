@@ -11,24 +11,79 @@ abstract type ConversationDocument <: Document end
 # ── ConversationPart ──────────────────────────────────────────────────────────
 
 """
-    ConversationPart(content; collapsed = false)
+    ConversationPart(content; fold = :default)
 
-A collapsible slot around an arbitrary content document.
+A slot around an arbitrary content document, which folds. A string makes a part
+of plain text, a `PrimitiveString`, which the transcript draws in the style of a
+message; a producer of Markdown passes the document of `make_prose_document`.
+
+`fold` is `:default`, which follows the rule of the transcript, or `:open` or
+`:folded`, which is the choice of a person and stays.
 """
 @document struct ConversationPart <: ConversationDocument
     content::Document
-    collapsed::Bool
+    fold::Symbol
 end
 
-ConversationPart(content::Document; collapsed::Bool = false) =
-    ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
-ConversationPart(s::AbstractString; collapsed::Bool = false) =
-    ConversationPart(Cell(make_text_block(String(s))), Cell(collapsed), Cell(nothing))
+ConversationPart(content::Document; fold::Symbol = :default) =
+    ConversationPart(Cell(content), Cell(_check_fold(fold)), Cell(nothing))
+ConversationPart(s::AbstractString; fold::Symbol = :default) =
+    ConversationPart(Cell(PrimitiveString(String(s))), Cell(_check_fold(fold)), Cell(nothing))
+
+# The values of the fold of a part and of the work of a turn.
+const _CONVERSATION_FOLDS = (:default, :open, :folded)
+
+_check_fold(fold::Symbol) =
+    fold in _CONVERSATION_FOLDS ? fold :
+        throw(ArgumentError(string("a fold is one of ", _CONVERSATION_FOLDS, ", not :", fold)))
+
+# Whether a fold shows only its header: a choice of `:folded`, or the default
+# when the rule closes it.
+_is_fold_closed(fold::Symbol, is_closed_by_default::Bool) =
+    fold === :folded || (fold === :default && is_closed_by_default)
+
+# A file keeps the fold of a part only when a person chose it. A file can name
+# `collapsed`, which a part does not keep, so the part follows the rule.
+function pred_arguments(part::ConversationPart)
+    positional, keywords = invoke(pred_arguments, Tuple{Any}, part)
+    filter!(pair -> !(first(pair) === :fold && last(pair) === :default), keywords)
+    positional, keywords
+end
+
+function make_pred_document(::Type{<:ConversationPart}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    ConversationPart(values[:content]; fold = get(values, :fold, :default))
+end
+
+"""
+    ReplaceConversationFoldOperation(node, field, fold)
+
+Write `fold`, the choice of a person, into the field `field` of `node`: the
+`fold` of a `ConversationPart`, or the `work_fold` of a `ConversationTurn`. A
+click on the chevron of a part or of the work of a turn in a transcript gives it.
+It names the node that it writes, so it goes up a chain as it is. An undo writes
+the value that the field held before.
+"""
+struct ReplaceConversationFoldOperation <: Operation
+    node::ConversationDocument
+    field::Symbol
+    fold::Symbol
+end
+
+evaluate_operation(editor, op::ReplaceConversationFoldOperation) =
+    (setproperty!(op.node, op.field, _check_fold(op.fold)); nothing)
+
+make_inverse_operation(document, op::ReplaceConversationFoldOperation) =
+    ReplaceConversationFoldOperation(op.node, op.field, getproperty(op.node, op.field))
+
+is_self_contained_operation(::ReplaceConversationFoldOperation) = true
 
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
 """
-An extended-thinking block. Wrapped in a `ConversationPart` like any content.
+An extended-thinking block. Wrapped in a `ConversationPart` like any content. Its
+`text` is plain text, a `PrimitiveString`, which the transcript draws in the
+style of a message.
 `signature`/`redacted`/`data` are Anthropic API metadata that must survive
 re-serialization back to the API.
 """
@@ -49,14 +104,13 @@ ConversationThinking(text::AbstractString;
                      signature::AbstractString = "",
                      redacted::Bool = false,
                      data::AbstractString = "") =
-    ConversationThinking(make_text_block(String(text));
+    ConversationThinking(PrimitiveString(String(text));
                          signature = signature, redacted = redacted, data = data)
 
-# Convenience: a thinking part. Collapsed by default — reasoning is verbose and
-# secondary (see Stage 5 of the conversation-thinking plan).
+# Convenience: a thinking part, whose fold follows the rule of the transcript.
 # @optional: the text stands first, as the content of the part; the rest is its chrome.
-make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
-    ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
+make_conversation_thinking_part(text = ""; kwargs...) =
+    ConversationPart(ConversationThinking(text; kwargs...))
 
 # Accessor mirroring ConversationModule.make_evaluator_result_text / _eval_*.
 _thinking_text(t::ConversationThinking) = t.text
@@ -142,14 +196,16 @@ end
 
 A part that says that an external agent needs a sign-in. `message` says how to
 sign in, in words for a person. `methods` are the ways to sign in that this
-editor can run, each an `AgentSignInMethod` with the command of a sign-in in a
-terminal. The card shows a button for each method and a button that tries again.
+editor can run, each an `AgentSignInMethod`: the command of a sign-in in a
+terminal, or no command for a sign-in that the agent runs itself. The card shows
+a button for each method and a button that tries again.
 
 `start` and `retry` are live functions and no data: `start(editor, method_id)`
 runs the sign-in of a method, and `retry(editor)` starts the agent again.
-`terminal` is the document in which the sign-in runs, `nothing` before one
-started; the card shows it below its buttons, and it is the live field of the
-part: a person types in it inside a transcript that is otherwise read.
+`terminal` is the document in which a sign-in in a terminal runs, `nothing`
+before one started; the card shows it below its buttons, and it is the live
+field of the part: a person types in it inside a transcript that is otherwise
+read.
 `is_signing_in` says that a sign-in runs, and `state` says how the last one
 went, in words for a person; the assistant writes both.
 
@@ -182,6 +238,47 @@ function make_pred_document(::Type{<:ConversationSignInRequest}, positional, key
     request.state = String(get(values, :state, ""))
     request
 end
+
+# ── ConversationNote ──────────────────────────────────────────────────────────
+
+"""
+    ConversationNote(text; kind = :note, action_label = "", action = nothing)
+
+A quiet line that the editor writes into a turn, neither the person nor the
+model: why a turn ended before the model was done, or why the assistant started
+a turn that no person asked for. `kind` names the cause: `:round_limit` when a
+turn used its budget of rounds, `:wake` when a task group that the assistant
+started ended, `:wake_held` when such a group ended and the assistant did not
+wake, and `:note` for any other line.
+
+`action_label` and `action` give the line one button: `action(editor)` runs when
+a person presses it, such as the one that tells the model to go on. `action` is a
+live function and no data, so a note that a `.pred` file read back has no
+button.
+
+Use it to tell the person, in the transcript, what the editor did on its own.
+
+# Example
+
+    note_1 = ConversationNote("The turn reached its 40 rounds."; kind = :round_limit)
+
+See also `ConversationTurn`, `ConversationPart`.
+"""
+@document struct ConversationNote <: ConversationDocument
+    text::String
+    kind::Symbol
+    action_label::String
+    action::Any
+end
+
+ConversationNote(text::AbstractString; kind::Symbol = :note, action_label::AbstractString = "",
+                 action = nothing) =
+    ConversationNote(Cell(String(text)), Cell(kind), Cell(String(action_label)), Cell(action), Cell(nothing))
+
+pred_arguments(note::ConversationNote) = (note.text,), Pair{Symbol,Any}[:kind => note.kind]
+
+make_pred_document(::Type{<:ConversationNote}, positional, keywords) =
+    ConversationNote(positional[1]; kind = get(Dict{Symbol,Any}(keywords), :kind, :note))
 
 # ── ConversationQuestionRequest ───────────────────────────────────────────────
 
@@ -323,33 +420,58 @@ end
 
 """
     ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false,
-                     start_time = 0.0, finish_time = 0.0)
+                     work_fold = :default, start_time = 0.0, finish_time = 0.0,
+                     backend = :none, model = "")
 
 One chat message: a `role` (`:user` / `:assistant`), an ordered list of parts,
-a streaming `stop_reason`, a `collapsed` flag, and the times at which the turn
-started and finished, in seconds of `time()`. A time of `0.0` is not known: a
+a streaming `stop_reason`, a `collapsed` flag, the fold of its work, and the times
+at which the turn started and finished, in seconds of `time()`. `work_fold` folds the line that a finished turn of the model makes of its work:
+`:default` follows the rule of the transcript, which folds it, and `:open` or
+`:folded` is the choice of a person, which stays. A time of `0.0` is not known: a
 turn of a file that kept no times, a turn of a test, or a turn that runs and
 has not finished.
+
+`backend` and `model` say who wrote an answer: the backend of the assistant,
+such as `:anthropic`, `:ollama` or `:acp`, and the model that it named, empty
+for the default of the backend. A turn of the person has `:none` and an empty
+model. A file keeps them for an answer.
 """
 @document struct ConversationTurn <: ConversationDocument
     role::Symbol
     parts::CellVector
     stop_reason::Symbol
     collapsed::Bool
+    work_fold::Symbol
     start_time::Float64
     finish_time::Float64
+    backend::Symbol
+    model::String
 end
 
 ConversationTurn(role::Symbol;
                  parts::Vector = ConversationPart[],
                  stop_reason::Symbol = :complete,
                  collapsed::Bool = false,
+                 work_fold::Symbol = :default,
                  start_time::Real = 0.0,
-                 finish_time::Real = 0.0) =
+                 finish_time::Real = 0.0,
+                 backend::Symbol = :none,
+                 model::AbstractString = "") =
     ConversationTurn(Cell(role),
                      CellVector(Cell[Cell(p) for p in parts]),
-                     Cell(stop_reason), Cell(collapsed),
-                     Cell(Float64(start_time)), Cell(Float64(finish_time)), Cell(nothing))
+                     Cell(stop_reason), Cell(collapsed), Cell(_check_fold(work_fold)),
+                     Cell(Float64(start_time)), Cell(Float64(finish_time)),
+                     Cell(backend), Cell(String(model)), Cell(nothing))
+
+# A file names the writer of an answer, and leaves out the empty writer of a turn
+# of the person. It keeps the fold of the work only when a person chose it.
+function pred_arguments(turn::ConversationTurn)
+    positional, keywords = invoke(pred_arguments, Tuple{Any}, turn)
+    filter!(pair -> !(first(pair) === :backend && last(pair) === :none) &&
+                    !(first(pair) === :model && isempty(last(pair))) &&
+                    !(first(pair) === :work_fold && last(pair) === :default), keywords)
+    positional, keywords
+end
 
 # A file that kept no times builds a turn whose times are not known.
 function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
@@ -357,8 +479,11 @@ function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
     ConversationTurn(values[:role]; parts = collect(values[:parts]),
                      stop_reason = get(values, :stop_reason, :complete),
                      collapsed = get(values, :collapsed, false),
+                     work_fold = get(values, :work_fold, :default),
                      start_time = get(values, :start_time, 0.0),
-                     finish_time = get(values, :finish_time, 0.0))
+                     finish_time = get(values, :finish_time, 0.0),
+                     backend = get(values, :backend, :none),
+                     model = get(values, :model, ""))
 end
 
 ConversationTurn(role::Symbol, parts::Vector; kwargs...) =
@@ -367,6 +492,15 @@ ConversationTurn(role::Symbol, parts::Vector; kwargs...) =
 # Convenience: a user/assistant turn from a single string or content document.
 user_turn(content) = ConversationTurn(:user, [ConversationPart(content)])
 assistant_turn(content) = ConversationTurn(:assistant, [ConversationPart(content)])
+
+"""
+    is_note_turn(turn) -> Bool
+
+Whether every part of `turn` is a `ConversationNote`: a turn that the editor
+wrote, such as the one that wakes the assistant when its runs end.
+"""
+is_note_turn(turn::ConversationTurn) =
+    !isempty(turn.parts) && all(part -> part.content isa ConversationNote, turn.parts)
 
 # ── ConversationConversation ──────────────────────────────────────────────────
 

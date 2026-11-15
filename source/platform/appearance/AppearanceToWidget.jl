@@ -8,30 +8,42 @@ Show an `Appearance` as widgets, in a pane that scrolls:
 
 - the buttons "Save" and "Load", which save the appearance in the file of
   `get_appearance_file` and read it back;
-- the card "Scale": a row for the zoom and one for each of the six scales, each
-  with its name, a − button, its value in percent, a + button and a reset button,
-  and under the rows a button "Reset all" that resets each of them;
-- the card "Colors": a row for each of the five colour settings, the mode, the
-  contrast, the palette, the accent and the neutral, each with its name, buttons
-  ‹ and › that step through its values, and its value, and under the rows a
-  button "Reset all" that writes the default of each of them. These two cards do
-  not fold;
-- the themes in three groups, each a heading over its cards: "Editor", the
-  colour theme of the present mode and contrast, with a row for each role, then
-  the widget, the text, the syntax, the reference, the graphics and the tooltip
-  themes, which every view draws with; "Tools", the other themes of
+- the card "Scale", for the `scale` of the appearance, and the card "Colors",
+  for its `colors`, each with its title and its summary. These two cards do not
+  fold. The tab builds their bodies with the functions that the views of the
+  parts build their pages with ([`AppearanceScaleToWidget`](@ref),
+  [`AppearanceColorsToWidget`](@ref)): a row for the zoom and one for each of
+  the six scales, each with its name, a − button, its value in percent, a +
+  button and a reset button; and a row for each of the five colour settings, the
+  mode, the contrast, the palette, the accent and the neutral, each with its
+  name, buttons ‹ and › that step through its values, and its value. Under the
+  rows of each, a button "Reset all" writes the default of each of them;
+- the themes in three groups, one for each heading ([`ThemeGroup`](@ref)), each
+  its title over a card for each of its themes, as the page of a heading shows
+  them ([`ThemeGroupToWidget`](@ref)): "Editor", the
+  colour theme of the present mode and contrast, with a row for each role, the
+  font theme, with a row for each role of the type scale, then the widget, the
+  text, the syntax, the reference, the graphics and the tooltip themes, which
+  every view draws with; "Tools", the other themes of
   `ProjecturedPlatform`; and "Documents", the themes of the other packages, in
   the order of their names. Every card is as wide as the pane;
-- a card for each theme, which folds to its title, and which the tab shows open
-  when the `open_sections` of the appearance name it. The card starts with the
-  summary of its theme type, the first paragraph of its docstring. It holds the
+- a card for each theme, which folds to its title and the summary of its theme
+  type, the first paragraph of its docstring, and which the tab shows open when
+  the `open_names` of its heading name it. An open card holds the controls of the
+  theme, as the page of the theme shows them ([`ThemeToWidget`](@ref)): the
   presets of the theme, as a choice that writes every field of the preset into
   the theme, and a row for each field, its name and its control; under that row,
   across the card, the docstring of the field, in the small font and the muted
   color of the widget theme. A size has a spin box for each of its parts, a font has buttons that step through
   the font files and a spin box for its size, a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits, and a text style has the
-  controls of its colour over those of its font. A role of the colour theme has
+  controls of its colour over those of its font. A step of the font theme has
+  buttons that choose the kind of its family, `sans` or `mono`, buttons that step
+  through the weights of that family, a checkbox for italic and a spin box for
+  its size; the two families of the font theme have buttons that step through the
+  font families. A font role that names a role of the font theme has buttons that
+  step through the roles, then the weight and the checkbox for italic, and no
+  size, because a role never changes its size. A role of the colour theme has
   its swatch, buttons that step through the roles, and a button "Step", which
   writes the step of a ramp that the role names, so the field leaves the role and
   still follows the mode; a step of a ramp has buttons that step through the hues
@@ -47,7 +59,7 @@ a choice of a preset or an edit of a colour answers a write of the theme, so the
   `ReplaceThemeValueOperation`, so a history around the tab, such as the history
   of a window, records it, and Ctrl+Z takes it back and prints the view again.
 - A step of the zoom or of a scale takes nothing back, as from its keys.
-- A press on the chevron of a card answers a write of `open_sections`, and a
+- A press on the chevron of a card answers a write of `open_names`, and a
   scroll of the tab a write of `scroll_position`. Both are view state: the
   history does not record them, and no view prints again; the card and the pane
   follow their cells.
@@ -94,10 +106,14 @@ const _APPEARANCE_ROWS = ((:zoom, "Zoom"), (:font_scale, "Text"), (:icon_scale, 
                           (:spacing_scale, "Spacing"), (:control_scale, "Controls"),
                           (:radius_scale, "Corners"), (:line_scale, "Lines"))
 
-# The operation that steps the field `field` of `appearance` by `delta`.
-_make_step_operation(appearance::Appearance, field::Symbol, delta::Integer) =
-    field === :zoom ? AdjustZoomOperation(appearance, delta) :
-                      AdjustScaleOperation(appearance, field, delta)
+# The operation that steps the field `field` of the scale `scale` by `delta`.
+_make_step_operation(scale::AppearanceScale, field::Symbol, delta::Integer) =
+    field === :zoom ? AdjustZoomOperation(scale, delta) : AdjustScaleOperation(scale, field, delta)
+
+# The note of a button that changes a setting, made when the pointer rests: `title`
+# names the change, `text` says it, and `facts()` gives the pairs of the current
+# value and of what the button writes.
+_make_setting_note(title, text, facts) = () -> TooltipNote(; title, text, facts = facts())
 
 # A factor as a person reads it, in percent.
 _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
@@ -160,7 +176,11 @@ _get_length_part(inset::Inset, part::Symbol) = getproperty(inset, part)[]
 _get_length_part(point::Point2D, part::Symbol) = getproperty(point, part)[]
 _get_length_part(value::Real, ::Symbol) = value
 
-function print_document(p::AppearanceToWidget, recursion, appearance::Appearance, ctx)
+# The controls of a view of the appearance, and the tables that its reader reads:
+# `commands`, `writes`, `edits` and `folds` (see `AppearanceToWidgetIoMap`).
+# `controls` makes each control and puts it into its table, and holds the widget
+# theme of `appearance` and `appearance` itself.
+function _make_view_controls(appearance::Appearance)
     commands = IdDict{Any,Any}()
     writes = IdDict{Any,Any}()
     edits = IdDict{Any,Any}()
@@ -168,10 +188,10 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     theme = _get_widget_theme(appearance)
     # A button whose press answers `operation`. Its callback evaluates the same
     # operation, for a view that shows the tab with no reader of this projection.
-    function button(label, operation)
+    function button(label, operation; tooltip = nothing)
         action = Action(label; callback = editor -> evaluate_operation(editor, operation))
         commands[action] = operation
-        WidgetButton(label; action)
+        WidgetButton(label; action, tooltip)
     end
     function spin_box(value, write; min = 0, max = 400)
         box = WidgetSpinBox(Int(round(value)); min, max)
@@ -184,10 +204,10 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
-    # A choice of `labels`, with none chosen; the choice of an index answers
-    # `write(index)`.
-    function choice(labels, write)
-        group = WidgetRadioGroup(labels; selected = 0)
+    # A choice of `labels`, with the one at `selected` chosen or, at 0, none; the
+    # choice of an index answers `write(index)`.
+    function choice(labels, write; selected = 0)
+        group = WidgetRadioGroup(labels; selected)
         writes[group] = write
         group
     end
@@ -201,16 +221,28 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     end
     controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds,
                 defaults = IdDict{Any,Any}())
-    groups = Any[HorizontalLayout(Any[button("Save", SaveAppearanceOperation(appearance)),
-                                      button("Load", LoadAppearanceOperation(appearance))];
-                                  gap = theme.label_gap),
-                 _make_scale_card(controls), _make_color_settings_card(controls)]
-    heading = StyleText(theme.font_bold, theme.muted_foreground)
-    for (title, themes) in _get_theme_groups(appearance)
-        isempty(themes) && continue
-        cards = VerticalLayout(Any[_make_theme_section(controls, section_theme) for section_theme in themes];
-                               gap = theme.section_gap, child_width = Fill)
-        push!(groups, VerticalLayout(Any[WidgetLabel(title; text_style = heading), cards];
+    (controls, (; commands, writes, edits, folds))
+end
+
+# The tab builds the bodies of its parts with the functions that the views of the
+# parts build their pages with, so every control is a widget of the tab, and Tab
+# moves through them all: the scale and the colour settings each in a card with
+# its title and its summary, and each heading under its title.
+function print_document(p::AppearanceToWidget, recursion, appearance::Appearance, ctx)
+    (controls, tables) = _make_view_controls(appearance)
+    theme = controls.theme
+    groups = Any[HorizontalLayout(Any[controls.button("Save", SaveAppearanceOperation(appearance)),
+                                      controls.button("Load", LoadAppearanceOperation(appearance))];
+                                  gap = theme.button_gap),
+                 WidgetCard(; title = get_document_title(appearance.scale), description = _SCALE_SUMMARY,
+                            content = _make_scale_body(controls, appearance.scale; summary = false)),
+                 WidgetCard(; title = get_document_title(appearance.colors), description = _COLOR_SETTINGS_SUMMARY,
+                            content = _make_colors_body(controls, appearance.colors; summary = false))]
+    heading = StyleText(theme.section_font, theme.muted_foreground)
+    for group in _get_theme_groups(appearance)
+        isempty(_collect_group_themes(group)) && continue
+        push!(groups, VerticalLayout(Any[WidgetLabel(group.title; text_style = heading),
+                                         _make_group_body(controls, group)];
                                      gap = theme.title_gap, child_width = Fill))
     end
     # Two groups are further apart than two cards of one group, so a heading
@@ -218,11 +250,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     content = VerticalLayout(groups; gap = 2 * theme.section_gap, child_width = Fill)
     # The pane scrolls the cell of the appearance: the next print, which a write of
     # the appearance starts, makes a new pane at the same place.
-    pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position))
+    pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position),
+                            grows = (width = false, height = true))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
-    AppearanceToWidgetIoMap(p, appearance, Cell(@computation child.output), child, commands, writes,
-                            edits, folds)
+    AppearanceToWidgetIoMap(p, appearance, Cell(@computation child.output), child, tables.commands,
+                            tables.writes, tables.edits, tables.folds)
 end
 
 # The summaries of the two cards of the settings of the appearance, which no theme
@@ -232,73 +265,121 @@ const _SCALE_SUMMARY = "The zoom of every view, and the size of the text, the ic
 const _COLOR_SETTINGS_SUMMARY = "The mode, the contrast and the palette of the colours, " *
                                 "and the hues of the accent and the neutral."
 
-# A card of settings of the appearance: its title, its summary, and under its rows
-# a button "Reset all" that answers `reset`. It does not fold.
-function _make_settings_card(controls, title::String, summary::String, rows, reset)
-    WidgetCard(; title = WidgetLabel(title), description = summary,
-               content = VerticalLayout(Any[rows, controls.button("Reset all", reset)];
-                                        gap = controls.theme.section_gap))
+# The body of a part of the appearance: its summary, on a page, its rows, and under
+# them a button "Reset all" that answers `reset`. In the tab, the card of the part
+# shows the summary.
+function _make_settings_body(controls, summary::Union{Nothing, String}, rows, reset)
+    caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
+    parts = Any[rows, controls.button("Reset all", reset)]
+    summary === nothing || pushfirst!(parts, WidgetLabel(summary; text_style = caption))
+    VerticalLayout(parts; gap = controls.theme.section_gap)
 end
 
-# The card "Scale": a row for the zoom and one for each scale, each with its name,
-# a − button, its value in percent, a + button and a reset button.
-function _make_scale_card(controls)
-    appearance = controls.appearance
+# The name of a row of a card: a scale, a colour setting, a field of a theme. It
+# takes the label font of the widget theme, as the name of a field of a form.
+_make_name_label(controls, name) =
+    WidgetLabel(name; text_style = StyleText(controls.theme.label_font, controls.theme.foreground))
+
+# The body of the scale `scale`: a row for the zoom and one for each scale, each
+# with its name, a − button, its value in percent, a + button and a reset button.
+function _make_scale_body(controls, scale::AppearanceScale; summary::Bool = true)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
-        push!(cells, WidgetLabel(name),
-              controls.button("−", _make_step_operation(appearance, field, -1)),
-              WidgetLabel(_get_percent_text(getproperty(appearance, field))),
-              controls.button("+", _make_step_operation(appearance, field, 1)),
-              controls.button("Reset", _make_step_operation(appearance, field, 0)))
+        word = lowercase(name)
+        current = () -> "Now" => _get_percent_text(getproperty(scale, field))
+        push!(cells, _make_name_label(controls, name),
+              controls.button("−", _make_step_operation(scale, field, -1);
+                              tooltip = _make_setting_note("Smaller", "Make the $word smaller by one step.",
+                                                           () -> [current()])),
+              WidgetLabel(_get_percent_text(getproperty(scale, field))),
+              controls.button("+", _make_step_operation(scale, field, 1);
+                              tooltip = _make_setting_note("Larger", "Make the $word larger by one step.",
+                                                           () -> [current()])),
+              controls.button("Reset", _make_step_operation(scale, field, 0);
+                              tooltip = _make_setting_note("Reset", "Set the $word back to its default.",
+                                                           () -> [current(), "Default" => _get_percent_text(1.0)])))
     end
     rows = GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
-                      vertical_gap = controls.theme.item_gap, vertical_align = :center)
-    reset = CompoundOperation(Any[_make_step_operation(appearance, field, 0)
+                      vertical_gap = controls.theme.form_row_gap, vertical_align = :center)
+    reset = CompoundOperation(Any[_make_step_operation(scale, field, 0)
                                   for (field, _) in _APPEARANCE_ROWS])
-    _make_settings_card(controls, "Scale", _SCALE_SUMMARY, rows, reset)
+    _make_settings_body(controls, summary ? _SCALE_SUMMARY : nothing, rows, reset)
 end
 
-# The card "Colors": a row for each colour setting.
-function _make_color_settings_card(controls)
-    reset = CompoundOperation(Any[_write_color_setting(controls.appearance, field, value)
+# The body of the colour settings `colors`: a row for each colour setting.
+function _make_colors_body(controls, colors::AppearanceColors; summary::Bool = true)
+    reset = CompoundOperation(Any[_write_color_setting(colors, field, value)
                                   for (field, value) in pairs(_COLOR_SETTING_DEFAULTS)])
-    _make_settings_card(controls, "Colors", _COLOR_SETTINGS_SUMMARY, _make_color_settings(controls), reset)
+    _make_settings_body(controls, summary ? _COLOR_SETTINGS_SUMMARY : nothing,
+                        _make_color_settings(controls, colors), reset)
 end
 
-# The themes that every view of the editor draws with, in the order of the group
-# "Editor" of the tab, after the colour theme.
-const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
+# The themes of the heading `group`, in order: the colour theme of the present mode
+# and contrast first in "Editor", then the themes that the heading holds.
+_collect_group_themes(group::ThemeGroup) =
+    Any[(group.color_theme === nothing ? () : (group.color_theme,))..., group.themes...]
 
-# The groups of the tab: each a title and the themes of `appearance` that it shows.
-# The colour theme of the present mode and contrast stands first in "Editor". A
-# theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
-# and a theme of another package is the theme of a document.
-function _get_theme_groups(appearance::Appearance)
-    themes = sort!([entry.theme for entry in values(appearance.themes)];
-                   by = theme -> string(nameof(get_theme_type(theme))))
-    editor = Any[get_color_theme(appearance);
-                 Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]]
-    others = filter(theme -> !(get_theme_type(theme) in _EDITOR_THEME_TYPES), themes)
-    is_tool = theme -> Base.moduleroot(parentmodule(get_theme_type(theme))) ===
-                       Base.moduleroot(@__MODULE__)
-    (("Editor", editor), ("Tools", filter(is_tool, others)), ("Documents", filter(!is_tool, others)))
-end
-
-# The title of the card of the theme type `T`: the words of its name without
-# `Theme`, so `GestureHelpTheme` is "Gesture help".
-function _get_section_title(T::Type)
-    words = [m.match for m in eachmatch(r"[A-Z][a-z0-9]*|[a-z0-9]+", replace(string(nameof(T)), r"Theme$" => ""))]
-    uppercasefirst(lowercase(join(words, " ")))
-end
-
-# The card of `theme`: its title and the summary of its type, and its presets and
-# for each field a row and the docstring of the field under it, which show while
-# the `open_sections` of the appearance name the type of the theme.
-# `controls` makes the controls of the tab and holds its widget theme.
-function _make_theme_section(controls, theme)
+# The card of `theme` under the heading `group`: its title and the summary of its
+# type, and under them the controls of the theme, which show while the
+# `open_names` of the heading name the type of the theme. A closed card has no
+# controls: the card makes them when it first opens, and keeps them while it closes
+# and opens again in this print. `controls` makes the controls of the view and
+# holds its widget theme.
+function _make_theme_card(controls, group::ThemeGroup, theme)
     T = get_theme_type(theme)
     name = string(nameof(T))
+    body = Cell(nothing)
+    children = CellVector(@computation(name in group.open_names ? Any[body[]] : Any[]))
+    set_cell_computation!(body, () -> _follow_section_body_paths!(children,
+                                          _make_theme_body(controls, theme; summary = false)))
+    summary = strip_code_marks(compute_docstring_summary(T))
+    card = WidgetCard(; title = get_document_title(theme),
+                      description = isempty(summary) ? nothing : summary,
+                      content = VerticalLayout(children, Cell(:left), Cell(controls.theme.form_row_gap),
+                                               Cell(nothing), Cell(nothing), Cell(nothing)),
+                      collapsible = true, collapsed = !(name in group.open_names))
+    set_cell_computation!(getfield(card, :collapsed), () -> !(name in group.open_names))
+    controls.folds[card] = (group, name)
+    card
+end
+
+# The body of a card, which the card makes after the print, holds its part of the
+# paths of the vector that holds it, and so do the documents below it: the print
+# gave the paths only to the documents that were there. The cells that the wiring
+# reads are no inputs of the body.
+function _follow_section_body_paths!(children, body)
+    run_without_cell_tracking(() -> begin
+        set_output_path_computations!(body, children, _get_path_below_first_element)
+        set_output_tree_path_computations!(body)
+    end)
+    body
+end
+
+# The body of the heading `group`: a card for each of its themes.
+_make_group_body(controls, group::ThemeGroup) =
+    VerticalLayout(Any[_make_theme_card(controls, group, theme) for theme in _collect_group_themes(group)];
+                   gap = controls.theme.section_gap, child_width = Fill)
+
+# The body of `theme`: the summary of its type, on a page, and its controls. In
+# the tab, the card of the theme shows the summary.
+function _make_theme_body(controls, theme; summary::Bool = true)
+    text = summary ? strip_code_marks(compute_docstring_summary(get_theme_type(theme))) : ""
+    content = _make_theme_section_content(controls, theme)
+    isempty(text) && return content
+    caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
+    VerticalLayout(Any[WidgetLabel(text; text_style = caption), content]; gap = controls.theme.form_row_gap)
+end
+
+# The part of `path` below the first element of a vector, or `nothing`.
+function _get_path_below_first_element(path)
+    path isa ConcreteReference || return nothing
+    path.head == RangeReferenceStep(0, 1) ? path.tail : nothing
+end
+
+# The controls of `theme`: its presets, and for each field a row and the docstring
+# of the field under it.
+function _make_theme_section_content(controls, theme)
+    T = get_theme_type(theme)
     parts = Any[]
     presets = get_theme_presets(T)
     isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
@@ -306,13 +387,13 @@ function _make_theme_section(controls, theme)
         CompoundOperation(Any[_write_theme_field(theme, field, getproperty(preset, field))
                               for field in get_theme_field_names(T)])
     end))
-    caption = StyleText(controls.theme.font_small, controls.theme.muted_foreground)
+    caption = StyleText(controls.theme.quiet_font, controls.theme.muted_foreground)
     cells = Any[]
     # The gap above each row of the grid: a field is a section gap from the field
     # above, and its docstring follows its row with no gap, as a part of it.
     row_gaps = Any[]
     for field in get_theme_field_names(T)
-        push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
+        push!(cells, _make_name_label(controls, replace(String(field), "_" => " ")),
               _make_field_control(controls, theme, field, getproperty(theme, field)))
         push!(row_gaps, nothing)
         text = something(find_theme_field_text(T, field), "")
@@ -325,23 +406,16 @@ function _make_theme_section(controls, theme)
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
                             vertical_gap = controls.theme.section_gap, vertical_align = :center,
                             row_gaps))
-    appearance = controls.appearance
-    summary = strip_code_marks(compute_docstring_summary(T))
-    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
-                      description = isempty(summary) ? nothing : summary,
-                      content = VerticalLayout(parts; gap = controls.theme.item_gap),
-                      collapsible = true, collapsed = !(name in appearance.open_sections))
-    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
-    controls.folds[card] = name
-    card
+    VerticalLayout(parts; gap = controls.theme.form_row_gap)
 end
 
-# The write that opens the section of the theme type named `name` in the tab, or
-# closes it when it is open. It is view state, so the history does not record it.
-function _make_fold_operation(appearance::Appearance, name::String)
-    open = appearance.open_sections
+# The write that opens the card of the theme type named `name` under the heading
+# `group`, or closes it when it is open. It is view state, so the history does not
+# record it.
+function _make_fold_operation(group::ThemeGroup, name::String)
+    open = group.open_names
     toggled = name in open ? filter(!=(name), open) : vcat(open, name)
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(appearance, "open_sections", toggled))
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(group, "open_names", toggled))
 end
 
 # The control of the field `field` of `theme`, which holds `value`.
@@ -361,6 +435,44 @@ _make_field_control(controls, theme, field::Symbol, value::StyleFont) =
     _make_font_control(controls, () -> getproperty(theme, field),
                        font -> _write_theme_field(theme, field, font))
 
+# A step of the font theme has the kind of its family, the weights of that family,
+# italic and the size. `theme` is the font theme, which names the family of each kind.
+function _make_field_control(controls, theme, field::Symbol, value::FontStep)
+    read = () -> getproperty(theme, field)
+    write = step -> _write_theme_field(theme, field, step)
+    font = _get_font_step_font(theme, value)
+    gap = controls.theme.label_gap
+    kinds = (:sans, :mono)
+    HorizontalLayout(Any[
+        controls.choice(collect(String.(kinds)), index -> write(_with_font_step(read(); family = kinds[index]));
+                        selected = findfirst(==(value.family), kinds)),
+        controls.button("−", write(_with_font_step(value; weight = _step_font_weight(font, -1).weight));
+                        tooltip = _make_weight_note("Lighter", font, -1)),
+        WidgetLabel(_get_font_weight_name(font.weight)),
+        controls.button("+", write(_with_font_step(value; weight = _step_font_weight(font, 1).weight));
+                        tooltip = _make_weight_note("Heavier", font, 1)),
+        controls.checkbox(value.italic, v -> write(_with_font_step(read(); italic = v)); label = "italic"),
+        controls.spin_box(value.size, v -> write(_with_font_step(read(); size = v)); min = 6, max = 96),
+    ]; gap, vertical_align = :center)
+end
+
+# The two families of the font theme step through the font families. A text field
+# of any other theme shows its text.
+function _make_field_control(controls, theme, field::Symbol, value::String)
+    (get_theme_type(theme) === FontTheme && field in (:sans_family, :mono_family)) ||
+        return WidgetLabel(value)
+    font = StyleFont(value, 13)
+    write = family -> _write_theme_field(theme, field, family.family)
+    gap = controls.theme.label_gap
+    HorizontalLayout(Any[
+        controls.button("‹", write(_step_font_family(font, -1));
+                        tooltip = _make_family_note("Previous", font, -1)),
+        WidgetLabel(value),
+        controls.button("›", write(_step_font_family(font, 1));
+                        tooltip = _make_family_note("Next", font, 1)),
+    ]; gap, vertical_align = :center)
+end
+
 _make_field_control(controls, theme, field::Symbol, value::ThemeColor) =
     _make_theme_color_control(controls, () -> getproperty(theme, field),
                               color -> _write_theme_field(theme, field, color),
@@ -379,8 +491,8 @@ function _make_field_control(controls, theme, field::Symbol, value::StyleText)
 end
 
 _make_field_control(controls, theme, field::Symbol, value::FontRole) =
-    _make_role_control(controls, theme, () -> getproperty(theme, field),
-                       role -> _write_theme_field(theme, field, role))
+    _make_font_theme_role_control(controls, () -> getproperty(theme, field),
+                                  role -> _write_theme_field(theme, field, role))
 
 # A list of colours, such as the colours of the series of a chart, has a swatch
 # for each, in the colour that it gives; a person changes them in the colour theme.
@@ -388,16 +500,18 @@ _make_field_control(controls, theme, field::Symbol, value::AbstractVector{<:Them
     HorizontalLayout(Any[WidgetSwatch(resolve_theme_color(color, controls.appearance)) for color in value];
                      gap = controls.theme.item_gap, vertical_align = :center)
 
-# A text role has the controls of its colour over those of its font role.
+# A text role has the controls of its colour over those of its font role, or over
+# those of its exact font.
 function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     read = () -> getproperty(theme, field)
     default = _get_default_field(controls, theme, field)
+    font_control = value.font isa StyleFont ? _make_font_control : _make_font_theme_role_control
     VerticalLayout(Any[
         _make_theme_color_control(controls, () -> read().color,
                                   color -> _write_theme_field(theme, field, TextRole(read().font, color)),
                                   default isa TextRole ? default.color : nothing),
-        _make_role_control(controls, theme, () -> read().font,
-                           role -> _write_theme_field(theme, field, TextRole(role, read().color))),
+        font_control(controls, () -> read().font,
+                     font -> _write_theme_field(theme, field, TextRole(font, read().color))),
     ]; gap = controls.theme.item_gap)
 end
 
@@ -411,31 +525,58 @@ _make_field_control(controls, theme, field::Symbol, value::MultipleSpacing) =
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
-# `role` with its weight, its slant or its relative size replaced.
-_with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
-                relative_size = role.relative_size) =
-    FontRole(; base = role.base, family = role.family, weight, italic, relative_size)
+# `role` with its weight or its slant replaced; it keeps its name.
+_with_font_role(role::FontRole; weight = role.weight, italic = role.italic) =
+    FontRole(role.role; weight, italic)
 
-# The controls of the font role that `read()` answers, in one row: its family when
-# it sets one, the steps through the weights of the family of the font that it
-# gives, a checkbox for italic, and its size in percent of its base font. A step or
-# a check sets the weight or the slant of the role, which then no longer follows
-# the base in it. `write(role)` is the operation that sets a new role.
-function _make_role_control(controls, theme, read, write)
+# `step` with its kind of family, its size, its weight or its slant replaced.
+_with_font_step(step::FontStep; family = step.family, size = step.size, weight = step.weight,
+                italic = step.italic) =
+    FontStep(family, size; weight, italic)
+
+# The font that `step` gives in the font theme `theme`: the family of its kind.
+_get_font_step_font(theme, step::FontStep) =
+    StyleFont(step.family === :mono ? theme.mono_family : theme.sans_family, step.size;
+              weight = step.weight, italic = step.italic)
+
+# The role `delta` roles away from `role` in the order of the font theme, with the
+# weight and the slant of `role`.
+function _step_font_role_name(role::FontRole, delta::Integer)
+    default = FontTheme()
+    names = [name for name in get_theme_field_names(FontTheme) if getproperty(default, name) isa FontStep]
+    i = something(findfirst(==(role.role), names), 1)
+    FontRole(names[mod1(i + delta, length(names))]; weight = role.weight, italic = role.italic)
+end
+
+# The notes of the buttons that step the family or the weight of `font`.
+_make_family_note(title, font::StyleFont, delta::Integer) =
+    _make_setting_note(title, "Use the $(delta < 0 ? "previous" : "next") font family in the list.",
+                       () -> ["Now" => font.family, "Becomes" => _step_font_family(font, delta).family])
+_make_weight_note(title, font::StyleFont, delta::Integer) =
+    _make_setting_note(title, "Use a $(delta < 0 ? "lighter" : "heavier") weight of the font family.",
+                       () -> ["Now" => _get_font_weight_name(font.weight),
+                              "Becomes" => _get_font_weight_name(_step_font_weight(font, delta).weight)])
+
+# The controls of the font role that `read()` answers and that names a role of the
+# font theme, in one row: buttons that step through the roles and name the role,
+# the steps through the weights of the font that it gives, and a checkbox for
+# italic. It has no size, because a role never changes its size.
+function _make_font_theme_role_control(controls, read, write)
     role = read()
-    font = apply_font_role(role, get_role_base(role, theme))
-    parts = Any[]
-    role.family === nothing || push!(parts, WidgetLabel(role.family))
-    append!(parts, Any[
-        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight))),
+    font = resolve_font_role(role, controls.appearance)
+    note(title, delta) = _make_setting_note(title, "Use the $(delta < 0 ? "previous" : "next") role of the font theme.",
+        () -> ["Now" => String(role.role), "Becomes" => String(_step_font_role_name(role, delta).role)])
+    HorizontalLayout(Any[
+        controls.button("‹", write(_step_font_role_name(role, -1)); tooltip = note("Previous", -1)),
+        WidgetLabel(String(role.role)),
+        controls.button("›", write(_step_font_role_name(role, 1)); tooltip = note("Next", 1)),
+        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight));
+                        tooltip = _make_weight_note("Lighter", font, -1)),
         WidgetLabel(_get_font_weight_name(font.weight)),
-        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight))),
+        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight));
+                        tooltip = _make_weight_note("Heavier", font, 1)),
         controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
-        controls.spin_box(round(Int, role.relative_size * 100),
-                          v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
-        WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
-    ])
-    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+    ]; gap = controls.theme.label_gap, vertical_align = :center)
 end
 
 # The controls of the font that `read()` answers. The first row steps through the
@@ -447,14 +588,18 @@ function _make_font_control(controls, read, write)
     gap = controls.theme.label_gap
     VerticalLayout(Any[
         HorizontalLayout(Any[
-            controls.button("‹", write(_step_font_family(font, -1))),
+            controls.button("‹", write(_step_font_family(font, -1));
+                            tooltip = _make_family_note("Previous", font, -1)),
             WidgetLabel(font.family),
-            controls.button("›", write(_step_font_family(font, 1))),
+            controls.button("›", write(_step_font_family(font, 1));
+                            tooltip = _make_family_note("Next", font, 1)),
         ]; gap, vertical_align = :center),
         HorizontalLayout(Any[
-            controls.button("−", write(_step_font_weight(font, -1))),
+            controls.button("−", write(_step_font_weight(font, -1));
+                            tooltip = _make_weight_note("Lighter", font, -1)),
             WidgetLabel(_get_font_weight_name(font.weight)),
-            controls.button("+", write(_step_font_weight(font, 1))),
+            controls.button("+", write(_step_font_weight(font, 1));
+                            tooltip = _make_weight_note("Heavier", font, 1)),
             controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v)); label = "italic"),
             controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
         ]; gap, vertical_align = :center),
@@ -464,8 +609,20 @@ end
 # The controls of the colour that `read()` answers: its swatch and its text.
 # `write(color)` is the operation that sets a new colour.
 function _make_color_control(controls, read, write)
-    HorizontalLayout(Any[WidgetSwatch(read()), controls.color_text(read, write)];
+    HorizontalLayout(Any[WidgetSwatch(read(); tooltip = _make_swatch_note(read, nothing)),
+                         controls.color_text(read, write)];
                      gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The note of a swatch of the colour that `read()` answers, made when the pointer
+# rests: the setting, the colour it gives as `#rrggbbaa`, and its `default`.
+function _make_swatch_note(read, default, resolve = identity)
+    () -> begin
+        color = read()
+        facts = Any["Setting" => format_theme_color(color), "Color" => format_style_color(resolve(color))]
+        default === nothing || push!(facts, "Default" => format_theme_color(default))
+        TooltipNote(; title = "Color", facts)
+    end
 end
 
 # The value of the field `field` in the default theme of `theme`: the colour theme
@@ -485,31 +642,57 @@ end
 # `write(color)` is the operation that sets a new colour.
 function _make_theme_color_control(controls, read, write, default)
     color = read()
-    swatch = WidgetSwatch(resolve_theme_color(color, controls.appearance))
+    resolve(color) = resolve_theme_color(color, controls.appearance)
+    step_note(title, text, target) = _make_color_step_note(title, text, color, target)
+    swatch = WidgetSwatch(resolve(color); tooltip = _make_swatch_note(read, default, resolve))
     parts = Any[swatch]
     if color isa StyleColor
         push!(parts, controls.color_text(read, write))
     elseif color isa ColorRole
-        append!(parts, Any[controls.button("‹", write(_step_color_role(color, -1))),
+        append!(parts, Any[controls.button("‹", write(_step_color_role(color, -1));
+                                           tooltip = step_note("Previous", "Use the previous role of the colours.",
+                                                           _step_color_role(color, -1))),
                            WidgetLabel(format_theme_color(color)),
-                           controls.button("›", write(_step_color_role(color, 1)))])
+                           controls.button("›", write(_step_color_role(color, 1));
+                                           tooltip = step_note("Next", "Use the next role of the colours.",
+                                                           _step_color_role(color, 1)))])
     else
-        append!(parts, Any[controls.button("‹", write(_step_palette_hue(color, -1))),
+        append!(parts, Any[controls.button("‹", write(_step_palette_hue(color, -1));
+                                           tooltip = step_note("Previous", "Use the previous hue.",
+                                                           _step_palette_hue(color, -1))),
                            WidgetLabel(String(color.hue)),
-                           controls.button("›", write(_step_palette_hue(color, 1))),
-                           controls.button("−", write(_step_palette_step(color, -1))),
+                           controls.button("›", write(_step_palette_hue(color, 1));
+                                           tooltip = step_note("Next", "Use the next hue.",
+                                                           _step_palette_hue(color, 1))),
+                           controls.button("−", write(_step_palette_step(color, -1));
+                                           tooltip = step_note("Lower step", "Use the step before this one on the ramp.",
+                                                           _step_palette_step(color, -1))),
                            WidgetLabel(string(color.step)),
-                           controls.button("+", write(_step_palette_step(color, 1)))])
+                           controls.button("+", write(_step_palette_step(color, 1));
+                                           tooltip = step_note("Higher step", "Use the step after this one on the ramp.",
+                                                           _step_palette_step(color, 1)))])
     end
     if color isa ColorRole
         step = _find_role_step(color, controls.appearance)
-        step === nothing || push!(parts, controls.button("Step", write(step)))
+        step === nothing || push!(parts, controls.button("Step", write(step); tooltip = _make_setting_note(
+            "Step", "Use the step of the ramp that this role names, which keeps the colour.",
+            () -> ["Now" => format_theme_color(color), "Becomes" => format_theme_color(step)])))
     end
     color isa StyleColor ||
-        push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance))))
-    default === nothing || color == default || push!(parts, controls.button("Reset", write(default)))
+        push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance));
+                                     tooltip = _make_setting_note(
+            "Fix", "Write the colour that this setting gives, so it no longer follows the palette or the mode.",
+            () -> ["Now" => format_theme_color(color), "Becomes" => format_style_color(resolve(color))])))
+    default === nothing || color == default ||
+        push!(parts, controls.button("Reset", write(default); tooltip = _make_setting_note(
+            "Reset", "Set this colour back to its default.",
+            () -> ["Now" => format_theme_color(color), "Default" => format_theme_color(default)])))
     HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
 end
+
+# The note of a button that steps `color` to `target`.
+_make_color_step_note(title, text, color, target) =
+    _make_setting_note(title, text, () -> ["Now" => format_theme_color(color), "Becomes" => format_theme_color(target)])
 
 # The step of a ramp that `role` names in the colour theme of the present mode
 # and contrast of `appearance`, with the alpha of `role`; `nothing` when the role
@@ -555,57 +738,62 @@ const _COLOR_SETTING_DEFAULTS = (color_mode = :system, color_contrast = :system,
                                  color_palette = DEFAULT_PALETTE_NAME, color_accent = :blue,
                                  color_neutral = :slate)
 
-# A write of the colour setting `field` of `appearance`. It changes the look, so
-# the `appearance` wrapper prints the view again, and a history records it.
-_write_color_setting(appearance::Appearance, field::Symbol, value) =
-    ReplaceReferencedValueOperation(appearance, String(field), value)
+# A write of the colour setting `field` of `colors`. It changes the look, so the
+# `appearance` wrapper prints the view again, and a history records it.
+_write_color_setting(colors::AppearanceColors, field::Symbol, value) =
+    ReplaceReferencedValueOperation(colors, String(field), value)
 
-# The values that the colour setting `field` of `appearance` steps through.
-function _get_color_setting_values(appearance::Appearance, field::Symbol)
+# The values that the colour setting `field` of `colors` steps through.
+function _get_color_setting_values(colors::AppearanceColors, field::Symbol)
     field === :color_mode && return collect(COLOR_MODES)
     field === :color_contrast && return collect(COLOR_CONTRASTS)
     field === :color_palette && return get_palette_names()
     field === :color_accent && return [:system; [hue for hue in PALETTE_HUES if hue !== :neutral]]
-    palette = something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
+    palette = something(find_palette(colors.color_palette), find_palette(DEFAULT_PALETTE_NAME))
     copy(get_palette_neutrals(palette))
 end
 
-# The value `delta` values away from the colour setting `field` of `appearance`.
-function _step_color_setting(appearance::Appearance, field::Symbol, delta::Integer)
-    values = _get_color_setting_values(appearance, field)
-    i = something(findfirst(==(getproperty(appearance, field)), values), 1)
+# The value `delta` values away from the colour setting `field` of `colors`.
+function _step_color_setting(colors::AppearanceColors, field::Symbol, delta::Integer)
+    values = _get_color_setting_values(colors, field)
+    i = something(findfirst(==(getproperty(colors, field)), values), 1)
     values[mod1(i + delta, length(values))]
 end
 
-# The text of the colour setting `field` of `appearance`: its value, and for
-# `:system` the value of the system in use after it, as "system (dark)".
-function _format_color_setting(appearance::Appearance, field::Symbol)
-    value = getproperty(appearance, field)
+# The text of the colour setting `field` of `colors`: its value, and for `:system`
+# the value of the system in use after it, as "system (dark)".
+function _format_color_setting(colors::AppearanceColors, field::Symbol)
+    value = getproperty(colors, field)
     value === :system || return string(value)
-    used = field === :color_mode ? get_color_mode(appearance) :
-           field === :color_contrast ? get_color_contrast(appearance) : get_color_accent(appearance)
+    used = field === :color_mode ? get_color_mode(colors) :
+           field === :color_contrast ? get_color_contrast(colors) : get_color_accent(colors)
     "system ($(used))"
 end
 
-# The rows of the colour settings: for each, its name, the buttons that step it,
-# its value, and for the accent and the neutral a swatch of the solid step.
-function _make_color_settings(controls)
+# The rows of the colour settings `colors`: for each, its name, the buttons that
+# step it, its value, and for the accent and the neutral a swatch of the solid step,
+# in the colours of the appearance of the view.
+function _make_color_settings(controls, colors::AppearanceColors)
     appearance = controls.appearance
     cells = Any[]
     for (field, name) in _COLOR_SETTING_ROWS
         swatch = field === :color_accent ? PaletteColor(:accent, 9) :
                  field === :color_neutral ? PaletteColor(:neutral, 9) : nothing
-        push!(cells, WidgetLabel(name),
-              controls.button("‹", _write_color_setting(appearance, field,
-                                                        _step_color_setting(appearance, field, -1))),
-              WidgetLabel(_format_color_setting(appearance, field)),
-              controls.button("›", _write_color_setting(appearance, field,
-                                                        _step_color_setting(appearance, field, 1))),
+        word = lowercase(name)
+        note(title, delta) = _make_setting_note(title, "Use the $(lowercase(title)) value of the $word in its list.",
+                                                () -> ["Now" => _format_color_setting(colors, field),
+                                                       "Becomes" => string(_step_color_setting(colors, field, delta))])
+        push!(cells, _make_name_label(controls, name),
+              controls.button("‹", _write_color_setting(colors, field, _step_color_setting(colors, field, -1));
+                              tooltip = note("Previous", -1)),
+              WidgetLabel(_format_color_setting(colors, field)),
+              controls.button("›", _write_color_setting(colors, field, _step_color_setting(colors, field, 1));
+                              tooltip = note("Next", 1)),
               swatch === nothing ? WidgetLabel("") :
                                    WidgetSwatch(resolve_theme_color(swatch, appearance)))
     end
     GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
-               vertical_gap = controls.theme.item_gap, vertical_align = :center)
+               vertical_gap = controls.theme.form_row_gap, vertical_align = :center)
 end
 
 # A text that a colour text takes as typed: hex digits and `#`.
@@ -642,18 +830,19 @@ function _follow_tab_paths!(p::AppearanceToWidget, appearance::Appearance, pane)
     set_output_tree_path_computations!(pane)
 end
 
-# The path in the widget tree that `reference`, a path of the appearance, names:
-# the path that a step of `p` holds. Any other path names no widget.
-function _get_tab_path(p::AppearanceToWidget, reference)
+# The path in the widget tree that `reference`, a path of the appearance or of one
+# of its parts, names: the path that a step of `p`, the tab or the view of the
+# part, holds. Any other path names no widget.
+function _get_tab_path(p::Projection, reference)
     reference isa ConcreteReference || return nothing
     step = reference.head
     (step isa ProjectionReferenceStep && step.projection === p) ? step.output_path : nothing
 end
 
-# The path that the appearance holds for `path`, a path in the widget tree from the
-# pane: a step of this projection around it, typed in the tree. The pane whole is
-# the appearance whole.
-function _introduce_tab_path(iomap::AppearanceToWidgetIoMap, path::Reference)
+# The path that the appearance, or a part of it, holds for `path`, a path in the
+# widget tree from the root of the view: a step of the projection of `iomap` around
+# it, typed in the tree. The root whole is the document whole.
+function _introduce_tab_path(iomap, path::Reference)
     path isa EmptyReference && return EmptyReference(get_reference_node_type(iomap.input))
     pane = iomap.child_iomap.input
     typed = is_fully_typed_reference(path) ? path : annotate_reference_types(pane, path)
@@ -699,8 +888,8 @@ function _translate_tab_operation(iomap, operation::ReplaceStringRangeOperation)
     CompoundOperation(Any[write, ReplaceSelectionOperation(_introduce_tab_path(iomap, path))])
 end
 function _translate_tab_operation(iomap, operation::ToggleCollapseOperation)
-    name = get(iomap.folds, operation.target, nothing)
-    name === nothing ? operation : _make_fold_operation(iomap.input, name)
+    fold = get(iomap.folds, operation.target, nothing)
+    fold === nothing ? operation : _make_fold_operation(fold...)
 end
 _translate_tab_operation(iomap, operation::ReplacePathOperation) =
     make_path_operation(operation, _introduce_tab_path(iomap, get_operation_path(operation)))

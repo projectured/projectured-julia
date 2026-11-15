@@ -59,7 +59,7 @@ function test_settings_wrapper()
     # `true` makes a Settings with a group of each loaded type.
     other, _ = _sw_editor(WidgetLabel("Other"))
     @test other.document.settings !== settings
-    @test haskey(other.document.settings.groups, RenderSettings)
+    @test find_settings_group(other.document.settings, RenderSettings) isa RenderSettings
 end
 
 @testset "a write into a group becomes an applied setting" begin

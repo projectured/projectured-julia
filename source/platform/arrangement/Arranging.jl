@@ -73,7 +73,15 @@ function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::A
 end
 
 # `operation`, or the edit of `arrangement` that it makes when it arranges a
-# collection inside the document of `arrangement`.
+# collection inside the document of `arrangement`. A compound makes the edit of
+# each of its parts that arranges one, so a header can move the caret in the same
+# step as it writes its filter.
+function _make_arranged_change(arrangement::ArrangementDocument, operation::CompoundOperation)
+    parts = Any[_make_arranged_change(arrangement, part) for part in operation.operations]
+    all(k -> parts[k] === operation.operations[k], eachindex(parts)) && return operation
+    CompoundOperation(Any[part for part in parts if part !== nothing])
+end
+
 function _make_arranged_change(arrangement::ArrangementDocument, operation)
     operation isa ArrangeCollectionOperation || return operation
     at = @reference_case strip_reference_types(operation.at) begin
@@ -95,6 +103,43 @@ function _take_away_when_empty(arrangement::ArrangementDocument, operation)
     (length(steps) == 2 && steps[1] == FieldReferenceStep("entries")) || return operation
     ReplaceReferencedValueOperation(nothing, EmptyReference(), arrangement.document)
 end
+
+"""
+    keep_held_arrangement(operation, arrangement, step) -> operation
+
+`operation`, with each part that takes `arrangement` away from the field `step`
+of its holder replaced by the edit that removes every entry of `arrangement`. A
+page that holds its table as an arrangement in a field calls it in its reader:
+the removal of the last entry then leaves the arrangement with no entry, so the
+next filter or sort of the table has an arrangement to go to.
+
+# Example
+
+    keep_held_arrangement(answer.operation, log.table, FieldReferenceStep("table"))
+"""
+function keep_held_arrangement end
+
+function keep_held_arrangement(operation::CompoundOperation, arrangement::ArrangementDocument, step::FieldReferenceStep)
+    parts = Any[keep_held_arrangement(part, arrangement, step) for part in operation.operations]
+    all(k -> parts[k] === operation.operations[k], eachindex(parts)) ? operation : CompoundOperation(parts)
+end
+
+function keep_held_arrangement(operation::WrappingOperation, arrangement::ArrangementDocument, step::FieldReferenceStep)
+    inner = get_wrapped_operation(operation)
+    kept = keep_held_arrangement(inner, arrangement, step)
+    kept === inner ? operation : rewrap_operation(operation, kept)
+end
+
+function keep_held_arrangement(operation::ReplaceReferencedValueOperation, arrangement::ArrangementDocument,
+                               step::FieldReferenceStep)
+    (operation.document === nothing && operation.value === arrangement.document &&
+     get_reference_steps(strip_reference_types(operation.reference)) == [step]) || return operation
+    ReplaceReferencedValueOperation(arrangement, extend_reference(EmptyReference(), FieldReferenceStep("entries"),
+                                                                  RangeReferenceStep(0, length(arrangement.entries))),
+                                    Any[])
+end
+
+keep_held_arrangement(operation, ::ArrangementDocument, ::FieldReferenceStep) = operation
 
 read_intent(p::ArrangingProjection, iomap::ArrangingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

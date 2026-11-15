@@ -42,10 +42,12 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/julia/document/JuliaParserTest.jl")
+include("../../../test/domain/julia/document/JuliaFileNoteTest.jl")
 include("../../../test/domain/julia/document/JuliaExpressionTest.jl")
 include("../../../test/domain/julia/document/JuliaDefinitionTest.jl")
 include("../../../test/domain/julia/document/JuliaDuplicateTest.jl")
 include("../../../test/domain/julia/document/JuliaRosterTest.jl")
+include("../../../test/domain/julia/document/JuliaWorkloadFileTest.jl")
 include("../../../test/domain/julia/projection/JuliaToSyntaxTest.jl")
 include("../../../test/domain/julia/projection/JuliaThemeTest.jl")
 include("../../../test/domain/julia/projection/JuliaCodePiecesTest.jl")

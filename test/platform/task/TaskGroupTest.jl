@@ -47,6 +47,57 @@ _make_task_group_probe_tasks(seconds = 0.3) =
                                "exit $(name == "fail" ? 1 : 0)")
      for name in ("a", "b", "fail", "c", "d")]
 
+# A kind of task whose result is made of the results of smaller tasks, as the
+# result of a fingerprint test is made of its fingerprints. A leaf is
+# `(name, code, reason)`; a name of `nothing` is a leaf with no task.
+struct _TaskNestedTask <: AbstractTask
+    name::String
+    leaves::Vector{Tuple{Union{String,Nothing},String,Union{String,Nothing}}}
+end
+TaskModule.get_result_codes(::_TaskNestedTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::_TaskNestedTask) = task.name
+
+struct _TaskNestedLeafResult <: TaskResult
+    task::Union{_TaskGroupProbeTask,Nothing}
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+end
+
+struct _TaskNestedResult <: TaskResult
+    task::_TaskNestedTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+    results::Vector{_TaskNestedLeafResult}
+end
+TaskModule.get_inner_task_results(result::_TaskNestedResult) = result.results
+
+function TaskModule.start_task(task::_TaskNestedTask; on_finish = nothing)
+    execution = TaskExecution(task)
+    finish = function (process, cancelled, elapsed)
+        leaves = [_TaskNestedLeafResult(name === nothing ? nothing : _TaskGroupProbeTask(name, ""),
+                                        code, "DONE", reason) for (name, code, reason) in task.leaves]
+        code = all(leaf -> leaf.result == "DONE", leaves) ? "DONE" : "ERROR"
+        finish_task_execution!(execution, _TaskNestedResult(task, code, "DONE", nothing, elapsed, leaves);
+                               finish = on_finish)
+    end
+    start_process_task!(execution, `sh -c "exit 0"`; finish, on_finish)
+end
+
+# Two tasks of nested results, a plain task that fails, and a group of one task
+# that fails, all with a reason that the first of them shares.
+function _make_task_nested_group()
+    first_task = _TaskNestedTask("first", [("a1", "ERROR", "boom"), ("a2", "ERROR", nothing),
+                                           ("a3", "DONE", nothing), ("a4", "ERROR", "zap"),
+                                           (nothing, "ERROR", "boom")])
+    second_task = _TaskNestedTask("second", [("b1", "ERROR", "boom"), ("b2", "ERROR", "boom")])
+    inner = TaskGroup(AbstractTask[_TaskGroupProbeTask("inner fail", "exit 1")]; name = "inner")
+    TaskGroup(AbstractTask[first_task, second_task, _TaskGroupProbeTask("fail", "exit 1"), inner];
+              name = "nested", jobs = 2)
+end
+
 function test_task_group()
     @testset "task group" begin
         @testset "the pool holds the job count" begin
@@ -133,6 +184,52 @@ function test_task_group()
             @test outer.runs[1].position == "5/5" && outer.runs[1].progress == 1.0
         end
 
+        @testset "an imitation runs a group and starts no program" begin
+            # The imitation answers for the script of each probe: its line, and the
+            # exit code of the last command of the script.
+            imitation = function (command, output, error_output)
+                script = last(command.exec)
+                println(output, "imitated ", script)
+                endswith(script, "exit 1") ? 1 : 0
+            end
+            group = run_with_process_imitation(imitation) do
+                run_task_group(TaskGroup(_make_task_group_probe_tasks(30); jobs = 2))
+            end
+            summary = build_task_group_summary(group)
+            @test summary.finished == 5
+            @test summary.counts["DONE"] == 4 && summary.counts["ERROR"] == 1
+            @test all(execution -> execution.runtime.process isa ImitatedProcess &&
+                                  execution.process_id === nothing, group.runs)
+            @test all(execution -> any(startswith("imitated "), collect_output_lines(execution.output)),
+                      group.runs)
+            # The imitations end at once, though each script sleeps for 30 s.
+            @test all(execution -> execution.end_time - execution.start_time < 10, group.runs)
+
+            # An exception of the imitation ends it with the code 1 and its
+            # message in the error output.
+            group = run_with_process_imitation((command, output, error_output) -> error("no program")) do
+                run_task_group(TaskGroup(_make_task_group_probe_tasks(0.0)[1:1]))
+            end
+            execution = only(group.runs)
+            @test execution.result.result == "ERROR" && execution.runtime.process.exitcode == 1
+            @test any(line -> occursin("no program", line), collect_output_lines(execution.error_output))
+
+            # A stop records the signal, and the end reports the task as cancelled.
+            release = Channel{Nothing}(1)
+            waiting = (command, output, error_output) -> (take!(release); 0)
+            group = TaskGroup(_make_task_group_probe_tasks(0.0)[1:1])
+            run_with_process_imitation(() -> start_task_group!(group), waiting)
+            deadline = time() + 10
+            while build_task_group_summary(group).running < 1 && time() < deadline
+                sleep(0.02)
+            end
+            stop_task_group!(group)
+            put!(release, nothing)
+            wait_task_group(group)
+            execution = only(group.runs)
+            @test execution.result.result == "CANCEL" && Base.process_signaled(execution.runtime.process)
+        end
+
         @testset "a stop of a group stops its inner groups" begin
             phases = [TaskGroup(_make_task_group_probe_tasks(30); name = "phase $i", jobs = 5)
                       for i in 1:2]
@@ -195,6 +292,42 @@ function test_task_group()
             sync_document!(shadow, group)
             @test counts[].finished == 2 && reads[] == 2
             @test shadow.summary.result == "ERROR"
+        end
+
+        @testset "the unexpected leaves of the results are counted by reason, and a leaf is named by its task" begin
+            leaf = _TaskGroupProbeResult(_TaskGroupProbeTask("x", ""), "ERROR", "DONE", "bad", nothing)
+            @test get_inner_task_results(leaf) == TaskResult[]
+            group = run_task_group(_make_task_nested_group())
+            result = compute_task_group_result(group)
+            @test result isa TaskGroupResult && get_inner_task_results(result) === result.results
+            @test length(get_inner_task_results(result.results[1])) == 5
+            summary = compute_task_group_summary(group)
+            # A leaf with no task is named by the task that ended with it; a leaf that gives no
+            # reason gives its code; reasons of equal count keep the order in which they came.
+            @test summary.reasons == [("boom", 4, ["a1", "first", "b1", "b2"]),
+                                      ("Non-zero exit code: 1", 2, ["fail", "inner fail"]),
+                                      ("ERROR", 1, ["a2"]), ("zap", 1, ["a4"])]
+            # `reason` keeps the words of opp_repl, counted over the results of the tasks.
+            @test summary.reason == "4/4 unexpected: 2x ERROR, 2x Non-zero exit code: 1"
+            counts = get_task_group_counts(summary)
+            @test counts.reasons == summary.reasons
+            @test compute_task_group_summary(TaskGroup(_make_task_group_probe_tasks(0.0); jobs = 4)).reasons == []
+            @test compute_task_group_summary(run_task_group(
+                TaskGroup(AbstractTask[_TaskGroupProbeTask("ok", "exit 0")]))).reasons == []
+        end
+
+        @testset "a sync with no start and no end writes the counts no more" begin
+            group = run_task_group(_make_task_nested_group())
+            shadow = make_task_group_shadow(group)
+            before = shadow.counts
+            @test !isempty(before.reasons)
+            reads = Ref(0)
+            counts = Cell(nothing)
+            set_cell_computation!(counts, () -> (reads[] += 1; shadow.counts))
+            @test counts[].reasons == before.reasons && reads[] == 1
+            sync_document!(shadow, group)
+            sync_document!(shadow, group)
+            @test shadow.counts === before && counts[].reasons == before.reasons && reads[] == 1
         end
 
         @testset "an end that throws ends its task as an error, and the group ends" begin
@@ -277,6 +410,73 @@ function test_task_group()
             @test time() - stopped_at < 10
             @test group.runtime.preparation_run.result.result == "CANCEL"
             @test group.runs[1] === nothing
+        end
+
+        @testset "a group that stops at a failure starts no task after a failed one" begin
+            chain(scripts...; kwargs...) = TaskGroup(
+                AbstractTask[_TaskGroupProbeTask(name, script) for (name, script) in scripts];
+                kwargs...)
+            codes(group) = [run === nothing ? "-" : run.result.result for run in group.runs]
+
+            group = run_task_group(chain("one" => "exit 0", "two" => "exit 1", "three" => "exit 0";
+                                         jobs = 1, stop_at_failure = true))
+            @test codes(group) == ["DONE", "ERROR", "CANCEL"]
+            skipped = group.runs[3].result
+            @test skipped isa TaskNotStarted
+            @test skipped.reason == "Not started: two ended ERROR"
+            @test format_task_group_description(group) == "task (3 sequential, stops at a failure)"
+
+            # With the default, each task runs.
+            group = run_task_group(chain("one" => "exit 0", "two" => "exit 1", "three" => "exit 0";
+                                         jobs = 1))
+            @test codes(group) == ["DONE", "ERROR", "DONE"]
+
+            # With two jobs, the tasks that go run to their end.
+            group = run_task_group(chain("fail" => "exit 1", "slow" => "sleep 0.3",
+                                         "next" => "exit 0", "last" => "exit 0";
+                                         jobs = 2, stop_at_failure = true))
+            @test codes(group) == ["ERROR", "DONE", "CANCEL", "CANCEL"]
+            @test group.runs[4].result.reason == "Not started: fail ended ERROR"
+
+            # An inner group after the failure ends each of its tasks.
+            inner = chain("x" => "exit 0", "y" => "exit 0"; name = "inner")
+            group = TaskGroup(AbstractTask[_TaskGroupProbeTask("bad", "exit 1"), inner];
+                              jobs = 1, stop_at_failure = true)
+            run_task_group(group)
+            @test codes(inner) == ["CANCEL", "CANCEL"]
+            @test all(run.result isa TaskNotStarted for run in inner.runs)
+            @test build_task_group_summary(group).counts == Dict("ERROR" => 1, "CANCEL" => 2)
+
+            # A stop of the second task ends it CANCEL, and the third does not start.
+            group = chain("one" => "exit 0",
+                          "two" => "trap 'kill \$!; exit 130' INT; sleep 30 & wait \$!",
+                          "three" => "exit 0"; jobs = 1, stop_at_failure = true)
+            start_task_group!(group)
+            deadline = time() + 10
+            while (group.runs[2] === nothing || !is_task_running(group.runs[2])) && time() < deadline
+                sleep(0.02)
+            end
+            stop_task_execution!(group.runs[2])
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "CANCEL", "CANCEL"]
+            @test group.runs[3].result.reason == "Not started: two ended CANCEL"
+
+            # A run again of what did not succeed follows the same rule.
+            folder = mktempdir()
+            flag = joinpath(folder, "flag")
+            group = chain("one" => "exit 0", "two" => "test -f $flag", "three" => "exit 0",
+                          "four" => "test -f $flag"; jobs = 1, stop_at_failure = true)
+            run_task_group(group)
+            @test codes(group) == ["DONE", "ERROR", "CANCEL", "CANCEL"]
+            @test compute_task_group_indices(group, :unexpected) == [2, 3, 4]
+            touch(flag)
+            rerun_task_group!(group, :unexpected)
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "DONE", "DONE", "DONE"]
+            rm(flag)
+            rerun_task_group!(group, [2, 3, 4])
+            wait_task_group(group)
+            @test codes(group) == ["DONE", "ERROR", "CANCEL", "CANCEL"]
         end
 
         @testset "a stop ends every task" begin

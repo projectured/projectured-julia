@@ -94,6 +94,19 @@ function test_arrangement_menu()
         show_all = edit_of(make_arrangement_edits(arranged, on_delay), "Show all")
         away = ArrangementModule._take_away_when_empty(arranged, show_all)
         @test away isa ReplaceReferencedValueOperation && away.document === nothing && away.value === study
+        # A page that holds the arrangement in its field `table` keeps it with no
+        # entry: the edit that takes it away there removes its entries instead.
+        table = FieldReferenceStep("table")
+        rooted = ReplaceReferencedValueOperation(nothing, extend_reference(EmptyReference(), table), study)
+        kept = keep_held_arrangement(CompoundOperation(Any[rooted]), arranged, table)
+        @test only(kept.operations) isa ReplaceReferencedValueOperation && only(kept.operations).document === arranged
+        evaluate_operation(nothing, kept)
+        @test isempty(arranged.entries)
+        # An edit at another field, or of another value, stays as it is.
+        other = ReplaceReferencedValueOperation(nothing, extend_reference(EmptyReference(), FieldReferenceStep("rows")),
+                                                study)
+        @test keep_held_arrangement(other, arranged, table) === other
+        @test keep_held_arrangement(show_all, arranged, table) === show_all
     end
 
     @testset "a right click on an arranged document opens the menu of the value under the pointer" begin

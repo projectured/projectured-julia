@@ -32,26 +32,30 @@ include("../../../source/backend/sdl/SdlModule.jl")
 using .SdlModule: SdlBackend, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
                   GraphicsCanvasToImageFile, write_offscreen_frames!,
                   make_offscreen_paint_state, render_offscreen_changes!,
-                  write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
+                  write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!,
+                  run_sdl_window_workload
 export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
-       write_offscreen_picture_with_overlay!
+       write_offscreen_picture_with_overlay!, run_sdl_window_workload
 
 # A person who names this package gets the names that most users call.
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
-# The first window of a session in SDL, offscreen, so that this image holds the
-# code that draws a window.
-using PrecompileTools: @setup_workload, @compile_workload
-@setup_workload begin
-    @compile_workload begin
-        withenv("SDL_VIDEODRIVER" => "offscreen") do
-            ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
-                                                     backend = SdlBackend())
-        end
+# The workload of this package: the first window of a session in SDL, in the
+# dummy video driver, so that the image holds the code that draws a window. The
+# dummy driver opens no display and loads no OpenGL on any system. The offscreen
+# driver is not enough: on macOS SDL gives its window OpenGL, which it loads
+# through EGL, and macOS has no EGL. Then the gestures of the application window,
+# with each input in the event queue of SDL.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    withenv("SDL_VIDEODRIVER" => "dummy") do
+        ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
+                                                 backend = SdlBackend())
     end
+    SdlModule.run_sdl_window_workload()
 end
 
 end # module ProjecturedSDL

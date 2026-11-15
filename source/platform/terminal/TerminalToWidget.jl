@@ -21,21 +21,22 @@ itself when the caret is in the input line, and sends the line.
     status_text::StyleText = get_terminal_style(nothing, :status_text)
     lines_height::Int = get_terminal_style(nothing, :lines_height)
     input_height::Int = get_terminal_style(nothing, :input_height)
-    gap::Int = get_terminal_style(nothing, :gap)
+    gap::Int = get_widget_style(nothing, :form_row_gap)
 end
 
 """
-    make_terminal_projection(; theme = nothing) -> TerminalToWidget
+    make_terminal_projection(; theme = nothing, widget_theme = nothing) -> TerminalToWidget
 
-The projection of a terminal with the styles of `theme`: a `TerminalTheme`,
-scaled or not, or the default styles for `nothing`.
+The projection of a terminal with the styles of `theme`, a `TerminalTheme`, and
+the `form_row_gap` of `widget_theme`, a `WidgetTheme`, each scaled or not, or the
+default styles for `nothing`.
 """
-function make_terminal_projection(; theme = nothing)
+function make_terminal_projection(; theme = nothing, widget_theme = nothing)
     get_style(name) = get_terminal_style(theme, name)
     TerminalToWidget(; output_text = get_style(:output_text), error_text = get_style(:error_text),
                      input_text = get_style(:input_text), status_text = get_style(:status_text),
                      lines_height = get_style(:lines_height), input_height = get_style(:input_height),
-                     gap = get_style(:gap))
+                     gap = get_widget_style(widget_theme, :form_row_gap))
 end
 
 function _get_terminal_line_style(p::TerminalToWidget, kind::Symbol)
@@ -59,7 +60,7 @@ const _TERMINAL_INPUT_PREFIX = Any[FieldReferenceStep("children"), RangeReferenc
 
 function print_document(p::TerminalToWidget, recursion, terminal::TerminalDocument, ctx)
     status = WidgetLabel(() -> _format_terminal_status(terminal.status); text_style = p.status_text)
-    stop = WidgetButton("Stop"; tooltip = "Stop the program: Ctrl+C, and a second press ends it",
+    stop = WidgetButton("Stop"; tooltip = "Interrupt the program, and end it at a second press.",
                         action = _ -> stop_terminal!(terminal))
     set_cell_computation!(getfield(stop, :enabled), () -> is_terminal_running(terminal))
     header = HorizontalLayout(Any[WidgetLabel(format_terminal_command(terminal.command); text_style = p.status_text),
@@ -69,7 +70,8 @@ function print_document(p::TerminalToWidget, recursion, terminal::TerminalDocume
     set_cell_computation!(getfield(lines.children, :elements), () ->
         Cell[Cell(WidgetLabel(isempty(line.text) ? " " : line.text; text_style = _get_terminal_line_style(p, line.kind)))
              for line in terminal.lines])
-    lines_pane = WidgetScrollPane(lines; follow_end = true, size = Point2D(0, p.lines_height))
+    lines_pane = WidgetScrollPane(lines; follow_end = true, size = Point2D(0, p.lines_height),
+                                  grows = (width = false, height = true))
     input_pane = WidgetScrollPane(terminal.input; size = Point2D(0, p.input_height))
     column = VerticalLayout(Any[header, lines_pane, input_pane]; horizontal_align = :left, gap = p.gap,
                             child_width = Fill)
@@ -129,6 +131,29 @@ function read_intent(p::TerminalToWidget, iomap::SimpleIoMap, operation::Replace
     make_path_operation(operation, inner === nothing ? EmptyReference() : inner)
 end
 
+# A plain click on a text of the terminal outside its input line, such as a line
+# that the program wrote, gives the keys to the input line, as a click in a
+# terminal does, although the label of the line answers it with a caret in its
+# text. An Alt+click keeps that caret, so a person can copy a line.
+function read_intent(p::TerminalToWidget, recursion, change::Intent, iomap::SimpleIoMap)
+    if _is_plain_click(change.gesture) && change.operation isa ReplaceSelectionOperation &&
+       iomap.input isa TerminalDocument && !_is_terminal_input_place(change.operation.path)
+        caret = ReplaceSelectionOperation(_make_terminal_input_caret(iomap.input))
+        return Intent(change.gesture, caret, change.description, change.domain)
+    end
+    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+end
+
+_is_plain_click(event) =
+    event isa MouseClick && event.button === :left && event.count == 1 && event.modifiers == ModifierKeys()
+
+# Whether `path`, in the output of the terminal, is in the pane of its input line.
+function _is_terminal_input_place(path)
+    path isa Reference || return false
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) >= 2 && steps[1:2] == _TERMINAL_INPUT_PREFIX[1:2]
+end
+
 # A press that nothing in the terminal took, on its lines or beside its input
 # line, puts the caret at the end of the input line, as a press in a terminal
 # gives it the keys.
@@ -182,7 +207,8 @@ end
 
 function __init__()
     register_natural_graphics!(:terminal, (; measure, appearance) -> Pair{Type,Any}[
-        TerminalDocument => ChainingProjection(make_terminal_projection(; theme = get_scaled_theme!(appearance, TerminalTheme)),
+        TerminalDocument => ChainingProjection(make_terminal_projection(; theme = get_scaled_theme!(appearance, TerminalTheme),
+                                                                 widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
                                                VerticalLayoutToGraphicsCanvas())])
     atexit(_end_running_groups!)
 end

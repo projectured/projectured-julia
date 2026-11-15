@@ -11,7 +11,8 @@ Covers:
   makes it live again,
 - a write of the stored path gives its part to a document that a write of a value
   put on the path, and writes no cell when each document holds its part,
-- `map_selection_forward` carries the live or dormant state to the image,
+- `map_selection_forward` carries the live or dormant state to the image, also
+  from a document of the native layout, whose selection is a plain value,
 - `@selected` builds a path typed against the document that it builds.
 """
 
@@ -31,6 +32,11 @@ end
 @document struct SelectionPair
     left::Any = nothing
     right::Any = nothing
+end
+
+# A document of the native layout, which holds its selection as a plain value.
+@document [M, C] struct SelectionNative
+    text::String
 end
 
 # Holds its documents in a plain vector, so an index can go past the end.
@@ -234,6 +240,12 @@ function test_selection()
         @test calls[] == 0
         @test map_selection_forward(none, path -> (path, :image);
                                     map_missing = true) == (nothing, :image)
+
+        # A document of the native layout holds a plain value, live.
+        native = SelectionNative("a")
+        @test map_selection_forward(native, path -> :image) === nothing
+        native.selection = Reference(FieldReferenceStep("text"))
+        @test map_selection_forward(native, path -> :image) === :image
     end
 
     @testset "@selected builds a path typed against the new document" begin

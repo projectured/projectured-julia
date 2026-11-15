@@ -58,6 +58,23 @@ function test_formula_math()
         @test _math_reading(MathSymbol(:infty)) == "Inf"
     end
 
+    @testset "a name before parentheses is a call or a product by what the name is" begin
+        reading(line; functions = ()) = strip(print_natural_text(convert_math_to_julia(parse_math(line); functions)))
+        @test reading("ρ(1 - ρ)") == "rho * (1 - rho)"
+        @test reading("f(2)") == "f * 2"
+        @test reading("f(2)"; functions = ["f", "S_pure"]) == "f(2)"
+        @test reading("S_{pure}(0.5)"; functions = ["f", "S_pure"]) == "S_pure(0.5)"
+        @test reading("S_{pure}(0.5)") == "S_pure * 0.5"
+        @test reading("ρ(2)"; functions = ["rho"]) == "rho(2)"
+        @test reading("exp(1)") == "exp(1)"
+        @test reading("exp(1)"; functions = ["f"]) == "exp(1)"
+        @test reading("exp(1)"; functions = ["exp"]) == "exp(1)"
+        @test reading("erf(x)") == "erf * x"
+        @test reading("log_{2}(8)") == "log(2, 8)"
+        @test get_formula_names(convert_math_to_julia(parse_math("f(2)"))) == ["f"]
+        @test get_formula_names(convert_math_to_julia(parse_math("f(2)"); functions = ["f"])) == ["f"]
+    end
+
     @testset "what is refused says why" begin
         @test_throws MathReadingException convert_math_to_julia(MathDerivative(MathVariable("P"), MathVariable("t"), 1, :partial))
         @test_throws MathReadingException convert_math_to_julia(MathBigOperator(:int, MathVariable("x")))
@@ -136,6 +153,22 @@ function test_formula_math()
         _compute_formula_sheet!(sheet)
         canvas = print_document(renderer, nothing, sheet, context).output
         @test any(t -> occursin("0.007874", t), _formula_texts(canvas))
+    end
+
+    @testset "the value stands on the baseline of the equation" begin
+        sheet = _compute_formula_sheet!(FormulaEnvironment([FormulaFormula("T", parse_math("952/9600"))]))
+        iomap = print_document(NaturalToGraphics(measure = FontFileMeasure()), nothing, only(sheet.formulas),
+                               PrinterContext())
+        # The row of the formula is the last stage of its chain: the equation and
+        # the label of its value, each at its place.
+        row = unwrap_cell(last(get_content_iomap(iomap).step_iomaps))
+        (_, equation_y, equation), (_, label_y, label) = unwrap_cell(row.child_iomaps)
+        baseline(y, child) = Int(unwrap_cell(y)) + find_first_baseline(child)
+        @test baseline(equation_y, equation) == baseline(label_y, label)
+        # The baseline is the axis of the fraction, below its numerator.
+        @test Int(unwrap_cell(label_y)) > Int(unwrap_cell(equation_y))
+        # A word space parts the value from the equation.
+        @test get_content_iomap(label).input.content == " = 0.0991667"
     end
 end
 end

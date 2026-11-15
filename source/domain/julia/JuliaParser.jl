@@ -14,7 +14,15 @@
 #
 # Some constructs the `Expr` AST collapses are mapped to a default:
 # - `a ? b : c` parses identically to an `if`, so it becomes `JuliaIf` (never `JuliaTernary`).
-# - `begin … end` parses to a block, so it becomes `JuliaBlock` (never `JuliaBegin`).
+#
+# A file of many statements becomes a `JuliaToplevel`, which prints each statement
+# on a line of its own with no indentation, as Julia gives a file `:toplevel` and
+# a body `:block`.
+#
+# A body and `begin … end` both parse to a block, and the place of the block tells
+# them apart: the body of a construct becomes a `JuliaBlock` (`_convert_body`), and
+# a block in the place of a value, an argument or a statement becomes a
+# `JuliaBegin`, so it prints with its `begin` and its `end`.
 #
 # A construct with no node in the domain raises a clear error rather than
 # being silently dropped.
@@ -41,18 +49,31 @@ const COMPOUND_ASSIGNMENTS = Set{Symbol}([:(+=), :(-=), :(*=), :(/=)])
 
 Parse a Julia source string into a `JuliaDocument` tree.
 
-Top-level source with several statements becomes a `JuliaBlock`; a single
-expression is returned bare. A line that ends with `;` is a `JuliaToplevel`
-with `trailing_semicolon`. A comment becomes a `JuliaComment`, a
+Top-level source with several statements becomes a `JuliaToplevel` with a
+statement on each line; a single expression is returned bare. Statements on one
+line with `;` between them are a `JuliaToplevel` with `on_one_line`, and a line
+that ends with `;` sets its `trailing_semicolon`. A comment becomes a `JuliaComment`, a
 `JuliaMultilineComment` or a `JuliaEndOfLineComment` (see "Comments" below).
+
+Use it to read Julia source into a document that you can open in a pane or edit.
+
+# Example
+
+    julia_1 = parse_julia("f(x) = x + 1")
+
+See also `parse_math` and `find_julia_definition`.
+
+For the assistant.
 """
+function parse_julia end
+
 function parse_julia(text::AbstractString)
     source = String(text)
     comments = _collect_julia_comments(source)
     parsed = Meta.parseall(isempty(comments) ? source :
                            _format_julia_source_with_comment_markers(source, comments))
     # `parseall` always wraps in `Expr(:toplevel, …)` interleaved with
-    # `LineNumberNode`s. Flatten: one real statement → bare, otherwise a block.
+    # `LineNumberNode`s. Flatten: one real statement → bare, otherwise the top level.
     stmts = _convert_statements(parsed.args)
     # The parser gives a line that ends with `;` a `:toplevel` of its own, but the
     # `Expr` does not say whether the `;` follows its last statement: the text does.
@@ -62,7 +83,7 @@ function parse_julia(text::AbstractString)
         statement isa JuliaToplevel && (statement.trailing_semicolon = true)
     end
     length(stmts) == 1 && return stmts[1]
-    return JuliaBlock(stmts)
+    return JuliaToplevel(stmts)
 end
 
 # Whether the last token of `text`, apart from spaces and comments, is `;`.
@@ -430,7 +451,7 @@ function _convert_head(::Val{:module}, x::Expr)
     standard = x.args[1]::Bool
     name = x.args[2]
     name isa Symbol || error("unsupported module name: $(repr(name))")
-    JuliaModuleDefinition(String(name), convert_expr(x.args[3]), !standard)
+    JuliaModuleDefinition(String(name), _convert_body(x.args[3]), !standard)
 end
 
 # `A <: B` — outside a type header this could be a runtime test, but
@@ -518,36 +539,61 @@ _convert_head(::Val{:public}, x::Expr) =
     JuliaUsing(:public, join((_module_path_string(a) for a in x.args), ", "))
 
 # Anonymous function `args -> body`. `args` is a single symbol (`x -> …`), a
-# tuple (`(x, y) -> …`, `() -> …`), and the body is usually a `:block` wrapping
-# one expression.
+# tuple (`(x, y) -> …`, `() -> …`) or a block (`(x; y = 1) -> …`), and the body
+# is usually a `:block` wrapping one expression.
 function _convert_head(::Val{:->}, x::Expr)
     a = x.args[1]
-    params = if a isa Expr && a.head === :tuple
-        Any[p for p in a.args]
+    params, keyword_params = _convert_lambda_parameters(a)
+    JuliaLambda(params, _convert_lambda_body(x.args[2]), a isa Expr && a.head in (:tuple, :block),
+                keyword_params)
+end
+
+# The positional and the keyword parameters of a lambda, from its argument
+# expression. A tuple, `(x, z; y = 1, w)`, holds the keyword parameters in a
+# leading `Expr(:parameters, kw…)`, as a call does. A block, `(x; y = 1)`, is
+# the form with one parameter before the `;`: Julia reads its first element as
+# positional and its second as a keyword.
+function _convert_lambda_parameters(a)
+    params = JuliaDocument[]
+    keyword_params = JuliaDocument[]
+    if a isa Expr && a.head === :tuple
+        for p in a.args
+            if p isa Expr && p.head === :parameters
+                append!(keyword_params, JuliaDocument[convert_expr(k) for k in p.args])
+            else
+                push!(params, convert_expr(p))
+            end
+        end
     elseif a isa Expr && a.head === :block
-        Any[p for p in a.args if !(p isa LineNumberNode)]
+        elements = Any[p for p in a.args if !(p isa LineNumberNode)]
+        isempty(elements) || push!(params, convert_expr(elements[1]))
+        length(elements) >= 2 && push!(keyword_params, convert_expr(elements[2]))
     else
-        Any[a]
+        push!(params, convert_expr(a))
     end
-    b = x.args[2]
-    body = if b isa Expr && b.head === :block
-        stmts = _convert_statements(b.args)
-        length(stmts) == 1 ? stmts[1] : JuliaBlock(stmts)
-    else
-        convert_expr(b)
-    end
-    JuliaLambda(JuliaDocument[convert_expr(p) for p in params], body,
-                a isa Expr && a.head in (:tuple, :block))
+    return params, keyword_params
 end
 
 # ── Compound expressions ─────────────────────────────────────────────────────
 
-_convert_head(::Val{:block}, x::Expr) = JuliaBlock(_convert_statements(x.args))
+_convert_head(::Val{:block}, x::Expr) = JuliaBegin(JuliaBlock(_convert_statements(x.args)))
+
+# The body of a construct, such as a loop or a function: its statements, as a
+# `JuliaBlock` that the construct prints between its header and its `end`.
+_convert_body(x) = Meta.isexpr(x, :block) ? JuliaBlock(_convert_statements(x.args)) : convert_expr(x)
+
+# The body of a lambda: its one statement, or a `begin … end` of several, because a
+# lambda writes no `end` of its own.
+function _convert_lambda_body(x)
+    Meta.isexpr(x, :block) || return convert_expr(x)
+    statements = _convert_statements(x.args)
+    length(statements) == 1 ? statements[1] : JuliaBegin(JuliaBlock(statements))
+end
 
 # `a; b` written on ONE line parses to a `:toplevel` *nested* inside the outer
-# one. It runs as a `:block` does, and it is a `JuliaToplevel`, which keeps the
-# statements on their line with the `;` between them.
-_convert_head(::Val{:toplevel}, x::Expr) = JuliaToplevel(_convert_statements(x.args))
+# one. It runs as a `:block` does, and it is a `JuliaToplevel` on one line, which
+# keeps the statements on their line with the `;` between them.
+_convert_head(::Val{:toplevel}, x::Expr) = JuliaToplevel(_convert_statements(x.args), false, true)
 
 function _convert_head(::Val{:tuple}, x::Expr)
     # `(; a = 1)` puts its entries in a `:parameters` child; `(a = 1,)` writes
@@ -665,7 +711,7 @@ function _convert_head(::Val{:do}, x::Expr)
     parameters = spec isa Expr && spec.head === :tuple ? spec.args : Any[spec]
     JuliaDo(convert_expr(x.args[1]),
             JuliaDocument[convert_expr(a) for a in parameters],
-            convert_expr(lambda.args[2]))
+            _convert_body(lambda.args[2]))
 end
 
 # `let x = 1, y = 2; … end` → Expr(:let, bindings, body). One binding is the
@@ -679,7 +725,7 @@ function _convert_head(::Val{:let}, x::Expr)
     else
         JuliaDocument[convert_expr(spec)]
     end
-    JuliaLet(bindings, convert_expr(x.args[2]))
+    JuliaLet(bindings, _convert_body(x.args[2]))
 end
 
 # `(; a = 1)` → Expr(:tuple, Expr(:parameters, Expr(:kw, …)…)); `(a = 1,)` →
@@ -703,13 +749,12 @@ function _convert_head(::Val{:if}, x::Expr)
        !(x.args[3] isa Expr && x.args[3].head === :block)
         return JuliaTernary(cond, convert_expr(then_arg), convert_expr(x.args[3]))
     end
-    then_branch = convert_expr(then_arg)
+    then_branch = _convert_body(then_arg)
     # An `if …end` with no else parses with 2 args. Use a
     # `JuliaEmpty` placeholder — it renders to nothing at all, so
-    # neither the `nothing` literal (from `JuliaNothing`) nor a
-    # phantom blank line (from an empty `JuliaBlock`'s trailing
-    # line-chrome) appears before the closing `end`.
-    else_branch = length(x.args) >= 3 ? convert_expr(x.args[3]) : JuliaEmpty()
+    # the `nothing` literal (from `JuliaNothing`) does not appear
+    # before the closing `end`.
+    else_branch = length(x.args) >= 3 ? _convert_body(x.args[3]) : JuliaEmpty()
     return JuliaIf(cond, then_branch, else_branch)
 end
 
@@ -734,13 +779,13 @@ function _unwrap_elseif_cond(cond)
 end
 
 function _convert_head(::Val{:while}, x::Expr)
-    return JuliaWhile(convert_expr(x.args[1]), convert_expr(x.args[2]))
+    return JuliaWhile(convert_expr(x.args[1]), _convert_body(x.args[2]))
 end
 
 function _convert_head(::Val{:for}, x::Expr)
     spec = x.args[1]
     iterators = _convert_for_iterators(spec)
-    return JuliaFor(iterators, convert_expr(x.args[2]))
+    return JuliaFor(iterators, _convert_body(x.args[2]))
 end
 
 # `for v in it` → spec is `Expr(:(=), v, it)`.
@@ -770,7 +815,7 @@ _convert_head(::Val{:continue}, ::Expr) = JuliaContinue()
 
 function _convert_head(::Val{:try}, x::Expr)
     # Expr(:try, body, catch_var, catch_body[, finally_body])
-    body = convert_expr(x.args[1])
+    body = _convert_body(x.args[1])
     catch_var = x.args[2] === false ? nothing : convert_expr(x.args[2])
     catch_branch = _try_branch(x.args[3])
     finally_branch = length(x.args) >= 4 ? _try_branch(x.args[4]) : nothing
@@ -778,7 +823,7 @@ function _convert_head(::Val{:try}, x::Expr)
 end
 
 # An absent catch/finally body is `false` in the AST.
-_try_branch(b) = b === false ? nothing : convert_expr(b)
+_try_branch(b) = b === false ? nothing : _convert_body(b)
 
 # ── Definitions ──────────────────────────────────────────────────────────────
 
@@ -801,15 +846,25 @@ function _convert_head(::Val{:function}, x::Expr)
     end
     # `function (x) … end` — anonymous, so it is a lambda written the long way.
     if sig isa Expr && sig.head === :tuple
-        return JuliaLambda(JuliaDocument[convert_expr(p) for p in sig.args],
-                           convert_expr(x.args[2]))
+        params, keyword_params = _convert_lambda_parameters(sig)
+        return JuliaLambda(params, _convert_lambda_body(x.args[2]), true, keyword_params)
     end
     (sig isa Expr && sig.head === :call) ||
         error("unsupported function signature: $(repr(sig))")
     name = convert_expr(sig.args[1])
-    params = JuliaDocument[convert_expr(p) for p in sig.args[2:end]]
-    body = convert_expr(x.args[2])
+    # The keyword parameters after `;` arrive as a leading `Expr(:parameters, kw…)`,
+    # as the keyword arguments of a call do, and they are kept apart in the same way.
+    params = JuliaDocument[]
+    keyword_params = JuliaDocument[]
+    for p in sig.args[2:end]
+        if p isa Expr && p.head === :parameters
+            append!(keyword_params, JuliaDocument[convert_expr(k) for k in p.args])
+        else
+            push!(params, convert_expr(p))
+        end
+    end
+    body = _convert_body(x.args[2])
     where_clause = isempty(type_parameters) ? JuliaEmpty() :
                                             JuliaWhereParameters(type_parameters)
-    return JuliaFunction(name, params, body, result_type, where_clause)
+    return JuliaFunction(name, params, body, result_type, where_clause, keyword_params)
 end

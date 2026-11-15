@@ -135,7 +135,7 @@ function start_agent_connection!(connection::AcpConnection)
             # extension notification `_session/background_task` carries.
             client_capabilities = ACP.ClientCapabilities(
                 fs = ACP.FileSystemCapabilities(read_text_file = false, write_text_file = false),
-                terminal = false, auth = ACP.AuthCapabilities(terminal = true),
+                terminal = true, auth = ACP.AuthCapabilities(terminal = true),
                 elicitation = ACP.ElicitationCapabilities(form = ACP.ElicitationFormCapabilities()),
                 session = ACP.ClientSessionCapabilities(notices = ACP.NoticeCapabilities(),
                                                         compaction = ACP.CompactionCapabilities()),
@@ -217,43 +217,74 @@ _log_agent_line(line) = @debug "agent" line
 # has `sessionCapabilities.resume`. When the answer to the resume is an error of
 # the protocol, as for a session that the agent does not have any more, a new
 # session opens, and the caller sees its new id. A needed sign-in, a timeout and
-# a closed connection go to the caller. An agent can send an update of the
-# session just after its answer, before this call has the id, so the updates of
-# a session with no queue and no parent wait while an open runs, and the open
-# puts them into the queue of its session.
+# a closed connection go to the caller.
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
                              mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
                              session_id::AbstractString = "", on_event = nothing,
                              events::Union{Nothing,AgentEventQueue} = nothing)
-    transport = _get_started_transport(connection)
-    meta = _add_instructions(connection.session_meta, instructions)
-    meta = isempty(meta) ? nothing : meta
-    servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
-    lock(() -> connection.opening_count += 1, connection.turns_lock)
-    try
-        opened_id = nothing
+    _run_session_open!(connection, mcp_servers, instructions, on_event, events) do send, meta, servers
         if !isempty(session_id) && _has_session_capability(connection, "resume")
             result = try
-                _send_session_request!(connection, transport, ACP.ResumeSessionRequest(
-                    session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta))
+                send(ACP.ResumeSessionRequest(session_id = String(session_id), cwd = String(directory),
+                                              mcp_servers = servers, meta = meta))
             catch exception
                 exception isa ACP.ProtocolException || rethrow()
                 @debug "The agent did not resume the session, so a new session opens." exception
                 nothing
             end
-            if result !== nothing
-                opened_id = String(session_id)
-                _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
-                                        on_event)
-            end
+            result === nothing || return (String(session_id), _get_config_options(result))
         end
-        if opened_id === nothing
-            result = _send_session_request!(connection, transport,
-                ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
-            opened_id = result.session_id
-            _store_session_options!(connection, opened_id, get(ACP.get_json(result), "configOptions", Any[]),
-                                    on_event)
+        result = send(ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
+        (result.session_id, _get_config_options(result))
+    end
+end
+
+# A fork is the request `session/fork`, for an agent whose answer to
+# `initialize` has `sessionCapabilities.fork`. An error of the protocol, as for
+# a session that the agent does not keep, answers `nothing`, as an agent that
+# can not fork does. A needed sign-in, a timeout and a closed connection go to
+# the caller.
+function fork_agent_session!(connection::AcpConnection; session_id::AbstractString,
+                             directory::AbstractString = connection.directory,
+                             mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                             on_event = nothing, events::Union{Nothing,AgentEventQueue} = nothing)
+    _run_session_open!(connection, mcp_servers, instructions, on_event, events) do send, meta, servers
+        _has_session_capability(connection, "fork") || return nothing
+        result = try
+            send(ACP.ForkSessionRequest(session_id = String(session_id), cwd = String(directory),
+                                        mcp_servers = servers, meta = meta))
+        catch exception
+            exception isa ACP.ProtocolException || rethrow()
+            @debug "The agent did not fork the session." exception
+            return nothing
         end
+        (result.session_id, _get_config_options(result))
+    end
+end
+
+# The open of a session: `open(send, meta, servers)` sends the request of the
+# open with `send` and answers the id of the session that opened and the JSON of
+# its options, or `nothing` for no session. `meta` holds the instructions for
+# an agent that does not advertise `sessionCapabilities.systemPrompt`, and
+# `send` adds them as the field `systemPrompt` for one that does. An agent can
+# send an update of the session just after its answer, before this call has the
+# id, so the updates of a session with no queue and no parent wait while an
+# open runs, and the open puts them into the queue of its session.
+function _run_session_open!(open::Function, connection::AcpConnection, mcp_servers::AbstractVector,
+                            instructions::AbstractString, on_event, events::Union{Nothing,AgentEventQueue})
+    transport = _get_started_transport(connection)
+    has_system_prompt = _has_session_capability(connection, "systemPrompt")
+    meta = has_system_prompt ? connection.session_meta : _add_instructions(connection.session_meta, instructions)
+    meta = isempty(meta) ? nothing : meta
+    system_prompt = has_system_prompt ? String(instructions) : ""
+    servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
+    send = request -> _send_session_request!(connection, transport, _add_system_prompt!(request, system_prompt))
+    lock(() -> connection.opening_count += 1, connection.turns_lock)
+    try
+        opened = open(send, meta, servers)
+        opened === nothing && return nothing
+        opened_id, options = opened
+        _store_session_options!(connection, opened_id, options, on_event)
         _register_session!(connection, opened_id, events)
         opened_id
     finally
@@ -267,6 +298,7 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
     end
 end
 
+_get_config_options(result) = get(ACP.get_json(result), "configOptions", Any[])
 # The queue of a session that opened, and the frame and the events that came
 # for it before the open had its id. A frame of an earlier open of the same id
 # ends first, in its own queue. An agent in a child process gives the id of that
@@ -325,10 +357,24 @@ function set_agent_option!(connection::AcpConnection, session_id::AbstractString
     nothing
 end
 
-# The `_meta` of a session with `instructions` in it. ACP has no field for the
-# system prompt of an agent, so the instructions go where the Claude agents of
-# ACP read an addition to it, `claudeCode.options.systemPrompt.append`, beside
-# the other options of the `_meta`. Another agent ignores that key.
+# A request that opens or resumes a session, with `instructions` in its field
+# `systemPrompt`, for an agent that advertises `sessionCapabilities.systemPrompt`:
+# one text block that the agent appends to its system prompt. The field is
+# unstable in the schema, and the request type has no property for it, so it
+# goes into the JSON of the request.
+function _add_system_prompt!(request, instructions::AbstractString)
+    isempty(instructions) && return request
+    ACP.get_json(request)["systemPrompt"] = Dict{String,Any}(
+        "mode" => "append",
+        "content" => Any[Dict{String,Any}("type" => "text", "text" => String(instructions))])
+    request
+end
+
+# The `_meta` of a session with `instructions` in it, for an agent that does not
+# advertise `sessionCapabilities.systemPrompt`. The instructions go where the
+# Claude agents of ACP read an addition to the system prompt,
+# `claudeCode.options.systemPrompt.append`, beside the other options of the
+# `_meta`. Another agent ignores that key.
 function _add_instructions(meta::Dict{String,Any}, instructions::AbstractString)
     isempty(instructions) && return meta
     merged = deepcopy(meta)
@@ -356,7 +402,8 @@ _make_mcp_server(server) = ACP.McpServerHttp(
 
 # What the agent said about its sign-in: its title, the ways that this editor can
 # run, and a sentence for a person. The person signs in with the flow of the
-# agent, in a terminal; this editor shows no sign-in form of its own.
+# agent, in a terminal or in the flow that the agent runs itself, such as in the
+# browser; this editor shows no sign-in form of its own.
 function _make_sign_in_exception(connection::AcpConnection)
     methods = AgentSignInMethod[]
     for method in connection.auth_methods
@@ -371,20 +418,24 @@ function _get_agent_title(connection::AcpConnection)
     string(get(info, "title", get(info, "name", "The agent")))
 end
 
-# A method of the type `terminal` as a command: the invocation of the agent with
-# the `args` and the `env` of the method. A method of another type, `nothing`.
+# A method as this editor runs it. A method of the type `terminal` is a command:
+# the invocation of the agent with the `args` and the `env` of the method. A
+# method of the type `agent`, the default type of ACP, has no command: the agent
+# runs it itself at `sign_in_agent!`. A method of another type, `nothing`.
 function _make_sign_in_method(connection::AcpConnection, method)
     json = ACP.get_json(method)
-    get(json, "type", nothing) == "terminal" || return nothing
+    type = get(json, "type", "agent")
+    description = get(json, "description", nothing)
+    make_method(command) = AgentSignInMethod(string(get(json, "id", "")), string(get(json, "name", get(json, "id", ""))),
+                                             description isa AbstractString ? String(description) : "", command)
+    type == "agent" && return make_method(nothing)
+    type == "terminal" || return nothing
     arguments = get(json, "args", Any[])
     environment = get(json, "env", Dict{String,Any}())
     arguments isa AbstractVector && environment isa AbstractDict || return nothing
     command = _make_agent_invocation(connection, String[string(argument) for argument in arguments],
                                      Dict{String,String}(string(key) => string(value) for (key, value) in environment))
-    command === nothing && return nothing
-    description = get(json, "description", nothing)
-    AgentSignInMethod(string(get(json, "id", "")), string(get(json, "name", get(json, "id", ""))),
-                      description isa AbstractString ? String(description) : "", command)
+    command === nothing ? nothing : make_method(command)
 end
 
 # The command of the agent with `arguments` added and `environment` over its
@@ -558,6 +609,29 @@ function steer_agent_prompt!(connection::AcpConnection, session_id::AbstractStri
     end
     result isa AbstractDict && get(result, "outcome", nothing) in ("injected", "startedNewTurn")
 end
+
+# A sign-in of the type `agent` runs in the agent, such as in the browser of the
+# person, so its answer waits as long as the person takes, up to five minutes. A
+# request that gets no answer in that time is withdrawn, so the agent stops its
+# sign-in too.
+function sign_in_agent!(connection::AcpConnection, method_id::AbstractString)
+    _has_agent_sign_in_method(connection, method_id) || return false
+    request = ACP.start_request!(_get_started_transport(connection),
+                                 ACP.AuthenticateRequest(method_id = String(method_id)))
+    try
+        ACP.wait_for_answer(request; timeout = 300)
+    catch
+        ACP.cancel_request!(request)
+        rethrow()
+    end
+    true
+end
+
+# Whether the agent names `method_id` among its sign-in methods of the type `agent`.
+_has_agent_sign_in_method(connection::AcpConnection, method_id::AbstractString) =
+    any(method -> (json = ACP.get_json(method);
+                   get(json, "id", nothing) == method_id && get(json, "type", "agent") == "agent"),
+        connection.auth_methods)
 
 function has_agent_sign_out(connection::AcpConnection)
     connection.transport === nothing && return false
@@ -912,8 +986,8 @@ end
 # each child on the way. A request that waits in the queue waits until the end
 # of the next prompt. A request of a session with no prompt and no queue is
 # cancelled, and so is a request that the agent withdraws with
-# `$/cancel_request`. A request for a file or a terminal gets "method not found"
-# from `AgentClientProtocol`, because the client offers neither in `initialize`.
+# `$/cancel_request`. A request for a file gets "method not found" from
+# `AgentClientProtocol`, because the client offers none in `initialize`.
 function ACP.answer_request(handler::AcpClientHandler, request::ACP.RequestPermissionRequest, context)
     connection = handler.connection
     json = ACP.get_json(request)
@@ -986,6 +1060,70 @@ function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateElicit
     value === :decline && return ACP.CreateElicitationResponseDecline()
     ACP.CreateElicitationResponseAccept(content = Dict{String,Any}(
         name => answered for (name, answered) in value if any(field -> field.name == name, fields)))
+end
+
+# ── The terminals ────────────────────────────────────────────────────────────
+
+# A terminal request of the agent goes to the editor as an `AgentTerminalRequest`,
+# where a permission request goes, and the task of the request waits for the
+# reply. The editor runs the command as a task and answers on a task of its own. A
+# request of a session with no prompt and no queue, an exception that the reply
+# gives, and a cancel are error answers.
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateTerminalRequest, context)
+    environment = Pair{String,String}[variable.name => variable.value
+                                      for variable in something(request.env, ACP.EnvVariable[])]
+    terminal_id = _ask_terminal_request(handler.connection, request.session_id, :create, "", context;
+                                        command = request.command, arguments = something(request.args, String[]),
+                                        directory = request.cwd, environment,
+                                        output_byte_limit = request.output_byte_limit)
+    ACP.CreateTerminalResponse(terminal_id = terminal_id)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.TerminalOutputRequest, context)
+    answer = _ask_terminal_request(handler.connection, request.session_id, :output, request.terminal_id, context)
+    status = answer.exit_code === nothing && answer.signal === nothing ? nothing :
+             ACP.TerminalExitStatus(exit_code = answer.exit_code, signal = answer.signal)
+    ACP.TerminalOutputResponse(output = answer.output, truncated = answer.truncated, exit_status = status)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.WaitForTerminalExitRequest, context)
+    answer = _ask_terminal_request(handler.connection, request.session_id, :wait_for_exit, request.terminal_id,
+                                   context)
+    ACP.WaitForTerminalExitResponse(exit_code = answer.exit_code, signal = answer.signal)
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.KillTerminalRequest, context)
+    _ask_terminal_request(handler.connection, request.session_id, :kill, request.terminal_id, context)
+    ACP.KillTerminalResponse()
+end
+
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.ReleaseTerminalRequest, context)
+    _ask_terminal_request(handler.connection, request.session_id, :release, request.terminal_id, context)
+    ACP.ReleaseTerminalResponse()
+end
+
+# The answer of the editor to one terminal request, which waits on the task of the
+# request. A withdrawal of the request by the agent cancels it.
+function _ask_terminal_request(connection::AcpConnection, session_id::AbstractString, method::Symbol,
+                               terminal_id::AbstractString, context; options...)
+    answer = Channel{Any}(1)
+    is_answered = Threads.Atomic{Bool}(false)
+    reply = function (value)
+        Threads.atomic_xchg!(is_answered, true) && return false
+        put!(answer, value)
+        true
+    end
+    ACP.add_cancel_callback!(() -> reply(nothing), context)
+    event = AgentTerminalRequest(session_id, method, terminal_id, reply; options...)
+    turn = lock(() -> _deliver_session_request!(connection, String(session_id), event, reply, answer),
+                connection.turns_lock)
+    turn === nothing &&
+        throw(ACP.ProtocolException(ACP.INTERNAL_ERROR, "The session `$(session_id)` takes no terminal request now."))
+    value = take!(answer)
+    lock(() -> filter!(waiting -> waiting !== reply, turn.waiting_replies), connection.turns_lock)
+    value === nothing && throw(ACP.ProtocolException(ACP.REQUEST_CANCELLED, "The terminal request was cancelled."))
+    value isa Exception && throw(ACP.ProtocolException(ACP.INVALID_PARAMS, sprint(showerror, value)))
+    value
 end
 
 # The fields of a form, one for each property of its schema. The protocol library

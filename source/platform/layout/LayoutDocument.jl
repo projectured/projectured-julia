@@ -2,6 +2,22 @@
 # `LayoutDocument`, the size policy a child declares, and the containers that
 # arrange children under it.
 
+"""
+    LayoutDocument
+
+The abstract supertype of the containers that arrange child documents. Its main members are `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout`, `ScrollLayout`.
+
+Use it to recognise the containers that arrange child documents when you walk a document: a part is one of them when `part isa LayoutDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("dashboard")), part -> part isa LayoutDocument)
+    found_1 = search_documents(get_edited_document(find_pane("dashboard")), part -> part isa VerticalLayout)
+
+See also `search_documents`, `find_pane`, `describe_document` and `VerticalLayout`.
+
+For the assistant.
+"""
 abstract type LayoutDocument <: Document end
 
 # A layout arranges what it holds, so its duplicate arranges the duplicates.
@@ -40,6 +56,9 @@ struct SizePolicy
     weight::Union{Nothing,Float64}
 end
 
+# A size policy is data, so a saved window keeps it: a file writes it as its call.
+is_pred_constructible(::Type{SizePolicy}) = true
+
 """
     Fixed(n) -> SizePolicy
 
@@ -56,6 +75,8 @@ of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
                title = "Fixed width")
 
 See also `Content`, `Relative` and `Fill`, the other three policies.
+
+For the assistant.
 """
 function Fixed end
 
@@ -77,6 +98,8 @@ button beside a field that fills the rest. It is the default of every layout.
                title = "Form")
 
 See also `Fixed`, `Relative` and `Fill`.
+
+For the assistant.
 """
 const Content = SizePolicy(nothing, nothing, nothing, 0.0)
 
@@ -91,12 +114,13 @@ takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
-    plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(GridLayout(Any[table, plot], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
+    wide = WidgetLabel("two thirds")
+    narrow = WidgetLabel("one third")
+    open_pane!(GridLayout(Any[wide, narrow], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
 
 See also `Fill`, `Fixed` and `Content`.
+
+For the assistant.
 """
 function Relative end
 
@@ -113,18 +137,52 @@ that takes the whole pane, two plots that share a row equally.
 
 # Example
 
-    root = get_project_result_directory()
-    table = make_result_table(get_simulation_scalar_results(root))
+    table = WidgetTable(["run", "delay"], [[1, "1.5 s"], [2, "1.7 s"]])
     open_pane!(VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
 
 See also `Relative`, `Fixed` and `Content`.
+
+For the assistant.
 """
 const Fill = Relative(1.0)
+
+# ── Gaps ────────────────────────────────────────────────────────────────────
+
+"""
+    check_layout_gap(gap, field) -> gap
+
+Answer `gap`, the value of the field `field` of a layout, or throw an
+`ArgumentError` that names the field and the value when it is negative. A row, a
+column, a grid and a flow put their children one after the other and declare no
+overlap, so a gap is at least 0; children that must overlap go in a `StackLayout`.
+A constructor checks the gap it is given, and a print reads each gap through
+`make_layout_gap_cell`, which checks it again.
+"""
+function check_layout_gap(gap, field::Symbol)
+    gap isa Integer && gap < 0 &&
+        throw(ArgumentError("a gap is never negative: $field = $gap; children that overlap go in a StackLayout"))
+    gap
+end
+
+# The gap `field` of the layout `doc` as a cell that checks it each time it computes,
+# so a gap set negative after the print gives the error where the print reads it.
+make_layout_gap_cell(doc, field::Symbol) =
+    Cell(@computation check_layout_gap(getfield(doc, field)[], field))
+
+# The gaps above the rows of a grid, `row_gaps`: an entry is `nothing` or a gap.
+function check_layout_row_gaps(row_gaps)
+    for gap in row_gaps
+        gap === nothing || check_layout_gap(gap, :row_gaps)
+    end
+    row_gaps
+end
 
 # ── HorizontalLayout ────────────────────────────────────────────────────────
 
 """
     HorizontalLayout(children; vertical_align, gap)
+
+`gap` is at least 0: a negative gap throws an `ArgumentError`, because the children follow one another and declare no overlap.
 
 A row of children. The projection places each child at an
 increasing x cursor, with vertical alignment chosen by
@@ -143,6 +201,8 @@ Use it to put widgets or documents side by side in one row, from left to right.
     open_pane!(HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
 
 See also `VerticalLayout`, `GridLayout`.
+
+For the assistant.
 """
 @document struct HorizontalLayout <: LayoutDocument
     children::ListDocument = CellVector()
@@ -158,7 +218,7 @@ function HorizontalLayout(children::Vector;
                           child_width::Union{Nothing,SizePolicy}=nothing,
                           child_height::Union{Nothing,SizePolicy}=nothing)
     HorizontalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-                     Cell(vertical_align), Cell(Int(gap)),
+                     Cell(vertical_align), Cell(check_layout_gap(Int(gap), :gap)),
                      Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
@@ -169,7 +229,7 @@ function HorizontalLayout(children::ListNode;
                           gap::Integer=0,
                           child_width::Union{Nothing,SizePolicy}=nothing,
                           child_height::Union{Nothing,SizePolicy}=nothing)
-    HorizontalLayout(Cell(children), Cell(vertical_align), Cell(Int(gap)),
+    HorizontalLayout(Cell(children), Cell(vertical_align), Cell(check_layout_gap(Int(gap), :gap)),
                      Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
@@ -177,6 +237,8 @@ end
 
 """
     VerticalLayout(children; horizontal_align, gap)
+
+`gap` is at least 0: a negative gap throws an `ArgumentError`, because the children follow one another and declare no overlap.
 
 A column of children. Symmetric to `HorizontalLayout`:
 `horizontal_align ∈ (:left, :center, :right)`. Outer width = max
@@ -190,6 +252,8 @@ bottom.
     open_pane!(VerticalLayout([plot, table]; gap = 8); title = "Stacked")
 
 See also `HorizontalLayout`, `GridLayout`.
+
+For the assistant.
 """
 @document struct VerticalLayout <: LayoutDocument
     children::ListDocument = CellVector()
@@ -205,7 +269,7 @@ function VerticalLayout(children::Vector;
                         child_width::Union{Nothing,SizePolicy}=nothing,
                         child_height::Union{Nothing,SizePolicy}=nothing)
     VerticalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-                   Cell(horizontal_align), Cell(Int(gap)),
+                   Cell(horizontal_align), Cell(check_layout_gap(Int(gap), :gap)),
                    Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
@@ -216,7 +280,7 @@ function VerticalLayout(children::ListNode;
                         gap::Integer=0,
                         child_width::Union{Nothing,SizePolicy}=nothing,
                         child_height::Union{Nothing,SizePolicy}=nothing)
-    VerticalLayout(Cell(children), Cell(horizontal_align), Cell(Int(gap)),
+    VerticalLayout(Cell(children), Cell(horizontal_align), Cell(check_layout_gap(Int(gap), :gap)),
                    Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
@@ -226,6 +290,8 @@ end
     GridLayout(children, columns; horizontal_align, vertical_align,
                horizontal_gap, vertical_gap, column_align,
                column_policy, row_policy, column_policies, row_policies)
+
+`horizontal_gap`, `vertical_gap` and each entry of `row_gaps` are at least 0: a negative gap throws an `ArgumentError`.
 
 A grid of children in row-major order. `horizontal_align` / `vertical_align`
 apply within each cell.
@@ -269,6 +335,8 @@ that another grid sizes.
 its end, or `nothing`, is `vertical_gap`, and the entry of the first row is not
 used. A form uses it to keep the description of a field close to the row of the
 field, and the next field further away.
+
+For the assistant.
 """
 @document struct GridLayout <: LayoutDocument
     children::ListDocument
@@ -314,12 +382,12 @@ function GridLayout(children::Vector, columns::Integer;
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
                Cell(horizontal_align), Cell(vertical_align),
-               Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(check_layout_gap(Int(horizontal_gap), :horizontal_gap)), Cell(check_layout_gap(Int(vertical_gap), :vertical_gap)),
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                Cell(collect(Bool, column_offers)), Cell(collect(Bool, row_offers)),
-               Cell(collect(Any, row_gaps)), Cell(nothing))
+               Cell(check_layout_row_gaps(collect(Any, row_gaps))), Cell(nothing))
 end
 
 # A grid of the rows of a list, which it draws lazily: the rows that a viewport
@@ -340,7 +408,7 @@ function GridLayout(rows::ListNode, columns::Integer;
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(Cell(rows), Cell(Int(columns)),
                Cell(horizontal_align), Cell(vertical_align),
-               Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(check_layout_gap(Int(horizontal_gap), :horizontal_gap)), Cell(check_layout_gap(Int(vertical_gap), :vertical_gap)),
                Cell(column_align isa ListNode ? column_align : collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
@@ -350,6 +418,8 @@ end
 
 """
     FormLayout(rows; label_align=:right, horizontal_gap=12, vertical_gap=8)
+
+`horizontal_gap` and `vertical_gap` are at least 0, as for a `GridLayout`.
 
 A two-column form (Qt's `QFormLayout`): each `row` is a `(label, field)` pair of
 **documents** (wrap text labels in `WidgetLabel`). The label column hugs (its
@@ -378,6 +448,8 @@ end
     FlowLayout(children; max_width, horizontal_align, vertical_align,
                horizontal_gap, vertical_gap)
 
+`horizontal_gap` and `vertical_gap` are at least 0: a negative gap throws an `ArgumentError`, because the children of a line and the lines follow one another and declare no overlap.
+
 A row of children that wraps to a new line when the next child would push past
 the edge of the range its parent gives, or past `max_width` when that is less;
 with neither, it is one line. The flow is as wide as its widest line, and as
@@ -396,6 +468,8 @@ Use it to put many widgets in a row that wraps to the next line when it is full
     open_pane!(FlowLayout(cards; max_width = 800); title = "Cards")
 
 See also `GridLayout` for fixed columns.
+
+For the assistant.
 """
 @document struct FlowLayout <: LayoutDocument
     children::CellVector = CellVector()
@@ -415,7 +489,7 @@ function FlowLayout(children::Vector;
     FlowLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(max_width === nothing ? nothing : Int(max_width)),
                Cell(horizontal_align), Cell(vertical_align),
-               Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(check_layout_gap(Int(horizontal_gap), :horizontal_gap)), Cell(check_layout_gap(Int(vertical_gap), :vertical_gap)),
                Cell(nothing))
 end
 
@@ -439,6 +513,8 @@ label over a plot — the last child on top.
     StackLayout([plot, badge])
 
 See also `GridLayout`, `VerticalLayout`.
+
+For the assistant.
 """
 @document struct StackLayout <: LayoutDocument
     children::CellVector = CellVector()

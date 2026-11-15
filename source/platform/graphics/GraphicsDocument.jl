@@ -11,6 +11,22 @@
 # - **Hit testing**: `hit_element_at` for mouse hit detection
 #
 # All fields are reactive Cells for automatic dependency tracking and incremental redraws.
+"""
+    GraphicsDocument
+
+The abstract supertype of the drawn elements of the graphics output. Its main members are `GraphicsCanvas`, `GraphicsText`, `GraphicsRect`, `GraphicsLine`, `GraphicsImage`.
+
+Use it to recognise the drawn elements of the graphics output when you walk a document: a part is one of them when `part isa GraphicsDocument`.
+
+# Example
+
+    parts_1 = search_documents(get_edited_document(find_pane("drawing")), part -> part isa GraphicsDocument)
+    found_1 = search_documents(get_edited_document(find_pane("drawing")), part -> part isa GraphicsText)
+
+See also `search_documents`, `find_pane`, `describe_document` and `GraphicsText`.
+
+For the assistant.
+"""
 abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical
@@ -86,6 +102,8 @@ A reactive text element for rendering.
 Each field is a `Cell`, so changes to any property are tracked
 and can trigger incremental redraws. `color` is a [`StyleColor`](@ref); each
 backend converts it to its own device encoding at draw time.
+
+For the assistant.
 """
 @document struct GraphicsText <: GraphicsDocument
     text::String
@@ -131,6 +149,8 @@ paints a rounded outline *inside* the rect, so a single primitive can express
 the "rounded fill + 1px outline" idiom without stacking rects. `border_color`
 may be passed as `nothing` for "no border" (a transparent default).
 Each field is a `Cell`.
+
+For the assistant.
 """
 @document struct GraphicsRect <: GraphicsDocument
     x::Int32
@@ -187,6 +207,8 @@ Use it to draw a straight line on a canvas: an axis, a rule or a link.
     open_pane!(GraphicsCanvas([GraphicsLine(10, 10, 110, 50; color = color_red, width = 2)]; w = 120, h = 60); title = "Line")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsLine <: GraphicsDocument
     x1::Int32
@@ -232,6 +254,8 @@ Use it to draw a round dot or a disc on a canvas: a point, a marker or a badge.
     open_pane!(GraphicsCanvas([GraphicsCircle(60, 30, 20; color = color_blue)]; w = 120, h = 60); title = "Dot")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsArc`.
+
+For the assistant.
 """
 @document struct GraphicsCircle <: GraphicsDocument
     cx::Int32
@@ -277,6 +301,8 @@ Use it to draw a part of a ring on a canvas: a gauge or a progress mark.
     open_pane!(GraphicsCanvas([GraphicsArc(60, 40, 30; width = 6, start_angle = 0, sweep_angle = 270, color = color_green)]; w = 120, h = 80); title = "Gauge")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsCircle`.
+
+For the assistant.
 """
 @document struct GraphicsArc <: GraphicsDocument
     cx::Int32
@@ -336,6 +362,8 @@ Use it to draw a path of connected straight segments on a canvas, with an arrow 
     open_pane!(GraphicsCanvas([GraphicsPolyline(points_1; color = color_red, width = 2, end_arrow = true)]; w = 120, h = 60); title = "Path")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsSpline`.
+
+For the assistant.
 """
 @document struct GraphicsPolyline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -380,6 +408,8 @@ Use it to draw a closed filled shape on a canvas: a triangle, an arrow head or a
     open_pane!(GraphicsCanvas([GraphicsPolygon(points_1; color = color_blue)]; w = 120, h = 60); title = "Triangle")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsPolygon <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -420,6 +450,8 @@ Use it to draw a smooth curve through points on a canvas.
     open_pane!(GraphicsCanvas([GraphicsSpline(points_1; color = color_red, width = 2)]; w = 120, h = 60); title = "Curve")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsPolyline`.
+
+For the assistant.
 """
 @document struct GraphicsSpline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
@@ -506,23 +538,43 @@ function tessellate_spline(points, kind::Symbol, segments)
     out
 end
 
+_get_float_point(point) = (Float64(point[1]), Float64(point[2]))
+
+# The point of the polyline `points` that is `distance` from its tip by length
+# along it, with the place of the first point past it in the walk from the tip:
+# the tip is the last point when `at_end`, else the first. A polyline shorter than
+# `distance` gives its other end, with the place past that end.
+function _compute_point_back_along(points, distance::Real, at_end::Bool)
+    n = length(points)
+    order = at_end ? (n:-1:1) : (1:n)
+    walked = 0.0
+    for k in 2:n
+        p, q = _get_float_point(points[order[k - 1]]), _get_float_point(points[order[k]])
+        step = hypot(q[1] - p[1], q[2] - p[2])
+        if walked + step >= distance
+            t = step == 0 ? 0.0 : (distance - walked) / step
+            return ((p[1] + t * (q[1] - p[1]), p[2] + t * (q[2] - p[2])), k)
+        end
+        walked += step
+    end
+    (_get_float_point(points[order[n]]), n + 1)
+end
+
 """
     build_polyline_arrowhead(points, size; at_end=true) -> Vector{Tuple{Float64,Float64}}
 
 The three vertices of a filled triangle arrowhead of `size` pixels at the end
-(`at_end=true`) or start of the polyline `points`, oriented along the adjacent
-segment. Returns an empty vector when there is no segment to orient along.
+(`at_end=true`) or start of the polyline `points`. Its axis goes from the point of
+the polyline that is `size` back from the tip, by length along the polyline, to
+the tip, so the arrowhead sits on a line that bends under it, as the tessellated
+end of a curve does. A polyline shorter than `size` takes its other end. Returns
+an empty vector when there is no direction to orient along.
 """
 function build_polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bool=true)
     n = length(points)
     n < 2 && return Tuple{Float64,Float64}[]
-    if at_end
-        tip = (Float64(points[n][1]), Float64(points[n][2]))
-        prev = (Float64(points[n-1][1]), Float64(points[n-1][2]))
-    else
-        tip = (Float64(points[1][1]), Float64(points[1][2]))
-        prev = (Float64(points[2][1]), Float64(points[2][2]))
-    end
+    tip = _get_float_point(at_end ? points[n] : points[1])
+    prev = first(_compute_point_back_along(points, size, at_end))
     dx = tip[1] - prev[1]; dy = tip[2] - prev[2]
     len = sqrt(dx*dx + dy*dy)
     len == 0 && return Tuple{Float64,Float64}[]
@@ -532,6 +584,36 @@ function build_polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bo
     bx = tip[1] - ux*sz; by = tip[2] - uy*sz   # base center, `sz` back from the tip
     half = sz*0.5
     [tip, (bx + px*half, by + py*half), (bx - px*half, by - py*half)]
+end
+
+"""
+    compute_polyline_before_arrowheads(points, size; start_arrow=false, end_arrow=false)
+        -> Vector{Tuple{Float64,Float64}}
+
+The polyline `points` without its last `size` pixels, by length along it, at each
+end that has an arrowhead: the line that a backend strokes. It ends on the axis of
+the arrowhead of [`build_polyline_arrowhead`](@ref), inside its base, so a line
+that bends under the arrowhead does not show beside it, and a thick line does not
+show past the tip. An end with no arrowhead keeps its point. Empty when the
+arrowheads cover the whole polyline.
+"""
+function compute_polyline_before_arrowheads(points::AbstractVector, size::Real;
+                                            start_arrow::Bool=false, end_arrow::Bool=false)
+    line = Tuple{Float64,Float64}[_get_float_point(point) for point in points]
+    n = length(line)
+    (n < 2 || !(start_arrow || end_arrow)) && return line
+    total = sum(hypot(line[k + 1][1] - line[k][1], line[k + 1][2] - line[k][2]) for k in 1:(n - 1))
+    total <= size * (start_arrow + end_arrow) && return Tuple{Float64,Float64}[]
+    if end_arrow
+        point, k = _compute_point_back_along(line, size, true)
+        line = vcat(line[1:(n - k + 1)], [point])
+        n = length(line)
+    end
+    if start_arrow
+        point, k = _compute_point_back_along(line, size, false)
+        line = vcat([point], line[k:n])
+    end
+    line
 end
 
 # ── Canvas ───────────────────────────────────────────────────────────────
@@ -568,6 +650,8 @@ to stop painting when elements are past the viewport edge.
 When `overlapping_elements` is `false`, elements are guaranteed not to
 overlap along the layout axis. This enables the renderer and hit-testing
 to stop early once past the viewport or click point.
+
+For the assistant.
 """
 @document struct GraphicsCanvas <: GraphicsDocument
     x::Int32 = Int32(0)
@@ -582,14 +666,48 @@ end
 # `GraphicsCanvas()` is the macro's keyword constructor — an empty canvas at the
 # origin. Every field defaults, so Rule Y emits no positional constructor and the
 # typed constructors below stay in sole charge of positional construction.
-GraphicsCanvas(elements::CollectionDocument; x::_LiveNumber=0, y::_LiveNumber=0, w::_LiveNumber=0,
-               h::_LiveNumber=0, layout::LayoutDirection=layout_none, overlapping::Bool=true) =
+function GraphicsCanvas(elements::CollectionDocument; x::_LiveNumber=0, y::_LiveNumber=0, w::_LiveNumber=0,
+                        h::_LiveNumber=0, layout::LayoutDirection=layout_none, overlapping::Bool=true)
+    check_list_canvas(elements, layout, overlapping)
     GraphicsCanvas(_make_pixel_cell(x), _make_pixel_cell(y), _make_pixel_cell(w), _make_pixel_cell(h),
                    elements, layout, overlapping, Cell(nothing))
+end
 GraphicsCanvas(elements::Vector; kwargs...) =
     GraphicsCanvas(CellVector(Cell[Cell(e) for e in elements]); kwargs...)
 GraphicsCanvas(elements::CollectionDocument, layout::LayoutDirection) =
     GraphicsCanvas(elements; layout)
+
+"""
+    check_list_canvas(canvas) -> nothing
+    check_list_canvas(elements, layout, overlapping) -> nothing
+
+Refuse a canvas over a list of nodes that has no layout, or whose elements can
+overlap, with an `ArgumentError`. A list of nodes can be endless both ways, and
+only a layout with no overlap lets a reader stop at the edges of what it shows.
+Any other element list passes.
+
+A constructor calls it with the arguments, and a reader calls it with the
+canvas, because a cell can give the list of a canvas after the canvas is made.
+
+# Example
+
+    head = ListNode(GraphicsRect(0, 0, 10, 10))
+    check_list_canvas(head, layout_vertical, false)   # passes
+    check_list_canvas(head, layout_none, true)        # throws an ArgumentError
+
+See also `GraphicsCanvas` and `compute_first_visible_index`.
+"""
+function check_list_canvas end
+
+function check_list_canvas(elements, layout::LayoutDirection, overlapping::Bool)
+    elements isa ListNode && (layout == layout_none || overlapping) &&
+        throw(ArgumentError("a canvas over a list of nodes needs a layout and no overlap: a list can be " *
+                            "endless, and only a layout lets a reader stop at the edges of what it shows"))
+    nothing
+end
+
+check_list_canvas(canvas::GraphicsCanvas) =
+    check_list_canvas(canvas.elements, canvas.layout, canvas.overlapping_elements)
 
 # ── Viewport ─────────────────────────────────────────────────────────────
 
@@ -649,7 +767,8 @@ end
 """
     GraphicsImage(x, y, w, h, data)
 
-A picture of pixels at a place and of a size.
+A picture of pixels at a place and of a size. `data` is the pixels, or a cell that
+holds them: a backend reads the cell when it paints the image.
 
 `data` is a `Vector{UInt8}` of `w * h * 4` bytes in the order red, green, blue,
 alpha for each pixel, or a tuple `(bytes, width, height)` when the pixels have
@@ -663,6 +782,8 @@ Use it to draw a picture that is already a grid of pixels, such as a decoded pho
     open_pane!(GraphicsCanvas([GraphicsImage(10, 10, 40, 40, (pixels_1, 4, 4))]; w = 60, h = 60); title = "Picture")
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsRect`.
+
+For the assistant.
 """
 @document struct GraphicsImage <: GraphicsDocument
     x::Int32
@@ -675,9 +796,14 @@ end
 function GraphicsImage(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber, data)
     GraphicsImage(_make_pixel_cell(x), _make_pixel_cell(y),
                   _make_pixel_cell(w), _make_pixel_cell(h),
-                  Cell(data),
+                  _make_image_data_cell(data),
                   Cell(nothing))
 end
+
+# The pixels of an image: a value, or the cell that holds them, which the paint of
+# a backend reads and no print does.
+_make_image_data_cell(data::Cell) = data
+_make_image_data_cell(data) = Cell(data)
 
 # ── Fence ──────────────────────────────────────────────────────────────────
 
@@ -835,6 +961,7 @@ function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
     (ch > 0 && (y < 0 || y >= ch)) && return nothing
     early_stop = !canvas.overlapping_elements && layout != layout_none
     if elements isa ListNode
+        check_list_canvas(elements, layout, canvas.overlapping_elements)
         # Check prev-direction elements (negative offsets)
         prev_node = elements.prev
         pi = 0

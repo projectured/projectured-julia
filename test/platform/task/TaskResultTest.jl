@@ -17,8 +17,7 @@ struct _TaskResultProbeResult <: TaskResult
     error_message::Union{String,Nothing}
     elapsed_wall_time::Union{Float64,Nothing}
 end
-TaskModule.get_error_message(result::_TaskResultProbeResult) =
-    something(result.error_message, "<No error message>")
+TaskModule.find_error_message(result::_TaskResultProbeResult) = result.error_message
 
 const _TASK_RESULT_FAMILIES = Dict(:run => RUN_RESULT_CODES, :test => TEST_RESULT_CODES,
                                    :update => UPDATE_RESULT_CODES)

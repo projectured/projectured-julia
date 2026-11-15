@@ -15,11 +15,10 @@ function test_widget_gestures()
 _always(_doc, _sel) = true
 
 # ── WidgetButton ─────────────────────────────────────────────────────────────
-_bfont = StyleFont("Ubuntu Mono", 20)
 _bstub = FixedMeasure(10, 18, 6, 0)
 _bproj() = ChainingProjection(
     RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(_bfont; measure = _bstub).dispatch)))
+        WidgetToGraphics(; measure = _bstub).dispatch)))
 
 @testset "button: a per-instance right-click binding fires (left-click unchanged)" begin
     fired = Ref(false)
@@ -114,7 +113,7 @@ end
 # Drive the tree projection directly (as WidgetTreeTest does), with a deterministic
 # measure so row geometry is exact: row_height = 16 + 2*4 = 24, chevron column 18.
 _det = FixedMeasure(8, 12, 4, 0)
-_treeproj = let w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det), pr = nothing
+_treeproj = let w2g = WidgetToGraphics(; measure = _det), pr = nothing
     for (T, p) in w2g.dispatch
         T === WidgetTree && (pr = p)
     end

@@ -94,6 +94,7 @@ for _src in _SOURCES
 end
 
 # ── the tests of the packages that came out of base ─────────────────────────
+include("../../../test/platform/document/WidgetNotes.jl")
 include("../../../test/platform/document/CollectionDocumentTest.jl")
 include("../../../test/platform/document/TableInterfaceTest.jl")
 include("../../../test/platform/document/MouseTargetFieldTest.jl")
@@ -120,11 +121,14 @@ include("../../../test/platform/document/TextDocumentTest.jl")
 include("../../../test/platform/document/GraphicsDocumentTest.jl")
 include("../../../test/platform/document/PointerShapeTest.jl")
 include("../../../test/platform/document/GeometryTest.jl")
+include("../../../test/platform/document/ImageTest.jl")
+include("../../../test/platform/document/ImageHeadTest.jl")
 include("../../../test/platform/document/FontMetricsTest.jl")
 include("../../../test/platform/document/TextMeasureTest.jl")
 include("../../../test/platform/document/LineSpacingTest.jl")
 include("../../../test/platform/document/ThemeTest.jl")
 include("../../../test/platform/document/ColorThemeTest.jl")
+include("../../../test/platform/document/FontThemeTest.jl")
 include("../../../test/platform/document/FontFallbackTest.jl")
 include("../../../test/platform/document/FontFaceTest.jl")
 include("../../../test/platform/document/GraphicsLayoutTest.jl")
@@ -135,6 +139,7 @@ include("../../../test/platform/document/ObjectConversionTest.jl")
 include("../../../test/platform/document/TextPatternTest.jl")
 include("../../../test/platform/document/PaneDocumentTest.jl")
 include("../../../test/platform/document/DocumentReadTest.jl")
+include("../../../test/platform/document/FollowingDocumentTest.jl")
 include("../../../test/platform/document/PaneGeometryTest.jl")
 include("../../../test/platform/document/DocumentDuplicateTest.jl")
 include("../../../test/platform/document/TextSelectionEnumeration.jl")
@@ -147,6 +152,7 @@ include("../../../test/platform/projection/PrimitiveToTextTest.jl")
 include("../../../test/platform/projection/TextToGraphicsTest.jl")
 include("../../../test/platform/projection/TextLineModelTest.jl")
 include("../../../test/platform/projection/InlineImageCaretTest.jl")
+include("../../../test/platform/projection/ImageToWidgetTest.jl")
 include("../../../test/platform/projection/WordWrappingTest.jl")
 include("../../../test/platform/projection/FilteredTextToTextTest.jl")
 include("../../../test/platform/projection/TextFirstLineTest.jl")
@@ -155,6 +161,7 @@ include("../../../test/platform/projection/SyntaxLeafViewTest.jl")
 include("../../../test/platform/projection/SyntaxNodeViewTest.jl")
 include("../../../test/platform/projection/TextLineNumberingTest.jl")
 include("../../../test/platform/projection/HighlightedTextToTextTest.jl")
+include("../../../test/platform/projection/MarkedTextToTextTest.jl")
 include("../../../test/platform/projection/SelectionInvertingTest.jl")
 # ── widget projections ───────────────────────────────────────────────────────
 include("../../../test/platform/projection/ObjectToWidgetTest.jl")
@@ -167,6 +174,8 @@ include("../../../test/platform/projection/FindBarViewToWidgetTest.jl")
 include("../../../test/platform/projection/CellTableToWidgetTableTest.jl")
 include("../../../test/platform/projection/WidgetTextEditTest.jl")
 include("../../../test/platform/projection/WidgetButtonTest.jl")
+include("../../../test/platform/projection/WidgetLinkTest.jl")
+include("../../../test/platform/link/LinkTest.jl")
 include("../../../test/platform/projection/WidgetSliderTest.jl")
 include("../../../test/platform/projection/WidgetScrollBarTest.jl")
 include("../../../test/platform/projection/WidgetLiveValueTest.jl")
@@ -174,7 +183,10 @@ include("../../../test/platform/projection/WidgetProgressTest.jl")
 include("../../../test/platform/projection/SizeRangeChildRuleTest.jl")
 include("../../../test/platform/projection/SizeRangeStackTest.jl")
 include("../../../test/platform/projection/SizeRangeMainAxisTest.jl")
+include("../../../test/platform/projection/LayoutRulesTest.jl")
 include("../../../test/platform/projection/WidgetCardFoldTest.jl")
+include("../../../test/platform/projection/WidgetLabelCaretTest.jl")
+include("../../../test/platform/projection/WidgetFactGroupTest.jl")
 include("../../../test/platform/projection/WidgetSelectionTest.jl")
 include("../../../test/platform/projection/SelectionWalkingTest.jl")
 include("../../../test/platform/projection/GestureTrackingTest.jl")
@@ -210,12 +222,22 @@ include("../../../test/platform/projection/WidgetTreeTest.jl")
 include("../../../test/platform/projection/WidgetToolbarTest.jl")
 include("../../../test/platform/projection/WidgetTableTest.jl")
 include("../../../test/platform/projection/WidgetTextWrapTest.jl")
+include("../../../test/platform/projection/WidgetTextFitTest.jl")
+include("../../../test/platform/projection/WidgetMenuKeysTest.jl")
+include("../../../test/platform/projection/LetterMatchTest.jl")
+include("../../../test/platform/outline/OutlineTest.jl")
+include("../../../test/platform/outline/OutlineElementsTest.jl")
+include("../../../test/platform/document/InsertionChoicesTest.jl")
 include("../../../test/platform/projection/WidgetTablePartsTest.jl")
 include("../../../test/platform/projection/WidgetTableHeaderLevelsTest.jl")
 include("../../../test/platform/projection/WidgetTableCellOrderTest.jl")
 include("../../../test/platform/projection/WidgetTablePartSelectionTest.jl")
 include("../../../test/platform/arrangement/ArrangementTest.jl")
 include("../../../test/platform/arrangement/ArrangementFilterSortTest.jl")
+include("../../../test/platform/arrangement/ArrangementFilterLanguageTest.jl")
+include("../../../test/platform/widget/WidgetColumnHeaderTest.jl")
+include("../../../test/platform/widget/WidgetPrinterProjectionTest.jl")
+include("../../../test/platform/widget/WidgetGapRoleTest.jl")
 include("../../../test/platform/arrangement/ArrangementNaturalTest.jl")
 include("../../../test/platform/arrangement/ArrangementMenuTest.jl")
 include("../../../test/platform/arrangement/ArrangeCollectionOperationTest.jl")
@@ -225,11 +247,15 @@ include("../../../test/platform/arrangement/ArrangementProgramTest.jl")
 include("../../../test/platform/arrangement/ArrangementGroupTest.jl")
 include("../../../test/platform/roster/RosterTest.jl")
 include("../../../test/platform/roster/RosterTableTest.jl")
+include("../../../test/platform/roster/RecordTableTest.jl")
+include("../../../test/platform/roster/RosterHeaderTest.jl")
 include("../../../test/platform/roster/RosterSourceTest.jl")
 include("../../../test/platform/roster/RosterFacetTest.jl")
 include("../../../test/platform/roster/RosterProgramTest.jl")
 include("../../../test/platform/tree/TreeTest.jl")
 include("../../../test/platform/explorer/ExplorerTest.jl")
+include("../../../test/platform/explorer/ExplorerRowNoteTest.jl")
+include("../../../test/platform/backgroundwork/BackgroundWorkTest.jl")
 include("../../../test/platform/projection/WidgetDecorationTest.jl")
 include("../../../test/platform/systemprocess/SystemProcessTest.jl")
 include("../../../test/platform/workplan/WorkPlanTest.jl")
@@ -242,10 +268,16 @@ include("../../../test/platform/task/TaskResultTest.jl")
 include("../../../test/platform/task/TaskExecutionTest.jl")
 include("../../../test/platform/task/TaskGroupTest.jl")
 include("../../../test/platform/task/BuildStepTest.jl")
+include("../../../test/platform/task/ProgramTaskTest.jl")
 include("../../../test/platform/task/TaskDocumentTest.jl")
+include("../../../test/platform/task/TaskKindFacetsTest.jl")
+# After the task tests: it uses the probe task that they make.
+include("../../../test/platform/editor/FeedFrameGuardTest.jl")
 include("../../../test/platform/task/TaskGroupToWidgetTest.jl")
+include("../../../test/platform/task/TaskGroupTableTest.jl")
 include("../../../test/platform/task/TaskPagesTest.jl")
 include("../../../test/platform/task/TaskVerbsTest.jl")
+include("../../../test/platform/task/TaskWorkItemTest.jl")
 include("../../../test/platform/projection/WidgetSplitPaneTest.jl")
 include("../../../test/platform/projection/PaneToWidgetTest.jl")
 include("../../../test/platform/projection/PaneReaderTest.jl")
@@ -269,23 +301,28 @@ include("../../../test/platform/projection/TextFoldingTest.jl")
 # fixtures (Primitive / Text / Screen), so this is their lowest test home.
 include("../../../test/platform/projection/ClipboardTest.jl")
 include("../../../test/platform/projection/TooltipProjectionTest.jl")
+include("../../../test/platform/projection/TooltipNoteTest.jl")
 include("../../../test/platform/projection/WindowFitTest.jl")
+include("../../../test/platform/projection/WindowPlacementTest.jl")
 include("../../../test/platform/projection/WindowWrapperTest.jl")
 include("../../../test/platform/projection/DocumentCompositionTest.jl")
 include("../../../test/platform/projection/TabsWrapperTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
 include("../../../test/platform/projection/SplitPaneDragTest.jl")
+include("../../../test/platform/projection/SplitPaneBandTest.jl")
 include("../../../test/platform/projection/PartPointerShapeTest.jl")
 include("../../../test/platform/projection/RoutedGestureTest.jl")
 include("../../../test/platform/projection/LayoutPointTest.jl")
 include("../../../test/platform/projection/WidgetPointTest.jl")
 include("../../../test/platform/projection/ColumnChooserTest.jl")
 include("../../../test/platform/projection/WidgetSwatchTest.jl")
+include("../../../test/platform/projection/SlotSpaceTest.jl")
 include("../../../test/platform/projection/BaselineAlignmentTest.jl")
 include("../../../test/platform/projection/WidgetForwardTest.jl")
 include("../../../test/platform/projection/WidgetRoundTripTest.jl")
 include("../../../test/platform/projection/ScrollPaneHoverTest.jl")
+include("../../../test/platform/projection/ScrollPaneShowTest.jl")
 include("../../../test/platform/projection/ScrollPaneBarTest.jl")
 include("../../../test/platform/projection/WidgetTableBarTest.jl")
 include("../../../test/platform/projection/WidgetRowsScrollTest.jl")
@@ -294,10 +331,13 @@ include("../../../test/platform/projection/WidgetPopupExampleTest.jl")
 include("../../../test/platform/editor/NavigationPresets.jl")
 include("../../../test/platform/editor/TypeinTest.jl")
 include("../../../test/platform/editor/ClickRoundtripTest.jl")
+include("../../../test/platform/editor/PartClickTest.jl")
+include("../../../test/platform/editor/CatalogRunner.jl")
 # Collapse/expand round-trip over the syntax example (reuses ClickRoundtripTest's
 # _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
 include("../../../test/platform/editor/CollapseRoundtripTest.jl")
 include("../../../test/platform/editor/PaneConstructTest.jl")
+include("../../../test/platform/application/ApplicationWorkloadTest.jl")
 include("../../../test/platform/PlatformSuite.jl")
 
 
@@ -388,6 +428,7 @@ include("../../../test/platform/filesystem/projection/FileSystemToWidgetTest.jl"
 include("../../../test/platform/filesystem/document/FileSystemDocumentTest.jl")
 include("../../../test/platform/filesystem/document/WorkspaceDuplicateTest.jl")
 include("../../../test/platform/filesystem/projection/WorkspaceToFileSystemTest.jl")
+include("../../../test/platform/filesystem/document/WorkspaceFileListTest.jl")
 
 include("../../../test/platform/filesystem/FileSystemSuite.jl")
 end # module FileSystemTests
@@ -396,6 +437,8 @@ module ConversationTests
 
 using Test
 import ProjecturedPlatform
+# The notation of a part of code that a node of a tree names by its first line.
+import ProjecturedJSON
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
@@ -431,6 +474,12 @@ include("../../../test/platform/conversation/ConversationThemeTest.jl")
 include("../../../test/platform/conversation/ExternalAgentTurnTest.jl")
 include("../../../test/platform/conversation/AgentWorkTest.jl")
 include("../../../test/platform/conversation/AssistantWorkTest.jl")
+include("../../../test/platform/conversation/AgentTerminalTest.jl")
+include("../../../test/platform/conversation/AssistantRoundsTest.jl")
+include("../../../test/platform/conversation/AssistantWakeTest.jl")
+include("../../../test/platform/conversation/AssistantPictureTest.jl")
+include("../../../test/platform/conversation/ConversationTreeTest.jl")
+include("../../../test/platform/conversation/ConversationEditorTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests
@@ -444,13 +493,27 @@ using ProjecturedKernelTest: check_layering, get_package_source_root
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
 using ProjecturedPlatform.DomainModule
 using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection, RecursiveProjection
+using ProjecturedPlatform.SerializationModule: pred_arguments
 using ProjecturedPlatform.SyntaxModule: SyntaxToText
 using ProjecturedPlatform.TextModule: TextToString
+using ProjecturedPlatform.TreeModule
+using ProjecturedPlatform.CollectionModule
+using ProjecturedPlatform.LayoutModule
+using ProjecturedPlatform.WidgetModule
+using ProjecturedPlatform.NavigatorModule
+using ProjecturedKernel.EditorModule: run_frame!
+using ProjecturedKernel.OperationModule: evaluate_operation
+using ProjecturedKernel.GestureModule: MouseClick
+using ProjecturedKernel.EventModule: ModifierKeys
 using ProjecturedPlatform.HelpModule
+# The editor of a navigator test, and the clicks on what its frame draws.
+using ..ProjecturedPlatformTest: _nav_editor, _nav_click, _nav_press!, _nav_has_text, _NAV_BACK, _NAV_PARENT
 
-include("../../../test/platform/help/HelpListToSyntaxTest.jl")
+include("../../../test/platform/help/HelpTreeTest.jl")
+include("../../../test/platform/help/HelpPageTest.jl")
 include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
 include("../../../test/platform/help/HelpSuite.jl")
 end # module HelpTests
@@ -496,6 +559,7 @@ include("../../../test/platform/shell/WindowShellTest.jl")
 include("../../../test/platform/shell/WindowWrappersTest.jl")
 include("../../../test/platform/shell/FileDialogTest.jl")
 include("../../../test/platform/shell/TrackingScreenTest.jl")
+include("../../../test/platform/shell/EscapeQuittingTest.jl")
 include("../../../test/platform/shell/DragTrackingTest.jl")
 include("../../../test/platform/shell/DragPointerShapeTest.jl")
 include("../../../test/platform/shell/PointerLightTest.jl")
@@ -539,7 +603,10 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
-using ProjecturedKernel.ReferenceModule: Reference
+using ProjecturedKernel.ReferenceModule: Reference, ReferencedDocument, FieldReferenceStep, PositionReferenceStep,
+    annotate_reference_types, extend_reference, strip_reference_types, get_reference_steps, is_valid_reference, search_documents
+using ProjecturedKernel.SelectionModule: get_selection, replace_selection!
+using ProjecturedPlatform.FaultViewModule: get_session_fault_log
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
 import ProjecturedPlatform.SerializationModule
@@ -547,15 +614,23 @@ using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule
 using ProjecturedPlatform.UndoModule: UndoBuffer, UndoEntry, push_undo_entry!
-using ProjecturedKernel.EditorModule: Editor, build_editor
-using ProjecturedKernel.DeviceModule: Device
+using ProjecturedKernel.EditorModule: Editor, build_editor, run_frame!, insert_elements!, wait_for_cell!,
+    drain_operations!, get_background_work_store
+using ProjecturedKernel.ProjectionModule: print_document
+using ProjecturedPlatform.FileSystemModule: open_file!
+using ProjecturedPlatform.SettingsManagingModule: Settings
+using ProjecturedKernel.DeviceModule: Device, Mouse, Display
+using ProjecturedKernel.EventModule: ModifierKeys, MouseScroll, WindowInput
 using ProjecturedKernel.ToolModule: run_with_evaluation_editor
 using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedKernelExample: HeadlessBackend
+using ProjecturedKernelExample: HeadlessBackend, push_event!
 using ProjecturedPlatform.DomainModule: AcquireDocumentOperation, ReleaseDocumentOperation, ChangeHeldDocumentsOperation,
     is_document_held
 using ProjecturedPlatform.PaneModule: PaneTab
-using ProjecturedPlatform.WidgetModule: WidgetScrollPane
+using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D
+using ProjecturedPlatform.ExplorerModule: Dashboard, DashboardCard
+using ProjecturedPlatform.NaturalModule: NaturalToGraphics
+using ProjecturedPlatform.StyleModule: FixedMeasure
 
 include("../../../test/platform/filechange/FileChangeStoreTest.jl")
 include("../../../test/platform/filechange/FileChangeSuite.jl")

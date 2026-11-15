@@ -146,9 +146,9 @@ function _define_printing_names!(m::Module)
         print(xs...) = Base.print(stdout, xs...)
         println(io::IO, xs...) = Base.println(io, xs...)
         println(xs...) = Base.println(stdout, xs...)
-        show(x) = Base.show(stdout, x)
-        show(io::IO, x) = Base.show(io, x)
-        show(io::IO, mime, x) = Base.show(io, mime, x)
+        show(x; keywords...) = Base.show(stdout, x; keywords...)
+        show(io::IO, x; keywords...) = Base.show(io, x; keywords...)
+        show(io::IO, mime, x; keywords...) = Base.show(io, mime, x; keywords...)
         display(x) = Base.display(Base.Multimedia.TextDisplay(stdout), x)
         display(xs...) = Base.display(xs...)
         macro show(expressions...)
@@ -400,6 +400,36 @@ loop of an editor runs in it.
 """
 run_with_evaluation_editor(function_, editor) = with(function_, _EVALUATION_EDITOR => editor)
 
+# Who asked for the code of the current evaluation, a plain value whose type a
+# layer above defines, or `nothing` when no tool call and no client asked for it.
+const _EVALUATION_STARTER = ScopedValue{Any}(nothing)
+
+"""
+    find_evaluation_starter() -> starter or nothing
+
+Who asked for the code of the current evaluation: the value that a tool call of a
+model or a call of a client binds with [`run_with_evaluation_starter`](@ref), or
+`nothing` when none binds one, as for an operation that the loop of an editor
+reads from a gesture of the person. The kernel does not read the value: a layer
+above defines its type, and the work that the code starts records it.
+
+A task that the code starts gets the same starter, and so does a call that the
+code posts to the loop of an editor with `run_on_editor_task!`, which runs on
+another task. The loop of an editor binds `nothing` for its frames, so a gesture
+never takes the starter of the code that started the loop.
+"""
+find_evaluation_starter() = _EVALUATION_STARTER[]
+
+"""
+    run_with_evaluation_starter(function_, starter) -> value
+
+Run `function_()` with `starter` as the starter of the evaluation, which
+[`find_evaluation_starter`](@ref) answers to it, to each task that it starts, and
+to each call that it posts to the loop of an editor.
+"""
+run_with_evaluation_starter(function_, starter) =
+    with(function_, _EVALUATION_STARTER => starter)
+
 """
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 
@@ -417,9 +447,10 @@ the variable in a later call instead of finding the object again.
 **The answer is what the code printed, whole, then the value of the last
 statement on its own.** What the code prints is what the caller asked for, so
 it is never cut. The value of the last statement comes unasked, and it is what
-floods a window — a `DataFrame` of thousands of rows, the `Text` a side-effect
+floods a window — a `DataFrame` of thousands of rows, the text a side-effect
 verb answers — so `describe_value` renders it instead of the value itself. Its
-default, `_describe_value_for_model`, keeps a short value whole, limits a
+default, `_describe_value_for_model`, shows a string that has a line break as
+its lines, without quotes, keeps a short value whole, limits a
 longer one as the Julia REPL would, and trims one still longer than that to its
 start and its end with a note of how to read a part; [`describe_value_for_person`](@ref)
 is the other description this editor calls it with, the value exactly as the
@@ -628,8 +659,9 @@ end
 # is, a longer one limited as the Julia REPL would limit it, and one still long
 # even limited trimmed to its start and its end, with a note of how to read a
 # part. Prose a verb answers on purpose is shown whole, however long: a `Text`
-# as it is, and a long `String` without its quotes. A verb that answers
-# `show_layout`'s layout or a search's hits answers it to be read. A function is
+# as it is, and a `String` that has a line break or is long without its quotes;
+# a short one-line string keeps its quotes, as the REPL shows it. A verb that
+# answers `show_layout`'s layout or a search's hits answers it to be read. A function is
 # shown as the Julia REPL shows it, by its name and its number of methods; its
 # plain `repr` in the scratch module is the name of its type. The code can make a
 # function, a type or a `show` method in a newer world than this one, so each
@@ -638,6 +670,7 @@ function _describe_value_for_model(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"
     value isa Function && return Base.invokelatest(sprint, show, MIME"text/plain"(), value) * "\n"
+    value isa AbstractString && occursin('\n', value) && return String(value) * "\n"
     text = Base.invokelatest(repr, value; context = :limit => true)
     (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
     value isa AbstractString && return String(value) * "\n"

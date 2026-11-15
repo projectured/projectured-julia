@@ -16,6 +16,10 @@
 
 One value the build compiles into the image, for `package` to read back with
 `@load_preference(key)`.
+
+Julia reads a preference only for a package that the project lists, so a build
+makes `package` a dependency of the package that it writes when the build does
+not name it.
 """
 struct Preference
     package::String
@@ -47,9 +51,47 @@ make_exposed_preferences(package::AbstractString, key::AbstractString, value;
                           flag_key::AbstractString) =
     [make_baked_preference(package, key, value), make_baked_preference(package, flag_key, true)]
 
+"""
+    is_performance_counters_requested() -> Bool
+
+Whether the environment variable `PROJECTURED_PERFORMANCE_COUNTERS` asks a build
+for the performance counters of the editor: `true` or `false`, and `false` when it
+is not set or empty. Another value throws an `ArgumentError`, so a misspelt value
+does not build a binary with no counters in silence.
+
+Use it as the default of a keyword that a build passes on to
+[`build_executable`](@ref), so a script that builds, or that runs from source,
+takes the switch from its environment.
+
+# Example
+
+    withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "true") do
+        is_performance_counters_requested()     # true
+    end
+"""
+function is_performance_counters_requested()
+    value = get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "")
+    value in ("true", "false", "") ||
+        throw(ArgumentError("PROJECTURED_PERFORMANCE_COUNTERS is true or false, not $(repr(value))"))
+    value == "true"
+end
+
 # A caller may hand over a single preference or a vector of them; both flatten.
 _preferences(x::Preference) = [x]
 _preferences(x::AbstractVector) = reduce(vcat, (_preferences(e) for e in x); init = Preference[])
+
+# The packages that read `preferences` and that `named` does not hold, once each,
+# in the order of the preferences. The written package `app_module` reads its own
+# preferences, so it is never one of them.
+function _collect_preference_readers(preferences, named, app_module::AbstractString)
+    readers = String[]
+    for preference in _preferences(preferences)
+        package = preference.package
+        (package in named || package == app_module || package in readers) && continue
+        push!(readers, package)
+    end
+    readers
+end
 
 """
     write_preferences(preferences, project) -> String
@@ -59,12 +101,13 @@ path.
 
 Preferences are read from the **active** project, so this writes into the one
 that gets compiled — the package the build wrote, not the package that holds the
-code. Every build writes every key it names: a build that wrote only what
-changed would leave the last build's answer for the rest, and that answer would
-be compiled into this binary.
+code. Every build writes the whole file, with every key it names and no other: a
+key or a package that only the last build named would be that build's answer,
+and that answer would be compiled into this binary.
 """
 function write_preferences(preferences, project::AbstractString)
     toml = joinpath(project, "LocalPreferences.toml")
+    rm(toml; force = true)
     by_package = Dict{String,Vector{Pair{String,Any}}}()
     for preference in _preferences(preferences)
         push!(get!(by_package, preference.package, Pair{String,Any}[]),

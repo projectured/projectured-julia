@@ -105,5 +105,19 @@ function test_device_config()
         @test get_device_pixel_ratio(backend.display) === before
     end
 
+    @testset "a new process probes its own machine" begin
+        # The precompile workload of the package runs the probes of the machine,
+        # and the package image keeps what they found. Only a new process loads
+        # the image, so the test starts one, with a density that it overrides.
+        code = "using ProjecturedSDL; S = ProjecturedSDL.SdlModule; " *
+               "print(S._DISPLAY_DENSITY_PROBED[], ' ', S._EGL_AVAILABLE[], ' ', " *
+               "S._detect_display_density!(), ' ', S._PROBED_DISPLAY_DENSITY[])"
+        command = `$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project()) -e $code`
+        output = withenv("PROJECTURED_DISPLAY_DENSITY" => "2") do
+            read(command, String)
+        end
+        @test output == "false nothing true 2.0"
+    end
+
 end
 end # test_device_config

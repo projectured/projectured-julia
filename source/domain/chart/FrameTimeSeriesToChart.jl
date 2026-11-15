@@ -17,8 +17,7 @@ repaints the lines and prints nothing again.
 
 # Example
 
-    projection = ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
-                                    ChartPlotToGraphicsCanvas(measure = measure))
+    projection = ChainingProjection(FrameTimeSeriesToChart(), make_chart_projection(; measure))
 
 See also [`FrameStatisticsToWidget`](@ref), which shows the same measurements
 as tables.
@@ -46,7 +45,7 @@ end
 _make_measurement_line(plot::FrameTimeSeries, index::Integer, name::AbstractString) =
     ChartLineSeries(name, @computation(collect(plot.frames)),
                     @computation(_get_frame_time_milliseconds(plot, index)),
-                    true, :linear, :solid, 1, :none, 4, nothing, true, nothing)
+                    true, :linear, :solid, 1, :none, 4, nothing, true, nothing, nothing, :whisker, nothing)
 
 # A column that a flush has not written yet reads as no value for each frame,
 # so the two columns of a line always have one length.

@@ -1,6 +1,29 @@
 
 const _gctx = PrinterContext
 
+# An engine that takes no constraint: it puts the boxes in one row, 20 px apart,
+# in the order of the vertices.
+struct _GptRowEngine <: GraphLayoutEngine end
+function ProjecturedGraph.GraphModule.layout_graph(engine::_GptRowEngine, graph::GraphGraph,
+                                                   sizes::Dict, constraints::Vector;
+                                                   extent = nothing, border::Real = 0)
+    check_constraints(engine, constraints)
+    positions = Dict{UInt,NTuple{4,Int}}()
+    x = 0
+    for vertex in layout_vertices(graph)
+        w, h = sizes[objectid(vertex)]
+        positions[objectid(vertex)] = (x, 0, w, h)
+        x += w + 20
+    end
+    (positions, get_straight_routes(graph, positions))
+end
+ProjecturedGraph.GraphModule.layout_engine_name(::_GptRowEngine) = :row
+
+# The corner of each box of `layout`, and its box `(x, y, w, h)`.
+_gpt_corners(layout) = [(Int(vl.x), Int(vl.y)) for vl in layout.vertex_layouts]
+_gpt_boxes(layout) = Dict(i => (Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h))
+                          for (i, vl) in enumerate(layout.vertex_layouts))
+
 function test_graph_projection()
 
 @testset "the engine a caller gets when it names none" begin
@@ -240,6 +263,54 @@ end
     @test vl2.w > w_before
 end
 
+@testset "a change of a size keeps the places of the vertices" begin
+    vertices = [GraphVertex(JsonString("v$i")) for i in 1:4]
+    graph = GraphGraph(vertices, [GraphEdge(vertices[i], vertices[i+1]) for i in 1:3])
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    layout = print_document(GraphGraphToGraphLayout(FruchtermanReingoldLayout()), content, graph,
+                            _gctx()).output
+    before = _gpt_corners(layout)
+    width = Int(layout.vertex_layouts[2].w)
+
+    # A box that grows a little keeps its corner, and the others keep theirs.
+    getfield(vertices[2], :content)[].value = "v2!"
+    @test Int(layout.vertex_layouts[2].w) == width + 10
+    @test _gpt_corners(layout) == before
+
+    # A box that grows into another one pushes the two apart, and a box that it
+    # does not reach stays.
+    grown = before[2]
+    getfield(vertices[2], :content)[].value = "v2" * "!"^30
+    boxes = _gpt_boxes(layout)
+    @test _are_boxes_disjoint(boxes)
+    reach = (grown[1] - 20, grown[2] - 20, boxes[2][3] + 40, boxes[2][4] + 40)
+    far = [i for i in (1, 3, 4)
+           if _are_boxes_disjoint(Dict(1 => reach, 2 => (before[i]..., boxes[i][3], boxes[i][4])))]
+    @test !isempty(far)
+    for i in far
+        @test _gpt_corners(layout)[i] == before[i]
+    end
+
+    # A new vertex gets a place among the others, and the others keep theirs.
+    kept = _gpt_corners(layout)
+    vertex = GraphVertex(JsonString("v5"))
+    push!(graph.vertices, vertex)
+    push!(graph.edges, GraphEdge(vertices[4], vertex))
+    @test length(layout.vertex_layouts) == 5
+    @test _gpt_corners(layout)[1:4] == kept
+    @test _are_boxes_disjoint(_gpt_boxes(layout))
+end
+
+@testset "an engine that takes no start lays out the graph again on a change of a size" begin
+    vertices = [GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))]
+    graph = GraphGraph(vertices, [GraphEdge(vertices[1], vertices[2])])
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    layout = print_document(GraphGraphToGraphLayout(_GptRowEngine()), content, graph, _gctx()).output
+    x = Int(layout.vertex_layouts[2].x)
+    getfield(vertices[1], :content)[].value = "abc"
+    @test Int(layout.vertex_layouts[2].x) == x + 20
+end
+
 @testset "a pin of a vertex wins over its start" begin
     v1 = GraphVertex(JsonString("a"))
     v2 = GraphVertex(JsonString("b"))
@@ -378,13 +449,13 @@ end
     g = make_graph_document_example()
     proj = make_graph_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     iomap = print_document(proj, g)
-    layout = iomap.child_iomap.step_iomaps[1][].output
+    drawing = _gvd_find_drawing(iomap)
     _steps(reference) = collect(get_reference_steps(strip_reference_types(reference)))
     _content(i) = _steps(@reference(g, vertices[i].content))
 
     for i in 1:length(g.vertices)
-        vl = layout.vertex_layouts[i]
-        middle = PointReferenceStep(Int(vl.x) + Int(vl.w) ÷ 2, Int(vl.y) + Int(vl.h) ÷ 2)
+        box = drawing.drawn_boxes[i]
+        middle = PointReferenceStep(box[1] + box[3] ÷ 2, box[2] + box[4] ÷ 2)
         back = map_reference_backward(proj, iomap, middle)
         @test back !== nothing
         back === nothing && continue
@@ -394,8 +465,8 @@ end
     end
     # The corner of the second box is on the opening brace of its content, a part that
     # the object printed: the object's own introduced step names it, at the object.
-    vl = layout.vertex_layouts[2]
-    corner = map_reference_backward(proj, iomap, PointReferenceStep(Int(vl.x) + 3, Int(vl.y) + 3))
+    box = drawing.drawn_boxes[2]
+    corner = map_reference_backward(proj, iomap, PointReferenceStep(box[1] + 3, box[2] + 3))
     corner_steps = _steps(corner)
     @test corner_steps[1:length(_content(2))] == _content(2)
     brace = corner_steps[length(_content(2)) + 1]
@@ -417,15 +488,9 @@ end
 
     output = print_document(renderer, graph).output
     @test output isa GraphicsCanvas
-    # A diagram, not a syntax tree: the vertices are placed boxes and the edge is
-    # drawn between them. Reflected `GraphGraph(…)` text would mean the `Any`
-    # fallback caught it.
-    elements = collect(output.elements)
-    @test count(e -> e isa GraphicsRect, elements) >= 2
-    @test any(e -> e isa GraphicsPolyline, elements)
-
-    # The widget vertex really went through the widget renderer.
-    text = String[]
+    # Every element that the drawing holds, also inside the viewport of the scroll
+    # pane that holds the graph.
+    drawn = Any[]
     pending, seen = Any[output], Set{UInt64}()
     while !isempty(pending)
         n = pop!(pending)
@@ -433,9 +498,20 @@ end
         n === nothing && continue
         objectid(n) in seen && continue
         push!(seen, objectid(n))
-        n isa GraphicsCanvas ? append!(pending, collect(n.elements)) :
-            n isa GraphicsText && push!(text, string(n.text))
+        push!(drawn, n)
+        n isa GraphicsCanvas && append!(pending, collect(n.elements))
+        n isa GraphicsViewport && push!(pending, n.content)
     end
+    # A diagram, not a syntax tree: the vertices are placed boxes and the edge is
+    # drawn between them. Reflected `GraphGraph(…)` text would mean the `Any`
+    # fallback caught it.
+    @test count(e -> e isa GraphicsRect, drawn) >= 2
+    @test any(e -> e isa GraphicsPolyline, drawn)
+    # The graph is in a scroll pane of its own.
+    @test any(e -> e isa GraphicsViewport, drawn)
+
+    # The widget vertex really went through the widget renderer.
+    text = [string(n.text) for n in drawn if n isa GraphicsText]
     @test "source" in text
     @test "sink" in text
 end
@@ -452,7 +528,7 @@ end
                                                           VertexLayout(b, 10, 500, 80, 30)]),
                            edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 40), (50, 500)])]))
     canvas = print_document(GraphLayoutToGraphicsCanvas(), layout).output
-    # Tall enough for the lower box (y 500 + h 30) plus the box padding and ring.
+    # Tall enough for the lower box (y 500 + h 30) plus the box padding.
     @test Int(canvas.h[]) >= 530
     @test Int(canvas.w[]) >= 90
 
@@ -463,8 +539,312 @@ end
     @test Int(canvas.h[]) >= 930
 
     # A route that bows outside every box it connects still counts.
-    push!(layout.edge_layouts, EdgeLayout(edge, [(50, 40), (4000, 40)]))
+    push!(layout.edge_layouts, EdgeLayout(edge, [(50, 25), (4000, 25), (50, 915)]))
     @test Int(canvas.w[]) >= 4000
 end
 
+@testset "an edge ends at the rim of the box that the drawing paints" begin
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    graph = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed = true)])
+    drawing = _gpt_draw_with_grid(graph)
+    layout = drawing.input
+    style = unwrap_cell(drawing.projection.style)
+    source, target = _gpt_get_node_rect(drawing, 1), _gpt_get_node_rect(drawing, 2)
+    # The drawing moves the layout right and down by its margin, the padding, so
+    # the painted box of a vertex at x 0 starts at x 0.
+    margin = style.node_padding
+    @test Int(target.x) == Int(layout.vertex_layouts[2].x)
+
+    # The grid puts the two boxes side by side, so the edge is level. It leaves the
+    # right side of the painted source box, and its arrowhead touches the left side
+    # of the painted target box.
+    first_layout = layout.vertex_layouts[1]
+    y = round(Int, Int(first_layout.y) + margin + Int(first_layout.h) / 2)
+    edge = only(_gpt_collect_lines(drawing))
+    @test edge.end_arrow
+    @test collect(edge.points) == [(Int(source.x) + Int(source.w), y), (Int(target.x), y)]
+
+    # A highlighted vertex has the border of the highlight inside its box, so the
+    # arrowhead still touches the box.
+    getfield(graph, :highlight_vertex)[] = v2
+    @test last(collect(only(_gpt_collect_lines(drawing)).points)) == (Int(target.x), y)
+    @test is_color_equal(_gpt_get_node_rect(drawing, 2).border_color, style.highlight)
+    getfield(graph, :highlight_vertex)[] = nothing
+
+    # The edge of a dragged vertex ends at the rim of the box where the pointer
+    # took it, on the line between the two centres.
+    getfield(layout, :drag)[] = (vertex = v2, index = 2, origin = (0, 0), offset = (0, 120),
+                                 started = true)
+    dragged = _gpt_get_node_rect(drawing, 2)
+    @test Int(dragged.y) == Int(layout.vertex_layouts[2].y) + margin + 120 - style.node_padding
+    points = collect(only(_gpt_collect_lines(drawing)).points)
+    @test _gpt_is_on_rim(source, first(points))
+    @test _gpt_is_on_rim(dragged, last(points))
+end
+
+@testset "a route between the centres of two boxes is cut at their painted rims" begin
+    # The shape of a route of libavoid: from centre to centre, with a bend.
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 25), (340, 215)])]))
+    projection = GraphLayoutToGraphicsCanvas()
+    style = unwrap_cell(projection.style)
+    pad = style.node_padding
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    canvas = print_document(projection, content, layout, _gctx()).output
+    lines() = filter(e -> e isa GraphicsPolyline, collect(canvas.elements))
+    # The drawing moves the layout and the bend right and down by its margin.
+    margin = pad
+    @test collect(only(lines()).points) ==
+          map(point -> point .+ margin, [(10 + 80 + pad, 25), (340, 25), (340, 200 - pad)])
+
+    # Two boxes that overlap leave no part of the line outside both, so the
+    # drawing draws no line.
+    getfield(layout.vertex_layouts[2], :x)[] = 30
+    getfield(layout.vertex_layouts[2], :y)[] = 20
+    getfield(layout.edge_layouts[1], :route)[] = [(50, 25), (70, 35)]
+    @test isempty(lines())
+end
+
+@testset "a curved edge leaves each box at a right angle to its side" begin
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    draw(projection) = collect(print_document(projection, content, layout, _gctx()).output.elements)
+    straight = only(filter(e -> e isa GraphicsPolyline, draw(GraphLayoutToGraphicsCanvas())))
+    elements = draw(GraphLayoutToGraphicsCanvas(edge_shape = :curved))
+    @test !any(e -> e isa GraphicsPolyline, elements)
+    curve = only(filter(e -> e isa GraphicsSpline, elements))
+    @test curve.kind === :bezier
+    @test curve.end_arrow
+
+    # The line between the centres leaves the bottom side of the first box and
+    # enters the top side of the second. The curve leaves the middle of the one
+    # side and enters the middle of the other; the straight edge ends where the
+    # line crosses them. The curve leaves downward and arrives downward, so each
+    # control point is straight below or above its end.
+    style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
+    margin = style.node_padding
+    pad = style.node_padding
+    points = collect(curve.points)
+    @test length(points) == 4
+    @test (points[1], points[4]) == ((50, 40 + pad) .+ margin, (340, 200 - pad) .+ margin)
+    ends = collect(straight.points)
+    @test first(ends)[2] == points[1][2] && first(ends)[1] != points[1][1]
+    @test last(ends)[2] == points[4][2] && last(ends)[1] != points[4][1]
+    @test points[2][1] == points[1][1] && points[2][2] > points[1][2]
+    @test points[3][1] == points[4][1] && points[3][2] < points[4][2]
+
+    @test_throws ArgumentError GraphLayoutToGraphicsCanvas(edge_shape = :wavy)
+    @test GraphToGraphics(edge_shape = :curved).projections[2].edge_shape === :curved
+end
+
+@testset "the ends of curved edges on one side of a box are spread along it in order" begin
+    # Two edges leave the bottom side of the top box: the first to a box down to
+    # the right, the second to a box down to the left. The end toward the left box
+    # stands at a third of the side and the other at two thirds, so the two do not
+    # cross. The one end on the top side of each lower box stands at its middle.
+    top, left, right = GraphVertex(JsonString("t")), GraphVertex(JsonString("l")), GraphVertex(JsonString("r"))
+    to_right, to_left = GraphEdge(top, right; directed = true), GraphEdge(top, left; directed = true)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(top, 200, 10, 80, 30),
+                                                          VertexLayout(left, 20, 200, 80, 30),
+                                                          VertexLayout(right, 380, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(to_right, [(240, 25), (420, 215)]),
+                                                          EdgeLayout(to_left, [(240, 25), (60, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout, _gctx())
+    curves = filter(e -> e isa GraphicsSpline, collect(drawing.output.elements))
+    @test length(curves) == 2
+    ends(k) = (first(collect(curves[k].points)), last(collect(curves[k].points)))
+    rect(i) = (r = _gpt_get_node_rect(drawing, i); (Int(r.x), Int(r.y), Int(r.w), Int(r.h)))
+    x, y, w, h = rect(1)
+    @test first(ends(2)) == (x + w ÷ 3, y + h)
+    @test first(ends(1)) == (x + 2w ÷ 3, y + h)
+    for (k, i) in ((1, 3), (2, 2))
+        x, y, w, h = rect(i)
+        @test last(ends(k)) == (x + w ÷ 2, y)
+    end
+    # Each curve leaves straight down and arrives straight down.
+    for k in 1:2
+        points = collect(curves[k].points)
+        @test points[2][1] == points[1][1] && points[2][2] > points[1][2]
+        @test points[3][1] == points[4][1] && points[3][2] < points[4][2]
+    end
+end
+
+@testset "a curved edge passes through the bends of its route, with its label on it" begin
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    canvas = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout,
+                            _gctx()).output
+    curve = only(filter(e -> e isa GraphicsSpline, collect(canvas.elements)))
+    points = collect(curve.points)
+    # Two spans: the ends of step one and the bend, with two control points each,
+    # moved by the margin of the drawing.
+    style = unwrap_cell(GraphLayoutToGraphicsCanvas().style)
+    margin = style.node_padding
+    @test points[[1, 4, 7]] == map(point -> point .+ margin, [(98, 25), (340, 25), (340, 192)])
+    # It leaves the right side to the right, and enters the top side downward.
+    @test points[2][2] == 25 + margin && points[2][1] > 98 + margin
+    @test points[6][1] == 340 + margin && points[6][2] < 192 + margin
+
+    # The label sits on the curve, at the middle of its length.
+    path = tessellate_spline(points, :bezier, Int(curve.segments))
+    label = first(filter(e -> e isa GraphicsCanvas, collect(canvas.elements)))
+    text = only(collect(label.elements))
+    @test is_point_near_polyline(path, Int(label.x) + Int(text.w) ÷ 2,
+                                 Int(label.y) + Int(text.h) ÷ 2, 2)
+
+    # The highlight strokes the same curve again.
+    getfield(layout, :highlight_edge)[] = edge
+    @test count(e -> e isa GraphicsSpline, collect(canvas.elements)) == 2
+end
+
+@testset "the light and the highlight paint the border of a box and change no edge" begin
+    # A highlight paints inside the box, so each edge keeps its points, each box
+    # its place and its size, and each label its place.
+    a, b = GraphVertex(JsonString("a")), GraphVertex(JsonString("b"))
+    edge = GraphEdge(a, b; directed = true, label = JsonString("x"))
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 300, 200, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 25), (340, 215)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(edge_shape = :curved), content, layout, _gctx())
+    style = unwrap_cell(drawing.projection.style)
+    curves() = filter(e -> e isa GraphicsSpline, collect(drawing.output.elements))
+    label_place() = (label = first(filter(e -> e isa GraphicsCanvas, collect(drawing.output.elements)));
+                     (Int(label.x), Int(label.y)))
+    rect(i) = _gpt_get_node_rect(drawing, i)
+    boxes() = [(Int(rect(i).x), Int(rect(i).y), Int(rect(i).w), Int(rect(i).h)) for i in 1:2]
+    plain, plain_boxes, place = collect(first(curves()).points), boxes(), label_place()
+    label_boxes = getfield(drawing, :label_boxes)[]
+
+    # The highlight of the target: its border takes the color and the width of the
+    # highlight, and the other box keeps its border.
+    getfield(layout, :highlight_vertex)[] = b
+    @test collect(first(curves()).points) == plain
+    @test boxes() == plain_boxes
+    @test is_color_equal(rect(2).border_color, style.highlight)
+    @test Int(rect(2).border_width) == style.highlight_width
+    @test is_color_equal(rect(1).border_color, style.node_border)
+    @test label_place() == place
+    getfield(layout, :highlight_vertex)[] = nothing
+
+    # The light of the target lights the source too: both borders take the color
+    # of the light, the box under the pointer is filled with it, and the lit line
+    # covers the same line. The edges that the drawing calculated stay as they are.
+    replace_mouse_target!(layout, extend_reference(EmptyReference(), FieldReferenceStep("vertex_layouts"),
+                                                   ElementReferenceStep(2), FieldReferenceStep("vertex")))
+    lines = curves()
+    @test length(lines) == 2
+    @test collect(first(lines).points) == plain && collect(last(lines).points) == plain
+    @test boxes() == plain_boxes
+    @test all(i -> is_color_equal(rect(i).border_color, style.light_edge), 1:2)
+    @test is_color_equal(rect(2).color, style.light) && is_color_equal(rect(1).color, style.node_fill)
+    @test label_place() == place
+    @test getfield(drawing, :label_boxes)[] === label_boxes
+end
+
+@testset "a label stands on the lines, on a rectangle of the color of the page" begin
+    # The second edge crosses the label of the first one. The label comes after
+    # every line, on a rectangle of `label_fill` that is `label_padding` larger on
+    # each side, so no line crosses its text.
+    a, b, c, d = (GraphVertex(JsonString(name)) for name in ("a", "b", "c", "d"))
+    labelled, crossing = GraphEdge(a, b; label = JsonString("x")), GraphEdge(c, d)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 100, 40, 20),
+                                                          VertexLayout(b, 400, 100, 40, 20),
+                                                          VertexLayout(c, 200, 10, 40, 20),
+                                                          VertexLayout(d, 200, 300, 40, 20)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(labelled, [(30, 110), (420, 110)]),
+                                                          EdgeLayout(crossing, [(220, 20), (220, 310)])]))
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    drawing = print_document(GraphLayoutToGraphicsCanvas(), content, layout, _gctx())
+    style = unwrap_cell(drawing.projection.style)
+    elements = collect(drawing.output.elements)
+    label = findfirst(e -> e isa GraphicsCanvas, elements)
+    @test label > findlast(e -> e isa GraphicsPolyline, elements)
+    background = elements[label - 1]
+    @test background isa GraphicsRect && is_color_equal(background.color, style.label_fill)
+    g = style.label_padding
+    box = first(getfield(drawing, :label_boxes)[])
+    @test (Int(background.x), Int(background.y), Int(background.w), Int(background.h)) ==
+          (box[1] - g, box[2] - g, box[3] + 2g, box[4] + 2g)
+    @test (Int(elements[label].x), Int(elements[label].y)) == (box[1], box[2])
+    # The crossing line passes under the label.
+    vertical = elements[findlast(e -> e isa GraphicsPolyline, elements)]
+    @test box[1] <= first(first(collect(vertical.points))) <= box[1] + box[3]
+end
+
+@testset "the text of a vertex and the label of an edge can be edited" begin
+    # A key at each place of each text changes that text and moves the caret, as
+    # the type-in sweep of the examples checks it.
+    text(value) = TextBlock(TextLine(TextString(value, StyleFont("Ubuntu", 13), color_default)))
+    a, b = GraphVertex(text("orders")), GraphVertex(text("queue"))
+    graph = GraphGraph([a, b], [GraphEdge(a, b; directed = true, label = text("publishes"))])
+    measure = FixedMeasure(10, 15, 5, 0)
+    projection = make_graph_projection_example(; measure, content = NaturalToGraphics(; measure))
+    results = ProjecturedPlatformTest.walk_typein(graph, projection)
+    @test count(r -> occursin(".edges", string(r.ref)), results) > 0
+    @test count(r -> occursin(".vertices", string(r.ref)), results) > 0
+    @test all(r -> r.ok, results)
+
+    # A point on the label maps to a place in the label.
+    iomap = print_document(projection, graph)
+    drawing = _gvd_find_drawing(iomap)
+    box = drawing.label_boxes[1]
+    back = map_reference_backward(projection, iomap, PointReferenceStep(box[1] + 2, box[2] + box[4] ÷ 2))
+    @test back !== nothing
+    back === nothing ||
+        @test collect(get_reference_steps(strip_reference_types(back)))[1:3] ==
+              collect(get_reference_steps(strip_reference_types(@reference(graph, edges[1].label))))
+end
+
+@testset "a click on the label of an edge puts the caret in the label" begin
+    text(value) = TextBlock(TextLine(TextString(value, StyleFont("Ubuntu", 13), color_default)))
+    a, b = GraphVertex(text("orders")), GraphVertex(text("queue"))
+    graph = GraphGraph([a, b], [GraphEdge(a, b; directed = true, label = text("publishes"))])
+    measure = _gvd_measure()
+    editor, backend, _ = _gvd_editor(graph; projection = make_graph_projection_example(; measure,
+                                                                                         content = NaturalToGraphics(; measure)))
+    drawing = _gvd_find_drawing(editor.iomap)
+    origin = _gvd_place_of(editor, drawing.output)
+    box = drawing.label_boxes[1]
+    x, y = origin[1] + box[1] + 2, origin[2] + box[2] + box[4] ÷ 2
+    _gvd_down!(editor, backend, x, y, 1.0)
+    _gvd_up!(editor, backend, x, y, 1.05)
+    steps = collect(get_reference_steps(strip_reference_types(something(get_selection(graph), EmptyReference()))))
+    @test length(steps) >= 3 &&
+          steps[1:3] == collect(get_reference_steps(strip_reference_types(@reference(graph, edges[1].label))))
+end
+
 end # test_graph_projection
+
+# The drawing of `graph` by the grid engine, as its IO map.
+function _gpt_draw_with_grid(graph)
+    content = make_mixed_projection_example(measure = FixedMeasure(10, 15, 5, 0))
+    projection = NestingProjection(ChainingProjection(GraphGraphToGraphLayout(GridEmbedding()),
+                                                      GraphLayoutToGraphicsCanvas());
+                                   recursion = content)
+    print_document(projection, graph).child_iomap.step_iomaps[2][]
+end
+
+_gpt_get_node_rect(drawing, i) = collect(drawing.output.elements)[drawing.node_elements[i]]
+
+_gpt_collect_lines(drawing) = filter(e -> e isa GraphicsPolyline, collect(drawing.output.elements))
+
+# Whether `point` lies on the rim of the rectangle `rect`.
+function _gpt_is_on_rim(rect, point)
+    x, y, w, h = Int(rect.x), Int(rect.y), Int(rect.w), Int(rect.h)
+    px, py = point
+    (px in (x, x + w) && y <= py <= y + h) || (py in (y, y + h) && x <= px <= x + w)
+end

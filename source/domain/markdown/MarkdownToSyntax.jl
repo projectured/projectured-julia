@@ -274,7 +274,13 @@ end
 function map_reference_forward(p::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         proj(^(p), inner) => inner
-        ::MarkdownText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+        # A caret or a range is built again in the types of the output, because a
+        # caller can give the path with no types.
+        ::MarkdownText.content => @reference ::SyntaxLeaf.value::TextString
+        ::MarkdownText.content{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
@@ -348,24 +354,35 @@ struct MarkdownHeadingToStyledNode <: MarkdownStyledInline
     heading_1_font::Any
     heading_2_font::Any
     heading_3_font::Any
-    heading_font::Any
+    heading_4_font::Any
+    heading_5_font::Any
+    heading_6_font::Any
     heading_color::Any
+    minor_heading_color::Any
     body_text::Any
 end
 MarkdownHeadingToStyledNode(; theme = nothing) =
     MarkdownHeadingToStyledNode(get_markdown_style(theme, :heading_1_font),
                                 get_markdown_style(theme, :heading_2_font),
                                 get_markdown_style(theme, :heading_3_font),
-                                get_markdown_style(theme, :heading_font),
+                                get_markdown_style(theme, :heading_4_font),
+                                get_markdown_style(theme, :heading_5_font),
+                                get_markdown_style(theme, :heading_6_font),
                                 get_markdown_style(theme, :heading_color),
+                                get_markdown_style(theme, :minor_heading_color),
                                 get_markdown_style(theme, :body_text))
 
-# The font that `p` holds for a heading at `level` (1-based; every level past
-# the third takes `heading_font`).
+# The font that `p` holds for a heading at `level` (1-based, 1 to 6).
 _get_heading_font(p::MarkdownHeadingToStyledNode, level::Int) =
     unwrap_cell(level <= 1 ? p.heading_1_font :
                 level == 2 ? p.heading_2_font :
-                level == 3 ? p.heading_3_font : p.heading_font)
+                level == 3 ? p.heading_3_font :
+                level == 4 ? p.heading_4_font :
+                level == 5 ? p.heading_5_font : p.heading_6_font)
+
+# The colour that `p` holds for a heading at `level`: levels 5 and 6 are muted.
+_get_heading_color(p::MarkdownHeadingToStyledNode, level::Int) =
+    unwrap_cell(level >= 5 ? p.minor_heading_color : p.heading_color)
 
 # Augment the ambient style with what this container's mode draws. There is no
 # bold-italic face, so nesting keeps the innermost weight (a documented v1
@@ -382,7 +399,8 @@ _mode_style(p::MarkdownLinkToStyledNode, ambient::StyleText, doc) =
 _mode_pointer_shape(::MarkdownLinkToStyledNode, ambient) = :pointing_hand
 _mode_pointer_shape(::MarkdownStyledInline, ambient) = ambient
 _mode_style(p::MarkdownHeadingToStyledNode, ambient::StyleText, doc) =
-    StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)), unwrap_cell(p.heading_color))
+    StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)),
+              _get_heading_color(p, clamp(doc.level, 1, 6)))
 
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, unwrap_cell(p.body_text))
@@ -466,18 +484,15 @@ end
     placeholder::StyleText   = get_markdown_style(nothing, :marker_text)
 end
 
-# The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
-# `url` names a file on disk (sized to its natural extent, capped at `max_w`);
-# otherwise the url / a placeholder as text.
+# The image span: an inline `TextGraphics` with an `Image` when `url` names a file
+# on disk (sized to its natural extent, capped at `max_w`, and 720 by 460 until the
+# size of its file is read, not until its pixels are); otherwise the url / a placeholder as text.
 function _md_image_value(url, placeholder::StyleText; max_w::Int = 640)
     if url isa AbstractString && !isempty(url) && isfile(String(url))
-        path = String(url)
-        img  = ImageFile(path)
-        raw  = getfield(img, :raw)
-        set_cell_computation!(raw, () -> (try decode_image(path) catch; nothing end))
-        _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
-        dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
-        dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        img  = Image(String(url))
+        _nat(i, fb) = (size = get_image_natural_size(img); size === nothing ? fb : Int(size[i]))
+        dw = Cell(@computation Int32(min(_nat(1, 720), max_w)))
+        dh = Cell(@computation begin w = min(_nat(1, 720), max_w); Int32(round(Int, _nat(2, 460) * w / _nat(1, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(isempty(String(url)) ? "image" : String(url), placeholder)

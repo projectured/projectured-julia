@@ -95,7 +95,7 @@ end
 end
 
 @testset "A click puts the caret of the view that it hits" begin
-    place_y = Int(iomap.output.elements[2].y)
+    place_y = Int(iomap.output.elements[1].elements[2].y)
     # x = 25 is between the caret 2 and the caret 3 of `"abXcd"`: `.value{1}`.
     @test press!(MouseClick(:left, 25, place_y + 5; time = 0.0)) isa ReplaceSelectionOperation
     @test stored(view_b) == value_caret(1) && is_live_selection(view_b)
@@ -384,14 +384,18 @@ view_a.elements[3].collapsed = true
     view_b = held(2)
     @test view_b isa JsonArrayView && view_b !== view_a && view_b.viewed === array
     @test held(1) === view_a
-    # The new view starts with the fold and the caret of view A, and its caret is
-    # the live one.
+    # The new view starts with the fold of view A. A paste selects what it puts in
+    # as a whole, so the new view is the live selection, and its copy of the caret
+    # of view A waits in it as a dormant one.
     @test view_b.elements[3].collapsed && view_b.elements[3] !== view_a.elements[3]
-    @test stored(view_b) == plain(@reference(view_b, elements[1].value{1}))
+    @test get_selection(view_b) isa EmptyReference
     @test is_live_selection(view_b) && !is_live_selection(view_a)
+    leaf_b = view_b.elements[1]
+    @test stored(leaf_b) == plain(@reference(leaf_b, value{1})) && !is_live_selection(leaf_b)
     @test length(texts()) == 2 && texts()[1] == texts()[2]
 
     # Then each view keeps its own caret and its own fold, over one content.
+    select!(at(2, view_b, @reference(view_b, elements[1].value{1})))
     @test press!(KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
     @test stored(view_b) == plain(@reference(view_b, elements[1].value{2}))
     @test stored(view_a) == plain(@reference(view_a, elements[1].value{1}))
@@ -415,8 +419,12 @@ end
     select!(place(4))
     @test press!(ctrl(:v; alt = true)) isa CompoundOperation
     @test held(4) === view_a
-    # The path from the root goes through the new place: the caret of view A is
-    # live there and dormant at its first place.
+    # A paste selects what it puts in as a whole: view A is the live selection,
+    # through its new place.
+    @test get_selection(view_a) isa EmptyReference && is_live_selection(view_a)
+    # A caret through the new place is the one caret of view A: live there, and
+    # dormant at its first place.
+    select!(at(4, view_a, @reference(view_a, elements[1].value{1})))
     @test stored(view_a) == plain(@reference(view_a, elements[1].value{1}))
     views = [m for m in drawn()]
     @test length(views) == 4
@@ -495,8 +503,11 @@ end
 @testset "A cut takes a view from its place" begin
     select_whole!(3)
     taken = held(3)
+    count = length(layout.children)
     @test press!(ctrl(:x)) isa CompoundOperation
-    @test root.slice === taken && held(3) isa DocumentNothing
+    # The place is an element of the list of the layout, so the element goes.
+    @test root.slice === taken && length(layout.children) == count - 1
+    @test !any(child -> child === taken, layout.children)
 end
 
 end

@@ -65,11 +65,20 @@ clipboard's text) in at the caret. `text` defaults to `false`.
 whose content must not be cut, or whose whole view must not be swapped for the
 stored slice, leaves out `:cut` or `:toggle`.
 
-A paste and a cut write only where the paste rules allow: the selection names a
-whole document, every document from the content down to it accepts a pasted
-document (`accepts_pasted_document`), the slot takes the value, and the document
-in the slot accepts it as a replacement (`accepts_pasted_replacement`).
-Otherwise the gesture goes on to the content.
+A paste writes only where the paste rules allow: the selection names a whole
+document, every document from the content down to it accepts a pasted document
+(`accepts_pasted_document`), the slot takes the value, and the document in the
+slot accepts it as a replacement (`accepts_pasted_replacement`). Otherwise the
+gesture goes on to the content. Before a paste replaces a whole document, that
+document can take a stored document that is no plain text in its own way
+(`make_pasted_document_operation`), as a dashboard takes it as a card.
+
+A cut is what a copy stores and the content's answer to Delete at the same
+selection, in one operation; a cut that can not delete stores nothing. Delete and
+Backspace that nothing inside answers take a whole selected document out of its
+slot by the same rules: an element leaves its list, and a field gets the empty
+document of its domain. That edit goes down to the document that holds the slot,
+so each reader and each history on the way reads it.
 
 A copy and a note take the selected document or, when the selection names a
 frame such as a pane tab, the document that [`find_clipboard_document`](@ref)
@@ -102,6 +111,7 @@ ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from
     output::Any             # content or slice child output
     content_iomap::Any
     slice_iomap::Any        # iomap of the stored slice while it is on display, or nothing
+    recursion::Any          # the projection the children were printed with, which reads them
 end
 
 # ── Printers ────────────────────────────────────────────────────────────────
@@ -123,7 +133,7 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
         slice = slice_iomap[]
         slice === nothing ? content_iomap.output : slice.output
     end)
-    ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap)
+    ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap, recursion)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
@@ -183,12 +193,95 @@ function _maybe_os_mirror!(ops, p, obj)
     ops
 end
 
+# ── The text of the system clipboard ──────────────────────────────────────────
+# A reader reads nothing outside the document, so a paste that needs the text of
+# the system clipboard answers `PasteOsClipboardOperation`, and its evaluation
+# reads the text off the task of the editor. The paste functions below take that
+# text as `os`: `UNREAD_OS_TEXT` in a reader, and the text read, or `nothing`
+# when the clipboard has none, in the evaluation.
+
+struct UnreadOsText end
+const UNREAD_OS_TEXT = UnreadOsText()
+
+"""
+    PasteOsClipboardOperation(place, projection, copy)
+
+A paste that takes the text of the system clipboard. Its evaluation reads the
+clipboard on a task of its own, after the writes started before it, and pastes
+at `place`, the clipboard document that the gesture landed in: at once when the
+read ends inside a short wait, which is the usual case, else when the text comes,
+if the place still exists. `copy` is the paste of a fresh copy.
+
+The start of the paste writes no document, so undo steps over it.
+"""
+struct PasteOsClipboardOperation <: Operation
+    place::Reference        # the clipboard document, from where the operation stands
+    projection::Any         # ::ClipboardSliceToAnyProjection
+    copy::Bool
+end
+
+OperationModule.operation_reference(op::PasteOsClipboardOperation) = op.place
+OperationModule.retarget_operation(op::PasteOsClipboardOperation, place::Reference) =
+    PasteOsClipboardOperation(place, op.projection, op.copy)
+make_inverse_operation(document, ::PasteOsClipboardOperation) = DoNothingOperation()
+
+# What a reader answers for a paste that needs the text of the system clipboard.
+_paste_os_text(p; copy::Bool = false) =
+    ReplaceViewStateOperation(PasteOsClipboardOperation(EmptyReference(), p, copy))
+
+function evaluate_operation(editor, op::PasteOsClipboardOperation)
+    start_document_read!(editor, read_os_clipboard,
+                         text -> ApplyOsClipboardPasteOperation(op.place, op.projection,
+                                                                op.copy, text))
+    nothing
+end
+
+"""
+    ApplyOsClipboardPasteOperation(place, projection, copy, text)
+
+The paste of `PasteOsClipboardOperation`, once the text of the system clipboard
+is read. It makes the edit of the paste at `place` and evaluates it as an
+operation from the root: each reader between the place and the root lifts it, as
+it lifts the answer to a gesture. A place that holds no clipboard document pastes
+nothing.
+"""
+struct ApplyOsClipboardPasteOperation <: Operation
+    place::Reference
+    projection::Any
+    copy::Bool
+    text::Any               # ::String, nothing, or the exception of the read
+end
+
+OperationModule.is_self_contained_operation(::ApplyOsClipboardPasteOperation) = true
+make_inverse_operation(document, ::ApplyOsClipboardPasteOperation) = DoNothingOperation()
+
+function evaluate_operation(editor, op::ApplyOsClipboardPasteOperation)
+    text = op.text isa AbstractString ? String(op.text) : nothing
+    input = try_evaluate_reference(editor.document, op.place, nothing)
+    if !(input isa ClipboardSlice)
+        @warn("The paste came after its place was gone, so it pastes nothing.", place = op.place)
+        return nothing
+    end
+    edit = op.copy ? _clipboard_paste_copy(op.projection, input; os = text) :
+                     _clipboard_paste(op.projection, input; os = text)
+    edit === nothing && return nothing
+    # A placed edit goes down to its place from the root, so each reader and each
+    # history on the way reads it.
+    rooted = edit isa NamedTuple ?
+        _read_down_to_place(edit.place, edit.operation) do at, operation
+            read_rooted_operation(editor, concat_references(op.place, at), operation;
+                                  description = "Paste")
+        end :
+        read_rooted_operation(editor, op.place, edit; description = "Paste")
+    rooted === nothing || evaluate_operation(editor, rooted)
+    nothing
+end
+
 # Build a Document from the OS clipboard text via the projection's `from_text`
-# converter, or `nothing` when there is no converter, no readable OS text, or the
-# converter declines / errors. Used as the empty-slice paste fallback.
-function _os_paste_document(p)
+# converter, or `nothing` when there is no converter, no OS text, or the converter
+# declines / errors. Used as the empty-slice paste fallback.
+function _os_paste_document(p, text)
     p.from_text === nothing && return nothing
-    text = read_os_clipboard()
     text === nothing && return nothing
     doc = try p.from_text(text) catch; nothing end
     doc isa Document ? doc : nothing
@@ -220,29 +313,18 @@ function _text_clipboard_copy(p, input)
     ])
 end
 
-function _text_clipboard_cut(p, input)
-    content = input.content
-    content isa TextBlock || return nothing
-    sub = get_selection_substring(content)
-    sub === nothing && return nothing
-    del = make_text_insert_operation(content, "")              # replace the selected range with "" = delete
-    del === nothing && return nothing
-    CompoundOperation(Any[
-        make_replace_document_operation(_field_path("slice"), TextString(sub)),
-        reroot_operation(del, (FieldReferenceStep("content"),)),
-        WriteOsClipboardOperation(sub),
-    ])
-end
-
-function _text_clipboard_paste(p, input)
+function _text_clipboard_paste(p, input; os = UNREAD_OS_TEXT)
     content = input.content
     content isa TextBlock || return nothing
     str = _slice_text(input.slice)                 # primary: the ProjecturEd clipboard
-    str === nothing && (str = read_os_clipboard())  # fallback: the OS clipboard
+    if str === nothing                             # fallback: the OS clipboard
+        os === UNREAD_OS_TEXT && return _paste_os_text(p)
+        str = os
+    end
     str === nothing && return nothing
     op = make_text_insert_operation(content, str)
     op === nothing && return nothing
-    reroot_operation(op, (FieldReferenceStep("content"),))
+    (; place = _field_path("content"), operation = op)
 end
 
 # ── Text targets ────────────────────────────────────────────────────────────────
@@ -290,7 +372,7 @@ function evaluate_operation(editor, op::CopyReferenceOperation)
     isempty(steps) && return nothing
     text = make_reference_code(_make_steps_path(steps))
     op.clipboard.slice = PrimitiveString(text)
-    write_os_clipboard!(text)
+    start_os_clipboard_write!(text)
     nothing
 end
 
@@ -305,34 +387,89 @@ make_reference_code(reference) =
     "evaluate_reference(editor.document, @reference(editor.document, " *
     lstrip(sprint(show, reference), '.') * "))"
 
-function _text_target_paste(p, input)
-    target = _find_text_target(input; writes = true)
+function _text_target_paste(p, input; os = UNREAD_OS_TEXT, copy::Bool = false, whole::Bool = false)
+    target = whole ? _find_whole_value_target(input) : _find_text_target(input; writes = true)
     target === nothing && return nothing
-    text = read_os_clipboard()
+    os === UNREAD_OS_TEXT && return _paste_os_text(p; copy)
+    text = os
     (text === nothing || isempty(text)) && (text = _slice_text(input.slice))
     text === nothing && return nothing
     pasted = _make_pasted_text(target, text)
     pasted === nothing && return nothing
-    _make_text_target_edit(target, pasted)
+    (place, rest) = _split_at_place(input, target.path)
+    (; place, operation = _make_text_target_edit(target, pasted; path = rest))
 end
 
-function _text_target_copy(p, input; cut::Bool = false)
-    target = _find_text_target(input; writes = cut)
+# The edit of a paste that puts `value` at `path`, a whole document, and selects
+# it, as a placed edit.
+function _make_replace_edit(input, path::Reference, value)
+    (place, rest) = _split_at_place(input, path)
+    (; place, operation = CompoundOperation(Any[make_replace_document_operation(rest, value),
+                                                ReplaceSelectionOperation(rest)]))
+end
+
+# Whether a paste on the whole selected document is a text typed over its value:
+# the stored copy is a text of another kind than that document, or there is no
+# stored copy and no converter of the text of the system clipboard. An empty
+# place, such as the hole that a cut leaves, takes the stored document instead.
+function _is_whole_value_paste(p, input)
+    selected = try_evaluate_reference(input, input.selection, missing)
+    selected isa Document || return false
+    # The general type of the document, which the domain names as its placeholder.
+    is_domain_placeholder(Base.typename(typeof(selected)).wrapper) && return false
+    slice = input.slice
+    slice === nothing && return p.from_text === nothing
+    _slice_text(slice) !== nothing && typeof(slice) !== typeof(selected)
+end
+
+# The document that a paste puts on the whole selected document: the stored
+# document, except a stored text in a hole of a domain, which becomes the
+# insertion of that domain with the text in it, so the hole holds a document of
+# its own domain.
+function _make_pasted_value(input, slice)
+    text = _slice_text(slice)
+    text === nothing && return slice
+    selected = try_evaluate_reference(input, input.selection, missing)
+    selected isa Document || return slice
+    insertion = get_domain_insertion(typeof(selected))
+    insertion === nothing ? slice : insertion(text)
+end
+
+# What a reader answers for the result of a paste. A placed edit, an `operation`
+# relative to the document that `place` names from the clipboard document, goes
+# down to its place, so each reader and each history on the way reads it. An
+# operation, such as the start of a read of the system clipboard, is the answer.
+_read_paste(p, iomap, result) =
+    result isa NamedTuple ?
+        _read_placed_operation(p, iomap, result.place, result.operation; description = "Paste") :
+        result
+
+function _text_target_copy(p, input)
+    target = _find_text_target(input; writes = false)
     (target === nothing || target.start == target.stop) && return nothing
     text = _get_text_target_text(target)
-    ops = Any[make_replace_document_operation(_field_path("slice"),
-                                              PrimitiveString(text)),
-              cut ? _make_text_target_edit(target, "") : ReplaceSelectionOperation(target.path),
-              WriteOsClipboardOperation(text)]
-    CompoundOperation(ops)
+    CompoundOperation(Any[make_replace_document_operation(_field_path("slice"),
+                                                          PrimitiveString(text)),
+                          ReplaceSelectionOperation(target.path),
+                          WriteOsClipboardOperation(text)])
 end
+
+# The document that a copy takes for a selected value that is not a document: the
+# primitive document of its kind, or `nothing` for a value that has none. A note
+# names the original, so it takes no such document.
+_make_value_document(value::AbstractString) = PrimitiveString(String(value))
+_make_value_document(value::Bool) = PrimitiveBool(value)
+_make_value_document(value::Number) = PrimitiveNumber(value)
+_make_value_document(value) = nothing
 
 # Copy: store an independent copy of the selected object in the slice, made with
 # `ClipboardCopyPolicy`, so a tool is stored as its duplicate. The
 # write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
 # selection to where it writes), so a trailing ReplaceSelectionOperation restores
 # the user's original selection on the copied source. When the projection has a
-# `to_text` converter, the copy is also mirrored to the OS clipboard.
+# `to_text` converter, the copy is also mirrored to the OS clipboard. A selected
+# value that is not a document, such as the `String` title of a card, is copied as
+# the primitive document of its kind.
 function _clipboard_copy(p, input)
     # Text mode is exclusive over a TextBlock content: never fall through to the node
     # path (which would `evaluate_reference` a character selection).
@@ -341,6 +478,7 @@ function _clipboard_copy(p, input)
     text === nothing || return text
     sel, selected = _selected(input)
     obj = find_clipboard_document(selected)
+    obj === nothing && (obj = _make_value_document(selected))
     obj === nothing && return nothing
     payload = _make_clipboard_copy(obj)
     payload === nothing && return nothing
@@ -353,20 +491,76 @@ function _clipboard_copy(p, input)
     CompoundOperation(ops)
 end
 
-# Cut: store the live object in the slice and blank out its source position.
-function _clipboard_cut(p, input)
-    (p.text && input.content isa TextBlock) && return _text_clipboard_cut(p, input)
-    text = _text_target_copy(p, input; cut = true)
+# Cut: what a copy stores, and the content's answer to Delete at the same
+# selection, in one operation. A cut that can not delete stores nothing. A range
+# stores its characters. A whole document goes into the slice itself, not a
+# copy: it leaves the document, so a cut and a paste move it, a tool too. The
+# delete comes last, so the selection is where the delete leaves it.
+function _clipboard_cut(p, iomap, input, event)
+    stored = _make_cut_store(p, input)
+    stored === nothing && return nothing
+    delete = _read_delete(p, iomap, event)
+    delete === nothing && return nothing
+    CompoundOperation(Any[stored, delete])
+end
+
+function _make_cut_store(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
+    text = _text_target_copy(p, input)
     text === nothing || return text
     sel, obj = _selected(input)
     obj isa Document || return nothing
-    _find_paste_target(input, DocumentNothing()) === nothing && return nothing
-    ops = Any[
-        make_replace_document_operation(_field_path("slice"), obj),
-        make_replace_document_operation(sel, DocumentNothing()),
-    ]
+    ops = Any[make_replace_document_operation(_field_path("slice"), obj),
+              ReplaceSelectionOperation(sel)]
     _maybe_os_mirror!(ops, p, obj)
     CompoundOperation(ops)
+end
+
+# The content's answer to Delete at the selection, rooted at the clipboard
+# document, or else the delete of the whole selected document, or `nothing`.
+function _read_delete(p, iomap, event)
+    time = hasproperty(event, :time) ? event.time : 0.0
+    answer = _read_content_gesture(iomap, KeyDown(:delete, ModifierKeys(); time))
+    answer === nothing ? _read_whole_delete(p, iomap) : answer
+end
+
+# The answer of the child on display to `gesture` at the selection, rooted at the
+# clipboard document, or `nothing` when the child has none.
+function _read_content_gesture(iomap, gesture)
+    name, child = _slice_active(iomap)
+    answer = read_intent(child.projection, iomap.recursion, Intent(gesture), child)
+    operation = answer isa Intent ? answer.operation : answer
+    operation isa Operation || return nothing
+    reroot_operation(operation, (FieldReferenceStep(name),))
+end
+
+# Delete and Backspace with no modifier: the keys that take a whole selected
+# document out of its slot when nothing inside answers them.
+_is_delete_key(event) =
+    event isa KeyDown && event.key in (:delete, :backspace) && event.modifiers == ModifierKeys()
+
+# The delete of the whole selected document, read down to the document that holds
+# its slot, so each reader and each history on the way reads it as the answer of
+# that document. `nothing` when the host offers no cut, or the slot must not change.
+function _read_whole_delete(p, iomap)
+    :cut in p.offered_gestures || return nothing
+    delete = _make_whole_delete(iomap.input)
+    delete === nothing && return nothing
+    _read_placed_operation(p, iomap, delete.place, delete.operation; description = "Delete")
+end
+
+# `operation`, which is relative to the document that `place` names from the
+# clipboard document, read down to that place by its route, and rooted at the
+# clipboard document: each reader on the way lifts it, as it lifts the answer to
+# a gesture. `nothing` when the readers do not carry it.
+function _read_placed_operation(p, iomap, place::Reference, operation; description = "")
+    _read_down_to_place(place, operation) do at, edit
+        at isa EmptyReference && return edit
+        answer = read_intent(p, iomap.recursion,
+                             Intent(nothing, edit, String(description), "clipboard", at), iomap)
+        rooted = answer isa Intent ? answer.operation : answer
+        rooted isa Operation ? rooted : nothing
+    end
 end
 
 # Note: like copy, but stores the live object (no deep copy). Restores the
@@ -392,30 +586,29 @@ end
 # of a stored view. The trailing ReplaceSelectionOperation pins the selection to
 # the pasted target (rather than letting it follow the slice's stale inner
 # selection). When the internal slice is empty, fall back to the OS clipboard via
-# the projection's `from_text` converter.
-function _clipboard_paste(p, input)
-    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+# the projection's `from_text` converter: in a reader that is a
+# `PasteOsClipboardOperation`, whose evaluation reads it.
+function _clipboard_paste(p, input; os = UNREAD_OS_TEXT)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice)
     taken === nothing || return taken
-    text = _text_target_paste(p, input)
+    text = _text_target_paste(p, input; os)
     text === nothing || return text
+    _is_whole_value_paste(p, input) && return _text_target_paste(p, input; os, whole = true)
     slice = input.slice
     if !(slice isa Document)
-        doc = _os_paste_document(p)
+        p.from_text === nothing && return nothing
+        os === UNREAD_OS_TEXT && return _paste_os_text(p)
+        doc = _os_paste_document(p, os)
         doc === nothing && return nothing
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing
-        return CompoundOperation(Any[
-            make_replace_document_operation(sel, doc),
-            ReplaceSelectionOperation(sel),
-        ])
+        return _make_replace_edit(input, sel, doc)
     end
-    sel = _find_paste_target(input, slice)
+    value = _make_pasted_value(input, slice)
+    sel = _find_paste_target(input, value)
     sel === nothing && return nothing
-    CompoundOperation(Any[
-        make_replace_document_operation(sel, make_pasted_document(slice)),
-        ReplaceSelectionOperation(sel),
-    ])
+    _make_replace_edit(input, sel, value === slice ? make_pasted_document(slice) : value)
 end
 
 # Paste the same view: replace the selection target with the stored slice itself.
@@ -427,30 +620,30 @@ function _clipboard_paste_same_view(p, input)
     slice isa Document || return nothing
     sel = _find_paste_target(input, slice)
     sel === nothing && return nothing
-    CompoundOperation(Any[
-        make_replace_document_operation(sel, slice),
-        ReplaceSelectionOperation(sel),
-    ])
+    _make_replace_edit(input, sel, slice)
 end
 
-# A stored document that is no plain text, pasted at a text cursor: each document
-# on the path of the cursor, from the deepest, can take it in its own way
+# A stored document that is no plain text can go into a document in its own way
 # (`make_pasted_document_operation`), as the draft of a conversation takes a plot
-# as a part. Paste-copy gives a fresh copy. A document that takes nothing leaves
-# the paste to the text.
+# as a part. At a text cursor, each document on the path of the cursor, from the
+# deepest, can take it, and when none does the paste goes to the text. When the
+# selection names a whole document, that document can take it, and when it does
+# not the paste replaces it. Paste-copy gives a fresh copy.
 function _document_target_paste(input, slice; copy::Bool = false)
     (slice isa Document && _slice_text(slice) === nothing) || return nothing
-    _find_text_target(input; writes = true) === nothing && return nothing
+    input.selection isa ConcreteReference || return nothing
+    at_text = _find_text_target(input; writes = true) !== nothing
+    (at_text || try_evaluate_reference(input, input.selection, missing) isa Document) || return nothing
     value = copy ? _make_clipboard_copy(slice) : slice
     value === nothing && return nothing
     copy && clear_selection!(value)
     steps = get_reference_steps(strip_reference_types(input.selection))
-    for count in length(steps):-1:1
+    for count in (at_text ? (length(steps):-1:1) : (length(steps):length(steps)))
         path = _make_steps_path(steps[1:count])
         document = try_evaluate_reference(input, path, missing)
         document isa Document || continue
         operation = make_pasted_document_operation(document, path, value)
-        operation === nothing || return operation
+        operation === nothing || return (; place = path, operation)
     end
     nothing
 end
@@ -458,50 +651,50 @@ end
 # Paste-copy: like paste, but a fresh deep copy each time. The OS fallback already
 # produces a fresh document per read, so it needs no extra copy. In text mode it is
 # identical to paste (splicing a string needs no copy).
-function _clipboard_paste_copy(p, input)
-    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+function _clipboard_paste_copy(p, input; os = UNREAD_OS_TEXT)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice; copy = true)
     taken === nothing || return taken
-    text = _text_target_paste(p, input)
+    text = _text_target_paste(p, input; os, copy = true)
     text === nothing || return text
+    _is_whole_value_paste(p, input) && return _text_target_paste(p, input; os, copy = true, whole = true)
     slice = input.slice
     if !(slice isa Document)
-        doc = _os_paste_document(p)
+        p.from_text === nothing && return nothing
+        os === UNREAD_OS_TEXT && return _paste_os_text(p; copy = true)
+        doc = _os_paste_document(p, os)
         doc === nothing && return nothing
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing
-        return CompoundOperation(Any[
-            make_replace_document_operation(sel, doc),
-            ReplaceSelectionOperation(sel),
-        ])
+        return _make_replace_edit(input, sel, doc)
     end
-    sel = _find_paste_target(input, slice)
+    value = _make_pasted_value(input, slice)
+    sel = _find_paste_target(input, value)
     sel === nothing && return nothing
-    fresh = _make_clipboard_copy(slice)
+    # A converted text is fresh already.
+    fresh = value === slice ? _make_clipboard_copy(slice) : value
     fresh === nothing && return nothing
     clear_selection!(fresh)                    # pasted content starts with no cursor
-    CompoundOperation(Any[
-        make_replace_document_operation(sel, fresh),
-        ReplaceSelectionOperation(sel),
-    ])
+    _make_replace_edit(input, sel, fresh)
 end
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
 # fires (via `read_projection_gesture`) is the one a listing shows. The
-# operations capture the projection `p` (for the display toggle) and take the
-# clipboard document as their `doc` argument; they return `nothing` to decline
-# (e.g. no usable selection), falling through to the content-child delegation.
+# operations capture the projection `p` (for the display toggle) and the IO map
+# (a cut reads the content's delete through it), and take the clipboard document
+# as their `doc` argument; they return `nothing` to decline (e.g. no usable
+# selection), falling through to the content-child delegation.
 # ModifierKeys are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
     named = (:toggle, :copy, :copy_reference, :cut, :note, :paste_copy, :paste, :paste_same_view)
-    GestureBinding[binding for (name, binding) in zip(named, _make_clipboard_bindings(p))
+    GestureBinding[binding for (name, binding) in zip(named, _make_clipboard_bindings(p, iomap))
                    if name in p.offered_gestures]
 end
 
-function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
+function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash; modifiers = [:ctrl]),
                        (doc, event) -> ToggleClipboardSliceOperation(p);
@@ -515,20 +708,21 @@ function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
                        description = "Copy the reference of the selected object",
                        domain = "clipboard", name = "Copy reference"),
         GestureBinding(KeyDownPattern(:x; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_cut(p, doc); description = "Cut",
+                       (doc, event) -> _clipboard_cut(p, iomap, doc, event); description = "Cut",
                        domain = "clipboard", name = "Cut"),
         GestureBinding(KeyDownPattern(:n; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_note(p, doc); description = "Note",
                        domain = "clipboard", name = "Note"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :shift]),
-                       (doc, event) -> _clipboard_paste_copy(p, doc);
+                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste_copy(p, doc));
                        description = "Paste copy", domain = "clipboard",
                        name = "Paste copy"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_paste(p, doc); description = "Paste",
+                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste(p, doc));
+                       description = "Paste",
                        domain = "clipboard", name = "Paste"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :alt]),
-                       (doc, event) -> _clipboard_paste_same_view(p, doc);
+                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste_same_view(p, doc));
                        description = "Paste the same view at a second place",
                        domain = "clipboard", name = "Paste the same view"),
     ]
@@ -556,8 +750,14 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
                                               _collected_intents(reroot_operation(inner, steps))))
     end
     own !== nothing && return Intent(change.gesture, own)
-    inner = read_intent(child.projection, recursion, change, child)
-    Intent(change.gesture, reroot_operation(inner.operation, steps))
+    inner = reroot_operation(read_intent(child.projection, recursion, change, child).operation, steps)
+    # Delete and Backspace that nothing inside answered take a whole selected
+    # document out of its slot.
+    if !(inner isa Operation) && _is_delete_key(change.gesture)
+        whole = _read_whole_delete(p, iomap)
+        whole === nothing || return Intent(change.gesture, whole)
+    end
+    Intent(change.gesture, inner)
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

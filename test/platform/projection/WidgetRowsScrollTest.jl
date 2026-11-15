@@ -31,6 +31,21 @@ function test_widget_rows_scroll()
     projection = _scroll_pane_projection()
     plain = ModifierKeys()
 
+    @testset "the query that collects the commands passes through the pane of the rows" begin
+        # The query has no place, and the pane passes it on to the widget all the same.
+        collect_commands(iomap) = read_intent(projection, nothing, Intent(CollectIntents()), iomap).operation
+        list = print_document(projection, nothing, _make_rows_test_list(), _make_rows_test_offer())
+        @test list isa WidgetModule.WidgetRowsPaneIoMap
+        # A list has no command of its own to offer.
+        @test collect_commands(list) === nothing
+        tree = print_document(projection, nothing, WidgetTree(Any[("node", Any["leaf"])]),
+                              _make_rows_test_offer())
+        @test tree isa WidgetModule.WidgetRowsPaneIoMap
+        answer = collect_commands(tree)
+        @test answer isa CollectedIntentsOperation
+        @test [intent.description for intent in answer.intents] == ["Show the tooltip"]
+    end
+
     @testset "a list in a slot fills it and scrolls its rows inside its border" begin
         list = _make_rows_test_list()
         iomap = print_document(projection, nothing, list, _make_rows_test_offer())
@@ -62,7 +77,7 @@ function test_widget_rows_scroll()
         offset = Int(list.scroll_position.y[])
         @test offset > 0
         after = read_intent(projection, iomap, MouseClick(:left, 20, 60; time = 0.0))
-        top = WidgetModule._content_offset(iomap.projection, list)[2]
+        top = WidgetModule._get_content_offset(WidgetModule._get_box_geometry(iomap))[2]
         @test row_of(before) == 1 + (60 - top) ÷ step
         @test row_of(after) == 1 + (60 - top + offset) ÷ step
     end
@@ -124,8 +139,10 @@ function test_widget_rows_scroll()
         click = read_intent(projection, iomap, MouseClick(:left, 120, 60; time = 0.0))
         @test click isa ReplaceSelectionOperation
         @test strip_reference_types(click.path).head == FieldReferenceStep("roots")
-        # A click on the chevron of a row opens its node.
-        toggle = read_intent(projection, iomap, MouseClick(:left, iomap.place[1] + 3, 60; time = 0.0))
+        # A click on the chevron of a row opens its node. The chevron stands the side
+        # padding of the rows inside the row.
+        left = Int(get_theme_defaults(WidgetTheme).tree_row_padding.left[])
+        toggle = read_intent(projection, iomap, MouseClick(:left, iomap.place[1] + left + 3, 60; time = 0.0))
         evaluate_operation(nothing, toggle)
         @test length(tree.expanded) == 1
     end

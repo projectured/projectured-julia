@@ -7,6 +7,8 @@ function test_layout_point()
 _projection() = make_widget_projection_example()
 _path(steps...) = extend_reference(EmptyReference(), steps...)
 _children(i) = (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
+# The caret before the character `k` of the text of the label of child `i`.
+_caret_in_child(i, k) = (_children(i)..., FieldReferenceStep("content"), RangeReferenceStep(k, k))
 
 # The point `(dx, dy)` inside the child of entry `i` of the layout's IO map, in the
 # frame of the layout's canvas.
@@ -39,11 +41,12 @@ end
     iomap = print_document(projection, layout)
     inner = _find_layout_iomap(iomap, layout)
     point = _point_in_child(inner, 2, 3, 3)
-    # The layout itself, and the whole chain above it, answer the same child.
+    # The layout itself, and the whole chain above it, answer the same child: the
+    # caret in the text of the label there.
     @test strip_reference_types(map_reference_backward(inner.projection, inner, point)) ==
-          _path(_children(2)...)
+          _path(_caret_in_child(2, 1)...)
     @test strip_reference_types(map_reference_backward(projection, iomap, point)) ==
-          _path(_children(2)...)
+          _path(_caret_in_child(2, 1)...)
     # A point where nothing is drawn maps to nothing.
     @test map_reference_backward(projection, iomap, PointReferenceStep(900, 900)) === nothing
 end
@@ -53,7 +56,7 @@ end
     projection = _projection()
     iomap = print_document(projection, stack)
     @test strip_reference_types(map_reference_backward(projection, iomap, PointReferenceStep(3, 3))) ==
-          _path(_children(2)...)
+          _path(_caret_in_child(2, 0)...)
 end
 
 end # @testset

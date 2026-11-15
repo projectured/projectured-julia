@@ -1,8 +1,8 @@
 # Chart domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
 
-`ProjecturedChart` draws line, scatter, bar, pie, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
+`ProjecturedChart` draws line, scatter, bar, pie, histogram, colored-strip and matrix charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
 
 <img width="396" alt="Chart example" src="../../../asset/image/example/chart.png">
 
@@ -17,13 +17,19 @@
 | `ChartCategoryAxis` | a category axis: `title` and `categories` |
 | `ChartLegend` | `visible`, `position`, `anchor`, `border`, `sort` |
 | `ChartStyle` | the theme colours and fonts, the colour and marker cycles, and three limits: `marker_limit`, `scatter_fold_threshold`, `bin_fold_px` |
-| `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, and the line and marker style |
+| `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, the line and marker style, and an interval around each value: `lower` and `upper` columns, drawn as a whisker at each point, or as a lighter band under a line (`interval_style = :band`) |
+| `ChartFunctionSeries` | a `callable` of one number, drawn as a line sampled over the window of the plot; `x_range`, `sample_count` (200), the line style, width and colour |
 | `ChartBarSeries` | one value for each category |
 | `ChartPieSeries` | `categories` and `values`, one slice for each, and `colors`, one for each slice or `nothing` for the colour cycle |
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
+| `ChartMatrixSeries` | `rows`, the names of the rows; `values`, one vector for each row with one value for each category; `labels` in the same shape; the shade range `min` and `max`; `log` |
 
-The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
+A line, scatter, strip and matrix series also hold `links`, the link of each sample (see Links).
+
+**An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
+
+The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 
 **A series holds whole columns, one cell for each column.** A column is numeric leaf data and no caret goes into it, so a cell for each sample costs about 88 bytes and gives nothing. An assignment of a new column, `chart.series[1].y = v`, repaints the chart without a new print of the projection. Any `AbstractVector{<:Real}` works, so a column of a data frame goes into a series directly. This is an exception to `PAR-FINEST-GRANULARITY`, on the same grounds as `GraphicsPolyline.points`.
 
@@ -33,9 +39,13 @@ The order of `series` is the draw order and the legend order. A chart has two ax
 Chart ──ChartToChartPlot──▶ ChartPlot ──ChartPlotToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-`ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor` and the state of a drag. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
+`ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `horizontal_scroll_bar` and `vertical_scroll_bar`. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
+
+**A function series samples in the print.** The layout calls each `ChartFunctionSeries` at `sample_count` points evenly spaced over the x window that the plot shows, through `Base.invokelatest`, and again at each new window, so a zoom shows more detail. The x window comes from the other series and the `x_range` of the function series; the samples over the fit window give its y bounds. One function, `_compute_function_samples`, answers the samples or the reason, and the bounds, the line, the legend and the hit read it. A call that raises, or a value that is no real number, stops the samples: the series draws no line, keeps its legend entry, and the entry says why after the label (`no x range; give x_range`, `gives no number at x = 0.1`, or the text of the error of a callable object such as a formula). A formula called in the print reads its stored function, so the line follows a new value of the formula.
 
 `ChartPlotToGraphicsCanvas(; measure, width, height, minimum_width, minimum_height)` is the renderer. `width` and `height` are the chart's own size: an exact range from the parent replaces it, and a bounded range caps it at the edge. `minimum_width` and `minimum_height`, 120 and 80 by default, are the least size that it draws at; a chart in a cell of a pivot takes 24 and 16. One computed cell derives the frame from the chart, the view and that size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
+
+**The view is one projection.** `make_chart_projection(; measure, theme, widget_theme, width, height, minimum_width, minimum_height)` builds it: the two stages in a `NestingProjection` whose recursion prints a `WidgetToolbar`, a `WidgetToolbarItem` and a `WidgetScrollBar`. The renderer prints the buttons and the bars through its recursion, so a chart shows them in any host. The natural rows `:chart` and `:frame_time_series`, a cell of a pivot and the examples use it. A chain of the two stages built by hand must give a recursion that prints those three widgets.
 
 ### Colored strips
 
@@ -45,11 +55,21 @@ A `ChartStripSeries` draws a sequence of enumerated values over time, such as th
 - **Colours.** A colour follows the state code, not the series. `strip_state_color` takes the `state_colors` entry of the series, or else the entry of the chart's cycle at the code. So two strips with different tables give their first state the same colour, unless one of them sets `state_colors`.
 - **Legend.** The legend lists the states after the series. The entry of a strip has a grey swatch, and a click on it still hides or shows the series. A click on a state entry selects the legend.
 
+### Matrices
+
+A `ChartMatrixSeries` draws a value for each pair of a row and a category: one cell for each, in a shade of the colour of the series. The shade grows with the value, in eight steps, from a light tint at `min` to the full colour at `max`; `nothing` fits each bound to the values, and `log` shades by the logarithm. A value that is `nothing`, `missing` or not finite is an empty cell: it draws nothing and a click there selects no cell. `nothing` is the form that a `.pred` file keeps.
+
+- **Rows and columns.** The columns are the categories of the x axis. Each row takes one integer row, the first on top, as a strip does, and a chart of only matrices labels its y axis with the row names, draws no horizontal grid lines, and fills the plot with its cells, as a category axis fills it with its slots. A long list of rows names every `k`-th row that fits.
+- **Values.** `values` is a vector of rows, because a `.pred` file holds vectors and not a `Matrix`; the constructor turns an `AbstractMatrix` into rows. A cell takes a gap of one pixel when every cell is at least 6 pixels on each side. `labels` gives a text to each cell, which the cell shows when it fits.
+- **Folding.** Rows and columns under 3 pixels fold into groups of at least 3 pixels. A block of a row group and a column group shows the greatest value in it, and neighbour blocks of one shade along a row merge into one rectangle.
+- **Samples.** A cell is a sample, `(row, column, value)`. Its index counts down the rows first, as a `Matrix` of Julia does, so the series alone decodes it. A click selects the cell whose value its block shows, the selected cell is outlined, and the readout names the row, the category, the value and the label.
+- **Legend.** The legend lists the series, then the value of the lightest and of the darkest shade.
+
 ### A reference step into a column
 
 A column has no document for each sample, so no field or element step can name one sample. `ChartSampleReferenceStep`, written `.sample(i)`, names a position inside the opaque column instead. It is a `:structural` step, as `PointReferenceStep` is for a pixel inside a graphics element.
 
-The step file registers the step with the reference DSLs through `build_reference_step` and `match_reference_step`, so `@reference_case` can match `::Chart.series[i].sample(k)`. The domain supplies `evaluate_reference_step`, because what a sample is depends on the series: `get_chart_sample` returns an `(x, y)` pair, a `(lower, upper, value)` bin, a bar value, or a `(lower, upper, state_name)` strip segment in data coordinates.
+The step file registers the step with the reference DSLs through `build_reference_step` and `match_reference_step`, so `@reference_case` can match `::Chart.series[i].sample(k)`. The domain supplies `evaluate_reference_step`, because what a sample is depends on the series: `get_chart_sample` returns an `(x, y)` pair, a `(lower, upper, value)` bin, a bar value, a `(lower, upper, state_name)` strip segment in data coordinates, or a `(row, column, value)` cell of a matrix.
 
 ```julia
 make_chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)
@@ -57,6 +77,12 @@ get_selected_sample(chart)                 # (1, 5), or nothing for a coarser se
 ```
 
 `make_chart_sample_reference` builds the path from steps and calls `annotate_reference_types`. The `@reference` macro can not build it, because it reads a lowercase `::t` as a type at run time and can not continue into an extension step. The selection still ends at a real document, the series, so no sample needs a cell. `SequenceChartRowReferenceStep` of the sequence chart is the same idiom for a row of a table; see [sequencechart.md](../sequencechart/sequencechart.md).
+
+### Links
+
+A line, scatter, strip or matrix series can hold `links`: one text or `nothing` for each sample, and for a matrix one row of them for each row, as its `values`. A link is the target of a Markdown link: an absolute address, such as `file:///home/me/report.pred` or `git+file:///home/me/project#3fa2c1d`, or a path that the page resolves. `find_chart_sample_link(series, index)` reads it.
+
+A plain click selects a sample, as a press in the source view of a Markdown page places the caret, so the gestures are the ones of a link there: Ctrl and a click follow the link, and Ctrl+Shift and a click open it in a new tab. The chart answers the open of a Markdown link, `OpenPageOperation(nothing, EmptyReference(), place; target = link)`, and the nearest navigator, or the editor, resolves the target. A sample with no link selects on Ctrl and a click too. The readout names the link of the sample under the pointer.
 
 ### Selection and gestures
 
@@ -72,12 +98,34 @@ A click on a part selects it. A click on a data point or on a strip segment sele
 | Ctrl+Shift+Up, Ctrl+Shift+Down | move the selected series in the list |
 | Alt+Delete | remove the selected series |
 | click on a legend item; hover on it | hide or show that series; veil the other series |
-| wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
-| Shift+wheel, Shift+drag, Shift+arrows | pan |
-| drag in the plot | rubber-band zoom |
-| double click, `0`; `+`, `-` | fit to the data; zoom about the centre |
+| Ctrl+click on a point, a segment or a cell with a link; Ctrl+Shift+click | follow the link; open it in a new tab |
+| Ctrl+wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
+| wheel; Shift+wheel | scroll up and down; scroll across |
+| drag in the plot | band zoom; a band thin across one axis zooms the other axis alone |
+| Shift+drag, a drag with the middle button; a drag on an axis | pan; pan that axis alone |
+| double click in the plot; on an axis | show all the data; fit that axis, the y axis to the data that the x window shows |
+| Ctrl+=, Ctrl+-, Ctrl+0; `+`, `-`, `0` | zoom in, zoom out, show all the data |
+| Page Up, Page Down; with Alt | scroll a page up and down; across |
+| Shift+arrows | pan a tenth of the window |
+| right click | the menu of the view: Zoom in, Zoom out, Show all the data, Fit the x axis, Fit the y axis |
+| the buttons in the top-right corner, while the pointer is over the chart | zoom in, zoom out, show all the data |
+| a scroll bar of a zoomed chart: a click on the track; a drag of the thumb | scroll a page; move the window |
 
-The `@gestures Chart` table in `ChartDocument.jl` holds the navigation and the edits. The reader of the renderer holds the view gestures. The arrow keys move the selection, as in every other document, so a pan takes Shift. A drag computes from its anchor, which holds the point of the press, the window and the two axis scales at the press, and the reader writes no window equal to the one that the plot holds. So a move to the point of the last move writes no cell, also after a pan changed the geometry. A drag goes on while the button is held, also off the plot. A move with no button held during a drag follows a release that the plot did not get, and it ends the drag with no change, as Escape does. A move off the plot area clears the cursor.
+The `@gestures Chart` table in `ChartDocument.jl` holds the navigation and the edits. The reader of the renderer holds the view gestures. The arrow keys move the selection, as in every other document, so a pan takes Shift alone, and Ctrl+Shift with an arrow stays the move of a series. The wheel follows the rule of the editor: Ctrl and the wheel zoom, and the wheel scrolls as in a scroll pane. A notch zooms by 1.15 and scrolls a tenth of the window, and a touchpad scrolls by the fraction of a notch. Ctrl+=, Ctrl+- and Ctrl+0 zoom the chart before the zoom of the interface reads them, as a transform pane does. A typed `+`, `-` or `0` with Ctrl or Alt is not the chart's.
+
+**The window stays in the data.** Each gesture works on the window of each axis with the functions of [plot.md](../../platform/plot/plot.md), in the space of the axis, so a log axis zooms and pans on its decades. A pan of each kind stops at the edge of the fit of the data, a zoom out stops at the fit, and a zoom in stops where the window spans 10,000 float steps of its larger bound, so two tick labels always differ. A window that is the fit on both axes is the view `nothing`, so the chart follows a change of the data again. A gesture that moves nothing is not the chart's: a chart that shows all its data takes no turn, and the page around it scrolls, and Ctrl+0 on it resets the zoom of the interface. A chart of pies has no window and takes no view gesture.
+
+**A band.** A band is thin across an axis while it is less high there than 0.6 of its length, at least 6 px and at most 20 px, the rule of Plotly. A thin band zooms the other axis alone, and the overlay draws it across the whole plot, so the person sees what the release does. A band under 6 px on both axes is a click. A pan shows the closed hand while the drag runs, and a band the arrow. The strips of the axes are under and left of the plot area, and leave out a legend that lies in them. A drag computes from its anchor, which holds the point of the press, the window and the two axis scales at the press, and the reader writes no window equal to the one that the plot holds. So a move to the point of the last move writes no cell, also after a pan changed the geometry. A drag goes on while the button is held, also off the plot. A move with no button held during a drag follows a release that the plot did not get, and it ends the drag with no change, as Escape does. A move off the plot area clears the cursor.
+
+### The menu, the buttons and the bars
+
+`compute_context_menu(::ChartPlot)` is the menu that a right click opens. Each item names its key, and an item whose action changes nothing is disabled. The renderer reads a dwell and a right click out from the part at their point to the plot (`read_child_part_gesture`), so the menu of the plot answers them.
+
+`make_chart_buttons(plot)` makes the buttons, a `WidgetToolbar` of three `WidgetToolbarItem`s with the icons `:zoom_in`, `:zoom_out` and `:maximize`. A press does what the key does, the tooltip names the key, and a button whose action changes nothing is disabled. They show in the top-right corner while the plot has a mouse target and no drag runs, and not on a plot narrower than four buttons or lower than two, such as a chart in a cell of a pivot.
+
+`make_chart_scroll_bar(plot, axis)` makes each bar, a `WidgetScrollBar` whose thumb is the part of the fit that the window shows and whose value is the place of the window, from the left and from the top, in the space of the axis. A bar is there while its thumb is less than 1. The vertical bar runs along the whole right edge of the plot area, and the bar under the plot stops before it. A click on the track scrolls a page, a write of the value becomes the write of the view, and the chart keeps the drag of a thumb (`keep_owned_scroll_bar_drag`, `read_scroll_bar_drag`, `convert_scroll_bar_value_writes`).
+
+`ChartToChartPlot` builds the buttons and the bars once, gives each of them its part of the mouse target of the plot (`follow_output_mouse_target!`), and names a part of them by an introduced reference, which its forward map gives back. The renderer prints them through its recursion while they show, draws them over the plot, and gives them the pointer events in their frame with the functions of the drawn children of the graphics slice (`find_drawn_child_at`, `read_drawn_child_event`, `read_drawn_child_move`, `map_drawn_child_point`).
 
 ### Scale
 
@@ -88,9 +136,10 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 - **Scatter folding.** Past `scatter_fold_threshold` visible points, the cloud becomes a density grid of eight shades, and neighbour cells of equal shade merge into one band.
 - **Bar and bin folding.** Bars narrower than `bin_fold_px` merge into min and max envelopes.
 - **Strip folding.** Equal neighbour values merge into runs. Runs narrower than a pixel fold into one span with the state that holds it longest. This is the one output that is not exact, because a span below a pixel has no one colour.
+- **Matrix folding.** Cells under 3 pixels fold into blocks that show their greatest value, and blocks of one shade along a row merge. A smooth matrix of four million cells draws under 4,000 elements; a matrix of random values draws at most one block for each 3 by 3 pixels of the plot.
 - **Label thinning and markers.** A dense category axis draws every k-th label. Markers draw only while fewer than `marker_limit` points are visible.
 
-`test_chart_scale()` holds a million-sample line, a million-point scatter, a million-sample strip, a ten-thousand-category bar chart and a ten-thousand-bin histogram each under 4,000 graphics elements. A click finds a sample with a binary search too, so it costs the same on a million samples as on a hundred.
+`test_chart_scale()` holds a million-sample line, a million-point scatter, a million-sample strip, a ten-thousand-category bar chart, a ten-thousand-bin histogram and a four-million-cell matrix each under 4,000 graphics elements. A click finds a sample with a binary search too, so it costs the same on a million samples as on a hundred.
 
 ### The theme
 
@@ -126,6 +175,9 @@ NaturalToGraphics(measure = FontFileMeasure(),
 - **The keyboard stops at the parts.** The navigation sweeps of the tests walk every reachable selection breadth first. Samples on the keyboard would make the state space of a chart as large as its data. A pointer reaches a sample.
 - **Strips are rows in one plot, and the y axis names them.** A `ChartCategoryAxis` on y would change the whole numeric path of the y axis for what a tick-label mode already says. See [plan/done/chart-colored-strips.md](../../../../plan/done/chart-colored-strips.md).
 - **The colour cycle is indexed by the code.** The tool that the chart follows indexes its colour map by position, so a sparse enumeration such as `A=1, C=5` takes the last colour. Here a code indexes the cycle directly. See [plan/done/chart-colored-strips.md](../../../../plan/done/chart-colored-strips.md).
+- **The window stays in the data, on every gesture.** A free pan and a zoom past the data, as in Plotly, would give one window two rules, since the wheel already stops at the edge. See [plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md](../../../../plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md).
+- **The arithmetic of a window is shared with the sequence chart.** A fix of the log case inside the chart would leave the sequence chart its own copy. See [plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md](../../../../plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md).
+- **The buttons and the bars are widgets of the editor.** The renderer prints a `WidgetToolbar` and two `WidgetScrollBar`s through its recursion and draws no button or bar of its own. The bars lie along the edges of the plot area and not around the whole chart in a scroll pane, which would put them under the axis labels and right of the legend, and would change the size of each chart. See [plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md](../../../../plan/done/a-chart-zooms-pans-and-fits-by-mouse-and-keys.md).
 
 ## Usage
 
@@ -143,9 +195,10 @@ Chart("Throughput", [ChartBarSeries("run A", [12.0, 19.0, 7.0])];
       x_axis = ChartCategoryAxis(; categories = ["baseline", "tuned", "burst"]),
       bar_placement = :stacked)
 Chart("MAC states", [ChartStripSeries("channel", [0.0, 4.0, 9.0], ["idle", "busy", "idle"]; x_end = 20.0)])
+Chart("Moved values", [ChartMatrixSeries("count", ["test a", "test b"], [[3, nothing], [12, 1]])];
+      x_axis = ChartCategoryAxis(; categories = ["nav", "queueLength"]))
 
-projection = ChainingProjection(ChartToChartPlot(),
-                                ChartPlotToGraphicsCanvas(measure = FontFileMeasure()))
+projection = make_chart_projection(; measure = FontFileMeasure())
 ```
 
 - Examples: `chart` (four charts in a `WidgetTable`), `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip` and `chart_inspector`, in `example/domain/chart/`. The atomic catalog has `chart/plot`.
@@ -153,7 +206,12 @@ projection = ChainingProjection(ChartToChartPlot(),
 
 ## Limits
 
+- A pinch on a touchpad does not zoom: the SDL2 backend gives no pinch event for a touchpad. Ctrl and the wheel zoom.
+- No history of views: a zoom has no "back" to the window before it.
+- A function series has no sample to select: a click on its line selects the series. A slow function slows the frame at each new window, since the print calls it; the samples in a background cell are the later route. It does not draw on a category axis.
 - A strip series together with line, scatter or histogram series is allowed but reads badly: the y axis stays numeric and the strips sit on its integer rows. A log y axis under strips reads badly in the same way. The renderer shows no warning for either.
 - The line styles are `:solid`, `:dotted` and `:dashed`. A dash-dot line needs a pattern of four elements, and the graphics polyline has one on-off pair.
 - No label rotates, because the SDL and PDF backends draw no rotated text. A dense category axis thins its labels instead, and a state name that does not fit in its segment is left out.
 - A folded scatter cloud has no single points, so a click there selects the series.
+- A chart draws its first visible matrix series. A matrix together with bar series is allowed but reads badly: the y axis stays numeric and the rows sit on its integer rows.
+- The workload of the package draws no matrix, so the first matrix of a session compiles its code while it runs.

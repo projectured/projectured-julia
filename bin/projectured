@@ -11,8 +11,14 @@
 #
 # It runs THROUGH THE CHECKOUT, with no build. `bin/build_projectured` compiles
 # the same program; this one runs it from source, so a change can be tried
-# without the minutes a build costs. The first start after a change compiles
-# what changed.
+# without the minutes a build costs. It loads the packages as Julia does, and
+# the first start after a change compiles what changed. It uses the `julia`
+# that it finds on PATH.
+#
+# **After a small change, the reactive Julia starts in seconds.** Another Julia
+# compiles the changed package and every package above it again. The reactive
+# Julia compiles a patch of the changed package on top of its compiled file,
+# and the packages above it keep theirs.
 #
 # **It is the same program and not an imitation.** The build function writes the
 # package that a build compiles, and asked with `compile = false` it writes that
@@ -21,8 +27,6 @@
 # Every argument goes to the program.
 #
 root=$(cd "$(dirname "$0")/.." && pwd)
-problem=$(mktemp)
-trap 'rm -f "$problem"' EXIT
 # THE BUILD ENVIRONMENT, and this is the one step the library can not own: it is
 # what makes `ProjecturedBuilder` loadable, so it happens before `using` it.
 #
@@ -31,19 +35,29 @@ trap 'rm -f "$problem"' EXIT
 # manifest already lists.
 #
 # Done in the SAME process that asks, so it costs no second julia start.
+#
+# ITS OUTPUT SHOWS ONLY WHEN IT IS SLOW. `run_with_slow_output` holds it for ten
+# seconds: a normal start spends about five here and says nothing, and a start
+# that installs or compiles says why the wait comes and shows each package as it
+# goes. A failure shows its output. The file is included alone, in a module of
+# its own, because the builder that holds it is not loadable yet.
 answer=$(julia --project="$root/environment/build" -e '
-    using Pkg; Pkg.resolve(); Pkg.instantiate()
-    using ProjecturedBuilder
-    print(build_projectured_executable(; compile = false, resolve = true), "\n",
-          get_app_module_name("projectured"))' 2>"$problem")
-if [ -z "$answer" ]; then
-    # SAY WHAT FAILED. A guessed cause helps nobody: a fresh checkout whose
-    # environment was never resolved fails here, and the message says so.
-    cat "$problem" >&2
-    exit 1
-fi
-application=$(printf '%s\n' "$answer" | sed -n 1p)
+    using Pkg
+    launcher = Module()
+    Base.include(launcher, ARGS[1])
+    start = launcher.run_with_slow_output(; notice = ARGS[2]) do
+        Pkg.resolve(); Pkg.instantiate()
+        @eval using ProjecturedBuilder
+        Base.invokelatest() do
+            prepare_program_start!(build_projectured_executable; name = "projectured")
+        end
+    end
+    print(start.path, "\n", start.module_name, "\n")' \
+    "$root/source/tool/builder/LauncherOutput.jl" \
+    "Preparing projectured: after an install or an update, the first start installs and compiles the packages, which takes some minutes.")
+[ -n "$answer" ] || exit 1
+path=$(printf '%s\n' "$answer" | sed -n 1p)
 module_name=$(printf '%s\n' "$answer" | sed -n 2p)
 
-exec julia --threads=auto,2 --project="$application" \
+exec julia --threads=auto,2 --project="$path" \
      -e "using $module_name; exit($module_name.julia_main())" -- "$@"

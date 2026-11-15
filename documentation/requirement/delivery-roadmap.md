@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Kind:** what · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
+> **Kind:** what · **For:** developer · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
 
 What ProjecturEd does today, what is half built, and what comes next. It is written from the plans under `plan/done/` and `plan/pending/`, and each line names the code or the plan that settles it.
 
@@ -27,6 +27,8 @@ The order of the work has been the same from the start: **make the whole path wo
 **Backends.** A native window through SDL, a browser over HTTP and WebSocket, a terminal with colour, and no screen at all for a test. A view also goes to a PNG image, a vector PDF with selectable text, or an MP4 video.
 
 **Files.** A text file in the notation of its domain, and a binary file for anything else. Several files can refer to each other, so data with shared parts and mutually recursive structures comes back unchanged after a save and a load.
+
+**Links.** A link is data with a target and a face. A `Link` holds a document or a place in one, and a `Url` holds an address; Markdown and rst links answer the same functions. A click opens the target on the page, Ctrl and a click open it in a new tab, and a web address opens in the browser ([link.md](../package/platform/link/link.md)).
 
 **The AI assistant.** A tool set in the kernel: search the API, read a guide, run Julia in the running program, and change the data with operations. It works with a local model through Ollama, or with Claude through the Anthropic API. The same tool set answers an external client over MCP. Measured on eleven problems with three seeds each, the local default model solves 29 of 33 turns.
 
@@ -56,7 +58,6 @@ Each line names the plan that carries it.
 **A user sees these.**
 
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
-- **Links between documents** ([document-link-feature.md](../../plan/pending/document-link-feature.md), [document-locator.md](../../plan/pending/document-locator.md)). A reference from one document to another does not exist yet.
 - **Richer SQL** ([bound-sql-statement.md](../../plan/pending/bound-sql-statement.md), [sql-select-aggregation-support.md](../../plan/pending/sql-select-aggregation-support.md), [dbcatalog-index-support.md](../../plan/pending/dbcatalog-index-support.md)).
 
 **A developer sees these.**

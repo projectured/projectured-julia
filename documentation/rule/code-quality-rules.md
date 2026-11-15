@@ -1,6 +1,6 @@
 # Code quality
 
-> **Kind:** rule · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
 
 How the code of this repository reads, and what keeps it readable. A human reads
 this code to learn what it does. Every rule here serves that reader.
@@ -100,7 +100,7 @@ the shape of a histogram. The frame decides the chart: …
 
 # Example
 
-    vectors = get_simulation_vector_results(get_project_result_directory())
+    vectors = get_simulation_vector_results(get_simulation_project_result_directory(project))
     open_pane!(make_result_plot(vectors; title = "Delay"))
 
 See also `make_result_table`, which shows the same frame as rows.
@@ -307,7 +307,7 @@ lines, `ProjecturedSDL.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at
 A test function is exempt. `test_reference_rules()` is 1049 lines, and it reads
 better as one list.
 
-The statement files `package/*/precompile/*.txt` are generated. No rule applies
+The recorded lists `package/*/precompile/*.txt` are generated. No rule applies
 to them.
 
 ## 6. The measured baseline

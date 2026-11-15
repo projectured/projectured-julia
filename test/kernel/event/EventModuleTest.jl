@@ -52,6 +52,19 @@ function test_event_module()
         @test get_modifier_keys(WindowQuit(; time = 0.0)) == ModifierKeys()
     end
 
+    @testset "each event of the layer holds its time as its last field" begin
+        # A backend that stamps an event again builds it from its other fields
+        # and a new time, so a field after the time takes the time.
+        for type in (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MouseMove, MouseScroll,
+                     WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave,
+                     TimerExpire, DisplayUpdate, SystemColorsChange)
+            @test last(fieldnames(type)) === :time
+        end
+        scroll = MouseScroll(0, -1, 3, 4; time = 0.0, precise_dy = -0.5)
+        stamped = MouseScroll(ntuple(i -> getfield(scroll, i), fieldcount(MouseScroll) - 1)..., 2.0)
+        @test (stamped.dy, stamped.precise_dy, stamped.time) == (-1, -0.5, 2.0)
+    end
+
     @testset "get_event_time reads the time of an event of another module" begin
         @test get_event_time(EmTestRestEvent(3, 4, 1.5)) === 1.5
         @test get_event_time(KeyPress('a'; time = 2)) === 2.0

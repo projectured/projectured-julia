@@ -21,26 +21,24 @@ theme scaled or not; a projection built with no styles holds the plain values
 of the default theme.
 """
 @theme struct FsmTheme
-    "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The keywords: `component`, `variable`, `timer`, `event`, `machine`, `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring unhandled`."
-    keyword_text::ThemeText     = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText     = TextRole(:keyword; font_role = :document_code, weight = 700)
     "The name of a variable, at its declaration."
-    variable_name_text::ThemeText   = TextRole(:variable; weight = 700)
+    variable_name_text::ThemeText   = TextRole(:variable; font_role = :document_code, weight = 700)
     "The name of an event and of a timer, at its declaration."
-    event_name_text::ThemeText      = TextRole(:event; weight = 700)
+    event_name_text::ThemeText      = TextRole(:event; font_role = :document_code, weight = 700)
     "The name of a state, at its declaration."
-    state_name_text::ThemeText      = TextRole(:enum_member; weight = 700)
+    state_name_text::ThemeText      = TextRole(:enum_member; font_role = :document_code, weight = 700)
     "The name of a machine and of a component, at its declaration."
-    machine_name_text::ThemeText    = TextRole(:type_name; weight = 700)
+    machine_name_text::ThemeText    = TextRole(:type_name; font_role = :document_code, weight = 700)
     "A trigger, read from its event or its timer, also in the label of a transition in a diagram."
-    event_reference_text::ThemeText = TextRole(:event)
+    event_reference_text::ThemeText = TextRole(:event; font_role = :document_code)
     "A target and an `initial`, read from the state."
-    state_reference_text::ThemeText = TextRole(:enum_member)
+    state_reference_text::ThemeText = TextRole(:enum_member; font_role = :document_code)
     "The punctuation around a part, and the chrome of a transition label in a diagram."
-    chrome_text::ThemeText      = TextRole(:punctuation)
+    chrome_text::ThemeText      = TextRole(:punctuation; font_role = :document_code)
     "The name of a state in a diagram."
-    state_label_text::ThemeText = TextRole(:enum_member; weight = 700)
+    state_label_text::ThemeText = TextRole(:enum_member; font_role = :document_code, weight = 700)
     "The keyword of a transition label in a diagram."
-    trigger_text::ThemeText     = TextRole(:keyword)
+    trigger_text::ThemeText     = TextRole(:keyword; font_role = :document_code)
 end

@@ -1,0 +1,280 @@
+# A widget cuts its content at its box
+
+> **Kind:** plan · **Status:** a plan, written 2026-11-15 at `main` `11585943d`. The owner approved
+> it for implementation on 2026-11-15, D2 included. Done on 2026-11-15: steps 1 to 5 are built and
+> checked on the branch `widget-cut` in the worktree `projectured-julia-widget-cut`, not landed on
+> `main`. · **Stands on:** [layout-rules.md](../../documentation/rule/layout-rules.md),
+> [widget.md](../../documentation/package/platform/widget/widget.md),
+> [layout.md](../../documentation/package/platform/layout/layout.md)
+
+A widget that is given a size smaller than its content draws the content past its edge. The text
+lies over the widget next to it. This plan makes each widget cut its content at its box, makes a
+text field keep its caret in view, and makes a `LayoutConstraint` with a set size cut its child.
+The row, the column, the stack and the flow stay as they are: they only place their children.
+
+## 1. The goal
+
+When this plan is done, these must be true:
+
+1. No widget draws past its box. This is true for a size that the widget sets itself (`width`,
+   `height`, `size`, `rows`) and for an exact size that it gets from its parent.
+2. A content that is larger than its box starts at the inner start edge of the box and is cut at
+   the inner end edge. A widget does not draw over its own border or padding.
+3. `WidgetText`, `WidgetTextarea` and `WidgetSpinBox` keep the caret in view. Their text scrolls
+   when the caret goes past the edge.
+4. `LayoutConstraint(child; width = Fixed(40))` keeps 40 in every layout, also when its child is a
+   layout. The next child of a row starts at 40, and nothing draws past 40.
+5. `test_layout_rules()` checks the ink of every widget type against its box, also with a set size.
+
+## 2. What exists
+
+A probe on 2026-11-14 printed each widget with a set size smaller than its content and compared
+the box of the ink with the extent that the widget reports. A render to a PNG file showed the same
+in pixels.
+
+**These draw past their box:**
+
+| Widget | Size | What passes the edge |
+| --- | --- | --- |
+| `WidgetText` | `width` | the text, to the right; nothing keeps the caret in view |
+| `WidgetSpinBox` | `width` | the number, over its own buttons |
+| `WidgetButton` | `size` | the caption, which is centred, on both sides |
+| `WidgetSelect` | `width` | the selected value |
+| `WidgetTextarea` | `width`, `rows` | the lines, to the right; the box grows to all lines, so `rows` does not hold |
+| `WidgetAccordion` | `width` | the question and the answer |
+| `WidgetAlert` | `width` | the title, and a long word of the description |
+| `WidgetCard` | `width` | the title and the footer; the body is cut |
+| `WidgetCard` | `height` | the body, down over the widgets below |
+| `WidgetAvatar` | `size` | the initials |
+| `WidgetShell` | `size` | the content, down; `_RULES_INK_BROKEN` holds it |
+| `WidgetList` | `width` | the rows, when the list gets no height edge and so makes no pane |
+
+**These cut:** `WidgetScrollPane`, `WidgetTransformPane`, `WidgetTitlePane`, `WidgetSplitPane`,
+the tab page, the width of the body of a card, and `GridLayout`, `GridList` and `GridColumnList`
+for a column or a row that has a set size or a share (`clip_child_to_slot`). `WidgetTable` cuts its
+cells through its grids.
+
+**The rule allows the fault.** [layout-rules.md](../../documentation/rule/layout-rules.md) §1 says:
+"A widget told to be 40 wide draws 40 and lets its content overflow." §3b says that only a
+container that gives an exact range cuts. The ink check of `LayoutRulesTest.jl`
+(`_rules_is_ink_inside`) skips each axis whose kind is `:authored`, and a rigid widget in an exact
+range smaller than its content draws its content (`exact_less = ==(n)`).
+
+**A row and a column lose a `Fixed` size.** `_main_context` gives a child with a preferred size an
+exact range, but `_vl_build` and `_hl_build` place the next child after the extent that the child
+draws. A child whose content is wider than its `Fixed(40)` draws its content, and the next child
+moves. Nothing overlaps, and nothing keeps 40. [OutlineRow.jl](../../source/platform/outline/OutlineRow.jl)
+puts a layout into a `Fixed(menu_width)` slot of a row in this way.
+
+**Real views with a set size:** text fields of a set width in the explorer filter (80), the
+dashboard and the section title (240), the file chooser (240), the folder path field (320) and the
+field in a natural sentence (16, `NaturalArrangement.jl`). The task buttons set only a height of
+30, which one line fits.
+
+## 3. Decisions
+
+The owner decided D1 and D3 on 2026-11-15, and D4 on 2026-11-15 (option 1). The assistant proposed
+D2, D5, D6 and D7, and decided D8 during step 2. A proposed decision counts as approved when the owner approves this plan for
+implementation. The owner can name one to see it first.
+
+- **D1. A widget cuts its content at the size that it sets.** The owner chose this (option A).
+  Rejected: the set size is a minimum and the widget grows with its content (option B).
+- **D2. A widget takes an exact size that it gets, and cuts its content there.** Today a rigid
+  widget in an exact range smaller than its content draws its content (`max(m, C)`), and the giver
+  cuts at the outer edge, so a button loses its right border. Only the widget knows its border and
+  its padding, so only the widget can cut at its inner box. A bounded range keeps the content as a
+  floor: the rows and the columns measure a child by what it draws (§3b), and that measurement uses
+  bounded ranges only. A table is not changed: it withholds the offer of a column whose cells it
+  cuts, so those cells get no exact range.
+- **D3. A layout only places its children.** The owner said this on 2026-11-15: a layout is not a
+  widget. The row, the column, the stack, the flow and the composite build no viewport.
+- **D4. The place where a size is written cuts at that size.** The owner chose this (option 1) for a
+  size that is set on a layout and not on a widget. A `LayoutConstraint` cuts its child on each axis
+  where it states a preferred size, a weight or a maximum, at the size that it gets, and reports
+  that size. The grid cuts its columns and rows, because the grid holds their policies. Rejected:
+  nothing cuts (content draws past a `Fixed` set on a layout); and a layout that never gives a child
+  more than its own size (it changes the floor of D2, which the stacks measure with).
+- **D5. A content larger than its box starts at the start edge.** A caption, a value or a title that
+  does not fit is not centred. It starts at the inner start edge and is cut at the end, as a grid
+  column shows the start of a cell (`_gl_child_x`). Rejected for this plan: an end mark "…" (see §6).
+- **D6. A text field keeps its caret in view as a scroll pane keeps a selection in view.**
+  `WidgetText`, `WidgetTextarea` and `WidgetSpinBox` get the view state `scroll_position`, written
+  with `_write_view_state` as in `WidgetScrollPane`. The print maps the selection of the field
+  through its content IO map to a box (`find_reference_box`), and draws with the least move from the
+  stored offset that shows the caret (`_compute_shown_offset`). The IO map keeps the drawn offset,
+  as `revealed_scroll` does, and the reader of the field writes it with each answer. So the text
+  does not move while the caret moves inside the view. Rejected: an offset that the print derives
+  from the caret alone; the text then moves with each step of the caret to the left from the end.
+- **D7. `rows` of a text area is its set height.** The area is `rows` lines tall, cuts the other
+  lines, and scrolls them by D6. Rejected: `rows` as a minimum height (option B of D1).
+- **D8. A viewport gives no exact range.** Found in step 2 by `test_platform()`: a scroll pane
+  gave its content the view as an exact range on an axis where the content fits, so under D2 a
+  widget placed directly in a pane, such as a card or the rows of a list, took the view and cut
+  its content, and the pane had nothing to scroll. A scroll pane and a transform pane now give the
+  view as a minimum and an edge in two cells (`_make_view_edge`), the bounded range with a minimum
+  that `layout-rules.md` §1 already names: a text wraps at the view, a content takes at least the
+  view, and a content that can not fit stays larger and scrolls. The assistant decided this as a
+  consequence of D2; it adds no mechanism. A tree took the width of its parent only from an exact
+  range, so it now also takes at least the minimum of its range, as `_resolve_size` does for
+  every widget. Rejected: a pane that grows on both axes by default, which takes the edge from a
+  text, so that the text does not wrap; and a mark in the context for an offer of a viewport,
+  which a new field of `PrinterContext` would carry.
+
+## 4. Steps
+
+Each step is one commit in a worktree of projectured-julia, on a branch of its own.
+
+1. **The rule and the test.** Change [layout-rules.md](../../documentation/rule/layout-rules.md):
+   §1 (a set size cuts; the table of the four states: an exact size is taken and cut by the widget),
+   §3b (who cuts: the widget at its inner box, the place where a size is written, the grid; a
+   layout only places), and the sentence on the card in §3b. Change the pages of the widget slice
+   and the layout slice that say the same. In `LayoutRulesTest.jl`: the ink check covers the
+   `:authored` axes; each widget type that has a size field gets a second sample whose set size is
+   less than its content; a `:rigid` axis expects `exact_less = ==(m.less)`; a check of a
+   `LayoutConstraint` with `Fixed`, with a weight and with a maximum, whose child is a layout, in a
+   row, a column, a stack and a flow. Each type that fails goes into a `@test_broken` set that
+   names this plan, and the later steps take it out. The comment of `_RULES_INK_BROKEN` names
+   `plan/done/a-layout-paints-only-what-the-screen-shows.md`.
+   **Done on 2026-11-15.** The layouts have a kind of their own, `:places`: a layout in an exact
+   range less than its content draws its content, as `:rigid` did before. A `:rigid` widget expects
+   `exact_less = ==(m.less)`. The ink check covers every axis. Three new tables: `_RULES_CUT_SAMPLES`
+   (15 samples, each with a short and a long content, and the axes that the type sets),
+   `_RULES_CONSTRAINT_CASES` (8 cases) and their checks. The first run found the work of steps 2
+   and 4, now in four broken sets: `_RULES_EXACT_BROKEN`, 41 pairs of a type and an axis over 23
+   widget types (a type and an axis, because 5 types fail on one axis only); `_RULES_CUT_BROKEN`,
+   13 of the 15 samples (the scroll pane and the transform pane cut already; `WidgetTextarea` also
+   grows past `rows`); `_RULES_CONSTRAINT_BROKEN`, all 8 cases (each draws its child, 350 or 72);
+   and `WidgetSeparator` in `_RULES_INK_BROKEN`, whose authored axis the ink check did not read
+   before. The card draws its `footer` as `string(w.footer)`, so its sample is a string.
+   `test_layout_rules()`: 548 passed, 73 broken. The rule changed in `layout-rules.md` §1 and
+   §3b, `widget.md` and `layout.md`.
+2. **A widget cuts at its box (D1, D2, D5).** One function of the box code in
+   `WidgetToGraphics.jl` puts the content canvas of a widget in a `GraphicsViewport` at the inner
+   box, on each axis where the size of the widget is set or exact. `_resolve_width` and
+   `_resolve_height` give an exact size where the range is exact. Each widget of §2, and each
+   widget that the test of step 1 finds, uses the function. A `WidgetList` cuts its width also with
+   no height edge. A `WidgetCard` cuts its height when it sets one. `WidgetShell` leaves
+   `_RULES_INK_BROKEN`. Tests: `test_layout_rules()` and the test file of each widget changed.
+   **Done on 2026-11-15.** `_resolve_size` gives an exact range as the size, after an authored
+   size. Three functions: `_cut_content_at_box!` (the inner box), `_cut_elements!` (any rect, for
+   a value beside a mark of its widget) and `_put_in_viewport!`; `_place_in_room` starts a content
+   that does not fit at the inner edge (D5). The cut is conditional: a content that fits keeps its
+   elements, so a view whose widgets fit draws the same tree as before. The widgets that cut: label,
+   text field (placeholder and text), button, select (value before the chevron), spin box (value
+   before the stepper, and the stepper at the padding box when the box is narrower than it), text
+   area, avatar, alert, card (title, description, body and footer together), list with no pane,
+   accordion (each title before its chevron, and the whole content), badge, link, toggle, toolbar
+   item, menu item (label and keys), toggle group (its box is the resolved size, and the segments
+   keep their minimum widths and are cut), radio group, progress ring, composite, toolbar, status
+   bar, title pane, fact group (row bands and texts together) and shell (its content slot). The
+   composite keeps its cut decision in a cell of plain data, so a change inside a child that keeps
+   the fit does not build the composite again (the stop rule of `cell.md`). The separator draws its
+   rule as a `GraphicsRect` of its thickness: a `GraphicsLine` centred on the edge of the box drew
+   half of its width outside. Two facts changed the test: `ScrollLayout` gives its center an exact
+   width, which the child now takes, so its width is `:fills`; and the shadow of a button lies
+   below its border box (a fault that `_RULES_INK_BROKEN` holds), so the cut sample of the button
+   has a bottom margin that holds the shadow. `WidgetTextarea` makes `rows` its authored height
+   here (D7). `test_layout_rules()`: 604 passed, 17 broken (the 9 older ink faults, and the 8
+   constraint cases of step 4).
+3. **A text field keeps its caret in view (D6, D7).** `scroll_position` on `WidgetText`,
+   `WidgetTextarea` and `WidgetSpinBox`; the offset in the print and in the IO map; the write in
+   the reader. Test: a field of width 60 that holds a long text, a caret at its end, and a key press
+   of Left and of Home. Assert the place of the caret in the output, not only that it exists.
+   **Done on 2026-11-15.** `WidgetSpinBox` draws its value as a plain text with no caret, so D6
+   applies to `WidgetText` and `WidgetTextarea` only, and the spin box cuts its value (step 2).
+   Both documents get `scroll_position`, view state, as `WidgetList` has it. The print maps the
+   selection into the view of the content (`_map_content_into_view`, which `_map_shown_text_forward`
+   now uses too), finds its box (`_find_content_selection_box`), and draws at
+   `_compute_text_scroll`: the least move from the stored offset that shows the selection, kept
+   between 0 and the end of the text. The cut viewport moves its canvas by that offset (the
+   keyword `scroll` of `_cut_content_at_box!`). The IO maps keep the drawn offset in a field
+   `scroll`; the reader moves a press by it, and `_keep_text_scroll` adds the write of the drawn
+   offset to an answer when the stored offset differs. The docstrings said that `width` is a floor
+   and that the box grows with the text, which the code never did; they now say that the box cuts
+   and scrolls. Tests in `WidgetTextEditTest.jl`: a field of width 60 with 30 characters, the caret
+   at the right edge, Left moves the caret 10 pixels and not the text, Home puts it at the left
+   edge; a text area of two rows of ten lines draws its last line, with the caret, inside the
+   view. The forward map of a field whose content is a document returns `nothing` for a caret in
+   it, on `main` too, so the field test uses a plain string (see §6). A review of the branch found three
+   faults, now fixed: a caret at the end of a cut text stood on the right edge of the view and was
+   cut away, so the scroll keeps the width of the caret of the theme (`:caret_width`); every field
+   read its selection in its build, so a field computes the box of its selection only when its
+   text is larger than its box; and `scroll_position` was no view state for a save, so both
+   documents declare it in `get_view_state_fields`, as `WidgetTable` does.
+4. **A `LayoutConstraint` cuts where it states a size (D4).** Its printer wraps the output of the
+   child with `clip_child_to_slot` on each axis where it states a preferred size, a weight or a
+   maximum, and the size that it gets is exact or bounded. Its reference mappers go through the
+   step `content` of the viewport, as `make_slot_reference` does. Tests: `test_layout_rules()`, and
+   in `test/platform/outline/OutlineTest.jl`: the menu column of a row is `menu_width` wide and
+   nothing draws past it.
+   **Done on 2026-11-15.** `_get_constraint_cut` finds the cut on each axis: the exact size that
+   the constraint gets where it states a preferred size above 0 or a weight; else its own
+   preferred size, which a stack or a flow leaves to it, because they give no exact size; else
+   the edge where it states a maximum. A preferred size of 0 states no size: `Fill` writes it.
+   The cut is conditional, as the cut of a widget is: while the child fits, the output of the
+   constraint is the output of the child, so a view whose children fit draws the same tree as
+   before. A larger child is held in a viewport of the size inside a canvas of the size
+   (`_make_cut_constraint_output`); the forward map adds `_CUT_CHILD_STEPS`, and the backward map
+   strips them, when the output holds the child there by identity (`_is_cut_constraint`).
+   `clip_child_to_slot` is not used: its viewport is the output of a grid slot and has no canvas
+   of its own around it. The outline needs no test of its own: its menu fits `menu_width`, so its
+   output does not change, and `test_layout_rules()` checks a constraint in a row, a column, a
+   stack and a flow. `test_layout_rules()`, `test_widget_text_editing()`,
+   `test_widget_rows_scroll()`, `test_scroll_pane_hover()` and `test_widget_transform_pane()`:
+   790 passed, 9 broken (the older ink faults of other widgets).
+
+5. **The checks.** Run `test_platform()`, `test_dataframes()` (a layout change broke data frame
+   edits before), and the suites of the domains that use a `LayoutConstraint` with a set size.
+   Render the probe of §2 again: no text passes its box. Look at the explorer filter and the
+   folder path field with a long text in a window. Measure the time of a frame of a large data frame
+   view before and after step 2, because D2 adds a viewport to many cells.
+   **Done on 2026-11-15.** `test_platform()` in its 253 parts: 231,434 passed, 13 failed, 22
+   broken. The 13 failures are known on `main`: the layering guard (2 testsets: edges between
+   slices, qualified names, import forms, in files this plan does not touch),
+   `ClipboardTest.jl:502-504`, `NavigatorChoicesTest.jl:174,178,208,211` and the Save As of
+   `FileDialogTest.jl`. A first run on step 2 found three regressions, in
+   `WidgetRowsScrollTest.jl`, `ScrollPaneHoverTest.jl` and `WidgetTransformPaneTest.jl`, which D8
+   fixed. `test_dataframes()`, `test_git()` and `test_research()`: 1243 passed. The probe of §2,
+   rendered again: every sample stays inside its box. A spin box of width 40 shows no digit,
+   because its stepper takes the room of the box. The frame cost of D2 is measured as a count,
+   because the cut is conditional: a data frame view of 1000 rows with a column of notes wider
+   than the column holds 2013 viewports, the cell cuts of its grid, and no cut of a widget, and
+   its print takes 1.1 ms. The explorer filter and the folder path field were not looked at in a
+   window: they are `WidgetText` fields, which the field test and the probe cover.
+
+## 5. Risks
+
+- D2 changes every rigid widget in an exact range smaller than its content: it was as wide as its
+  content and pushed its siblings; it now takes the range and cuts. A view that relied on the push
+  shows less. The data frame suite and a look at the explorer, the task pages and the outline find
+  such a view.
+- A viewport per widget in an exact range adds a clip per cell of a table. If step 5 measures a
+  slower frame, a widget builds its viewport only when its content is larger than its box.
+- A `LayoutConstraint` that cuts adds a step `content` to the output path of its child. A path
+  that a reader or a test builds by hand breaks. The tests of the outline and of the selection find
+  it.
+
+## 6. Not in this plan
+
+- A wheel that scrolls the text of a field or a text area. The print follows the caret at each
+  build, so a wheel scroll that leaves the caret out of view is taken back at the next print; a
+  wheel needs the follow at a move of the caret only, as a scroll pane follows a
+  `ShowSelectionOperation`. Today only a key or a press moves the text, and a text area that cuts
+  its lines shows the others only through its caret. The two text areas of the platform set
+  `rows = 0`, so they are as tall as their text.
+- The stored offset of a field is written with an answer of its reader only. A selection that
+  another path puts in the field, such as a find, is shown, but the next move of the caret starts
+  from the stored offset, so the text can move once.
+
+- The forward map of a `WidgetText` or a `WidgetTextarea` whose content is a document: it returns
+  `nothing` for a path in the content (`get_child_iomaps` of their IO maps is `nothing`), on `main`
+  too. `_map_content_into_view` maps such a path into the view, so the widget can keep its caret
+  in view; its forward map does not use it yet.
+
+- An end mark "…" on a cut caption or value.
+- `wrap = true` on a text field with a set width wraps at the width of the parent, not at the set
+  width.
+- A `Fixed` size or a maximum in `child_width` or `child_height` of a row or a column. No view uses
+  one.
+- A widget with a box in a bounded range whose rigid content is wider than the maximum: an
+  ancestor cuts it at its outer edge, as today.

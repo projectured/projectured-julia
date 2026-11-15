@@ -85,13 +85,32 @@ end
 is_expected(r::TaskResult) = r.result == r.expected_result
 
 """
-    get_error_message(result) -> String
+    get_inner_task_results(result) -> Vector
+
+The results that `result` is made of: those of the tasks of a group, those of
+the fingerprints of a fingerprint test. A result with none answers an empty
+vector and is a leaf. The summary of a group counts its unexpected leaves by
+reason.
+"""
+get_inner_task_results(::TaskResult) = TaskResult[]
+
+"""
+    find_error_message(result) -> Union{String,Nothing}
 
 What a result that is `ERROR` says about the error, such as the error line that
-a kind of task finds in the output of its process. `"<No error message>"` when it
-says nothing, as `opp_repl` writes it.
+a kind of task finds in the output of its process, or `nothing` when it says
+nothing. A kind of task adds a method to it. The detail of a task shows the
+message in a line under its header, and no line for `nothing`.
 """
-get_error_message(::TaskResult) = "<No error message>"
+find_error_message(::TaskResult) = nothing
+
+"""
+    get_error_message(result) -> String
+
+The error message of `result` as `opp_repl` writes it: the message that
+`find_error_message` finds, or `"<No error message>"` when it finds none.
+"""
+get_error_message(result::TaskResult) = something(find_error_message(result), "<No error message>")
 
 """
     format_task_parameters(task) -> String
@@ -121,6 +140,26 @@ not know.
 format_task_column(::AbstractTask, ::AbstractString) = ""
 
 """
+    get_task_column_value(task, result, column) -> value
+
+The value of `task` in `column` when its execution has `result`, or `nothing`
+for no result yet: a value that a table of tasks shows, filters and sorts. A
+kind gives a method for a column whose value comes from the result, such as a
+count that a test found. The default is the text of [`format_task_column`](@ref),
+which the task alone gives.
+
+Use it to give a column of a kind of task a number that the result holds, so a
+filter such as `> 10` and a sort by size read it as a number.
+
+# Example
+
+    get_task_column_value(task, result, "changed")    # 14
+
+See also `get_task_columns`.
+"""
+get_task_column_value(task::AbstractTask, result, column::AbstractString) = format_task_column(task, column)
+
+"""
     get_task_actions(task) -> Vector{Pair{String,Function}}
 
 The buttons that a kind of task adds to the detail of a task, beside Stop and
@@ -129,16 +168,6 @@ that evaluates the press and the task, `action(editor, task)`. A kind with
 nothing to add answers none.
 """
 get_task_actions(::AbstractTask) = Pair{String,Function}[]
-
-"""
-    format_task_details(task, result) -> Vector{String}
-
-What a kind of task says about `task` beside its state, one fact a line, such as
-`command: …`, the exit code of its process, and the line that says why it
-failed. `result` is what the task ended with, or `nothing` while it has not
-ended. A kind with nothing to say answers none.
-"""
-format_task_details(::AbstractTask, result) = String[]
 
 """
     get_task_links(task) -> Vector{NamedTuple}
@@ -158,15 +187,26 @@ opens the part where its content holds the document
 get_task_links(::AbstractTask) = NamedTuple[]
 
 """
-    get_task_result_document(task, result) -> Document or nothing
+    make_task_kind_document(task, result) -> Document or nothing
 
-A document that shows what `task` ended with in more than lines of text, such as
-the table of the scalars that a statistical test compared. `result` is what the
-task ended with. The detail of the task shows the document below its facts. It
-draws by the method of `make_graphics_projection` for its type, as it draws in
-any document. A kind with no such document answers `nothing`.
+The document of the kind of `task`: its facts, its verdict, its tables and its
+command. It exists from the start of the task, and the frame calls it again when
+the result changes: `result` is `nothing` before the task ended, and what it
+ended with after. The detail and the page of the task show the document below
+their header. It draws by the method of `make_graphics_projection` for its type,
+as it draws in any document. A kind with no document answers `nothing`, and the
+frame shows its header, its buttons, its process and its streams.
 """
-get_task_result_document(::AbstractTask, result) = nothing
+make_task_kind_document(::AbstractTask, result) = nothing
+
+"""
+    get_task_kind_name(task) -> String
+
+The name of the kind of `task`, such as `"statistical test"`, which the header of
+the detail and of the page shows in muted text beside the name of the task. A
+kind with no name answers an empty string.
+"""
+get_task_kind_name(::AbstractTask) = ""
 
 """
     find_task_output_mark(task, stream, line) -> Symbol or nothing

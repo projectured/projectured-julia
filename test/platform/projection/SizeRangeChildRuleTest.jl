@@ -7,7 +7,7 @@ _range_between(m, l) = PrinterContext(EmptyReference(), Cell(m), Cell(l), nothin
                                       Dict{Symbol,Any}(), Clock())
 
 _range_widget_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
 
 # The width that `document` draws in the range `ctx`.
 _range_drawn_width(document, ctx) =

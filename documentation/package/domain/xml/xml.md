@@ -1,6 +1,6 @@
 # XML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
 
 The XML domain, `ProjecturedXML`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
 
@@ -63,6 +63,10 @@ default styles for `nothing`; the insertion and the empty placeholder take
 `syntax_theme`. The natural registration gives the scaled theme of the
 `Appearance` of the editor, so the view follows its scales, and the appearance
 tab shows a section for `XmlTheme`.
+
+### The tooltip of a part
+
+An XML file says what the pointer is on: the path of the element, as `/root/a[1]/b`, the namespace of its prefix from the `xmlns` of the elements on the path, and its attributes and children; a text or an attribute says the element that holds it ([tooltip.md](../../platform/tooltip/tooltip.md)).
 
 ## How it fits
 

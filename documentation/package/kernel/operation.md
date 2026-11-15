@@ -1,6 +1,6 @@
 # Operations
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 An **operation** is a user gesture expressed in the document's own terms,
 decoupled from the raw device event that triggered it. The reader side of
@@ -39,9 +39,23 @@ multiple visible cursors.
 `replace_selection!(document, path)` is also the function to call when scripting
 selection from Julia code.
 
+### `SelectDocumentOperation(document)`
+
+Names the document to select by identity, not by a path, so a part that draws a
+link to a document anywhere in a view answers it: the chip of a linked item of a
+study answers the selection of that item. It names no place, so each stage passes
+it up as it is, until the default `read_intent` of a projection whose input holds
+the document answers the selection of its path there, the nearest place first
+(`find_document_path(root, document)`, a walk by identity through
+`child_reference_steps`). That selection comes wrapped in a
+`ShowSelectionOperation`, a `WrappingOperation` that asks the scroll panes on the
+way up to bring the part into view, and that the editor applies as the selection
+it holds. An editor whose document holds the document selects it when no stage
+did. A history records neither of the two.
+
 ### `QuitEditorOperation()`
 
-Produced when the user closes the window or presses Escape. Its evaluation
+Produced when the user closes the window, chooses File > Exit, or presses an Escape that an `EscapeQuittingProjection` answers. Its evaluation
 throws a `QuitEditorException`, which the `run_editor!` loop catches and uses to
 break out cleanly.
 
@@ -184,7 +198,8 @@ number field, with the text of the system clipboard, and the kernel applies it a
 it applies a typed character. `Ctrl+C`, `Ctrl+N` and `Ctrl+X` of a range store
 its characters in the slice and on the system clipboard. The branch runs before
 the rules for a whole document; `accepts_pasted_text` returns whether a document
-accepts the paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/platform/clipboard/Clipboard.jl)
+accepts the paste and the cut, and its field form whether the document that holds
+the text accepts them in that field. It is in [clipboard/Clipboard.jl](../../../source/platform/clipboard/Clipboard.jl)
 and [clipboard/ClipboardSliceToAny.jl](../../../source/platform/clipboard/ClipboardSliceToAny.jl).
 A field that holds a span of the text domain is not a text target yet.
 
@@ -488,8 +503,8 @@ nothing to re-target, so a stage either passes it up as it is or drops it.
 `is_self_contained_operation(op)` answers which. The default is `false`, so a
 stage drops what it can not place. `Rerooting.jl` answers `true` for the
 operations of this layer that name no place: `DoNothingOperation`,
-`QuitEditorOperation`, `InvalidateProjectionOperation`, `ToggleCollapseOperation`
-and `SelectNextInsertionOperation`. A package whose operations carry their
+`QuitEditorOperation`, `InvalidateProjectionOperation`, `ToggleCollapseOperation`,
+`SelectNextInsertionOperation` and `SelectDocumentOperation`. A package whose operations carry their
 subject adds one method for them.
 
 ### The way back: `make_inverse_operation`
@@ -525,7 +540,8 @@ on it that has a title (`get_document_title`), past the fields that
 down, what a drag carries. Applying it applies `operation`. A history does not
 record it, because a hover is not an edit. The reader that writes the state marks
 it, because only that reader knows that the field belongs to the pointer and not
-to the document.
+to the document. A field that a type declares as state of a view
+(`get_view_state_fields`), such as the folds of an outline, is written so too.
 
 ### Downward edges
 

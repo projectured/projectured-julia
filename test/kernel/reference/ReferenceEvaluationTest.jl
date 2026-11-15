@@ -7,11 +7,15 @@ stands on its own without any concrete engine document.
 
 using Test
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.DocumentModule: @document, Document
+using ProjecturedKernel.DocumentModule: @document, Document, DocumentWalk, walk_document
 # `reroot_reference` is the container readers' path-prepender; the narrowing
 # tests below need the untyped nodes it produces, not a hand-built stand-in.
 using ProjecturedKernel.OperationModule: reroot_reference
 using ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
+
+# A key whose print fails: a walk prints no key.
+struct _UnprintedKey end
+Base.show(::IO, ::_UnprintedKey) = error("the walk printed a key")
 
 @document struct EvaluationLeaf
     value::Int
@@ -44,6 +48,14 @@ ReferenceModule.get_reference_step_kind(::EvaluationStoppedStep) = :structural
 ReferenceModule.evaluate_reference_step(::EvaluationStoppedStep, document) =
     throw(InterruptException())
 
+# A step that reaches no place and whose evaluation is stopped: a walker that asks
+# before it steps answers its default, and a walker that steps is stopped.
+struct EvaluationRefusedStep <: ReferenceStep end
+ReferenceModule.get_reference_step_kind(::EvaluationRefusedStep) = :structural
+ReferenceModule.has_reference_step_child(::EvaluationRefusedStep, document) = false
+ReferenceModule.evaluate_reference_step(::EvaluationRefusedStep, document) =
+    throw(InterruptException())
+
 function test_reference_evaluation()
 @testset "ReferenceEvaluation" begin
 
@@ -64,6 +76,35 @@ function test_reference_evaluation()
         @test_throws InterruptException try_evaluate_reference(root, stopped, :none)
         @test_throws InterruptException get_valid_reference_prefix(root, stopped)
         @test_throws InterruptException annotate_reference_types(root, stopped)
+    end
+
+    @testset "a walker asks before it steps" begin
+        refused = Reference(EvaluationRefusedStep())
+        @test try_evaluate_reference(root, refused, :none) === :none
+        @test get_valid_reference_prefix(root, refused) isa EmptyReference
+        annotated = annotate_reference_types(root, refused)
+        @test annotated isa ConcreteReference && annotated.tail.type === nothing
+    end
+
+    @testset "a step says whether it reaches a place" begin
+        @test has_reference_step_child(FieldReferenceStep("left"), root)
+        @test !has_reference_step_child(FieldReferenceStep("missing"), root)
+        @test has_reference_step_child(FieldReferenceStep("a"), Dict("a" => 1))
+        @test has_reference_step_child(FieldReferenceStep("a"), Dict(:a => 1))
+        @test !has_reference_step_child(FieldReferenceStep("b"), Dict(:a => 1))
+        @test has_reference_step_child(ElementReferenceStep(2), Any[1, 2])
+        @test !has_reference_step_child(ElementReferenceStep(3), Any[1, 2])
+        @test has_reference_step_child(ElementReferenceStep(3), "héé")
+        @test !has_reference_step_child(ElementReferenceStep(4), "héé")
+        @test has_reference_step_child(PositionReferenceStep(9), Any[1, 2])
+        @test has_reference_step_child(EvaluationToyStep(), root)
+        # The walkers answer what they answer when the step throws.
+        @test try_evaluate_reference(Dict(:a => 1), Reference(FieldReferenceStep("a"))) == 1
+        @test try_evaluate_reference(Dict(:a => 1), Reference(FieldReferenceStep("b")), :none) === :none
+        @test try_evaluate_reference("héé", Reference(ElementReferenceStep(3))) == 'é'
+        @test try_evaluate_reference("héé", Reference(ElementReferenceStep(4)), :none) === :none
+        @test try_evaluate_reference(Any[1, 2], Reference(PositionReferenceStep(1))) == Position(1)
+        @test get_valid_reference_prefix(Any[1, 2], Reference(ElementReferenceStep(3))) isa EmptyReference
     end
 
     @testset "evaluate_reference walks fields" begin
@@ -410,10 +451,14 @@ function test_reference_evaluation()
               [Reference(FieldReferenceStep("right"), FieldReferenceStep("value"))]
         @test strip_reference_types.(search_references(root, "20")) ==
               [Reference(FieldReferenceStep("right"))]
-        # One document in two places is two places.
+        # One document in two places: the default walk answers its first place, and the
+        # walk of each path answers both.
         shared = EvaluationLeaf(5, nothing)
         pair = EvaluationBranch(shared, shared, nothing)
-        @test Set(strip_reference_types.(search_references(pair, x -> x === shared))) ==
+        @test strip_reference_types.(search_references(pair, x -> x === shared)) ==
+              [Reference(FieldReferenceStep("left"))]
+        @test Set(strip_reference_types.(search_references(pair, x -> x === shared;
+                                                           walk = DocumentWalk(; policy = :once_per_path)))) ==
               Set([Reference(FieldReferenceStep("left")),
                    Reference(FieldReferenceStep("right"))])
     end
@@ -434,6 +479,21 @@ function test_reference_evaluation()
         @test first_step == second_step
         @test hash(first_step) == hash(second_step)
         @test length(Set([Reference(first_step), Reference(second_step)])) == 1
+    end
+
+    @testset "a walk of a dict prints no key, and a key that is not a name gives no step" begin
+        entries = Dict{Any,Any}(_UnprintedKey() => "lamp", "name" => "desk")
+        text = value -> value isa String
+        @test length(walk_document(DocumentWalk(), entries, text; raw = true)) == 2
+        steps = [location.second for location in walk_document(DocumentWalk(), entries, text;
+                                                               raw = true, paths = true)]
+        @test Set(steps) == Set(Any["name", nothing])
+        # The search answers the entry of the name, and counts the other as a place
+        # that no path reads back.
+        found = search_references(entries, text; raw = true)
+        @test length(found) == 1
+        @test evaluate_reference(entries, only(found)) == "desk"
+        @test found.limits.unreadable_count == 1
     end
 
 end

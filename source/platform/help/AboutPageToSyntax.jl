@@ -29,7 +29,14 @@ function make_about_page_projection(; theme = nothing)
 end
 
 function print_document(p::AboutPageToSyntax, recursion, page::AboutPage, ctx::PrinterContext)
-    SimpleIoMap(p, page, SyntaxNode(() -> _make_about_lines(p, page); sep = "\n"))
+    # The node holds the forward image of the paths of the page; the node maps a
+    # path into its lines itself.
+    iomap_cell = Cell(nothing)
+    paths = make_output_path_cells(page, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)
+    iomap_cell[] = SimpleIoMap(p, page, SyntaxNode(() -> _make_about_lines(p, page); sep = "\n", paths...))
 end
 
 function _make_about_lines(p::AboutPageToSyntax, page::AboutPage)

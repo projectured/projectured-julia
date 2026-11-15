@@ -1,9 +1,8 @@
 """
     GraphModule
 
-The graph domain: a graph document, the layout that places it, the engines that
-compute a layout, the registry that picks one, and the projections that draw the
-result.
+Graph documents: vertices and edges, the layout that places them, the engines and
+the registry that make a layout, and the projections that draw it.
 
 This file holds the document — vertices with a content `Document` (any domain: a
 table, JSON, another graph) and edges connecting vertices by identity, which is
@@ -18,6 +17,8 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
     get_child_iomaps, read_child_by_route
+import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..DisplayModule: make_workload_file
 
 export GraphDocument
 export GraphLayoutDocument
@@ -34,6 +35,8 @@ export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 export GraphTheme, ScaledGraphTheme
 export GraphLayoutToGraphicsCanvas, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap
+export GraphGraphToWidgetScrollPane, GraphGraphToWidgetScrollPaneIoMap,
+       make_scrolling_graph_projection
 export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexLayout, EdgeLayout
 
 
@@ -45,5 +48,14 @@ include("GraphLayoutChoice.jl")
 include("GraphToGraphLayout.jl")
 include("GraphTheme.jl")
 include("GraphLayoutToGraphics.jl")
+include("GraphToWidgetScrollPane.jl")
+
+# The file that a workload of the window opens (`run_file_workload`).
+function make_workload_file(::Type{GraphGraph})
+    first, second = GraphVertex(PrimitiveString("alpha")), GraphVertex(PrimitiveString("beta"))
+    (; name = "a.pred",
+     text = print_pred_text(GraphGraph([first, second], [GraphEdge(first, second; directed = true)])),
+     shown = r"alpha")
+end
 
 end # module

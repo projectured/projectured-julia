@@ -349,8 +349,10 @@ function test_search_object()
         shared = JsonString("dup")
         obj = JsonObject("a" => shared, "b" => shared)
         @test length(search_documents(obj, v -> v === shared)) == 1
-        # …whereas search_references reports both locations
-        @test length(search_references(obj, v -> v === shared)) == 2
+        # …and search_references reports it once, at its first place; the walk of
+        # each path reports both places
+        @test length(search_references(obj, v -> v === shared)) == 1
+        @test length(search_references(obj, v -> v === shared; walk = DocumentWalk(; policy = :once_per_path))) == 2
     end
 end
 
@@ -746,6 +748,13 @@ end
 _has_mcp_unit_thread() =
     any(thread -> thread != Threads.threadid(), Threads.threadpooltids(:default))
 
+# The text of the answer of an MCP tool, and whether the answer marks an error. A
+# call that faults answers a `CallToolResult` with `is_error`, any other call its
+# content.
+_read_mcp_answer(answer::ProjecturedMCP.McpModule.CallToolResult) =
+    (only(answer.content)["text"], answer.is_error)
+_read_mcp_answer(answer) = (answer.text, false)
+
 # A tool that a client calls runs in the drain of the inbox, as a code unit of the
 # editor: on a task of its own when the process has a thread for it, or else on
 # the task that runs the loop. The server task waits for its answer. The test
@@ -779,12 +788,14 @@ function test_mcp_tool_runs_on_editor_task()
         @test length(ran_on) == 1 && only(ran_on) !== call
         @test (only(ran_on) === current_task()) == !_has_mcp_unit_thread()
         @test editor.document.value == "written"
-        @test fetch(call).text == "done"
-        # A tool that throws answers its error, and the fault is recorded.
+        @test _read_mcp_answer(fetch(call)) == ("done", false)
+        # A tool that throws answers its error, marked as an error, and the fault
+        # is recorded.
         failing = @async handlers["probe_throws"](Dict{String,Any}())
         @test timedwait(() -> isready(editor.inbox), 5.0) === :ok
         drain_operations!(editor)
-        @test occursin("probe failed", fetch(failing).text)
+        (text, is_error) = _read_mcp_answer(fetch(failing))
+        @test occursin("probe failed", text) && is_error
         @test any(record -> record.origin === :probe_throws &&
                             occursin("probe failed", record.message),
                   get_fault_records(editor.faults))
@@ -810,10 +821,10 @@ function test_mcp_tool_runs_on_editor_task()
             description = "Runs code in the background.", parameters = NamedTuple[],
             handler = (target, args) -> call_tool(editor.tools, "execute_julia_code"; target,
                 args = Dict{String,Any}("code" => code, "background" => true)))])).handler
-        @test background("println(\"in the background\"); 1")(Dict{String,Any}()).text ==
-              "in the background\n1\n"
-        @test occursin("thrown in the background",
-                       background("error(\"thrown in the background\")")(Dict{String,Any}()).text)
+        @test _read_mcp_answer(background("println(\"in the background\"); 1")(Dict{String,Any}())) ==
+              ("in the background\n1\n", false)
+        (text, is_error) = _read_mcp_answer(background("error(\"thrown in the background\")")(Dict{String,Any}()))
+        @test occursin("thrown in the background", text) && is_error
         # The cancel of the turn of an agent stops the background work of its calls.
         server = McpServer(editor; port = 0)
         sleeper = only(render_mcp_tools(editor, [Tool("probe_sleeper";
@@ -825,7 +836,7 @@ function test_mcp_tool_runs_on_editor_task()
         @test timedwait(() -> !isempty(server.running.works), 10.0) === :ok
         ProjecturedKernel.AgentModule.stop_agent_server_work!(server)
         @test timedwait(() -> istaskdone(sleeping), 10.0) === :ok
-        @test occursin("InterruptException", fetch(sleeping).text)
+        @test occursin("InterruptException", first(_read_mcp_answer(fetch(sleeping))))
         @test isempty(server.running.works)
         # A tool that answers a picture gives the client an image.
         picture = Tool("probe_picture"; description = "Answers a picture.", parameters = NamedTuple[],
@@ -858,6 +869,26 @@ function test_mcp_keeps_evaluated_document()
         evaluate(Dict{String,Any}("code" => "JsonString(\"again\")"))
         evaluate(Dict{String,Any}("code" => "JsonString(\"again\")"), context(nothing))
         @test isempty(editor.tools.call_values)
+    end
+end
+
+# The code of a call runs with the starter of its client: a client over MCP with
+# the id of the call, or what the `call_starter` of the server gives for that id.
+function test_mcp_call_starter()
+    @testset "the code of a call runs with the starter of its client" begin
+        editor = _mcp_editor()
+        seen = Any[]
+        probe = Tool("probe"; description = "a tool of the test", parameters = NamedTuple[],
+                     handler = (target, arguments) -> (push!(seen, find_evaluation_starter()); "ran"))
+        library = ProjecturedMCP.McpModule.ModelContextProtocol
+        server = library.mcp_server(name = "test", version = "0.0.1")
+        context = library.RequestContext(server = server, meta = Dict{String,Any}("claudecode/toolUseId" => "toolu_3"))
+        only(render_mcp_tools(editor, [probe])).handler(Dict{String,Any}(), context)
+        only(render_mcp_tools(editor, [probe])).handler(Dict{String,Any}())
+        only(render_mcp_tools(editor, [probe]; call_starter = id -> (:assistant, id))).handler(Dict{String,Any}(), context)
+        @test seen == Any[WorkStarter(:client; name = "MCP client", tool_call = "toolu_3"),
+                          WorkStarter(:client; name = "MCP client"), (:assistant, "toolu_3")]
+        @test describe_work_starter(first(seen)) == "MCP client"
     end
 end
 
@@ -904,6 +935,9 @@ function test_mcp_log()
         @test occursin("2", entries[2].answer) && !entries[2].fault
         @test entries[3].fault && occursin("boom", entries[3].answer)
         @test entries[4].fault && occursin("boom", entries[4].answer)
+        # The client reads a fault as an error, and an answer as no error.
+        marks_error(answer) = occursin(r"\"isError\"\s*:\s*true", answer)
+        @test !marks_error(answers[2]) && marks_error(answers[3]) && marks_error(answers[4])
         @test all(e -> e.duration >= 0, entries)
         @test log.count == 4 && log.faults == 2
     end
@@ -937,6 +971,7 @@ function test_mcp_tools()
         test_mcp_server()
         test_mcp_tool_runs_on_editor_task()
         test_mcp_keeps_evaluated_document()
+        test_mcp_call_starter()
         test_mcp_log()
     end
 end
@@ -949,4 +984,4 @@ export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api
 export test_pane_tab_b1, test_print_object_options, test_search_object
-export test_mcp_server, test_mcp_tool_runs_on_editor_task
+export test_mcp_server, test_mcp_tool_runs_on_editor_task, test_mcp_call_starter

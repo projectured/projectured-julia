@@ -1,6 +1,6 @@
 # Testing in the REPL
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+> **Kind:** procedure · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
 The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../../plan/done/test-package-split.md)):
@@ -51,6 +51,10 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 18 domain te
   translation of the updates of an agent, the connection against a fake agent
   in the test process, the transport with a small child agent, and the start of
   the built-in agent) needs no network, no Node.js, no `claude` and no sign-in.
+  [package/languageserver/test](../../package/ProjecturedLanguageServerTest)
+  (`test_languageserver()` — the connection and the semantic tokens against a
+  language server in the test process, a source file in a headless editor, and
+  three tests with `clangd`, which skip themselves when it is not installed).
 - [package/projectured/test](../../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,
@@ -282,6 +286,25 @@ of a cell layout of a document counts for that document. `test_catalog_coverage`
 printer with no atom and fails for the change that adds it. Only a type that no test can
 make goes on its list `_NO_ATOM`, with the reason. A projection that a test defines for
 its own fixture is no stage of the catalog.
+
+**The atoms of another package.** `catalog(atoms; natural = false, …)` takes any list of
+atoms, such as those of another repository, and gives their projections by the same
+search. With `natural = true`, each atom also gets the variant `domain/name/natural`: the
+projection that an editor makes for the document when it gets none
+(`make_document_projection`), the one that the app uses. A view that prints widgets reaches
+the screen only through it. The testers run on any list of examples with
+`test_catalog_examples(examples; testers, marks)` of `ProjecturedPlatformTest`, where
+`marks` names the known failures of each kind of tester by the name of an example, and
+the guard runs on any list of atoms with `test_atom_coverage(atoms; roots, no_atom)`,
+where `roots` names the modules whose printers the atoms cover, such as `("Omnet",)`.
+`test_catalog()` and `test_catalog_coverage()` call them with the atoms and the known
+failures of this repository.
+
+```julia
+julia> examples = catalog(atoms; natural = true)
+julia> test_catalog_examples(examples; testers = (CATALOG_TESTERS..., test_part_click))
+julia> test_atom_coverage(atoms; roots = ("Omnet",), no_atom = Set{String}())
+```
 
 ## A test that checks the root of a built editor
 
@@ -584,6 +607,28 @@ fail reports zero whether or not anything is wrong:
 
 `test_verdict_stability(names)` additionally requires that the same leaves
 measured forward, forward again and backward give identical counts.
+
+## The layout rules
+
+`test_layout_rules()` (`ProjecturedPlatformTest`, in `test_platform()`) checks
+the rules of [layout-rules.md](../rule/layout-rules.md) for every widget type
+and every layout type of the platform. It runs in about 16 s, most of which is
+compilation, and makes 520 checks.
+
+- Each type has a small sample with no authored size, and a kind on each axis:
+  `:rigid`, `:reflowing`, `:scrolls`, `:fills`, `:authored` or `:overlay`. The
+  test prints the sample in an exact, a bounded, an "at least" and a free range,
+  and checks what it draws by the rule of its kind.
+- A guard fails for a concrete type below `WidgetDocument` or `LayoutDocument`
+  that has no kind. When you add such a type, add its sample and its kind to
+  `_RULES_KINDS` in `test/platform/projection/LayoutRulesTest.jl`, or a reason
+  why the type is not placed alone.
+- The worked cases of [layout-rules.md](../rule/layout-rules.md) §5 are tests,
+  and so is a lazy grid of ten million rows in a scroll area that grows.
+
+Run it after a change of a printer that sizes a widget or a layout, of a scroll
+area, or of a stack. Then run `test_dataframes()`. The view of a data frame sizes
+its rows by the same rules, and only that suite edits a data frame in its view.
 
 ## The static guards
 

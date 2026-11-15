@@ -14,6 +14,7 @@ form.
 @document struct MathFile <: FileDocument
     filename::String
     content::Document = MathInsertion()
+    disk::FileDiskState = FileDiskState()
 end
 
 get_file_domain(::Type{<:MathFile}) = MathDocument

@@ -1,6 +1,6 @@
 # Requirements
 
-> **Kind:** what · **Status:** current · **Stands on:** [product-vision.md](product-vision.md)
+> **Kind:** what · **For:** developer · **Status:** current · **Stands on:** [product-vision.md](product-vision.md)
 
 This document states what ProjecturEd is required to do, as capabilities
 observable from the outside — by a person or an AI assistant using the editor,
@@ -13,6 +13,10 @@ These are the *product* requirements (what the editor and project must do). For
 the *internal development* requirements that keep the codebase tractable — the
 invariants and conventions every change must respect — see
 [architecture-invariants.md](../rule/architecture-invariants.md).
+
+Proposed requirements that nobody has reviewed yet are in
+[candidate-requirements.md](candidate-requirements.md). A candidate moves here
+only after a review.
 
 Each requirement carries a symbolic ID — `PR-NO-INVALID-STATES`,
 `PR-UNDO-REDO` — to cite in reviews, commit messages, and plans. An ID is

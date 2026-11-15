@@ -1,8 +1,9 @@
 """
     SystemProcessModule
 
-The processes of the system as documents. A pure read of `/proc` answers plain
-records of the processes under a set of roots; a `SystemProcessTree` keeps one
+The processes of the operating system as documents: a tree of processes, each with a
+page of facts. A pure read of `/proc` answers plain records of the processes under a
+set of roots; a `SystemProcessTree` keeps one
 `SystemProcess` for each, by its process id and its start ticks, and a sync on
 the editor task writes only the cells that changed. The read runs on a task of
 its own, once in an interval and only while a view reads the tree, and the
@@ -27,6 +28,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..EditorModule
 using ..FeedModule
 using ..FocusModule
 using ..GraphicsModule
@@ -36,14 +38,18 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..RosterModule
+using ..SerializationModule
 using ..StyleModule
+using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type,
                        get_item_facets, compute_item_facet

@@ -1,6 +1,6 @@
 # The popup window
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
 
 A menu, the list of a dropdown field, a dialog, a tooltip and a context menu
 each open in a small window of their own, not in a layer drawn over the window

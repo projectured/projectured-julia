@@ -24,7 +24,7 @@ function show_window_layers(state, count::Int, make_content::Function)
                                      maximum_size = window.maximum_size,
                                      bg = window.bg, style = window.style,
                                      auto_dismiss = window.auto_dismiss,
-                                     modal = window.modal,
+                                     modal = window.modal, placement = window.placement,
                                      content = make_content(state.layers, count))
     CompoundOperation(Any[_write_window_state(state, "shown", count),
                           _write_window_state(state, "window", reopened),
@@ -34,6 +34,23 @@ end
 # A write of one field of the state of a wrapper, which a history does not record.
 _write_window_state(state, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(state, field, value))
+
+"""
+    WINDOW_LAYER_MORE_KEY
+
+The key that shows one more layer of a window that shows layers: F2.
+[`make_window_layer_bindings`](@ref) binds it, and a window that names it to a
+person reads it here, so the name and the binding are the same key.
+"""
+const WINDOW_LAYER_MORE_KEY = KeyDownPattern(:f2; modifiers = Symbol[])
+
+"""
+    WINDOW_LAYER_FEWER_KEY
+
+The key that shows one fewer layer of a window that shows layers: Shift+F2. See
+[`WINDOW_LAYER_MORE_KEY`](@ref).
+"""
+const WINDOW_LAYER_FEWER_KEY = KeyDownPattern(:f2; modifiers = [:shift])
 
 """
     make_window_layer_bindings(make_content; domain) -> Vector{GestureBinding}
@@ -46,13 +63,13 @@ window is open. `domain` names the wrapper in the gesture help.
 """
 make_window_layer_bindings(make_content::Function; domain::AbstractString) =
     GestureBinding[
-        GestureBinding(KeyDownPattern(:f2; modifiers = Symbol[]),
+        GestureBinding(WINDOW_LAYER_MORE_KEY,
                        (state, gesture) ->
                            show_window_layers(state, state.shown + 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,
                        description = "Show what the next part around says",
                        domain = String(domain)),
-        GestureBinding(KeyDownPattern(:f2; modifiers = [:shift]),
+        GestureBinding(WINDOW_LAYER_FEWER_KEY,
                        (state, gesture) ->
                            show_window_layers(state, state.shown - 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,

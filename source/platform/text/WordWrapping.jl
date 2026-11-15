@@ -48,16 +48,19 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
 end
 
 # The width a line wraps at: the maximum of the range the parent gave, exact or
-# bounded, cut at `p.max_width`; with neither, a width no line reaches.
+# bounded, less the space at its sides, cut at `p.max_width`; with neither, a
+# width no line reaches. The text printer of the chain takes the space around the
+# lines, so the lines wrap inside it.
 const _NO_WRAP_WIDTH = Int(typemax(Int32))
 
 function _wrap_width_cell(p::WordWrapping, ctx)
     limit = something(p.max_width, _NO_WRAP_WIDTH)
     edge = ctx isa PrinterContext ? ctx.maximum_width : nothing
     edge === nothing && return Cell(limit)
+    space_width = ctx.space[1] + ctx.space[3]
     Cell(@computation begin
         v = edge[]
-        min(v isa Integer ? max(1, Int(v)) : _NO_WRAP_WIDTH, limit)
+        min(v isa Integer ? max(1, Int(v) - space_width) : _NO_WRAP_WIDTH, limit)
     end)
 end
 
@@ -103,6 +106,8 @@ end
 # indentation.
 function _compute_soft_breaks(line::TextLine, wrap_w::Int, measure_fn::TextMeasure)
     breaks = Int[]
+    # A free width: no row breaks, and no word is measured.
+    wrap_w >= _NO_WRAP_WIDTH && return breaks
     width = wrap_w - _measure_indentation(line, measure_fn)
     width > 0 || return breaks
     cx = 0

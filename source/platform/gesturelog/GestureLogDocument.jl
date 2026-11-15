@@ -16,6 +16,17 @@ The buffer. `entries` holds at most `capacity` entries, oldest first. `count` is
 the number of entries that were recorded, including the entries that the buffer
 dropped. `typing` is the text of the run of typed characters that the newest
 entry folds, and is empty when the newest entry is not such a run.
+
+Use it to read the gestures that a person made lately and the operation that each one produced.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Gestures"))
+    log_1 isa GestureLog
+
+See also `find_pane`, `get_edited_document` and `search_documents`.
+
+For the assistant.
 """
 @document struct GestureLog
     entries::CellVector = CellVector()
@@ -189,6 +200,8 @@ each gesture, with its keys or its click and the operation that it ran.
     println(print_natural_text(get_session_gesture_log()))
 
 See also `describe_undo_history`, `find_selected_part`.
+
+For the assistant.
 """
 function get_session_gesture_log end
 
@@ -201,4 +214,12 @@ get_session_gesture_log(; editor = find_evaluation_editor()) =
 make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()
 make_pred_document(::Type{<:GestureLog}, positional, keywords) = get_session_gesture_log()
 
-get_document_decoration(::GestureLog) = DocumentDecoration(; icon = :keyboard)
+get_document_decoration(log::GestureLog) =
+    DocumentDecoration(; icon = :keyboard, tooltip = () -> _make_gesture_log_note(log))
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many gestures it kept and recorded.
+_make_gesture_log_note(log::GestureLog) =
+    TooltipNote(; title = "Gestures", text = "Every gesture of this session, and what each one did.",
+                facts = ["Kept" => string(length(log.entries)), "Capacity" => string(log.capacity),
+                         "Recorded" => string(log.count)])

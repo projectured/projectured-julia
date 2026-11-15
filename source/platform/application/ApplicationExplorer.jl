@@ -7,10 +7,13 @@
 
 The first content of the explorer of a window of `editor`: `entries`, which the
 host gives, such as the folder of the window or the projects of a simulator; the
-open files, the task list and the assistant list of the editor; a section of evaluators with one
-evaluator; an empty section of dashboards; a section of what the editor does now,
-with its logs, its statistics, the selection and the processes of the system; a
-section of the settings; and a section of the help. `mcp_log` adds the log of the
+open files, the task list and the assistant list of the editor; the session
+document of each kind for which `is_session_explorer_entry_type` answers `true`,
+in the order of the names of their types; a section of evaluators with one
+evaluator, which has an empty form to type into; a section of dashboards with one
+empty dashboard; a section of what the editor does now,
+with its logs, its statistics, the selection and the processes of the system; the
+settings and the appearance of the editor; and a section of the help. `mcp_log` adds the log of the
 calls of a client to the section of the editor, for a window that serves MCP.
 
 Each document of a session is the one of `editor`, so a Tasks tab and the
@@ -35,18 +38,37 @@ function make_editor_explorer_content(; editor, entries::AbstractVector = Any[],
     settings = Any[document for document in (find_editor_settings(; editor), find_editor_appearance(; editor))
                    if document !== nothing]
     lists = Any[get_session_open_file_list(; editor), get_session_task_group_list(; editor),
-                get_session_assistant_list(; editor)]
+                get_session_assistant_list(; editor),
+                (get_session_document!(() -> run_with_evaluation_editor(() -> Base.invokelatest(type), editor),
+                                       editor, type)
+                 for type in _collect_session_explorer_entry_types())...]
     ExplorerSection("Explorer", Any[
         entries...,
         (list for list in lists if !any(entry -> entry === list, entries))...,
-        ExplorerSection("Evaluators", Any[EvaluatorToplevel()]),
-        ExplorerSection("Dashboards"),
+        ExplorerSection("Evaluators", Any[make_insertion_document(EvaluatorToplevel)]),
+        ExplorerSection("Dashboards", Any[Dashboard("Dashboard")]),
         ExplorerSection("Editor", Any[logs...,
                                       get_session_frame_statistics(; editor), get_session_frame_time_series(; editor),
+                                      get_session_background_work_log(; editor),
                                       SelectionInspector(),
                                       SystemProcessTree([getpid()]; title = "System processes")]),
-        ExplorerSection("Settings", settings),
+        settings...,
         ExplorerSection("Help", Any[DocumentTypeList(), ProjectionList(), AboutPage()])])
+end
+
+# The kinds whose session document the first content holds: each type with a
+# method of `is_session_explorer_entry_type` that answers `true`, in the order of
+# their names. The method table is the list, so a package that loads adds its kind,
+# and the call reads the newest methods, as the table does.
+function _collect_session_explorer_entry_types()
+    types = Type[]
+    for method in methods(is_session_explorer_entry_type)
+        argument = Base.unwrap_unionall(method.sig).parameters[2]
+        (argument isa DataType && argument <: Type && length(argument.parameters) == 1) || continue
+        type = argument.parameters[1]
+        type isa Type && Base.invokelatest(is_session_explorer_entry_type, type) && push!(types, type)
+    end
+    sort!(unique!(types); by = type -> String(nameof(type)))
 end
 
 # The first content of the explorer of the window of `editor`: the entries that
@@ -59,11 +81,23 @@ function _fill_explorer_content!(editor)
     nothing
 end
 
-# The content that the file `path` keeps, in the place of the first content, when
-# the file reads; the first content stays when there is no file or it does not
-# read.
-function _restore_explorer_content!(editor, path::AbstractString)
-    loaded = load_explorer_content(path; editor)
+"""
+    RestoreExplorerContentOperation(path; folder)
+
+Put the content that the file `path` keeps for the work folder `folder` in the place
+of the content of the explorer of the editor, when the file reads. The content stays
+when there is no file or it does not read. The start of a window posts it after the
+acquire of the documents of the window, so a card of a file that a tab shows holds
+the file document of that tab.
+"""
+struct RestoreExplorerContentOperation <: Operation
+    path::String
+    folder::String
+    RestoreExplorerContentOperation(path::AbstractString; folder::AbstractString) = new(path, folder)
+end
+
+function evaluate_operation(editor, operation::RestoreExplorerContentOperation)
+    loaded = load_explorer_content(operation.path; folder = operation.folder, editor)
     loaded === nothing && return nothing
     content = get_session_explorer_content(; editor)
     content.title = loaded.title

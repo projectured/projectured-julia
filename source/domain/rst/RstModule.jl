@@ -1,10 +1,11 @@
 """
     RstModule
 
-The reStructuredText document domain — inlines (text, literal, emphasis,
+reStructuredText documents: sections that hold paragraphs, lists, tables and other
+blocks, with inline markup in the text. They hold inlines (text, literal, emphasis,
 strong, role, reference, substitution, footnote reference), blocks (section,
-paragraph, list, literal block, line block, table, quote, transition,
-comment, target), and directives.
+paragraph, list, literal block, line block, table, quote, transition, comment,
+target), and directives.
 
 **Sections nest.** The RST source is flat: a title line followed by an
 adornment line, where the adornment character alone decides the depth. The
@@ -34,8 +35,10 @@ import ..CellModule: set_cell_computation!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
+import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export RstDocument, set_cell_computation!
 export parse_rst, parse_rst_file
@@ -98,8 +101,9 @@ function __init__()
         theme = get_scaled_theme!(appearance, RstTheme)
         get_style(name) = get_rst_style(theme, name)
         title_styles = (title_1_font = get_style(:title_1_font), title_2_font = get_style(:title_2_font),
-                        title_3_font = get_style(:title_3_font), title_font = get_style(:title_font),
-                        title_color = get_style(:title_color))
+                        title_3_font = get_style(:title_3_font), title_4_font = get_style(:title_4_font),
+                        title_5_font = get_style(:title_5_font), title_6_font = get_style(:title_6_font),
+                        title_color = get_style(:title_color), minor_title_color = get_style(:minor_title_color))
         Pair{Type,Any}[
             RstRoot    => ChainingProjection(RstRootToVerticalLayout(; gap = get_style(:block_gap)),
                                              VerticalLayoutToGraphicsCanvas()),
@@ -109,5 +113,9 @@ function __init__()
         ]
     end)
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{RstFile}) =
+    (; name = "a.rst", text = "Title\n=====\n\nAlice writes a text.\n", shown = r"Alice")
 
 end # module

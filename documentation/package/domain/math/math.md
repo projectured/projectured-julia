@@ -1,6 +1,6 @@
 # Math domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md)
 
 The math domain, `ProjecturedMath`, holds a formula as a tree of documents: its structure, not its picture and not its value. Two projections read the tree: `MathToSyntax` prints one line of text, and `MathToGraphics` sets real two-dimensional boxes. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): the vocabulary, the reader of the linear form, the box protocol of the two-dimensional form, and the keys that edit it.
 
@@ -59,19 +59,20 @@ Most rules are `@projection_template` builders, so the printer, the reference ma
 `parse_math(text)` reads the line back into a tree. The printer is the grammar: a line that the printer writes reads back to a tree that prints the same line. A read accepts more than a print writes: `ρ^n` reads as `ρ^{n}` does, and `\rho` as `ρ` does. An error names the position that the reader could not read, and the reader never evaluates. Where the line is ambiguous, the reader applies these rules:
 
 - **`/` with no space around it is a fraction, and ` / ` with spaces is the binary division.** A fraction binds tighter than juxtaposition, so `1/n x` is a row of a fraction and a variable. A numerator that is a row is written in parentheses: `((1 - ρ) ρ^{n})/(1 - ρ^{n + 1})`.
-- **A letter is a variable, a word is text, and a name directly before `(` is a function.** `f(x)` is a call, `f (x)` is juxtaposition, and `log_{2}(x)` is a call with a base. `d` followed by one lower-case letter is a differential, `dt`.
+- **A letter is a variable, a word is text, and a name directly before `(` is one function node.** A letter `f(2)`, a Greek letter `ρ(1 - ρ)`, a word `exp(1)` and a name with a braced subscript `S_{pure}(0.5)` or `log_{2}(x)` all read as a `MathFunction`, which prints the same text whatever it means; `f (x)` with a space is juxtaposition. The node draws its name as a name does alone: a letter and a lowercase Greek letter slanted, a word upright. Whether it is a call or a product is the reading of the formula domain, which knows the sheet. `d` followed by one lower-case letter is a differential, `dt`.
 - **A space is juxtaposition.** An explicit `MathSpace` prints as `\,`, `\:`, `\;` or `\quad`, so the two never print the same.
 - **Every `(…)` reads as a `MathParenthesized`**, the parentheses that the printer adds around a numerator, a base or a body too. The tree that comes back equals the tree that went in, except for those nodes, and the line is the same.
 - **`-` directly before digits is a negative number.** Before anything else it is the prefix minus.
 
 ### The two-dimensional form
 
-`MathToGraphics(; measure, font, slanted, style, ink, hint)` typesets its own boxes. The generic layouts align by top, centre or bottom, and none of them can put a fraction on the baseline of the row that holds it.
+`MathToGraphics(; measure, theme, style)` typesets its own boxes. The generic layouts align by top, centre or bottom, and none of them can put a fraction on the baseline of the row that holds it.
 
-**The box protocol.** Every rule returns a `MathIoMap`, which publishes the box as three cells beside the usual fields: `width`, `ascent` from the top of the box down to the baseline, and `descent` from the baseline down. A parent reads the cells of its children to place them, and wraps the placed children in a `GraphicsCanvas`. A change in one leaf computes again only the boxes above it. `GridLayoutIoMap` is the precedent: an IO map can publish geometry so that a parent can place its child.
+**The box protocol.** Every rule returns a `MathIoMap`, which publishes the box as three cells beside the usual fields: `width`, `ascent` from the top of the box down to the baseline, and `descent` from the baseline down. A parent reads the cells of its children to place them, and wraps the placed children in a `GraphicsCanvas`. A change in one leaf computes again only the boxes above it. `GridLayoutIoMap` is the precedent: an IO map can publish geometry so that a parent can place its child. A formula answers `find_first_baseline` with its ascent, so a row on the baseline (`vertical_align = :baseline`) sets a label on the line of the formula, beside a tall fraction too.
 
 - A `MathChild` records the reference steps that reach a child, its IO map, and the `x` and `y` cells where the parent put it. A matrix cell is two canvases down, inside the grid and inside the delimiter row, so an element index can not name it.
 - A `MathGlyphBox` is a box that the projection adds: an operator sign, a delimiter or a fraction rule. It has the same three metrics, so a row can hold both kinds of box, but it carries no reference, so a selection never lands on it.
+- A child that a wrapper holds, such as the fault barrier around each child of a page, gives the box of the IO map that it shows through (`get_content_iomap`). So a formula sets in a page as it sets alone.
 - A box of another domain reports no baseline. If it draws text, the first text run gives the baseline one font ascent below its top, so a number from the natural renderer sits on the line of the formula. A box with no text centres on the axis.
 
 **The numbers.** `MathMetrics` holds every number that the rules use, computed by `compute_math_metrics` from one font at one style level. You tune the layout there and nowhere else.
@@ -114,9 +115,9 @@ the default that the domain draws with no appearance. A projection holds its
 styles as fields, and no theme; nothing in it scales or asks whether a theme is
 scaled. `MathToSyntax(; theme, syntax_theme)` gives each projection the style of
 its role with `get_math_style`, from `theme`, a `MathTheme` scaled or not, or
-the default styles for `nothing`. `MathToGraphics(; measure, theme, …)` builds
-one `MathConfig` the same way, and a font or a color that a keyword of
-`MathToGraphics` names stays fixed. The natural registration gives the scaled
+the default styles for `nothing`. `MathToGraphics(; measure, theme, style)` builds
+one `MathConfig` the same way, and the theme gives every font and every color of
+it. The natural registration gives the scaled
 theme of the `Appearance` of the editor, so the view follows its scales, and
 the appearance tab shows a section for `MathTheme`.
 

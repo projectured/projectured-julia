@@ -22,12 +22,16 @@ and the editor prints the whole view again.
 - [`AppearanceWrapper.jl`](AppearanceWrapper.jl) — the `appearance` wrapper of
   `build_editor`.
 - [`AppearanceToWidget.jl`](AppearanceToWidget.jl) — the appearance tab.
+- [`AppearancePartToWidget.jl`](AppearancePartToWidget.jl) — the views of the scale,
+  the colour settings, a heading and a theme: the page of each, and its body in
+  the tab.
 """
 module AppearanceModule
 
 using ..AgentModule
 using ..BackendModule
 using ..CellModule
+using ..CollectionModule: CellVector
 using ..DeviceModule
 using ..DocumentModule
 using ..DomainModule
@@ -61,29 +65,37 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-import ..DomainModule: get_document_decoration
+import ..DomainModule: get_document_decoration, accepts_pasted_document
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..StyleModule: get_theme_place
+import ..TreeModule: get_tree_children_steps
 export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
        ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
 export copy_system_colors!, follow_window_backgrounds!
-export AppearanceToWidget, AppearanceToWidgetIoMap
+export AppearanceToWidget, AppearanceToWidgetIoMap, AppearancePartToWidget, AppearancePartToWidgetIoMap,
+       AppearanceScaleToWidget, AppearanceColorsToWidget, ThemeGroupToWidget, ThemeToWidget
 
 include("AppearanceDocument.jl")
 include("AppearanceOperations.jl")
 include("AppearanceManagingProjection.jl")
 include("AppearanceWrapper.jl")
 include("AppearanceToWidget.jl")
+include("AppearancePartToWidget.jl")
 
-# The natural renderer draws an `Appearance` as the appearance tab, with the
-# widgets of the editor.
+# The natural renderer draws an `Appearance` as the appearance tab, and a part, a
+# heading and a theme of it as its page, with the widgets of the editor.
 function __init__()
     register_natural_graphics!(:appearance, (; measure, appearance) -> begin
         widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
                                    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
-        Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane)]
+        Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane),
+                       AppearanceScale => AppearanceScaleToWidget(; appearance),
+                       AppearanceColors => AppearanceColorsToWidget(; appearance),
+                       ThemeGroup => ThemeGroupToWidget(; appearance),
+                       Theme => ThemeToWidget(; appearance)]
     end)
 end
 

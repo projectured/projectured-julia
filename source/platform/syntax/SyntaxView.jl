@@ -65,6 +65,7 @@ end
 @gestures SyntaxLeafView begin
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" =>
         _toggle_syntax_cursor(doc.viewed, _get_view_caret(doc))
 end
@@ -75,13 +76,13 @@ end
 @gestures SyntaxNodeView begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())
+    KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" =>
         _toggle_syntax_cursor(doc.viewed, _get_view_caret(doc))
     when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
         _navigate_syntax_tree(doc.viewed, _get_view_caret(doc), k)
     when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
-        _is_tree_selection(_get_view_caret(doc)) ?
-            _navigate_syntax_tree(doc.viewed, _get_view_caret(doc), k) : nothing
+        _navigate_selected_syntax_node(doc.viewed, _get_view_caret(doc), k)
 end
 
 # The closed folds of the text of a node view: the fold that the print of each node

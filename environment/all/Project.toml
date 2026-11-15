@@ -18,6 +18,7 @@ ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
+ProjecturedBuild = "0d12d704-e35e-4db7-ba28-9ff6e8d6dafd"
 ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 ProjecturedBuilderTest = "4b4f0ad5-ca0e-4e1f-bd3e-51e22c785921"
 ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
@@ -46,6 +47,9 @@ ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedGit = "4564198f-2aa6-477c-a349-d8cc5a909f6a"
+ProjecturedGitExample = "854ecef7-4965-450c-adfe-b250a3163d4e"
+ProjecturedGitTest = "dcef5d19-7c0f-4b29-b074-9ab4a028bfd1"
 ProjecturedIntegrations = "12794e67-4fc4-4a27-b5bd-3fafde71a2fd"
 ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJSONExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
@@ -69,6 +73,8 @@ ProjecturedODBCExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 ProjecturedODBCTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
 ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
+ProjecturedLanguageServer = "1a85e49b-8115-4d59-ab70-0d3513ffc95a"
+ProjecturedLanguageServerTest = "89a8c5db-d214-43b7-bd23-0f81c1cfe4b0"
 ProjecturedOpenRouter = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
 ProjecturedOpenRouterTest = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
@@ -76,6 +82,8 @@ ProjecturedPDFTest = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
+ProjecturedPrecompileTest = "da73c6bf-4c95-4d6a-96ed-aa5aa7e33491"
 ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 ProjecturedPivotExample = "c240cc06-6e4d-439e-be67-95ca4b8cf959"
 ProjecturedPivotTest = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
@@ -89,6 +97,9 @@ ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSDLExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedSDLTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedResearch = "226d5d21-7a82-49ae-88d7-994b1059b66b"
+ProjecturedResearchExample = "bab7c980-c37e-4728-8721-418e90de58f8"
+ProjecturedResearchTest = "81444a90-1d2d-4ee5-b890-01bda5725ad1"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSQLTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
@@ -134,6 +145,7 @@ ProjecturedBench = {path = "../../package/ProjecturedBench"}
 ProjecturedBook = {path = "../../package/ProjecturedBook"}
 ProjecturedBookExample = {path = "../../package/ProjecturedBookExample"}
 ProjecturedBookTest = {path = "../../package/ProjecturedBookTest"}
+ProjecturedBuild = {path = "../../package/ProjecturedBuild"}
 ProjecturedBuilder = {path = "../../package/ProjecturedBuilder"}
 ProjecturedBuilderTest = {path = "../../package/ProjecturedBuilderTest"}
 ProjecturedChart = {path = "../../package/ProjecturedChart"}
@@ -162,6 +174,9 @@ ProjecturedFormulaTest = {path = "../../package/ProjecturedFormulaTest"}
 ProjecturedGraph = {path = "../../package/ProjecturedGraph"}
 ProjecturedGraphExample = {path = "../../package/ProjecturedGraphExample"}
 ProjecturedGraphTest = {path = "../../package/ProjecturedGraphTest"}
+ProjecturedGit = {path = "../../package/ProjecturedGit"}
+ProjecturedGitExample = {path = "../../package/ProjecturedGitExample"}
+ProjecturedGitTest = {path = "../../package/ProjecturedGitTest"}
 ProjecturedIntegrations = {path = "../../package/ProjecturedIntegrations"}
 ProjecturedJSON = {path = "../../package/ProjecturedJSON"}
 ProjecturedJSONExample = {path = "../../package/ProjecturedJSONExample"}
@@ -185,6 +200,8 @@ ProjecturedODBCExample = {path = "../../package/ProjecturedODBCExample"}
 ProjecturedODBCTest = {path = "../../package/ProjecturedODBCTest"}
 ProjecturedOllama = {path = "../../package/ProjecturedOllama"}
 ProjecturedOllamaTest = {path = "../../package/ProjecturedOllamaTest"}
+ProjecturedLanguageServer = {path = "../../package/ProjecturedLanguageServer"}
+ProjecturedLanguageServerTest = {path = "../../package/ProjecturedLanguageServerTest"}
 ProjecturedOpenRouter = {path = "../../package/ProjecturedOpenRouter"}
 ProjecturedOpenRouterTest = {path = "../../package/ProjecturedOpenRouterTest"}
 ProjecturedPDF = {path = "../../package/ProjecturedPDF"}
@@ -192,6 +209,8 @@ ProjecturedPDFTest = {path = "../../package/ProjecturedPDFTest"}
 ProjecturedPlatform = {path = "../../package/ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../../package/ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../../package/ProjecturedPlatformTest"}
+ProjecturedPrecompile = {path = "../../package/ProjecturedPrecompile"}
+ProjecturedPrecompileTest = {path = "../../package/ProjecturedPrecompileTest"}
 ProjecturedPivot = {path = "../../package/ProjecturedPivot"}
 ProjecturedPivotExample = {path = "../../package/ProjecturedPivotExample"}
 ProjecturedPivotTest = {path = "../../package/ProjecturedPivotTest"}
@@ -205,6 +224,9 @@ ProjecturedRSTTest = {path = "../../package/ProjecturedRSTTest"}
 ProjecturedSDL = {path = "../../package/ProjecturedSDL"}
 ProjecturedSDLExample = {path = "../../package/ProjecturedSDLExample"}
 ProjecturedSDLTest = {path = "../../package/ProjecturedSDLTest"}
+ProjecturedResearch = {path = "../../package/ProjecturedResearch"}
+ProjecturedResearchExample = {path = "../../package/ProjecturedResearchExample"}
+ProjecturedResearchTest = {path = "../../package/ProjecturedResearchTest"}
 ProjecturedSQL = {path = "../../package/ProjecturedSQL"}
 ProjecturedSQLExample = {path = "../../package/ProjecturedSQLExample"}
 ProjecturedSQLTest = {path = "../../package/ProjecturedSQLTest"}

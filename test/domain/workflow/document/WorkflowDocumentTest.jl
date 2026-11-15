@@ -13,7 +13,7 @@ function test_workflow_document()
             @test step.state === :open
             @test length(step.children) == 0
             @test length(step.journal) == 0
-            @test length(step.cards) == 0
+            @test length(step.elements) == 0
             @test step.collapsed === false
         end
 
@@ -31,9 +31,8 @@ function test_workflow_document()
                   "Not diffable, and it breaks across Julia versions."
             @test decision.journal[1].author === :assistant
             @test decision.journal[1].kind === :decision
-            @test workflow.children[3].cards[1] isa WorkflowCard
-            @test workflow.children[3].cards[1].content.value ==
-                  "A card holds a document of any domain."
+            @test workflow.children[3].elements[1].value ==
+                  "A node holds a document of any domain as an element."
         end
 
         @testset "a node of any kind gives its title and its children" begin
@@ -46,7 +45,6 @@ function test_workflow_document()
             @test get_workflow_node_children(decision) === decision.options
             @test all(is_workflow_node, (workflow, decision, decision.options[1]))
             @test !is_workflow_node(WorkflowEntry())
-            @test !is_workflow_node(WorkflowCard())
             @test get_workflow_states(workflow) == WORKFLOW_STEP_STATES
             @test get_workflow_states(decision.options[1]) == WORKFLOW_OPTION_STATES
         end

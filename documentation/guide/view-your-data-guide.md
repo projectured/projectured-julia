@@ -1,6 +1,6 @@
 # A view of your own data
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 How to put your own Julia values on the screen: a view you design from widgets and domain views, and a view on demand that ProjecturEd makes from the value itself. Every call here runs in a session started with `julia --threads=auto,2 --project=environment/all`.
 

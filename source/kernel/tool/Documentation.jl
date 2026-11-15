@@ -267,6 +267,18 @@ end
 # function, which stands above `function name end`, documents the signature `Union{}`.
 function _collect_binding_docs(mod::Module, sym::Symbol)
     binding = Base.Docs.Binding(mod, sym)
+    found = _collect_docs_of_binding(binding)
+    isempty(found) || return found
+    # A name that is an alias of a type or a function holds a value that another
+    # binding documents: `@document [M, C] struct Foo` documents `MFoo`.
+    isdefined(mod, sym) || return found
+    value = getfield(mod, sym)
+    (value isa Type || value isa Function) || return found
+    owner = Base.Docs.Binding(parentmodule(value), nameof(value))
+    owner == binding ? found : _collect_docs_of_binding(owner)
+end
+
+function _collect_docs_of_binding(binding::Base.Docs.Binding)
     found = Pair{Any,String}[]
     for documenting in Base.Docs.modules
         table = Base.Docs.meta(documenting; autoinit = false)
@@ -701,13 +713,13 @@ end
 # Two read-only search functions, so a caller can find the right guide section or
 # API entry in one call instead of listing and reading every resource.
 
-# Count how often each term occurs in `text`, which is folded already, and scale
-# the count by `weight`. A term counts its best form once.
+# Count how often each term occurs in `text`, which is folded already, where a word
+# starts, and scale the count by `weight`. A term counts its best form once.
 function _term_score(terms, text::AbstractString, weight::Int)
     isempty(text) && return 0
     score = 0
     for term in terms
-        score += weight * maximum(length(findall(form, text)) for form in term.forms)
+        score += weight * maximum(_count_at_word_start(form, text) for form in term.forms)
     end
     score
 end
@@ -729,16 +741,39 @@ function _excerpt(body::AbstractString, terms, fold; width::Int = 240)
     (start > 1 ? "…" : "") * snippet * (stop < lastindex(body) ? "…" : "")
 end
 
+# A section of a guide: the name of the guide, the heading and the text of the
+# section, and two fields of the header line of the guide. `kind` is the kind of
+# the guide, such as `procedure` or `reference`. `audiences` holds `:user`,
+# `:developer` or both: a user uses the editor, and a developer changes its code.
 struct _GuideSection
     guide::String
     heading::String
     body::String
+    kind::String
+    audiences::Vector{Symbol}
+end
+
+# The kind and the readers that the header line of a guide names:
+# `> **Kind:** procedure · **For:** user · **Status:** …`. A guide without the
+# line, such as a slide deck, has no kind and is for developers, so a search for
+# users finds only the guides that say they are for users.
+function _read_guide_header(content::AbstractString)
+    for line in Iterators.take(eachline(IOBuffer(content)), 12)
+        startswith(line, "> **Kind:**") || continue
+        kind = match(r"\*\*Kind:\*\*\s*([a-z]+)", line)
+        readers = match(r"\*\*For:\*\*\s*([a-z, ]+?)\s*(?:·|$)", line)
+        audiences = readers === nothing ? [:developer] :
+                    Symbol[Symbol(strip(word)) for word in split(readers.captures[1], ',')]
+        return (kind === nothing ? "" : String(kind.captures[1]), audiences)
+    end
+    ("", [:developer])
 end
 
 function _index_guide_sections()
     sections = _GuideSection[]
     for (guide_name, filepath) in _all_guides()
         content = read(filepath, String)
+        kind, audiences = _read_guide_header(content)
         heading = ""
         buf = String[]
         # A line that starts with `#` inside a code fence is a line of the code,
@@ -749,7 +784,7 @@ function _index_guide_sections()
             if !fenced && startswith(strip(line), "#")
                 body = strip(join(buf, "\n"))
                 (isempty(body) && isempty(heading)) ||
-                    push!(sections, _GuideSection(guide_name, heading, body))
+                    push!(sections, _GuideSection(guide_name, heading, body, kind, audiences))
                 heading = strip(replace(line, r"^\s*#+\s*" => ""))
                 empty!(buf)
             else
@@ -758,7 +793,7 @@ function _index_guide_sections()
         end
         body = strip(join(buf, "\n"))
         (isempty(body) && isempty(heading)) ||
-            push!(sections, _GuideSection(guide_name, heading, body))
+            push!(sections, _GuideSection(guide_name, heading, body, kind, audiences))
     end
     sections
 end
@@ -770,17 +805,33 @@ struct _ApiEntry
     summary::String    # what a hit shows under it: the first sentence of its description
     text::String       # what a hit is SCORED on: the signature and the description
     full::String       # the whole documentation, for a search that answers one thing
+    is_family_member::Bool  # a type that only the mark on a supertype offers
 end
 
 # An entry named `qualname`, read from its documentation. `source` is the name the
 # documentation uses, which a declaration can have renamed; every text of the
 # entry then shows the name the model writes.
 function _make_api_entry(kind::String, qualname::String, doc::AbstractString,
-                         source::AbstractString = last(split(qualname, '.')))
+                         source::AbstractString = last(split(qualname, '.'));
+                         is_family_member::Bool = false)
     shown = String(last(split(qualname, '.')))
     doc = source == shown ? String(doc) : _rename_signature_paragraph(doc, source, shown)
     signature, summary = _read_doc_heading(doc, shown)
-    _ApiEntry(kind, qualname, signature, summary, _search_text(doc), doc)
+    _ApiEntry(kind, qualname, signature, summary, _search_text(doc), doc, is_family_member)
+end
+
+# Whether `value` is a type that the mark on one of its supertypes offers, while its
+# own docstring has no mark: a member of a family, which a search ranks below the
+# names that carry the mark.
+function _is_family_member(value, doc::AbstractString)
+    (value isa Type && !has_assistant_mark(doc)) || return false
+    above = Base.unwrap_unionall(value)
+    above isa DataType || return false
+    while above !== Any
+        above = supertype(above)
+        has_assistant_mark(_doc_string(above)) && return true
+    end
+    false
 end
 
 # The docstring with `shown` in place of `source` in its signature paragraph, and
@@ -796,55 +847,136 @@ function _rename_signature_paragraph(doc::AbstractString, source::AbstractString
 end
 
 """
-    describe_api(api; signatures = true) -> String
+    describe_api(api; preset = :full, module_sentences = nothing, function_names = nothing,
+                 function_sentences = nothing, types = nothing, signatures = false) -> String
 
-Every name a declaration gives, grouped by module: one signature line each, or
-just the names when `signatures` is false.
+The index of the names that a declaration gives, grouped by module. Each part is
+a switch:
+
+- `module_sentences`: after the name of each module, the first sentence of its
+  docstring;
+- `function_names`: the names of each module that are no type, its functions
+  and its values;
+- `function_sentences`: after each of those names, the first sentence of what
+  it does;
+- `types`: the type names of each module (`:names`), how many it has
+  (`:count`), or nothing of them (`:none`).
+
+A part that is `nothing` takes the value of `preset`, one of the
+`API_INDEX_PRESETS`: `:full` gives the module sentences, the function names
+and the type names, and `:compact` gives the function names and a count of the
+types. With `signatures`, each function is the first line of its signature, as
+a search hit shows it.
 
 **It is what a search answers when it matched nothing**, while the declaration
-is small. A search that says only "no match" costs a round and teaches nothing,
-and the round after it is a guess. The names are short, and they are the answer
-to "then what may I write?". A declaration of thousands of names is not listed:
-the miss names its modules instead.
-
-**It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
-and it grows with the application; a menu in every round is a cost that never
-stops. The lookup it would save is bought instead by `search_api` answering one
-clear hit in full — one round, paid only by the turn that asks.
+is small: the names, so the round after it is no guess. **And it is the index
+of a window**, which tells a model at the start what it can write; the preset of
+a window follows its model and a setting.
 
 **It is generated from the declaration**, so what it says cannot drift from what
 a model may write.
 """
-function describe_api(api; signatures::Bool = true)
-    entries = _api_entries(api)
+function describe_api(api; preset::Symbol = :full,
+                      module_sentences::Union{Bool,Nothing} = nothing,
+                      function_names::Union{Bool,Nothing} = nothing,
+                      function_sentences::Union{Bool,Nothing} = nothing,
+                      types::Union{Symbol,Nothing} = nothing, signatures::Bool = false)
+    haskey(API_INDEX_PRESETS, preset) ||
+        throw(ArgumentError("The preset of an index is :full or :compact, not " * repr(preset) * "."))
+    parts = API_INDEX_PRESETS[preset]
+    module_sentences = something(module_sentences, parts.module_sentences)
+    function_names = something(function_names, parts.function_names)
+    function_sentences = something(function_sentences, parts.function_sentences)
+    types = something(types, parts.types)
+    types in (:names, :count, :none) ||
+        throw(ArgumentError("The types of an index are :names, :count or :none, not " * repr(types) * "."))
     lines = String[]
-    for entry in entries
-        mod = entry.module_
-        own = String[]
-        for (source, name) in get_api_entry_bindings(entry)
-            name === nameof(mod) && continue
-            isdefined(mod, source) || continue
-            text = String(name)
-            if !signatures
-                push!(own, text)
-                continue
+    for (mod, bindings) in _group_api_bindings(api)
+        functions = String[]
+        type_names = String[]
+        for (source, name) in bindings
+            if getfield(mod, source) isa Type
+                push!(type_names, String(name))
+            elseif function_names
+                push!(functions, _describe_api_function(mod, source, name; function_sentences, signatures))
             end
-            signature = first(_read_doc_heading(_binding_doc(mod, source), String(source), text))
-            # A name whose documentation opens with its own signature says it
-            # once; anything else is named with what it is.
-            push!(own, isempty(signature) ? text :
-                       startswith(strip(signature), text) ? strip(signature) :
-                       text * " — " * strip(signature))
         end
-        isempty(own) && continue
-        if signatures
-            push!(lines, String(nameof(mod)))
-            append!(lines, ("  " * one for one in own))
+        sentence = module_sentences ? _get_first_sentence(compute_docstring_summary(mod)) : ""
+        type_part = types === :names && !isempty(type_names) ? "types: " * join(type_names, ", ") :
+                    types === :count && !isempty(type_names) ?
+                        string(length(type_names), length(type_names) == 1 ? " type" : " types") : ""
+        isempty(functions) && isempty(type_part) && isempty(sentence) && continue
+        head = String(nameof(mod))
+        if module_sentences || function_sentences || signatures
+            # A block: the module, then one line for the names or one for each.
+            push!(lines, isempty(sentence) ? head : head * " — " * sentence)
+            if function_sentences || signatures
+                append!(lines, ("  " * one for one in functions))
+            elseif !isempty(functions)
+                push!(lines, "  " * join(functions, ", "))
+            end
+            isempty(type_part) || push!(lines, "  " * type_part)
         else
-            push!(lines, String(nameof(mod)) * ": " * join(own, ", "))
+            # One line: the module, its names, and its types after them.
+            names = join(functions, ", ")
+            push!(lines, head * ": " * (isempty(type_part) ? names :
+                                        isempty(names) ? type_part :
+                                        types === :count ? names * " (" * type_part * ")" :
+                                        names * "; " * type_part))
         end
     end
     isempty(lines) ? "" : join(lines, "\n")
+end
+
+"""
+    API_INDEX_PRESETS
+
+The parts of each preset of [`describe_api`](@ref): `:full`, for a model with a
+large context, and `:compact`, for a small local model.
+"""
+const API_INDEX_PRESETS = Dict{Symbol,NamedTuple}(
+    :full => (module_sentences = true, function_names = true, function_sentences = false, types = :names),
+    :compact => (module_sentences = false, function_names = true, function_sentences = false, types = :count))
+
+# The names that `api` declares, each with the name its module knows it by,
+# grouped by module in the order of their first entry: two entries of one module
+# are one group. The name of the module itself is no name of the group.
+function _group_api_bindings(api)
+    groups = Pair{Module,Vector{Any}}[]
+    for entry in _api_entries(api)
+        mod = entry.module_
+        index = findfirst(group -> first(group) === mod, groups)
+        index === nothing && (push!(groups, mod => Any[]); index = length(groups))
+        for (source, name) in get_api_entry_bindings(entry)
+            (name === nameof(mod) || !isdefined(mod, source)) && continue
+            any(binding -> last(binding) === name, last(groups[index])) && continue
+            push!(last(groups[index]), (source, name))
+        end
+    end
+    groups
+end
+
+# A function of an index: its name, or the first line of its signature, with the
+# first sentence of what it does after it.
+function _describe_api_function(mod::Module, source::Symbol, name::Symbol;
+                                function_sentences::Bool, signatures::Bool)
+    text = String(name)
+    (function_sentences || signatures) || return text
+    signature, summary = _read_doc_heading(_binding_doc(mod, source), String(source), text)
+    # A name whose documentation opens with its own signature says it once;
+    # anything else is named with what it is.
+    shown = !signatures || isempty(signature) ? text :
+            startswith(strip(signature), text) ? String(strip(signature)) :
+            text * " — " * strip(signature)
+    sentence = function_sentences ? _get_first_sentence(summary) : ""
+    isempty(sentence) ? shown : shown * " — " * sentence
+end
+
+# The first sentence of `text`: up to the first full stop that ends a word and
+# is followed by a space, or all of it.
+function _get_first_sentence(text::AbstractString)
+    found = match(r"^(.*?[.!?])(?=\s|$)", strip(text))
+    found === nothing ? String(strip(text)) : String(found.captures[1])
 end
 
 # A name that opens with an underscore is the module's own business, whatever it
@@ -869,16 +1001,21 @@ const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 # did not change where the golden names ranked, because a name with no words of
 # its own answers no query; what they cost is the work and what a listing of
 # names shows.
-function _is_schema_variant(mod::Module, name::Symbol, value)
-    value isa Type || return false
+_is_schema_variant(mod::Module, name::Symbol, value) =
+    _find_schema_family_name(mod, name, value) !== nothing
+
+# The name of the family that `name` is a variant of, such as `TaskExecution` for
+# `ACTaskExecution`, or `nothing` when `name` is no variant.
+function _find_schema_family_name(mod::Module, name::Symbol, value)
+    value isa Type || return nothing
     written = String(name)
     for prefix in _SCHEMA_PREFIXES
         startswith(written, prefix) || continue
         length(written) > length(prefix) || continue
         base = Symbol(written[length(prefix) + 1:end])
-        isdefined(mod, base) && getfield(mod, base) isa Type && return true
+        isdefined(mod, base) && getfield(mod, base) isa Type && return base
     end
-    false
+    nothing
 end
 
 # The index of a declared API: each named module, and the names it exports. It
@@ -912,7 +1049,8 @@ function _index_declared(api)
             qualname = "$mn." * String(sym)
             doc = _binding_doc(mod, source)
             if value isa Type
-                push!(entries, _make_api_entry("type", qualname, doc, String(source)))
+                push!(entries, _make_api_entry("type", qualname, doc, String(source);
+                                               is_family_member = _is_family_member(value, doc)))
             elseif value isa Function
                 push!(entries, _make_api_entry("function", qualname, doc, String(source)))
             else
@@ -963,12 +1101,20 @@ end
 
 """
     search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
-                  meaning_model = nothing, relevance_model = nothing,
+                  audience = "user", meaning_model = nothing, relevance_model = nothing,
                   context = nothing) -> String
 
 Search the guides. They are split into sections at their headings, and the hits
 are sections, each with the URI `read_resource` reads it by:
-`resource://guide/<name>#<heading>`.
+`resource://guide/<name>#<heading>`, and the kind of its guide as a label, such
+as `[procedure]` or `[reference]`.
+
+`audience` says whose guides are searched: `"user"`, the default, searches the
+guides for a person who uses the editor; `"developer"` searches the guides about
+its code; `"all"` searches both. The header line of a guide says who it is for,
+in its field `**For:**`. When guides of the other audience match too, a line
+before the hits says how many, and the `audience` that finds them.
+`read_resource` reads a guide of any audience.
 
 `detail` says how much a hit shows, and sets the `limit` a caller does not:
 `"names"` is one line each, the URI and the heading, 25 of them; `"summary"`, the
@@ -1000,18 +1146,21 @@ model reads it beside the query. A pattern search does not read it.
 A query that can not be read answers the reason as text, and never throws.
 """
 function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
-                       detail = "summary", limit = nothing, meaning_model = nothing,
-                       relevance_model = nothing, context = nothing)
+                       detail = "summary", limit = nothing, audience = "user",
+                       meaning_model = nothing, relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
+    readers = _read_search_audience(audience)
+    readers isa String && return readers
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
     hit_count = _get_hit_count(level, limit)
     hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
-    ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    matches = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    ranked = filter(section -> _is_for_audience(section, readers), matches)
     by_words = ranked
     note = nothing
     context_text = _get_context_text(context)
@@ -1020,7 +1169,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
         by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
                                                            sections, meaning_model)
         by_meaning === nothing ||
-            (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
+            (by_meaning = filter(section -> _is_for_audience(section, readers), by_meaning);
+             ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
     end
     # **Keywords are asked of the relevance model too.** A model searches with
     # keywords far more than with a sentence, and names its intent in them.
@@ -1031,7 +1181,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
             by_meaning, _ = _rank_guide_sections_by_meaning(_add_query_context(described, context_text),
                                                             sections, meaning_model)
             by_meaning === nothing ||
-                (by_meaning = filter(section -> _is_passing(read, fold(section.heading),
+                (by_meaning = filter(section -> _is_for_audience(section, readers) &&
+                                                _is_passing(read, fold(section.heading),
                                                             fold(section.body)), by_meaning))
         end
         pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
@@ -1044,6 +1195,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
             note = nothing
         end
     end
+    other = _say_other_audience_matches(matches, readers; also = !isempty(ranked))
+    note = _join_notes(note, other)
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
                                                  "A verb may do it: `search_api` with the same words.")
     terms = _get_scored_terms(read)
@@ -1053,7 +1206,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     println(io, "# Documentation matches for $(repr(query))\n")
     shown = first(ranked, min(hit_count, length(ranked)))
     for section in shown
-        head = isempty(section.heading) ? "" : " — $(section.heading)"
+        head = (isempty(section.heading) ? "" : " — $(section.heading)") *
+               (isempty(section.kind) ? "" : " [$(section.kind)]")
         if level == "names"
             println(io, "- ", _get_section_uri(section), head)
         elseif level == "summary"
@@ -1068,6 +1222,38 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     body = String(take!(io))
     isempty(shown) && return body
     body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
+end
+
+# The readers a guide search searches the guides of: `[:user]`, `[:developer]` or
+# both, or the reason as text when `audience` names none of them.
+function _read_search_audience(audience)
+    name = audience === nothing || isempty(strip(string(audience))) ? "user" :
+           lowercase(strip(string(audience)))
+    name == "user" && return [:user]
+    name == "developer" && return [:developer]
+    name == "all" && return [:user, :developer]
+    "Unknown audience " * repr(name) * ". The audiences are \"user\", \"developer\" and \"all\"."
+end
+
+# Whether a section is of a guide for one of `readers`.
+_is_for_audience(section::_GuideSection, readers::Vector{Symbol}) =
+    any(in(readers), section.audiences)
+
+# The line that says how many guides of the other audience match, and the
+# `audience` that finds them; `nothing` when the search searched both, or when no
+# guide of the other audience matches. `also` says that guides of the searched
+# audience match too.
+function _say_other_audience_matches(matches::Vector{_GuideSection}, readers::Vector{Symbol};
+                                     also::Bool)
+    length(readers) == 1 || return nothing
+    searched = only(readers)
+    other = searched === :user ? :developer : :user
+    count = length(unique(section.guide for section in matches
+                          if !_is_for_audience(section, readers)))
+    count == 0 && return nothing
+    "Searched the documents for $(searched)s. " * string(count) *
+        (count == 1 ? " document" : " documents") * " for $(other)s " * (also ? "also " : "") *
+        (count == 1 ? "matches" : "match") * ": audience = \"$(other)\"."
 end
 
 # The sections a query finds, best first, each with its two scores.
@@ -1112,6 +1298,22 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
     occursin(written, name) ? 20 :
     occursin(written, qualified) ? 10 : 0
 
+# The words of a keyword query of two or more plain words, in their order, or
+# `nothing` for any other query. **A query that spells a name in words names it**:
+# "find pane" is `find_pane`, as exactly as the written name is, so the name whose
+# words are these words is an exact hit, and a longer name that holds them is not.
+function _get_spelled_words(query)
+    query isa KeywordQuery || return nothing
+    terms = _get_scored_terms(query)
+    length(terms) >= 2 || return nothing
+    words = String[]
+    for term in terms
+        (length(term.written) == 1 && only(term.written) isa AbstractString) || return nothing
+        push!(words, lowercase(only(term.written)))
+    end
+    words
+end
+
 # What a word is worth in the prose, by the rule search engines call BM25: a word
 # that few entries hold is worth more than one that most of them hold, a second
 # occurrence in one entry is worth less than the first, and a long text earns no
@@ -1137,6 +1339,11 @@ const _LENGTH_WEIGHT = 0.75
 # collapsed into ties that the tie-break then settled by length — "scalars delay
 # table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
 #
+# **A word counts in the prose where a word starts.** A form inside a word is
+# another word: "row" is in "grows", "narrow" and "throws", and counted there, it
+# ranked `WidgetScrollPane`, whose signature names `grows`, first for "a row of
+# widgets side by side". The forms of a term still find "rows" for "row".
+#
 # **A stem may not earn a name match.** A term scores against the NAME exactly as
 # the person wrote it, and against the prose in any of its forms. The two halves
 # want opposite things: recall in the prose, where an extra hit is cheap, and
@@ -1154,6 +1361,7 @@ const _LENGTH_WEIGHT = 0.75
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
+    spelled = _get_spelled_words(query)
     kept = _ApiEntry[]
     named = Int[]
     counts = Vector{Vector{Int}}()
@@ -1169,7 +1377,8 @@ function _rank_api_entries(query, entries::Vector{_ApiEntry})
             name_score += maximum(_compute_name_score(written, short, words, qualified)
                                   for written in term.written)
         end
-        term_counts = Int[maximum(length(findall(form, prose)) for form in term.forms)
+        spelled == words && (name_score = max(name_score, 100))
+        term_counts = Int[maximum(_count_at_word_start(form, prose) for form in term.forms)
                           for term in terms]
         (name_score > 0 || any(>(0), term_counts)) || continue
         push!(kept, entry)
@@ -1178,22 +1387,31 @@ function _rank_api_entries(query, entries::Vector{_ApiEntry})
         push!(lengths, max(1.0, Float64(length(prose))))
     end
     isempty(kept) && return Tuple{Tuple{Int,Float64},_ApiEntry}[]
-    average = sum(lengths) / length(kept)
-    holders = Int[count(one -> one[index] > 0, counts) for index in eachindex(terms)]
     scored = Tuple{Tuple{Int,Float64},_ApiEntry}[]
-    for place in eachindex(kept)
-        said = 0.0
-        for index in eachindex(terms)
-            frequency = counts[place][index]
-            frequency == 0 && continue
-            rarity = log(1 + (length(kept) - holders[index] + 0.5) / (holders[index] + 0.5))
-            said += rarity * frequency * (_WORD_SATURATION + 1) /
-                    (frequency + _WORD_SATURATION *
-                     (1 - _LENGTH_WEIGHT + _LENGTH_WEIGHT * lengths[place] / average))
+    # **A name with its own mark ranks above a name that only its family offers.**
+    # The members of a family carry short docstrings, and hundreds of them would
+    # set what a word and a length are worth for the verbs; so each tier weighs its
+    # words among its own entries, and a name that is the query comes first in both.
+    for tier in (false, true)
+        places = [place for place in eachindex(kept) if kept[place].is_family_member == tier]
+        isempty(places) && continue
+        average = sum(lengths[places]) / length(places)
+        holders = Int[count(place -> counts[place][index] > 0, places) for index in eachindex(terms)]
+        for place in places
+            said = 0.0
+            for index in eachindex(terms)
+                frequency = counts[place][index]
+                frequency == 0 && continue
+                rarity = log(1 + (length(places) - holders[index] + 0.5) / (holders[index] + 0.5))
+                said += rarity * frequency * (_WORD_SATURATION + 1) /
+                        (frequency + _WORD_SATURATION *
+                         (1 - _LENGTH_WEIGHT + _LENGTH_WEIGHT * lengths[place] / average))
+            end
+            push!(scored, ((named[place], said), kept[place]))
         end
-        push!(scored, ((named[place], said), kept[place]))
     end
-    sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
+    sort!(scored; by = x -> (x[1][1] >= 100 ? 0 : 1, x[2].is_family_member ? 1 : 0,
+                             -x[1][1], -x[1][2], length(x[2].qualname)))
 end
 
 _prefix_note(note, text::AbstractString) = note === nothing ? String(text) : note * "\n\n" * text
@@ -1458,6 +1676,7 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
                         relevance_model, context)
     scored = _rank_api_entries(read, entries)
     ranked = _ApiEntry[entry for (_, entry) in scored]
+    is_reranked = false
     note = nothing
     if read isa _DescriptionQuery
         # **The meaning decides, and the words only stand in for it.** Merged,
@@ -1473,10 +1692,11 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
         if by_relevance === nothing
             by_meaning, note = _rank_api_entries_by_meaning(
                 _add_query_context(read, context_text), entries, meaning_model)
-            by_meaning === nothing || (ranked = by_meaning)
+            by_meaning === nothing || (ranked = by_meaning; is_reranked = true)
             note = _join_notes(relevance_note, note)
         else
             ranked = by_relevance
+            is_reranked = true
         end
         # A sentence names no verb, so only a single hit is a clear answer.
         alone = length(ranked) == 1
@@ -1503,10 +1723,15 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
                 note = relevance_note
             else
                 ranked = by_relevance
+                is_reranked = true
                 alone = length(ranked) == 1
             end
         end
     end
+    # A ranking by meaning or by a relevance model keeps its order inside each tier,
+    # and the names with their own mark come first, as in the ranking by words.
+    is_reranked && (ranked = vcat(filter(entry -> !entry.is_family_member, ranked),
+                                  filter(entry -> entry.is_family_member, ranked)))
     (ranked, alone, note)
 end
 
@@ -1519,7 +1744,7 @@ const _MISS_NAME_LIMIT = 300
 function _describe_api_for_miss(api)
     entries = _api_entries(api)
     count = sum(length(get_api_entry_bindings(entry)) for entry in entries; init = 0)
-    count <= _MISS_NAME_LIMIT && return describe_api(api; signatures = false)
+    count <= _MISS_NAME_LIMIT && return describe_api(api; preset = :compact, types = :names)
     modules = unique(String(nameof(entry.module_)) for entry in entries)
     "The declaration gives " * string(count) * " names in " * string(length(modules)) *
     " modules, too many to list. The modules: " * join(modules, ", ") *
@@ -1561,15 +1786,15 @@ search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
 
 """
     search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing,
-                  context = nothing) -> String
+                  audience = "user", context = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
 and its relevance model when it has them. This is what the `search_guides` tool
 answers.
 """
 search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-              detail = "summary", limit = nothing, context = nothing) =
-    search_guides(query; mode = mode, detail = detail, limit = limit,
+              detail = "summary", limit = nothing, audience = "user", context = nothing) =
+    search_guides(query; mode = mode, detail = detail, limit = limit, audience = audience,
                   meaning_model = set.meaning_model, relevance_model = set.relevance_model,
                   context = context)
 

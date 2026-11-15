@@ -1,8 +1,9 @@
 """
     JsonModule
 
-The JSON slice. One namespace holds the whole round trip for `.json`: the
-document types, the parser that reads the text, the projection that renders and
+JSON documents: objects, arrays, strings, numbers, true, false and null, read from a
+file and written back as text. One namespace holds the whole round trip for `.json`:
+the document types, the parser that reads the text, the projection that renders and
 edits the tree, and the file wrapper that writes it back.
 
 Five fragments share the namespace:
@@ -33,6 +34,7 @@ import ..PrimitiveModule: make_incomplete_number_document
 import ..ProjectionAlgebraModule: make_content_view
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
+import ..DisplayModule: make_workload_file
 
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
@@ -64,11 +66,13 @@ function __init__()
     register_file_document_type!(".json", JsonFile)
 
     # A JSON document is written as its text, so the domain offers no name to a
-    # model, and tells it how to write a value.
+    # model, and says what a JSON value is.
     register_assistant_api!(Any[];
-        description = "A JSON value is written as its text: " *
-                      "`parse_natural_text(:json, \"[1, 2]\")` makes one, for a verb such " *
-                      "as `replace_referenced_value!`.")
+        description = "A JSON value is a document that is written and read as its JSON text.")
 end
+
+# The file that a workload of the window opens (`run_file_workload`).
+make_workload_file(::Type{JsonFile}) =
+    (; name = "a.json", text = "{\"name\": \"Alice\", \"age\": 7}\n", shown = r"Alice")
 
 end # module

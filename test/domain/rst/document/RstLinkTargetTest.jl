@@ -36,7 +36,16 @@ function test_rst_link_target()
     file = RstFile(joinpath(folder, "index.rst"), root)
     @test get_rst_title_text(evaluate_reference(file, find_navigator_target(file, "Queueing"))) == "Queueing"
     @test find_navigator_target(file, "other.rst") == joinpath(folder, "other.rst")
-    @test find_navigator_target(file, "https://omnetpp.org") === nothing
+    web = find_navigator_target(file, "https://omnetpp.org")
+    @test web isa Url && format_url(web) == "https://omnetpp.org"
+    # A named reference comes as the fragment of its name, and a name with a colon
+    # in it is no address.
+    @test evaluate_reference(root, find_navigator_target(root, "#ug:cha:queueing")) isa RstSection
+    @test find_navigator_target(root, "ug:no-such-target") === nothing
+    named = RstReference("ug:cha:queueing", "", false)
+    @test is_link(named) && format_url(get_link_target(named)) == "#ug:cha:queueing" && get_link_content(named) == "ug:cha:queueing"
+    embedded = RstReference("OMNeT++", "https://omnetpp.org", false)
+    @test format_url(get_link_target(embedded)) == "https://omnetpp.org" && is_absolute_url(get_link_target(embedded))
 end
 end
 
@@ -124,7 +133,7 @@ function test_rst_link_gestures()
         reference = only(child for child in paragraph.content if child isa RstReference)
         opened = get_wrapped_operation(read_gesture(reference, MouseDwell(0, 0; time = 0.0)))
         (_, content) = only(opened.layers)
-        @test content isa PrimitiveString && content.value == "queueing"
+        @test content isa TooltipNote && content.facts == ["Target" => "queueing"]
     end
 end
 end

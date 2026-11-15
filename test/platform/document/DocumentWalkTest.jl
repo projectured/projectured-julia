@@ -28,7 +28,8 @@ function test_document_walk()
 is_alice(v) = v isa PrimitiveString && v.value == "Alice"
 
 # ── A shared subtree: ONE object occupying TWO slots ──────────────────────
-# The value walk sees one node; the path walk sees two places to put a cursor.
+# The default walk visits the node once, at its first place; the walk of each path
+# sees two places to put a cursor.
 shared = PrimitiveString("Alice")
 doc    = CellVector([shared, shared])
 
@@ -36,15 +37,19 @@ doc    = CellVector([shared, shared])
     docs = search_documents(doc, is_alice)
     refs = search_references(doc, is_alice)
 
-    # search_documents — :once_per_object. The same object reached twice is the
-    # same location, so the second visit has nothing to add.
+    # The default walk — :once_per_object. The same object reached twice is found
+    # once, at the first path that reaches it.
     @test length(docs) == 1
     @test docs[1] === shared
+    @test length(refs) == 1
+    @test evaluate_reference(doc, only(refs)) === shared
+    @test strip_reference_types(only(refs)) == extend_reference(EmptyReference(), ElementReferenceStep(1))
 
-    # search_references — :once_per_path. Two distinct paths are two distinct selections.
-    @test length(refs) == 2
-    @test refs[1] != refs[2]
-    @test all(r -> evaluate_reference(doc, r) === shared, refs)
+    # The walk of each path — :once_per_path. Two distinct paths are two distinct selections.
+    every_path = search_references(doc, is_alice; walk = DocumentWalk(; policy = :once_per_path))
+    @test length(every_path) == 2
+    @test every_path[1] != every_path[2]
+    @test all(r -> evaluate_reference(doc, r) === shared, every_path)
 end
 
 # ── descend: the caller chooses which children the walk enters ────────────
@@ -53,12 +58,14 @@ end
     inner = CellVector([PrimitiveString("Alice")])
     outer = CellVector([first_alice, inner])
     refuse_inner(_, child) = child !== inner
-    @test search_documents(outer, is_alice; descend = refuse_inner) == [first_alice]
-    @test length(search_references(outer, is_alice; descend = refuse_inner)) == 1
+    refusing = DocumentWalk(; descend = refuse_inner)
+    @test search_documents(outer, is_alice; walk = refusing) == [first_alice]
+    @test length(search_references(outer, is_alice; walk = refusing)) == 1
     # The default enters every child, so passing it changes nothing.
     enter_all(_, _) = true
-    @test search_documents(outer, is_alice; descend = enter_all) == search_documents(outer, is_alice)
-    @test search_references(outer, is_alice; descend = enter_all) == search_references(outer, is_alice)
+    entering = DocumentWalk(; descend = enter_all)
+    @test search_documents(outer, is_alice; walk = entering) == search_documents(outer, is_alice)
+    @test search_references(outer, is_alice; walk = entering) == search_references(outer, is_alice)
     @test length(search_documents(outer, is_alice)) == 2
 end
 

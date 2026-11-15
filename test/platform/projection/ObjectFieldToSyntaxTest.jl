@@ -39,6 +39,19 @@ end # @testset
     @test rule(Symbol).style.color == role(:symbol_literal)
     @test rule(AbstractString).value.color == role(:string_literal)
     @test rule(Char).value.color == role(:character_literal)
+    @test rule(Type).style == rule(Any).type_name
+
+end # @testset
+
+@testset "a type prints as its name and not as its fields" begin
+
+    @test _ofs_render(Int64) == "Int64"
+    @test _ofs_render(Vector{Int64}) == "Vector{Int64}"
+    # A field that holds a type is one leaf: the fields of the type reach the
+    # whole type system, and none of them prints.
+    text = _ofs_render(Some(Int64))
+    @test occursin("value Int64", text)
+    @test !occursin("hash", text)
 
 end # @testset
 
@@ -99,6 +112,13 @@ end # @testset
     @test length(after) == 2
     @test after[1] === before[2] && after[2] === before[3]
 
+end # @testset
+
+@testset "a reflected object with a slot that holds nothing yet, such as the keys of a Dict, prints" begin
+    # A `Memory` is an array that is no `Array`; its unfilled slots are left out.
+    text = string(print_object((; keys = Memory{String}(undef, 2), name = "x")))
+    @test occursin("keys", text) && occursin("\"x\"", text)
+    @test occursin("\"a\"", string(print_object(Dict("a" => 1))))
 end # @testset
 
 end # test_object_field_to_syntax

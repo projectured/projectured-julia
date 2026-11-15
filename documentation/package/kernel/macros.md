@@ -1,6 +1,6 @@
 # Document, Projection, and IoMap Macros
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 `@document`, `@projection`, and `@iomap` generate the boilerplate that makes
 the cell-based code in the rest of the codebase look like ordinary Julia. A
@@ -45,7 +45,11 @@ layer's codegen kit for everything that is not document-specific:
   the parameters for a type application (`get_cell_struct_parameter_names`);
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
-  (`build_cell_struct_positional_constructors`).
+  (`build_cell_struct_positional_constructors`);
+- the line of the declaration (`set_cell_struct_source!`). `@document` gives its
+  `__source__` to each method that it writes, so a stack trace, `methods(T)` and a
+  rebuild that finds the methods of a changed type by their files name the line of
+  the struct, and no method has the place `none:0`.
 Rule Y fills a trailing run of defaults positionally. Only `@document` applies it:
 `@cell_struct`, `@iomap` and `@projection` do not, because a generated method with
 the signature of an outer constructor that the programmer wrote would overwrite it
@@ -290,9 +294,9 @@ Each write converts the value by the rules below, in this order:
 
 | Write | What it does before the rules |
 | --- | --- |
-| a constructor, with a raw value | wraps a plain vector for a list field into the list of the field |
+| a constructor, with a raw value | takes `get_document` of the value, so a referenced document gives its document, and wraps a plain vector for a list field into the list of the field |
 | a constructor, with a cell | nothing; a cell whose type is a subtype of the declared type costs nothing |
-| the setter, `doc.field = value` | wraps a plain vector for a list field |
+| the setter, `doc.field = value` | takes `get_document` of the value, and wraps a plain vector for a list field |
 | an operation, such as `ReplaceReferencedValueOperation` | nothing; rule 3 applies only here |
 | an element write of a `CellVector{X}` | checks the element against `X` |
 | a kinded copy, `copy_document(K, doc)` | gives a list field the list of the field, in cells of the kind `K` |
@@ -531,8 +535,7 @@ only job is to fill in defaults:
 ```julia
 @projection UntrackedCell struct ReferenceToHumanReadableText   # <: Projection is defaulted in
     document::Any
-    font::StyleFont   = get_reference_style(nothing, :font)          # default
-    style::NamedTuple = get_theme_defaults(ReferenceTheme)
+    style::NamedTuple = get_theme_defaults(ReferenceTheme)          # default
 end
 ```
 
@@ -540,8 +543,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-ReferenceToHumanReadableText(; document)                 # font and style of the default theme
-ReferenceToHumanReadableText(; document, font = StyleFont("Ubuntu", 20))
+ReferenceToHumanReadableText(; document)                 # the style of the default theme
+ReferenceToHumanReadableText(; document, style = make_theme_values_field(ReferenceTheme, theme))
 ```
 
 Semantics deliberately match `Base.@kwdef`:

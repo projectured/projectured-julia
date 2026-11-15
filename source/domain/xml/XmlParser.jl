@@ -155,7 +155,19 @@ end
     parse_xml(text) -> XmlElement
 
 Parse an XML string into its root `XmlElement`.
+
+Use it to read XML text into a document that you can open in a pane or edit.
+
+# Example
+
+    xml_1 = parse_xml("<pump size='3'><name>A</name></pump>")
+
+See also `parse_json` and `parse_yaml`.
+
+For the assistant.
 """
+function parse_xml end
+
 function parse_xml(text::AbstractString)
     p = _Cur(collect(String(text)), 1)
     _skip_prolog!(p)

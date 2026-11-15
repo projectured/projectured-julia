@@ -76,8 +76,11 @@ function test_part_pointer_shape()
         document = make_widget_split_pane_document_example()
         iomap = print_document(widgets, document)
         xs = 280:320
-        shapes = [find_pointer_shape(iomap.output, x, 50) for x in xs]
-        grabs = [_holds_pointer_part_operation(read_intent(widgets, iomap, down(x, 50)),
+        # The middle of the height of the divider. A split that is offered no
+        # height is as tall as its tallest slot.
+        y = Int(iomap.output.h) ÷ 2
+        shapes = [find_pointer_shape(iomap.output, x, y) for x in xs]
+        grabs = [_holds_pointer_part_operation(read_intent(widgets, iomap, down(x, y)),
                                                StartDragOperation) for x in xs]
         @test count(grabs) > 0
         @test (shapes .=== :double_arrow_horizontal) == grabs
@@ -86,7 +89,7 @@ function test_part_pointer_shape()
     @testset "the edge of a column is a double arrow where a press starts its drag" begin
         tables = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+            WidgetToGraphics(; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
         context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
         rows = _make_pointer_part_list([make_widget_table_row(Any["row $(i)", string(i)]) for i in 1:5])
         vector_columns = WidgetTable(; column_headers = Any["name", "value"], cells = rows,
@@ -102,8 +105,11 @@ function test_part_pointer_shape()
             _, y = _find_pointer_part_text(iomap.output, label)
             xs = 0:500
             shapes = [find_pointer_shape(iomap.output, x, y + 2) for x in xs]
-            grabs = [_holds_pointer_part_operation(_read_pointer_part(tables, iomap, down(x, y + 2)),
-                                                   StartDragOperation) for x in xs]
+            # A press on the text of a header starts the drag of a range in it; only the
+            # drag of the width of a column writes the state of its drag.
+            grabs = [(op = _read_pointer_part(tables, iomap, down(x, y + 2));
+                      _holds_pointer_part_operation(op, StartDragOperation) &&
+                      _holds_pointer_part_operation(op, ReplaceViewStateOperation)) for x in xs]
             @test count(grabs) == 7 * edges
             @test (shapes .=== :double_arrow_horizontal) == grabs
             # The cells under the header are no edge.
@@ -178,7 +184,7 @@ function test_part_pointer_shape()
             shapes = [find_pointer_shape(iomap.output, x, y) for (x, y) in points]
             clicks = [_read_pointer_part(widgets, iomap, click(x, y)) for (x, y) in points]
             downs = [_read_pointer_part(widgets, iomap, down(x, y)) for (x, y) in points]
-            buttons = [operation isa Union{CloseTabOperation, OpenTabOperation, DuplicateTabOperation}
+            buttons = [operation isa Union{CloseTabOperation, OpenTabOperation}
                        for operation in clicks]
             tabs = _is_pointer_part_tab_click.(clicks) .& .!buttons
             @test count(buttons) > 0 && count(tabs) > 0

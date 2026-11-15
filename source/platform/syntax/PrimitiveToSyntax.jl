@@ -23,14 +23,24 @@ function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveBool.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        # The value as a whole is the text of the leaf as a whole, both ways, so an
+        # Alt+double click on the text selects the value in its field (P8).
+        ::PrimitiveBool.value => @reference ::SyntaxLeaf.value::TextString
+        ::PrimitiveBool.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveBool.value::Bool{s:e}::Position
+        ::SyntaxLeaf.value => @reference ::PrimitiveBool.value::Bool
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveBool.value::Bool{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
@@ -77,14 +87,24 @@ function map_reference_forward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveNumber.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        # The value as a whole is the text of the leaf as a whole, both ways, so an
+        # Alt+double click on the text selects the value in its field (P8).
+        ::PrimitiveNumber.value => @reference ::SyntaxLeaf.value::TextString
+        ::PrimitiveNumber.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveNumber.value::Number{s:e}::Position
+        ::SyntaxLeaf.value => @reference ::PrimitiveNumber.value::Number
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveNumber.value::Number{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
@@ -132,14 +152,24 @@ function map_reference_forward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMa
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.output))
         proj(^(p), inner) => inner
-        ::PrimitiveString.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
+        # The value as a whole is the text of the leaf as a whole, both ways, so an
+        # Alt+double click on the text selects the value in its field (P8).
+        ::PrimitiveString.value => @reference ::SyntaxLeaf.value::TextString
+        ::PrimitiveString.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::SyntaxLeaf.value::TextString{a:m}::Position
+        end
     end
 end
 
 function map_reference_backward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
         ∅ => EmptyReference(get_reference_node_type(iomap.input))
-        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveString.value::String{s:e}::Position
+        ::SyntaxLeaf.value => @reference ::PrimitiveString.value::String
+        ::SyntaxLeaf.value{s:e} => begin
+            (a, m) = get_range_ends(reference)
+            @reference ::PrimitiveString.value::String{a:m}::Position
+        end
         __ => make_introduced_reference(p, iomap, reference)
     end
 end
@@ -164,11 +194,9 @@ function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::Rep
     path === nothing ? nothing : make_path_operation(op, path)
 end
 
-# String character-editing (insert / Backspace / Delete) is reified once as
-# `@gestures PrimitiveString` in `PrimitiveToText.jl` (a document-level concern in
-# the PrimitiveString's own `value[range]` vocabulary); this leaf reaches it
-# through the generic `read_gesture` fallback, so no bespoke event reader lives
-# here — only the structural `ReplaceSelectionOperation` mapping above.
+# The keys that edit the string are the text domain's: its edit comes back through
+# the generic reader by the backward map, as an edit of `value{s:e}`. So no event
+# reader lives here, only the structural `ReplaceSelectionOperation` mapping above.
 
 # ── PrimitiveInsertionToSyntaxLeaf ───────────────────────────────────────────
 

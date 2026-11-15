@@ -26,12 +26,14 @@ function print_document(p::ExplorerSearchToWidget, recursion, search::ExplorerSe
         rows = Any[_make_search_match_row(search, match) for match in matches]
         Cell[Cell(WidgetTable(Any["match", "place"], rows))]
     end)
+    follow_built_children!(body)
     root = VerticalLayout(Any[WidgetLabel(get_document_title(search)), line,
                               LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
                           horizontal_align = :left, gap = p.gap)
     iomap = ChildrenIoMap(p, search, root, Cell(Any[]))
-    # The part under the pointer, so a link lights and takes a press.
-    set_output_path_computations!(root, search, path -> map_reference_forward(p, iomap, path); dormant = false)
+    # The selection and the part under the pointer, so a link lights and takes a
+    # press. Each widget of the page holds its part of both.
+    follow_widget_output!(root, search, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 

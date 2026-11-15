@@ -9,11 +9,13 @@ _is_error_output(output::AbstractString) =
     occursin("ERROR", output) || occursin("Error", output)
 
 """
-    run_turn!(agent, target; messages, on_event, tools = Tool[], on_stop = nothing) -> stop_reason
+    run_turn!(agent, target; messages, on_event, tools = Tool[], on_stop = nothing,
+              call_starter = nothing) -> stop_reason
 
 Run one turn: stream a round from the model, run any tools it asked for, and go
 again until it stops asking. Returns the stop reason of the final round
-(`:end_turn`, `:tool_use` if the round cap cut it short, `:max_tokens`, `:error`).
+(`:end_turn`, `:max_tokens`, `:error`), or `:round_limit` when the model still
+asked for tools after `agent.max_rounds` rounds.
 A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` gives `:error`,
 and the loop runs none of its tool calls.
 
@@ -32,6 +34,12 @@ and the loop runs none of its tool calls.
 - `on_stop`  — a function with no argument that runs when the person stops a code
                unit of the editor in which a tool call of this turn runs, such as
                the cancel of this turn; or `nothing`.
+- `call_starter` — a function of one tool call, an `LlmToolUse`, that answers the
+               starter of the evaluation of that call
+               ([`find_evaluation_starter`](@ref)), such as the assistant of the
+               turn and the id of the call; or `nothing`, which keeps the starter
+               of the turn. The call runs with it, also when it goes to the task of
+               the editor, so the work that it starts records it.
 
 A call that evaluates code keeps the value of the evaluation in the tool set of
 `agent` under the id of the call ([`keep_tool_call_value!`](@ref)), so a caller
@@ -61,7 +69,8 @@ and renders no answer: the loop streams, runs the tools, and stops when the mode
 asks for no tool.
 """
 function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVector{Tool} = Tool[],
-                   on_stop::Union{Function, Nothing} = nothing)
+                   on_stop::Union{Function, Nothing} = nothing,
+                   call_starter::Union{Function, Nothing} = nothing)
     register_default_tools!(agent.tools)
     turn_tools = collect(Tool, tools)
     listed = vcat(list_tools(agent.tools), turn_tools)
@@ -73,6 +82,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
         if round > agent.max_rounds
             rounds = round - 1
             @warn "[agent] hit the round cap; ending the turn" agent.max_rounds rounds
+            stop = :round_limit
             break
         end
 
@@ -139,17 +149,21 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     (text, true)
                 end
             end
-            output, is_error = if tool !== nothing && !tool.reads_documents
-                run_call()
-            else
-                try
-                    run_on_editor_task!(run_call, target; description = call.name,
-                                        stop = on_stop)
-                catch exception
-                    # The editor did not start the call in time: the model reads
-                    # why, and the turn goes on.
-                    exception isa EditorCallTimeoutException || rethrow()
-                    (sprint(showerror, exception), true)
+            # The call runs with its starter, here and on the task of the editor.
+            starter = call_starter === nothing ? find_evaluation_starter() : call_starter(call)
+            output, is_error = run_with_evaluation_starter(starter) do
+                if tool !== nothing && !tool.reads_documents
+                    run_call()
+                else
+                    try
+                        run_on_editor_task!(run_call, target; description = call.name,
+                                            stop = on_stop)
+                    catch exception
+                        # The editor did not start the call in time: the model reads
+                        # why, and the turn goes on.
+                        exception isa EditorCallTimeoutException || rethrow()
+                        (sprint(showerror, exception), true)
+                    end
                 end
             end
             output isa Task && ((output, is_error) = _wait_for_tool_task(output))

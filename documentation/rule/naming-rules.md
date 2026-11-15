@@ -1,6 +1,6 @@
 # Naming
 
-> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [package-rules.md](package-rules.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** rule · **For:** developer · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [package-rules.md](package-rules.md), [system-anatomy.md](../design/system-anatomy.md)
 
 How things are named here — in every package, not only the kernel. The goal is
 guessability in both directions: given a concept, you can derive its name; given
@@ -65,10 +65,9 @@ on, and why a leaf matters.
 A package directory holds its `Project.toml` and `src/<PackageName>.jl`, and
 that root file holds the docstring, the imports, the module aliases and the
 ordered `include`s. The code it includes lives in `source/`, `test/` or
-`example/`. A package directory can also hold `precompile/`, the recorded
-precompile statements of the package, because AutoPrecompile reads them in the
-folder of a loaded package and nowhere else. The rule and what it cost are in
-[plan/done/repository-tree.md](../../plan/done/repository-tree.md).
+`example/`. A package directory can also hold `precompile/`, the recorded calls
+of the package, because its `@compile_ahead` compiles them from the folder of the
+package; see [compile-ahead.md](../design/compile-ahead.md).
 
 ## A file is named for what it defines
 
@@ -373,8 +372,8 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   bindings of its supertypes.
 - **A qualifier that names the *subject* keeps subject-first order**, because
   it reads as English: `get_base_plane_length`, not `get_length_base_plane`;
-  `get_command_palette_settled_selection`, not
-  `get_command_palette_selection_settled`. The test is whether the words read
+  `get_pane_shown_tab_index`, not `get_pane_tab_index_shown`. The test is
+  whether the words read
   as a phrase a person would say.
 
 ### Words

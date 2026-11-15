@@ -76,6 +76,7 @@ The geometry cells:
 - `row_count::Cell` — the number of rows (`ceil(n / columns)`).
 - `horizontal_gap` / `vertical_gap` — the inter-cell gaps.
 - `w::Cell` / `h::Cell` — the outer canvas extent.
+- `places::Cell` — row, first column and column span of each child (`compute_grid_places`).
 
 All cells are reactive: an edit that changes a child's intrinsic extent
 invalidates only the downstream geometry cells.
@@ -95,11 +96,28 @@ invalidates only the downstream geometry cells.
     vertical_gap::Cell
     w::Cell
     h::Cell
+    places::Cell
 end
 
-# Routing / forward helpers below read only `iomap.child_iomaps`; both iomap
-# shapes carry that field, so they accept either.
-const _LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap}
+"""
+    FlowLayoutIoMap
+
+Like `ChildrenIoMap` (the same `projection` / `input` / `output` and the routing
+entries in `child_iomaps`), plus `lines::Cell`, the line of each child that the
+print placed it in (`_fl_line_plan`). The output holds a canvas for each line, so
+the reference maps need the line of each child, and they read it here.
+"""
+@iomap struct FlowLayoutIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomaps::Cell
+    lines::Cell
+end
+
+# Routing / forward helpers below read only `iomap.child_iomaps`; every iomap
+# shape carries that field, so they accept any of them.
+const _LayoutChildrenIoMap = Union{ChildrenIoMap, GridLayoutIoMap, FlowLayoutIoMap}
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -153,6 +171,26 @@ function _make_placed_children_cell(build::Cell)
     Cell(@computation _place_child_outputs(build[].entries, placed))
 end
 
+# The output of a row or a column: a canvas with no layout that holds two
+# elements, the canvas of the children and the ring. The canvas of the children
+# declares `axis`, the order of its children, and no overlap, so the backend
+# searches it for the children that meet the clip; the ring lies beside it, over
+# a child, and is drawn whatever the clip shows of the children.
+function _make_ordered_children_canvas(build::Cell, ring, axis::LayoutDirection)
+    placed = _make_placed_children_cell(build)
+    width = Cell(@computation Int32(build[].w[]))
+    height = Cell(@computation Int32(build[].h[]))
+    children = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                              CellVector(@computation placed[]), axis, false, Cell(nothing))
+    _make_children_beside_ring(children, ring, width, height)
+end
+
+# A canvas with no layout that holds the canvas of the children and the ring, in
+# that order.
+_make_children_beside_ring(children::GraphicsCanvas, ring, width::Cell, height::Cell) =
+    GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                   CellVector(Cell[Cell(children), Cell(ring)]), layout_none, true, Cell(nothing))
+
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
                        clip_x, clip_y)
@@ -189,9 +227,11 @@ end
 Hand a pointer `event`, already in the child's frame, to the child's reader.
 Every container routes a press and a button down to a child through this.
 
-An Alt+press answers with `convert_to_whole_selection`: the child is selected
+An Alt+click answers with `convert_to_caret_selection`: the caret that the
+child answered, and nothing else, so a control under it does not act. An
+Alt+double click answers with `convert_to_whole_selection`: the child is selected
 as a whole unless it selected a whole object inside itself. So the innermost
-object under the pointer wins, and a control under it does not act.
+object under the pointer wins.
 
 A left button down with no modifier on a drawn part of the child answers with
 `convert_to_focus_selection`: a focusable child that answers nothing is selected
@@ -218,6 +258,7 @@ function read_child_event(child_iomap, event)
     child = get_iomap_input(child_iomap)
     is_focusing_press(event) && _is_event_on_child(child_iomap, event) &&
         return convert_to_focus_selection(answer, child)
+    is_caret_press(event) && return convert_to_caret_selection(answer)
     is_whole_selection_press(event) || return answer
     convert_to_whole_selection(answer, child)
 end
@@ -514,6 +555,13 @@ end
 
 # ── Allocation cell helpers ────────────────────────────────────────────────
 
+# The extent of a container on one axis: what its children need, raised to the
+# minimum of the range that its parent gave, so that it takes a slot or a minimum
+# that is more than its children (`layout-rules.md` §1). `minimum` is the cell of
+# the parent, never the container's own extent, so no cell reads its own result.
+_make_extent_at_least(extent::Cell, minimum) =
+    minimum === nothing ? extent : Cell(@computation max(Int(extent[]), Int(minimum[])))
+
 """
 Build a `Cell{Vector{Int}}` that lazily computes the per-child allocation
 for one axis. The cell depends reactively on the available-extent cell,
@@ -547,11 +595,19 @@ end
 """
     LayoutConstraintToGraphicsCanvas
 
-Recurse into the wrapped child with the parent-provided context unchanged
-and forward the child's canvas as this projection's output, as a computation, so
-a new canvas of the child is the new output. The constraint values are not
-consumed here — they are read by the *parent* layout when it allocates space
-across its children.
+Recurse into the wrapped child with the parent-provided context unchanged, and
+forward the child's canvas as this projection's output, as a computation, so a new
+canvas of the child is the new output. The constraint values are read by the
+*parent* layout when it allocates space across its children.
+
+A constraint that states a size cuts its child at that size (`layout-rules.md`
+§3b): on an axis where it states a preferred size or a weight and gets an exact
+size, it cuts at that size, and on an axis where it states a maximum and gets an
+edge, it cuts at the edge. While the child is larger than that size, its output
+is a canvas of the size that holds the child in a viewport (`_CUT_CHILD_STEPS`),
+so the next child of a row starts after the size, and nothing draws past it; a
+child that fits is the output itself. The cut matters for a child that is a layout:
+a widget takes an exact size and cuts its content at its box itself.
 """
 function print_document(p::LayoutConstraintToGraphicsCanvas,
                           recursion, doc::LayoutConstraint, ctx)
@@ -560,8 +616,94 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
             SimpleIoMap(nothing, child, child) :
             print_child(recursion, child,
                              make_child_context(ctx, doc, (@reference_step child)))
-    output = Cell(@computation (drawn = inner.output; drawn isa GraphicsDocument ? drawn : _empty_canvas()))
+    drawn = Cell(@computation (child_output = inner.output;
+                               child_output isa GraphicsDocument ? child_output : _empty_canvas()))
+    cut_x = _get_constraint_cut(doc, ctx, :x)
+    cut_y = _get_constraint_cut(doc, ctx, :y)
+    (cut_x === nothing && cut_y === nothing) && return ContentIoMap(p, doc, drawn, inner)
+    output = Cell(@computation begin
+        child_output = drawn[]
+        width, height = _child_w(inner), _child_h(inner)
+        fits = _get_cut_extent(cut_x, width) >= width && _get_cut_extent(cut_y, height) >= height
+        fits ? child_output : _make_cut_constraint_output(child_output, cut_x, cut_y, width, height)
+    end)
     ContentIoMap(p, doc, output, inner)
+end
+
+# Where a constraint cuts its child on `axis`: `(size, :exact)` for the exact size
+# that it gets where it states a preferred size or a weight, else for its preferred
+# size, which a parent that gives no exact size, such as a stack or a flow, leaves
+# to it; `(edge, :maximum)` for the edge that it gets where it states a maximum; or
+# `nothing`. The size and the edge are cells.
+function _get_constraint_cut(doc::LayoutConstraint, ctx, axis::Symbol)
+    ctx isa PrinterContext || return nothing
+    preferred = axis === :x ? doc.preferred_width : doc.preferred_height
+    weight = axis === :x ? doc.weight_width : doc.weight_height
+    maximum = axis === :x ? doc.max_width : doc.max_height
+    exact = axis === :x ? get_exact_width(ctx) : get_exact_height(ctx)
+    # A preferred size of 0 states no size, as for `Fill`, whose weight is its size.
+    states_preferred = preferred !== nothing && preferred > 0
+    states_size = states_preferred || (weight !== nothing && weight > 0)
+    states_size && exact !== nothing && return (exact, :exact)
+    states_preferred && return (Cell(Int32(preferred)), :exact)
+    edge = axis === :x ? ctx.maximum_width : ctx.maximum_height
+    maximum !== nothing && edge !== nothing && return (edge, :maximum)
+    nothing
+end
+
+# The extent of a cut constraint on one axis: the exact size, the drawn extent of
+# the child up to the edge, or the drawn extent where the constraint does not cut.
+_get_cut_extent(::Nothing, drawn::Int) = drawn
+_get_cut_extent(cut::Tuple, drawn::Int) = cut[2] === :exact ? Int(cut[1][]) : min(drawn, Int(cut[1][]))
+
+# The output of a constraint that cuts its child, which draws `drawn_width` by
+# `drawn_height`: a canvas of the cut size that holds the output of the child in a
+# viewport of that size.
+function _make_cut_constraint_output(child::GraphicsDocument, cut_x, cut_y, drawn_width::Int, drawn_height::Int)
+    width = Int32(max(0, _get_cut_extent(cut_x, drawn_width)))
+    height = Int32(max(0, _get_cut_extent(cut_y, drawn_height)))
+    held = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), CellVector(Cell[Cell(child)]),
+                          layout_none, true, Cell(nothing))
+    viewport = GraphicsViewport(Int32(0), Int32(0), width, height, held)
+    GraphicsCanvas(Int32(0), Int32(0), width, height, CellVector(Cell[Cell(viewport)]),
+                   layout_none, true, Cell(nothing))
+end
+
+# The steps from the output of a constraint that cuts its child to the output of
+# the child: the viewport, the canvas in it, and the child in that canvas.
+const _CUT_CHILD_STEPS =
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(0, 1),
+        ConcreteReference(FieldReferenceStep("content"), ConcreteReference(FieldReferenceStep("elements"),
+            ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))))
+
+# Whether the constraint of `iomap` cuts its child: its output holds the output of
+# the child, by identity, at the end of `_CUT_CHILD_STEPS`.
+function _is_cut_constraint(iomap)
+    inner = iomap.inner_iomap
+    inner === nothing && return false
+    output = unwrap_cell(get_iomap_output(iomap))
+    output isa GraphicsCanvas || return false
+    elements = unwrap_cell(getfield(output, :elements))
+    length(elements) == 1 || return false
+    viewport = unwrap_cell(elements[1])
+    viewport isa GraphicsViewport || return false
+    held = unwrap_cell(getfield(unwrap_cell(getfield(viewport, :content)), :elements))
+    length(held) == 1 && unwrap_cell(held[1]) === unwrap_cell(get_iomap_output(inner))
+end
+
+# `reference`, a path into the output of a constraint that cuts its child, as a path
+# into the output of the child: `_CUT_CHILD_STEPS` taken off. A path that stops
+# before the child names the child itself, and any other path is the same in both
+# frames, because the child sits at the origin of the output.
+function _strip_cut_child_steps(reference)
+    steps = _CUT_CHILD_STEPS
+    rest = reference
+    while steps isa ConcreteReference
+        rest isa ConcreteReference || return EmptyReference()
+        rest.head == steps.head || return reference
+        rest, steps = rest.tail, steps.tail
+    end
+    rest
 end
 
 # The wrapper forwards the child's canvas as its own output, so the wrapper itself
@@ -574,14 +716,18 @@ function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::Conten
     reference isa ConcreteReference || return nothing
     h = reference.head
     h isa FieldReferenceStep && h.name == "child" || return nothing
-    map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
+    answer = map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
+    answer === nothing && return nothing
+    _is_cut_constraint(iomap) ? concat_references(_CUT_CHILD_STEPS, answer) : answer
 end
 
 # The wrapper forwards the child's canvas as its own output, so a path into that
-# output is already a path into the child's — there is no step of its own to peel.
+# output is already a path into the child's; a constraint that cuts its child peels
+# the steps of its viewport first.
 function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
+    _is_cut_constraint(iomap) && (reference = _strip_cut_child_steps(reference))
     answer = map_reference_backward(inner.projection, inner, reference)
     answer === nothing && return nothing
     annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("child"), answer))
@@ -641,7 +787,8 @@ A child that is not drawn has no image. The empty reference is the container
 itself, whose image is its own canvas.
 """
 function descend_reference_forward(canvas, entries::Vector, field::String, reference;
-                                   drawn = output -> output isa GraphicsDocument)
+                                   drawn = output -> output isa GraphicsDocument,
+                                   rows::Union{Nothing,Vector{Int}} = nothing)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
@@ -657,17 +804,47 @@ function descend_reference_forward(canvas, entries::Vector, field::String, refer
     (child === nothing || !drawn(child.output)) && return nothing
     inner = map_reference_forward(child.projection, child, rest.tail)
     inner === nothing && return nothing
-    make_slot_reference(canvas, entries, index, inner; drawn)
+    rows === nothing ? make_slot_reference(canvas, entries, index, inner; drawn) :
+                       _make_row_slot_reference(canvas, entries, rows, index, inner; drawn)
+end
+
+# The output reference of the node that draws the child at `index`, in a canvas of
+# rows (`canvas`): the row of the child, `rows[index]`, then the slot of the child
+# among the drawn children of that row.
+function _make_row_slot_reference(canvas, entries::Vector, rows::Vector{Int}, index::Int,
+                                  inner::Reference; drawn)
+    row = rows[index]
+    members = [i for i in eachindex(entries) if rows[i] == row]
+    elements = unwrap_cell(getfield(unwrap_cell(canvas), :elements))
+    1 <= row <= length(elements) || return nothing
+    in_row = make_slot_reference(unwrap_cell(elements[row]), entries[members],
+                                 findfirst(==(index), members), inner; drawn)
+    in_row === nothing && return nothing
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(row - 1, row), in_row))
 end
 
 """
 A reference of the form `children[i]/...`, as the output reference of the node
-that draws the child, followed by what the child's own mapper answers.
+that draws the child, followed by what the child's own mapper answers. With
+`ordered`, the children stand in the canvas of the children of a row or a column
+(`_make_ordered_children_canvas`), the first element of the output, and the node
+of each child is one step deeper. With `rows`, the row of each child, the canvas of
+the children holds a canvas for each row (a grid), and the node of a child lies in
+the canvas of its row.
 """
-_children_forward(iomap::_LayoutChildrenIoMap, reference,
-                  drawn = output -> output isa GraphicsDocument) =
-    descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
-                              "children", reference; drawn)
+function _children_forward(iomap::_LayoutChildrenIoMap, reference,
+                           drawn = output -> output isa GraphicsDocument;
+                           ordered::Bool = false, rows::Union{Nothing,Vector{Int}} = nothing)
+    ordered || return descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
+                                                "children", reference; drawn)
+    canvas = unwrap_cell(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))[1])
+    answer = descend_reference_forward(canvas, getfield(iomap, :child_iomaps)[]::Vector,
+                                       "children", reference; drawn, rows)
+    answer isa ConcreteReference || return answer
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(0, 1), answer))
+end
 
 # Which child drew the `slot`-th element of the container's own canvas.
 #
@@ -744,15 +921,60 @@ end
 
 """
 A path into a layout's canvas, as a path into its `children`. A point of the
-canvas maps to the child drawn at it (`_point_backward`).
+canvas maps to the child drawn at it (`_point_backward`). With `ordered`, the path
+goes through the canvas of the children first (`_strip_ordered_children_steps`),
+and with `rows` through the canvas of a row (`_strip_row_step`).
 """
 function _children_backward(iomap::_LayoutChildrenIoMap, reference,
                             drawn = output -> output isa GraphicsDocument;
-                            topmost_first::Bool = false)
+                            topmost_first::Bool = false, ordered::Bool = false,
+                            rows::Union{Nothing,Vector{Int}} = nothing)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     point = find_reference_point(reference)
     point === nothing || return _point_backward(iomap.input, entries, point; topmost_first)
+    ordered && (reference = _strip_ordered_children_steps(reference))
+    rows === nothing || (reference = _strip_row_step(reference, entries, rows, drawn))
     _backward_descend(iomap.input, entries, reference, drawn)
+end
+
+# The reference below the canvas of a row, as a reference into the flat list of
+# the drawn children: `elements[r].elements[s]…` names the `s`-th drawn child of
+# row `r`, and becomes `elements[g]…` with `g` its place among all the drawn
+# children. `nothing` for a reference that stops at the canvas of a row.
+function _strip_row_step(reference, entries::Vector, rows::Vector{Int}, drawn)
+    reference isa ConcreteReference || return nothing
+    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
+    below = reference.tail
+    below isa ConcreteReference || return nothing
+    below.head isa RangeReferenceStep || return nothing
+    row = below.head.start + 1
+    in_row = below.tail
+    in_row isa ConcreteReference || return nothing
+    (in_row.head isa FieldReferenceStep && in_row.head.name == "elements") || return nothing
+    slot = in_row.tail
+    slot isa ConcreteReference || return nothing
+    slot.head isa RangeReferenceStep || return nothing
+    before = 0
+    for i in eachindex(entries)
+        entries[i] === nothing && continue
+        child = entries[i][3]
+        (child === nothing || !drawn(child.output)) && continue
+        rows[i] < row && (before += 1)
+    end
+    place = before + slot.head.start + 1
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(place - 1, place), slot.tail))
+end
+
+# The reference below the canvas of the children of a row or a column, or
+# `nothing` for a reference that does not go through that canvas.
+function _strip_ordered_children_steps(reference)
+    reference isa ConcreteReference || return nothing
+    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
+    below = reference.tail
+    below isa ConcreteReference || return nothing
+    (below.head isa RangeReferenceStep && below.head.start == 0) || return nothing
+    below.tail
 end
 
 """
@@ -787,15 +1009,9 @@ end
 
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
-function _hl_child_x_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    Cell(Computation(function ()
-        x = 0
-        for j in 1:(i-1)
-            x += _child_w(child_iomaps[j]) + gap_cell[]
-        end
-        Int32(x)
-    end))
-end
+# The left edge of child `i` of a row: the widths of the children before it, each
+# with the gap after it, from the blocks of `widths` (`PlaceBlocks`).
+_hl_child_x_cell(i::Int, widths::PlaceBlocks{Int}) = Cell(@computation Int32(get_total_before(widths, i)))
 
 """Position helper for the main axis when extrinsic allocation is in effect."""
 function _hl_alloc_child_x_cell(i::Int, actual_w_cells::Vector{Cell}, gap_cell::Cell)
@@ -837,15 +1053,9 @@ end
 # or its bottom edge when it draws no text, as CSS takes it.
 _child_baseline(cim) = something(find_first_baseline(cim), _child_h(cim))
 
-function _vl_child_y_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    Cell(Computation(function ()
-        y = 0
-        for j in 1:(i-1)
-            y += _child_h(child_iomaps[j]) + gap_cell[]
-        end
-        Int32(y)
-    end))
-end
+# The top of child `i` of a column: the heights of the children above it, each
+# with the gap after it, from the blocks of `heights` (`PlaceBlocks`).
+_vl_child_y_cell(i::Int, heights::PlaceBlocks{Int}) = Cell(@computation Int32(get_total_before(heights, i)))
 
 function _vl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, align_cell::Cell)
     Cell(Computation(function ()
@@ -865,7 +1075,7 @@ end
 # `doc.children` so the enclosing `build` cell re-runs on structural changes,
 # while the per-child size/position cells stay lazy.
 function _hl_build(recursion, doc, ctx)
-    gap_cell   = getfield(doc, :gap)
+    gap_cell   = make_layout_gap_cell(doc, :gap)
     align_cell = getfield(doc, :vertical_align)
     n = length(doc.children)
 
@@ -880,12 +1090,16 @@ function _hl_build(recursion, doc, ctx)
     # parent-supplied edge, never `outer_h`.
     # The mirror of `_vl_build`: a child that carries a weight on the main axis
     # (width, here) asks for a share of this row's width, and can have one only
-    # when the row has an edge on that axis, exact or bounded. Only a weighted child is offered a
-    # slot, so an unweighted child's width does not depend on the allocation and
-    # is safe to read while computing it.
+    # when the row has an edge on that axis, exact or bounded, or a minimum and no
+    # maximum. Only a weighted child is offered a slot, so an unweighted child's
+    # width does not depend on the allocation and is safe to read while computing
+    # it.
     # The space a row divides is the edge of its range, exact or bounded: `Fill`
     # takes all of what is offered, and the edge is what is offered.
-    avail_w  = ctx.maximum_width
+    # With no edge, the weighted children share the minimum of the range: each
+    # takes at least its share, and its content.
+    floor_w  = ctx.maximum_width === nothing ? ctx.minimum_width : nothing
+    avail_w  = floor_w === nothing ? ctx.maximum_width : floor_w
     default  = getfield(doc, :child_width)[]
     weighted = [layout_weight(doc.children[i], :x; default) > 0 for i in 1:n]
     filling  = avail_w !== nothing && any(weighted)
@@ -916,8 +1130,9 @@ function _hl_build(recursion, doc, ctx)
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_w, :x, default,
-                             gap_cell, ctx.maximum_width)
+                             gap_cell, ctx.maximum_width; at_least = floor_w !== nothing)
         cctx = make_cross_axis_context(cctx, child, :y, cross_default)
+        cctx = _with_child_space(cctx, _get_child_space(ctx.space, :x, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
@@ -937,42 +1152,32 @@ function _hl_build(recursion, doc, ctx)
         end)
     end
 
+    # The places of the children over aligned blocks (`PlaceBlocks`), as a column
+    # keeps them: the width of each with the gap after it, the baseline of each, and
+    # how low each reaches in the row.
+    widths = PlaceBlocks{Int}(i -> Int(_child_w(child_iomaps[i])) + Int(gap_cell[]), +)
+    baselines = PlaceBlocks{Int}(i -> Int(_child_baseline(child_iomaps[i])), max)
+
     # A row on the baseline stands each child so that its baseline meets the
     # lowest baseline of the row; the row is as tall as the lowest child reaches.
-    row_baseline = Cell(Computation(function ()
-        align_cell[] === :baseline || return 0
-        b = 0
-        for cim in child_iomaps
-            b = max(b, _child_baseline(cim))
-        end
-        b
-    end))
-    outer_h = Cell(Computation(function ()
-        on_baseline = align_cell[] === :baseline
-        h = 0
-        for cim in child_iomaps
-            ch = _child_h(cim)
-            on_baseline && (ch += row_baseline[] - _child_baseline(cim))
-            ch > h && (h = ch)
-        end
-        h
-    end))
+    row_baseline = Cell(@computation align_cell[] === :baseline ? get_total_before(baselines, n + 1) : 0)
+    reaches = PlaceBlocks{Int}(function (i)
+        cim = child_iomaps[i]
+        Int(_child_h(cim)) + (align_cell[] === :baseline ? row_baseline[] - Int(_child_baseline(cim)) : 0)
+    end, max)
+    outer_h = Cell(@computation get_total_before(reaches, n + 1))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
-    # Distributing an offer means occupying it.
-    outer_w = filling ? Cell(@computation Int(avail_w[])) : Cell(Computation(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_w(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end))
+    # Distributing an edge means occupying it. A shared minimum is a sum, which
+    # is at least the minimum.
+    outer_w = (filling && floor_w === nothing) ? Cell(@computation Int(avail_w[])) :
+              Cell(@computation n == 0 ? 0 : get_total_before(widths, n + 1) - Int(gap_cell[]))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
+        push!(child_x, _hl_child_x_cell(i, widths))
         push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell, row_baseline))
     end
 
@@ -991,21 +1196,16 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
+    outer = _make_ordered_children_canvas(build, ring, layout_horizontal)
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
 
 function map_reference_forward(::HorizontalLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true)
 end
 
 map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true)
 
 function read_intent(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1020,7 +1220,8 @@ end
 # *growing* recomputes those cells without rebuilding the stack.
 # The range a stack gives a child on the axis it divides.
 #
-# A weighted child of a stack that distributes takes its slot exactly, and a
+# A weighted child of a stack that distributes takes its slot exactly, or at
+# least, with `at_least`, when the slot is a share of a minimum; and a
 # child with a declared preferred extent (`Fixed`) takes that number exactly. Any
 # other child — `Content`, or a weighted child of a stack that has no slot to
 # divide — draws its content up to the room the others leave: the stack's edge,
@@ -1029,10 +1230,30 @@ end
 # raised to its placement minimum. Each room reads only children that come before
 # it, and the allocation reads the unslotted children after they are drawn, so no
 # cell reads its own result.
+# ── The space of a slot ─────────────────────────────────────────────────────
+#
+# A layout draws no edge, so it passes the space that its slot gives
+# (`PrinterContext.space`, `(left, top, right, bottom)`) to the children at its
+# sides, and the first box in each child takes it. A function that makes an offer
+# gives 0 where it states no space, so a layout states the space of each child
+# with the last offer that it makes for it.
+
+# The space of the child `index` of `count` children along `axis`: the space on
+# the two sides across the axis, and on the axis the space before the first child
+# and after the last.
+function _get_child_space(space::NTuple{4, Int}, axis::Symbol, index::Int, count::Int)
+    left, top, right, bottom = space
+    axis === :y ? (left, index == 1 ? top : 0, right, index == count ? bottom : 0) :
+                  (index == 1 ? left : 0, top, index == count ? right : 0, bottom)
+end
+
+# The offer `ctx` with the space `space`, and the same ranges.
+_with_child_space(ctx, space::NTuple{4, Int}) = with_size_range(ctx; space)
+
 function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Bool},
-                       slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge)
+                       slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge; at_least::Bool = false)
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
-    slotted[i] && return with_exact_size(cctx; on_axis(slots[i])...)
+    slotted[i] && return with_size_range(cctx; on_axis((slots[i], at_least ? nothing : slots[i]))...)
     child = children[i]
     pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
@@ -1063,8 +1284,9 @@ that the container does not divide: the cross axis of a stack, and both axes
 of a `WidgetComposite`, whose children overlap.
 
 The edge `B` on that axis is the maximum of the range of `cctx`. `Fill` and
-`Relative` take it exactly, `(B, B)`; a declared preferred extent takes that
-number exactly; and everything else is `Content`: the child draws its content
+`Relative` take it exactly, `(B, B)`, and with no edge they take their content,
+at least their minimum and the minimum of the range; a declared preferred extent
+takes that number exactly; and everything else is `Content`: the child draws its content
 up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's minimum and
 maximum. The policy is the `LayoutConstraint` that `child` is, else `default`,
 the container's `child_width` or `child_height` for that axis.
@@ -1076,7 +1298,12 @@ own.
 function make_cross_axis_context(cctx, child, axis::Symbol, default)
     edge = axis === :x ? cctx.maximum_width : cctx.maximum_height
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
-    layout_weight(child, axis; default) > 0 && return with_size_range(cctx; on_axis((edge, edge))...)
+    if layout_weight(child, axis; default) > 0
+        edge === nothing || return with_size_range(cctx; on_axis((edge, edge))...)
+        # With no edge to take, a weighted child draws its content, and at least
+        # the larger of its minimum and the minimum of the range.
+        return with_size_range(cctx; on_axis((_get_shared_minimum(cctx, child, axis, default), nothing))...)
+    end
     pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
     minimum = layout_min(child, axis, 0; default)
@@ -1087,8 +1314,69 @@ function make_cross_axis_context(cctx, child, axis::Symbol, default)
     with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
 
+# The minimum of a weighted child on an axis with no edge: the larger of its
+# placement minimum and the minimum of the range of `cctx`, or `nothing`.
+function _get_shared_minimum(cctx, child, axis::Symbol, default)
+    floor = axis === :x ? cctx.minimum_width : cctx.minimum_height
+    minimum = layout_min(child, axis, 0; default)
+    floor === nothing && return minimum > 0 ? Cell(Int32(minimum)) : nothing
+    minimum > 0 ? Cell(@computation Int32(max(Int(floor[]), minimum))) : floor
+end
+
+# The keyword default of `with_visible_size`: the axis keeps its visible extent.
+const _KEEP_VISIBLE = :keep
+
+"""
+    with_visible_size(ctx; width, height) -> PrinterContext
+
+A copy of `ctx` that gives the visible extent on each axis given: a cell of how
+much of the content shows now. `nothing` takes it away. An axis that is not
+given keeps its visible extent. A scroll area gives its view to its content, and
+the parts below keep it.
+
+Use it where a part shows a view of its content, as a scroll area does.
+"""
+function with_visible_size(ctx; width = _KEEP_VISIBLE, height = _KEEP_VISIBLE)
+    width === _KEEP_VISIBLE || (ctx = with_property(ctx, :visible_width, width))
+    height === _KEEP_VISIBLE || (ctx = with_property(ctx, :visible_height, height))
+    ctx
+end
+
+"""
+    get_visible_width(ctx) -> Union{Cell, Nothing}
+
+The most of the width of a part that can show now: the maximum of its range when
+it has one, because its giver cuts there; else the minimum of its range when it
+has one, because that is the share that its giver gives it; else the visible
+extent of the scroll area that holds it, which grows on the width; else
+`nothing`.
+
+Use it in a part that builds only the columns that show. A part that fills its
+own slot reads `get_exact_width`.
+"""
+get_visible_width(ctx) =
+    ctx === nothing ? nothing :
+    ctx.maximum_width !== nothing ? ctx.maximum_width :
+    ctx.minimum_width !== nothing ? ctx.minimum_width : get_property(ctx, :visible_width)
+
+"""
+    get_visible_height(ctx) -> Union{Cell, Nothing}
+
+The most of the height of a part that can show now: the maximum of its range
+when it has one; else the minimum of its range when it has one; else the visible
+extent of the scroll area that holds it, which grows on the height; else
+`nothing`. See [`get_visible_width`](@ref).
+
+Use it in a part that builds only the rows that show: a table of a list, the
+lines of a stream, the rows of a data frame.
+"""
+get_visible_height(ctx) =
+    ctx === nothing ? nothing :
+    ctx.maximum_height !== nothing ? ctx.maximum_height :
+    ctx.minimum_height !== nothing ? ctx.minimum_height : get_property(ctx, :visible_height)
+
 function _vl_build(recursion, doc, ctx)
-    gap_cell   = getfield(doc, :gap)
+    gap_cell   = make_layout_gap_cell(doc, :gap)
     align_cell = getfield(doc, :horizontal_align)
     n = length(doc.children)
 
@@ -1102,14 +1390,19 @@ function _vl_build(recursion, doc, ctx)
     # the children before it, never `outer_h`. The cross axis is cycle-free
     # because `outer_w` (below) reads child widths while each child reads the
     # *parent-supplied* edge, never `outer_w`.
-    # A child that carries a weight on the main axis is asking for a share of this
-    # layout's height. It can have one only when this layout has an edge on that
-    # axis, exact or bounded — a share of a sum of its own children is the reactive
-    # cycle the comment above describes. So the two conditions together decide, and nothing
-    # has to be declared on the layout.
-    # The space a column divides is the edge of its range, exact or bounded:
-    # `Fill` takes all of what is offered, and the edge is what is offered.
-    avail_h  = ctx.maximum_height
+    # The mirror of `_hl_build`: a child that carries a weight on the main axis
+    # (height, here) asks for a share of this column's height, and can have one
+    # only when the column has an edge on that axis, exact or bounded, or a
+    # minimum and no maximum — a share of a sum of its own children is the
+    # reactive cycle the comment above describes. So the two conditions together
+    # decide, and nothing has to be declared on the layout.
+    # The space a column divides is the edge of its range, exact or bounded: an
+    # edge is where the giver cuts, so `Fill` takes all of it. A page in a view
+    # that grows has no edge, and a share of its minimum is a minimum: the child
+    # takes at least it, and its content, so a part that fills the view fills
+    # it, and grows with its content.
+    floor_h  = ctx.maximum_height === nothing ? ctx.minimum_height : nothing
+    avail_h  = floor_h === nothing ? ctx.maximum_height : floor_h
     default  = getfield(doc, :child_height)[]
     weighted = [layout_weight(doc.children[i], :y; default) > 0 for i in 1:n]
     filling  = avail_h !== nothing && any(weighted)
@@ -1148,8 +1441,9 @@ function _vl_build(recursion, doc, ctx)
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_h, :y, default,
-                             gap_cell, ctx.maximum_height)
+                             gap_cell, ctx.maximum_height; at_least = floor_h !== nothing)
         cctx = make_cross_axis_context(cctx, child, :x, cross_default)
+        cctx = _with_child_space(cctx, _get_child_space(ctx.space, :y, i, n))
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
@@ -1171,31 +1465,27 @@ function _vl_build(recursion, doc, ctx)
         end)
     end
 
-    outer_w = Cell(Computation(function ()
-        w = 0
-        for cim in child_iomaps
-            cw = _child_w(cim)
-            cw > w && (w = cw)
-        end
-        w
-    end))
+    # The places of the children over aligned blocks (`PlaceBlocks`): the height of
+    # each with the gap after it, and the width of each. The top of a child and the
+    # extent of the column each read log2 of the count of children, so a child that
+    # keeps its extent moves nothing, and one that changes it computes again only
+    # the blocks that hold it.
+    heights = PlaceBlocks{Int}(i -> Int(_child_h(child_iomaps[i])) + Int(gap_cell[]), +)
+    widths = PlaceBlocks{Int}(i -> Int(_child_w(child_iomaps[i])), max)
+    outer_w = Cell(@computation get_total_before(widths, n + 1))
+    outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
 
-    # Distributing an offer means occupying it.
-    outer_h = filling ? Cell(@computation Int(avail_h[])) : Cell(Computation(function ()
-        n2 = length(child_iomaps)
-        n2 == 0 && return 0
-        total = 0
-        for cim in child_iomaps
-            total += _child_h(cim)
-        end
-        total + (n2 - 1) * gap_cell[]
-    end))
+    # Distributing an offer means occupying it. A shared minimum is a sum, which
+    # is at least the minimum.
+    outer_h = (filling && floor_h === nothing) ? Cell(@computation Int(avail_h[])) :
+              Cell(@computation n == 0 ? 0 : get_total_before(heights, n + 1) - Int(gap_cell[]))
+    outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
 
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _vl_child_x_cell(i, child_iomaps, outer_w, align_cell))
-        push!(child_y, _vl_child_y_cell(i, child_iomaps, gap_cell))
+        push!(child_y, _vl_child_y_cell(i, heights))
     end
 
     entries = Tuple{Cell,Cell,Any}[]
@@ -1217,21 +1507,16 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = Cell(@computation _vl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
+    outer = _make_ordered_children_canvas(build, ring, layout_vertical)
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
 
 function map_reference_forward(::VerticalLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true)
 end
 
 map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true)
 
 function read_intent(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1239,12 +1524,24 @@ end
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
 
-# Where each child of a grid stands: its row, its column, and the number of
-# columns that it takes (`get_column_span`). The grid fills its rows in order. A
-# child that takes more columns than its row has left starts the next row, and a
-# span past the number of columns takes the whole row. With every span 1, child
-# `i` stands at row `div(i - 1, c) + 1` and column `mod(i - 1, c) + 1`.
-function _gl_place(spans::Vector{Int}, c::Int)
+"""
+    compute_grid_places(spans, columns) -> Vector{NTuple{3,Int}}
+
+Where each child of a grid of `columns` columns stands: its row, its first column
+and the number of columns that it takes, from `spans`, the span of each child
+(`get_column_span`). The grid fills its rows in order. A child that takes more
+columns than its row has left starts the next row, and a span past the number of
+columns takes the whole row. With every span 1, child `i` stands at row
+`div(i - 1, columns) + 1` and column `mod(i - 1, columns) + 1`.
+
+Use it to know which children share a row of a grid, such as the cards of a
+dashboard that a row holds.
+
+# Example
+
+    compute_grid_places([1, 2, 3, 1], 3)   # [(1, 1, 1), (1, 2, 2), (2, 1, 3), (3, 1, 1)]
+"""
+function compute_grid_places(spans::Vector{Int}, c::Int)
     c = max(c, 1)
     places = Vector{NTuple{3,Int}}(undef, length(spans))
     row, col = 1, 1
@@ -1409,6 +1706,18 @@ end
 # An offer is carried as an `Int32` cell, the way every other seeded extent is.
 _gl_int32_cell(extent::Cell) = Cell(@computation Int32(max(0, extent[])))
 
+# What a grid divides on an axis with the range `(minimum, maximum)`, and whether
+# it is a minimum: the edge, exact or bounded, else the minimum, else nothing.
+_gl_divided_extent(minimum, maximum) =
+    maximum !== nothing ? (maximum, false) :
+    minimum !== nothing ? (minimum, true) : (nothing, false)
+
+# Whether a column or a row takes a share by its weight.
+_gl_is_weighted(p::SizePolicy) = p.weight !== nothing && p.weight > 0
+
+# The larger of a share and what the cells of its column or row drew.
+_gl_at_least_cell(share::Cell, content::Cell) = Cell(@computation max(Int(share[]), Int(content[])))
+
 # One entry of what `_gl_extents_cell` allocated.
 _gl_extent_cell(extents, k::Int) =
     Cell(Computation(function ()
@@ -1457,21 +1766,30 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         return _print_grid_list(p, recursion, doc, ctx)
     n = length(doc.children)
     if n == 0
-        return GridLayoutIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]),
+        no_entries = Tuple{Cell,Cell,Any}[]
+        no_size = Cell(Int32(0))
+        no_rows = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), no_size, no_size,
+                                 CellVector(), layout_vertical, false, Cell(nothing))
+        ring = make_layout_selection_ring(doc, () -> no_entries, p.graphics_style)
+        return GridLayoutIoMap(p, doc, _make_children_beside_ring(no_rows, ring, no_size, no_size),
+                               Cell(no_entries),
                                Cell[], Cell[], Cell[], Cell[],
                                getfield(doc, :columns), Cell(0),
                                getfield(doc, :horizontal_gap), getfield(doc, :vertical_gap),
-                               Cell(Int32(0)), Cell(Int32(0)))
+                               Cell(Int32(0)), Cell(Int32(0)), Cell(NTuple{3,Int}[]))
     end
 
     cols_cell = getfield(doc, :columns)
-    hgap      = getfield(doc, :horizontal_gap)
-    vgap      = getfield(doc, :vertical_gap)
+    hgap      = make_layout_gap_cell(doc, :horizontal_gap)
+    vgap      = make_layout_gap_cell(doc, :vertical_gap)
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
     column_align_cell = getfield(doc, :column_align)
-    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    # What the grid divides on each axis, as a stack does: the edge of its range,
+    # exact or bounded, else its minimum, which a weighted column or row then
+    # takes as a minimum (`least_w`, `least_h`).
+    avail_w, least_w = ctx === nothing ? (nothing, false) : _gl_divided_extent(ctx.minimum_width, ctx.maximum_width)
+    avail_h, least_h = ctx === nothing ? (nothing, false) : _gl_divided_extent(ctx.minimum_height, ctx.maximum_height)
 
     # A column's and a row's policy. Its KIND — `Fixed`, a weight or `Content` —
     # decides what a cell is offered, and that is read when the grid prints,
@@ -1512,30 +1830,37 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     # Where each child stands. The spans are read once here, as the children are.
     spans = Int[get_column_span(doc.children[i]) for i in 1:n]
-    places = Cell(@computation _gl_place(spans, cols_cell[]))
+    places = Cell(@computation compute_grid_places(spans, cols_cell[]))
     row_count_cell = Cell(Computation(function ()
-        p = places[]
-        isempty(p) ? 0 : maximum(first, p)
+        rows_of_places = places[]
+        isempty(rows_of_places) ? 0 : maximum(first, rows_of_places)
     end))
-    content_col_w = Cell[]
-    content_row_h = Cell[]
-    for k in 1:n
-        push!(content_col_w, _gl_col_w_cell(k, child_iomaps, places))
-        push!(content_row_h, _gl_row_h_cell(k, child_iomaps, places))
-    end
+    # A grid has its columns, also when it holds fewer children than columns, such
+    # as the last row of the cards of a dashboard.
+    ncols = max(n, cols_cell[]::Int)
+    content_col_w = Cell[_gl_col_w_cell(k, child_iomaps, places) for k in 1:ncols]
+    content_row_h = Cell[_gl_row_h_cell(k, child_iomaps, places) for k in 1:n]
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
     # The gap above row `r`: its entry of `row_gaps`, or `vertical_gap`.
     function gap_above(r::Int)
         gaps = doc.row_gaps
         gap = gaps isa AbstractVector && 2 <= r <= length(gaps) ? gaps[r] : nothing
-        gap === nothing ? Int(vgap[])::Int : Int(gap)::Int
+        gap === nothing ? Int(vgap[])::Int : Int(check_layout_gap(gap, :row_gaps))::Int
     end
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
                                    reads = k -> !offers_to_row_cells(k),
                                    extra_gap = c -> sum((gap_above(r) - Int(vgap[])::Int for r in 2:c); init = 0))
-    col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
-    row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
+    # The share of each column and each row. A weighted one that shares a minimum
+    # gives its share to its cells as their minimum, and is as wide or as tall as
+    # the larger of the share and its cells; its cells read only the share, so no
+    # extent reads itself. Every other one is its share.
+    share_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:ncols]
+    share_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
+    shares_least_w(k::Int) = least_w && _gl_is_weighted(peek_column_policy(k))
+    shares_least_h(k::Int) = least_h && _gl_is_weighted(peek_row_policy(k))
+    col_w = Cell[shares_least_w(k) ? _gl_at_least_cell(share_w[k], content_col_w[k]) : share_w[k] for k in 1:ncols]
+    row_h = Cell[shares_least_h(k) ? _gl_at_least_cell(share_h[k], content_row_h[k]) : share_h[k] for k in 1:n]
 
     # The edge of a `Content` column: the grid's edge, less the gaps, less what
     # the `Content` columns before it drew, less the minimums of the other
@@ -1557,12 +1882,31 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             Int32(max(0, r))
         end)
     end
-    column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
+    column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:ncols]
+    # The edge of a `Content` row, as the edge of a `Content` column: the grid's
+    # edge, less the gaps, less what the `Content` rows above it drew, less the
+    # minimums of the other rows.
+    is_content_row(k::Int) = !_gl_offers(peek_row_policy(k))
+    edge_h = ctx === nothing ? nothing : ctx.maximum_height
+    function make_row_edge(row::Int)
+        edge_h === nothing && return nothing
+        Cell(@computation begin
+            c = row_count_cell[]
+            r = Int(edge_h[]) - sum((gap_above(k) for k in 2:c); init = 0)
+            for k in 1:c
+                k == row && continue
+                r -= (k < row && is_content_row(k)) ? Int(content_row_h[k][]) :
+                     something(policy_of_row(k).min, 0)
+            end
+            Int32(max(0, r))
+        end)
+    end
+    row_edges = Union{Nothing,Cell}[make_row_edge(row) for row in 1:n]
     span_w = Cell[_gl_span_w_cell(i, places, col_w, hgap) for i in 1:n]
-    col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
+    col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:ncols]
     # The columns that child `i` spans, at the column count of this print.
     places_now = places[]
-    spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, n)
+    spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, ncols)
     # A spanning child reaches from its first column to the edge of the grid, and
     # at least over the columns that it spans: it widens no column, and a text in
     # it breaks at the width that the grid was offered. A grid offered no width
@@ -1573,27 +1917,48 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         Cell(@computation Int32(max(Int(span_w[i][]), Int(edge_w[]) - Int(col_x[col][]))))
     end
 
+    # The space of the slot goes to the cells at the sides of the grid: the left
+    # space to the cells of the first column, the top space to the cells of the
+    # first row, and so on.
+    row_total = isempty(places_now) ? 0 : maximum(first, places_now)
+    column_total = cols_cell[]
+    function get_cell_space(i::Int)
+        row, col, span = places_now[i]
+        left, top, right, bottom = ctx.space
+        (col == 1 ? left : 0, row == 1 ? top : 0, col + span - 1 >= column_total ? right : 0,
+         row == row_total ? bottom : 0)
+    end
+
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
-    # slot. A `Content` column gives its cells its edge, so a cell draws its
-    # content up to it; a row that does not hand out its extent keeps the height
-    # free, because no content reflows with its height. A child that spans
-    # columns is given their width exactly when each of them hands out its
-    # extent, and as a bound otherwise.
+    # slot — and a weighted one that shares a minimum gives its share as a
+    # minimum. A `Content` column and a `Content` row give their cells their
+    # edge, so a cell draws its content up to it: a text wraps at the edge of its
+    # column, and a part that scrolls stops at the edge of its row. A sized row
+    # that keeps its extent from its cells (`row_offers`) clips them instead, and
+    # gives them no edge. A child that spans columns is given their width exactly
+    # when each of them hands out its extent, and as a bound otherwise.
     for i in 1:n
         row, col, span = places_now[i]
         cctx = ctx
         if cctx !== nothing
             cctx = span > 1 ?
-                       (all(offers_to_cells, spanned_columns(i)) ?
-                            with_exact_size(cctx; width = _gl_int32_cell(span_w[i])) :
-                            with_bounded_size(cctx; width = make_span_edge(i))) :
+                       (!all(offers_to_cells, spanned_columns(i)) ?
+                            with_bounded_size(cctx; width = make_span_edge(i)) :
+                        any(shares_least_w, spanned_columns(i)) ?
+                            with_size_range(cctx; width = (_gl_int32_cell(_gl_span_w_cell(i, places, share_w, hgap)), nothing)) :
+                            with_exact_size(cctx; width = _gl_int32_cell(span_w[i]))) :
+                   shares_least_w(col) ? with_size_range(cctx; width = (_gl_int32_cell(share_w[col]), nothing)) :
                    offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    with_free_axis(cctx, :x)
-            cctx = offers_to_row_cells(row) ?
-                with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
-                with_free_axis(cctx, :y)
+            cctx = shares_least_h(row) ? with_size_range(cctx; height = (_gl_int32_cell(share_h[row]), nothing),
+                                                         space = get_cell_space(i)) :
+                   offers_to_row_cells(row) ? with_exact_size(cctx; height = _gl_int32_cell(row_h[row]),
+                                                              space = get_cell_space(i)) :
+                   is_content_row(row) && row_edges[row] !== nothing ?
+                       with_bounded_size(cctx; height = row_edges[row], space = get_cell_space(i)) :
+                   with_free_axis(cctx, :y; space = get_cell_space(i))
         end
         cim = _recurse_child(recursion, doc.children[i],
                              make_child_context(cctx, doc, (@reference_step children), (@reference_step [i])))
@@ -1637,18 +2002,24 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         end
         total
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # A child in a column or a row whose extent was given is drawn inside that
     # slot; every other child is drawn where the alignment put it and reaches as
     # far as it reaches. The column count is read once here: a grid whose column
-    # count changes is rebuilt by the cell around this function.
+    # count changes is rebuilt by the cell around this function. A child is placed
+    # in the frame of its row, whose canvas stands at the top of the row.
     function place_output(i, c)
         row, col, span = places_now[i]
         clip_x = all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
         clip_y = _gl_offers(peek_row_policy(row))
-        (clip_x || clip_y) || return _wrap_child(c, child_x[i], child_y[i])
-        clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i], y_cell = child_y[i],
-                           slot_x = col_x[col], slot_y = row_y[row],
+        in_row_y = Cell(@computation Int32(Int(child_y[i][]) - Int(row_y[row][])))
+        (clip_x || clip_y) || return _wrap_child(c, child_x[i], in_row_y)
+        clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i], y_cell = in_row_y,
+                           slot_x = col_x[col], slot_y = Cell(Int32(0)),
                            slot_w = span > 1 ? span_w[i] : col_w[col],
                            slot_h = row_h[row], clip_x, clip_y)
     end
@@ -1658,50 +2029,65 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
     ring = make_layout_selection_ring(doc, () -> entries, p.graphics_style)
-    # The outputs are placed in a computation of their own, apart from the print
-    # of the children, so a child that gives a new output is placed again and no
-    # child prints again; an output that stays keeps its place.
-    placed = IdDict{Any,Any}()
-    elements = CellVector(Computation(function ()
-        wrapped = Any[]
-        kept = IdDict{Any,Any}()
-        for i in 1:n
-            c = child_iomaps[i].output
-            c isa GraphicsDocument || continue
-            known = get(placed, c, nothing)
-            wrapper = (known !== nothing && known[1] == i) ? known[2] : place_output(i, c)
-            kept[c] = (i, wrapper)
-            push!(wrapped, wrapper)
-        end
-        empty!(placed)
-        merge!(placed, kept)
-        push!(wrapped, ring)
-        wrapped
-    end))
 
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(outer_w[])),
-                           Cell(@computation Int32(outer_h[])),
-                           elements, layout_none, true, Cell(nothing))
+    width = Cell(@computation Int32(outer_w[]))
+    height = Cell(@computation Int32(outer_h[]))
+    # A canvas for each row, at the top of the row and as tall as it. Its cells
+    # are placed in a computation of its own, apart from the print of the
+    # children, so a child that gives a new output is placed again and no child
+    # prints again; an output that stays keeps its place. A row whose cells keep
+    # to their columns orders them on the horizontal axis; a row with a child that
+    # spans columns which do not hand out their width can reach past its columns,
+    # and has no order.
+    function make_row_canvas(row::Int)
+        members = [i for i in 1:n if places_now[i][1] == row]
+        is_ordered = all(members) do i
+            places_now[i][3] == 1 || all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
+        end
+        placed = IdDict{Any,Any}()
+        cells = CellVector(Computation(function ()
+            wrapped = Any[]
+            kept = IdDict{Any,Any}()
+            for i in members
+                c = child_iomaps[i].output
+                c isa GraphicsDocument || continue
+                known = get(placed, c, nothing)
+                wrapper = (known !== nothing && known[1] == i) ? known[2] : place_output(i, c)
+                kept[c] = (i, wrapper)
+                push!(wrapped, wrapper)
+            end
+            empty!(placed)
+            merge!(placed, kept)
+            wrapped
+        end))
+        GraphicsCanvas(Cell(Int32(0)), Cell(@computation Int32(row_y[row][])),
+                       width, Cell(@computation Int32(row_h[row][])),
+                       cells, is_ordered ? layout_horizontal : layout_none, !is_ordered,
+                       Cell(nothing))
+    end
+    row_canvases = Cell[Cell(make_row_canvas(row)) for row in 1:row_total]
+    rows_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                                 CellVector(row_canvases), layout_vertical, false, Cell(nothing))
+    outer = _make_children_beside_ring(rows_canvas, ring, width, height)
 
     row_count = row_count_cell
 
     GridLayoutIoMap(p, doc, outer, Cell(entries),
                     col_x, row_y, col_w, row_h,
                     cols_cell, row_count, hgap, vgap,
-                    Cell(@computation Int32(outer_w[])), Cell(@computation Int32(outer_h[])))
+                    Cell(@computation Int32(outer_w[])), Cell(@computation Int32(outer_h[])), places)
 end
 
 function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true, rows = first.(iomap.places))
 end
 
 map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true, rows = first.(iomap.places))
 
-# A grid holds its cells in entries of a place and an IoMap, so a route reaches
-# the cell it names through the kernel's default reader.
-ProjectionModule.get_child_iomaps(iomap::GridLayoutIoMap) =
+# A grid and a flow hold their cells in entries of a place and an IoMap, so a
+# route reaches the cell it names through the kernel's default reader.
+ProjectionModule.get_child_iomaps(iomap::Union{GridLayoutIoMap, FlowLayoutIoMap}) =
     Any[last(entry) for entry in iomap.child_iomaps
         if entry isa Tuple && !isempty(entry) && last(entry) isa IoMap]
 
@@ -1812,9 +2198,15 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # to them. The flow breaks its lines at `max_width`, or at the edge of the
     # range it was given when that is less: a flow in a card breaks at the card's
     # edge.
+    #
+    # Which child stands at a side of a flow depends on the widths of the
+    # children, so the flow does not pass the space of its slot to them: it takes
+    # the space around itself, and its lines stand inside it.
     child_ctx = ctx === nothing ? nothing : with_free_axis(with_free_axis(ctx, :x), :y)
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
     minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    space_left, space_top, space_right, space_bottom = ctx === nothing ? (0, 0, 0, 0) : ctx.space
+    space_width, space_height = space_left + space_right, space_top + space_bottom
     build = Cell(@computation begin
         n = length(doc.children)
         child_iomaps = Any[]
@@ -1829,10 +2221,10 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         max_w_cell = Cell(@computation begin
             authored = authored_w[]
             limit = authored === nothing ? Int(typemax(Int32)) : Int(authored)
-            edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[])))
+            edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[]) - space_width))
         end)
-        hgap_cell  = getfield(doc, :horizontal_gap)
-        vgap_cell  = getfield(doc, :vertical_gap)
+        hgap_cell  = make_layout_gap_cell(doc, :horizontal_gap)
+        vgap_cell  = make_layout_gap_cell(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)
         valign     = getfield(doc, :vertical_align)
         line_plan = _fl_line_plan(n, child_iomaps, max_w_cell, hgap_cell)
@@ -1852,13 +2244,14 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         # The flow draws its widest line, and at least the minimum of its range,
         # cut at `max_width`: the edge of an exact range, its content in a
-        # bounded or a free one.
-        outer_w = Cell(@computation begin
+        # bounded or a free one. `lines_w` is the width of the lines, inside the
+        # space.
+        lines_w = Cell(@computation begin
             widest = 0
             for ln in 1:line_count[]
                 widest = max(widest, line_w[ln][])
             end
-            minimum = minimum_w === nothing ? nothing : minimum_w[]
+            minimum = minimum_w === nothing ? nothing : max(0, Int(minimum_w[]) - space_width)
             authored = authored_w[]
             minimum isa Integer || return widest
             max(widest, authored === nothing ? Int(minimum) : min(Int(minimum), Int(authored)))
@@ -1866,10 +2259,12 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         child_x = Cell[]
         child_y = Cell[]
         for i in 1:n
-            push!(child_x, _fl_child_x(i, line_plan, outer_w, line_w, halign))
-            push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
+            x = _fl_child_x(i, line_plan, lines_w, line_w, halign)
+            y = _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign)
+            push!(child_x, space_left == 0 ? x : Cell(@computation Int32(x[] + space_left)))
+            push!(child_y, space_top == 0 ? y : Cell(@computation Int32(y[] + space_top)))
         end
-        outer_h = Cell(Computation(function ()
+        lines_h = Cell(Computation(function ()
             lc = line_count[]
             lc == 0 && return 0
             total = 0
@@ -1882,26 +2277,86 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         for i in 1:n
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
-        (w = outer_w, h = outer_h, entries = entries)
+        line_top = Cell[Cell(@computation Int32(line_y[ln][] + space_top)) for ln in 1:n]
+        lines = Cell(@computation Int[first(step) for step in line_plan[]])
+        outer_w = space_width == 0 ? lines_w : Cell(@computation lines_w[] + space_width)
+        outer_h = space_height == 0 ? lines_h : Cell(@computation lines_h[] + space_height)
+        ctx === nothing || (outer_h = _make_extent_at_least(outer_h, ctx.minimum_height))
+        (w = outer_w, h = outer_h, entries = entries, line_plan = line_plan,
+         line_count = line_count, line_top = line_top, line_h = line_h, lines = lines)
     end)
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
-    placed = _make_placed_children_cell(build)
-    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(@computation Int32(build[].w[])),
-                           Cell(@computation Int32(build[].h[])),
-                           CellVector(@computation vcat(placed[], Any[ring])),
-                           layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
+    width = Cell(@computation Int32(build[].w[]))
+    height = Cell(@computation Int32(build[].h[]))
+    # The lines stand one under the other in the order of their numbers, and the
+    # children of a line from left to right, none over its neighbour: a gap is
+    # never negative.
+    line_canvases = _make_flow_line_canvases(build, width)
+    lines_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, height,
+                                  CellVector(line_canvases), layout_vertical, false,
+                                  Cell(nothing))
+    outer = _make_children_beside_ring(lines_canvas, ring, width, height)
+    FlowLayoutIoMap(p, doc, outer, Cell(@computation build[].entries),
+                    Cell(@computation build[].lines[]))
+end
+
+# The canvas of each line of a flow, which orders its children from left to right
+# and declares no overlap. A line canvas stands at the top of its
+# line, is as tall as the line and as wide as the flow, and holds the children of
+# the line in the frame of the line (the `y` of a child is its `y` in the flow
+# less the top of the line). A line keeps its canvas while the flow keeps its
+# build, so a reflow that leaves a line where it is leaves its canvas and the
+# wrappers of its children.
+function _make_flow_line_canvases(build::Cell, width::Cell)
+    canvases = GraphicsCanvas[]
+    owner = Ref{Any}(nothing)
+    @computation begin
+        made = build[]
+        if owner[] !== made.line_plan
+            empty!(canvases)
+            owner[] = made.line_plan
+        end
+        count = made.line_count[]
+        while length(canvases) < count
+            push!(canvases, _make_flow_line_canvas(made, length(canvases) + 1, width))
+        end
+        canvases[1:count]
+    end
+end
+
+function _make_flow_line_canvas(made, line::Int, width::Cell)
+    top = made.line_top[line]
+    in_line_y = Dict{Int,Cell}()
+    placed = IdDict{Any,Any}()
+    children = CellVector(Computation(function ()
+        plan = made.line_plan[]
+        members = Tuple{Cell,Cell,Any}[]
+        for i in eachindex(made.entries)
+            plan[i][1] == line || continue
+            x, y, child = made.entries[i]
+            push!(members, (x, get!(in_line_y, i) do
+                                   Cell(@computation Int32(Int(y[]) - Int(top[])))
+                               end, child))
+        end
+        _place_child_outputs(members, placed)
+    end))
+    GraphicsCanvas(Cell(Int32(0)), top, width, Cell(@computation Int32(made.line_h[line][])),
+                   children, layout_horizontal, false, Cell(nothing))
 end
 
 function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    return _children_forward(iomap, reference; ordered = true, rows = iomap.lines)
 end
 
 map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; ordered = true, rows = iomap.lines)
 
-function read_intent(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+# The baseline of a flow is that of its first child that has one, in the frame of
+# the flow, as for a row or a column.
+find_first_baseline(iomap::FlowLayoutIoMap) =
+    find_first_baseline_in_entries(unwrap_cell(iomap.child_iomaps))
+
+function read_intent(::FlowLayoutToGraphicsCanvas, iomap::FlowLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 
@@ -1998,10 +2453,12 @@ function print_document(p::StackLayoutToGraphicsCanvas,
     build = Cell(@computation begin
         n = length(doc.children)
         cims = Any[]
+        # The children of a stack overlap, so each one stands at every side of the
+        # stack and gets the whole space of its slot.
         for i in 1:n
             cctx = with_exact_size(
                 make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]));
-                width=nothing, height=nothing)
+                width=nothing, height=nothing, space = ctx.space)
             push!(cims, _recurse_child(recursion, doc.children[i], cctx))
         end
         (n, cims)
@@ -2025,6 +2482,10 @@ function print_document(p::StackLayoutToGraphicsCanvas,
         end
         h
     end))
+    if ctx !== nothing
+        outer_w = _make_extent_at_least(outer_w, ctx.minimum_width)
+        outer_h = _make_extent_at_least(outer_h, ctx.minimum_height)
+    end
 
     # Per-child position cells; rebuilt only on a structural change (they capture
     # `outer_w`/`outer_h` rather than reading them, so `active` does not churn them).
@@ -2193,34 +2654,40 @@ function _cl_build(solver, recursion, doc, ctx)
     end
 
     # The container is extrinsically sized when bounding dims are given;
-    # otherwise it falls back to the max solved child extent.
+    # otherwise it falls back to the max solved child extent. Which child stands
+    # at a side depends on the solve, so the layout does not pass the space of its
+    # slot to the children: it takes the space around itself, and the children
+    # stand inside it.
+    space_left, space_top, space_right, space_bottom = ctx.space
     outer_w = Cell(Computation(function ()
         bw = Int(bw_cell[])
-        bw > 0 && return bw
+        bw > 0 && return bw + space_left + space_right
         s = solve[]
         w = 0
         for i in 1:n
             right = s[i][1] + s[i][3]
             right > w && (w = right)
         end
-        w
+        w + space_left + space_right
     end))
 
     outer_h = Cell(Computation(function ()
         bh = Int(bh_cell[])
-        bh > 0 && return bh
+        bh > 0 && return bh + space_top + space_bottom
         s = solve[]
         h = 0
         for i in 1:n
             bottom = s[i][2] + s[i][4]
             bottom > h && (h = bottom)
         end
-        h
+        h + space_top + space_bottom
     end))
 
     entries = Tuple{Cell,Cell,Any}[]
     for i in 1:n
-        push!(entries, (child_x[i], child_y[i], final_iomaps[i]))
+        x = space_left == 0 ? child_x[i] : Cell(@computation Int32(Int(child_x[i][]) + space_left))
+        y = space_top == 0 ? child_y[i] : Cell(@computation Int32(Int(child_y[i][]) + space_top))
+        push!(entries, (x, y, final_iomaps[i]))
     end
 
     (w = outer_w, h = outer_h, entries = entries)
@@ -2313,14 +2780,17 @@ function _al_rect_of(node)
 end
 
 function _al_build(recursion, doc::AnchoredLayout, ctx)
+    # The content is the ground of the layout, so it takes the space of the slot.
     content_iomap = _recurse_child(recursion, doc.content,
                                    make_child_context(ctx, doc, (@reference_step content)))
     n = length(doc.children)
     child_iomaps = Any[]
     for i in 1:n
         entry = doc.children[i]
-        cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]),
-                                  (@reference_step child))
+        # A child stands at its target in the content, which takes the space of
+        # the slot, so the child gets none.
+        cctx = make_child_context(_with_child_space(ctx, (0, 0, 0, 0)), doc, (@reference_step children),
+                                  (@reference_step [i]), (@reference_step child))
         push!(child_iomaps, _recurse_child(recursion, entry.child, cctx))
     end
 

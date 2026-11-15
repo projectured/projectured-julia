@@ -4,23 +4,25 @@
 # the row of its own type; and the reader that turns a press on a node into a page
 # in the navigator, and reads the keys of the field of the filter.
 #
-#     filter.text<rest>    children[1].children[1].children[1].content<rest>
-#     tree.<rest>          children[1].children[2].children[1].<rest>, while no filter
-#     matches.<rest>       children[1].children[2].children[1].<rest>, while a filter
-#     navigator.<rest>     children[2].<rest>
+#     filter.text<rest>    elements[1].child.children[1].children[1].content<rest>
+#     tree.<rest>          elements[1].child.children[2].children[1].<rest>, while no filter
+#     matches.<rest>       elements[1].child.children[2].children[1].<rest>, while a filter
+#     navigator.<rest>     elements[2].child.<rest>
 
 """
     ExplorerToWidget(; gap)
 
-Draw an [`Explorer`](@ref) as a grid of one row: on the left the field of its
-filter and the buttons `+` and `▾` above its tree, and on the right the navigator in three
-times that width, each document drawn by the row of its own type, with `gap`
-between them. While the filter keeps rows out, the tree of the matches shows in
-the place of the tree.
+Draw an [`Explorer`](@ref) as a split pane of two sides: on the left the field of
+its filter and the buttons `+` and `▾` above its tree, and on the right the
+navigator, each document drawn by the row of its own type. The navigator starts
+three times as wide as the left side, and a drag of the divider between them
+changes the two widths. `gap` separates the parts of the left side. While the
+filter keeps rows out, the tree of the matches shows in the place of the tree.
 
 A press on a node selects it, and the navigator shows its page; the keys stay in
 the tree, so a person walks the nodes and reads each page. Ctrl+press opens the
-page in a new tab, and a double press or Return puts the keyboard in the page.
+page in a new tab, and a double press or Return puts the keyboard in the page,
+where it was the last time on that page, or on the whole page.
 `+` opens the menu of the kinds to add, as Insert does, and `▾` the menu of the
 kinds of the rows that the tree read, which the filter keeps. A key in the field
 of the filter edits the filter, Escape there empties it, and Return starts an
@@ -29,13 +31,13 @@ navigator to a page below the root section, such as by a link on the page, opens
 the nodes above that page in the tree.
 """
 @projection UntrackedCell struct ExplorerToWidget <: Projection
-    gap::Int = get_widget_style(nothing, :section_gap)
+    gap::Int = get_widget_style(nothing, :item_gap)
 end
 
 @iomap struct ExplorerToWidgetIoMap
     projection::Any
     input::Any          # Explorer
-    output::Any         # GridLayout
+    output::Any         # WidgetSplitPane
     add::Any            # the Action of `+`
     kinds::Any          # the Action of `▾`
 end
@@ -44,24 +46,41 @@ _make_steps(steps...) = extend_reference(EmptyReference(), steps...)
 
 _get_child_steps(k::Int) = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k))
 
-const _LEFT_STEPS = _get_child_steps(1)
+# A side of the split pane: its slot, and the constraint that sets its share.
+_get_side_steps(k::Int) = (FieldReferenceStep("elements"), RangeReferenceStep(k - 1, k), FieldReferenceStep("child"))
+
+const _LEFT_STEPS = _get_side_steps(1)
 const _BAR_STEPS = (_LEFT_STEPS..., _get_child_steps(1)...)
 const _FIELD_STEPS = (_BAR_STEPS..., _get_child_steps(1)...)
 const _HOLDER_STEPS = (_LEFT_STEPS..., _get_child_steps(2)...)
 const _SHOWN_STEPS = (_HOLDER_STEPS..., _get_child_steps(1)...)
-const _NAVIGATOR_STEPS = _get_child_steps(2)
+const _NAVIGATOR_STEPS = _get_side_steps(2)
 const _FIELD_CONTENT_STEPS = (_FIELD_STEPS..., FieldReferenceStep("content"))
 
 const _FILTER_FIELD_WIDTH = 80
 
+# What the field of the filter says when the pointer rests on it.
+_make_filter_field_note() =
+    TooltipNote(; title = "Filter", keys = find_bound_keys(Explorer, "Put the keyboard in the filter"),
+                text = "Show the rows whose label holds these words.",
+                hint = "Return searches below the selected row. Escape clears the filter.")
+
+# What `▾` says when the pointer rests on it: the kinds that the filter keeps.
+_make_kinds_note(filter::ExplorerFilter) =
+    TooltipNote(; title = "Kinds", text = "Show only the rows of the kinds that you choose.",
+                facts = ["Shown" => isempty(filter.kinds) ? "every kind" : join(_format_kind_name.(filter.kinds), ", ")])
+
 function print_document(p::ExplorerToWidget, recursion, explorer::Explorer, context)
     filter = getfield(explorer, :filter)[]
-    field = WidgetText(""; width = _FILTER_FIELD_WIDTH, placeholder = "Filter")
+    field = WidgetText(""; width = _FILTER_FIELD_WIDTH, placeholder = "Filter", tooltip = _make_filter_field_note())
     set_cell_computation!(getfield(field, :content), () -> String(filter.text))
     add = Action("Add an entry"; icon = :plus)
     kinds = Action("Keep the rows of some kinds"; icon = :funnel)
-    bar = GridLayout(Any[field, WidgetToolbarItem(add; tooltip = "Add an entry after the selected one (Insert)."),
-                         WidgetToolbarItem(kinds; tooltip = "Keep only the rows of some kinds.")], 3;
+    add_note = TooltipNote(; title = "Add an entry", keys = find_bound_keys(Explorer, "Add an entry"),
+                           text = "Add an entry after the selected one.",
+                           facts = ["Kinds" => join(first.(_collect_entry_kinds()), ", ")])
+    bar = GridLayout(Any[field, WidgetToolbarItem(add; tooltip = add_note),
+                         WidgetToolbarItem(kinds; tooltip = () -> _make_kinds_note(filter))], 3;
                      horizontal_gap = p.gap, vertical_align = :center, column_policies = Any[Fill, Content, Content])
     # The tree, or the tree of the matches while the filter keeps rows out: the one
     # child of a layout whose children follow, so the other one prints when it
@@ -71,12 +90,12 @@ function print_document(p::ExplorerToWidget, recursion, explorer::Explorer, cont
                             Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     left = GridLayout(Any[bar, holder], 1; vertical_gap = p.gap, column_policy = Fill,
                       row_policies = Any[Content, Fill])
-    output = GridLayout(Any[left, getfield(explorer, :navigator)[]], 2;
-                        horizontal_gap = p.gap, column_policies = Any[Relative(1), Relative(3)], row_policy = Fill)
+    output = WidgetSplitPane(:horizontal, Any[LayoutConstraint(left; width = Relative(1)),
+                                              LayoutConstraint(getfield(explorer, :navigator)[]; width = Relative(3))])
     iomap = ExplorerToWidgetIoMap(p, explorer, output, add, kinds)
     set_output_path_computations!(output, explorer, path -> map_reference_forward(p, iomap, path); dormant = false)
     # A layout passes a key by its own selection, so each one carries the part of
-    # the path of the grid below it.
+    # the path of the split pane below it.
     for (widget, steps) in ((left, _LEFT_STEPS), (bar, _BAR_STEPS), (field, _FIELD_STEPS), (holder, _HOLDER_STEPS))
         set_output_path_computations!(widget, output, path -> _find_path_below(path, steps))
     end
@@ -224,14 +243,51 @@ function _convert_explorer_answer(iomap::ExplorerToWidgetIoMap, operation, gestu
     if operation isa OpenPageOperation && operation.document === nothing
         steps = _find_shown_node_steps(explorer, operation.reference)
         steps === nothing && return nothing
-        visit = make_navigator_open_operation(navigator, _make_steps(steps...))
+        address = _make_steps(steps...)
+        place = _find_page_place(navigator, address)
+        visit = make_navigator_open_operation(navigator, address; selection = place)
         # The first press of a double press already shows the page, so the open
         # only puts the keyboard in it, as a visit does.
         visit === nothing && (visit = ReplaceSelectionOperation(
-            annotate_reference_types(navigator, _make_steps(FieldReferenceStep("content"), steps...))))
+            annotate_reference_types(navigator, concat_references(_make_steps(FieldReferenceStep("content")), place))))
         return reroot_operation(visit, (FieldReferenceStep("navigator"),))
     end
     nothing
+end
+
+# Where the keys go on the page at `address` in the content of `navigator`: back
+# where they were on it. The selection of the row of the page in the tree trims the
+# selection of the page to the whole page, and the documents below the page keep
+# the rest, so the place is the selection of the page, else the field of the page
+# whose document keeps a selection and that selection. The whole page when nothing
+# keeps one, or when an edit took that place away.
+function _find_page_place(navigator, address)
+    content = navigator.content
+    page = try_evaluate_reference(content, address, nothing)
+    page isa Document || return address
+    stored = get_stored_selection(page)
+    rest = stored isa ConcreteReference ? stored : _find_field_selection(page)
+    rest === nothing && return address
+    place = concat_references(strip_reference_types(address), strip_reference_types(rest))
+    is_valid_reference(content, place) ? place : address
+end
+
+# The selection that the document of a field of `page` keeps, after the step of
+# that field: a dormant one first, else one that the document was made with, such
+# as the caret in the form of a new evaluator. `nothing` when no field keeps one.
+function _find_field_selection(page::Document)
+    found = nothing
+    for name in fieldnames(typeof(page))
+        name === :selection && continue
+        child = unwrap_cell(getfield(page, name))
+        child isa Document || continue
+        stored = get_stored_selection(child)
+        stored isa ConcreteReference || continue
+        rest = concat_references(_make_steps(FieldReferenceStep(String(name))), stored)
+        is_live_selection(child) || return rest
+        found === nothing && (found = rest)
+    end
+    found
 end
 
 function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::ExplorerToWidgetIoMap)
@@ -260,8 +316,8 @@ function read_intent(p::ExplorerToWidget, recursion, change::Intent, iomap::Expl
         own === nothing || return Intent(answer.gesture, own, answer.description, answer.domain)
     end
     converted = something(_convert_explorer_answer(iomap, operation, gesture), operation)
-    Intent(answer.gesture, _add_tree_reveal(explorer, _mark_filter_edits(converted)), answer.description,
-           answer.domain)
+    Intent(answer.gesture, _add_tree_reveal(explorer, _add_card_holds(explorer, _mark_filter_edits(converted))),
+           answer.description, answer.domain)
 end
 
 # An answer that makes the navigator visit a page below the root section, such as a
@@ -300,5 +356,5 @@ _has_modifier_key(modifiers) = modifiers.ctrl || modifiers.shift || modifiers.al
 # which draws each with the row of its own type.
 make_graphics_projection(::Type{<:Explorer}; measure, appearance) =
     ChainingProjection(
-        ExplorerToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
-        GridLayoutToGraphicsCanvas())
+        ExplorerToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :item_gap)),
+        WidgetSplitPaneToGraphicsCanvas(get_scaled_theme!(appearance, WidgetTheme)))

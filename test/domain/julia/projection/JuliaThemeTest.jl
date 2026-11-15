@@ -8,9 +8,9 @@ function test_julia_theme()
     document = parse_julia("function f(x)\n    y = g(x, 2.5, \"s\", true, nothing, :sym)\n    y.z\nend")
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
-    @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
+    @test draw_font_sizes(document, Appearance(scale = AppearanceScale(font_scale = 1.5))) == round.(Int, plain .* 1.5)
     @test JuliaIntegerToSyntaxLeaf().style.font.size == 14
-    theme = get_scaled_theme!(Appearance(font_scale = 1.5), JuliaTheme)
+    theme = get_scaled_theme!(Appearance(scale = AppearanceScale(font_scale = 1.5)), JuliaTheme)
     leaf = JuliaIntegerToSyntaxLeaf(; style = get_julia_style(theme, :number_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, get_theme_value(JuliaTheme(), :number_text).color)

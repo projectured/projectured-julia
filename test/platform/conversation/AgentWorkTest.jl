@@ -195,9 +195,11 @@ function test_agent_work()
             task = document.task
             @test (task.summary, task.output_uri, task.can_stop) ==
                   ("slept", "file:///tmp/output.txt", false)
-            @test format_task_details(task, result) ==
-                  ["kind: local_bash", "tool call: t1", "output: /tmp/output.txt",
-                   "summary: slept"]
+            page = make_task_kind_document(task, result)
+            @test page isa WidgetFactGroup
+            @test Pair{String,String}[fact.label => fact.value for fact in collect(page.facts)] ==
+                  ["kind" => "local_bash", "tool call" => "t1", "output" => "/tmp/output.txt",
+                   "summary" => "slept"]
             @test [first(action) for action in get_task_actions(task)] ==
                   ["Open the output"]
             @test compute_item_facet(a, Val(:background_tasks)) == 0
@@ -400,7 +402,8 @@ function test_agent_work()
             @test is_permission_request_open(request)
             @test compute_wake_deadline(feed, editor) == 0.25
             stop_external_agent!(a)
-            drain_task_feed!()
+            # The background task joined the feed in a drain of the window.
+            drain_task_feed!(; editor)
             document = only(collect(a.agent_work.background_tasks))
             result = get_task_document_result(document)
             @test (result.result, result.reason) == ("CANCEL", "The agent ended.")
@@ -493,9 +496,11 @@ function test_agent_work()
     end
 end
 
-# An editor with no loop, on the assistant, whose feeds a test drains.
+# An editor with no loop, on the assistant, whose feeds a test drains. It has the
+# feeds that the wrappers of `build_editor` give a window.
 _work_editor(a::Assistant) =
-    Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[])
+    Editor(a, IdentityProjection(); backend = HeadlessBackend(), devices = Device[],
+           feeds = Feed[AgentEventFeed(), TaskFeed()])
 
 # The text of a part of a transcript.
 _work_text(part) = AssistantModule._part_text(part)

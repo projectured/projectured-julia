@@ -2,17 +2,24 @@
 # windows, and the window document beneath it.
 
 """
-    ScreenDocument(; windows, pointer_shape = nothing)
+    ScreenDocument(; windows, pointer_shape = nothing, display_areas = NTuple{4,Int}[])
 
 The windows that the editor shows, and `pointer_shape`, the shape that the
 pointer keeps over every window while a part says one, or `nothing`. A part says
 the shape of its drag with [`ChangeScreenPointerShapeOperation`](@ref), and the
 screen draws a region of that shape over each window. `pointer_shape` is view
 state: a history does not record it.
+
+`display_areas` is the usable area of each display, `(x, y, width, height)` in
+the coordinates of the place of a window, the main display first. The backend
+writes it, as it writes the place and the size of a window, and a placement reads
+it to keep its window on a display. A backend that knows no displays leaves it
+empty.
 """
 @document struct ScreenDocument
     windows::CellVector = CellVector()
     pointer_shape::Union{Symbol,Nothing} = nothing
+    display_areas::Vector{NTuple{4,Int}} = NTuple{4,Int}[]
 end
 
 # `ScreenDocument()` (empty), `ScreenDocument([w, …])` and `ScreenDocument(w, …)`
@@ -20,7 +27,8 @@ end
 # variadic forms for a struct backed by a single `CellVector`. Only the
 # already-wrapped `CellVector` form needs writing — a `CellVector` is a `Document`,
 # so this more specific method takes it as the *collection*, not as one element.
-ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing), Cell(nothing))
+ScreenDocument(windows::CellVector) =
+    ScreenDocument(windows, Cell(nothing), Cell(NTuple{4,Int}[]), Cell(nothing))
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
@@ -40,7 +48,9 @@ projected.
 - `id::Symbol` — stable identity used by the backend to track this
   window across frames. Must be unique within its `ScreenDocument`.
 - `title::String` — window title.
-- `x::Int`, `y::Int` — screen position in logical pixels; -1 = backend chooses.
+- `x::Int`, `y::Int` — screen position in logical pixels. The place `(-1, -1)`,
+  [`AUTOMATIC_WINDOW_PLACE`](@ref), lets the backend choose; any other place,
+  negative too, is a place on the screen.
 - `width::Int`, `height::Int` — initial size in logical pixels; 0 = auto-size.
 - `minimum_size::NTuple{2,Int}`, `maximum_size::NTuple{2,Int}` — the bounds of a
   window that fits its content. A `maximum_size` of `(0, 0)`, the default, is a
@@ -58,9 +68,18 @@ projected.
   a `MouseDown` in another window, and on a bare Escape; a `:popup` also closes
   when any window loses the focus. The default window and tooltips stay
   `false`, so losing focus to a popup never closes them. Default `false`.
+- `placement` — `nothing`, or the function that places the window: it takes a
+  [`WindowPlacementContext`](@ref) and answers a [`WindowPlace`](@ref). The
+  screen projection then computes the place and the bounds of the window from
+  it, and the window follows each change of what the function reads. It is the
+  state of a view, so a file does not keep it. Default `nothing`.
 - `content::Document` — the document tree this window displays. Before
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
+- `selection_before` — `nothing`, or the selection of the screen before the
+  window took it, when the window opened with a `selection`
+  (`OpenWindowOperation`). The selection goes back there when the window closes
+  while it holds the selection. It is the state of a view. Default `nothing`.
 """
 @document struct WindowDocument
     id::Symbol = :default
@@ -75,11 +94,51 @@ projected.
     style::Symbol = :normal
     auto_dismiss::Bool = false
     modal::Bool = false
+    placement::Any = nothing
     content::Document
+    selection_before::Any = nothing
 end
+
+# Where a window stands is the state of a view of the screen, and a function that
+# a file can not write; so is the selection that the window gives back.
+get_view_state_fields(::Type{<:WindowDocument}) = (:placement, :selection_before)
+
+"""
+    is_window_placed(window::WindowDocument) -> Bool
+
+Whether a placement function places `window`. The backend then writes no place of
+the window, because the place is a computation of the placement, and a write
+would replace it.
+"""
+is_window_placed(window::WindowDocument) = getfield(window, :placement)[] !== nothing
+
+"""
+    has_window_frame(window::WindowDocument) -> Bool
+
+Whether `window` has the frame of the window manager, with which a person moves and
+resizes it. A `:popup` and a `:tooltip` have none.
+"""
+has_window_frame(window::WindowDocument) = !(window.style in (:popup, :tooltip))
 
 # A window calls itself by the title it shows.
 get_document_title(window::WindowDocument) = window.title
+
+"""
+    AUTOMATIC_WINDOW_PLACE
+
+The place `(-1, -1)` of a [`WindowDocument`](@ref): the backend chooses where the
+window goes. Every other place, negative too, is a place on the screen, because a
+monitor above or left of the main one has negative coordinates.
+"""
+const AUTOMATIC_WINDOW_PLACE = (-1, -1)
+
+"""
+    is_automatic_window_place(window::WindowDocument) -> Bool
+
+Whether the backend chooses the place of `window`: its place is
+[`AUTOMATIC_WINDOW_PLACE`](@ref).
+"""
+is_automatic_window_place(window::WindowDocument) = (window.x, window.y) == AUTOMATIC_WINDOW_PLACE
 
 # ── Window operations ───────────────────────────────────────────────────────
 # The screen domain's own operation vocabulary: requests to open/close/resize a
@@ -89,7 +148,7 @@ get_document_title(window::WindowDocument) = window.title
 
 """
     OpenWindowOperation(; id, title, x, y, width, height, minimum_size, maximum_size,
-                          bg, style, auto_dismiss, modal, content)
+                          bg, style, auto_dismiss, modal, placement, content, selection)
 
 Request that a new `WindowDocument` (with the given fields) be added to the
 screen. The fields mirror `WindowDocument`'s schema 1:1. A window-manager
@@ -102,6 +161,15 @@ to the screen that the editor's document wraps.
 the background of its first window, and follows it, so a window that opens later
 has the colour that the appearance gives the windows. An update of a window with
 `bg = nothing` keeps its background.
+
+`placement` is `nothing`, or the function that places the window, as the field
+of `WindowDocument` says; the window then takes no place from `x` and `y`.
+
+`selection` is `nothing`, or a place in `content` that takes the selection when
+the window opens, such as the end of the typed text of a list that a person
+types into. The window keeps the selection that the screen had before
+(`selection_before`), and the selection goes back there when the window closes
+while it holds the selection.
 """
 struct OpenWindowOperation <: Operation
     id::Symbol
@@ -116,7 +184,9 @@ struct OpenWindowOperation <: Operation
     style::Symbol
     auto_dismiss::Bool
     modal::Bool
+    placement::Any
     content::Document
+    selection::Any
 end
 
 OpenWindowOperation(; id::Symbol,
@@ -131,26 +201,34 @@ OpenWindowOperation(; id::Symbol,
                       style::Symbol = :tooltip,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,
-                      content::Document) =
+                      placement = nothing,
+                      content::Document,
+                      selection = nothing) =
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (Int(minimum_size[1]), Int(minimum_size[2])),
                         (Int(maximum_size[1]), Int(maximum_size[2])),
                         bg === nothing ? nothing : (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
-                        style, auto_dismiss, modal, content)
+                        style, auto_dismiss, modal, placement, content, selection)
 
 """
-    OpenPopupOperation(; id, x, y, width = 640, height = 800, auto_dismiss, content)
+    OpenPopupOperation(; id, x = 0, y = 0, anchor_size = (0, 0), gap = 0,
+                         width = 640, height = 800, auto_dismiss = true, content)
 
-Request a popup window whose top left is at `(x, y)` in the frame of the reader
-that holds the operation. The window takes the extent of what its content
-draws, as a tooltip does, and `width` and `height` bound that extent; so no
-opener estimates the size of what it opens. The widget that opens a popup answers a position in
-its own frame, so "just below me" is `(0, height + gap)`. Each reader on the way
-up moves the position into its own frame with `map_operation_position`, by the
-place where it put the child that answered, and the layer of the window adds
-the screen origin of the window and answers an `OpenWindowOperation`. So no
-reader needs the screen position of the widget, and the operation does not
-reach `evaluate_operation`.
+Request a popup window below the box of a part. `(x, y)` is the top left corner of
+the box in the frame of the reader that holds the operation, and `anchor_size` is
+its width and height; a point is a box of no size. The window stands `gap` below
+the box with the left edges aligned, as [`compute_anchored_place`](@ref) puts it,
+so it goes above the box when the area of the display has no room below. The window takes the extent of what its content
+draws, as a tooltip does, and `width` and `height` bound that extent; so no opener
+estimates the size of what it opens.
+
+The widget that opens a popup answers the box of its own control, at `(0, 0)` in
+its own frame. Each reader on the way up moves the position into its own frame
+with `map_operation_position`, by the place where it put the child that answered,
+and the layer of the window answers an `OpenWindowOperation` whose placement adds
+the place of that window, so the popup follows its window. No reader needs the
+screen position of the widget, and the operation does not reach
+`evaluate_operation`.
 
 An opener marks it with `ReplaceViewStateOperation`, because to open a popup is
 not an edit, and a history does not record it.
@@ -159,6 +237,8 @@ struct OpenPopupOperation <: Operation
     id::Symbol
     x::Int
     y::Int
+    anchor_size::NTuple{2,Int}
+    gap::Int
     width::Int
     height::Int
     auto_dismiss::Bool
@@ -166,9 +246,11 @@ struct OpenPopupOperation <: Operation
 end
 
 OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
+                     anchor_size = (0, 0), gap::Integer = 0,
                      width::Integer = 640, height::Integer = 800,
                      auto_dismiss::Bool = true, content::Document) =
-    OpenPopupOperation(id, Int(x), Int(y), Int(width), Int(height), auto_dismiss, content)
+    OpenPopupOperation(id, Int(x), Int(y), (Int(anchor_size[1]), Int(anchor_size[2])), Int(gap),
+                       Int(width), Int(height), auto_dismiss, content)
 
 # It carries its content and a position in the frame of the reader that holds
 # it, and names no place in a document. So it passes up through a projection
@@ -176,10 +258,14 @@ OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
 # pane, as it is; a container that places its child moves the position.
 OperationModule.is_self_contained_operation(::OpenPopupOperation) = true
 
+# Both corners of the box move, so a box in a zoomed pane has the size it is drawn
+# at. The gap and the bounds of the window are in the pixels of the window.
 function map_operation_position(operation::OpenPopupOperation, move)
-    x, y = move(operation.x, operation.y)
-    OpenPopupOperation(operation.id, Int(x), Int(y), operation.width, operation.height,
-                       operation.auto_dismiss, operation.content)
+    x1, y1 = move(operation.x, operation.y)
+    x2, y2 = move(operation.x + operation.anchor_size[1], operation.y + operation.anchor_size[2])
+    OpenPopupOperation(operation.id, round(Int, min(x1, x2)), round(Int, min(y1, y2)),
+                       (round(Int, abs(x2 - x1)), round(Int, abs(y2 - y1))), operation.gap,
+                       operation.width, operation.height, operation.auto_dismiss, operation.content)
 end
 
 """

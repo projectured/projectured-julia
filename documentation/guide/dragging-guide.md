@@ -1,6 +1,6 @@
 # Drag and drop
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
+> **Kind:** procedure · **For:** user · **Status:** current · **Stands on:** [pointer-guide.md](pointer-guide.md)
 
 How to drag a slider, a divider, a tab and a list element, what a chart does
 when you drag inside it, and how to stop a drag with no change.

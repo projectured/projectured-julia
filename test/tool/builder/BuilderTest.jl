@@ -36,7 +36,7 @@ function _generated_source(context::BuildContext; name, usage, log_level::Symbol
     # The real record, not a fabricated one, so what the test reads back is what
     # a build writes — the build timestamp among it.
     info = build_info(; name = name, packages = [A_PACKAGE], main = main,
-                        workload = nothing, preferences = [],
+                        precompile_calls = "recorded", preferences = [],
                         optimization = 3, debug_info = 1, cpu_target = "")
     project = write_app_package(context; name = name, packages = [A_PACKAGE],
                                  main = main, info = info, usage = usage,
@@ -280,7 +280,7 @@ function test_build_executable()
             # The build record says what the binary does not carry.
             info = build_info(; name = "quiet", packages = [A_PACKAGE],
                                 main = :(begin 0 end),
-                                workload = nothing, preferences = [], optimization = 3,
+                                precompile_calls = "recorded", preferences = [], optimization = 3,
                                 debug_info = 1, cpu_target = "", stand_ins)
             @test occursin("stand-in: some_jll, which this binary does not carry; it " *
                            "keeps Kept_jll", info)
@@ -447,6 +447,90 @@ function test_build_executable()
             @test arguments == ["x"]
         end
 
+        @testset "a baked preference reaches a package that the build does not name" begin
+            TOML = ProjecturedBuilder.BuilderModule.TOML
+            # The project, the generated module and the folder of a package that a
+            # build writes, in a context of its own.
+            function write_reader_package(preferences)
+                project = build_executable(_test_context(); name = "reader",
+                                           packages = [A_PACKAGE], main = :(begin
+                                               0
+                                           end), preferences, compile = false)
+                module_file = only(filter(f -> endswith(f, ".jl"),
+                                          readdir(joinpath(project, "src"))))
+                (TOML.parsefile(joinpath(project, "Project.toml")),
+                 read(joinpath(project, "src", module_file), String), project)
+            end
+            kernel = get_package_uuid(get_package_directory(_test_context(),
+                                                            "ProjecturedKernel"))
+            project_toml, source, project = write_reader_package(
+                [make_baked_preference("ProjecturedKernel", "performance_counters", true)])
+            @test project_toml["deps"]["ProjecturedKernel"] == kernel
+            @test haskey(project_toml["sources"], "ProjecturedKernel")
+            # Julia finds the reader of a preference by this name, or reads nothing.
+            @test Base.get_uuid_name(project_toml, Base.UUID(kernel)) == "ProjecturedKernel"
+            @test occursin("import ProjecturedKernel", source)
+            written = TOML.parsefile(joinpath(project, "LocalPreferences.toml"))
+            @test written["ProjecturedKernel"]["performance_counters"] == true
+
+            # A preference of a package that the build names adds nothing.
+            project_toml, source, _ = write_reader_package(
+                [make_baked_preference(A_PACKAGE, "probe", 1)])
+            @test Set(keys(project_toml["deps"])) == Set([A_PACKAGE])
+            @test !occursin("import $A_PACKAGE", source)
+        end
+
+        @testset "the environment asks a build that holds the kernel for the performance counters" begin
+            TOML = ProjecturedBuilder.BuilderModule.TOML
+            # Whether the written package lists the kernel, and its preferences.
+            function read_build(packages; keywords...)
+                project = build_executable(_test_context(); name = "counters", packages,
+                                           main = :(begin
+                                               0
+                                           end), compile = false, keywords...)
+                path = joinpath(project, "LocalPreferences.toml")
+                written = isfile(path) ? TOML.parsefile(path) : Dict{String,Any}()
+                # The counters only: each build also writes `precompile_calls`
+                # for each package that compiles ahead.
+                counters_only = Dict{String,Any}(package => filter(entry -> first(entry) != "precompile_calls", values)
+                                                 for (package, values) in written)
+                filter!(entry -> !isempty(last(entry)), counters_only)
+                (haskey(TOML.parsefile(joinpath(project, "Project.toml"))["deps"], "ProjecturedKernel"),
+                 counters_only)
+            end
+            counters = Dict("ProjecturedKernel" => Dict("performance_counters" => true))
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "true") do
+                @test is_performance_counters_requested()
+                @test read_build(["ProjecturedKernel"]) == (true, counters)
+                # A binary that does not hold the kernel gets no counters, and no kernel.
+                @test read_build([A_PACKAGE]) == (false, Dict{String,Any}())
+                # The keyword says another.
+                @test read_build(["ProjecturedKernel"]; performance_counters = false) ==
+                      (true, Dict{String,Any}())
+            end
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => nothing) do
+                @test !is_performance_counters_requested()
+                @test read_build(["ProjecturedKernel"]) == (true, Dict{String,Any}())
+            end
+            withenv("PROJECTURED_PERFORMANCE_COUNTERS" => "yes") do
+                @test_throws ArgumentError is_performance_counters_requested()
+            end
+            @test occursin("PROJECTURED_PERFORMANCE_COUNTERS=true", format_build_usage(; fixed = ""))
+        end
+
+        @testset "a build writes the preferences of the last build no more" begin
+            project = mktempdir()
+            write_preferences([make_baked_preference("ProjecturedKernel",
+                                                     "performance_counters", true),
+                               make_baked_preference(A_PACKAGE, "probe", 1)], project)
+            path = write_preferences([make_baked_preference(A_PACKAGE, "other", 2)], project)
+            @test ProjecturedBuilder.BuilderModule.TOML.parsefile(path) ==
+                  Dict(A_PACKAGE => Dict("other" => 2))
+            # A build with no preference leaves no file.
+            write_preferences(Preference[], project)
+            @test !isfile(path)
+        end
+
         @testset "a level nobody defined is refused before anything is written" begin
             context = _test_context()
             @test_throws ErrorException _generated_source(context; name = "wrong", usage = nothing,
@@ -467,18 +551,6 @@ function test_build_executable()
             @test get_package_uuid(directory) ==
                   ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(directory, "Project.toml"))["uuid"]
             @test_throws ErrorException get_package_directory(context, "NoSuchPackage")
-        end
-
-        @testset "a root can be the folder of one package itself" begin
-            folder = mktempdir()
-            open(joinpath(folder, "Project.toml"), "w") do io
-                ProjecturedBuilder.BuilderModule.TOML.print(io, Dict(
-                    "name" => "Agent", "uuid" => string(Base.UUID(hash("Agent")))))
-            end
-            context = BuildContext(mktempdir(); package_roots = [folder])
-            @test has_package_directory(context, "Agent")
-            @test get_package_directory(context, "Agent") == folder
-            @test !has_package_directory(context, "Other")
         end
 
         @testset "a local dependency without a path in [sources] is found" begin
@@ -518,6 +590,113 @@ function test_build_executable()
                 end)
             @test seen == [project]
             @test isfile(joinpath(project, "extra.jl"))
+        end
+
+        @testset "a reactive build writes what a rebuild runs, and refuses a wrong option" begin
+            # No compiler loads here: a build with `compile = false` writes the
+            # trace workload with the package, and only a compile reads the
+            # tracked files.
+            context = _test_context()
+            build(; kw...) = build_executable(context; name = "reactive", packages = [A_PACKAGE],
+                                               main = :(begin; 0; end),
+                                               compile = false, resolve = false, kw...)
+            record(project) = read(joinpath(project, "src", "ReactiveApp.jl"), String)
+            # The trace runs the workload of each package that compiles ahead.
+            project = build(; reactive = true,
+                              packages = ["ProjecturedKernel", "ProjecturedPrecompile"])
+            trace = read(joinpath(project, "trace_workload.jl"), String)
+            @test occursin("using ProjecturedKernel, ProjecturedPrecompile\n", trace)
+            @test occursin("ProjecturedKernel.run_package_workload()", trace)
+            @test !occursin("ProjecturedPrecompile.run_package_workload()", trace)
+            # The record names the build that founded the store.
+            @test occursin("reactive: founded", record(project))
+            # A store under the output makes the next build a rebuild, and a build
+            # that asks for a fresh image builds plain.
+            output = mktempdir()
+            build(; output, reactive = true)
+            mkdir(joinpath(output, REACTIVE_STORE))
+            @test occursin("reactive: founded", record(build(; output)))
+            @test !occursin("reactive: founded", record(build(; output, reactive = false)))
+            @test !occursin("reactive: founded", record(build(; output, incremental = false)))
+            # The app module is fixed when the store is founded, so a rebuild of
+            # a store founded for another module is refused.
+            @test_throws ErrorException build(; output)
+            # Every wrong combination is refused before anything is written.
+            @test_throws ErrorException build(; reactive = :nonsense)
+            @test_throws ErrorException build(; reactive = true, image = :nonsense)
+            @test_throws ErrorException build(; reactive = true, delta_optimization = 4)
+            @test_throws ErrorException build(; reactive = true, incremental = false)
+            @test_throws ErrorException build(; reactive = true, performance_counters = true)
+            @test_throws ErrorException build(; found = true)
+            @test_throws ErrorException build(; trimmed = true)
+            @test_throws ErrorException build(; refresh_trace = true)
+            @test_throws ErrorException build(; tracked = Pair{String,String}[])
+            # A program that holds the founding image reads an overlay and no
+            # other image that a rebuild writes.
+            check(image; linked) = ProjecturedBuilder.BuilderModule._check_reactive_options(
+                true, true, false, nothing, false, image, 3, false, false; linked)
+            @test check(:overlay; linked = true) === nothing
+            @test check(:pages; linked = false) === nothing
+            @test_throws ErrorException check(:pages; linked = true)
+            @test_throws ErrorException check(:whole; linked = true)
+        end
+
+        @testset "a build founds a store with the reactive Julia, and says what it gives without it" begin
+            choose(reactive, stored; incremental = true, performance_counters = false,
+                   compile = true, reactive_julia = true, missing_part = nothing) =
+                mktempdir() do output
+                    stored && mkdir(joinpath(output, REACTIVE_STORE))
+                    ProjecturedBuilder.BuilderModule._choose_reactive_build(
+                        reactive, output, incremental, performance_counters, compile;
+                        reactive_julia, find_missing_part = () -> missing_part)
+                end
+            # With the reactive Julia, the first build founds a store, and every
+            # later build rebuilds it.
+            @test choose(:auto, false)
+            @test choose(:auto, true)
+            # Without it, a build compiles the whole program and says how to get it.
+            @test_logs (:info, r"no reactive compiler.*branch `merged`"s) begin
+                @test !choose(:auto, false; reactive_julia = false,
+                              missing_part = "this Julia has no reactive compiler")
+            end
+            @test occursin("juliaup default merged", describe_reactive_build())
+            # A plain build over a store would remove it, so it is refused, and so
+            # is a reactive build that this Julia can not do.
+            @test_throws ErrorException choose(:auto, true; reactive_julia = false)
+            @test_throws ErrorException choose(true, false; reactive_julia = false)
+            # What a rebuild can not give is a plain build.
+            @test !choose(:auto, true; incremental = false)
+            @test !choose(:auto, false; performance_counters = true)
+            @test !choose(false, true)
+            # A run from source compiles nothing: it writes the package that the
+            # store was founded for, with any Julia.
+            @test choose(:auto, true; compile = false, reactive_julia = false)
+            @test !choose(:auto, false; compile = false)
+        end
+
+        @testset "a build prelinks one code variant with a runtime that can" begin
+            choose = ProjecturedBuilder.BuilderModule._choose_prelink
+            @test !choose(false, "native", true)
+            # Several code variants select at every start, so they keep the restore.
+            if Sys.islinux()
+                @test !(@test_logs (:info, r"several code variants") choose(true, "", true))
+                @test !(@test_logs (:info, r"several code variants") choose(true, "generic;haswell", true))
+            end
+            # A build says when its runtime can not prelink; a run from source says nothing.
+            if Sys.islinux() && !ProjecturedBuilder.BuilderModule._has_prelink_option()
+                @test !(@test_logs (:info, r"no --sysimage-prelink") choose(true, "native", true))
+                @test @test_logs choose(true, "native", false)
+            elseif Sys.islinux()
+                @test choose(true, "native", true)
+            end
+        end
+
+        @testset "a start writes the package of the binary, and compiles nothing" begin
+            calls = Any[]
+            build(; keywords...) = (push!(calls, Dict{Symbol,Any}(keywords)); "/app/package")
+            answer = prepare_program_start!(build; name = "p")
+            @test answer == (path = "/app/package", module_name = "PApp")
+            @test calls == [Dict{Symbol,Any}(:compile => false, :resolve => true)]
         end
 
         @testset "a build that would write the same module again leaves it alone" begin
@@ -676,7 +855,7 @@ function test_build_executable()
             info = build_info(; name = "d", packages = ["A"], main = :(begin
                                    0
                                end),
-                               workload = nothing, preferences = [],
+                               precompile_calls = "recorded", preferences = [],
                                optimization = 3, debug_info = 1,
                                cpu_target = "", incremental = true)
             @test occursin(INCREMENTAL_MARK, info)
@@ -695,7 +874,7 @@ function test_build_executable()
             @test occursin("for native", record(build(; name = "cpu_a")))
             @test occursin("for native", record(build(; name = "cpu_b", incremental = false)))
             @test occursin("for haswell", record(build(; name = "cpu_c", cpu_target = "haswell")))
-            # The portable target is the empty one: `compile_app!` leaves the
+            # The portable target is the empty one: the compile step leaves the
             # keyword out and `create_app` picks the variants for the architecture.
             @test !occursin("-g1 for", record(build(; name = "cpu_d",
                                                       cpu_target = PORTABLE_CPU_TARGET)))
@@ -708,14 +887,14 @@ function test_build_executable()
             marked = build_info(; name = "x", packages = ["A"], main = :(begin
                                      0
                                  end),
-                                 workload = nothing, preferences = [],
+                                 precompile_calls = "recorded", preferences = [],
                                  optimization = 3, debug_info = 1,
                                  cpu_target = "", incremental = true)
             @test occursin(INCREMENTAL_MARK, marked)
             plain = build_info(; name = "x", packages = ["A"], main = :(begin
                                      0
                                  end),
-                                workload = nothing, preferences = [],
+                                precompile_calls = "recorded", preferences = [],
                                 optimization = 3, debug_info = 1, cpu_target = "")
             @test !occursin(INCREMENTAL_MARK, plain)
         end
@@ -724,7 +903,7 @@ function test_build_executable()
             info = build_info(; name = "x", packages = ["A"], main = :(begin
                                    0
                                end),
-                               workload = nothing, preferences = [],
+                               precompile_calls = "recorded", preferences = [],
                                optimization = 3, debug_info = 1, cpu_target = "",
                                extra_info = "an extra line a caller wrote")
             @test endswith(strip(info), "an extra line a caller wrote")
@@ -989,33 +1168,55 @@ function test_build_executable()
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
             # The packages of the binary, and the stand-in that keeps the sound
             # libraries out of it.
-            @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedPlatform",
+            # `ProjecturedKernel` reads the preference `precompile_calls` that the
+            # build writes, so it joins as an import.
+            @test Set(keys(deps)) == Set(["ProjecturedPlatform",
                                           PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
-                                          "ProjecturedMCP", "ProjecturedACP", "ProjecturedSDL",
-                                          "ProjecturedWeb",
-                                          "alsa_plugins_jll"])
+                                          "ProjecturedMCP", "ProjecturedACP",
+                                          "ProjecturedLanguageServer", "ProjecturedSDL",
+                                          "ProjecturedWeb", "ProjecturedBuild",
+                                          "ProjecturedKernel", "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("ProjecturedPlatform.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
-            @test occursin("ProjecturedPlatform.warm_application()", source)
+            # The workload of the binary is in `ProjecturedBuild`, not in the
+            # package that the build writes. It loads all the other packages, so
+            # it loads first, in the order in which its image compiled their calls.
+            loads = filter(line -> startswith(line, "using ") || startswith(line, "import "),
+                           split(source, '\n'))
+            @test first(loads) == "using ProjecturedBuild"
+            @test "import ProjecturedJSON" in loads
+            @test !occursin("compile_workload", source)
+            # The build chooses what each package that compiles ahead compiles.
+            preferences = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(project, "LocalPreferences.toml"))
+            @test preferences["ProjecturedBuild"]["precompile_calls"] == "recorded"
+            @test preferences["ProjecturedJSON"]["precompile_calls"] == "recorded"
+            @test preferences["ProjecturedKernel"]["precompile_calls"] == "recorded"
+            @test !haskey(preferences, "ProjecturedPrecompile")
             @test occursin("--backend=sdl|web", source)
             @test occursin("--assistant=ollama|anthropic|acp|none", source)
             @test occursin("--agent-command=COMMAND", source)
             text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
             @test all(line -> length(line) <= 80, split(text, '\n'))
 
-            # One backend: no `--backend`, and no workload.
+            # One backend: no `--backend`, and nothing compiled ahead. The binary
+            # still holds both backends, because `ProjecturedBuild` does.
             project = build_projectured_executable(; context = context, compile = false,
                                                    name = "projectured-web",
-                                                   backends = (:web,), workload = false)
+                                                   backends = (:web,), precompile_calls = "none")
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
-            @test !haskey(deps, "ProjecturedSDL") && haskey(deps, "ProjecturedWeb")
+            @test haskey(deps, "ProjecturedWeb") && haskey(deps, "ProjecturedBuild")
             source = read(joinpath(project, "src", "ProjecturedWebApp.jl"), String)
             @test occursin("(web = ProjecturedWeb.WebBackend,)", source)
             @test !occursin("--backend=", source)
-            @test !occursin("warm_application", source)
+            preferences = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(project, "LocalPreferences.toml"))
+            @test preferences["ProjecturedBuild"]["precompile_calls"] == "none"
+            @test_throws ErrorException build_projectured_executable(; context = context,
+                                            compile = false, precompile_calls = "everything")
 
             @test_throws ErrorException build_projectured_executable(; context = context,
                                             compile = false, backends = (:x11,))
@@ -1023,30 +1224,6 @@ function test_build_executable()
                                             compile = false, backends = ())
             @test_throws ErrorException build_projectured_distribution(; context = context,
                                             compile = false)
-        end
-
-        @testset "the claude-code-acp build writes its package and compiles nothing" begin
-            # A small package in place of ClaudeCodeACP, so the test needs no
-            # folder beside the repository.
-            source = mktempdir()
-            mkpath(joinpath(source, "src"))
-            open(joinpath(source, "Project.toml"), "w") do io
-                ProjecturedBuilder.BuilderModule.TOML.print(io, Dict(
-                    "name" => "ClaudeCodeACP", "uuid" => "397ce549-bc36-418a-97e7-6295a63dbdc4"))
-            end
-            write(joinpath(source, "src", "ClaudeCodeACP.jl"), "module ClaudeCodeACP\nmain(arguments) = 0\nend\n")
-            context = make_claude_code_acp_build_context(source; context = _test_context())
-            project = build_claude_code_acp_executable(; source, context, compile = false)
-            @test project == joinpath(context.root, "build", "app", "claude-code-acp")
-            toml = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))
-            @test Set(keys(toml["deps"])) == Set(["ClaudeCodeACP", "PrecompileTools"])
-            @test normpath(joinpath(project, toml["sources"]["ClaudeCodeACP"]["path"])) == normpath(source)
-            text = read(joinpath(project, "src", "ClaudeCodeAcpApp.jl"), String)
-            @test occursin("ClaudeCodeACP.main(ARGS)", text)
-            @test occursin("ClaudeCodeACP.serve_agent", text)
-            @test_throws ErrorException build_claude_code_acp_executable(; source = mktempdir(),
-                context = make_claude_code_acp_build_context(mktempdir(); context = _test_context()),
-                compile = false)
         end
 
         @testset "the shell front end" begin
@@ -1059,41 +1236,66 @@ function test_build_executable()
                 @test occursin(label, usage)
             end
             @test occursin("projectured", usage)
-            @test occursin("claude-code-acp", usage)
-            @test parse_arguments(["claude-code-acp", "--no-workload"]) ==
-                  ("claude-code-acp", false, Dict{Symbol,Any}(:workload => false))
-            # The agent has no distribution build and no backends; both refusals
-            # start no build.
-            @test redirect_stderr(() -> run_build_command(["claude-code-acp", "--distribution"]), devnull) == 1
-            @test redirect_stderr(() -> run_build_command(["claude-code-acp", "--backends=web"]), devnull) == 1
 
-            binary, distribution, keywords = parse_arguments(String[])
-            @test binary === nothing && !distribution && isempty(keywords)
-            binary, distribution, keywords = parse_arguments(
-                ["projectured", "--backends=web,sdl", "--no-workload", "--no-incremental",
+            binary, action, keywords = parse_arguments(String[])
+            @test binary === nothing && action === :executable && isempty(keywords)
+            binary, action, keywords = parse_arguments(
+                ["projectured", "--backends=web,sdl", "--precompile-calls=none", "--no-incremental",
                  "--filter-stdlibs", "--name=pr", "--optimization=2", "--debug-info=0",
                  "--strip-metadata", "--cpu-target=generic", "--log-level=info", "--no-compile"])
-            @test binary == "projectured" && !distribution
-            @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :workload => false,
+            @test binary == "projectured" && action === :executable
+            @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :precompile_calls => "none",
                 :incremental => false, :filter_stdlibs => true, :name => "pr",
                 :optimization => 2, :debug_info => 0, :strip_metadata => true,
                 :cpu_target => "generic", :log_level => :info, :compile => false)
             # A `bin/` script fixes the binary, and then the command line names none.
-            binary, distribution, keywords = parse_arguments(["--no-compile"], "projectured")
+            binary, action, keywords = parse_arguments(["--no-compile"], "projectured")
             @test binary == "projectured" && keywords == Dict{Symbol,Any}(:compile => false)
             @test_throws ErrorException parse_arguments(["projectured"], "projectured")
-            binary, distribution, keywords = parse_arguments(["projectured", "--distribution",
-                                                              "--filter-stdlibs"])
-            @test distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            binary, action, keywords = parse_arguments(["projectured", "--distribution",
+                                                        "--filter-stdlibs"])
+            @test action === :distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            # The command line reaches the store and the options of a rebuild.
+            @test parse_arguments(["--status"], "projectured")[2] === :status
+            @test parse_arguments(["--stop-server"], "projectured")[2] === :stop_server
+            @test parse_arguments(["--no-reactive", "--refresh-trace", "--found", "--no-prelink"],
+                                  "projectured")[3] ==
+                  Dict{Symbol,Any}(:reactive => false, :refresh_trace => true, :found => true,
+                                   :prelink => false)
+            @test_throws ErrorException parse_arguments(["--distribution", "--found"], "projectured")
+            # The options of the reactive build are the shared ones of the builder,
+            # which every build command takes.
+            @test all(row -> row in BUILD_OPTIONS, REACTIVE_BUILD_OPTIONS)
+            binary, action, keywords = parse_arguments(["--dev", "--no-server", "--image=pages",
+                                                        "--delta-optimization=2",
+                                                        "--compact=10,0.5", "--trim"],
+                                                       "projectured")
+            @test action === :executable
+            @test keywords == Dict{Symbol,Any}(:reactive => true, :delta_optimization => 2,
+                :debug_info => 1, :server => false, :image => :pages, :compact => (10, 0.5),
+                :trimmed => true)
+            @test parse_arguments(["--reactive"], "projectured")[3] == Dict{Symbol,Any}(:reactive => true)
+            @test parse_arguments(["--watch"], "projectured")[2] === :watch
+            @test parse_arguments(["--status", "--status"], "projectured")[2] === :status
+            @test apply_reactive_build_option!(Dict{Symbol,Any}(), "--backends=web") === nothing
+            # A watch rebuilds a binary, and an action is one of the store.
+            built = Ref(0)
+            @test redirect_stderr(() -> run_reactive_build_action!(_ -> built[] += 1, :watch, "out",
+                                                                   Dict{Symbol,Any}(:compile => false)),
+                                  devnull) == 1
+            @test built[] == 0
+            @test_throws ErrorException run_reactive_build_action!(identity, :executable, "out",
+                                                                   Dict{Symbol,Any}())
             # Every option the build function takes is a keyword of it.
             method = only(methods(build_projectured_executable))
-            for key in (:backends, :workload)
+            for key in (:backends, :precompile_calls)
                 @test key in Base.kwarg_decl(method)
             end
             method = only(methods(build_executable))
             for key in (:incremental, :filter_stdlibs, :name, :output, :optimization,
                         :debug_info, :strip_metadata, :cpu_target, :logfile, :log_level,
-                        :compile)
+                        :compile, :reactive, :refresh_trace, :found, :prelink, :server,
+                        :image, :delta_optimization, :compact, :trimmed)
                 @test key in Base.kwarg_decl(method)
             end
 
@@ -1103,13 +1305,37 @@ function test_build_executable()
                               ["projectured", "--filter-stdlibs"],
                               ["projectured", "--distribution", "--no-compile"],
                               ["projectured", "--distribution", "--no-incremental"],
-                              ["projectured", "--distribution", "--cpu-target=native"])
+                              ["projectured", "--distribution", "--cpu-target=native"],
+                              ["projectured", "--status", "--watch"],
+                              ["projectured", "--distribution", "--watch"],
+                              ["projectured", "--compact=10"],
+                              ["projectured", "--compact=ten,0.5"],
+                              ["projectured", "--delta-optimization=high"])
                 @test_throws ErrorException parse_arguments(arguments)
             end
             quiet = devnull
             @test redirect_stdout(() -> run_build_command(["--help"]), quiet) == 0
             @test redirect_stderr(() -> run_build_command(String[]), quiet) == 1
             @test redirect_stderr(() -> run_build_command(["--colour"]), quiet) == 1
+            # A refusal of the build function is a message, and another error is not.
+            @test is_build_refusal(ErrorException("build_executable: a store"))
+            @test !is_build_refusal(ErrorException("another error"))
+            @test !is_build_refusal(ArgumentError("build_executable: a store"))
+            # A rebuild that the compiler refuses is a refusal of the build
+            # function, which names each reason once and the option that founds.
+            builder = ProjecturedBuilder.BuilderModule
+            refused = ErrorException(builder._COMPILER_REBUILD_REFUSAL *
+                                     "C4 A.jl:9 include: includes a file that is not tracked\n" *
+                                     "B2 B.jl:4 B: the untracked none:0 B names the type\n" *
+                                     "B2 B.jl:4 B: the untracked none:0 B names the type\n")
+            @test builder._is_compiler_rebuild_refusal(refused)
+            @test !builder._is_compiler_rebuild_refusal(ErrorException("materialize_app: the server answered `x`"))
+            message = builder._format_rebuild_refusal(refused, "omnet_ide")
+            @test is_build_refusal(ErrorException(message))
+            @test count("B2 B.jl:4", message) == 1
+            @test occursin("  C4 A.jl:9 include", message)
+            @test endswith(message, "Run the build again with --found. It founds the store again, " *
+                                    "and takes as long as a whole build.")
         end
     end
 end

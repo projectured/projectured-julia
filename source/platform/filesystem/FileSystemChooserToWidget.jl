@@ -4,35 +4,39 @@
 # The tree is the tree of an explorer: the folders as the chooser holds them open,
 # with the rows, the chevrons and the reading row of the Files tab. The name is a
 # `WidgetText` whose text is the name of the chooser, and an edit of the field is
-# an edit of the name. **A row of a file types its own name into the field**, so a
-# person may press a file or type a name, and the chooser says one path either way.
+# an edit of the name. **A row of a file types its path from the directory into
+# the field**, so a person may press a file or type a name, and the chooser says
+# one path either way.
 
 """
-    FileSystemChooserToWidget(position = Point2D(0, 0))
+    FileSystemChooserToWidget(; position = Point2D(0, 0), gap)
 
 Draw a [`FileSystemChooser`](@ref): the tree of its directory, open where the
 chooser holds its folders open, and the field of its name under it. A chevron
 opens or closes a folder and changes what the chooser holds, so a folder that
-opens reads; a double press, or Return, on a file writes its name into the field.
+opens reads; a double press, or Return, on a file writes its path from the
+directory of the chooser into the field, so a file in an open folder names the
+folder too.
 
     children[1].roots[1].children[a]…   directory.elements[a]…
     children[2].content<rest>           name<rest>
+
+The tree and the field stand `gap` apart: the `section_gap` of the widget theme.
 """
-struct FileSystemChooserToWidget <: Projection
-    position::Point2D
+@projection UntrackedCell struct FileSystemChooserToWidget <: Projection
+    position::Point2D = Point2D(0, 0)
+    gap::Int = get_widget_style(nothing, :section_gap)
 end
-# The struct's own constructor already takes a position, so this adds the default
-# and nothing else. A one-argument form here would overwrite the generated one.
-FileSystemChooserToWidget() = FileSystemChooserToWidget(Point2D(0, 0))
 
 const _CHOOSER_FIELD_WIDTH = 240
 
 function print_document(p::FileSystemChooserToWidget, recursion,
                         chooser::FileSystemChooser, ctx)
     # A row names a file, and naming a file is what typing the name does, so the
-    # row writes the name rather than opening anything. The chooser chooses; it
-    # does not act.
-    write_name = path -> WriteChosenNameOperation(chooser, basename(path))
+    # row writes the path of the file from the directory of the chooser rather
+    # than opening anything. A file in an open folder writes the folder too. The
+    # chooser chooses; it does not act.
+    write_name = path -> WriteChosenNameOperation(chooser, relpath(path, chooser.directory.pathname))
     roots = CellVector(@computation Any[_fs_node(chooser.directory, write_name)])
     expanded = Cell(@computation _compute_open_folder_paths(Any[chooser.directory], chooser.open))
     tree_paths = make_output_path_cells(chooser, path -> _map_chooser_tree_path(path))
@@ -46,7 +50,7 @@ function print_document(p::FileSystemChooserToWidget, recursion,
     set_cell_computation!(getfield(field, :content), () -> String(chooser.name))
     set_output_path_computations!(field, chooser, path -> _map_chooser_field_path(path))
     layout = GridLayout(Any[tree, field], 1; column_policy = Fill, row_policies = Any[Fill, Content],
-                        vertical_gap = 8)
+                        vertical_gap = p.gap)
     iomap = SimpleIoMap(p, chooser, layout)
     set_output_path_computations!(layout, chooser, path -> map_reference_forward(p, iomap, path); dormant = false)
     iomap
@@ -119,7 +123,8 @@ end
 # The renderer draws a chooser with this view and draws the layout of the view
 # with its children, each of which is a widget.
 make_graphics_projection(::Type{<:FileSystemChooser}; measure, appearance) =
-    ChainingProjection(FileSystemChooserToWidget(), GridLayoutToGraphicsCanvas())
+    ChainingProjection(FileSystemChooserToWidget(; gap = get_widget_style(get_scaled_theme!(appearance, WidgetTheme), :section_gap)),
+                       GridLayoutToGraphicsCanvas())
 
 """
     WriteChosenNameOperation(chooser, name)

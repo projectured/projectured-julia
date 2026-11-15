@@ -1,9 +1,11 @@
 # The explorer: a section of entries as a tree beside a navigator. A section is a
 # node of a tree, lists its first children, and says where it holds a document;
 # each editor has one root section; a press on a node shows its page beside the
-# tree and keeps the keys in the tree, Ctrl+press opens the page in a new tab, a
-# double press puts the keyboard in the page, a link on the page of a section
+# tree and keeps the keys in the tree, a drag of the divider between the tree and
+# the page moves it, Ctrl+press opens the page in a new tab, a
+# double press puts the keyboard in the page where it was, a link on the page of a section
 # opens the page of its entry, and the page and the tree follow the entries. The
+# page of the open files is a table of the files, whose names are links. The
 # editor is the one of `NavigatorToWidgetTest.jl`.
 
 @document struct _ExplorerNode
@@ -16,6 +18,17 @@ TreeModule.format_tree_node_label(node::_ExplorerNode) = node.name
 DocumentModule.get_document_title(node::_ExplorerNode) = node.name
 
 _explorer_node(name, children...) = _ExplorerNode(name, CellVector(Any[children...]))
+
+# A kind whose session document the first content of an explorer holds while
+# `_SESSION_ENTRY_PROBE_ON` holds `true`. It keeps the editor of the evaluation that
+# made it. Its type is parametric, as the type of a `@document` is.
+mutable struct _SessionEntryProbe{T}
+    editor::T
+end
+_SessionEntryProbe() = _SessionEntryProbe{Any}(find_evaluation_editor())
+const _SESSION_ENTRY_PROBE_ON = Ref(false)
+TreeModule.is_session_explorer_entry_type(::Type{_SessionEntryProbe}) = _SESSION_ENTRY_PROBE_ON[]
+DocumentModule.get_document_title(::_SessionEntryProbe) = "Probe entry"
 
 # A root section with a node of two children, and a section inside it with one
 # node.
@@ -36,6 +49,29 @@ function _explorer_click(backend, text; side = :tree, count = 1, ctrl = false)
     xs = [entry[2] for entry in found]
     (_, x, y) = found[side === :tree ? argmin(xs) : argmax(xs)]
     MouseClick(:left, x + 2, y + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0)
+end
+
+# An editor of `document` in a window, so that its pages have a size, and the
+# events that a window takes: a page of a list has no height in an editor with no
+# window.
+function _explorer_window_editor(document; width = 1100, height = 500)
+    backend = HeadlessBackend()
+    editor = build_editor(document, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "W", width, height), tabs = false, appearance = false,
+                          settings = false)
+    run_frame!(editor)
+    (editor, backend)
+end
+
+_explorer_window_press!(editor, backend, events...) =
+    _nav_press!(editor, backend, (WindowInput(:W, event) for event in events)...)
+
+# A press on the title of the page of a document, below the bar of the navigator.
+function _explorer_click_page_title(backend, title)
+    back_x = only(entry[2] for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
+    titles = [entry for entry in _nav_texts(backend) if entry[1] == title && entry[2] > back_x]
+    (_, x, y) = titles[argmax([entry[3] for entry in titles])]
+    MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0)
 end
 
 # The glyph of a closed chevron of a node.
@@ -73,6 +109,42 @@ function _explorer_right_click(editor, backend, label)
     answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
 end
 
+# The texts of the frame with the rectangles of the viewports around each, in window
+# coordinates: a text a pane hides lies outside one of them.
+function _explorer_clipped_texts(backend)
+    found = Any[]
+    function walk(canvas, ox, oy, clips)
+        x = ox + Int(canvas.x)
+        y = oy + Int(canvas.y)
+        for element in canvas.elements
+            element = element isa Cell ? element[] : element
+            element isa ListNode && (element = element.value)
+            if element isa GraphicsText
+                push!(found, (String(element.text), x + Int(element.x), y + Int(element.y), copy(clips)))
+            elseif element isa GraphicsCanvas
+                walk(element, x, y, clips)
+            elseif element isa GraphicsViewport
+                vx, vy = x + Int(element.x), y + Int(element.y)
+                push!(clips, (vx, vy, Int(element.w), Int(element.h)))
+                walk(element.content, vx + round(Int, element.transform.e), vy + round(Int, element.transform.f), clips)
+                pop!(clips)
+            end
+        end
+    end
+    frame = last(rendered_output(backend))
+    walk(hasproperty(frame, :windows) ? frame.windows[1].content : frame, 0, 0, Any[])
+    found
+end
+
+# The place of the text `text` in the frame when no viewport around it hides it, or `nothing`.
+function _explorer_find_visible_text(backend, text)
+    for (drawn, x, y, clips) in _explorer_clipped_texts(backend)
+        drawn == text || continue
+        all(c -> c[1] <= x < c[1] + c[3] && c[2] <= y < c[2] + c[4], clips) && return (x, y)
+    end
+    nothing
+end
+
 function test_explorer()
 @testset "the explorer" begin
 
@@ -91,6 +163,32 @@ function test_explorer()
         runs = collect_tree_children(lazy; limit = 3)
         @test length(runs) == 3 && last(runs[3]).name == "run 3" && made[] <= 4
         @test _nav_is(first(runs[2]), _explorer_path(FieldReferenceStep("children"), ElementReferenceStep(2)))
+    end
+
+    @testset "a tree of the help opens in the explorer, and a press on a group shows its page" begin
+        list = DocumentTypeList()
+        explorer = Explorer(ExplorerSection("Explorer", Any[list]))
+        navigator = explorer.navigator
+        editor, backend = _nav_editor(explorer)
+        evaluate_operation(editor, AcquireDocumentOperation(explorer))
+        run_frame!(editor)
+        # The visit holds the page, and its acquire builds the groups.
+        _nav_press!(editor, backend, _explorer_click(backend, "Documents"))
+        @test get_navigator_page(navigator) === list
+        @test !isempty(list.children)
+        @test _nav_has_text(backend, "Platform")
+        chevron = _explorer_open_chevron(backend, "Documents")
+        @test chevron !== nothing
+        _nav_press!(editor, backend, chevron)
+        @test _explorer_has_tree_text(backend, "Platform")
+        _nav_press!(editor, backend, _explorer_click(backend, "Platform"))
+        platform = only(group for group in list.children if group.name == "Platform")
+        @test get_navigator_page(navigator) === platform
+        k = findfirst(group -> group === platform, collect(list.children))
+        @test _nav_is(navigator.address, concat_references(_explorer_entry_path(1),
+                                                           _explorer_path(FieldReferenceStep("children"),
+                                                                          ElementReferenceStep(k))))
+        @test _nav_has_text(backend, "Widget")
     end
 
     @testset "a section says where it holds a document, also inside a section" begin
@@ -141,6 +239,62 @@ function test_explorer()
         @test selection isa ConcreteReference && get_reference_head(selection) == FieldReferenceStep("tree")
     end
 
+    @testset "the page starts three times as wide as the tree, and a drag of the divider between them moves it" begin
+        explorer = Explorer(_explorer_make())
+        backend = HeadlessBackend()
+        editor = build_editor(explorer, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1000, height = 500), tabs = false, appearance = false,
+                              settings = false)
+        run_frame!(editor)
+        window() = last(rendered_output(backend)).windows[1].content
+        back_x() = only(entry[2] for entry in _nav_drawn(window()) if entry[1] == _NAV_BACK)
+        send!(event) = (push_event!(backend, WindowInput(:W, event)); run_frame!(editor); run_frame!(editor))
+        # The divider is where the pointer is a double arrow, at a quarter of the
+        # window, and the page starts right of it.
+        y = 250
+        band = filter(x -> find_pointer_shape(window(), x, y) === :double_arrow_horizontal, 0:999)
+        @test !isempty(band)
+        divider = band[(length(band) + 1) ÷ 2]
+        @test abs(divider - 250) <= 4
+        before = back_x()
+        # The page starts past the 1 px divider, the space that its slot gives and
+        # the padding of the item of the back button.
+        theme = get_theme_defaults(WidgetTheme)
+        @test before == divider + 1 + Int(theme.slot_padding.left[]) + Int(theme.toolbar_item_padding.left[])
+        send!(MouseDown(:left, divider, y, ModifierKeys(); time = 1.0))
+        send!(MouseMove(divider + 100, y, MouseButtons(:left), ModifierKeys(); time = 1.1))
+        @test back_x() == before + 100
+        send!(MouseUp(:left, divider + 100, y, ModifierKeys(); time = 1.2))
+        @test back_x() == before + 100
+        # After the release, a move of the pointer moves no divider.
+        send!(MouseMove(divider + 200, y; time = 1.3))
+        @test back_x() == before + 100
+        # The right edge of the split pane: of the canvas that holds the region of
+        # the double arrow.
+        function split_end(canvas = window(), ox = 0)
+            x = ox + Int(canvas.x)
+            for element in canvas.elements
+                element = element isa Cell ? element[] : element
+                element isa GraphicsPointerShape && element.shape === :double_arrow_horizontal &&
+                    return x + Int(canvas.w[])
+                found = element isa GraphicsCanvas ? split_end(element, x) :
+                        element isa GraphicsViewport ? split_end(element.content, x + Int(element.x) +
+                                                                 round(Int, element.transform.e)) : nothing
+                found === nothing || return found
+            end
+            nothing
+        end
+        @test split_end() == Int(window().w[])
+        # A narrower window: the tree keeps its width, and the page takes the change,
+        # so the split pane ends at the edge of the window and cuts nothing off.
+        push_event!(backend, WindowInput(:W, WindowResize(800, 500; time = 1.4)))
+        run_frame!(editor)
+        run_frame!(editor)
+        @test Int(window().w[]) == 800
+        @test back_x() == before + 100
+        @test split_end() == 800
+    end
+
     @testset "a chevron opens a node, and its children show in the tree" begin
         content = _explorer_make()
         explorer = Explorer(content)
@@ -167,6 +321,72 @@ function test_explorer()
         @test selection isa ConcreteReference && get_reference_head(selection) == FieldReferenceStep("navigator")
     end
 
+    @testset "a double press puts the keys back where they were on the page" begin
+        evaluator = make_insertion_document(EvaluatorToplevel)
+        explorer = Explorer(ExplorerSection("Explorer", Any[evaluator, ExplorerSection("Other", Any[])]))
+        editor, backend = _nav_editor(explorer)
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        function double!(text)
+            click = _explorer_click(backend, text)
+            _nav_press!(editor, backend, click, _doctree_double(click))
+        end
+        # A new evaluator keeps its caret in its form, so the keys go there at once.
+        double!("Evaluator")
+        @test selected() == ".navigator.content.entries[1].elements[1].form.value{0}"
+        _nav_press!(editor, backend, KeyPress('1'; time = 2.0))
+        @test evaluator.elements[1].form.value == "1"
+        # A press in the tree takes the keys, and the page keeps its caret.
+        _nav_press!(editor, backend, _explorer_click(backend, "Other"))
+        @test startswith(selected(), ".tree.")
+        double!("Evaluator")
+        @test selected() == ".navigator.content.entries[1].elements[1].form.value{1}"
+        # A page that keeps no place takes the keys as a whole.
+        double!("Other")
+        @test selected() == ".navigator.content.entries[2]"
+    end
+
+    @testset "a double press puts the keys back where they were in a file" begin
+        root = mktempdir()
+        write(joinpath(root, "a.json"), "{\"name\": \"abc\"}")
+        write(joinpath(root, "b.json"), "{\"name\": \"xyz\"}")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        editor, backend = _nav_editor(explorer; tabs = true)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        for label in ("Files", "work")
+            _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+            for _ in 1:50
+                frame!()
+                _nav_has_text(backend, label == "Files" ? "work" : "a.json") && break
+                sleep(0.02)
+            end
+        end
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
+        for _ in 1:50
+            frame!()
+            _nav_has_text(backend, "abc") && break
+            sleep(0.02)
+        end
+        # A press on the text of the file on the page puts the caret in it.
+        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+        @test !isempty(texts)
+        (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+        file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
+        place = file * ".document.content.entries[1].value.value{0}"
+        @test selected() == place
+        # The row of another file takes the keys, then a double press on the row of
+        # the file puts them back: the file, its document and the place in the JSON.
+        _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
+        frame!()
+        @test startswith(selected(), ".root.tabs[1].content.tree.")
+        click = _explorer_click(backend, "a.json")
+        _nav_press!(editor, backend, click, _doctree_double(click))
+        frame!()
+        @test selected() == place
+    end
+
     @testset "a link on the page of a section opens the page of its entry" begin
         content = _explorer_make()
         beta = content.entries[2].entries[1]
@@ -180,6 +400,44 @@ function test_explorer()
         @test _nav_is(navigator.address, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
         # The mark of the tree follows a link inside the page.
         @test _nav_is(explorer.tree.current, concat_references(_explorer_entry_path(2), _explorer_entry_path(1)))
+    end
+
+    @testset "a link shows its page and moves no selection, and a key then edits nothing that the page left" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer)
+        # The title of the section, on the page, holds the selection.
+        evaluate_operation(editor, ReplaceSelectionOperation(@reference(editor.document, navigator.content.title)))
+        run_frame!(editor)
+        before = string(strip_reference_types(get_selection(editor.document)))
+        @test occursin("title", before)
+        link = _explorer_click(backend, "beta"; side = :page)
+        _nav_press!(editor, backend, MouseDown(:left, link.x, link.y, ModifierKeys(); time = 1.0),
+                    MouseUp(:left, link.x, link.y, ModifierKeys(); time = 1.05),
+                    MouseClick(:left, link.x, link.y, 1, ModifierKeys(); time = 1.05))
+        @test get_navigator_page(explorer.navigator) === content.entries[2].entries[1]
+        @test string(strip_reference_types(get_selection(editor.document))) == before
+        # A key goes to no part that the page shows no more.
+        _nav_press!(editor, backend, KeyPress('x'; time = 2.0))
+        @test String(content.title) == "Explorer"
+    end
+
+    @testset "the pointer on a link of the page of a section draws the line under it" begin
+        explorer = Explorer(_explorer_make())
+        editor, backend = _nav_editor(explorer)
+        drawing() = last(rendered_output(backend))
+        on_page = _explorer_click(backend, "beta"; side = :page)
+        @test on_page !== nothing && !is_link_text_underlined(drawing(), "beta")
+        _nav_press!(editor, backend, MouseMove(on_page.x, on_page.y; time = 0.0))
+        @test is_link_text_underlined(drawing(), "beta")
+        # The pointer on another link moves the line; on a node of the tree, which
+        # is no link, no line shows.
+        other = _explorer_click(backend, "alpha one"; side = :page)
+        _nav_press!(editor, backend, MouseMove(other.x, other.y; time = 0.1))
+        @test is_link_text_underlined(drawing(), "alpha one") && !is_link_text_underlined(drawing(), "beta")
+        in_tree = _explorer_click(backend, "Inner"; side = :tree)
+        _nav_press!(editor, backend, MouseMove(in_tree.x, in_tree.y; time = 0.2))
+        @test !is_link_text_underlined(drawing(), "alpha one") && !is_link_text_underlined(drawing(), "Inner")
     end
 
     @testset "the page and the tree follow the entries" begin
@@ -226,9 +484,31 @@ function test_explorer()
         @test get_navigator_page(explorer.navigator) === workspace.folders[1]
         @test format_tree_node_label(folder) == basename(root)
         @test _nav_has_text(backend, "folder") && _nav_has_text(backend, "md file")
+        # The pointer on the name of an entry, a link, draws the line under it.
+        on_page = _explorer_click(backend, "notes.md"; side = :page)
+        @test !is_link_text_underlined(last(rendered_output(backend)), "notes.md")
+        _nav_press!(editor, backend, MouseMove(on_page.x, on_page.y; time = 0.0))
+        @test is_link_text_underlined(last(rendered_output(backend)), "notes.md")
         page = print_document(FileSystemDirectoryToWidget(), nothing, folder, nothing).output
         @test page isa VerticalLayout
         @test occursin("2 entries", page.children[1].content)
+    end
+
+    @testset "the filter, the kinds and the add items say what they do" begin
+        content = _explorer_make()
+        explorer = Explorer(content)
+        output = print_document(ExplorerToWidget(), nothing, explorer, nothing).output
+        texts = _find_widgets_below(output, WidgetText)
+        field = _read_widget_note(first(text for text in texts if text.placeholder == "Filter"))
+        @test field.title == "Filter" && !isempty(field.keys) && occursin("Escape", field.hint)
+        add, kinds = _find_widgets_below(output, WidgetToolbarItem)
+        @test first.(_read_widget_note(add).facts) == ["Kinds"]
+        @test _read_widget_note(kinds).facts == ["Shown" => "every kind"]
+        page = print_document(ExplorerSectionToWidget(), nothing, content, nothing).output
+        cards = _find_widgets_below(page, WidgetCard)
+        @test length(cards) == 2
+        @test _read_widget_note(cards[1]) === nothing
+        @test _read_widget_note(cards[2]).title == "Inner"
     end
 
     @testset "a file is one document: its page, its tab and the open files show the same one" begin
@@ -252,7 +532,7 @@ function test_explorer()
         drain_operations!(editor)
         run_frame!(editor)
         file = workspace.folders[1].directory.elements[1]
-        @test file isa FileSystemFile && file.document isa FilePage
+        @test file isa FileSystemFile && file.document isa FileDocument
         @test _nav_has_text(backend, "hello")
         open = get_session_open_file_list(; editor)
         @test any(listed -> listed === file.document, open.files)
@@ -265,8 +545,8 @@ function test_explorer()
         run_frame!(editor)
         @test tabs() == before + 1
         shown = [tab.content for group in get_pane_groups(get_window_tree(editor.document)) for tab in group.tabs]
-        @test any(content -> content === file.document, shown)
-        @test count(listed -> listed isa FilePage, open.files) == 1
+        @test any(content -> content isa FileView && content.file === file.document, shown)
+        @test count(listed -> listed === file.document, open.files) == 1
         # A second open focuses that tab, and opens no other.
         evaluate_operation(editor, OpenFileOperation(path))
         drain_operations!(editor)
@@ -274,18 +554,279 @@ function test_explorer()
         @test tabs() == before + 1
     end
 
+    @testset "Back shows the new text of a file that changed while its page was not shown" begin
+        root = mktempdir()
+        write(joinpath(root, "a.json"), "{\"name\": \"abc\"}")
+        write(joinpath(root, "b.json"), "{\"name\": \"xyz\"}")
+        workspace = Workspace([WorkspaceFolder("work", root)])
+        explorer = Explorer(ExplorerSection("Explorer", Any[workspace]))
+        # The editor has settings, so a file that it opens keeps a history, which says
+        # that the file has no edits.
+        editor, backend = _nav_editor(explorer; tabs = true, file_change = true, settings = Settings())
+        try
+            evaluate_operation(editor, AcquireDocumentOperation(explorer))
+            frame!() = (drain_operations!(editor); run_frame!(editor))
+            wait_for_text(text) = (for _ in 1:100
+                                       frame!()
+                                       _nav_has_text(backend, text) && return true
+                                       sleep(0.02)
+                                   end; false)
+            for label in ("Files", "work")
+                _nav_press!(editor, backend, _explorer_open_chevron(backend, label))
+                @test wait_for_text(label == "Files" ? "work" : "a.json")
+            end
+            # The caret goes into the first file, then another file takes the page.
+            _nav_press!(editor, backend, _explorer_click(backend, "a.json"))
+            @test wait_for_text("abc")
+            texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+            (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+            _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+            file = workspace.folders[1].directory.elements[1]
+            shown = file.document
+            _nav_press!(editor, backend, _explorer_click(backend, "b.json"))
+            @test wait_for_text("xyz")
+            store = get_session_file_change_store(; editor)
+            @test !is_document_file_watched(shown; store)
+            # The first file changes while its page is not shown, and Back shows the new text.
+            write(joinpath(root, "a.json"), "{\"name\": \"new\"}")
+            _nav_press!(editor, backend, _nav_click(backend, _NAV_BACK))
+            @test wait_for_text("new")
+            @test !_nav_has_text(backend, "abc") && file.document === shown
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
+        end
+    end
+
+    @testset "the page of the open files is a table of the files, which a person filters and opens" begin
+        root = mktempdir()
+        content = ExplorerSection("Explorer", Any[])
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer; tabs = true)
+        list = get_session_open_file_list(; editor)
+        push!(content.entries, list)
+        run_frame!(editor)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        table = list.table
+        roster = table.document
+        @test table isa ArrangementDocument && roster isa Roster && isempty(table.entries)
+        # The page of the list counts the files above its table.
+        _nav_press!(editor, backend, _explorer_click(backend, "Open files"))
+        @test get_navigator_page(explorer.navigator) === list
+        @test _nav_has_text(backend, "No file is open.")
+        # A row comes for each file that opens.
+        buffer = UndoBuffer(PrimitiveString("alpha"))
+        file = TextFile(joinpath(root, "a.txt"), buffer)
+        second = TextFile(joinpath(root, "b.txt"), UndoBuffer(PrimitiveString("beta")))
+        add_open_file!(editor, file)
+        add_open_file!(editor, second)
+        frame!()
+        @test [collect(row.values) for row in roster.rows] == [Any["a.txt", root, ""], Any["b.txt", root, ""]]
+        @test _nav_has_text(backend, "2 open files") && _nav_has_text(backend, "a.txt") && _nav_has_text(backend, "b.txt")
+        # An edit in one file changes the state of its row, and the other row stays.
+        other = roster.rows[2]
+        push_undo_entry!(buffer, UndoEntry("an edit", nothing, nothing))
+        frame!()
+        @test roster.rows[1].values[3] == "unsaved edits" && roster.rows[2] === other && other.values[3] == ""
+        @test _nav_has_text(backend, "2 open files · 1 unsaved") && _nav_has_text(backend, "unsaved edits")
+        # A filter on the state hides the other file, and Show all keeps the
+        # arrangement of the list with no entry.
+        filter = ProjecturedPlatform.ArrangementModule._make_filter(("state" => ==("unsaved edits"),))
+        evaluate_operation(editor, make_arrangement_change_edit(
+            table, ArrangeCollectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("rows")), filter)))
+        frame!()
+        @test list.table === table && length(table.entries) == 1
+        @test _nav_has_text(backend, "a.txt") && !_nav_has_text(backend, "b.txt")
+        _nav_press!(editor, backend, _explorer_click(backend, "Show all"; side = :page))
+        frame!()
+        @test list.table === table && isempty(table.entries)
+        @test _nav_has_text(backend, "b.txt") && !_nav_has_text(backend, "Show all")
+        steps_of(parts...) = collect(get_reference_steps(extend_reference(EmptyReference(), parts...)))
+        files_at(j) = steps_of(FieldReferenceStep("files"), ElementReferenceStep(j))
+        last_steps(reference, n) = (steps = get_reference_steps(strip_reference_types(reference)); steps[(end - n + 1):end])
+        # A press on a label of a row selects the row, which the table shows.
+        _nav_press!(editor, backend, _explorer_click(backend, "unsaved edits"; side = :page))
+        frame!()
+        @test last_steps(editor.document.selection, 3) ==
+              steps_of(FieldReferenceStep("rows"), ElementReferenceStep(1), FieldReferenceStep("item"))
+        # The name of a file is a link: one press opens the page of the file, at
+        # its place in the list, also while a filter shows it as the first row.
+        filter = ProjecturedPlatform.ArrangementModule._make_filter(("state" => ==(""),))
+        evaluate_operation(editor, make_arrangement_change_edit(
+            table, ArrangeCollectionOperation(extend_reference(EmptyReference(), FieldReferenceStep("rows")), filter)))
+        frame!()
+        @test !_nav_has_text(backend, "a.txt")
+        _nav_press!(editor, backend, _explorer_click(backend, "b.txt"; side = :page))
+        frame!()
+        @test get_navigator_page(explorer.navigator) === second
+        @test last_steps(explorer.navigator.address, 2) == files_at(2)
+        @test _nav_count(backend, "Open files") == 2 && !_nav_has_text(backend, "rows[")
+        @test find_open_file_document(joinpath(root, "b.txt"); editor) === second
+        # A row goes when the editor lets its file go.
+        remove_open_file!(editor, file)
+        @test [row.values[1] for row in roster.rows] == ["b.txt"]
+    end
+
     @testset "the first content of a window holds the work of the session and the tools of the editor" begin
-        editor, _ = _nav_editor(PrimitiveString("start"))
+        editor, _ = _nav_editor(PrimitiveString("start"); settings = Settings(), appearance = Appearance())
         content = make_editor_explorer_content(; editor, entries = Any[Workspace([WorkspaceFolder("work", pwd())])])
         titles = [format_tree_node_label(entry) for entry in content.entries]
-        @test titles == ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings",
-                         "Help"]
+        # The kinds of the loaded packages stand after the lists of the session.
+        kinds = length(ApplicationModule._collect_session_explorer_entry_types())
+        @test titles[[1:4; (5 + kinds):end]] ==
+              ["Files", "Open files", "Tasks", "Assistants", "Evaluators", "Dashboards", "Editor", "Settings",
+               "Appearance", "Help"]
         @test content.entries[2] === get_session_open_file_list(; editor)
         @test content.entries[3] === get_session_task_group_list(; editor)
         @test content.entries[4] === get_session_assistant_list(; editor)
-        editor_section = content.entries[7]
+        # The evaluator has an empty form with the caret, and the dashboard has no card.
+        evaluator = only(content.entries[5 + kinds].entries)
+        @test evaluator isa EvaluatorToplevel && length(evaluator.elements) == 1
+        @test ConversationModule._find_selected_form_index(evaluator) == 1
+        dashboard = only(content.entries[6 + kinds].entries)
+        @test dashboard isa Dashboard && isempty(dashboard.cards)
+        editor_section = content.entries[7 + kinds]
         @test any(entry -> entry === get_session_fault_log(; editor), editor_section.entries)
-        @test length(content.entries[9].entries) == 3
+        @test content.entries[8 + kinds] === find_editor_settings(; editor)
+        @test content.entries[9 + kinds] === find_editor_appearance(; editor)
+        @test length(content.entries[10 + kinds].entries) == 3
+    end
+
+    @testset "the settings have a node for each group, in the order of the tab" begin
+        settings = make_settings()
+        children = collect_tree_children(settings; limit = 50)
+        labels = [format_tree_node_label(last(child)) for child in children]
+        @test labels == [get_document_title(group) for group in get_settings_groups(settings)]
+        @test ["Assistant index", "Fault", "History", "Pointer", "Render", "Start"] ⊆ labels
+        @test issorted([get_settings_name(get_settings_group_type(last(child))) for child in children])
+        k = findfirst(==("Pointer"), labels)
+        @test last(children[k]) === find_settings_group(settings, PointerSettings)
+        @test _nav_is(first(children[k]), _explorer_path(FieldReferenceStep("groups"), ElementReferenceStep(k)))
+        # The chevron of the node opens it, and the tree draws the groups.
+        explorer = Explorer(ExplorerSection("Explorer", Any[settings]))
+        editor, backend = _nav_editor(explorer)
+        @test !_explorer_has_tree_text(backend, "Pointer")
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Settings"))
+        @test _explorer_has_tree_text(backend, "Pointer") && _explorer_has_tree_text(backend, "Assistant index")
+    end
+
+    @testset "a press on the node of a settings group shows the group alone as the page" begin
+        settings = make_settings()
+        explorer = Explorer(ExplorerSection("Explorer", Any[settings]))
+        editor, backend = _nav_editor(explorer; settings)
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Settings"))
+        _nav_press!(editor, backend, _explorer_click(backend, "Fault"))
+        fault = find_settings_group(settings, FaultSettings)
+        @test get_navigator_page(explorer.navigator) === fault
+        @test _nav_has_text(backend, "Log faults") && !_nav_has_text(backend, "Double click time")
+        # A press on the switch of the page applies the setting.
+        click = _stab_find_click(editor, backend, "Log faults", :is_console_enabled)
+        @test click !== nothing
+        _nav_press!(editor, backend, click)
+        @test !fault.is_console_enabled && !editor.fault_policy.is_console_enabled
+    end
+
+    @testset "the appearance has a node for each part and each heading, and a heading one for each theme" begin
+        appearance = Appearance()
+        get_scaled_theme!(appearance, WidgetTheme)
+        get_scaled_theme!(appearance, TextTheme)
+        get_scaled_theme!(appearance, UndoTheme)
+        children = collect_tree_children(appearance; limit = 10)
+        @test [format_tree_node_label(last(child)) for child in children] ==
+              ["Scale", "Colors", "Editor", "Tools", "Documents"]
+        @test last(children[1]) === appearance.scale && last(children[3]) === appearance.editor_themes
+        @test _nav_is(first(children[1]), _explorer_path(FieldReferenceStep("scale")))
+        # "Editor" holds the colour theme of the present mode, the font theme, and the
+        # themes that every view draws with, in the order of the tab.
+        editor_themes = collect_tree_children(appearance.editor_themes; limit = 10)
+        @test [format_tree_node_label(last(child)) for child in editor_themes] == ["Color", "Font", "Widget", "Text"]
+        @test last(editor_themes[1]) === get_color_theme(appearance)
+        @test _nav_is(first(editor_themes[1]), _explorer_path(FieldReferenceStep("color_theme")))
+        @test _nav_is(first(editor_themes[3]), _explorer_path(FieldReferenceStep("themes"), ElementReferenceStep(2)))
+        @test last(editor_themes[3]) === get_theme(appearance, WidgetTheme)
+        # The colour node follows the mode.
+        appearance.colors.color_mode = :dark
+        @test last(first(collect_tree_children(appearance.editor_themes; limit = 1))) ===
+              appearance.color_themes[:dark]
+        tools = collect_tree_children(appearance.tool_themes; limit = 50)
+        @test [last(child) for child in tools] == [get_theme(appearance, UndoTheme)]
+        @test isempty(collect_tree_children(appearance.document_themes; limit = 5))
+        # The tree draws the nodes, and a press on a node of a theme shows the theme as
+        # the page.
+        explorer = Explorer(ExplorerSection("Explorer", Any[appearance]))
+        editor, backend = _nav_editor(explorer; undo = true)
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Appearance"))
+        @test _explorer_has_tree_text(backend, "Scale") && _explorer_has_tree_text(backend, "Documents")
+        _nav_press!(editor, backend, _explorer_open_chevron(backend, "Editor"))
+        @test _explorer_has_tree_text(backend, "Widget") && _explorer_has_tree_text(backend, "Font")
+        _nav_press!(editor, backend, _explorer_click(backend, "Widget"))
+        @test get_navigator_page(explorer.navigator) === get_theme(appearance, WidgetTheme)
+        # The address names the appearance and the heading, as the tree does; the glyph
+        # between two names is that of a closed chevron.
+        arrow = _EXPLORER_CLOSED_CHEVRON
+        @test _nav_has_texts(backend, "Explorer", arrow, "Appearance", arrow, "Editor", arrow, "Widget")
+        # The page draws the theme alone: its fields, and no card of another theme.
+        @test _nav_has_text(backend, "background") && _nav_has_text(backend, "foreground")
+        @test !_nav_has_text(backend, "Zoom")
+        # The › of the row "background" writes the next role into the theme, as an edit
+        # that the history records, so Ctrl+Z takes it back.
+        widget_theme = get_theme(appearance, WidgetTheme)
+        background = widget_theme.background
+        (_, _, row_y) = argmin(t -> t[3], [t for t in _nav_texts(backend) if t[1] == "background"])
+        (_, x, y) = argmin(t -> abs(t[3] - row_y), [t for t in _nav_texts(backend) if t[1] == "›"])
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+        @test widget_theme.background != background
+        @test _nav_has_text(backend, format_theme_color(widget_theme.background))
+        _nav_press!(editor, backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0))
+        @test widget_theme.background == background
+        _nav_press!(editor, backend, _explorer_click(backend, "Scale"))
+        @test get_navigator_page(explorer.navigator) === appearance.scale
+        @test _nav_has_text(backend, "Zoom") && _nav_has_text(backend, "Reset all")
+        # The + of the row of the zoom steps the zoom of the part.
+        (_, _, zoom_y) = only(t for t in _nav_texts(backend) if t[1] == "Zoom")
+        (_, x, y) = only(t for t in _nav_texts(backend) if t[1] == "+" && abs(t[3] - zoom_y) <= 6)
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+        @test appearance.scale.zoom > 1.0
+        # The page of a heading draws a card for each of its themes.
+        _nav_press!(editor, backend, _explorer_click(backend, "Tools"))
+        @test get_navigator_page(explorer.navigator) === appearance.tool_themes
+        @test _nav_has_text(backend, "Undo")
+        # The menu of a row reads the children of a node that holds single parts.
+        @test ExplorerModule._find_long_children_steps(appearance) === nothing
+        @test ExplorerModule._find_long_children_steps(appearance.editor_themes) === nothing
+    end
+
+    @testset "a paste writes into no part of the settings or of the appearance" begin
+        # The settings and the appearance of an editor are tools, so a paste or a cut
+        # on the node of a group, a part, a heading or a theme writes nothing.
+        @test !accepts_pasted_document(make_settings())
+        @test !accepts_pasted_document(Appearance())
+    end
+
+    @testset "the first content holds the session document of each kind that a loaded package marks" begin
+        @test !is_session_explorer_entry_type(Int)
+        editor, _ = _nav_editor(PrimitiveString("start"))
+        @test !any(entry -> entry isa _SessionEntryProbe, make_editor_explorer_content(; editor).entries)
+        _SESSION_ENTRY_PROBE_ON[] = true
+        try
+            content = make_editor_explorer_content(; editor)
+            probe = get_session_document!(_SessionEntryProbe, editor, _SessionEntryProbe)
+            @test count(entry -> entry === probe, content.entries) == 1
+            @test probe.editor === editor
+            titles =[format_tree_node_label(entry) for entry in content.entries]
+            place = findfirst(==("Probe entry"), titles)
+            @test findfirst(==("Assistants"), titles) < place < findfirst(==("Evaluators"), titles)
+            # The same editor gives the same document again, and another editor its own.
+            @test any(entry -> entry === probe, make_editor_explorer_content(; editor).entries)
+            other, _ = _nav_editor(PrimitiveString("other"))
+            other_entries = make_editor_explorer_content(; editor = other).entries
+            @test count(entry -> entry isa _SessionEntryProbe, other_entries) == 1
+            @test !any(entry -> entry === probe, other_entries)
+            # A host that gives the document already gets it once.
+            given = make_editor_explorer_content(; editor, entries = Any[probe]).entries
+            @test count(entry -> entry === probe, given) == 1
+        finally
+            _SESSION_ENTRY_PROBE_ON[] = false
+        end
     end
 
     @testset "the list of `+` holds the kinds that a person adds, each made by its insertion" begin
@@ -444,7 +985,7 @@ function test_explorer()
                               collect_document_gesture_bindings(PaneTree)))
         # With no focused tab the command adds nothing; a press in the tab focuses it.
         @test binding.operation(tree, nothing) === nothing
-        _nav_press!(editor, backend, MouseClick(:left, 10, 32, 1, ModifierKeys(); time = 0.0))
+        _nav_press!(editor, backend, _explorer_click(backend, "start"))
         evaluate_operation(editor, binding.operation(tree, nothing))
         @test last(get_session_explorer_content(; editor).entries) === document
     end
@@ -456,17 +997,19 @@ function test_explorer()
             path = get_explorer_content_file(work)
             @test startswith(path, joinpath(state, "projectured", "explorer", "work-")) && endswith(path, ".pred")
             @test get_explorer_content_file(work * "/") == path && get_explorer_content_file(other) != path
-            @test load_explorer_content(path) === nothing
+            @test load_explorer_content(path; folder = work) === nothing
             first_editor, _ = _nav_editor(PrimitiveString("first"))
             content = make_editor_explorer_content(; editor = first_editor,
                                                    entries = Any[Workspace([WorkspaceFolder("work", work)])])
-            push!(content.entries[6].entries, ExplorerSection("Queue study"))
-            save_explorer_content!(content, path; editor = first_editor)
+            # The kinds of the loaded packages stand after the lists of the session.
+            kinds = length(ApplicationModule._collect_session_explorer_entry_types())
+            push!(content.entries[6 + kinds].entries, ExplorerSection("Queue study"))
+            save_explorer_content!(content, path; folder = work, editor = first_editor)
             @test isfile(path)
             # The next editor reads the same entries: its own lists of the session,
             # the folder at its place, and the sections with their titles.
             next_editor, _ = _nav_editor(PrimitiveString("next"))
-            loaded = load_explorer_content(path; editor = next_editor)
+            loaded = load_explorer_content(path; folder = work, editor = next_editor)
             @test loaded isa ExplorerSection
             @test [format_tree_node_label(entry) for entry in loaded.entries] ==
                   [format_tree_node_label(entry) for entry in content.entries]
@@ -475,8 +1018,10 @@ function test_explorer()
             @test loaded.entries[2] === get_session_open_file_list(; editor = next_editor)
             @test loaded.entries[3] === get_session_task_group_list(; editor = next_editor)
             @test loaded.entries[4] === get_session_assistant_list(; editor = next_editor)
-            @test only(loaded.entries[6].entries).title == "Queue study"
-            tools = loaded.entries[7].entries
+            @test length(only(loaded.entries[5 + kinds].entries).elements) == 1
+            dashboards = loaded.entries[6 + kinds].entries
+            @test [entry.title for entry in dashboards] == ["Dashboard", "Queue study"] && dashboards[1] isa Dashboard
+            tools = loaded.entries[7 + kinds].entries
             @test tools[1] === get_session_message_log(; editor = next_editor)
             @test tools[3] === get_session_fault_log(; editor = next_editor)
             @test any(tool -> tool === get_session_frame_statistics(; editor = next_editor), tools)
@@ -484,7 +1029,58 @@ function test_explorer()
             @test processes.root_process_ids == [getpid()] && processes.title == "System processes"
             # A file that does not read gives nothing, and a warning says so.
             write(path, "ExplorerSection(")
-            @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path)) === nothing
+            @test (@test_logs (:warn, r"does not read") match_mode = :any load_explorer_content(path; folder = work)) === nothing
+        end
+    end
+
+    @testset "the content of a folder saves a held file as file(\"…\") and loads it as the file document of the next editor" begin
+        base = mktempdir()
+        try
+            work, outside = mkpath(joinpath(base, "work")), mkpath(joinpath(base, "outside"))
+            notes_path, far_path = joinpath(work, "notes.txt"), joinpath(outside, "far.txt")
+            write(notes_path, "notes on disk\n")
+            write(far_path, "far on disk\n")
+            path = joinpath(base, "state", "work.pred")
+            first_editor, _ = _nav_editor(PrimitiveString("first"); file_change = true, settings = Settings())
+            next_editor, _ = _nav_editor(PrimitiveString("next"); file_change = true, settings = Settings())
+            try
+                notes_file = open_file_document!(notes_path; editor = first_editor)
+                far_file = open_file_document!(far_path; editor = first_editor)
+                shared = Dashboard("Shared", Any[])
+                content = ExplorerSection("Explorer", Any[get_session_open_file_list(; editor = first_editor), shared,
+                    Dashboard("Held", Any[DashboardCard("notes", notes_file), DashboardCard("far", far_file)]),
+                    ExplorerSection("Again", Any[shared])])
+                save_explorer_content!(content, path; folder = work, editor = first_editor)
+                text = read(path, String)
+                # A held file is its name against the work folder, and its bytes stay where they were.
+                @test count("content = file(\"notes.txt\")", text) == 1
+                @test count("content = file(\"../outside/far.txt\")", text) == 1
+                @test !occursin("notes on disk", text) && !occursin("far on disk", text) && !occursin("FileDiskState", text)
+                @test read(notes_path, String) == "notes on disk\n" && read(far_path, String) == "far on disk\n"
+                @test sort(readdir(work)) == ["notes.txt"] && readdir(outside) == ["far.txt"]
+                # The next editor has a tab of notes.txt and none of far.txt.
+                tab_file = open_file_document!(notes_path; editor = next_editor)
+                tab_view = make_file_view(tab_file)
+                evaluate_operation(next_editor, AcquireDocumentOperation(tab_view))
+                @test find_open_file_document(notes_path; editor = next_editor) === tab_file
+                loaded = load_explorer_content(path; folder = work, editor = next_editor)
+                @test loaded isa ExplorerSection && length(loaded.entries) == 4
+                @test loaded.entries[1] === get_session_open_file_list(; editor = next_editor)
+                @test loaded.entries[3].title == "Held"
+                cards = loaded.entries[3].cards
+                @test cards[1].content === tab_file
+                far_loaded = cards[2].content
+                @test far_loaded isa TextFile && get_filename(far_loaded) == far_path
+                @test far_loaded !== far_file && find_open_file_document(far_path; editor = next_editor) === far_loaded
+                @test get_file_disk_state(far_loaded).loaded_count < 0 && get_file_disk_state(far_loaded).read_count == 0
+                @test loaded.entries[2] isa Dashboard && loaded.entries[4].entries[1] === loaded.entries[2]
+                evaluate_operation(next_editor, ReleaseDocumentOperation(tab_view))
+            finally
+                foreach(step -> step(first_editor), first_editor.stop_steps)
+                foreach(step -> step(next_editor), next_editor.stop_steps)
+            end
+        finally
+            rm(base; recursive = true, force = true)
         end
     end
 
@@ -592,12 +1188,26 @@ function test_explorer()
             (opened, layer[2])
         end
         labels(menu) = [string(item.action.label) for item in menu.elements if item isa WidgetMenuItem]
-        # An entry that is no section: open it and remove it.
+        # An entry that is no section: open it, remove it, and move it; the first
+        # entry moves only later.
         (_, menu) = row_menu("alpha")
-        @test labels(menu) == ["Open in a new tab", "Remove from explorer"]
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Move the entry later"]
         # A section: rename it, and add to it.
         (_, menu) = row_menu("Inner")
-        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Rename", "New section", "Add…"]
+        @test labels(menu) == ["Open in a new tab", "Remove from explorer", "Move the entry earlier",
+                               "Move the entry later", "Rename", "New section", "Add…"]
+        # A verb that acts at the row gets the same commands, with no caret in the
+        # title and no menu of the kinds, and with the keys that run them.
+        inner_steps = (FieldReferenceStep("tree"), FieldReferenceStep("root"), FieldReferenceStep("entries"),
+                       ElementReferenceStep(2))
+        rows = collect_part_commands(explorer, inner_steps)
+        @test [row.description for row in rows] ==
+              ["Open in a new tab", "Remove from explorer", "Move the entry earlier", "Move the entry later",
+               "New section"]
+        @test [row.gesture for row in rows][2:4] ==
+              [describe_gesture_pattern(only(find_bound_keys(Explorer, name)))
+               for name in ("Remove from explorer", "Move the entry earlier", "Move the entry later")]
+        @test isempty(collect_part_commands(explorer, (FieldReferenceStep("filter"),)))
         # A long list of children opens as a page.
         (opened, menu) = row_menu("long")
         @test "Open as a list" in labels(menu)
@@ -621,6 +1231,30 @@ function test_explorer()
         @test "Clear the fault log" in labels(menu)
     end
 
+    @testset "a dashboard in a card of a dashboard shows its cards, and a press at one reaches it" begin
+        inner = Dashboard("inner", Any[DashboardCard("leaf one", PrimitiveString("alpha")),
+                                       DashboardCard("leaf two", PrimitiveString("beta"))])
+        outer = Dashboard("outer", Any[DashboardCard("holds inner", inner)])
+        editor, backend = _explorer_window_editor(outer)
+        for _ in 1:4
+            drain_operations!(editor)
+            run_frame!(editor)
+        end
+        place = _explorer_find_visible_text(backend, "alpha")
+        @test place !== nothing && _explorer_find_visible_text(backend, "beta") !== nothing
+        # The pane of the inner dashboard has a height of its own, up to its range.
+        heights = [c[4] for (text, _, _, clips) in _explorer_clipped_texts(backend) if text == "alpha" for c in clips]
+        @test !isempty(heights) && all(h -> h > 0, heights)
+        if place !== nothing
+            x, y = place
+            _explorer_window_press!(editor, backend, MouseMove(x + 2, y + 2; time = 0.0))
+            _explorer_window_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+            selection = getfield(outer, :selection)[]
+            @test selection isa ConcreteReference
+            @test count(step -> step == FieldReferenceStep("content"), _nav_steps(selection)) >= 2
+        end
+    end
+
     @testset "a dashboard shows its cards in columns, a key in a card reaches its content, and Insert adds a card" begin
         @test "Dashboard" in first.(ExplorerModule._collect_entry_kinds())
         @test make_insertion_document(Dashboard).title == "New dashboard"
@@ -638,29 +1272,33 @@ function test_explorer()
         # width at its print, and the cards stand in one column.
         ys = [only(entry[3] for entry in _nav_texts(backend) if entry[1] == title) for title in ("First", "Second", "Third")]
         @test ys[1] < ys[2] < ys[3]
-        # A press in the content of a card puts the caret in that document.
-        _nav_press!(editor, backend, _explorer_click(backend, "two"; side = :page))
-        selection = getfield(explorer, :selection)[]
+        # A press in the content of a card puts the caret in that document. The rows of
+        # the grid are a list, which needs a page with a size: a window gives it.
+        window_dashboard = Dashboard("Queue study", Any[DashboardCard("First", PrimitiveString("one")),
+                                                       DashboardCard("Second", PrimitiveString("two")),
+                                                       DashboardCard("Third", PrimitiveString("three"))])
+        window_explorer = Explorer(ExplorerSection("Explorer", Any[window_dashboard]))
+        window_editor, window_backend = _explorer_window_editor(window_explorer)
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "Queue study"))
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "two"; side = :page))
+        selection = getfield(window_explorer, :selection)[]
         @test selection isa ConcreteReference
         @test _nav_steps(selection)[1:5] == [FieldReferenceStep("navigator"), FieldReferenceStep("content"),
                                              FieldReferenceStep("entries"), ElementReferenceStep(1), FieldReferenceStep("cards")]
         @test _nav_steps(selection)[6:7] == [ElementReferenceStep(2), FieldReferenceStep("content")]
         # With an exact width at the print, as many columns as cards of the least
         # width fit, and no more than the cards.
-        grid_of(width) = begin
-            context = PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())
-            page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context).output
-            page.children[2].child.content.children[1]
-        end
-        @test grid_of(430).columns == 3 && grid_of(205).columns == 1 && grid_of(220).columns == 2
+        columns_of(width) = ExplorerModule._get_grid_columns(
+            print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
+                           PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())).output)
+        @test columns_of(430) == 3 && columns_of(205) == 1 && columns_of(220) == 2
         # The count follows the cell of the width while the page shows.
         width_cell = Cell(430)
         follow_page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
                               PrinterContext(EmptyReference(), width_cell, Cell(600), Dict{Symbol,Any}())).output
-        holder() = follow_page.children[2].child.content.children[1]
-        @test holder().columns == 3
+        @test ExplorerModule._get_grid_columns(follow_page) == 3
         width_cell[] = 205
-        @test holder().columns == 1
+        @test ExplorerModule._get_grid_columns(follow_page) == 1
         # In a live window, a resize lays the cards out again.
         card(title) = DashboardCard(title, PrimitiveString("text of " * title))
         study = Dashboard("Study", Any[card("One"), card("Two"), card("Three"), card("Four"), card("Five")])
@@ -678,14 +1316,269 @@ function test_explorer()
             run_frame!(live)
             @test rows() == expected
         end
+        # The path of a card in the grid names it back: row `r`, card `i` of the row.
+        for r in 1:3, i in 1:3
+            steps = (ExplorerModule._make_row_steps(r)..., ExplorerModule._make_card_steps(i)...,
+                     FieldReferenceStep("content"), FieldReferenceStep("rest"))
+            @test ExplorerModule._find_card_below(steps) == (r, i, (FieldReferenceStep("content"), FieldReferenceStep("rest")))
+        end
+        @test ExplorerModule._get_card_place(dashboard.cards, 3, 2) == (2, 1)
         # Insert on the page adds a card at the end, whose content takes a name.
-        _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
-        @test length(dashboard.cards) == 4 && dashboard.cards[4].content isa DocumentInsertion
-        @test _nav_has_text(backend, "New card")
+        _explorer_window_press!(window_editor, window_backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+        @test length(window_dashboard.cards) == 4 && window_dashboard.cards[4].content isa DocumentInsertion
+        @test _nav_has_text(window_backend, "New card")
         # F2 on its node puts the caret in its title.
-        _nav_press!(editor, backend, _explorer_click(backend, "Queue study"))
-        _nav_press!(editor, backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
+        _explorer_window_press!(window_editor, window_backend, _explorer_click(window_backend, "Queue study"))
+        _explorer_window_press!(window_editor, window_backend, KeyDown(:f2, ModifierKeys(); time = 0.0))
+        @test _nav_steps(getfield(window_explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+    end
+
+    @testset "a card states the columns that it spans and its height" begin
+        live(dashboard; width = 1100) = begin
+            backend = HeadlessBackend()
+            editor = build_editor(dashboard, _nav_natural(); backend,
+                                  devices = Device[Keyboard(), Mouse(), Display()],
+                                  window = (; title = "W", width, height = 500), tabs = true, appearance = false,
+                                  settings = false)
+            run_frame!(editor)
+            run_frame!(editor)
+            (editor, backend)
+        end
+        place(backend, name) = only(t[2:3] for t in _nav_drawn(last(rendered_output(backend)).windows[1].content)
+                                    if t[1] == name)
+        card(title; keywords...) = DashboardCard(title, PrimitiveString("text of " * title); keywords...)
+        gap = Int(get_widget_style(get_scaled_theme!(Appearance(), WidgetTheme), :section_gap)[])
+        # The keyword form states both fields, and a card with neither is one column of its content.
+        @test card("a").columns == 1 && card("a").height === :content
+        @test card("a"; columns = :all, height = 360).columns === :all && card("a"; columns = 2, height = :page).height === :page
+        @test DashboardCard("a", PrimitiveString("x")).columns == 1
+        # In a page of 3 columns, a card of 2 columns is two columns wide beside a card of one, and a card of
+        # all the columns takes a row of its own; in a page of 1 column every card is one column.
+        (_, wide) = live(Dashboard("W", Any[card("A"; columns = 2), card("B"), card("C"; columns = :all), card("D")]))
+        (_, even) = live(Dashboard("E", Any[card("E1"), card("E2"), card("E3")]))
+        step = place(even, "E2")[1] - place(even, "E1")[1]
+        @test place(even, "E3")[1] - place(even, "E2")[1] == step && place(even, "E1")[2] == place(even, "E3")[2]
+        @test place(wide, "B")[1] - place(wide, "A")[1] == 2 * step && place(wide, "A")[2] == place(wide, "B")[2]
+        @test place(wide, "C")[1] == place(wide, "A")[1] && place(wide, "C")[2] > place(wide, "A")[2]
+        @test place(wide, "D")[1] == place(wide, "A")[1] && place(wide, "D")[2] > place(wide, "C")[2]
+        (_, narrow) = live(Dashboard("N", Any[card("A"; columns = 2), card("B"), card("C"; columns = :all)]); width = 300)
+        @test length(unique(place(narrow, name)[1] for name in ("A", "B", "C"))) == 1
+        @test place(narrow, "A")[2] < place(narrow, "B")[2] < place(narrow, "C")[2]
+        # A row of cards with different spans, the last one short, keeps the columns of the rows above it.
+        (_, short) = live(Dashboard("S", Any[card("S1"), card("S2"), card("S3"), card("S4")]))
+        @test place(short, "S4")[1] == place(short, "S1")[1] && place(short, "S4")[2] > place(short, "S1")[2]
+        # The height of a card: a number is that many pixels, `:page` is the visible height of the page, and
+        # a content that is higher than the page scrolls in a card that is as high as the page.
+        row_height(first, second; keywords...) = begin
+            (_, backend) = live(Dashboard("H", Any[first, second]); keywords...)
+            place(backend, "Next")[2] - place(backend, first.title)[2] - gap
+        end
+        next = card("Next"; columns = :all)
+        high = DashboardCard("High", PrimitiveString(join(("line $k" for k in 1:200), "\n")); columns = :all)
+        page = card("Page"; columns = :all, height = :page)
+        small = card("Small"; columns = :all)
+        @test row_height(card("Fixed"; columns = :all, height = 200), next) == 200
+        @test row_height(card("Fixed"; columns = :all, height = 360), next) == 360
+        high_height, page_height = row_height(high, next), row_height(page, next)
+        @test high_height == page_height && 300 <= page_height < 500
+        @test row_height(small, next) < 100
+        # A card whose content is a table of 9,000 rows builds the rows that show, and an idle frame
+        # builds none and keeps no memory.
+        built = Ref(0)
+        columns = Any[WidgetTableColumn(; policy = Relative(1.0)) for _ in 1:2]
+        table = WidgetTable(; column_headers = Any["a", "b"], cells = ListNode(make_widget_table_row(Any["", ""])), columns)
+        set_cell_computation!(getfield(table, :cells), () ->
+            make_index_list(9000, 1, k -> (built[] += 1; make_widget_table_row(Any[WidgetLabel("r$k"), WidgetLabel("c$k")]))))
+        (editor, _) = live(Dashboard("T", Any[DashboardCard("Table", table), card("After"; columns = :all)]))
+        @test 0 < built[] < 400
+        counted = built[]
+        GC.gc()
+        before = Base.gc_live_bytes()
+        for _ in 1:20
+            run_frame!(editor)
+        end
+        GC.gc()
+        @test built[] == counted && Base.gc_live_bytes() - before < 2_000_000
+        # A save keeps both fields.
+        saved = parse_pred_text(print_pred_text(Dashboard("X", Any[card("a"; columns = :all, height = 360), card("b")])))
+        @test [(c.columns, c.height) for c in saved.cards] == [(:all, 360), (1, :content)]
+    end
+
+    @testset "the menu of a card sets its width and its height, and an undo takes each back" begin
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        first_card, second_card = card("First"), card("Second")
+        dashboard = Dashboard("Menu", Any[first_card, second_card])
+        @test !isempty(get_document_gesture_bindings_own(DashboardCard))
+        menu = compute_context_menu(second_card)
+        @test [item.action.label for item in menu.elements] == ["Width", "Height"]
+        width_items, height_items = [collect(item.submenu.elements) for item in menu.elements]
+        @test [item.action.label for item in width_items] == ["1 column", "2 columns", "3 columns", "Full row"]
+        @test [item.action.label for item in height_items] ==
+              ["Fit content", "One page", "240 px", "360 px", "480 px", "720 px"]
+        backend = HeadlessBackend()
+        editor = build_editor(dashboard, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1100, height = 500,
+                                        opened_window_projections = Pair{Type,Any}[Document => _nav_natural()]),
+                              tabs = true, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+        send!(event, id) = (push_event!(backend, WindowInput(id, event)); run_frame!(editor))
+        windows() = collect(last(rendered_output(backend)).windows)
+        find_text(name) = begin
+            for window in windows(), entry in _nav_drawn(window.content)
+                entry[1] == name && return (window.id, entry[2], entry[3])
+            end
+            nothing
+        end
+        function click!(button, name, time)
+            (id, x, y) = find_text(name)
+            send!(MouseClick(button, x + 2, y + 2, 1, ModifierKeys(); time), id)
+        end
+        # The menu of a card opens on a right click on its title, and each item is one entry of undo.
+        function choose!(submenu, item, time)
+            click!(:right, "Second", time)
+            @test find_text("Width") !== nothing && find_text("Height") !== nothing
+            click!(:left, submenu, time + 0.2)
+            click!(:left, item, time + 0.4)
+            run_frame!(editor)
+        end
+        undo!(time) = (evaluate_operation(editor, UndoOperation(history)); run_frame!(editor))
+        position(name) = find_text(name)[3]
+        @test position("Second") == position("First")
+        choose!("Width", "Full row", 1.0)
+        @test second_card.columns === :all && position("Second") > position("First")
+        undo!(2.0)
+        @test second_card.columns == 1 && position("Second") == position("First")
+        choose!("Width", "2 columns", 3.0)
+        @test second_card.columns == 2
+        undo!(4.0)
+        @test second_card.columns == 1
+        for (label, height, time) in (("Fit content", :content, 5.0), ("One page", :page, 6.0), ("240 px", 240, 7.0),
+                                      ("720 px", 720, 8.0))
+            choose!("Height", label, time)
+            @test second_card.height === height
+            undo!(time + 0.8)
+            @test second_card.height === :content
+        end
+    end
+
+    @testset "a card fills the page by the button in its title, a double click on the title, and Escape" begin
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        first_card, second_card, third_card = card("First"), card("Second"), card("Third")
+        dashboard = Dashboard("Fill", Any[first_card, second_card, third_card])
+        @test dashboard.maximized === nothing && ExplorerModule._make_restore_operation(dashboard) === nothing
+        backend = HeadlessBackend()
+        editor = build_editor(dashboard, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1100, height = 500), tabs = true, appearance = false,
+                              settings = false, undo = true)
+        run_frame!(editor)
+        history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+        send!(event) = (push_event!(backend, WindowInput(:W, event)); run_frame!(editor))
+        # Each text of the window with its colour, as the frame draws it.
+        function drawn(canvas = last(rendered_output(backend)).windows[1].content, ox = 0, oy = 0, found = Any[])
+            x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+            for element in canvas.elements
+                element = element isa Cell ? element[] : element
+                element isa ListNode && (element = element.value)
+                if element isa GraphicsText
+                    push!(found, (String(element.text), x + Int(element.x), y + Int(element.y), element.color))
+                elseif element isa GraphicsCanvas
+                    drawn(element, x, y, found)
+                elseif element isa GraphicsViewport
+                    drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                          y + Int(element.y) + round(Int, element.transform.f), found)
+                end
+            end
+            found
+        end
+        texts(name) = [entry for entry in drawn() if entry[1] == name]
+        maximize_glyph, restore_glyph = string(Char(0xe112)), string(Char(0xe11a))
+        # The button of the card whose title is on the line of `name`: the nearest one right of it.
+        button(glyph, name) = begin
+            title = only(texts(name))
+            candidates = [entry for entry in texts(glyph) if abs(entry[3] - title[3]) <= 6 && entry[2] > title[2]]
+            candidates[argmin([entry[2] for entry in candidates])]
+        end
+        click!(x, y; count = 1, time = 1.0) = send!(MouseClick(:left, x + 2, y + 2, count, ModifierKeys(); time))
+        layout_before = (texts("First")[1][2:3], texts("Second")[1][2:3], texts("Third")[1][2:3])
+        # The button shows while the pointer is on its card.
+        @test all(entry -> is_color_transparent(entry[4]), texts(maximize_glyph))
+        title = only(texts("Second"))
+        send!(MouseMove(title[2] + 2, title[3] + 2; time = 0.5))
+        @test !is_color_transparent(button(maximize_glyph, "Second")[4])
+        @test is_color_transparent(button(maximize_glyph, "First")[4])
+        entries_before = length(history.undo_entries)
+        # The button makes the card fill the page, and the other cards are hidden, not closed.
+        pressed = button(maximize_glyph, "Second")
+        click!(pressed[2], pressed[3]; time = 1.0)
+        @test dashboard.maximized === second_card
+        @test isempty(texts("First")) && isempty(texts("Third")) && length(dashboard.cards) == 3
+        @test !isempty(texts("text of Second")) && texts("Second")[1][2] == layout_before[1][1]
+        @test length(history.undo_entries) == entries_before
+        # An undo takes back nothing of it, and a save keeps nothing of it.
+        evaluate_operation(editor, UndoOperation(history)); run_frame!(editor)
+        @test dashboard.maximized === second_card
+        text = print_pred_text(dashboard)
+        @test !occursin("maximized", text) && parse_pred_text(text).maximized === nothing
+        # The button of the card that fills the page gives the page back.
+        restored = button(restore_glyph, "Second")
+        click!(restored[2], restored[3]; time = 2.0)
+        @test dashboard.maximized === nothing
+        @test (texts("First")[1][2:3], texts("Second")[1][2:3], texts("Third")[1][2:3]) == layout_before
+        @test first_card.columns == 1 && first_card.height === :content && first_card.content isa PrimitiveString
+        # A double click on the title does the same, and Escape gives the page back.
+        title = only(texts("Third"))
+        click!(title[2], title[3]; count = 2, time = 3.0)
+        @test dashboard.maximized === third_card
+        send!(KeyDown(:escape, ModifierKeys(); time = 4.0))
+        @test dashboard.maximized === nothing
+        # Escape with no card that fills the page changes nothing of the page.
+        send!(KeyDown(:escape, ModifierKeys(); time = 5.0))
+        @test dashboard.maximized === nothing && length(texts("Second")) == 1
+        # Two prints of one dashboard, as two tabs show it, both show only the card that fills the page.
+        shown(page) = begin
+            grid = page.children[2].child.content
+            count = 0
+            node = grid.children
+            while node !== nothing
+                count += length(node.value[1].children)
+                node = node.next
+            end
+            count
+        end
+        context() = PrinterContext(EmptyReference(), Cell(1100), Cell(600), Dict{Symbol,Any}())
+        pages = [print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard, context()).output
+                 for _ in 1:2]
+        @test [shown(page) for page in pages] == [3, 3]
+        evaluate_operation(nothing, ExplorerModule._make_maximize_operation(dashboard, second_card))
+        @test [shown(page) for page in pages] == [1, 1]
+        evaluate_operation(nothing, ExplorerModule._make_maximize_operation(dashboard, nothing))
+        @test [shown(page) for page in pages] == [3, 3]
+    end
+
+    @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
+        dashboard = Dashboard("Study")
+        content = ExplorerSection("Explorer", Any[dashboard])
+        explorer = Explorer(content)
+        editor, backend = _nav_editor(explorer; clipboard = true)
+        _nav_press!(editor, backend, _explorer_click(backend, "Study"))
+        @test _nav_has_text(backend, "Insert or Ctrl+V on this page adds one.")
+        # A press on the row keeps the keys in the tree, and a paste there adds a card
+        # and keeps the entry.
+        editor.document.slice = Dashboard("Row copy")
+        _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        @test only(content.entries) === dashboard && [card.title for card in dashboard.cards] == ["Row copy"]
+        @test _nav_has_text(backend, "Row copy")
+        # A press on the title of the page, below the bar of the navigator, puts the caret there.
+        back_x = only(entry[2] for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
+        titles = [entry for entry in _nav_texts(backend) if entry[1] == "Study" && entry[2] > back_x]
+        (_, x, y) = titles[argmax([entry[3] for entry in titles])]
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
         @test _nav_steps(getfield(explorer, :selection)[])[end - 1] == FieldReferenceStep("title")
+        editor.document.slice = Dashboard("Copied")
+        _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        @test dashboard.title == "Study" && length(dashboard.cards) == 2
+        @test dashboard.cards[2].title == "Copied" && dashboard.cards[2].content === editor.document.slice
     end
 
     @testset "the task list says where its groups and tasks are, so the explorer finds them" begin
@@ -797,11 +1690,9 @@ function test_explorer()
         visit = make_navigator_open_operation(explorer.navigator, _explorer_entry_path(1))
         evaluate_operation(editor, ProjecturedPlatform.ExplorerModule._get_visit_writes(visit))
         @test get_navigator_page(explorer.navigator) === workspace
-        for _ in 1:20
-            drain_operations!(editor)
-            run_frame!(editor)
-            sleep(0.02)
-        end
+        # The frames run until the read of the first folder ends and nothing more
+        # runs, so a read that the search started would end too.
+        _explorer_run_until_idle(editor)
         directory = workspace.folders[1].directory
         a = only(directory.elements)
         @test a.state === :unread && a.read_count == 0
@@ -851,17 +1742,357 @@ function test_explorer()
         end
         @test folder.state === :unread && folder.read_count == 0 && isempty(search.result.matches)
     end
+
+    @testset "a dashboard saved alone writes the file in a card as the file that it shows" begin
+        root = mktempdir()
+        try
+            path = joinpath(root, "notes.txt")
+            write(path, "hello")
+            view = make_file_tab_content(path)
+            @test view isa FileView && is_file_document(view.file)
+            # A card that holds the file, and a card that holds its view, write the file.
+            for held in (view.file, view)
+                dashboard = Dashboard("work", Any[DashboardCard("notes", held)])
+                text = cut_file_text(PredFile(joinpath(root, "work.pred"), dashboard), root)
+                @test occursin("content = file(\"notes.txt\")", text)
+                @test !occursin("hello", text)
+                @test !occursin("FileDiskState", text) && !occursin("file_hash", text) && !occursin("WidgetScrollPane", text)
+            end
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "the open of a dashboard gives a card the file document of a tab, else one that reads when it is drawn" begin
+        root = mktempdir()
+        try
+            notes_path, later_path, work_path = (joinpath(root, name) for name in ("notes.txt", "later.txt", "work.pred"))
+            write(notes_path, "notes on disk\n")
+            write(later_path, "later on disk\n")
+            saved = Dashboard("work", Any[DashboardCard("notes", TextFile("notes.txt", "x")),
+                                          DashboardCard("later", TextFile("later.txt", "y"))])
+            @test save_file!(PredFile(work_path, saved), root)
+            editor, backend = _nav_editor(PrimitiveString("x"); file_change = true, settings = Settings())
+            try
+                store = get_session_file_change_store(; editor)
+                open_file(path) = ProjecturedPlatform.FileSystemModule._make_opened_file(editor, OpenFileOperation(path))
+                # A tab shows notes.txt.
+                tab_file = open_file(notes_path)
+                tab_view = make_file_view(tab_file)
+                evaluate_operation(editor, AcquireDocumentOperation(tab_view))
+                @test find_open_file_document(notes_path; editor) === tab_file
+                # The open of the dashboard reads no held file.
+                holder = open_file(work_path)
+                dashboard = get_wrapped_document(get_file_content(holder))
+                @test dashboard isa Dashboard && length(dashboard.cards) == 2
+                @test dashboard.cards[1].content === tab_file
+                later = dashboard.cards[2].content
+                @test later isa TextFile && get_filename(later) == later_path
+                @test find_open_file_document(later_path; editor) === later
+                state = get_file_disk_state(later)
+                @test state.loaded_count < 0 && state.read_count == 0 && state.file_hash === nothing
+                @test get_file_content(later) isa UndoBuffer
+                _explorer_run_frames_until(editor, () -> false; seconds = 0.5)
+                @test isempty(get_background_work_store(editor).records)
+                # A second open of the path gives the same file document.
+                @test open_file_document!(later_path; editor) === later
+                # Before the read, the view says that it reads, and the file refuses a save.
+                later_view = make_file_view(later)
+                evaluate_operation(editor, AcquireDocumentOperation(later_view))
+                @test _explorer_draw_file_view(editor, later_view) == 2
+                reading = print_document(FileViewToWidget(), nothing, later_view, nothing).output.children[1]
+                @test reading.child.content == "later.txt \u00b7 reading"
+                @test evaluate_operation(nothing, SaveFileOperation(later)) === false
+                @test read(later_path, String) == "later on disk\n"
+                # A save of the dashboard writes the file in each card as the file that it shows.
+                text = cut_file_text(PredFile(work_path, dashboard), root)
+                @test occursin("file(\"notes.txt\")", text) && occursin("file(\"later.txt\")", text)
+                @test !occursin("later on disk", text) && !occursin("FileDiskState", text)
+                # The read comes after the frame, once, and the view stops saying that it reads.
+                @test _explorer_run_frames_until(editor, () -> _explorer_is_file_read(later))
+                reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
+                @test reads == 1 && state.loaded_count >= 0
+                @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
+                @test _explorer_draw_file_view(editor, later_view) == 1
+                evaluate_operation(editor, ReleaseDocumentOperation(later_view))
+                evaluate_operation(editor, ReleaseDocumentOperation(tab_view))
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a place where a file repeats on its own path draws closed, and each opening shows one more level" begin
+        root = mktempdir()
+        try
+            first_path, second_path = joinpath(root, "first.pred"), joinpath(root, "second.pred")
+            first_dashboard, second_dashboard = Dashboard("first", Any[]), Dashboard("second", Any[])
+            first_file, second_file = PredFile(first_path, first_dashboard), PredFile(second_path, second_dashboard)
+            push!(first_dashboard.cards, DashboardCard("to second", second_file))
+            push!(second_dashboard.cards, DashboardCard("to first", first_file))
+            @test save_file!(first_file, root) && save_file!(second_file, root)
+            tab_file = make_file_tab(first_path, UndoBuffer)
+            view = make_file_view(tab_file)
+            # The tab of the first file is the window; the second file reads when a view of it is drawn.
+            editor, backend = _nav_editor(view; file_change = true)
+            try
+                evaluate_operation(editor, ReloadFileOperation(tab_file))
+                evaluate_operation(editor, AcquireDocumentOperation(view))
+                held_second = get_wrapped_document(get_file_content(tab_file)).cards[1].content
+                second_view = make_file_view(held_second)
+                evaluate_operation(editor, AcquireDocumentOperation(second_view))
+                _explorer_draw_file_view(editor, second_view)
+                @test _explorer_run_frames_until(editor, () -> _explorer_is_file_read(held_second); seconds = 60)
+                # The frames end: the slot of the first file in the second holds the tab, and the frame
+                # draws the first file once more as a closed card with its title and its path.
+                @test get_wrapped_document(get_file_content(held_second)).cards[1].content === tab_file
+                for _ in 1:3
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                end
+                @test Base.gc_live_bytes() < 3 * 2^30
+                closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
+                @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
+                @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
+                # The map of the repeat says that it is one, and answers the baseline of its card.
+                repeats = _at_collect_iomaps(editor.iomap, ProjecturedPlatform.FileFormatModule.RepeatedFileIoMap;
+                                             depth = 1000, is_dict_walked = true)
+                @test length(repeats) == 1 && only(repeats).input === tab_file
+                @test find_first_baseline(only(repeats)) === find_first_baseline(only(repeats).inner_iomap)
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a press on the chevron of a repeat opens it one level, and the repeat in it is closed again" begin
+        root = mktempdir()
+        try
+            # a.pred holds a card of b.pred, which holds a card of a.pred.
+            card_a, card_b = WidgetCard(; title = "A", content = nothing), WidgetCard(; title = "B", content = nothing)
+            file_a, file_b = PredFile(joinpath(root, "a.pred"), card_a), PredFile(joinpath(root, "b.pred"), card_b)
+            set_cell_value!(getfield(card_a, :content), file_b)
+            set_cell_value!(getfield(card_b, :content), file_a)
+            editor, backend = _explorer_window_editor(make_file_view(file_a))
+            closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
+            frames!() = for _ in 1:4
+                drain_operations!(editor)
+                run_frame!(editor)
+            end
+            # The press is on the pixel of the chevron that the frame drew, below the first card.
+            press_chevron!(glyph) = begin
+                (_, x, y) = first(filter(entry -> entry[1] == glyph && entry[3] > 30, _nav_texts(backend)))
+                _explorer_window_press!(editor, backend, MouseMove(x + 4, y + 8; time = 0.0))
+                _explorer_window_press!(editor, backend, MouseClick(:left, x + 4, y + 8, 1, ModifierKeys(); time = 0.0))
+                frames!()
+            end
+            frames!()
+            @test Base.gc_live_bytes() < 3 * 2^30
+            @test _nav_count(backend, closed) == 1 && _nav_count(backend, opened) == 0
+            @test _nav_count(backend, "a.pred") == 1 && _nav_count(backend, "b.pred") == 0
+            # One press opens the repeat of a.pred: its content shows once more, and the repeat of
+            # b.pred in it is closed.
+            press_chevron!(closed)
+            @test _nav_count(backend, opened) == 1 && _nav_count(backend, closed) == 1
+            @test _nav_count(backend, "a.pred") == 1 && _nav_count(backend, "b.pred") == 1
+            @test _nav_count(backend, "A") == 2 && _nav_count(backend, "B") == 1
+            # A press on that one opens one level more, and the repeat in it is closed again.
+            press_chevron!(closed)
+            @test _nav_count(backend, opened) == 2 && _nav_count(backend, closed) == 1
+            @test _nav_count(backend, "A") == 2 && _nav_count(backend, "B") == 2
+            @test Base.gc_live_bytes() < 3 * 2^30
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a chain of files with no cycle, and two cards of one file, show whole" begin
+        root = mktempdir()
+        try
+            note_path = joinpath(root, "note.txt")
+            write(note_path, "hello")
+            note = make_file_tab(note_path, UndoBuffer)
+            holder = PredFile(joinpath(root, "holder.pred"),
+                              Dashboard("both", Any[DashboardCard("one", note), DashboardCard("two", note)]))
+            editor, backend = _nav_editor(make_file_view(holder); file_change = true)
+            try
+                for _ in 1:3
+                    drain_operations!(editor)
+                    run_frame!(editor)
+                end
+                closed = string(Char(0xe06f))
+                @test count(entry -> occursin("hello", entry[1]), _nav_texts(backend)) == 2
+                @test _nav_count(backend, closed) == 0
+                # a.pred holds b.pred, which holds c.pred.
+                names = ("a.pred", "b.pred", "c.pred")
+                files = [PredFile(joinpath(root, name), Dashboard(name[1:1], Any[])) for name in names]
+                push!(files[1].content.cards, DashboardCard("to b", files[2]))
+                push!(files[2].content.cards, DashboardCard("to c", files[3]))
+                chain_editor, chain_backend = _nav_editor(make_file_view(files[1]); file_change = true)
+                try
+                    for _ in 1:3
+                        drain_operations!(chain_editor)
+                        run_frame!(chain_editor)
+                    end
+                    @test _nav_has_text(chain_backend, "to b") && _nav_has_text(chain_backend, "to c")
+                    @test _nav_count(chain_backend, closed) == 0
+                finally
+                    foreach(step -> step(chain_editor), chain_editor.stop_steps)
+                end
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
+        root = mktempdir()
+        try
+            make_page(name) = (path = joinpath(root, name); write(path, name); make_file_tab(path))
+            (first_page, inserted, pasted) = (make_page("first.txt"), make_page("inserted.txt"), make_page("pasted.txt"))
+            dashboard = Dashboard("Study", Any[DashboardCard("First", first_page)])
+            explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+            editor, backend = _nav_editor(explorer; tabs = true, clipboard = true, undo = true, file_change = true)
+            try
+                store = get_session_file_change_store(; editor)
+                watched(file) = is_document_file_watched(file; store)
+                # A page that no holder shows holds nothing.
+                @test !is_document_held(editor, first_page) && !watched(first_page)
+                evaluate_operation(editor, AcquireDocumentOperation(explorer))
+                _nav_press!(editor, backend, _explorer_click(backend, "Study"))
+                @test get_navigator_page(explorer.navigator) === dashboard
+                @test is_document_held(editor, dashboard)
+                @test is_document_held(editor, first_page) && watched(first_page)
+                cards = ReferencedDocument(dashboard.cards, annotate_reference_types(
+                    editor.document, extend_reference(strip_reference_types(find_document_path(editor.document, dashboard)),
+                                                      FieldReferenceStep("cards"))))
+                # Insert on the page adds a card whose content is held.
+                _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+                _nav_press!(editor, backend, KeyDown(:insert, ModifierKeys(); time = 0.0))
+                @test length(dashboard.cards) == 2 && is_document_held(editor, dashboard.cards[2].content)
+                # A paste at the caret on the page holds the content of the card.
+                _nav_press!(editor, backend, _explorer_click_page_title(backend, "Study"))
+                editor.document.slice = pasted
+                _nav_press!(editor, backend, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+                @test length(dashboard.cards) == 3 && dashboard.cards[3].content === pasted
+                @test is_document_held(editor, pasted) && watched(pasted)
+                # An insert of a verb holds it too, and an undo takes the insert back.
+                insert_elements!(cards, 4, Any[DashboardCard("Inserted", inserted)]; editor)
+                @test length(dashboard.cards) == 4
+                @test is_document_held(editor, inserted)
+                @test watched(inserted)
+                history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+                evaluate_operation(editor, UndoOperation(history))
+                @test length(dashboard.cards) == 3
+                @test !is_document_held(editor, inserted) && !watched(inserted)
+                evaluate_operation(editor, RedoOperation(history))
+                @test length(dashboard.cards) == 4 && is_document_held(editor, inserted) && watched(inserted)
+                # A removal releases the content of the card.
+                delete_elements!(cards, 3; editor)
+                @test length(dashboard.cards) == 3
+                @test !is_document_held(editor, pasted) && !watched(pasted)
+                @test is_document_held(editor, first_page) && is_document_held(editor, inserted)
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        finally
+            rm(root; recursive = true, force = true)
+        end
+    end
+
+    @testset "a page keeps its grid and its scroll offset when a card gets the pointer or the selection" begin
+        cards = Any[DashboardCard(string("Card ", k), PrimitiveString(string("text of ", k))) for k in 1:3]
+        dashboard = Dashboard("Study", cards)
+        title_style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+        projection = DashboardToWidget(; gap = 10, card_width = 100, title_style)
+        page = print_document(projection, nothing, dashboard,
+                              PrinterContext(EmptyReference(), Cell(1100), Cell(600), Dict{Symbol,Any}())).output
+        pane = page.children[2].child
+        grid = pane.content
+        set_cell_value!(getfield(pane, :scroll_position), Point2D(0, 40))
+        buttons = _find_widgets_below(page, WidgetToolbarItem)
+        @test length(buttons) == 3
+        card_path(k) = extend_reference(EmptyReference(), FieldReferenceStep("cards"), RangeReferenceStep(k - 1, k))
+        # The title button of a card shows while the pointer is on the card, and the page keeps its grid, as the
+        # button reads the part under the pointer and the page maps it.
+        set_cell_value!(getfield(dashboard, :mouse_target), card_path(2))
+        @test is_color_transparent(buttons[1].style.label_text_color) && !is_color_transparent(buttons[2].style.label_text_color)
+        @test pane.content === grid && Int(pane.scroll_position.y[]) == 40
+        set_cell_value!(getfield(dashboard, :mouse_target), card_path(3))
+        set_cell_value!(getfield(dashboard, :selection), card_path(1))
+        @test !is_color_transparent(buttons[1].style.label_text_color) && !is_color_transparent(buttons[3].style.label_text_color)
+        @test pane.content === grid && Int(pane.scroll_position.y[]) == 40
+    end
+
+    @testset "a dashboard bounds its pane by the part of the page that shows" begin
+        study = Dashboard("Study", Any[DashboardCard(string("Card ", k), PrimitiveString(string("text of ", k)))
+                                       for k in 1:60])
+        # The visible height of a scroll area that grows on its height, or the exact
+        # height of its slot; with neither, no bound. The rows of the grid are a list,
+        # which a renderer reads down to the bottom of the pane
+        # (`test_dashboard_render()`).
+        pane_of(context) = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, study,
+                                          context).output.children[2].max_height
+        @test pane_of(with_visible_size(PrinterContext(); height = Cell(500))) == 500
+        @test pane_of(with_exact_size(PrinterContext(); width = Cell(300), height = Cell(600))) == 600
+        @test pane_of(PrinterContext()) === nothing
+        @test print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, study,
+                             PrinterContext()).output.children[2].child.content.children isa ListNode
+    end
 end
 end
 
-# Run frames of `editor` until `test()` holds, for at most four seconds.
-function _explorer_wait_until(test, editor)
-    deadline = time() + 4
+# Run frames of `editor` until `done()` holds, at most `seconds`.
+function _explorer_run_frames_until(editor, done; seconds::Real = 30)
+    deadline = time() + seconds
     while time() < deadline
         drain_operations!(editor)
         run_frame!(editor)
-        test() && return true
+        done() && return true
         sleep(0.02)
     end
     false
 end
+
+# Draw the view as the frame of a window draws it: the print of a view demands the text
+# of its file, in the evaluation of the editor.
+_explorer_draw_file_view(editor, view) =
+    run_with_evaluation_editor(editor) do
+        length(print_document(FileViewToWidget(), nothing, view, nothing).output.children)
+    end
+
+# Whether `file` holds the text of every change that was reported.
+_explorer_is_file_read(file) =
+    get_file_disk_state(file).loaded_count >= get_file_disk_state(file).read_count
+
+# Run frames of `editor` until `test()` holds, while the editor has work that can
+# change what a frame shows: a work of a background cell that runs or whose answers
+# wait, or an operation that the last drain applied. A frame after which nothing
+# runs or waits ends the wait, so the wait follows the work, and a slow machine
+# waits as long as its work takes. The deadline only ends a work that never ends.
+function _explorer_wait_until(test, editor)
+    deadline = time() + 120
+    while time() < deadline
+        drained = drain_operations!(editor)
+        run_frame!(editor)
+        test() && return true
+        (drained > 0 || _explorer_has_running_work(editor)) || return false
+        sleep(0.02)
+    end
+    false
+end
+
+# Run frames of `editor` until nothing runs or waits, as a wait for a test that
+# never holds ends.
+_explorer_run_until_idle(editor) = (_explorer_wait_until(() -> false, editor); nothing)
+
+# Whether a work of a background cell of `editor` runs, or ended and its answers
+# wait in the inbox: its record ends when the editor writes the answers.
+_explorer_has_running_work(editor) =
+    any(record -> record.finished === nothing, get_background_work_store(editor).records)

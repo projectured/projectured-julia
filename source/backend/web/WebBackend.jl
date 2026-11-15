@@ -113,6 +113,9 @@ end
 # Key mapping (server-side; the key names of sdl_keysym_to_symbol)
 # ════════════════════════════════════════════════════════════════════════
 
+# The names of the digit keys `0` to `9`, in order.
+const _DIGIT_KEYS = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+
 """
     convert_web_key_to_symbol(key, code, mods) -> Symbol
 
@@ -121,7 +124,7 @@ to the backend-agnostic key vocabulary, with the names that `sdl_keysym_to_symbo
 gives. The browser reports the character that a key types, so a character that
 SDL names only on the keypad, such as `*`, has its name here on every key.
 A letter key `a` to `z` or `A` to `Z` has the name of its lower-case letter,
-`:a` to `:z`. Printable keys whose specific identity is not tracked return
+`:a` to `:z`. A digit key has the name of its digit, `:zero` to `:nine`. Printable keys whose specific identity is not tracked return
 `:char` (the character itself arrives separately via a `keypress` → `KeyPress`).
 """
 function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
@@ -173,7 +176,7 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c == ']' && return :right_bracket
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus
-        c == '0' && return :zero          # Ctrl+0 — reset transform/zoom
+        '0' <= c <= '9' && return _DIGIT_KEYS[c - '0' + 1]
         lc = lowercase(c)
         'a' <= lc <= 'z' && return Symbol(lc)
         return :char
@@ -204,6 +207,24 @@ function _list_nodes(head::ListNode)
         push!(nodes, node); node = node.next
     end
     nodes
+end
+
+# The draw-list node of a polyline or a spline `elem` along `points`: the line
+# that the SDL backend strokes, without the part under each arrowhead, and the
+# triangles of the arrowheads in `heads`, so the client computes no arrowhead.
+function _serialize_line(elem, points)
+    size = Int(elem.arrow_size)
+    start_arrow, end_arrow = elem.start_arrow, elem.end_arrow
+    line = compute_polyline_before_arrowheads(points, size; start_arrow, end_arrow)
+    heads = Any[]
+    end_arrow && push!(heads, build_polyline_arrowhead(points, size; at_end = true))
+    start_arrow && push!(heads, build_polyline_arrowhead(points, size; at_end = false))
+    d = Dict("t" => "polyline", "pts" => [[round(Int, p[1]), round(Int, p[2])] for p in line],
+             "c" => _rgba(elem.color), "w" => Int(elem.width),
+             "heads" => [[[round(corner[1]; digits = 2), round(corner[2]; digits = 2)] for corner in head]
+                         for head in heads if !isempty(head)])
+    elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
+    d
 end
 
 # Serialize one element into a draw-list node, or `nothing` to skip it.
@@ -245,27 +266,14 @@ function _serialize_node(elem)
                     "start" => Float64(elem.start_angle), "sweep" => Float64(elem.sweep_angle),
                     "c" => _rgba(elem.color))
     elseif elem isa GraphicsPolyline
-        pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
-        d = Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
-                 "w" => Int(elem.width),
-                 "sa" => elem.start_arrow, "ea" => elem.end_arrow,
-                 "as" => Int(elem.arrow_size))
-        elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
-        return d
+        return _serialize_line(elem, collect(elem.points))
     elseif elem isa GraphicsPolygon
         pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
         return Dict("t" => "polygon", "pts" => pts, "c" => _rgba(elem.color),
                     "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
     elseif elem isa GraphicsSpline
         # Tessellate server-side so the browser only needs the polyline path.
-        tess = tessellate_spline(elem.points, elem.kind, elem.segments)
-        pts = [[round(Int, p[1]), round(Int, p[2])] for p in tess]
-        d = Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
-                 "w" => Int(elem.width),
-                 "sa" => elem.start_arrow, "ea" => elem.end_arrow,
-                 "as" => Int(elem.arrow_size))
-        elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
-        return d
+        return _serialize_line(elem, tessellate_spline(elem.points, elem.kind, elem.segments))
     elseif elem isa GraphicsViewport
         content = elem.content::GraphicsCanvas
         d = Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),

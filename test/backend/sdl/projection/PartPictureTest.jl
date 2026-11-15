@@ -1,6 +1,6 @@
 # A picture of a part and of the window, as the editor draws them, written with
 # the SDL backend and no window: the window of the application with an
-# assistant, a part that an Alt+click selects, and the button that puts a picture
+# assistant, a part that an Alt+double click selects, and the button that puts a picture
 # into the draft.
 
 function test_part_picture()
@@ -18,8 +18,8 @@ function test_part_picture()
         window = write_window_picture(editor, nothing, joinpath(directory, "window.png"))
         @test window isa ImageFile
         @test _read_png_size(window.filename) == (1600, 1000)
-        # An Alt+click on the assistant selects a part of its conversation as a whole.
-        press = MouseClick(:left, 1300, 300, 1, ModifierKeys(alt = true); time = 0.0)
+        # An Alt+double click on the assistant selects a part of its conversation as a whole.
+        press = MouseClick(:left, 1300, 300, 2, ModifierKeys(alt = true); time = 0.0)
         change = read_intent(composed, nothing, Intent(WindowInput(:ProjecturEd, press)), editor.iomap)
         evaluate_operation(editor, change.operation)
         drain_operations!(editor)

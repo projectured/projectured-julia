@@ -67,7 +67,14 @@ function print_document(p::GestureLogToSyntax, recursion, log::GestureLog, ctx::
         end
         lines
     end))
-    SimpleIoMap(p, log, SyntaxNode(children; sep = "\n"))
+    # The node holds the forward image of the paths of the log, so a selected line
+    # is drawn; the node maps a path into its lines itself.
+    iomap_cell = Cell(nothing)
+    paths = make_output_path_cells(log, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)
+    iomap_cell[] = SimpleIoMap(p, log, SyntaxNode(children; sep = "\n", paths...))
 end
 
 # One line: "  12  Ctrl+C            set .entries[1].value = 1".

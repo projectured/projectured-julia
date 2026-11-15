@@ -52,7 +52,19 @@ type that a person does not edit ([`is_editable_file_type`](@ref)) is read with
 it, so a type whose file is too large to read whole, such as the vector file of
 a simulation, reads only what it needs. The default reads the text through
 [`parse_file_content`](@ref).
+
+Use it to read the content of a file of a given file type without opening a window on it.
+
+# Example
+
+    content_1 = read_file_content(JsonFile, "data.json")
+
+See also `get_file_content`.
+
+For the assistant.
 """
+function read_file_content end
+
 read_file_content(T::Type{<:FileDocument}, path::AbstractString) = parse_file_content(T, read(path, String))
 
 # One file of a set: a file that a person edits from its text, any other from
@@ -106,8 +118,10 @@ end
 """
     load_file(base_dir, filename) -> file document
 
-One file, parsed. A marker in it stays a leaf, because there is nothing in the
-set to splice it to.
+One file, parsed and spliced as a set of one file. A marker that names the file
+itself gets the node that it names, so a node that the file holds at two places
+is one object, and a cycle is a cycle. A marker that names another file stays a
+leaf, because there is nothing in the set to splice it to.
 """
 load_file(base_dir::AbstractString, filename::AbstractString) =
     load_project(base_dir, [filename]).files[1]
@@ -121,6 +135,10 @@ _referenced_filenames(file) =
     _collect_references!(String[], get_file_content(file), IdDict{Any,Bool}())
 
 function _collect_references!(names::Vector{String}, node, visited::IdDict)
+    if node isa Union{Tuple,NamedTuple}
+        foreach(element -> _collect_references!(names, element, visited), node)
+        return names
+    end
     node isa Document || return names
     haskey(visited, node) && return names
     visited[node] = true
@@ -131,7 +149,7 @@ function _collect_references!(names::Vector{String}, node, visited::IdDict)
         return names
     end
     for name in fieldnames(typeof(node))
-        is_view_state_field(name) && continue
+        is_view_state_field(typeof(node), name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         if is_element_collection(value) || value isa AbstractVector
@@ -145,10 +163,17 @@ function _collect_references!(names::Vector{String}, node, visited::IdDict)
     names
 end
 
+# The path `p` when `expression` is a whole `file("p")`, or `nothing`.
+function _find_file_expression_path(expression)
+    (expression isa Expr && expression.head === :call && expression.args[1] === :file &&
+     length(expression.args) == 2 && expression.args[2] isa AbstractString) || return nothing
+    String(expression.args[2])
+end
+
 function _collect_file_names!(names::Vector{String}, e::Expr)
-    if e.head === :call && e.args[1] === :file && length(e.args) == 2 &&
-       e.args[2] isa AbstractString
-        push!(names, String(e.args[2]))
+    path = _find_file_expression_path(e)
+    if path !== nothing
+        push!(names, path)
         return names
     end
     for argument in e.args
@@ -161,29 +186,31 @@ end
 
 function _splice!(project::FileProject; tolerant::Bool = false)
     index = Dict{String,Any}(normpath(get_filename(file)) => file for file in project.files)
+    resolve = leaf -> _splice_target(project, index, leaf, tolerant)
     visited = IdDict{Any,Bool}()
     for file in project.files
         # A file whose whole content is a reference: the save cut at its root, and
         # a one-statement file parses to the statement itself.
-        target = _splice_target(project, index, get_file_content(file), tolerant)
+        target = resolve(get_file_content(file))
         if target !== nothing
             getfield(file, :content)[] = target
         else
-            _splice_walk!(project, index, get_file_content(file), visited, tolerant)
+            _splice_walk!(resolve, get_file_content(file), visited)
         end
     end
     project
 end
 
 # Every child slot of `node` whose leaf is a reference gets the node it names,
-# written into the slot's cell. The walk visits each object once, so a graph
+# written into the slot's cell. `resolve` answers the node that a leaf names, or
+# `nothing` for a leaf it leaves. The walk visits each object once, so a graph
 # the splice closes into a cycle still terminates.
-function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
+function _splice_walk!(resolve, node, visited::IdDict)
     node isa Document || return
     haskey(visited, node) && return
     visited[node] = true
     for name in fieldnames(typeof(node))
-        is_view_state_field(name) && continue
+        is_view_state_field(typeof(node), name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         # A plain vector in a cell holds references the same way a collection of
@@ -191,28 +218,57 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
         if is_element_collection(value) || value isa AbstractVector
             for index_in in eachindex(value)
                 element = value[index_in]
-                target = _splice_target(project, index, element, tolerant)
+                target = element isa Union{Tuple,NamedTuple} ?
+                         _splice_tuple(resolve, element, visited) :
+                         resolve(element)
                 if target !== nothing
                     value[index_in] = target
                 else
-                    _splice_walk!(project, index, element, visited, tolerant)
+                    _splice_walk!(resolve, element, visited)
                 end
             end
-        elseif value isa Document
-            target = _splice_target(project, index, value, tolerant)
+        elseif value isa Union{Tuple,NamedTuple}
+            target = _splice_tuple(resolve, value, visited)
             if target !== nothing
-                raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
-                                              name, " of ", typeof(node), ", which cannot be spliced")
+                raw isa AbstractCell || _throw_unspliceable_field(name, node)
+                raw[] = target
+            end
+        elseif value isa Document
+            target = resolve(value)
+            if target !== nothing
+                raw isa AbstractCell || _throw_unspliceable_field(name, node)
                 raw[] = target
             else
-                _splice_walk!(project, index, value, visited, tolerant)
+                _splice_walk!(resolve, value, visited)
             end
         end
     end
 end
 
+# A reference leaf in a plain field, which holds no cell to take the node that it names.
+_throw_unspliceable_field(name, node) =
+    error("a reference sits in a plain field, ", name, " of ", typeof(node),
+          ", which cannot be spliced")
+
+# A tuple or a named tuple built again with each reference leaf in it, at any
+# depth, replaced by the node that it names, or `nothing` when no leaf in it
+# names a node of the set. A document in it is walked as any other.
+function _splice_tuple(resolve, value::Union{Tuple,NamedTuple}, visited::IdDict)
+    changed = false
+    spliced = map(value) do element
+        target = element isa Union{Tuple,NamedTuple} ?
+                 _splice_tuple(resolve, element, visited) :
+                 resolve(element)
+        target === nothing || (changed = true; return target)
+        _splice_walk!(resolve, element, visited)
+        element
+    end
+    changed ? spliced : nothing
+end
+
 # The node a reference leaf names, or `nothing` when the leaf is not a reference
-# or names a file outside the set.
+# or names a file outside the set. `file(…)` names the file document, in a slot
+# as well as in the argument of another verb; `node(file(…), "")` names its root.
 function _splice_target(project, index, leaf, tolerant::Bool = false)
     marker = find_reference_marker(leaf)
     marker === nothing && return nothing
@@ -227,18 +283,61 @@ function _splice_target(project, index, leaf, tolerant::Bool = false)
             first(split(sprint(showerror, e), "\n"))
         nothing
     end
-    # `file(…)` names the file's content: the node the save cut at the root. As
-    # an argument to another verb it is the file document, which every verb
-    # that takes a document accepts.
-    target !== nothing && is_file_document(target) ? get_file_content(target) : target
+    target
+end
+
+"""
+    splice_held_files!(content, base_dir, find_file) -> content
+
+Replace each reference leaf of `content` whose marker is a whole `file("p")` with
+what `find_file(path)` answers for the absolute path of `p` against `base_dir`, and
+answer the content: `content` itself, or the file that it is when the whole content
+is such a leaf. `find_file` is asked once for each path, so two slots of one file
+get one answer. An answer `nothing` keeps the leaf. A `node(…)`, a `section(…)` and
+any other verb stay leaves. The walk goes into a tuple and a named tuple. It reads
+no disk and changes nothing outside `content`; a `find_file` can change state, as the
+one of each caller does when it adds a file to the open files of an editor.
+
+Use it where a file enters an editor, to give each file that it names the file
+document that the editor holds for it.
+
+# Example
+
+    splice_held_files!(content, "/work", path -> get(opened_files, path, nothing))
+
+See also `load_project` and `find_held_file`.
+"""
+function splice_held_files!(content, base_dir::AbstractString, find_file)
+    answers = Dict{String,Any}()
+    resolve = leaf -> _find_held_file_answer!(answers, leaf, base_dir, find_file)
+    visited = IdDict{Any,Bool}()
+    target = content isa Union{Tuple,NamedTuple} ? _splice_tuple(resolve, content, visited) : resolve(content)
+    target !== nothing && return target
+    _splice_walk!(resolve, content, visited)
+    content
+end
+
+# What `find_file` answers for the file that `leaf` names as a whole `file("p")`, or
+# `nothing` for any other leaf. `answers` keeps one answer for each path.
+function _find_held_file_answer!(answers::Dict{String,Any}, leaf, base_dir::AbstractString, find_file)
+    marker = find_reference_marker(leaf)
+    marker === nothing && return nothing
+    expression = _parse_marker_expression(marker)
+    relative = _find_file_expression_path(expression)
+    relative === nothing && return nothing
+    path = abspath(joinpath(base_dir, relative))
+    haskey(answers, path) || (answers[path] = find_file(path))
+    answers[path]
 end
 
 # The marker vocabulary, evaluated against the set: `file` and `node` here, a
-# capitalised name as a constructor, any other verb through the registry, with
-# the arguments evaluated the same way. A `file` naming a file outside the set
+# capitalised name as a constructor, a text of a format as the document it reads
+# to, any other verb through the registry, with the arguments evaluated the same
+# way. A `file` naming a file outside the set
 # answers `nothing`, and so does anything built on it.
 function _evaluate_splice(project, index, e::Expr)
     e.head === :vect && return Any[_evaluate_splice(project, index, a) for a in e.args]
+    _is_marker_text(e) && return _read_inline_text(_get_marker_text_tag(e), e.args[3])
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
         isempty(fields) && return ()
@@ -319,9 +418,9 @@ function parse_path_text(text::AbstractString)
     extend_reference(EmptyReference(), steps...)
 end
 
-# A file's root is `file(…)`, so a path here always has a step. The save writes a
-# field step and an element index and nothing else, so any other step kind in a
-# marker is an error, not a path.
+# The empty path names the root of the file. The save writes a field step and an
+# element index and nothing else, so any other step kind in a marker is an error,
+# not a path.
 function _evaluate_path_text(root, text::AbstractString)
     path = try
         parse_path_text(text)
@@ -329,7 +428,6 @@ function _evaluate_path_text(root, text::AbstractString)
         exception isa ArgumentError || rethrow()
         error("node(…): ", exception.msg)
     end
-    path isa EmptyReference && error("node(…): an empty path names the file; write file(…) instead")
     evaluate_reference(root, path)
 end
 

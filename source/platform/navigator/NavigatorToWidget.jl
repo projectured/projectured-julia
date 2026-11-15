@@ -72,16 +72,22 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
                parent = _make_action("Parent", :arrow_up,
                                      () -> find_navigator_parent_address(navigator) !== nothing),
                open_tab = _make_action("Open in a tab", :external_link, () -> true))
-    buttons = Any[WidgetToolbarItem(actions.back; tooltip = "Go back to the page before (Ctrl+[)."),
-                  WidgetToolbarItem(actions.forward; tooltip = "Go forward to the next page (Ctrl+])."),
-                  WidgetToolbarItem(actions.parent; tooltip = "Go to the page that holds this page (Ctrl+Up).")]
+    # Each button names the key of the navigator that does what it does.
+    note(title, binding, text) = TooltipNote(; title, keys = find_bound_keys(Navigator, binding), text)
+    buttons = Any[WidgetToolbarItem(actions.back; tooltip = note("Back", "Go back", "Go to the page before.")),
+                  WidgetToolbarItem(actions.forward; tooltip = note("Forward", "Go forward", "Go to the next page.")),
+                  WidgetToolbarItem(actions.parent;
+                                    tooltip = note("Parent", "Go to the parent page", "Go to the page that holds this page."))]
     # The bar ends with Open in a tab, after the address, so the path view keeps its
-    # place in the bar.
-    open_tab = WidgetToolbarItem(actions.open_tab; tooltip = "Open this page in a new tab.")
+    # place in the bar. Its label says what it does.
+    open_tab = WidgetToolbarItem(actions.open_tab)
     crumbs = Cell(@computation _make_address_crumbs(navigator))
     switch = _make_view_switch(navigator.address_draft)
     address_projection = make_navigator_address_projection(navigator; p.syntax_theme)
-    address_iomap = print_document(address_projection, recursion, navigator.address_draft, ctx)
+    # The address is a part of the bar, which the view draws, so its offer gives no
+    # space: the space of the slot goes to the grid of the view.
+    address_ctx = ctx === nothing ? nothing : with_size_range(ctx)
+    address_iomap = print_document(address_projection, recursion, navigator.address_draft, address_ctx)
     path = _make_path_action(navigator)
     bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., switch,
                                                             _make_address_part(navigator, crumbs[], address_iomap.output,
@@ -129,8 +135,9 @@ const _ADDRESS_VIEWS = [:titles, :path, :types]
 function _make_view_switch(draft::NavigatorAddress)
     switch = WidgetToggleGroup(["Names", "Path", "Types"]; look = :step, values = _ADDRESS_VIEWS,
                                target = draft, field = "view",
-                               tooltip = "The address as names, as a path, or as a path with types: " *
-                                         "a press shows the next, Shift+press the one before.")
+                               tooltip = TooltipNote(; title = "View of the address",
+                                   text = "Show the address as names, as a path, or as a path with types.",
+                                   hint = "A press shows the next view, and a Shift+press the one before."))
     set_cell_computation!(getfield(switch, :selected),
                           () -> something(findfirst(==(draft.view), _ADDRESS_VIEWS), 1))
     switch
@@ -138,18 +145,28 @@ end
 
 # The widgets of the address in the view that the address copy names. The path
 # view is a press that starts an edit, and while an edit is on, the syntax of the
-# address copy, with a mark when Enter read a path that reaches no node.
+# address copy, with a mark when Enter read a path that reaches no node. The types
+# view puts the same mark before the steps that an edit cut.
 function _make_address_part(navigator::Navigator, crumbs, address_output, path)
     draft = navigator.address_draft
     view = draft.view
     if view === :path
-        draft.edited || return Any[WidgetToolbarItem(path; tooltip = "Edit the path (Ctrl+L).")]
+        draft.edited || return Any[WidgetToolbarItem(path; tooltip = TooltipNote(; title = "Path",
+                                       keys = find_bound_keys(Navigator, "Edit the address"), text = "Edit the path."))]
         draft.unreached_step == 0 && return Any[address_output]
-        return Any[address_output, WidgetLabel("✗ step $(draft.unreached_step) reaches no part")]
+        return Any[address_output, _make_unreached_icon(), WidgetLabel("step $(draft.unreached_step) reaches no part")]
     end
-    view === :types && return Any[WidgetLabel(_get_types_text(navigator))]
+    if view === :types
+        types = WidgetLabel(_get_types_text(navigator))
+        cut = _find_cut_steps_text(navigator)
+        return cut === nothing ? Any[types] : Any[types, _make_unreached_icon(), WidgetLabel(cut)]
+    end
     _get_crumb_widgets(crumbs)
 end
+
+# The mark before the part of an address that reaches no node: a cross in the
+# color of a fault.
+_make_unreached_icon() = WidgetIcon(:x; role = :error)
 
 # The press on the path, which starts an edit: its label is the path.
 function _make_path_action(navigator::Navigator)
@@ -169,15 +186,17 @@ _get_step_text(step::FieldReferenceStep) = "." * step.name
 _get_step_text(step::RangeReferenceStep) = "[" * string(step.stop) * "]"
 _get_step_text(step::ReferenceInsertion) = step.value
 
-# The path of the page with the type of each node, and, when an edit cut the
-# address, a mark and the part that no longer reaches a node.
-function _get_types_text(navigator::Navigator)
-    page = get_navigator_page_address(navigator)
-    text = string(annotate_reference_types(navigator.content, page))
+# The path of the page with the type of each node.
+_get_types_text(navigator::Navigator) =
+    string(annotate_reference_types(navigator.content, get_navigator_page_address(navigator)))
+
+# The steps of the address that no longer reach a node after an edit cut it, or
+# `nothing` when every step reaches one.
+function _find_cut_steps_text(navigator::Navigator)
     stored = get_reference_steps(navigator.address)
-    reached = length(get_reference_steps(page))
-    reached < length(stored) || return text
-    text * "  ✗ " * join(_get_step_text(step) for step in stored[(reached + 1):end])
+    reached = length(get_reference_steps(get_navigator_page_address(navigator)))
+    reached < length(stored) || return nothing
+    join(_get_step_text(step) for step in stored[(reached + 1):end])
 end
 
 # ── The address ───────────────────────────────────────────────────────────────
@@ -222,7 +241,8 @@ function _make_address_crumbs(navigator::Navigator)
 end
 
 # The name, the tooltip and the address of each document from the content to the
-# page, past the collections, and of the page last.
+# page, past the collections, and of the page last. The tooltip of a part names
+# its path as a fact.
 function _get_address_parts(navigator::Navigator)
     content = navigator.content
     steps = get_reference_steps(get_navigator_page_address(navigator))
@@ -232,12 +252,13 @@ function _get_address_parts(navigator::Navigator)
         (stop == length(steps) || is_navigator_stop(evaluate_reference(content, prefix(stop)))) &&
             push!(stops, stop)
     end
-    parts = Tuple{String,String,Reference}[]
+    parts = Tuple{String,Any,Reference}[]
     for (index, stop) in enumerate(stops)
         address = prefix(stop)
         label = _get_address_label(evaluate_reference(content, address),
                                    steps[(index == 1 ? 1 : stops[index - 1] + 1):stop])
-        tooltip = stop == 0 ? "The whole content." : print_path_text(address)
+        tooltip = stop == 0 ? "The whole content." :
+                  TooltipNote(; title = label, facts = ["Path" => print_path_text(address)])
         push!(parts, (label, tooltip, address))
     end
     parts
@@ -261,10 +282,11 @@ function _make_choice_menu_operation(navigator::Navigator, crumb::_AddressCrumb,
     index = length(steps)
     node = evaluate_reference(navigator.content, extend_reference(EmptyReference(), steps[1:(index - 1)]...))
     current = steps[index]
-    find = query -> find_navigator_choices(node, current; query)
-    row = something(findfirst(choice -> last(choice) == current, find("")), 1)
-    list = NavigatorChoiceList(; row, current, find,
-                               choose = step -> make_navigator_choice_operation(navigator, index, step))
+    find = query -> WidgetChoice[WidgetChoice(label; value = step)
+                                 for (label, step) in find_navigator_choices(node, current; query)]
+    row = something(findfirst(choice -> choice.value == current, find("")), 1)
+    list = WidgetChoiceList(; row, current, placeholder = "type a name or a number", empty = "No part matches",
+                            find, choose = step -> make_navigator_choice_operation(navigator, index, step))
     point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
     ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[(crumb.label, list, 0)],
                                                        annotate_reference_types(navigator, EmptyReference()),
@@ -430,6 +452,9 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
               DoNothingOperation())
 end
 
+# An open that the page answers, such as a click on a link, shows the page and
+# moves no selection: the selection stays where the person put it, as a click on a
+# link of a browser selects nothing.
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation, gesture)
     navigator = iomap.input
     operation.target === nothing || return _follow_navigator_target(navigator, operation)
@@ -442,24 +467,32 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOpe
         address = get_reference_tail(reference)
         operation.place === :here ||
             return OpenPageOperation(navigator.content, address, operation.place)
-        return something(make_navigator_open_operation(navigator, address), DoNothingOperation())
+        return something(make_navigator_open_operation(navigator, address; selects = false), DoNothingOperation())
     end
     operation.place === :here || return operation
-    something(make_navigator_open_operation(navigator, operation.document, operation.reference),
+    something(make_navigator_open_operation(navigator, operation.document, operation.reference; selects = false),
               DoNothingOperation())
 end
 
 # A link to a target: the domain of the content resolves it. A part of the
 # content opens as a visit, or, for a new tab, as an open rooted at the content,
 # which goes on up. A file opens in a new tab with a navigator of its own, as the
-# open of a file does. A target that names nothing here is answered, and does
-# nothing.
+# open of a file does. An address whose document a package reads
+# (`find_url_document`) opens that document as a visit, or as an open of it in a
+# new tab. A target that names nothing here is answered, and does nothing.
 function _follow_navigator_target(navigator::Navigator, operation::OpenPageOperation)
     found = find_navigator_target(navigator.content, operation.target)
     found isa AbstractString && return OpenFileOperation(found; file_wrap = Navigator)
+    if found isa Url
+        document = find_url_document(found)
+        document === nothing && return OpenUrlOperation(found, operation.place)
+        operation.place === :here || return OpenPageOperation(document, EmptyReference(), operation.place)
+        return something(make_navigator_open_operation(navigator, document, EmptyReference(); selects = false),
+                         DoNothingOperation())
+    end
     found isa Reference || return DoNothingOperation()
     operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
-    something(make_navigator_open_operation(navigator, found), DoNothingOperation())
+    something(make_navigator_open_operation(navigator, found; selects = false), DoNothingOperation())
 end
 
 # A write of the address copy, such as the view that the control picks, is view

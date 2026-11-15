@@ -29,14 +29,33 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
     make_window_file_menu() -> WidgetMenuItem
 
 The File menu: the name on the bar, and the menu that opens below it. Its
-commands open a tab in the focused group and close the focused tab.
+commands open a tab in the focused group, open a file with the Open dialog
+(Ctrl+O), find a file of the folders of the Explorer by its name (Ctrl+P,
+[`open_file_search!`](@ref)), and close the focused tab. After a separator,
+**Exit** (Ctrl+Q) quits the editor, as the close button of the window does. The
+window fires a shortcut before the focused part reads the key, so Ctrl+O and
+Ctrl+P work wherever the focus is.
+
+The Open dialog starts in the folder of the file of the focused tab, else in the
+first folder of the Explorer, else in the current folder.
 """
 make_window_file_menu() =
     WidgetMenuItem("File"; submenu = WidgetMenu(Any[
         make_window_command("New tab", _open_tab!;
                             shortcut = Shortcut(:t; ctrl = true)),
+        make_window_command("Open file…",
+                            editor -> open_file_dialog!(; directory = _find_open_dialog_folder(editor), editor);
+                            shortcut = Shortcut(:o; ctrl = true),
+                            tooltip = "Open a file with the Open dialog."),
+        make_window_command("Go to file…", _open_file_search!;
+                            shortcut = Shortcut(:p; ctrl = true),
+                            tooltip = "Find a file of the folders of the Explorer by its name, and open it."),
         make_window_command("Close tab", _close_tab!;
                             shortcut = Shortcut(:w; ctrl = true)),
+        WidgetSeparator(),
+        make_window_command("Exit", editor -> evaluate_operation(editor, QuitEditorOperation());
+                            shortcut = Shortcut(:q; ctrl = true),
+                            tooltip = "Close the window and quit."),
     ]))
 
 """
@@ -69,15 +88,15 @@ make_window_view_menu(; recorded = RECORDED_TOOLS) =
         (:gesture_log in recorded ? (make_window_command("Gesture log",
                                          editor -> _reach_tool!(editor, GestureLog,
                                                                 _make_default_tool(GestureLog));
-                                         tooltip = "Every gesture of this session, and what each one did"),) :
+                                         tooltip = "Every gesture of this session, and what each one did."),) :
                     ())...,
         make_window_command("Appearance",
                             editor -> _reach_tool!(editor, Appearance, _make_appearance_tool);
                             shortcut = Shortcut(:comma; ctrl = true),
-                            tooltip = "The zoom and the scales of this window"),
+                            tooltip = "The zoom and the scales of this window."),
         make_window_command("Settings",
                             editor -> _reach_tool!(editor, Settings, _find_tool_settings);
-                            tooltip = "How this editor works"),
+                            tooltip = "Change how this editor works."),
     ]))
 
 """
@@ -85,9 +104,11 @@ make_window_view_menu(; recorded = RECORDED_TOOLS) =
                           command_palette = false) -> WidgetMenuItem
 
 The Help menu: the name on the bar, and the menu that opens below it. Its
-commands open a tab with every document type that an empty tab can make, a tab
-with every projection, and the page about the program. Each reaches the tab
-that already shows one, and opens one only when there is none.
+commands open a tab with the tree of every document type that an empty tab can
+make, a tab with the tree of every projection, and the page about the program.
+A tree opens in a navigator, which shows one group or one type at a time, with
+Back, Forward, Parent and the address. Each command reaches the tab that already
+shows its document, and opens one only when there is none.
 
 `about` makes the page of the program that the window runs, from the editor.
 The default page describes ProjecturEd; a window of another program gives its
@@ -101,31 +122,33 @@ is open. The wrapper keeps its tool, so the command sends
 the content of the shell. The wrapper is around the shell, so it finds the
 operation on its way up and answers what its key answers. The item carries no
 shortcut, because the key reaches the wrapper itself, and its tooltip names the
-key.
+key from the binding of the wrapper.
 """
 make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false, command_palette = false) =
     WidgetMenuItem("Help"; submenu = WidgetMenu(Any[
         (gesture_help ? (make_window_command("Gestures",
                              editor -> _post_shell_content_operation!(
                                  editor, ToggleGestureHelpOperation(), "Open or close the gesture help");
-                             tooltip = "The gestures that work where the selection is (F1)"),) :
+                             tooltip = TooltipNote(; title = "Gestures", keys = Any[HELP_GESTURE],
+                                                   text = "The gestures that work where the selection is.")),) :
                         ())...,
         (command_palette ? (make_window_command("Command palette",
                                 editor -> _post_shell_content_operation!(
                                     editor, ToggleCommandPaletteOperation(),
                                     "Open or close the command palette");
-                                tooltip = "Find a command that works here, and run it (Ctrl+Shift+P)"),) :
+                                tooltip = TooltipNote(; title = "Command palette", keys = Any[COMMAND_PALETTE_GESTURE],
+                                                      text = "Find a command that works here, and run it.")),) :
                            ())...,
         make_window_command("Documents",
                             editor -> _reach_tool!(editor, DocumentTypeList,
-                                                   _make_scrolling_tool(DocumentTypeList));
-                            tooltip = "Every document type that an empty tab can make"),
+                                                   _make_navigating_tool(DocumentTypeList));
+                            tooltip = "Every document type that an empty tab can make, by package and by slice."),
         make_window_command("Projections",
                             editor -> _reach_tool!(editor, ProjectionList,
-                                                   _make_scrolling_tool(ProjectionList));
-                            tooltip = "Every projection: the views of a document, and the projections that combine them"),
+                                                   _make_navigating_tool(ProjectionList));
+                            tooltip = "Every projection, by package and by slice: the views of a document, and the projections that combine them."),
         make_window_command("About", editor -> _reach_tool!(editor, AboutPage, about);
-                            tooltip = "What this program is, and its version"),
+                            tooltip = "What this program is, and its version."),
     ]))
 
 """
@@ -206,29 +229,29 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, files = nothing, 
                     assistant_list::Bool = false, extra = []) =
     WidgetToolbar(Any[
         make_window_tool_command("Explorer", Explorer; icon = :folder_tree,
-                                 tooltip = "Explorer: the files, the tasks, the assistants and the tools of this editor",
+                                 tooltip = "The files, the tasks, the assistants and the tools of this editor.",
                                  make = something(explorer, _make_default_tool(Explorer))),
         make_window_tool_command("Files", WorkspaceExplorer; icon = :folder,
-                                 tooltip = "Files: the files of this window's folder",
+                                 tooltip = "The files of the folder of this window.",
                                  make = something(files, _make_default_tool(WorkspaceExplorer))),
         (assistant === nothing ? () :
             (make_window_tool_command("Assistant", Assistant; icon = :chat,
-                                      tooltip = "Assistant: ask a model about what this window shows",
+                                      tooltip = "Ask a model about what this window shows.",
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
-                                 tooltip = "Evaluator: type Julia, and Enter evaluates it"),
+                                 tooltip = "Type Julia code, and evaluate it."),
         _make_recorded_tool_commands(recorded)...,
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
-                                 tooltip = "Selection: what the selection of this window names"),
+                                 tooltip = "What the selection of this window names."),
         make_window_tool_command("Appearance", Appearance; icon = :palette,
-                                 tooltip = "Appearance: the zoom and the scales of this window",
+                                 tooltip = "The zoom and the scales of this window.",
                                  make = _make_appearance_tool),
         make_window_tool_command("Settings", Settings; icon = :settings,
-                                 tooltip = "Settings: how this editor works",
+                                 tooltip = "Change how this editor works.",
                                  make = _find_tool_settings),
         (assistant_list ?
             (make_window_tool_command("Assistants", AssistantList; icon = :chats,
-                 tooltip = "Assistants: every assistant conversation of this window"),) : ())...,
+                 tooltip = "Every assistant conversation of this window."),) : ())...,
         extra...,
     ])
 
@@ -247,19 +270,19 @@ const RECORDED_TOOLS = (:message_log, :gesture_log, :fault_log, :frame_statistic
 _make_recorded_tool_commands(recorded) = (
     (:message_log in recorded ?
         (make_window_tool_command("Message log", MessageLog; icon = :scroll_text,
-                                  tooltip = "Message log: what the program said in this session"),) : ())...,
+                                  tooltip = "What the program said in this session."),) : ())...,
     (:gesture_log in recorded ?
         (make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
-                                  tooltip = "Gesture log: every gesture of this session, and what each one did"),) :
+                                  tooltip = "Every gesture of this session, and what each one did."),) :
         ())...,
     (:fault_log in recorded ?
         (make_window_tool_command("Fault log", FaultLog; icon = :warning,
-                                  tooltip = "Fault log: what failed in this session, and how often"),) : ())...,
+                                  tooltip = "What failed in this session, and how often."),) : ())...,
     (:frame_statistics in recorded ?
-        (make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
-                                  tooltip = "Statistics: how long the frames of this window take"),
+        (make_window_tool_command("Frame statistics", FrameStatistics; icon = :chart,
+                                  tooltip = "How long the frames of this window take."),
          make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
-                                  tooltip = "Frame times: the time of each recent frame")) : ())...)
+                                  tooltip = "The time of each recent frame.")) : ())...)
 
 """
     make_window_tool_command(label, type; icon = nothing, tooltip = nothing,
@@ -301,11 +324,13 @@ _find_tool_settings(editor) = something(find_editor_settings(; editor), make_set
 
 # A list of the Help menu is longer than a pane, and a tab page gets no scroll of
 # its own, so the list opens inside a scroll pane.
-_make_scrolling_tool(type::Type) = _ -> WidgetScrollPane(make_insertion_document(type))
+# A tool that a person goes through one part at a time, such as a tree of the
+# help, opens in a navigator.
+_make_navigating_tool(type::Type) = _ -> Navigator(make_insertion_document(type))
 
-# What a tool tab shows: the content of the scroll pane that a scrolling tool
-# opens in, else the document itself.
-_get_tool_document(document) = document isa WidgetScrollPane ? document.content : document
+# What a tool tab shows: the content of the navigator that a tool opens in, else
+# the document itself.
+_get_tool_document(document) = document isa Navigator ? document.content : document
 
 # The pane slice's own edits, in the pane tree that holds the focus. A menu
 # command is a second way to the one implementation. It runs while the editor
@@ -354,7 +379,7 @@ function _find_shell_reference(root)
         end
     end
     found = search_references(root, node -> node isa WidgetShell;
-                              descend = (parent, child) -> !(parent isa WidgetShell))
+                              walk = DocumentWalk(; descend = (parent, child) -> !(parent isa WidgetShell)))
     length(found) == 1 ? only(found) : nothing
 end
 
@@ -391,11 +416,8 @@ function _reach_tool!(editor, type::Type, make)
     tree_reference, tree = found
     tool = _find_tool_tab(tree, type)
     if tool === nothing
-        document = make(editor)
-        shown = _get_tool_document(document)
-        # A tool in a scroll pane is titled by what it shows, not by the pane.
-        title = shown === document ? nothing : get_document_title(shown)
-        post_pane_operation!(editor, make_open_pane_operation(document; title = title, editor))
+        # A tab is titled by what it shows, and a navigator by its page.
+        post_pane_operation!(editor, make_open_pane_operation(make(editor); focus = true, editor))
     else
         group, index = tool
         _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),

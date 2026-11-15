@@ -1,6 +1,6 @@
 # Reactive cells
 
-> **Kind:** reference · **Status:** current · **Stands on:** [architecture.md](architecture.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [architecture.md](architecture.md)
 
 This guide says what a reactive cell holds, how a read records a dependency and a
 write invalidates the readers, and which invariants the engine relies on. It then
@@ -42,8 +42,9 @@ after it. Where an argument follows, write `@computation(expr)`, as in
 `pair(@computation(a[] + 1), b)`. `@computation f` computes the function `f` as
 a value, and does not call it; write `Computation(f)` for that.
 
-The struct also holds its `state`, the cells that it reads (`dependencies`), and
-the cells that read it (`dependents`), through a `WeakRef`, so a cell does not keep
+The struct also holds its `state`, the cells that it reads (`dependencies`), each
+with the place of this cell among the readers of that cell, and the cells that read
+it (`dependents`), through a `WeakRef`, so a cell does not keep
 its readers alive. Both edge fields are `nothing` until the first edge. The state is
 *valid*, *invalid*, *maybe invalid*, *checking*, *failed* or *computing*; the
 sections below say when each one holds.
@@ -83,7 +84,7 @@ evaluation on one task never records a reader for an evaluation on another task:
 
 So no code declares a dependency. A read records it.
 
-**The list of readers.** A run detaches its cell from every cell that it read before the run starts. So the reader of a read in a run is new to the list of the cell that it reads, unless the run read that cell already. `_register_dependent!` looks at the last entry of the list and puts the reader at the end, with no scan. A run that reads a cell again after another reader came puts a second entry of itself in the list. The next run of that reader, or a write to it, removes both entries, because a detach removes every entry of its reader. `_sweep_dependents!` removes the entries of collected readers when a list grows to more than twice its length after its last sweep plus 8, and every detach sweeps too. So a list stays within about twice the readers that were alive at its last sweep. The cell keeps the length after the sweep in the field `swept_length`.
+**The list of readers.** A run detaches its cell from every cell that it read before the run starts. So the reader of a read in a run is new to the list of the cell that it reads, unless the run read that cell already. `_register_dependent!` puts the reader at the end of the list, with no scan, and answers its place. **The reader keeps that place:** each entry of `dependencies` is a `_Dependency`, the cell that the run read and the place of the reader in the `dependents` of that cell. So a detach takes the entry at its place with no scan of the list, also of a cell that thousands of cells read (`_remove_dependent!`): the last entry moves into the place, and the reader of the moved entry learns its new place (`_move_dependency_place!`, a scan of the dependencies of that reader for the cell and the old place). A run that reads a cell again after another one puts a second entry in both lists, and the end of the run takes the repeats out, from the highest place down, so an entry that moves into a free place is never a repeat that waits for its removal. `_sweep_dependents!` removes the entries of collected readers when a list grows to more than twice its length after its last sweep plus 8, and tells each live entry that moves its new place. So a list stays within about twice the readers that were alive at its last sweep. The cell keeps the length after the sweep in the field `swept_length`. The list stays a `Vector{WeakRef}`, as the sealed `has_dependent_cells` reads it; an edge costs 8 bytes more for its place. A thousand readers detach in 0.19 ms beside 100_000 readers of their cell, where a scan took 79 ms (`test_cell`).
 
 ## Invalidation
 
@@ -253,15 +254,17 @@ A **provisional value** is a value that is valid now, and that a newer value wil
 ```julia
 is_cell_provisional(c)             # is the value of c provisional?
 mark_computation_provisional!()    # inside a computation: its value is provisional
+mark_computation_provisional!(; ask_again = true)   # ... and it asked nowhere that keeps the ask
 is_computation_running()           # does a computation run on this task now?
+run_recomputing_provisional_cells(f)                # every provisional cell asks again inside f
 ```
 
 The rules:
 
 - **The flag goes up.** A computation that reads a provisional cell is provisional. So every computation that the value reaches is provisional, and a computation that reads final values only is final.
 - **A run clears the flag.** A computation starts final and becomes provisional when it reads a provisional cell or calls `mark_computation_provisional!()`. A write of a value is final. The call throws an `ArgumentError` outside a computation.
-- **The read rule.** A provisional cell computes again at each read by a computation. So a value that is still to come asks again wherever a computation uses it.
-- **The stop rule.** A computation that gives the same plain value as before stops the check below it only when its flag is the same too. A change of the flag is a change for the readers.
+- **The read rule.** A provisional value that asks again computes again at each read by a computation, so it asks wherever a computation uses it, until a run asks. A computation asks again when it calls `mark_computation_provisional!(; ask_again = true)`, because it could ask for its newer value nowhere that keeps the ask, or when it reads a cell that asks again. Every other provisional value stays as it is at a read, until the write of the cell that its newer value arrives in makes it compute again. Inside `run_recomputing_provisional_cells(f)`, every provisional cell computes again at each read by a computation: a wait that collects the asks of its own uses it.
+- **The stop rule.** A computation that gives the same plain value as before stops the check below it only when its flags are the same too. A change of a flag is a change for the readers.
 - **The failure rule.** A failure that a provisional value caused is provisional. A computation that catches that failure is provisional too.
 - **Untracked reads.** `peek`, `run_without_cell_tracking`, an `UntrackedCell` and a read on another task record no reader. They make no computation provisional.
 

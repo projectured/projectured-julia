@@ -1,6 +1,6 @@
 # The Ollama model backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md)
 
 `ProjecturedOllama` is an `Llm` backend that runs a model on this machine through a local Ollama server. It is an opt-in package that implements the `llm` layer of the kernel. This document says how the adapter translates the wire format of Ollama into the events of the kernel, how the backend registers itself, and what it does not do. The other backend is in [anthropic.md](../anthropic/anthropic.md).
 

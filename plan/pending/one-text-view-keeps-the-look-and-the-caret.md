@@ -1,6 +1,7 @@
 # One text view keeps the look and the caret
 
-**Status:** pending. Not started. The steps wait for the approval of the owner.
+**Status:** pending. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
+Hungarian keyboard"). Step 1 is done. Step 2 is next.
 
 This plan is point 1 of the order in
 `plan/tentative/content-and-view-for-the-whole-project.md`. The owner approved
@@ -137,7 +138,7 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
 
 ## Steps
 
-- [ ] **1. Merge `main` into `views-compose`.** The merge commit has one
+- [x] **1. Merge `main` into `views-compose`.** Done 2026-11-15; the record is below. The merge commit has one
   `TextView` type with the four fields. For this step only, the two printers
   stay, each with its caret rule: the printer of `main` for the text of a
   widget, with the step `viewed`, and the printer of the branch for the views.
@@ -163,6 +164,86 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
   guides of the text, the widgets, the syntax, JSON and Markdown, and the rule
   "Content documents and view documents". Both plans move to `plan/done/`. Then
   the session asks for the landing, and for the push apart.
+
+## Step 1: what the merge made
+
+- **The files of the setup commit** take the side of `main`: the build guide,
+  `mcp.md`, `BuildCommand.jl`, the manifest, and `ClaudeCodeAcpProgram.jl`, which
+  `main` removed.
+- **`TextView.jl`** has the one type, `TextView(viewed, wrap, line_spacing,
+  closed_folds) <: ContentView`, and the two printers of this step.
+  `make_text_view` and `TextViewToGraphics` name the step `viewed`. The key table
+  of a view has each row of the key table of a `TextBlock`, also the rows that
+  `main` added: Tab, Shift+Tab, Ctrl+Backspace, Ctrl+Delete and Ctrl+A. The key
+  helpers of `main` take the caret as an argument, as the helpers of the pilot do.
+- **`TextToGraphics.jl`** is the file of `main` with the split made again.
+  `_print_text_lines(p, spacing, styled, space)` lays out the lines and reads no
+  selection. `_make_selection_marks(p, overlay, is_live, space)` makes the band and
+  the caret. The readers that `main` added are shared too: the press, the drag, the
+  word and the line at a point, and the page keys take the layout of either
+  printer, and `_find_pointer_selection` takes the caret as an argument.
+- **`TextBlockToGraphicsCanvas`** has the fields that the layout of `main` reads:
+  the color of plain text, and in its IO map the line spacing, the places of the
+  lines, the space around the text and the height that shows.
+- **`TextFolding.jl`**: `_fold_text` gives the places of the lines that `main`
+  added, so the fold of a view and the fold of a block share them.
+- **`SyntaxDocument.jl`**: the key helpers of the pilot stay, with the rule of
+  `main` for a plain Left and Right in `_navigate_selected_syntax_node`, and the
+  row Ctrl+A of `main`.
+- **The clipboard**: a paste of the same view is a placed edit, which
+  `_read_paste` reads down to its place, as each paste of `main` is.
+- **A view answers `has_reference_step_child`.** `main` added this question to
+  the reference layer: does a step have a child in a document. A view answers it
+  as it answers the evaluation of a step: for a field that it does not have, its
+  content answers. Without it, each path of a view that names a field of the
+  content failed the check of a selection.
+- **A name clash that the merge did not show.** Both sides had an example
+  function `make_text_view_document_example`. The example of the pilot, one text
+  in two views at three places, is now `text_view_places`:
+  `make_text_view_places_document_example`, `make_text_view_places_projection_example`
+  and `text_view_places_example`, in `TextViewPlacesDocumentExample.jl` and
+  `TextViewPlacesProjectionExample.jl`.
+- **Tests that followed `main`.** A layout of `main` draws its children in a
+  canvas of their own, with the ring of the selection beside it, so four tests
+  find a place at `output.elements[1].elements[k]`. The helper that collects IO
+  maps skips a dictionary: the layout of the lines of `main` keeps cells in one,
+  and a cell of a line that is gone throws when it is read.
+
+- **The key tables of the syntax views** have the row Ctrl+A of `main`, and
+  their plain arrows use `_navigate_selected_syntax_node`, as the tables of the
+  content do.
+- **A paste selects a pasted view as a whole.** This is a change that a person
+  sees. Before the merge, a view that a paste put in kept a live caret. That was
+  an accident: the last selection write of a paste used the path object of the
+  stored selection, so it wrote nothing. On `main`, a paste goes down to its place
+  with a new path, so that write has its effect, and the tests of `main` fix the
+  form of the operation: a paste selects what it puts in as a whole. The merge
+  keeps the rule of `main` for a view too. The copy of the caret waits in the new
+  view as a dormant one. The other way, a paste that keeps the caret of a view
+  live, needs a rule for views only in the clipboard, and it is not built.
+- **A cut asks the owner of a list.** The cut of `main` took an element out of a
+  list with no question to the owner of the list, so a cut inside a view took a
+  child view out of the list of the view, which must follow the content.
+  `_make_whole_delete` now asks `_is_slot_accepting` for the slot, as a paste
+  does. A view owns no place, so a cut inside a view does nothing, as before the
+  merge. A cut of a view that is an element of a layout takes the element out of
+  the list, which is the rule of `main`; before the merge it left an empty
+  document.
+- **Tests, 2026-11-15, Julia 1.13.1, in a process for each set.**
+  - The text of both sides (`test_platform_layering`, `test_text_to_graphics`,
+    `test_word_wrapping`, `test_text_folding`, `test_text_view`,
+    `test_syntax_leaf_view`, `test_syntax_node_view`, `test_widget_text_editing`,
+    `test_widget_text_wrap`, `test_widget_text_fit`, `test_slot_space`,
+    `test_clipboard`): 922 pass, 5 fail. The 5 are known failures of `main`: the
+    two sets of the layer guard, with the same 10 entries as on `main`, and the
+    cut of a range in `ClipboardTest.jl` (lines 502 to 504).
+  - The domains and the umbrella (`test_selection`, `test_json`, `test_markdown`,
+    `test_markdown_json_view`, and `test_printer` of the seven view examples):
+    16160 pass, 0 fail.
+  - The naming guard passes.
+- **Left for step 3:** 186 of the 737 recorded precompile calls of
+  `ProjecturedJSON` do not resolve after the merge, so the package compiles more
+  while it runs until the record is made again.
 
 ## Risks
 

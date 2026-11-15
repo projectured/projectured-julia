@@ -1,6 +1,6 @@
 # MCP log
 
-> **Kind:** design · **Status:** current · **Stands on:** [log.md](../log/log.md), [mcp.md](../../adapter/mcp/mcp.md), [editor.md](../../kernel/editor.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [log.md](../log/log.md), [mcp.md](../../adapter/mcp/mcp.md), [editor.md](../../kernel/editor.md)
 
 The mcplog slice of `ProjecturedPlatform` shows each call that a client made over MCP, and that the server of the editor answered, as a document in a tab. A person reads in it what an agent did: which tool or resource it used, with which arguments, what it got back, how long the call held the editor, and whether the call was a fault. This document says how a call reaches the document from the task of the server.
 
@@ -18,7 +18,7 @@ A call that the adapter records is one of two: `tools/call`, with the name of th
 
 ### The theme
 
-`McpLogTheme` holds the texts of the header, of a call, of `answered` and `fault`, of a quiet text, and the gap between the parts. `make_mcp_log_projection(; theme)` fills the styles of the projection with `get_mcp_log_style`.
+`McpLogTheme` holds the texts of the header, of a call, of `answered` and `fault`, and of a quiet text. The gap between the parts is `form_row_gap` of the widget theme. `make_mcp_log_projection(; theme, widget_theme)` fills the styles of the projection with `get_mcp_log_style`.
 
 ## How it fits
 

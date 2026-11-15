@@ -8,11 +8,13 @@ authors = []
 [deps]
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}
 
 # AutoIntegration loads this package when Projectured is loaded, unless the

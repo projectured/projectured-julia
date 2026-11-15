@@ -90,6 +90,22 @@ _unsupported_message(document) =
     "no natural rendering for " * String(nameof(typeof(document)))
 
 """
+    make_natural_primitive_row(; measure, appearance = Appearance()) -> Pair
+
+The row that draws a primitive document that is no part of a syntax tree as
+plain text, with no quotes: a cell of a table, an element of a collection, a
+value in a tab. The natural projection has it, and a view with a table of its
+own puts it there, so the primitives of a document in that view draw as in a tab.
+"""
+function make_natural_primitive_row(; measure::TextMeasure, appearance::Appearance = Appearance())
+    text_theme = get_scaled_theme!(appearance, TextTheme)
+    text = TextToGraphics(; measure, theme = text_theme,
+                          line_spacing = make_style_field(TextTheme, text_theme, LineSpacing;
+                                                          name = :prose_line_spacing))
+    PrimitiveDocument => ChainingProjection(PrimitiveToText(; theme = text_theme), text)
+end
+
+"""
     NaturalToGraphics(; measure, font=nothing,
                         wrap=true, extra=Pair{Type,Any}[], appearance=Appearance())
         -> RecursiveProjection
@@ -100,7 +116,7 @@ layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 
 - `font`    — base font for text that no domain styles: the line of prose of a
               placeholder, and the fallback. `nothing`, the default, is the
-              `font` of the `TextTheme` of `appearance`, which follows its scale.
+              `plain_text` font of the `TextTheme` of `appearance`, which follows its scale.
 - `appearance` — the `Appearance` of the editor. Every widget draws with its
               `WidgetTheme`, the text with its `TextTheme`, and every registered
               row takes the scaled theme of its domain from it. The default is a
@@ -120,8 +136,9 @@ function NaturalToGraphics(; measure::TextMeasure,
                            appearance::Appearance = Appearance())
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
     graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
-    w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme)
+    tooltip_theme = get_scaled_theme!(appearance, TooltipTheme)
     text_theme = get_scaled_theme!(appearance, TextTheme)
+    w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme, text_theme)
     # Prose: a text document, at the prose spacing of the text theme.
     text = TextToGraphics(; measure, theme = text_theme,
                           line_spacing = make_style_field(TextTheme, text_theme, LineSpacing;
@@ -150,7 +167,7 @@ function NaturalToGraphics(; measure::TextMeasure,
         # A document that a person arranged prints its document with the
         # arrangement in the context, through this renderer.
         Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
-                       ArrangementChips => ArrangementChipsToGraphics(),
+                       ArrangementChips => ArrangementChipsToGraphics(; gap = get_widget_style(widget_theme, :item_gap)),
                        CellVector{ArrangementGroupRow} => ChainingProjection(ArrangementGroupRowsToWidget(),
                                                                              GridLayoutToGraphicsCanvas())],
         # layouts before widgets: a WidgetTable builds a GridLayout
@@ -169,11 +186,10 @@ function NaturalToGraphics(; measure::TextMeasure,
                        for type in collect_graphics_projection_types()],
         get_natural_graphics_entries(measure = measure, appearance = appearance),
         # A primitive document that is no part of a syntax tree draws as plain
-        # text, with no quotes: a cell of a table, an element of a collection, a
-        # value in a tab. A column or a field says its type, so no quote has to.
-        # A primitive inside a syntax tree keeps its syntax leaf, because the
+        # text. A column or a field says its type, so no quote has to. A
+        # primitive inside a syntax tree keeps its syntax leaf, because the
         # syntax table prints that tree, child by child.
-        Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(; theme = text_theme), text)],
+        Pair{Type,Any}[make_natural_primitive_row(; measure, appearance)],
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the abstract rows below — a
         # `TextInsertion` is a `TextDocument`, and prose is not what it is, and a
@@ -189,6 +205,8 @@ function NaturalToGraphics(; measure::TextMeasure,
             DocumentNothing => PhraseToGraphics(_ -> "empty document", style, text),
             # A graphics document is graphics already, and it draws as itself.
             GraphicsDocument => GraphicsToGraphics(),
+            # A picture draws its pixels as a label does, or the box that stands for them.
+            ImageDocument   => ImageToWidget(),
             TextDocument    => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,
@@ -198,8 +216,11 @@ function NaturalToGraphics(; measure::TextMeasure,
                                                                             name = :collection_gap)),
                                                  stack()),
             # A tooltip window: a column of what the parts say, each in its own
-            # domain.
-            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = widget_theme),
+            # domain, in a frame.
+            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = tooltip_theme, widget_theme),
+                                                 stack()),
+            # What a part says about itself in a tooltip, piece by piece.
+            TooltipNote     => ChainingProjection(TooltipNoteToVerticalLayout(; theme = tooltip_theme, widget_theme),
                                                  stack()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package

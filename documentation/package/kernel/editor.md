@@ -1,6 +1,6 @@
 # Editor
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **For:** developer · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
@@ -97,8 +97,11 @@ while true
         sleep(TASK_SHARE)            # 1 ms: the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
+    run_measured_frame!(editor, (time_ns() - t_start) / 1e9)
+end
+
+function run_measured_frame!(editor, wall_time)
     run_with_performance_counters() do   # bind a fresh per-frame counter store
-        wall_time = (time_ns() - t_start) / 1e9
         set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # run_read_stage!/run_evaluate_stage! up to MAX_OPERATIONS_PER_FRAME, then run_print_stage!
@@ -107,6 +110,9 @@ while true
     end
 end
 ```
+
+`run_measured_frame!` is one turn of the loop after its wait. A test calls it to
+measure the frame that the loop runs.
 
 Between frames the editor sleeps in the backend's `wait_for_input`, and three
 things end the sleep: an input event, a `wake_editor!` from any task, and the
@@ -214,7 +220,12 @@ run_on_editor_task!(() -> push!(turn.parts, part), editor; wait = false)
 ```
 
 1. The call posts a `RunFunctionOperation`, which holds the function, a
-   channel for the answer, and a `description` that names the call.
+   channel for the answer, a `description` that names the call, and the starter
+   of the evaluation that posts it (`find_evaluation_starter`, [agent.md](agent.md)).
+   The function runs with that starter in the drain, so the work that a tool call
+   starts through the door is the work of that call. The loop binds no starter of
+   its own: `run_editor!` and `run_frame!` bind `nothing`, so a loop that a tool
+   call starts reads the gestures of the person.
 2. The drain of the next frame holds a posted function, so it runs as a code
    unit (`run_code_unit!`, `HeldFrames.jl`): the drain applies the operations and
    the functions in order on the task of the unit, and puts the value or
@@ -300,8 +311,11 @@ is new into a target document, on the editor task, once per frame, before
 embedder, so a person opens views on it like on any document. The contract is
 `FeedModule` (`Feed`, `drain_changes!`, `compute_wake_deadline`,
 `attach_wake_callback!`); feeds are given at construction
-(`Editor(...; feeds = Feed[…])`). The system process slice and the assistant add
-their feed to a running editor at the first use.
+(`Editor(...; feeds = Feed[…])`), and the list is fixed when the editor is made.
+A slice gives its feed through a wrapper of `build_editor`. The wrappers `task`,
+`system_process` and `agent_event` are on by default, because a feed with
+nothing to watch asks for no frame. An editor made with `make_editor` or
+`Editor` gets only the feeds that its caller gives.
 
 A producer wakes the editor through `wake_editor!` — thread-safe, coalescing,
 handed to each store as a callback at registration. A feed whose data arrives
@@ -317,7 +331,7 @@ The concrete feeds:
 | `FrameStatisticsFeed` (the statistics slice) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
 | `McpLogFeed` (the mcplog slice) | the MCP server, for each request | numbered calls, which each feed copies from its own cursor | the `McpLog` of the session of the editor |
 | `ReflectionFeed` (the reflection slice) | a read of the value along its open paths, on a task of the default pool, which a drain starts | the snapshot of the last read | the reflected tree of the value: the next drain writes only what changed |
-| `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, and the set of those that changed | the rows of the task groups: a drain writes only the changed set |
+| `TaskFeed` (the task slice) | the tasks of a task group, and a sampler of `/proc` on its own task | the executions, each with the editor that started it, and the set of those that changed | the rows of the task groups of its editor: a drain writes only the changed set of its editor |
 | `FileChangeFeed` (the filechange slice) | a watcher of each open file, which reads and parses the file after it settles | the parsed content of each changed file | the file document: the drain applies a `ReloadFileOperation` with the parsed content, or, for a document with edits that are not saved, logs that its file changed |
 | `SystemProcessFeed` (the systemprocess slice) | a read of `/proc` on a task of the default pool, which a drain starts at most once a second while a view reads the tree | the records of the last read | the tree of processes: a drain writes only what changed |
 | `AgentEventFeed` (the assistant slice) | the connection to an agent over ACP, which puts each event into an `AgentEventQueue` and wakes the editor | the events in order | the transcript of the assistant |
@@ -353,12 +367,15 @@ step until an `Operation` falls out at the document end.
 One gesture is recognized by the editor itself, *after* the pipeline has had
 its chance, so a projection that explicitly binds it still wins:
 
-- **Escape** closes the editor (`QuitEditorOperation`) — but only when no
-  reader claimed it. A reader that binds Escape (a dialog, an insertion, the
-  command palette) produces its own operation above and wins, so its Escape
-  never reaches this fallback. This is why a backend must deliver Escape as an
-  ordinary key rather than as a platform quit signal: a platform quit signal
-  gives no reader the chance to intercept it.
+- **Escape** does not quit the editor. A `WindowQuit` (the close button of a
+  window, Ctrl+C in the console) is the only input that gives
+  `QuitEditorOperation`. A bare Escape that no reader took leaves the safe mode
+  when the editor is in the safe mode; otherwise it is consumed like any other
+  input that no reader takes. A program that wants Escape to quit puts an
+  `EscapeQuittingProjection` of the platform around its projection; see
+  [screen.md](../platform/screen/screen.md). A reader that binds Escape (a
+  dialog, an insertion, the command palette) takes it first, which is why a
+  backend delivers Escape as an ordinary key.
 
 The zoom and the scales are not a gesture of the editor itself: `AdjustZoomOperation`
 and `AdjustScaleOperation`, and the keys that reach them, are bindings of the
@@ -440,6 +457,31 @@ The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
 `duplicate_pane!`, `move_pane!`) use `read_rooted_operation` to carry their
 edit from a pane tree to the root; see
 [pane.md](../platform/pane/pane.md#the-verbs-of-a-program).
+
+### A change as a value
+
+A verb that edits a document makes one operation from the root and evaluates it.
+`make_change(verb, arguments...; keywords...)` answers that change and evaluates
+nothing: each such verb adds one method, which routes and checks as the verb
+does. The answer is a `RootedOperation`, which holds the operation from the root
+and its description, and shows as `a change: ` and the description.
+`apply_change!(change; editor)` evaluates it on the editor's task, and the verb
+is its method of `make_change` and then `apply_change!`, so a change has one
+code path.
+
+`combine_changes(changes...)` makes one change of several, in their order. Each
+operation from the root holds the record of each history on its route, a
+`RecordUndoOperation`, so a plain `CompoundOperation` of two changes records two
+steps. The combine joins each run of members, one after the other, that sit in
+the same wrapper: the wrapper holds the run once. Two wrappers are the same when
+the one, rewrapped around what the other holds, is the other
+(`get_wrapped_operation`, `rewrap_operation`). So the window history records the
+group as one step, and each file history records its own part as one step.
+
+Every change of a group is made from the document as it is before any of them
+applies, so a place by position names the document before the group. A verb
+whose second step reads the result of its first, such as a verb that adds an
+entry and then opens a pane for it, has no method of `make_change`.
 
 ## The timer and the display event
 
@@ -604,7 +646,7 @@ gives it a title and a size.
 `play_live!` is a sibling entry point that runs the same read-eval-print loop
 but **fires a predefined timeline on a wall-clock schedule**, so a recorded
 session plays out on a real window while the user watches (and can still
-interact — real input is polled every frame, and Escape / window-close quits).
+interact — real input is polled every frame, and the close button of the window quits, as Escape does in an example window).
 
 ```julia
 play_live!(document, projection, timeline; backend,
@@ -707,20 +749,52 @@ Each frame the editor binds a fresh counter store with `run_with_performance_cou
 and calls `_log_performance_counters!()` after rendering, which logs
 
 ```
-[perf] computes=… invalidations=… reads=… writes=… evaluate_time=…ms print_time=…ms read_time=…ms
+[perf] computes=… invalidations=… reads=… writes=…
 ```
 
 when an operation was applied. Use these to find unintentional
 recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
-The loop also records every frame in `editor.frame_measurements`: the frame time
-always, and the counters above when they are compiled in; the
-[performance guide](performance.md) says how. The store keeps the
-last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
-(open a tab and type `statistics`) and their times as a chart (type
-`frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
-writes the frames as CSV.
+The loop also records every frame in `editor.frame_measurements`, in every
+build. `record_frame_performance!` records the time of each part of a frame.
+`FRAME_PARTS` names the parts in the order of the loop, and they do not overlap:
+
+| Part | What runs in it |
+| --- | --- |
+| `:feed` | `drain_feeds!`: the changes that other tasks stored |
+| `:report` | the report of the faults of the last frame |
+| `:input` | `take_from_devices!`: the events of the backend |
+| `:reader` | the rest of the read stage: the reader of the projection |
+| `:evaluate` | the operations |
+| `:print` | the rest of the print stage: `print_document`, and a retry of a part that failed |
+| `:paint` | `write_to_devices!`: the backend reads the output, so the lazy printer computations run here |
+| `:frame` | the whole frame, which holds the seven parts and the small work between them |
+
+`get_frame_part_measurement_name(part, measure)` gives the name of a measure of a
+part, such as `:reader_time`. `:frame_time` holds the held frames, and the time
+of a part does not. The record also holds:
+
+- `:held_time`, the time of the held frames of code units;
+- `:garbage_collection_time` and `:compile_time`, the time that the garbage
+  collector and the compiler took in the process during the frame;
+- `:yielded_time`, the time that the task of the frame did not run, only when
+  the process keeps the running time of its tasks (`julia --task-metrics=yes`);
+- `:allocated_bytes`, a count: the bytes that the process allocated during the
+  frame.
+
+The values of the garbage collector, the compiler and the allocations are of
+the whole process, so the work of other threads counts too. The
+[performance guide](performance.md) says how to compile the counters in. With
+them, the record also holds the six cell counts of `FRAME_PART_MEASURES` for each
+part, such as
+`:paint_cell_computes` or `:frame_cell_reads`, and every other count and time
+of the scope under its own name. So a frame shows which part did its cell work.
+The store keeps the last 1000 frames. The `FrameStatisticsFeed` shows their
+summaries as a table (open a tab and type `statistics`) and their times as a
+chart (type `frame times`).
+`write_frame_measurements!("frames.csv", editor.frame_measurements)` writes the
+frames as CSV.
 
 ## The background cell
 
@@ -740,7 +814,7 @@ The keyword `apply` is a function `apply(inputs, value)` that answers an `Operat
 
 A document that stores what a task read, such as a folder, uses these two keywords to keep its own state: its `reading` flag and its entries. See [FileSystemDocument.jl](../../../source/platform/filesystem/FileSystemDocument.jl) (`_make_unread_folder`).
 
-A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come.
+A read answers the answer that belongs to the inputs now. Else it answers the last answer, or the default, and the cell is provisional (see [A provisional value](cell.md#a-provisional-value)). It also records a **demand**: the cell and its inputs. A cell whose inputs are provisional records no demand, so a work never runs on values that are still to come. A cell whose demand the editor keeps answers the same at each further read, until the answer comes. A cell that computed where no editor keeps its demand, such as inside a walk that starts no background work, asks again: each read by a computation computes it again, until a read records the demand.
 
 The demands of an editor are a session document, `BackgroundDemands`. A computation adds to it as to a collector outside the graph, and the record wakes the editor. After the print of a frame, `start_background_cell_work!` takes the demands and starts the work of each source on one task. The loop calls it after its first print too. The work posts one `WriteBackgroundAnswersOperation` to the inbox. The operation writes each answer into its cell in a write phase, so only the editor task writes cells. An answer to a demand older than the answer in the cell is dropped. A work that throws is the answer of each cell of its batch, and a read of such a cell throws that exception. `make_editor` prints with its editor in scope, so the first print records its demands.
 
@@ -755,7 +829,17 @@ An example: a folder of a simulation has 2,000 result files, and each file entry
 | After the frame, and the answer | One task reads 1,970 heads. All cells are final, and the table shows the sorted rows. |
 | A file changes on disk | The listing gives a new size. That record answers its last record, provisional, until its new answer comes. |
 
-`wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
+`wait_for_cell!(cell; editor, timeout = 60)` returns the final value of a cell, for a script, a verb or a test. On the task that owns the documents, or with no loop, it computes the demanded values on the calling task and writes them. There each provisional cell below asks the wait again, also a cell that asked the editor (`run_recomputing_provisional_cells`). From another task, it reads the cell through the loop until the value is final. It throws an `ErrorException` after `timeout` seconds. A computation can not call it, and it throws an `ArgumentError` there.
+
+### The record of each work
+
+The editor keeps one `BackgroundWorkRecord` for each work of a background cell. A record holds the number of the work in the order of the works of the editor, the description of the source, the count of its values, its first three inputs as text of at most 80 characters, the time of its start, the time of its end, the count of failed values, and the message of the first failure. The time of the end is `nothing` while the work runs.
+
+`BackgroundWorkStore(; capacity = 100)` holds the records, oldest first: the last `capacity` records of works that ended, and every record of a work that runs. Its `change_count` grows at each change. `get_background_work_store(editor)` returns the store of an editor, which `get_session_document!` keeps for each editor, as it keeps `BackgroundDemands`.
+
+`start_background_cell_work!` adds the record. The record ends when the editor evaluates `WriteBackgroundAnswersOperation`, which carries the number of its record. The work that `wait_for_cell!` runs on the task that owns the documents also gets a record, when it is given an editor.
+
+The store is a plain value with no cell. The kernel does not decide how an editor shows its documents, so the platform owns the document of the log, and a feed fills it from the store; see [backgroundwork.md](../platform/backgroundwork/backgroundwork.md).
 
 A search of the documents starts no background work by default: it takes each background cell as it is. `search_documents(...; background = true)` waits for the final value of each provisional cell that it reads (see [the reflection walk](document.md#the-reflection-walk)).
 
@@ -794,13 +878,13 @@ EditorModule.jl        (EditorModule) — the module: its docstring, imports, ex
     │                         measurements, and drain_feeds!
     ├─ ReadEvaluatePrint.jl — run_read_stage!, run_evaluate_stage!,
     │                         run_print_stage! and read_rooted_operation
-    ├─ DocumentEdits.jl     — find_rooted_operation, insert_elements! and delete_elements!
+    ├─ DocumentEdits.jl     — find_rooted_operation, the changes as values, insert_elements! and delete_elements!
     ├─ SafeMode.jl          — the safe mode, which shows the fault list in place of a
     │                         projection that fails
     ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
     │                         frame, the limits of the fault counts, and the repairs
-    └─ EditorLoop.jl        — _log_performance_counters!, run_frame!, get_frame_clock_time, run_editor! and
-                              make_editor
+    └─ EditorLoop.jl        — _log_performance_counters!, run_frame!, run_measured_frame!,
+                              get_frame_clock_time, run_editor! and make_editor
 ```
 
 Scripted playback is a layer of its own, above this one, in `playback/`.
@@ -858,7 +942,7 @@ the dependency-free `HeadlessBackend` from `ProjecturedKernelExample` — one
 place the loop can be exercised without any real backend package. It covers
 the printer/reader/REPL drivers and navigation (`PrinterTest.jl`,
 `ReaderTest.jl`, `ReplTest.jl`, `NavigationTest.jl`, `ConstructTest.jl`), the
-`Escape`-closes-unless-claimed rule (`EscapeQuitTest.jl`), the inbox
+rule that the editor quits on a `WindowQuit` and on no key (`WindowQuitTest.jl`), the inbox
 (`InboxTest.jl`), the wait between frames (`WaitTest.jl`), the feeds and the
 frame measurements (`FeedsTest.jl`), the fault barriers of the loop
 (`FaultBarriersTest.jl`), the edits through the readers (`DocumentEditsTest.jl`),

@@ -1,7 +1,7 @@
-# A roster gathers the items of a source into rows: the rows of a collection, a
-# value cell for each column, a facet and a path as keys, the parts of the items
-# inside other items, a filter and a sort of the rows, and the table that shows
-# them.
+# A roster gathers the items of a source into rows: the rows of a collection, the
+# place of each item and the row of an item, a value cell for each column, a facet
+# and a path as keys, the parts of the items inside other items, a filter and a
+# sort of the rows, and the table that shows them.
 
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedPlatform.CollectionModule: CellVector
@@ -19,11 +19,24 @@ end
     runs::CellVector
 end
 
+# A step of a plan, which can hold steps of its own.
+@document struct _RosterStep
+    name::String
+    status::String
+    steps::CellVector
+end
+
 RosterModule.get_item_facets(::Type{_RosterRun}) = ["slow" => "whether the run took longer than 0.3"]
 # A run that failed says so, and a count of failed runs takes its colour.
 ProjecturedPlatform.DomainModule.get_document_decoration(run::_RosterRun) =
     DocumentDecoration(; conditions = run.status == "failed" ? [DocumentCondition(:failed)] : DocumentCondition[])
 RosterModule.compute_item_facet(run::_RosterRun, ::Val{:slow}) = run.delay > 0.3
+
+# A holder of runs and of a table of them, as a page keeps its table.
+@document struct _RosterHolder
+    runs::CellVector
+    table::Any
+end
 
 # A record that declares a facet with the name of one of its fields.
 @document struct _RosterClash
@@ -76,6 +89,68 @@ function test_roster()
         @test rows[1] === second_row
     end
 
+    @testset "the place of each item, as its source gave it, and the row of an item" begin
+        study = _RosterStudy("queue", make_runs())
+        roster = link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("runs")));
+                                     columns = ["id"]), study)
+        place(k) = (found = get_roster_item_place(roster, k);
+                    found === nothing ? nothing : collect(get_reference_steps(found)))
+        at(j) = collect(get_reference_steps(extend_reference(EmptyReference(), FieldReferenceStep("runs"),
+                                                             ElementReferenceStep(j))))
+        @test [place(k) for k in 1:3] == [at(1), at(2), at(3)]
+        third = study.runs[3]
+        row = roster.rows[3]
+        @test find_roster_row(roster, third) == 3
+        # An item that goes out before an item gives that item its new place, and
+        # the row of that item stays.
+        deleteat!(study.runs, 1)
+        @test roster.rows[2] === row
+        @test place(2) == at(2) && find_roster_row(roster, third) == 2
+        @test place(3) === nothing
+        @test find_roster_row(roster, _RosterRun(9, "done", 0.1)) === nothing
+        # A collection given as itself has no place in the link.
+        runs = make_runs()
+        plain = link_roster!(Roster(CollectionItems(runs); columns = ["id"]), runs)
+        @test get_roster_item_place(plain, 1) === nothing && find_roster_row(plain, runs[2]) == 2
+    end
+
+    @testset "a holder of a table of its own items opens the item of a row at its place" begin
+        holder = _RosterHolder(make_runs(), nothing)
+        roster = link_roster!(Roster(CollectionItems(extend_reference(EmptyReference(), FieldReferenceStep("runs")));
+                                     columns = ["id"]), holder)
+        holder.table = ArrangementDocument(roster, ArrangementEntry[])
+        table = FieldReferenceStep("table")
+        path(steps...) = extend_reference(EmptyReference(), steps...)
+        row_at(k, rest...) = path(table, FieldReferenceStep("document"), FieldReferenceStep("rows"), ElementReferenceStep(k),
+                                  FieldReferenceStep("item"), rest...)
+        item_at(j, rest...) = path(FieldReferenceStep("runs"), ElementReferenceStep(j), rest...)
+        same(found, expected) = found !== nothing &&
+            collect(get_reference_steps(strip_reference_types(found))) == collect(get_reference_steps(expected))
+        status = FieldReferenceStep("status")
+        @test same(find_held_item_path(holder, table, row_at(2)), item_at(2))
+        @test same(find_held_item_path(holder, table, row_at(3, status)), item_at(3, status))
+        # A path that reaches no item through a row maps to nothing.
+        @test find_held_item_path(holder, table, path(table, FieldReferenceStep("entries"))) === nothing
+        @test find_held_item_path(holder, table, path(table, FieldReferenceStep("document"), FieldReferenceStep("rows"),
+                                                      ElementReferenceStep(1), FieldReferenceStep("values"))) === nothing
+        @test find_held_item_path(holder, FieldReferenceStep("runs"), row_at(1)) === nothing
+        # The open of a row in a compound, as a double click answers it, opens the
+        # item at its place, and the selection of the row stays.
+        select = ReplaceSelectionOperation(row_at(2))
+        retargeted = retarget_held_row_open(CompoundOperation(Any[select, OpenPageOperation(nothing, row_at(2))]),
+                                            holder, table)
+        @test retargeted.operations[1] === select
+        @test retargeted.operations[2] isa OpenPageOperation && same(retargeted.operations[2].reference, item_at(2))
+        # An open that names its own document, and an open of another path, stay.
+        own = OpenPageOperation(holder, row_at(2))
+        @test retarget_held_row_open(own, holder, table) === own
+        other = OpenPageOperation(nothing, path(table, FieldReferenceStep("entries")))
+        @test retarget_held_row_open(other, holder, table) === other
+        # An item that goes out before an item: the place follows.
+        deleteat!(holder.runs, 1)
+        @test same(find_held_item_path(holder, table, row_at(1)), item_at(1))
+    end
+
     @testset "a key: a facet, a path of fields, and within" begin
         runs = make_runs()
         roster = link_roster!(Roster(CollectionItems(runs); columns = ["status"]), runs)
@@ -116,6 +191,26 @@ function test_roster()
         @test get_roster_item_type(ItemsWithin(CollectionItems(studies), _RosterRun)) === _RosterRun
     end
 
+    @testset "ItemsWithin gathers the inside of each document that it finds as a part of its own" begin
+        nested = _RosterStep("a.1", "pending", CellVector(Any[]))
+        first_step = _RosterStep("a", "pending", CellVector(Any[nested]))
+        plans = CellVector(Any[_RosterStudy("plan", CellVector(Any[first_step, _RosterStep("b", "pending", CellVector(Any[]))]))])
+        roster = link_roster!(Roster(ItemsWithin(CollectionItems(plans), _RosterStep);
+                                     columns = ["name", "status", "within.name"]), plans)
+        rows = roster.rows
+        @test [row.values[1] for row in rows] == ["a", "a.1", "b"]
+        @test rows[2].values[3] == "plan"
+        # A change inside a step keeps every row, and the value of its row follows.
+        kept = collect(rows)
+        nested.status = "done"
+        @test all(collect(rows) .=== kept)
+        @test rows[2].values[2] == "done"
+        # A step that comes inside a step gets its row after the steps before it.
+        push!(first_step.steps, _RosterStep("a.2", "pending", CellVector(Any[])))
+        @test [row.values[1] for row in rows] == ["a", "a.1", "a.2", "b"]
+        @test find_roster_row(roster, nested) == 2
+    end
+
     @testset "a filter and a sort of the rows, and the table" begin
         runs = make_runs()
         roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status", "slow"]), runs)
@@ -144,12 +239,13 @@ function test_roster()
                     extend_reference(EmptyReference(), FieldReferenceStep("id")), :descending)])]))
         drawn = texts(io.output)
         @test "2 of 3" in drawn
-        @test filter(t -> t in ("1", "2", "3"), drawn) == ["3", "1"]
+        # The headers of the two sorted columns draw the places of their keys first.
+        @test filter(t -> t in ("1", "2", "3"), drawn)[3:end] == ["3", "1"]
         # A change of an item reaches the table through its row.
         runs[3].status = "failed"
         drawn = texts(io.output)
         @test "1 of 3" in drawn
-        @test filter(t -> t in ("1", "2", "3"), drawn) == ["1"]
+        @test filter(t -> t in ("1", "2", "3"), drawn)[3:end] == ["1"]
     end
 
     @testset "a roster counts its rows, and an arrangement counts what it shows, in the colour they share" begin

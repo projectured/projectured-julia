@@ -17,6 +17,19 @@ function test_sdl_keysym()
         end
     end
 
+    # The digit keys, on the top row (the code of the digit) and on the keypad, have the
+    # names of their digits.
+    @testset "every digit key has the name of its digit" begin
+        names = (:zero, :one, :two, :three, :four, :five, :six, :seven, :eight, :nine)
+        for (digit, name) in zip(0:9, names)
+            @test ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(48 + digit)) === name
+            keypad = digit == 0 ? 1073741922 : 1073741912 + digit
+            @test ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(keypad)) === name
+        end
+        @test ProjecturedSDL.SdlModule.sdl_to_keydown(Int32(49), UInt16(0x0040), false; time = 0.0) ==
+              KeyDown(:one, ModifierKeys(ctrl = true); time = 0.0)
+    end
+
     # The same table through the constructor of the event that the poll calls.
     @testset "sdl_to_keydown names every letter key by its letter" begin
         for (keysym, letter) in zip(97:122, 'a':'z')
@@ -26,15 +39,16 @@ function test_sdl_keysym()
         end
     end
 
-    # The precompile recording presses keys by name. A name that no backend reports
-    # matches no binding, so the code behind that key is not in the recording.
-    @testset "every key the precompile recording presses is one SDL reports" begin
+    # The workload of the examples presses keys by name. A name that no backend
+    # reports matches no binding, so the code behind that key is not compiled.
+    @testset "every key the workload of the examples presses is one SDL reports" begin
         reported = Set(ProjecturedSDL.SdlModule.sdl_keysym_to_symbol(Int32(keysym))
                        for keysym in Iterators.flatten((0:255, 1073741824:1073742106)))
-        driver = joinpath(@__DIR__, "..", "..", "..", "..", "tool", "precompile",
-                          "recording-driver.jl")
-        pressed = [Symbol(m.captures[1])
-                   for m in eachmatch(r"KeyDown\(:(\w+)", read(driver, String))]
+        workload = joinpath(@__DIR__, "..", "..", "..", "..", "example", "projectured",
+                            "ExampleWorkload.jl")
+        keys = match(r"for key in \(([^)]*)\)", read(workload, String))
+        pressed = keys === nothing ? Symbol[] :
+                  [Symbol(m.captures[1]) for m in eachmatch(r":(\w+)", keys.captures[1])]
         @test !isempty(pressed)
         for key in pressed
             @test key in reported

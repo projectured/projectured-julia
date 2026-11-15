@@ -26,7 +26,8 @@
 # `FileSplice.jl` — never `eval`, so opening a project can never execute
 # arbitrary code, and a marker is still analyzable data.
 #
-#     <<file("child.json")>>                            the file's content
+#     <<file("child.json")>>                            the file document
+#     <<node(file("child.json"), "")>>                  the root of its content
 #     <<node(file("child.json"), "entries[2].value")>>  one node inside it
 #     <<definition(file("steps.jl"), "queue_step")>>    one definition inside it
 #     <<section(file("page.md"), "Title")>>             what a heading heads
@@ -41,13 +42,26 @@
 """
     FileDocument
 
-A document that owns a text file. Every direct subtype declares two
-`@document` fields — `filename::String` and a format-native `content`
-— so `get_filename(f)` and `get_file_content(f)` work uniformly.
+A document that owns a text file. Every direct subtype declares three
+`@document` fields — `filename::String`, a format-native `content`, and
+`disk::FileDiskState = FileDiskState()` — so `get_filename(f)`, `get_file_content(f)`
+and `get_file_disk_state(f)` work uniformly. The constructor of a type makes a new
+`FileDiskState` for each file.
 
 The abstract type is one of *two* ways to opt in; the other is the
 `is_file_document` trait (see below), for types that already have an
 incompatible supertype in their own domain.
+
+Use it to recognise a document that owns a text file, such as `JsonFile`, `MarkdownFile`, `JuliaFile`, `SqlFile`, `YamlFile` or `TextFile`: a part is one when `part isa FileDocument`.
+
+# Example
+
+    files_1 = search_documents(get_edited_document(find_pane("project")), part -> part isa FileDocument)
+    text_1 = get_file_content(files_1[1])
+
+See also `search_documents`, `get_file_content`, `read_file_content` and `MarkdownFile`.
+
+For the assistant.
 """
 abstract type FileDocument <: Document end
 
@@ -80,6 +94,31 @@ underlying reactive cell — works for any type that has one (both
 get_filename(f) = unwrap_cell(getfield(f, :filename))
 
 """
+    format_home_path(path) -> String
+
+`path` with the home folder of the user written as `~`: `"~"` for the home folder
+itself, `"~/rest"` for a path inside it (the home folder followed by a separator of
+paths), and `path` unchanged otherwise. A folder whose name only begins like the home folder, such as
+`/home/ann2` for the home folder `/home/ann`, is outside it.
+
+Use it to show a path to a person, as the heading of a card or a fact of a document.
+
+# Example
+
+    format_home_path(joinpath(homedir(), "notes", "a.txt"))  # "~/notes/a.txt"
+    format_home_path("/etc/hosts")                           # "/etc/hosts"
+
+See also `get_filename`.
+"""
+function format_home_path(path::AbstractString)
+    separators = unique(('/', only(Base.Filesystem.path_separator)))
+    home = rstrip(homedir(), separators)
+    path == home && return "~"
+    inside = any(separator -> startswith(path, home * separator), separators)
+    inside ? "~" * path[ncodeunits(home)+1:end] : String(path)
+end
+
+"""
     get_file_content(file) -> Any
 
 The value of the `content` field of `file`: what the file holds, as its format
@@ -102,6 +141,8 @@ Use it to read what an open file holds.
     content_1 = get_file_content(file_1)
 
 See also `get_edited_document` and `make_file_tab`.
+
+For the assistant.
 """
 function get_file_content end
 
@@ -113,6 +154,70 @@ function get_file_content(f)
     field === nothing ? unwrap_cell(getfield(f, :content)) : get_file_content(getproperty(f, field))
 end
 get_file_content(file::ReferencedDocument) = get_file_content(get_document(file))
+
+"""
+    FileBand(; message, choices = Pair{String,Any}[])
+
+A band above a file: `message`, one sentence, and `choices`, each the label of a
+button and the operation that a click on it answers. The [`FileDiskState`](@ref) of
+a file holds it while the file and its copy on disk disagree, and the view of the
+file draws it.
+
+# Example
+
+    FileBand(; message = "notes.txt changed on disk.",
+               choices = ["Load it" => load, "Keep mine" => keep])
+"""
+@document struct FileBand
+    message::String = ""
+    choices::Any = Pair{String,Any}[]
+end
+
+"""
+    FileDiskState(; file_hash = nothing, band = nothing)
+
+What a file document knows of its file on disk:
+
+- `file_hash`, the hash of the text of the file at the last load or save of the
+  document (`compute_file_text_hash`), or `nothing` when it does not know it.
+- `band`, a [`FileBand`](@ref) while the file changed on disk under edits that no
+  save wrote, or `nothing`.
+- `file_stamp`, the time and the size of the file at the last read, load or save,
+  or `nothing` when the document does not know them.
+- `read_count`, how many changes of the file the watch reported, and `loaded_count`,
+  the count whose text the document holds; `-1` for a file that was made unread. A
+  file whose `read_count` is past its `loaded_count` reads its text when it is drawn.
+- `text`, the background cell that reads the text of the file, or `nothing` while
+  the file has none.
+
+Every file document keeps one in its field `disk`, as it keeps `filename` and
+`content`; [`get_file_disk_state`](@ref) reads it. The field is view state, so a save
+writes none of it and a walk does not enter it.
+
+# Example
+
+    state = FileDiskState(; file_hash = hash("a note"))
+"""
+@document struct FileDiskState
+    file_hash::Any = nothing
+    band::Any = nothing
+    file_stamp::Any = nothing
+    read_count::Int = 0
+    loaded_count::Int = 0
+    text::Any = nothing
+end
+
+"""
+    get_file_disk_state(file) -> FileDiskState
+
+The state of `file` against its file on disk, the value of its `disk` field.
+"""
+get_file_disk_state(f) = unwrap_cell(getfield(f, :disk))
+
+# The state against the disk is what a view of the file shows, not what the file
+# says, and a walk of the document does not enter it.
+get_view_state_fields(::Type{<:FileDocument}) = (:disk,)
+is_field_walked(::FileDocument, name::Symbol) = name !== :disk
 
 """
     is_own_content(file) -> Bool
@@ -177,6 +282,24 @@ function get_file_document_type(path::AbstractString)
     haskey(_FILE_DOCUMENT_TYPES, ext) && return _FILE_DOCUMENT_TYPES[ext]
     error("get_file_document_type: no file document registered for extension ",
           repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
+end
+
+"""
+    find_file_extension(document) -> Union{String, Nothing}
+
+The extension of the registered file type whose domain holds `document`, such as
+`".json"` for a JSON object, or `nothing` when no format but `.pred` writes it.
+Of two extensions of one type, such as `".md"` and `".markdown"`, it answers the
+shorter one.
+
+Use it to name a file for a node that a file of its own format must write.
+"""
+function find_file_extension(document)
+    for extension in sort!(collect(keys(_FILE_DOCUMENT_TYPES)); by = e -> (length(e), e))
+        domain = get_file_domain(_FILE_DOCUMENT_TYPES[extension])
+        domain !== Document && document isa domain && return extension
+    end
+    nothing
 end
 
 """
@@ -275,26 +398,35 @@ _is_type_name(name::Symbol) =
 
 """
     is_pred_constructible(::Type) -> Bool
+    is_pred_constructible(f::Function) -> Bool
 
 Whether a file may name a type and have one built. `true` for a `Document`, and
 `false` for anything else unless the package that owns the type adds a method,
 as a wire format that is data does. A type that must not be built from a file
 says so in its method of [`make_pred_document`](@ref).
+
+For a function, whether a file may name it: a file writes it as its bare name, and
+the reader looks the name up among the loaded modules, as it looks up a type.
+`false` unless the package that owns the function adds a method for its type, as
+`is_pred_constructible(::typeof(f)) = true`. A file never calls a function that it
+names, and a function with no name, such as a closure, is never written.
 """
 is_pred_constructible(::Type{T}) where {T} = T <: Document
+is_pred_constructible(::Function) = false
 
-# The name of each loaded document type, to its constructor, or to every
-# constructor when two loaded types have one name.
+# The name of each loaded document type, to its constructor, and of each function
+# that a file may name, to the function; or to every one of them when two have one
+# name.
 const _PRED_NAMES = Dict{String,Any}()
 const _PRED_NAMES_LOCK = ReentrantLock()
 
 """
-    get_pred_type(name) -> Type or nothing
+    get_pred_type(name) -> Type, Function or nothing
 
-The loaded type that a file names with `name`, or `nothing` when no loaded type
-that [`is_pred_constructible`](@ref) has that name. A name that two such types
-have is an error that names both, because a file can not say which one it
-means.
+The loaded type or function that a file names with `name`, or `nothing` when no
+loaded type or function that [`is_pred_constructible`](@ref) has that name. A
+name that two of them have is an error that names both, because a file can not
+say which one it means.
 """
 function get_pred_type(name::AbstractString)
     key = String(name)
@@ -333,6 +465,8 @@ function _collect_pred_names!(m::Module, seen::Set{Module})
             constructor = _get_schema_type(value)
             _add_pred_name!(String(nameof(value)), constructor)
             _add_pred_name!(String(get_document_schema_name(value)), constructor)
+        elseif value isa Function && is_pred_constructible(value) && nameof(value) === name
+            _add_pred_name!(String(name), value)
         end
     end
     nothing
@@ -367,13 +501,14 @@ end
 # like any other non-call.
 function _parse_marker_expression(body::AbstractString)
     expr = Meta.parse(String(body); raise=false, depwarn=false)
-    _is_marker_call(expr) ? expr : nothing
+    _is_marker_call(expr) || _is_marker_text(expr) ? expr : nothing
 end
 
 # The subset: a call whose head is a plain name and whose arguments are
 # literals, keyword arguments, or recursively such calls. No assignment, no
-# control flow, and no bare name but `nothing` and the name of a type that a file
-# may build — a marker is data that happens to read as Julia.
+# control flow, and no bare name but `nothing`, the name of a type that a file
+# may build and the name of a function that a file may name — a marker is data
+# that happens to read as Julia.
 #
 # Keywords are in the subset because a document is CONSTRUCTED by naming its
 # fields: `UdpHeader(source_port = 5000)` is the same statement as
@@ -393,6 +528,7 @@ end
 _is_marker_argument(x) = _is_marker_call(x) || _is_marker_literal(x)
 
 function _is_marker_argument(e::Expr)
+    _is_marker_text(e) && return true
     e.head === :parameters && return all(_is_marker_argument, e.args)   # f(; a = 1)
     e.head === :kw && return Base.length(e.args) == 2 && e.args[1] isa Symbol &&
                              _is_marker_argument(e.args[2])
@@ -436,7 +572,12 @@ end
 # holds nothing has to be writable, and there is no other way to spell it.
 _is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
                         x isa Bool || x === nothing || x === :nothing ||
-                        _is_marker_symbol(x) || _is_marker_type_name(x)
+                        _is_marker_symbol(x) || _is_marker_type_name(x) || _is_marker_function_name(x)
+
+# A bare name of a function that a file may name, such as a function of the
+# searches that a source of a roster holds. The reader gives the function as a
+# value, and it never calls it.
+_is_marker_function_name(x) = x isa Symbol && Base.isidentifier(String(x)) && get_pred_type(String(x)) isa Function
 
 # `PrimitiveNumber` bare is a type as a value, as a field that limits what a
 # document can become holds it. Only a name that starts with a capital passes, and
@@ -449,8 +590,27 @@ function _evaluate_marker_name(name::Symbol)
     name === :nothing && return nothing
     T = get_pred_type(String(name))
     T === nothing && error("a marker names ", name,
-                           ", and no loaded type that a file may build has that name")
+                           ", and no loaded type or function that a file may name has that name")
     T
+end
+
+# A text of a format, `json"""{"port": 5000}"""`: a string tagged with the
+# extension of the format, which stands for the document that the parser of the
+# format reads from it. Julia parses it as the call of a string macro, and the
+# reader runs no macro: it looks the tag up among the extensions.
+_is_marker_text(::Any) = false
+_is_marker_text(e::Expr) =
+    e.head === :macrocall && Base.length(e.args) == 3 && e.args[1] isa Symbol &&
+    e.args[3] isa String && _get_marker_text_tag(e) !== nothing
+
+# The tag of a text of a format, `:json` for `json"…"`, or `nothing`.
+function _get_marker_text_tag(e::Expr)
+    # The caller checks that the name is a `Symbol`. With the type known, a package
+    # that adds `startswith` for its own type does not make this code invalid.
+    name = String(e.args[1]::Symbol)
+    startswith(name, "@") && endswith(name, "_str") && Base.length(name) > 5 || return nothing
+    tag = name[2:(end - 4)]
+    Base.isidentifier(tag) ? Symbol(tag) : nothing
 end
 
 # `:holds` is a symbol literal, and so is a quoted operator such as `:+` or
@@ -469,6 +629,8 @@ end
 _print_canonical(io::IO, quoted::QuoteNode) = print(io, repr(quoted.value))
 
 function _print_canonical(io::IO, e::Expr)
+    _is_marker_text(e) &&
+        return print(io, _get_marker_text_tag(e), "\"", sprint(Base.escape_raw_string, e.args[3]), "\"")
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
         isempty(fields) && return print(io, "()")

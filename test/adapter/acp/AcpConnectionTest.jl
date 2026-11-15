@@ -48,7 +48,7 @@ function test_acp_connection()
             @test initialize["protocolVersion"] == 1
             @test initialize["clientCapabilities"]["fs"] ==
                   Dict{String,Any}("readTextFile" => false, "writeTextFile" => false)
-            @test initialize["clientCapabilities"]["terminal"] == false
+            @test initialize["clientCapabilities"]["terminal"] == true
             @test initialize["clientCapabilities"]["elicitation"]["form"] == Dict{String,Any}()
             # The client takes the work of an agent: its subagents, its plans with
             # an id, its notices, its compactions and its background tasks.
@@ -124,7 +124,42 @@ function test_acp_connection()
             bare = _make_fake_agent()
             connection = make_fake_connection(bare)
             open_agent_session!(connection; instructions = "Host.")
-            @test only(get_received(bare, "session/new"))["params"]["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            params = only(get_received(bare, "session/new"))["params"]
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            # An agent that takes no system prompt gets no field for it.
+            @test !haskey(params, "systemPrompt")
+            stop_agent_connection!(connection)
+        end
+
+        @testset "an agent that takes a system prompt gets the instructions in its field, once" begin
+            capabilities = Dict("agentCapabilities" => Dict("sessionCapabilities" => Dict(
+                "resume" => Dict(), "systemPrompt" => Dict())))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, capabilities),
+                "session/resume" => (agent, params) -> Dict("configOptions" => FAKE_CONFIG_OPTIONS)))
+            connection = make_fake_connection(agent;
+                session_meta = """{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}""")
+            open_agent_session!(connection; instructions = "Host.")
+            open_agent_session!(connection; session_id = "session-9", instructions = "Host.")
+            prompt = Dict{String,Any}("mode" => "append",
+                                      "content" => Any[Dict{String,Any}("type" => "text", "text" => "Host.")])
+            for method in ("session/new", "session/resume")
+                params = only(get_received(agent, method))["params"]
+                @test params["systemPrompt"] == prompt
+                # The `_meta` keeps the options of the setting, without the instructions.
+                options = params["_meta"]["claudeCode"]["options"]
+                @test options["thinking"]["display"] == "summarized"
+                @test !haskey(options, "systemPrompt")
+            end
+            stop_agent_connection!(connection)
+            # A session with no instructions gets no field.
+            quiet = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, capabilities)))
+            connection = make_fake_connection(quiet)
+            open_agent_session!(connection)
+            params = only(get_received(quiet, "session/new"))["params"]
+            @test !haskey(params, "systemPrompt")
+            @test !haskey(params, "_meta")
             stop_agent_connection!(connection)
         end
 
@@ -163,6 +198,52 @@ function test_acp_connection()
             connection = make_fake_connection(signed_out)
             @test_throws AgentSignInException open_agent_session!(connection; session_id = "session-9")
             @test isempty(get_received(signed_out, "session/new"))
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a fork asks the agent for a copy of a session, and an agent that can not fork answers nothing" begin
+            forking = Dict("agentCapabilities" => Dict("sessionCapabilities" => Dict(
+                "resume" => Dict(), "fork" => Dict())))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> Dict("sessionId" => "fork-1", "configOptions" => FAKE_CONFIG_OPTIONS)))
+            connection = make_fake_connection(agent)
+            events = Any[]
+            queue = AgentEventQueue()
+            @test fork_agent_session!(connection; session_id = "session-9", directory = "/work", instructions = "Host.",
+                                      on_event = event -> push!(events, event), events = queue) == "fork-1"
+            params = only(get_received(agent, "session/fork"))["params"]
+            @test (params["sessionId"], params["cwd"]) == ("session-9", "/work")
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            @test isempty(get_received(agent, "session/new"))
+            @test only(events) isa AgentOptionsUpdate
+            # The fork is a session of the connection: its events between two
+            # prompts reach its queue.
+            send_fake_update(agent, "fork-1", Dict("sessionUpdate" => "session_info_update", "title" => "Fork"))
+            @test only(_take_queue_events(queue, 1)) == AgentSessionInfoUpdate("Fork")
+            stop_agent_connection!(connection)
+            # An agent that refuses the fork, as of a session that it does not
+            # keep, answers nothing and opens no session.
+            refusing = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> throw(ProtocolException(-32002, "No such session"))))
+            connection = make_fake_connection(refusing)
+            @test fork_agent_session!(connection; session_id = "session-9") === nothing
+            @test length(get_received(refusing, "session/fork")) == 1
+            @test isempty(get_received(refusing, "session/new"))
+            stop_agent_connection!(connection)
+            # An agent that offers no fork gets no request for one.
+            plain = _make_fake_agent()
+            connection = make_fake_connection(plain)
+            @test fork_agent_session!(connection; session_id = "session-9") === nothing
+            @test isempty(get_received(plain, "session/fork"))
+            stop_agent_connection!(connection)
+            # A sign-in that the fork needs goes to the caller.
+            signed_out = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, forking),
+                "session/fork" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            connection = make_fake_connection(signed_out)
+            @test_throws AgentSignInException fork_agent_session!(connection; session_id = "session-9")
             stop_agent_connection!(connection)
         end
 
@@ -345,6 +426,40 @@ function test_acp_connection()
             # A prompt that the agent refuses for a sign-in throws the same.
             @test_throws AgentSignInException send_agent_prompt!(connection, "session-1", [LlmText("Hi")];
                                                                  on_event = event -> nothing)
+            stop_agent_connection!(connection)
+        end
+
+        @testset "an agent runs its own sign-in when the client asks for it" begin
+            # A method with no type has the type `agent`, as the methods of
+            # `codex-acp` have; a method of another type is not offered.
+            methods = [Dict("id" => "chat-gpt", "name" => "ChatGPT", "description" => "Use ChatGPT to authenticate"),
+                       Dict("id" => "browser", "name" => "Browser", "type" => "agent"),
+                       Dict("id" => "variable", "name" => "Variable", "type" => "env_var", "vars" => Any[])]
+            completes = Ref(true)
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("authMethods" => methods)),
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required")),
+                "authenticate" => (agent, params) -> completes[] ? Dict() :
+                    throw(ProtocolException(-32000, "Sign-in did not complete"))))
+            connection = make_fake_connection(agent)
+            failure = try
+                open_agent_session!(connection)
+            catch exception
+                exception
+            end
+            @test [(method.id, method.name, method.description) for method in failure.methods] ==
+                  [("chat-gpt", "ChatGPT", "Use ChatGPT to authenticate"), ("browser", "Browser", "")]
+            @test all(method -> method.command === nothing, failure.methods)
+            # The client asks the agent, which answers when the person signed in.
+            @test sign_in_agent!(connection, "chat-gpt")
+            @test only(get_received(agent, "authenticate"))["params"] == Dict{String,Any}("methodId" => "chat-gpt")
+            # A sign-in that did not complete throws. A method that the agent does
+            # not run itself gets no request.
+            completes[] = false
+            @test_throws ProtocolException sign_in_agent!(connection, "browser")
+            @test !sign_in_agent!(connection, "variable")
+            @test !sign_in_agent!(connection, "unknown")
+            @test length(get_received(agent, "authenticate")) == 2
             stop_agent_connection!(connection)
         end
 
@@ -588,21 +703,99 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
-        @testset "the client refuses a file and a terminal" begin
+        @testset "the client refuses a file" begin
             answers = Dict{String,Any}()
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/prompt" => function (agent, params)
-                    for method in ("fs/read_text_file", "terminal/create")
-                        answers[method] = ask_fake_client(agent, method, Dict("sessionId" => params["sessionId"]))
-                    end
+                    answers["fs/read_text_file"] =
+                        ask_fake_client(agent, "fs/read_text_file", Dict("sessionId" => params["sessionId"]))
                     Dict("stopReason" => "end_turn")
                 end))
             connection = make_fake_connection(agent)
             session_id = open_agent_session!(connection)
             send_agent_prompt!(connection, session_id, [LlmText("Read")]; on_event = identity)
-            for method in ("fs/read_text_file", "terminal/create")
-                @test answers[method]["error"]["code"] == -32601
+            @test answers["fs/read_text_file"]["error"]["code"] == -32601
+            stop_agent_connection!(connection)
+        end
+
+        @testset "the five requests of a terminal reach the editor, and a tool call names its terminal" begin
+            answers = Dict{String,Any}()
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    answers["create"] = ask_fake_client(agent, "terminal/create", Dict(
+                        "sessionId" => session, "command" => "bash", "args" => ["-c", "make"], "cwd" => "/work",
+                        "env" => [Dict("name" => "MODE", "value" => "release")], "outputByteLimit" => 30000))
+                    terminal_id = answers["create"]["result"]["terminalId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "tool_call", "toolCallId" => "tu_1",
+                                                          "title" => "make", "kind" => "execute", "status" => "in_progress",
+                                                          "content" => [Dict("type" => "terminal",
+                                                                             "terminalId" => terminal_id)]))
+                    for method in ("output", "wait_for_exit", "kill", "release")
+                        answers[method] = ask_fake_client(agent, "terminal/" * method,
+                                                          Dict("sessionId" => session, "terminalId" => terminal_id))
+                    end
+                    answers["unknown"] = ask_fake_client(agent, "terminal/output",
+                                                         Dict("sessionId" => session, "terminalId" => "T0"))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            requests = AgentTerminalRequest[]
+            tool_calls = AgentToolCallUpdate[]
+            on_event = function (event)
+                event isa AgentToolCallUpdate && push!(tool_calls, event)
+                event isa AgentTerminalRequest || return
+                push!(requests, event)
+                answer = event.method === :create ? "T7" :
+                         event.method === :output && event.terminal_id != "T7" ?
+                             ArgumentError("No terminal `T0` is open in this session.") :
+                         event.method === :output ? (output = "built\n", truncated = true, exit_code = 0, signal = nothing) :
+                         event.method === :wait_for_exit ? (exit_code = nothing, signal = "SIGINT") : true
+                # The editor answers on a task of its own.
+                @async event.reply(answer)
             end
+            @test send_agent_prompt!(connection, session_id, [LlmText("Build")]; on_event) === :end_turn
+            create = first(requests)
+            @test (create.session_id, create.command, create.arguments, create.directory, create.environment,
+                   create.output_byte_limit) == (session_id, "bash", ["-c", "make"], "/work", ["MODE" => "release"], 30000)
+            @test [request.method for request in requests] == [:create, :output, :wait_for_exit, :kill, :release, :output]
+            @test all(request -> request.terminal_id == "T7", requests[2:5])
+            @test answers["create"]["result"] == Dict{String,Any}("terminalId" => "T7")
+            output = answers["output"]["result"]
+            @test (output["output"], output["truncated"], output["exitStatus"]["exitCode"]) == ("built\n", true, 0)
+            @test get(output["exitStatus"], "signal", nothing) === nothing
+            @test answers["wait_for_exit"]["result"]["signal"] == "SIGINT"
+            @test get(answers["wait_for_exit"]["result"], "exitCode", nothing) === nothing
+            @test answers["kill"]["result"] == Dict{String,Any}() && answers["release"]["result"] == Dict{String,Any}()
+            # An exception of the editor is an error answer that says why.
+            @test answers["unknown"]["error"]["code"] == -32602
+            @test occursin("No terminal `T0`", answers["unknown"]["error"]["message"])
+            # The content of the tool call names its terminal.
+            @test only(call for call in tool_calls if call.id == "tu_1").terminal_ids == ["T7"]
+            # A second reply does nothing, and says so.
+            @test create.reply("T8") == false
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a cancel answers a terminal request that waits as cancelled" begin
+            answers = Dict{String,Any}()
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    answers["wait"] = ask_fake_client(agent, "terminal/wait_for_exit",
+                                                      Dict("sessionId" => params["sessionId"], "terminalId" => "T7"))
+                    Dict("stopReason" => "cancelled")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            waiting = AgentTerminalRequest[]
+            on_event = event -> event isa AgentTerminalRequest && push!(waiting, event)
+            prompt = @async send_agent_prompt!(connection, session_id, [LlmText("Wait")]; on_event)
+            @test _wait_until(() -> !isempty(waiting))
+            cancel_agent_prompt!(connection, session_id)
+            @test fetch(prompt) === :cancelled
+            @test answers["wait"]["error"]["code"] == -32800
+            @test only(waiting).reply((exit_code = 0, signal = nothing)) == false
             stop_agent_connection!(connection)
         end
 

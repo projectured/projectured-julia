@@ -3,11 +3,11 @@
 # projection failed.
 
 # What a mark says about itself when the pointer rests on it: the whole fault,
-# as text, which is a document every host draws. The one line a mark draws is cut
-# where the mark ends, and a message is the part worth reading. A right click
+# as a note. The one line a mark draws is cut where the mark ends, and a message
+# is the part worth reading. A right click
 # opens its menu, which tries the part again, when the report came from a barrier.
 get_document_gesture_bindings_own(::Type{FaultReport}) = GestureBinding[
-    make_tooltip_binding(report -> TextString(format_fault_report_message(report));
+    make_tooltip_binding(make_fault_report_note;
                          description = "Show the fault"),
     make_context_menu_binding(_make_fault_report_menu;
                               description = "Show the menu of the fault")]
@@ -60,7 +60,17 @@ That is the whole wiring. The drain calls `append_fault!` on it once per frame,
 from the editor's own task, which is the only place a document made of cells may
 be written.
 
-See also `FaultLogOverlayProjection`, which draws it, and `append_fault!`.
+Use it to read what failed in this session: each entry holds one fault and how
+many times it came.
+
+# Example
+
+    log_1 = get_edited_document(find_pane("Faults"))
+    log_1 isa FaultLog
+
+See also `find_pane`, `get_edited_document` and `search_documents`.
+
+For the assistant.
 """
 @document struct FaultLog
     entries::CellVector = CellVector()
@@ -151,6 +161,8 @@ for each fault, with its place, its message and its count.
     println(print_natural_text(get_session_fault_log()))
 
 See also `get_session_message_log`, `get_session_gesture_log`.
+
+For the assistant.
 """
 function get_session_fault_log end
 
@@ -185,8 +197,15 @@ get_wrapper_layers(::Val{:fault_log}) = (:screen => 30,)
 function get_document_decoration(log::FaultLog)
     faults = length(log.entries)
     DocumentDecoration(; icon = :warning,
-                       conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)])
+                       conditions = faults == 0 ? DocumentCondition[] : [DocumentCondition(:failed; count = faults)],
+                       tooltip = () -> _make_fault_log_note(log))
 end
+
+# What a row of the log says when the pointer rests on it: what it holds, and how
+# many faults it keeps.
+_make_fault_log_note(log::FaultLog) =
+    TooltipNote(; title = "Faults", text = "What failed in this session, and how often.",
+                facts = ["Faults" => string(length(log.entries)), "Capacity" => string(log.capacity)])
 
 # The command of the log, with no key: a person runs it from the command palette
 # or the menu of its row, and the count of the faults goes back to zero.

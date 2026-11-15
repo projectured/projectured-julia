@@ -41,6 +41,12 @@ end
 println("FIRST WINDOW COMPILED ", compute_first_window_compile_seconds())
 """
 
+# The project of the README in this repository. A release copy of the umbrella has
+# no `environment/`, and its test environment holds neither the packages of the
+# README nor the domains, so both measurements need this repository.
+const _README_SESSION_PROJECT =
+    joinpath(@__DIR__, "..", "..", "environment", "readme-data-frame", "Project.toml")
+
 # The project of the README session in `folder`: the packages that the README
 # tells a user to add, from `environment/readme-data-frame`, and the manifest of the
 # active environment with each package path made absolute, so the session loads
@@ -48,8 +54,7 @@ println("FIRST WINDOW COMPILED ", compute_first_window_compile_seconds())
 # integrations of the packages that the project lists, so an integration that the
 # active environment holds and the README does not stays out of the session.
 function _make_readme_session_project(folder::String)
-    readme = TOML.parsefile(joinpath(@__DIR__, "..", "..", "environment", "readme-data-frame",
-                                     "Project.toml"))
+    readme = TOML.parsefile(_README_SESSION_PROJECT)
     open(io -> TOML.print(io, Dict("deps" => readme["deps"])), joinpath(folder, "Project.toml"), "w")
     manifest = Base.project_file_manifest_path(Base.active_project())
     root = dirname(manifest)
@@ -91,6 +96,12 @@ function _test_first_window_compile_seconds(seconds, limit::Float64)
 end
 
 function test_first_window_compiles_little()
+    if !isfile(_README_SESSION_PROJECT)
+        @testset "the first window of a data frame compiles little" begin
+            @test_skip isfile(_README_SESSION_PROJECT)
+        end
+        return
+    end
     @testset "the first window of a data frame compiles little" begin
         seconds = mktempdir(folder -> _measure_first_window_compile_seconds(
             _make_readme_session_project(folder)))

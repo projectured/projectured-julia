@@ -13,7 +13,7 @@ value times its scale, and `WidgetTheme()` is the default theme. Each colour is 
 role of the colour theme, so the colour settings of the appearance choose it.
 
 The fields are in groups: the palette, the decorations, the fonts, the spacing,
-the radii, the lines, the parts of controls and the icons. Each field has a
+the radii, the lines, the parts of controls, the header of a table and the icons. Each field has a
 docstring that says what it draws, which the appearance tab shows under its name.
 
 The text styles are no fields: a widget derives them from the fonts and the
@@ -51,6 +51,8 @@ builder fills them from a theme, scaled or not.
     accent::ThemeColor = ColorRole(:accent_tint)
     "The text on the accent color."
     accent_foreground::ThemeColor = ColorRole(:accent_text)
+    "The text of a link and the line under it."
+    link::ThemeColor = ColorRole(:link)
     "The color of an action that deletes or an error."
     destructive::ThemeColor = ColorRole(:error_fill)
     "The text on the destructive color."
@@ -91,21 +93,33 @@ builder fills them from a theme, scaled or not.
     "The knob of a switch and of a slider."
     knob::ThemeColor = ColorRole(:text_on_accent)
     # ── Fonts ──
-    "The font of the text of a widget."
-    font::StyleFont = StyleFont("Ubuntu", 13)
-    "The font of a title and of a header."
-    font_bold::ThemeFont = FontRole(weight = 700)
-    "The font of a caption and of a badge."
-    font_small::ThemeFont = FontRole(relative_size = 0.9)
+    "The font of the text of a widget: a control, a row, a cell."
+    font::ThemeFont = FontRole(:text)
+    "The font of the name of a field of a form: the name of a setting, of a scale, of a field of a theme."
+    label_font::ThemeFont = FontRole(:label)
+    "The font of the title of a card, of a dialog and of a title pane."
+    title_font::ThemeFont = FontRole(:title)
+    "The font of the head of a small box or of a row: the title of an accordion item and of an alert."
+    strong_font::ThemeFont = FontRole(:strong_text)
+    "The font of a caption, a description, a footer, the status bar and the keys of a menu item."
+    quiet_font::ThemeFont = FontRole(:quiet)
+    "The font of a badge."
+    badge_font::ThemeFont = FontRole(:badge)
+    "The font of the header row of a table."
+    column_font::ThemeFont = FontRole(:column)
+    "The font of the heading of a group inside a pane."
+    section_font::ThemeFont = FontRole(:section)
+    "The font of the selected tab."
+    selected_tab_font::ThemeFont = FontRole(:text; weight = 500)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
-    control_padding::Spacing = Spacing(Inset(5, 5, 10, 10))
+    control_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside a card and an alert."
-    container_padding::Spacing = Spacing(12)
+    container_padding::Spacing = Spacing(8)
     "The space inside a badge."
     compact_padding::Spacing = Spacing(Inset(2, 2, 6, 6))
     "The space inside a command of a menu and of a context menu."
-    menu_item_padding::Spacing = Spacing(Inset(4, 4, 12, 12))
+    menu_item_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside the name of a menu on a menu bar: an item that opens a menu."
     menu_name_padding::Spacing = Spacing(Inset(4, 4, 6, 6))
     "The space inside a menu bar."
@@ -114,26 +128,44 @@ builder fills them from a theme, scaled or not.
     toolbar_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
     "The space inside a button of a toolbar."
     toolbar_item_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside the band of a file page: the sentence and the buttons of a choice."
+    band_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space inside a status bar."
     status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the edge of a tabbed pane and its tab strip and page."
-    tabbed_pane_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
+    tabbed_pane_padding::Spacing = Spacing(Inset(0, 0, 0, 0))
+    "The space that a slot of the frame, the page of a tab or a slot of a split pane, gives to what it holds."
+    slot_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
     "The largest width and height of the window of a context menu."
     context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
-    item_gap::Spacing = Spacing(2)
+    item_gap::Spacing = Spacing(4)
+    "The space inside a tab of a tab strip."
+    tab_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
+    "The space around the content of a row of a tree."
+    tree_row_padding::Spacing = Spacing(Inset(2, 2, 8, 8))
+    "The space between the bands of the shell of a window, under the toolbar."
+    band_gap::Spacing = Spacing(0)
+    "The space inside a dropdown, around its commands."
+    menu_padding::Spacing = Spacing(4)
+    "The space between a part and the popup that opens at it."
+    popup_gap::Spacing = Spacing(2)
+    "The space between the lines of a list of facts or of plain items."
+    line_gap::Spacing = Spacing(2)
     "The space under a title."
-    title_gap::Spacing = Spacing(4)
+    title_gap::Spacing = Spacing(2)
     "The space between an icon or a mark and its label."
     label_gap::Spacing = Spacing(6)
+    "The space between the push buttons of a row."
+    button_gap::Spacing = Spacing(8)
     "The space between sections, and between the rows of a radio group."
     section_gap::Spacing = Spacing(8)
     "The space between the items of a menu bar."
     bar_gap::Spacing = Spacing(8)
     "The space between the label column and the control column of a form."
-    form_column_gap::Spacing = Spacing(12)
+    form_column_gap::Spacing = Spacing(8)
     "The space between the rows of a form."
-    form_row_gap::Spacing = Spacing(8)
+    form_row_gap::Spacing = Spacing(6)
     "The indent of a level of a tree."
     indent::Spacing = Spacing(12)
     "The offset of the shadow under a button."
@@ -183,6 +215,26 @@ builder fills them from a theme, scaled or not.
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
+    "The width of the band that a splitter shows while the pointer rests on it or it is dragged."
+    splitter_band_width::ControlSize = ControlSize(4)
+    # ── Table ──
+    "The least width of a column of a table that takes a share of its width."
+    table_column_minimum_width::ControlSize = ControlSize(100)
+    "The height of a picture in a cell of a table, at most; its width follows its shape."
+    table_picture_height::Int = 120
+    # ── Header of a table ──
+    "The least width of the field of a filter under the header of a column, where the column does not give it its width, so an empty field has room for a press."
+    header_field_minimum_width::ControlSize = ControlSize(80)
+    "The gap between the name of a column and the glyph of its sort, in its header."
+    header_gap::Spacing = Spacing(4)
+    "A field of a filter or of a query whose text does not parse."
+    invalid_filter::ThemeColor = ColorRole(:error_tint)
+    "The glyph of the header of a column that does not sort."
+    unsorted_glyph::ThemeColor = ColorRole(:text_faint)
+    "The width and the height of the list in the dialog of the values of a column."
+    value_list_size::ControlSize = ControlSize(Point2D(320, 320))
+    "The width and the height of the window of the dialog of the values of a column."
+    value_list_window_size::ControlSize = ControlSize(Point2D(400, 460))
     # ── Icons ──
     "Half the side of a chevron."
     chevron::IconSize = IconSize(4)
@@ -196,17 +248,6 @@ builder fills them from a theme, scaled or not.
     stepper_glyph_minimum::IconSize = IconSize(8)
 end
 
-# ── The theme with a font ───────────────────────────────────────────────────
-
-"""
-    make_widget_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
-
-The default widget theme with the font `font`. Its colours are roles of the
-colour theme, so the colour settings of the appearance choose the palette, the
-mode and the contrast.
-"""
-make_widget_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
-
 # ── Values that a widget derives from a theme ───────────────────────────────
 
 # The same color at another alpha: what makes a layer or a highlight read over the
@@ -214,13 +255,15 @@ make_widget_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; f
 _with_alpha(color::StyleColor, alpha::Real) =
     StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
-# The four text styles, and the layers of a hovered and of a pressed widget. The
+# The text styles, and the layers of a hovered and of a pressed widget. The
 # styles are no fields of the theme, so they follow the fonts and the palette. Each
 # takes the values of a widget theme, scaled or not (`get_theme_values`).
 _get_body_text(theme) = StyleText(theme.font, theme.foreground)
-_get_title_text(theme) = StyleText(theme.font_bold, theme.foreground)
-_get_caption_text(theme) = StyleText(theme.font_small, theme.muted_foreground)
+_get_title_text(theme) = StyleText(theme.title_font, theme.foreground)
+_get_strong_text(theme) = StyleText(theme.strong_font, theme.foreground)
+_get_quiet_text(theme) = StyleText(theme.quiet_font, theme.muted_foreground)
 _get_label_text(theme) = StyleText(theme.font, theme.foreground)
+_get_link_text(theme) = StyleText(theme.font, theme.link)
 _get_hover_layer(theme) = theme.hover
 _get_pressed_layer(theme) = theme.pressed
 
@@ -237,6 +280,11 @@ _make_selected_row_color(graphics_theme) =
 # the `item_gap` of the widget theme `theme`, or of the default theme for
 # `nothing`. A builder that runs outside a printer takes the theme of its caller.
 _get_bar_item_gap(theme) = _get_theme_values(theme).item_gap
+
+# The gap between the lines of a prompt that a builder of widgets puts in a
+# column: the `line_gap` of the widget theme `theme`, or of the default theme for
+# `nothing`.
+_get_line_gap(theme) = _get_theme_values(theme).line_gap
 
 # The values of the widget theme `theme`, scaled or not, or of the default theme for
 # `nothing`, for a builder that runs outside a printer.

@@ -14,6 +14,10 @@ that a session loads, and a session decides what it holds by what it loads:
 
     using Projectured, ProjecturedPlatform, ProjecturedSDL, ProjecturedOllama
     run_application("data.json")
+
+[`run_application_workload`](@ref) runs the same window on a backend with no
+device and gives it a list of clicks, keys and typed texts, so that the
+`@compile_workload` of a package compiles the code that a person runs first.
 """
 module ApplicationModule
 
@@ -25,6 +29,7 @@ using ..AssistantModule
 using ..ClipboardModule
 using ..CollectionModule
 using ..ConversationModule
+using ..DisplayModule
 using ..DomainModule
 using ..ExplorerModule
 using ..FileFormatModule
@@ -32,6 +37,7 @@ using ..FaultViewModule
 using ..FileSystemModule
 using ..FocusModule
 using ..FrameStatisticsModule
+using ..BackgroundWorkModule
 using ..GestureHelpModule
 using ..GestureLogModule
 using ..HelpModule
@@ -58,24 +64,32 @@ using ..TreeModule
 using ..UndoModule
 using ..WidgetModule
 
+import ..DisplayModule: make_workload_file
+import ..LlmModule: stream_turn
+import ..OperationModule: evaluate_operation
 import ..SettingsModule: is_settings_group_read_at_start
-import ..TaskModule: make_task_api
 
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
        make_application_document, make_application_content_projections,
        make_application_projection, make_application_wrappers, make_application_window,
        make_editor_api, EDITOR_SYSTEM, APPLICATION_SYSTEM, make_domain_system,
+       make_assistant_system, make_application_system,
        make_application_settings,
        run_application, parse_application_arguments, restart_with_window_threads!,
        run_application_command,
        evaluate_reachable_cells!, warm_application, register_editor_tools!, start_application!
-export StartSettings
+export DrawnText, DrawnPart, WorkloadStep, WorkloadClick, WorkloadKey, WorkloadTyping, WorkloadWait,
+       WorkloadAgentTurn,
+       find_workload_inputs, run_application_workload, run_workload_steps!, run_window_workload, make_workload_llm,
+       run_file_workload
+export StartSettings, AssistantIndexSettings, describe_api_index
 export make_editor_explorer_content
 
 include("DefaultBackend.jl")
 include("Application.jl")
 include("StartSettings.jl")
 include("ApplicationExplorer.jl")
+include("ApplicationWorkload.jl")
 
 end # module ApplicationModule

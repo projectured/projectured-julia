@@ -92,6 +92,31 @@ function test_document_decoration()
         @test WidgetModule.icon_width(icon, 16) == 16
     end
 
+    @testset "an alert draws a plain icon in the color of its title, and a decorated one in its role" begin
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            WidgetToGraphics(; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        collect_texts(canvas, found = GraphicsText[]) = begin
+            for element in canvas.elements
+                element isa GraphicsText && push!(found, element)
+                element isa GraphicsCanvas && collect_texts(element, found)
+            end
+            found
+        end
+        glyph = string(find_icon_character(:warning))
+        function find_colors(icon)
+            texts = collect_texts(print_document(projection, nothing, WidgetAlert("Two differ"; icon),
+                                                 PrinterContext()).output)
+            (title = only(t for t in texts if t.text == "Two differ").color,
+             icon = only(t for t in texts if t.text == glyph).color)
+        end
+        plain = find_colors(:warning)
+        @test plain.icon == plain.title
+        decorated = find_colors(WidgetIcon(:warning; role = :warning))
+        badge = WidgetBadgeToGraphicsCanvas(WidgetTheme(); measure = FixedMeasure(10, 18, 6, 0))
+        @test decorated.icon == badge.warning_label_text.color
+        @test decorated.icon != decorated.title
+    end
+
     @testset "a row of a tree draws the marks, the detail and the pills" begin
         root = _doctree_node("root", _DecoratedNode("busy", :running))
         tree = DocumentTree(root)
@@ -112,7 +137,7 @@ function test_document_decoration()
         folder.failure = ErrorException("no access")
         folder.state = :failed
         decoration = get_document_decoration(folder)
-        @test find_decoration_tint(decoration) === :error && occursin("no access", format_decoration_words(decoration))
+        @test find_decoration_tint(decoration) === :error && occursin("no access", make_decoration_note(decoration)().text)
         @test get_file_icon("notes.md") === :pilcrow && get_file_icon("model.jl") === :lambda && get_file_icon("x.bin") === :file
         # The logs count what they hold.
         log = MessageLog()
@@ -122,14 +147,14 @@ function test_document_decoration()
         # A navigator says what its page says.
         node = _DecoratedNode("busy", :running)
         @test get_document_decoration(Navigator(node)).detail == "since 12:03"
-        # A file page whose band shows says that the file changed on disk.
+        # A file whose band shows says that the file changed on disk.
         path = joinpath(mktempdir(), "notes.txt")
         write(path, "hello")
-        page = make_file_page(WidgetScrollPane(make_file_tab(path)))
-        @test get_document_decoration(page).icon === :pilcrow
-        @test isempty(get_document_decoration(page).conditions)
-        page.band = FileBand(; message = "notes.txt changed on disk.")
-        @test [condition.name for condition in get_document_decoration(page).conditions] == [:changed_on_disk]
+        file = make_file_tab(path)
+        @test get_document_decoration(file).icon === :pilcrow
+        @test isempty(get_document_decoration(file).conditions)
+        get_file_disk_state(file).band = FileBand(; message = "notes.txt changed on disk.")
+        @test [condition.name for condition in get_document_decoration(file).conditions] == [:changed_on_disk]
     end
 
     @testset "a log that counts its faults has a command that clears them" begin
@@ -154,10 +179,34 @@ function test_document_decoration()
         title = make_pane_tab_title(node, "busy")
         @test title.icon isa WidgetIcon && title.icon_role === :warning
         @test length(title.badges) == 1 && title.badges[1].content == "2/4"
-        @test title.tooltip == "waits for you: 2\nrunning"
+        # The tooltip is a note: each condition that has words, as a fact.
+        @test [(condition.name, condition.count) for condition in title.tooltip.facts] ==
+              [(:waiting, 2), (:running, nothing)]
         # A plain document gives a tab with no icon, as before.
         plain = make_pane_tab_title(PrimitiveString("plain"), "plain")
         @test plain.icon === nothing && plain.icon_role === nothing && isempty(plain.badges) && plain.tooltip === nothing
+    end
+
+    @testset "a decoration says its conditions and its tooltip as a note" begin
+        busy = _decorated(DocumentCondition(:read_only), DocumentCondition(:failed; count = 3); tooltip = "a fact")
+        note = make_decoration_note(busy)
+        @test [condition.name for condition in note.facts] == [:failed, :read_only]
+        @test note.text == "a fact"
+        @test make_decoration_note(_decorated()) === nothing
+        # A note of the decoration keeps its own pieces, after the conditions.
+        given = TooltipNote(; title = "smoke test", text = "Ran the tests.", facts = ["Finished" => "3 of 3"])
+        merged = make_decoration_note(_decorated(DocumentCondition(:done); tooltip = given))
+        @test (merged.title, merged.text) == ("smoke test", "Ran the tests.")
+        @test merged.facts[1] isa DocumentCondition && merged.facts[2] == ("Finished" => "3 of 3")
+        # A function in the decoration gives a function, which makes the whole note
+        # when the pointer rests, from the values of that time.
+        count = Ref(1)
+        lazy = make_decoration_note(_decorated(DocumentCondition(:running);
+                                               tooltip = () -> TooltipNote(; facts = ["Count" => string(count[])])))
+        @test lazy isa Function
+        @test [fact isa Pair ? fact : fact.name for fact in lazy().facts] == [:running, "Count" => "1"]
+        count[] = 2
+        @test last(lazy().facts) == ("Count" => "2")
     end
 end
 end

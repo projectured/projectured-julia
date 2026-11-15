@@ -42,9 +42,11 @@ end
 function test_window_shell()
 @testset "the window shell" begin
 
-_labels(menu) = [String(string(item.action.label)) for item in menu.elements]
+# The items of `menu`, and not its separators.
+_items(menu) = [item for item in menu.elements if item isa WidgetMenuItem]
+_labels(menu) = [String(string(item.action.label)) for item in _items(menu)]
 _submenu(menu, name) = begin
-    found = [item for item in menu.elements if string(item.action.label) == name]
+    found = [item for item in _items(menu) if string(item.action.label) == name]
     isempty(found) ? nothing : first(found).submenu
 end
 
@@ -69,7 +71,12 @@ end
 @testset "the bar holds one menu of each make function, in order" begin
     file, view, help = make_window_file_menu(), make_window_view_menu(), make_window_help_menu()
     @test string(file.action.label) == "File"
-    @test _labels(file.submenu) == ["New tab", "Close tab"]
+    @test _labels(file.submenu) == ["New tab", "Open file…", "Go to file…", "Close tab", "Exit"]
+    @test file.submenu.elements[5] isa WidgetSeparator
+    keys = Dict(string(item.action.label) => item.action.shortcut for item in file.submenu.elements
+                if item isa WidgetMenuItem)
+    @test describe_gesture_pattern(keys["Open file…"]) == describe_gesture_pattern(Shortcut(:o; ctrl = true))
+    @test describe_gesture_pattern(keys["Go to file…"]) == describe_gesture_pattern(Shortcut(:p; ctrl = true))
     @test string(view.action.label) == "View"
     @test _labels(view.submenu) ==
           ["Split vertically", "Split horizontally", "Gesture log", "Appearance", "Settings"]
@@ -91,10 +98,10 @@ end
     help = make_window_help_menu(; gesture_help = true, command_palette = true)
     @test _labels(help.submenu) == ["Gestures", "Command palette", "Documents", "Projections", "About"]
     # The key reaches the wrapper itself, so the item carries none, and its
-    # tooltip names the key.
-    for (item, key) in zip(collect(help.submenu.elements)[1:2], ("(F1)", "(Ctrl+Shift+P)"))
+    # tooltip names the key that the wrapper binds.
+    for (item, key) in zip(collect(help.submenu.elements)[1:2], (HELP_GESTURE, COMMAND_PALETTE_GESTURE))
         @test item.action.shortcut === nothing
-        @test endswith(item.tooltip, key)
+        @test item.tooltip.keys == Any[key]
     end
     bar = make_window_menu_bar(; gesture_help = true, command_palette = true)
     @test _labels(_submenu(bar, "Help"))[1:2] == ["Gestures", "Command palette"]
@@ -109,10 +116,10 @@ end
     # A host gives the page of its own program.
     page = AboutPage(; name = "Host", version = "2.0")
     help = make_window_help_menu(; about = _ -> page)
-    # A list is longer than a pane, so it opens inside a scroll pane; the page
-    # about the program is short and opens bare.
+    # A tree opens in a navigator, which shows one group or one type at a time;
+    # the page about the program is short and opens bare.
     shown(tab) = (document = get_wrapped_document(tab.content);
-                  document isa WidgetScrollPane ? document.content : document)
+                  document isa Navigator ? document.content : document)
     holding(type) = [shown(tab) for tab in group.tabs if shown(tab) isa type]
     for (item, type) in zip(help.submenu.elements, [DocumentTypeList, ProjectionList, AboutPage])
         evaluate_operation(editor, InvokeActionOperation(item.action))
@@ -125,22 +132,23 @@ end
     @test only(holding(AboutPage)) === page
     @test length(group.tabs) == 4
     tab(type) = only(tab for tab in group.tabs if shown(tab) isa type)
-    @test get_wrapped_document(tab(DocumentTypeList).content) isa WidgetScrollPane
-    @test get_wrapped_document(tab(ProjectionList).content) isa WidgetScrollPane
+    @test get_wrapped_document(tab(DocumentTypeList).content) isa Navigator
+    @test get_wrapped_document(tab(ProjectionList).content) isa Navigator
     @test get_wrapped_document(tab(AboutPage).content) === page
-    # The tab is titled by the list, not by the scroll pane.
+    # The tab of a navigator is titled by its page, here the root of the tree.
     @test get_pane_tab_title_string(tab(DocumentTypeList)) == "Documents"
     @test get_pane_tab_title_string(tab(ProjectionList)) == "Projections"
-    # A saved window keeps the list in its scroll pane, and where it was
-    # scrolled.
-    pane = get_wrapped_document(tab(DocumentTypeList).content)
-    pane.scroll_position.y[] = 40
-    text = print_pred_text(pane)
+    # A saved window keeps the tree and the address of the page as a path, and the
+    # acquire after the load builds the groups that the path reaches.
+    navigator = get_wrapped_document(tab(DocumentTypeList).content)
+    update_help_groups!(navigator.content)
+    navigator.address = extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(2))
+    text = print_pred_text(navigator)
     again = parse_pred_text(text)
-    @test again isa WidgetScrollPane
-    @test again.content isa DocumentTypeList
-    @test occursin("scroll_position = Point2D(x = 0, y = 40),", text)
-    @test (again.scroll_position.x[], again.scroll_position.y[]) == (0, 40)
+    @test again isa Navigator && again.content isa DocumentTypeList
+    @test isempty(again.content.children)
+    update_help_groups!(again.content)
+    @test get_navigator_page(again) === again.content.children[2]
 end
 
 @testset "the shell prints what it holds with the step of its field" begin
@@ -253,7 +261,7 @@ end
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     tools = ["Explorer", "Files", "Evaluator", "Message log", "Gesture log", "Fault log",
-             "Statistics", "Frame times", "Selection", "Appearance", "Settings"]
+             "Frame statistics", "Frame times", "Selection", "Appearance", "Settings"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
@@ -262,8 +270,11 @@ end
     @test [item.action.icon for item in bar.elements] ==
           [:folder_tree, :folder, :chat, :terminal, :scroll_text, :keyboard, :warning, :chart, :chart_line, :crosshair,
            :palette, :settings]
-    # The tooltip names the tool first, because the picture does not.
-    @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
+    # The tooltip names the tool as its title, because the picture does not, and
+    # its text does not say the name again.
+    note(item) = only(get_wrapped_operation(read_gesture(item, MouseDwell(0, 0; time = 0.0))).layers)[2]
+    @test all(item -> note(item).title == item.action.label &&
+                      !startswith(note(item).text, item.action.label), bar.elements)
     # What the band draws is pictures and no word.
     texts = Any[]
     walk(canvas) = for element in canvas.elements
@@ -393,7 +404,7 @@ end
 @testset "the status line keeps its text off the edges" begin
     measure = FontFileMeasure()
     recursion = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch))
+        WidgetToGraphics(; measure = measure).dispatch))
     bar = make_window_status_bar(PrimitiveString("x"); extra = ["ready"])
     output = print_document(recursion, nothing, bar, PrinterContext()).output
     value(v) = v isa Cell ? v[] : v
@@ -456,10 +467,33 @@ end
                             backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
                             shell = true, gesture_log = true)
     @test "Gesture log" in labels(get_wrapped_document(recorded.document).windows[1].content.toolbar)
+    # The menus of the host go on the bar after File and View, and Help stays last.
+    run_menu = WidgetMenuItem("Run"; submenu = WidgetMenu(Any[make_window_command("Go", _ -> nothing)]))
+    hosted = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
+                          shell = (; menus = [run_menu]))
+    hosted_bar = get_wrapped_document(hosted.document).windows[1].content.menu_bar
+    @test labels(hosted_bar) == ["File", "View", "Run", "Help"]
+    @test hosted_bar.elements[3] === run_menu
+    @test labels(shell.menu_bar) == ["File", "View", "Help"]
     # The shell is off by default.
     plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[])
     @test get_wrapped_document(plain.document).windows[1].content isa PaneTree
+end
+
+@testset "Ctrl+Q reaches Exit, and Exit quits the editor" begin
+    editor = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                          backend = HeadlessBackend(),
+                          devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse()],
+                          shell = true)
+    run_frame!(editor)
+    window = get_wrapped_document(editor.document).windows[1].id
+    push_event!(editor.backend, WindowInput(window, KeyDown(:q, ModifierKeys(ctrl = true); time = 0.0)))
+    @test EditorModule.run_read_stage!(editor)
+    @test editor.operation isa InvokeActionOperation
+    @test string(editor.operation.action.label) == "Exit"
+    @test_throws QuitEditorException EditorModule.run_evaluate_stage!(editor)
 end
 
 @testset "the shell is a document, and the wrapper puts the window inside it" begin

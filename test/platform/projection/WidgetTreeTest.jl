@@ -15,7 +15,7 @@ function test_widget_tree()
 
 # Deterministic measure ⇒ row_height = 16 + 2*2 = 20, indent 12, chevron column 16.
 _det = FixedMeasure(8, 12, 4, 0)
-_w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
+_w2g = WidgetToGraphics(; measure = _det)
 _treeproj = nothing
 for (T, pr) in _w2g.dispatch
     T === WidgetTree && (_treeproj = pr)
@@ -73,8 +73,11 @@ end
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
     @test _has_children(w, [1]) && [1] in w.expanded
     @test !_has_children(w, [2])                       # README is a leaf
-    @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 16
-    @test geom.rows[2].chevron_x0 == 12                # indented one level
+    # The content of a row stands the side padding of the rows inside the row.
+    theme = get_theme_defaults(WidgetTheme)
+    left = Int(theme.tree_row_padding.left[])
+    @test geom.rows[1].chevron_x0 == left && geom.rows[1].chevron_x1 == left + theme.tree_chevron_column
+    @test geom.rows[2].chevron_x0 == left + theme.indent   # indented one level
 end
 
 @testset "a move onto a row makes it the part under the pointer; moving off it clears it" begin
@@ -130,7 +133,7 @@ end
     io = print_document(_treeproj, w)
     op = _readop(io, MouseDwell(30, 2, _mods; time = 0.0))
     @test op isa OpenTooltipOperation
-    @test op.layers[1][1] == "notes" && op.layers[1][2].value == "unsaved edits"
+    @test op.layers[1][1] == "notes" && op.layers[1][2].text == "unsaved edits"
     # A row whose node has no tooltip says nothing.
     @test _readop(io, MouseDwell(30, 22, _mods; time = 0.0)) === nothing
 end
@@ -458,7 +461,7 @@ end
     # Through the fault barriers of a window, a wheel turn writes the rows of the
     # view, and a far scroll moves the head of a lazy list of rows.
     barrier = RecursiveProjection(FaultCatchingProjection(
-        inner = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det),
+        inner = WidgetToGraphics(; measure = _det),
         substitute = ProjecturedPlatform.GraphicsModule.FaultToGraphics()))
     items = make_index_list(10_000_000, 1, k -> "Run $k")
     deep = WidgetTree(Any[WidgetTreeNode("", "Sweep", items; has_children = () -> true)];

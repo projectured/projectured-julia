@@ -6,6 +6,13 @@ end
 ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_code}, text::AbstractString, appearance) =
     isempty(text) ? Tuple{Int,Any}[(0, nothing)] : Tuple{Int,Any}[(1, color_red), (length(text) - 1, nothing)]
 
+# `place`, a path in the output that ends in a range of the text of a
+# `GraphicsText`, without the range and the field `text`: the path of the text.
+function _drop_steps_after_text(place)
+    steps = collect(get_reference_steps(strip_reference_types(place)))
+    foldr(ConcreteReference, steps[1:(end - 2)]; init = EmptyReference())
+end
+
 function test_widget_text_editing()
 
 _font = StyleFont("Ubuntu Mono", 20)
@@ -20,7 +27,7 @@ end
 # Combined renderer: widget nodes via WidgetToGraphics, the recursed TextBlock via
 # TextToGraphics.
 function _proj()
-    w2g = WidgetToGraphics(_font; measure=_stub)
+    w2g = WidgetToGraphics(; measure=_stub)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[TextBlock => TextToGraphics(measure=_stub)],
@@ -42,7 +49,7 @@ end
     # The same text with the default padding and with none: the default adds the
     # room of the theme's control padding, left and right at the sides and top
     # and bottom above and below, and a padding the document gives is kept.
-    padding = make_scaled_theme(make_widget_theme(font = _font)).control_padding
+    padding = make_scaled_theme(WidgetTheme()).control_padding
     extent(document) = (output = print_document(_proj(), nothing, document, PrinterContext()).output;
                         (Int(output.w), Int(output.h)))
     padded, bare = extent(WidgetText("edit me")), extent(WidgetText("edit me"; padding = Inset(0, 0, 0, 0)))
@@ -68,7 +75,7 @@ end
     set_selection!(doc, ConcreteReference(FieldReferenceStep("content"),
                                           ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    runs = collect(only(iomap.content_iomap.input.elements).elements)
+    runs = collect(only(iomap.content_iomap.input.viewed.elements).elements)
     @test [run.content for run in runs] == ["a", "bc"]
     @test runs[1].font_color == color_red
     op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
@@ -81,14 +88,14 @@ end
     set_selection!(lines_doc, ConcreteReference(FieldReferenceStep("content"),
                                                 ConcreteReference(RangeReferenceStep(4, 4), EmptyReference())))
     lines_iomap = print_document(_proj(), nothing, lines_doc, PrinterContext())
-    @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.elements] ==
+    @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.viewed.elements] ==
           [["a", "b"], ["cd"]]
     typed = read_intent(_proj(), lines_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test strip_reference_types(typed.reference) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(4, 4), EmptyReference()))
     # An empty field of code is one line with one empty run.
     empty = print_document(_proj(), nothing, WidgetText(""; language = :widget_text_test_code), PrinterContext())
-    @test [run.content for run in only(empty.content_iomap.input.elements).elements] == [""]
+    @test [run.content for run in only(empty.content_iomap.input.viewed.elements).elements] == [""]
 end
 
 @testset "an empty field shows its placeholder below its caret, and a press puts the caret at its start" begin
@@ -165,8 +172,11 @@ end
     @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
-    # Tab is not text, so it goes on to move the focus.
-    @test read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0)) === nothing
+    # A textarea holds many lines, so Tab indents its line: spaces up to the next
+    # stop of 4 columns, an edit of the lines that stays flat.
+    tab = read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0))
+    @test tab isa ReplaceTextRangeOperation && tab.changes_indentation && tab.replacement == " "
+    @test tab.reference.head == FieldReferenceStep("content")
 
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test [get_flat_string(line) for line in doc.content.elements] == ["one", " two"]
@@ -271,6 +281,84 @@ end
     one_y = first(y for (text, y) in lines if occursin("one", text))
     two_y = first(y for (text, y) in lines if occursin("two", text))
     @test two_y > one_y
+end
+
+@testset "a caret in a plain value maps forward to its character, and the value as a whole to its text" begin
+    proj = _proj()
+    field = WidgetText("Survey")
+    iomap = print_document(proj, proj, field, PrinterContext())
+    content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+    caret = ConcreteReference(FieldReferenceStep("content"), ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+    place = map_reference_forward(iomap.projection, iomap, annotate_reference_types(field, caret))
+    @test place !== nothing
+    # The place is the caret before the fourth character of the line of the text.
+    @test last(get_reference_steps(strip_reference_types(place))) == RangeReferenceStep(3, 3)
+    @test evaluate_reference(iomap.output, _drop_steps_after_text(place)) isa GraphicsText
+    whole = map_reference_forward(iomap.projection, iomap, annotate_reference_types(field, content))
+    @test whole !== nothing && find_reference_box(iomap.output, whole; measure = _stub) !== nothing
+end
+
+# The viewport that cuts the text of `widget`, as the rect `(x, y, width, height)`
+# in the frame of the widget, and the IO map of the print.
+function _print_cut_text(proj, widget)
+    iomap = print_document(proj, proj, widget, PrinterContext())
+    view = only(element for element in iomap.output.elements if element isa GraphicsViewport)
+    (iomap, (Int(view.x), Int(view.y), Int(view.w), Int(view.h)))
+end
+
+# The box of the caret of `widget` in the frame of the widget, as it is drawn.
+function _find_drawn_caret(iomap, widget)
+    place = map_reference_forward(iomap.projection, iomap, annotate_reference_types(widget, get_selection(widget)))
+    find_reference_box(iomap.output, place; measure = _stub)
+end
+
+# Each drawn text and where it starts in the frame of `canvas`, also inside a
+# viewport, whose content canvas moves its text by its own place.
+function _drawn_texts_in_views(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    if node isa GraphicsViewport
+        _drawn_texts_in_views(node.content, ox + Int(node.x), oy + Int(node.y), found)
+    elseif node isa GraphicsCanvas
+        x = ox + Int(node.x); y = oy + Int(node.y)
+        for element in node.elements
+            element isa GraphicsText ? push!(found, (String(element.text), x + Int(element.x), y + Int(element.y))) :
+                                       _drawn_texts_in_views(element, x, y, found)
+        end
+    end
+    found
+end
+
+@testset "a field narrower than its text cuts the text and keeps the caret in view" begin
+    proj = _proj()
+    # Thirty characters of 10 pixels in a field of 60.
+    doc = WidgetText("abcdefghijklmnopqrstuvwxyz0123"; width = 60)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _plain_cursor(30))
+    iomap, (left, _, width, _) = _print_cut_text(proj, doc)
+    caret = _find_drawn_caret(iomap, doc)
+    # The caret at the end of the text shows at the right edge of the field.
+    @test left + width - 10 <= caret.x <= left + width
+    # A step to the left moves the caret one character, and the text stays.
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test _find_drawn_caret(iomap, doc).x == caret.x - 10
+    # Home shows the start of the text, with the caret at the left edge.
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:home, ModifierKeys(); time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test _find_drawn_caret(iomap, doc).x == left
+end
+
+@testset "a text area of two rows cuts its other lines and shows the line of its caret" begin
+    proj = _proj()
+    lines = ["line $i" for i in 1:10]
+    text = join(lines, "\n")
+    doc = WidgetTextarea(text; rows = 2)
+    set_selection!(doc, _plain_cursor(length(text)))
+    iomap, (_, top, _, height) = _print_cut_text(proj, doc)
+    # The area is two lines tall, and the last line, which holds the caret, is
+    # drawn inside it.
+    @test height == 2 * 24
+    _, _, y = only(t for t in _drawn_texts_in_views(iomap.output) if t[1] == "line 10")
+    @test top <= y < top + height
 end
 
 end # test_widget_text_editing

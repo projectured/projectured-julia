@@ -103,6 +103,18 @@ end
     @test convert_setting_value(describe(:name), :text) == "text"
 end
 
+@testset "a control of a setting says its default and the values it takes" begin
+    settings = make_settings(SettingsTestProbeSettings())
+    group = find_settings_group(settings, SettingsTestProbeSettings)
+    iomap = print_document(SettingsGroupToWidget(), nothing, group, nothing)
+    note(name) = _read_widget_note(only(control for (control, _, field, _) in iomap.controls if field === name))
+    @test note(:count).title == "Count"
+    @test note(:count).facts == ["Default" => "2", "Range" => "1 to 4"]
+    @test note(:mode).facts == ["Default" => "fast", "Choices" => "fast, slow"]
+    @test note(:flag).facts == ["Default" => "false"]
+    @test note(:count).hint === nothing
+end
+
 @testset "a Settings holds one group of each type, and two are independent" begin
     settings = Settings()
     group = get_settings_group!(settings, SettingsTestProbeSettings)
@@ -111,7 +123,7 @@ end
     @test get_settings_group!(other, SettingsTestProbeSettings).count == 4
     # The other loaded group types get their defaults.
     @test SettingsTestOtherSettings in compute_loaded_settings_types()
-    @test haskey(other.groups, SettingsTestOtherSettings)
+    @test find_settings_group(other, SettingsTestOtherSettings) isa SettingsTestOtherSettings
     @test group.count == 2
     replaced = set_settings_group!(settings, SettingsTestProbeSettings(flag = true))
     @test get_settings_group!(settings, SettingsTestProbeSettings) === replaced

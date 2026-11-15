@@ -1,6 +1,6 @@
 # AutoIntegration
 
-> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [own-project-guide.md](../../guide/own-project-guide.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [own-project-guide.md](../../guide/own-project-guide.md)
 
 `AutoIntegration` loads an installed package when the packages that it names as its triggers are loaded, as the settings of the environment of the user choose. `using Projectured` loads it. It is a generic package of its own repository, [projectured/AutoIntegration.jl](https://github.com/projectured/AutoIntegration.jl), whose README says how the mechanism works. This document says how ProjecturEd uses it and why ProjecturEd installs and loads its packages in this way.
 
@@ -34,7 +34,7 @@ SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 
 | Packages | Triggers | Default |
 | --- | --- | --- |
-| the 18 domains, `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedOpenRouter` | `Projectured` | auto |
+| the 18 domains, `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedOpenRouter`, `ProjecturedLanguageServer` | `Projectured` | auto |
 | `ProjecturedSDL` | `Projectured`, `SimpleDirectMediaLayer` | auto |
 | `ProjecturedDataFrames` | `Projectured`, `DataFrames` | auto |
 | `ProjecturedVideo` | `Projectured`, `FFMPEG` | auto |

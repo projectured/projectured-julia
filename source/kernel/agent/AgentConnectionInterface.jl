@@ -63,6 +63,24 @@ Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
 function open_agent_session! end
 
 """
+    fork_agent_session!(connection; session_id, directory, mcp_servers = [], instructions = "",
+                        on_event = nothing, events = nothing) -> Union{String,Nothing}
+
+Open a new session of the agent that starts with the history of the session
+`session_id`, as the agent keeps it at this call, and answer its id. The session
+`session_id` goes on as before, and a later answer of it does not reach the new
+one. `directory` must be the folder of the session `session_id`. The other
+keywords are those of [`open_agent_session!`](@ref).
+
+Answers `nothing` when the agent can not fork that session: it can not fork a
+session at all, or it does not keep that one. The caller then opens a new
+session with `open_agent_session!`, which has none of the history.
+
+Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
+"""
+function fork_agent_session! end
+
+"""
     set_agent_option!(connection, session_id, option_id, value; on_event = nothing)
 
 Set the option `option_id` of the session to `value`, the `value` of one of the
@@ -160,6 +178,17 @@ Whether the agent of `connection` signs out when asked. A connection that has
 not started answers `false`.
 """
 function has_agent_sign_out end
+
+"""
+    sign_in_agent!(connection, method_id) -> Bool
+
+Ask the agent of `connection` to run its own sign-in of the method `method_id`,
+an [`AgentSignInMethod`](@ref) with no `command`, such as a sign-in in the
+browser, and wait until it ends. Answers `true` when the agent signed in, and
+`false`, doing nothing, when the agent has no such method. Throws when the
+sign-in did not complete. The connection must be started.
+"""
+function sign_in_agent! end
 
 """
     sign_out_agent!(connection) -> Bool

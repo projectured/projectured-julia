@@ -1,6 +1,6 @@
 # System processes
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [tree.md](../tree/tree.md), [roster.md](../roster/roster.md), [widget.md](../widget/widget.md)
 
 The system process slice of `ProjecturedPlatform` shows the processes of the operating system as documents: a tree of the processes below a set of roots, and a page for each process with its facts and the buttons Interrupt and Stop. This document says how a read of `/proc` becomes documents without a cost for a window that shows none, who drains a tree, how the page guards a signal, and what the slice needs from the system. Only Linux has `/proc`.
 
@@ -106,7 +106,7 @@ The task slice makes a `SystemProcessTree` of the process of the current executi
 
 ### The verbs
 
-`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It runs through `run_on_editor_task!`, so any task can call it. `describe_system_process_tree(root_process_ids)` reads `/proc` once, on the task that calls it, because it reads no document, and answers a `Text`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
+`show_system_process_tree!(root_process_ids; title, editor)` shows the tree in a tab and answers it in its window. It runs through `run_on_editor_task!`, so any task can call it. `describe_system_process_tree(root_process_ids)` reads `/proc` once, on the task that calls it, because it reads no document, and answers a `String`: a line for each process, indented under its parent, with the process id, the command, the state and the memory. A system with no `/proc` and a process id that does not run each get a sentence. Both verbs are declared to the assistant.
 
 ## Try it
 

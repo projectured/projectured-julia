@@ -18,8 +18,14 @@ function _chart_projection(; width::Integer=760, height::Integer=460)
                                   width=width, height=height))
 end
 
-_chart_canvas(chart; kw...) = print_document(_chart_projection(; kw...),
-                                             _chart_projection(; kw...),
+# A recursion that prints the buttons of a chart, as `make_chart_projection` gives
+# its renderer: a test prints the two stages with it, so a hover can show them.
+_chart_widgets() = TypeDispatchingProjection(
+    WidgetToolbar => WidgetToolbarToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(WidgetTheme(); measure = FontFileMeasure()),
+    WidgetScrollBar => WidgetScrollBarToGraphicsCanvas(WidgetTheme()))
+
+_chart_canvas(chart; kw...) = print_document(_chart_projection(; kw...), _chart_widgets(),
                                              chart, PrinterContext()).output
 
 # Every element of a canvas, descending into viewports and nested canvases —
@@ -49,8 +55,29 @@ _series_elements(canvas) = collect(_viewport_of(canvas).content.elements)
 # way to see which histogram value transform is in effect.
 _chart_y_max(chart) = resolve_view(ChartPlot(chart)).y_max
 
+# The IO map of the canvas of a chart, found in an IO map tree.
+function _find_chart_canvas_iomap(root)
+    force(value) = value isa AbstractCell ? force(value[]) : value
+    seen = Set{UInt}()
+    stack = Any[root]
+    while !isempty(stack)
+        value = force(pop!(stack))
+        value isa ChartPlotToGraphicsCanvasIoMap && return value
+        if value isa IoMap
+            objectid(value) in seen && continue
+            push!(seen, objectid(value))
+            for name in fieldnames(typeof(value))
+                name in (:projection, :input, :output) || push!(stack, getfield(value, name))
+            end
+        elseif value isa Union{AbstractVector,Tuple}
+            append!(stack, value)
+        end
+    end
+    nothing
+end
+
 _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
-                              print_document(p, p, chart, PrinterContext()))
+                              print_document(p, _chart_widgets(), chart, PrinterContext()))
 
 # The laid-out frame the renderer works from, as the printer and the reader both
 # see it.
@@ -77,6 +104,17 @@ end
 function _apply_to(chart, op)
     editor = (; document = chart)
     evaluate_operation(editor, op)
+end
+
+# A callable object that reads a function from a cell, as a formula reads its
+# stored function, and raises when it holds none.
+struct _ChartCellCallable
+    cell::Cell
+end
+function (callable::_ChartCellCallable)(x)
+    f = callable.cell[]
+    f === nothing && throw(ErrorException("the callable has no value yet"))
+    f(x)
 end
 
 const alt_modifier = ModifierKeys(; alt=true)
@@ -113,6 +151,14 @@ function test_chart_projection()
             @test "time (s)" in labels
             @test "value" in labels
             @test any(l -> l == "0", labels)
+            # The title takes the title font and colour of the theme, and an axis
+            # title the font of a column header in the muted colour.
+            defaults = get_theme_defaults(ChartTheme)
+            title = only(t for t in texts if String(t.text) == "Signal")
+            axis_title = only(t for t in texts if String(t.text) == "value")
+            @test (title.font, title.color) == (defaults.title_font, defaults.title_color)
+            @test (axis_title.font, axis_title.color) == (defaults.axis_title_font, defaults.text_color)
+            @test title.color != axis_title.color
 
             vp = _viewport_of(canvas)
             # The plot rectangle sits inside the canvas with room for the labels.
@@ -120,6 +166,68 @@ function test_chart_projection()
             @test Int(vp.x) + Int(vp.w) <= Int(canvas.w)
             @test Int(vp.y) + Int(vp.h) <= Int(canvas.h)
             @test Int(vp.w) > 100 && Int(vp.h) > 100
+        end
+
+        @testset "a function series samples the window the plot shows" begin
+            legend_labels(g) = [item[2] for item in g.legend.items]
+            # Alone, with an x range: 200 samples over the range.
+            g = _chart_layout(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))]))
+            samples = g.function_samples[1]
+            @test length(samples.x) == 200 && samples.reason === nothing
+            @test samples.x[1] ≈ 0 atol = 1e-12
+            @test samples.x[end] ≈ 2π atol = 1e-12
+            @test samples.y ≈ sin.(samples.x) atol = 1e-12
+            @test g.view.y_min < -1 && g.view.y_max > 1
+            @test length(_line_points_of(g, 1)) == 200
+            @test legend_labels(g) == ["sin"]
+            # Beside a line series with no x range, it samples the fit window of the line.
+            beside = Chart("f", [ChartLineSeries("pts", [1.0, 3.0], [0.0, 1.0]),
+                                 ChartFunctionSeries("line", x -> 2 * x - 4)])
+            g = _chart_layout(beside)
+            samples = g.function_samples[2]
+            @test samples.x[1] ≈ g.view.x_min && samples.x[end] ≈ g.view.x_max
+            @test g.view.x_min < 1 && g.view.x_max > 3
+            @test g.view.y_min <= minimum(samples.y) && g.view.y_max >= maximum(samples.y)
+            # A zoom samples the new window.
+            iomap = _chart_iomap(beside)
+            iomap.step_iomaps[1][].output.view = ChartView(1.5, 2.0, -1.0, 1.0)
+            zoomed = iomap.step_iomaps[2][].geometry.function_samples[2]
+            @test zoomed.x[1] ≈ 1.5 && zoomed.x[end] ≈ 2.0 && length(zoomed.x) == 200
+            # The line is in the canvas, as a polyline of the samples.
+            polylines = [e for e in _series_elements(_chart_canvas(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))])))
+                         if e isa GraphicsPolyline]
+            @test length(polylines) == 1 && length(polylines[1].points) == 200
+            # A click on the curve selects the series.
+            g = _chart_layout(Chart("f", [ChartFunctionSeries("sin", sin; x_range = (0, 2π))]))
+            (px, py) = _line_points_of(g, 1)[100]
+            @test ChartModule._series_hit(g, px + g.plot_x, py + g.plot_y) == 1
+            @test ChartModule._sample_hit(g, px + g.plot_x, py + g.plot_y) === nothing
+        end
+
+        @testset "a function series that can not sample draws no line and the legend says why" begin
+            reason(chart) = (g = _chart_layout(chart); (g.function_samples[1], [item[2] for item in g.legend.items]))
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("bad", x -> error("boom"); x_range = (0, 1))]))
+            @test isempty(samples.x) && samples.reason == "gives no number at x = 0"
+            @test labels == ["bad: gives no number at x = 0"]
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("text", x -> "no"; x_range = (0, 1))]))
+            @test isempty(samples.x) && labels == ["text: gives no number at x = 0"]
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("sin", sin)]))
+            @test isempty(samples.x) && labels == ["sin: no x range; give x_range"]
+            # A callable object says why in its own words.
+            callable = _ChartCellCallable(Cell(nothing))
+            samples, labels = reason(Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))]))
+            @test labels == ["held: the callable has no value yet"]
+            canvas = _chart_canvas(Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))]))
+            @test isempty([e for e in _series_elements(canvas) if e isa GraphicsPolyline])
+            # A new value of what the callable reads draws the line again.
+            chart = Chart("f", [ChartFunctionSeries("held", callable; x_range = (0, 1))])
+            iomap = _chart_iomap(chart)
+            canvas = iomap.output
+            @test isempty([e for e in _series_elements(canvas) if e isa GraphicsPolyline])
+            callable.cell[] = x -> 2x
+            lines = [e for e in _series_elements(canvas) if e isa GraphicsPolyline]
+            @test length(lines) == 1
+            @test iomap.step_iomaps[2][].geometry.function_samples[1].y[end] ≈ 2
         end
 
         @testset "series geometry" begin
@@ -277,7 +385,7 @@ function test_chart_projection()
             x = collect(0.0:0.01:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             canvas = iomap.output
 
@@ -301,7 +409,7 @@ function test_chart_projection()
         @testset "selection round-trip" begin
             chart = _line_chart()
             proj = ChartToChartPlot()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
 
             # Every node of a reference names the type it reaches, terminal
             # included — that is the invariant @reference enforces.
@@ -450,6 +558,32 @@ function test_chart_projection()
             @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsRect) == 10
         end
 
+        @testset "intervals" begin
+            x = [0.1, 0.5, 1.0]
+            y = [0.08, 0.18, 0.14]
+            lower, upper = y .- 0.01, [0.09, 0.30, 0.15]
+            # A whisker is a stem with two caps at each point.
+            c = Chart("s", [ChartLineSeries("a", x, y; lower, upper)])
+            els = _series_elements(_chart_canvas(c))
+            @test _count_kind(els, GraphicsLine) == 3 * 3
+            @test _count_kind(els, GraphicsPolyline) == 1
+            # The y axis reaches the highest upper bound.
+            @test _chart_y_max(c) >= 0.30
+            # A band is one polygon under the line, and no stem.
+            c = Chart("s", [ChartLineSeries("a", x, y; lower, upper, interval_style = :band)])
+            els = _series_elements(_chart_canvas(c))
+            @test _count_kind(els, GraphicsPolygon) == 1 && _count_kind(els, GraphicsLine) == 0
+            @test findfirst(e -> e isa GraphicsPolygon, els) < findfirst(e -> e isa GraphicsPolyline, els)
+            @test_throws ArgumentError ChartLineSeries("a", x, y; interval_style = :cloud)
+            # A value with no interval, as NaN, draws none.
+            c = Chart("s", [ChartScatterSeries("a", x, y; lower = [NaN, 0.17, 0.13], upper = [NaN, 0.19, 0.15])])
+            @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsLine) == 2 * 3
+            # A chart file keeps the intervals.
+            series = ChartLineSeries("a", x, y; lower, upper, interval_style = :band)
+            loaded = parse_pred_text(print_pred_text(series))
+            @test (loaded.lower, loaded.upper, loaded.interval_style) == (lower, upper, :band)
+        end
+
         @testset "strips" begin
             states = ["IDLE", "BUSY", "DONE"]
             t = collect(0.0:1.0:10.0)
@@ -584,7 +718,7 @@ function test_chart_projection()
             # A click round-trips through both stages to a chart-rooted sample
             # reference: stage 1 peels its own step off on the way back.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             gg = iomap.step_iomaps[2][].geometry
             band2 = ChartModule._strip_band(gg, 1)
             op = read_intent(proj, iomap,
@@ -676,7 +810,7 @@ function test_chart_projection()
             # a click on one means the legend, the way empty space in the box
             # already does. The strip's own row still toggles.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plan = iomap.step_iomaps[2][].geometry.legend
             rects = get_legend_item_rects(plan)
             series_row = first(r for r in rects if r[1] != 0)
@@ -735,6 +869,208 @@ function test_chart_projection()
             @test length(filter(e -> e isa GraphicsRect, _series_elements(iomap.output))) == 11
         end
 
+        @testset "matrices" begin
+            rows = ["a", "b", "c"]
+            values = Any[Any[1.0, 2.0, nothing, 8.0],
+                         Any[nothing, 4.0, 4.0, 4.0],
+                         Any[0.5, missing, NaN, 3.0]]
+            categories = ["w", "x", "y", "z"]
+            mk(; kw...) = Chart("m", [ChartMatrixSeries("count", rows, values; kw...)];
+                                x_axis = ChartCategoryAxis(categories = categories))
+            # The shade of the block that shows the cell at `row`, `column`.
+            function level(g, row, column)
+                shape = g.matrix_shape
+                rg = only(group for group in shape.row_groups if group[1] <= row <= group[2])
+                cg = only(group for group in shape.column_groups if group[1] <= column <= group[2])
+                only(block[5] for block in shape.blocks if block[1] == cg[3] && block[2] == rg[3])
+            end
+
+            chart = mk()
+            @test get_chart_series_family(chart.series[1]) === :category
+            # The cells fill the plot, as the slots of a category axis do.
+            view = resolve_view(ChartPlot(chart))
+            @test (view.x_min, view.x_max, view.y_min, view.y_max) == (0.5, 4.5, 0.5, 3.5)
+
+            # One rectangle for each cell with a value: `nothing`, `missing` and
+            # NaN are empty cells. Large cells keep a gap between them.
+            g = _chart_layout(chart)
+            @test g.matrix_only && g.matrix[1] == 1
+            @test length(g.matrix_shape.blocks) == 8
+            @test g.matrix_shape.gap
+            rects = filter(e -> e isa GraphicsRect, _series_elements(_chart_canvas(chart)))
+            @test length(rects) == 8
+            # The cells fill the plot, so the legend goes below it and covers no cell.
+            @test g.legend.position === :below
+            @test g.legend.y >= g.plot_y + g.plot_h
+
+            # Long names of the rows leave the plot narrow: the names of the columns are
+            # thinned for the width of the plot, so no two of them overlap.
+            wide = Chart("m", [ChartMatrixSeries("count", ["a long name of a row, $k" ^ 3 for k in 1:3],
+                                                 [Any[Float64(c) for c in 1:40] for _ in 1:3])];
+                         x_axis = ChartCategoryAxis(categories = ["group of scalars $c" for c in 1:40]))
+            gw = _chart_layout(wide)
+            @test gw.plot_w < 500
+            places = [ChartModule.to_pixel(gw.xs, tick) for tick in gw.xticks]
+            @test length(places) >= 2
+            @test all(places[i + 1] - places[i] >= (gw.xsizes[i].width + gw.xsizes[i + 1].width) / 2
+                      for i in 1:length(places) - 1)
+
+            # The y axis names the rows, the first on top, with no horizontal grid lines.
+            @test g.ylabels == rows
+            @test g.yticks == [3.0, 2.0, 1.0]
+            frame = _chart_canvas(chart).elements
+            @test all(e -> e.y1 != e.y2,
+                      [e for e in frame if e isa GraphicsLine && e.dash !== nothing])
+
+            # The shade grows with the value: 8 is the darkest, 0.5 the lightest,
+            # and equal values take one shade.
+            @test level(g, 1, 4) == 8 && level(g, 3, 1) == 1
+            @test level(g, 2, 2) == level(g, 2, 3) == level(g, 2, 4)
+            @test level(g, 1, 1) < level(g, 2, 2) < level(g, 1, 4)
+            # `min` and `max` fix the range; `log` shades by the logarithm.
+            @test level(_chart_layout(mk(; min = 0.0, max = 16.0)), 1, 4) == 5
+            @test level(_chart_layout(mk(; log = true)), 2, 2) == 7
+
+            # A label shows inside its cell when it fits.
+            labels = [["1", "2", "", "8"], ["", "4", "4", "4"], ["½", "", "", "3"]]
+            texts = [e.text for e in _series_elements(_chart_canvas(mk(; labels))) if e isa GraphicsText]
+            @test "8" in texts && "½" in texts
+            @test isempty([e for e in _series_elements(_chart_canvas(mk(; labels, show_labels = false)))
+                           if e isa GraphicsText])
+            # An `AbstractMatrix` becomes one vector for each row.
+            @test ChartMatrixSeries("m", ["a", "b"], [1 2; 3 4]).values == [[1, 2], [3, 4]]
+
+            # The legend names the value of the lightest and of the darkest shade.
+            legend = [item[2] for item in ChartModule._legend_items(chart, g.series, g.theme_values)]
+            @test legend == ["count", ChartModule.format_tick(0.5), ChartModule.format_tick(8.0)]
+
+            # A cell is a sample: `(row, column, value)`, its index counted down the
+            # rows first. An empty cell is no sample.
+            @test get_chart_sample(chart.series[1], 8) == (2, 3, 4.0)
+            @test get_chart_sample(chart.series[1], 7) === nothing
+            at(column, row) = (round(Int, ChartModule.to_pixel(g.xs, Float64(column))),
+                               round(Int, ChartModule.to_pixel(g.ys, Float64(length(rows) - row + 1))))
+            @test ChartModule._sample_hit(g, at(3, 2)...) == (1, 8)
+            @test ChartModule._sample_hit(g, at(3, 1)...) === nothing
+            readout = ChartModule._format_matrix_readout(g, at(3, 2)...)
+            @test occursin("b", readout) && occursin("y", readout) && occursin("4", readout)
+
+            # A click round-trips to a chart-rooted sample reference.
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            gg = iomap.step_iomaps[2][].geometry
+            op = read_intent(proj, iomap,
+                             MouseClick(:left, round(Int, ChartModule.to_pixel(gg.xs, 3.0)),
+                                        round(Int, ChartModule.to_pixel(gg.ys, 2.0)); time = 0.0))
+            @test op isa ReplaceSelectionOperation
+            chart.selection = op.path
+            @test get_selected_sample(chart) == (1, 8)
+            @test evaluate_reference(chart, op.path) == (2, 3, 4.0)
+            # The selected cell is outlined.
+            chart.selection = make_chart_sample_reference(chart, 1, 8)
+            @test count(e -> e isa GraphicsLine, _series_elements(_chart_canvas(chart))) >= 4
+            chart.selection = nothing
+
+            # A matrix larger than the plot folds into blocks of a few pixels,
+            # which show the greatest value of the block, with no gap.
+            big = Chart("m", [ChartMatrixSeries("v", ["r$i" for i in 1:300],
+                                                [Float64[i + j for j in 1:300] for i in 1:300])];
+                        x_axis = ChartCategoryAxis(categories = ["c$j" for j in 1:300]))
+            gb = _chart_layout(big; width = 400, height = 300)
+            @test !gb.matrix_shape.gap
+            @test length(gb.matrix_shape.blocks) <= (gb.plot_w ÷ 3 + 1) * (gb.plot_h ÷ 3 + 1)
+            @test length(gb.ylabels) < 300
+
+            # A chart file keeps the matrix, with `nothing` for an empty cell.
+            saved = ChartMatrixSeries("count", rows, Any[Any[1.0, nothing], Any[nothing, 2.0]];
+                                      labels = [["1", ""], ["", "2"]], log = true)
+            loaded = parse_pred_text(print_pred_text(saved))
+            @test loaded.values == Any[Any[1.0, nothing], Any[nothing, 2.0]]
+            @test (loaded.labels, loaded.log) == ([["1", ""], ["", "2"]], true)
+        end
+
+        @testset "links" begin
+            x = [1.0, 2.0, 3.0]
+            y = [20.0, 30.0, 10.0]
+            links = Any["file:///tmp/one.pred", "git+file:///tmp/project#3fa2c1d", nothing]
+            chart = Chart("s", [ChartScatterSeries("p", x, y; links)])
+            # A sample has the link of its place, and no link past the end or in a
+            # series with none.
+            @test find_chart_sample_link(chart.series[1], 1) == "file:///tmp/one.pred"
+            @test find_chart_sample_link(chart.series[1], 3) === nothing
+            @test find_chart_sample_link(chart.series[1], 4) === nothing
+            @test find_chart_sample_link(ChartScatterSeries("p", x, y), 1) === nothing
+            @test find_chart_sample_link(ChartLineSeries("l", x, y; links), 2) == "git+file:///tmp/project#3fa2c1d"
+            @test find_chart_sample_link(ChartStripSeries("s", x, [1, 2, 1]; links), 1) == "file:///tmp/one.pred"
+            # The links of a matrix are rows, as its values are; a cell counts down
+            # the rows first.
+            matrix = ChartMatrixSeries("m", ["a", "b"], Any[Any[1, 2], Any[3, 4]];
+                                       links = Any[Any["file:///a", nothing], Any[nothing, "file:///b"]])
+            @test find_chart_sample_link(matrix, 1) == "file:///a"
+            @test find_chart_sample_link(matrix, 4) == "file:///b"
+            @test find_chart_sample_link(matrix, 3) === nothing
+
+            # Ctrl and a click on a point with a link follow it here, and Ctrl+Shift
+            # opens it in a new tab, with the open of a Markdown link. A plain click
+            # selects the point, and so does Ctrl and a click on a point with no link.
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            g = iomap.step_iomaps[2][].geometry
+            at(k) = (round(Int, ChartModule.to_pixel(g.xs, x[k])), round(Int, ChartModule.to_pixel(g.ys, y[k])))
+            click(k, modifiers) = read_intent(proj, iomap, MouseClick(:left, at(k)..., modifiers; time = 0.0))
+            op = click(1, ModifierKeys(; ctrl = true))
+            @test op isa OpenPageOperation
+            @test (op.document, op.target, op.place) == (nothing, "file:///tmp/one.pred", :here)
+            @test click(1, ModifierKeys(; ctrl = true, shift = true)).place === :new_tab
+            @test click(1, no_modifier) isa ReplaceSelectionOperation
+            @test click(3, ModifierKeys(; ctrl = true)) isa ReplaceSelectionOperation
+
+            # A cell of a matrix follows its link too, and the readout names it.
+            cells = Chart("m", [matrix]; x_axis = ChartCategoryAxis(categories = ["w", "x"]))
+            mproj = _chart_projection()
+            miomap = print_document(mproj, _chart_widgets(), cells, PrinterContext())
+            gm = miomap.step_iomaps[2][].geometry
+            cell(column, row) = (round(Int, ChartModule.to_pixel(gm.xs, Float64(column))),
+                                 round(Int, ChartModule.to_pixel(gm.ys, Float64(3 - row))))
+            mop = read_intent(mproj, miomap, MouseClick(:left, cell(2, 2)..., ModifierKeys(; ctrl = true); time = 0.0))
+            @test mop isa OpenPageOperation && mop.target == "file:///b"
+            @test occursin("link: file:///b", ChartModule._format_matrix_readout(gm, cell(2, 2)...))
+            # A strip names the link of the segment under the pointer.
+            strip = Chart("s", [ChartStripSeries("s", x, [1, 2, 1]; links, x_end = 4.0)])
+            gs = _chart_layout(strip)
+            band = ChartModule._strip_band(gs, 1)
+            @test occursin("link: file:///tmp/one.pred", ChartModule._strip_readout(gs, 1.5, (band[1] + band[2]) ÷ 2))
+
+            # A chart file keeps the links.
+            loaded = parse_pred_text(print_pred_text(chart.series[1]))
+            @test loaded.links == links
+            @test parse_pred_text(print_pred_text(matrix)).links == matrix.links
+        end
+
+        @testset "a chart file writes an equal colour inline at each place" begin
+            x = collect(0.0:1.0:3.0)
+            green = StyleColor(0.1, 0.6, 0.2, 1.0)
+            red = StyleColor(0.8, 0.1, 0.1, 1.0)
+            first_series = ChartStripSeries("a", x, [1, 2, 1, 2]; states = ["ON", "OFF"],
+                                            state_colors = [green, red])
+            second_series = ChartStripSeries("b", x, [1, 2, 1, 2]; states = ["ON", "OFF"],
+                                             state_colors = [green, green])
+            chart = Chart("c", [first_series, second_series])
+            directory = mktempdir()
+            try
+                path = joinpath(directory, "chart.pred")
+                write_document_file(chart, path)
+                @test !occursin("node(", read(path, String))
+                loaded = read_document_file(path)
+                colors = [loaded.series[1].state_colors[1], loaded.series[1].state_colors[2],
+                          loaded.series[2].state_colors[1], loaded.series[2].state_colors[2]]
+                @test all(color -> color isa StyleColor, colors)
+                @test colors == [green, red, green, green]
+            finally
+                rm(directory; recursive = true, force = true)
+            end
+        end
+
         @testset "line style" begin
             x = collect(0.0:1.0:10.0)
             mk(style) = Chart("s", [ChartLineSeries("a", x, x; line_style=style)])
@@ -771,6 +1107,11 @@ function test_chart_projection()
             below = _line_chart(); below.legend.position = :below
             @test Int(_viewport_of(_chart_canvas(below)).h) <
                   Int(_viewport_of(_chart_canvas(_line_chart())).h)
+            # A legend below starts under the labels of the x axis and ends over its title.
+            gb = _chart_layout(below)
+            @test !isempty(gb.xlabels)
+            @test gb.legend.y >= gb.plot_y + gb.plot_h + gb.label_h
+            @test gb.legend.y + gb.legend.box_h <= gb.h - gb.x_title_h
 
             # Anchors move the box without resizing it.
             boxes = map((:northwest, :northeast, :southeast)) do anchor
@@ -799,7 +1140,7 @@ function test_chart_projection()
         @testset "legend interaction" begin
             chart = _line_chart()
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             plan = iomap.step_iomaps[2][].geometry.legend
             index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
@@ -833,7 +1174,7 @@ function test_chart_projection()
         @testset "part selection" begin
             chart = _line_chart()
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
 
             # A click on the title strip selects the title, on an axis strip the
@@ -906,7 +1247,7 @@ function test_chart_projection()
             big_x = collect(range(0.0, 1000.0; length=1_000_000))
             big = Chart("big", [ChartLineSeries("a", big_x, sin.(big_x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, big, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), big, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             target = PlotModule.to_pixel(g.xs, 500.0)
             elapsed = @elapsed op = read_intent(proj, iomap,
@@ -924,7 +1265,7 @@ function test_chart_projection()
             cloud = Chart("c", [ChartScatterSeries("a", rand(50_000), rand(50_000))];
                           style=ChartStyle(; scatter_fold_threshold=1_000))
             proj = _chart_projection()
-            iomap = print_document(proj, proj, cloud, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), cloud, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             op = read_intent(proj, iomap,
                 MouseClick(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
@@ -972,17 +1313,18 @@ function test_chart_projection()
             x = collect(0.0:0.1:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
             mid_x = g.plot_x + g.plot_w ÷ 2
             mid_y = g.plot_y + g.plot_h ÷ 2
 
             before = resolve_view(plot)
-            # The wheel zooms about the cursor: the window narrows, and the data
-            # point that was under the pointer is still under it.
+            ctrl = ModifierKeys(; ctrl=true)
+            # Ctrl and the wheel zoom about the cursor: the window narrows, and the
+            # data point that was under the pointer is still under it.
             under = PlotModule.to_data(g.xs, mid_x)
-            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             after = resolve_view(plot)
@@ -996,14 +1338,14 @@ function test_chart_projection()
             @test PlotModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
 
             # Wheeling out again widens it back.
-            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             back = resolve_view(plot)
             @test (back.x_max - back.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
 
             # Over the x-axis strip only x zooms; over the y strip only y.
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ModifierKeys(); time = 0.0))
+                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) < (before.x_max - before.x_min)
@@ -1011,31 +1353,72 @@ function test_chart_projection()
 
             plot.view = nothing
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, g.plot_x - 4, mid_y, ModifierKeys(); time = 0.0))
+                MouseScroll(0, 1, g.plot_x - 4, mid_y, ctrl; time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
             @test (v.y_max - v.y_min) < (before.y_max - before.y_min)
 
-            # Shift+wheel pans without changing the window width.
+            # A chart that shows all its data has nothing to scroll to, so a turn
+            # with no Ctrl is not the chart's, and the page around it scrolls.
             plot.view = nothing
-            op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0))
-            evaluate_operation(nothing, op)
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)) === nothing
+
+            # After a zoom, the wheel scrolls up and down, and Shift and the wheel
+            # across, by a tenth of the window, with no change of its size. A turn
+            # away shows what is above, and what is to the left.
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            zoomed = resolve_view(plot)
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)))
             v = resolve_view(plot)
-            @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
-            @test v.x_min > before.x_min
+            @test v.y_min ≈ zoomed.y_min + 0.1 * (zoomed.y_max - zoomed.y_min)
+            @test (v.y_max - v.y_min) ≈ (zoomed.y_max - zoomed.y_min)
+            @test v.x_min == zoomed.x_min
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            v = resolve_view(plot)
+            @test v.x_min ≈ zoomed.x_min - 0.1 * (zoomed.x_max - zoomed.x_min)
+            @test v.y_min == zoomed.y_min
+            # A turn across, as the backend gives Shift and the wheel, and the
+            # fraction of a notch from a touchpad.
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(-1, 0, mid_x, mid_y, ModifierKeys(); time = 0.0)))
+            @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 0, mid_x, mid_y, ModifierKeys(); time = 0.0, precise_dy = 0.5)))
+            @test resolve_view(plot).y_min ≈ zoomed.y_min + 0.05 * (zoomed.y_max - zoomed.y_min)
+
+            # The scroll stops at the edge of the data, and the next turn is not
+            # the chart's.
+            plot.view = nothing
+            fit = resolve_view(plot)
+            plot.view = zoomed
+            for _ in 1:20
+                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            @test resolve_view(plot).y_min ≈ fit.y_min
+            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) !== nothing
 
             # A wheel outside the plot and its axis strips is not ours.
             @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
             # Keyboard: pan, zoom, and reset to auto-fit.
-            # Shift+arrow pans; the bare arrows belong to selection navigation.
+            # Shift+arrow pans; the bare arrows belong to selection navigation. A
+            # chart that shows all its data has nowhere to pan to.
             plot.view = nothing
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            plot.view = zoomed
             op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
-            @test resolve_view(plot).x_min > before.x_min
+            @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
             # A bare arrow falls past the view reader to the chart's own
             # navigation, which is what moves the selection.
             @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
@@ -1050,7 +1433,7 @@ function test_chart_projection()
             x = collect(0.0:0.1:100.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
             x0, y0 = g.plot_x + 30, g.plot_y + 30
@@ -1085,23 +1468,407 @@ function test_chart_projection()
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
-            # Shift-dragging pans instead of banding.
+            # Shift-dragging pans instead of banding, in a window that has room to move.
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
             evaluate_operation(nothing, read_intent(proj, iomap,
                 MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)))
             evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)))
             @test plot.drag_rect === nothing
-            @test plot.view !== nothing
+            @test plot.view.x_min > 20.0
             # A move to the point of the last move writes no cell, though the pan
             # changed the geometry that the first move read.
             @test read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)) === nothing
             evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1 - 40, y1; time = 0.0)))
+
+            # A pan stops at the edge of the data.
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
+            fit = (plot.view = nothing; resolve_view(plot))
+            plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseDown(:left, x0, y0, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x0 + 2000, y0; time = 0.0)))
+            @test plot.view.x_min == fit.x_min
+            @test plot.view.x_max - plot.view.x_min ≈ 40.0
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x0 + 2000, y0; time = 0.0)))
+        end
+
+        @testset "the limits of the window" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            ctrl = ModifierKeys(; ctrl=true)
+            # A zoom out stops at all the data: the view goes back to the fit, and
+            # the next notch is not the chart's.
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            @test plot.view isa ChartView
+            for _ in 1:10
+                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            @test plot.view === nothing
+            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('-'; time = 0.0)) === nothing
+            # A zoom in stops before two ticks get the same label.
+            notches = 0
+            while notches < 1000
+                op = read_intent(proj, iomap, MouseScroll(0, 10, mid_x, mid_y, ctrl; time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+                notches += 1
+            end
+            @test notches < 1000
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min > 0
+            @test length(unique(iomap.step_iomaps[2][].geometry.xlabels)) ==
+                  length(iomap.step_iomaps[2][].geometry.xlabels)
+        end
+
+        @testset "a log axis pans and zooms on its decades" begin
+            x = 10 .^ range(0, 3; length = 300)
+            chart = Chart("log", [ChartLineSeries("a", collect(x), collect(range(0, 1; length = 300)))];
+                          x_axis = ChartAxis(; log = true))
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            ctrl = ModifierKeys(; ctrl=true)
+            for _ in 1:4
+                evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0)))
+            end
+            zoomed = resolve_view(plot)
+            g = iomap.step_iomaps[2][].geometry
+            # A Shift+drag keeps the value under the press under the pointer, and
+            # no bound reaches zero.
+            press_x = mid_x + 50
+            under = PlotModule.to_data(g.xs, press_x)
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseDown(:left, press_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(press_x - 100, mid_y; time = 0.0)))
+            v = resolve_view(plot)
+            @test v.x_min > zoomed.x_min > 0
+            g2 = iomap.step_iomaps[2][].geometry
+            @test PlotModule.to_data(g2.xs, press_x - 100) ≈ under rtol = 0.02
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(press_x - 100, mid_y; time = 0.0)))
+            # A turn across keeps the decades that the window spans.
+            plot.view = zoomed
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            v = resolve_view(plot)
+            @test log10(v.x_max / v.x_min) ≈ log10(zoomed.x_max / zoomed.x_min)
+            @test v.x_min < zoomed.x_min
+            # The pan stops at the first decade of the data.
+            for _ in 1:40
+                op = read_intent(proj, iomap, KeyDown(:left, ModifierKeys(; shift=true); time = 0.0))
+                op === nothing && break
+                evaluate_operation(nothing, op)
+            end
+            plot_fit = (saved = plot.view; plot.view = nothing; f = resolve_view(plot); plot.view = saved; f)
+            @test resolve_view(plot).x_min == plot_fit.x_min
+            @test resolve_view(plot).x_min > 0
+        end
+
+        @testset "a pie takes no view gesture" begin
+            chart = Chart("pie", Any[ChartPieSeries("p", ["a", "b"], [1.0, 2.0])])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; ctrl=true); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('+'; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            @test read_intent(proj, iomap, MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test plot.view === nothing && plot.drag_anchor === nothing
+        end
+
+        @testset "the mouse moves the view" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+            below = g.plot_y + g.plot_h + 4
+            left = g.plot_x - 4
+            fit = resolve_view(plot)
+            zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
+            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            unwrap(o) = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
+            shape(op) = only(unwrap(o).shape for o in op.operations if unwrap(o) isa ChangeScreenPointerShapeOperation)
+
+            # The middle button pans, and a pan shows the closed hand.
+            plot.view = zoomed
+            op = send(MouseDown(:middle, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, mid_y; time = 0.0))
+            @test plot.view.x_min > zoomed.x_min
+            @test plot.view.x_max - plot.view.x_min ≈ 40.0
+            send(DragEnd(mid_x - 40, mid_y; time = 0.0))
+            @test plot.drag_anchor === nothing
+            # A band keeps the arrow.
+            plot.view = nothing
+            op = send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            @test shape(op) === :arrow
+            send(DragCancel(; time = 0.0))
+
+            # A band that is thin across y zooms x alone, and draws over the whole
+            # height of the plot; one thin across x zooms y alone.
+            send(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0))
+            send(DragMove(mid_x + 100, mid_y + 5; time = 0.0))
+            @test plot.drag_rect == (mid_x, g.plot_y, 100, g.plot_h)
+            send(DragEnd(mid_x + 100, mid_y + 5; time = 0.0))
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min < fit.x_max - fit.x_min
+            @test (v.y_min, v.y_max) == (fit.y_min, fit.y_max)
+            plot.view = nothing
+            send(MouseDown(:left, mid_x, mid_y - 50, ModifierKeys(); time = 0.0))
+            send(DragMove(mid_x + 4, mid_y + 50; time = 0.0))
+            @test plot.drag_rect == (g.plot_x, mid_y - 50, g.plot_w, 100)
+            send(DragEnd(mid_x + 4, mid_y + 50; time = 0.0))
+            v = resolve_view(plot)
+            @test (v.x_min, v.x_max) == (fit.x_min, fit.x_max)
+            @test v.y_max - v.y_min < fit.y_max - fit.y_min
+
+            # A drag on an axis pans that axis alone.
+            plot.view = zoomed
+            op = send(MouseDown(:left, mid_x, below, ModifierKeys(); time = 0.0))
+            @test shape(op) === :closed_hand
+            send(DragMove(mid_x - 40, below + 30; time = 0.0))
+            @test plot.view.x_min > zoomed.x_min
+            @test (plot.view.y_min, plot.view.y_max) == (zoomed.y_min, zoomed.y_max)
+            send(DragEnd(mid_x - 40, below + 30; time = 0.0))
+            plot.view = zoomed
+            send(MouseDown(:left, left, mid_y, ModifierKeys(); time = 0.0))
+            send(DragMove(left + 30, mid_y + 40; time = 0.0))
+            @test plot.view.y_min > zoomed.y_min
+            @test (plot.view.x_min, plot.view.x_max) == (zoomed.x_min, zoomed.x_max)
+            send(DragEnd(left + 30, mid_y + 40; time = 0.0))
+
+            # A double click on the x axis fits x to all the data, and one on the y
+            # axis fits y to the data that the x window shows.
+            plot.view = zoomed
+            send(MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (fit.x_min, fit.x_max)
+            @test (plot.view.y_min, plot.view.y_max) == (zoomed.y_min, zoomed.y_max)
+            plot.view = ChartView(20.0, 21.0, -1.0, 0.0)
+            send(MouseClick(:left, left, mid_y, 2, ModifierKeys(); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 21.0)
+            @test 0.5 < plot.view.y_min < 0.8
+            @test 1.0 < plot.view.y_max < 1.1
+            # A double click on an axis at its fit selects the axis, as a click does.
+            plot.view = nothing
+            @test read_intent(proj, iomap, MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0)) isa
+                  ReplaceSelectionOperation
+        end
+
+        @testset "the keys move the view" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            fit = resolve_view(plot)
+            zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
+            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            ctrl = ModifierKeys(; ctrl = true)
+
+            # Ctrl+= and Ctrl+- zoom about the middle, and Ctrl+0 shows all the data.
+            @test send(KeyDown(:equals, ctrl; time = 0.0)) !== nothing
+            v = resolve_view(plot)
+            @test v.x_max - v.x_min ≈ (fit.x_max - fit.x_min) / 1.15
+            @test (v.x_min + v.x_max) / 2 ≈ (fit.x_min + fit.x_max) / 2
+            send(KeyDown(:minus, ctrl; time = 0.0))
+            @test plot.view === nothing
+            # At a limit the key is not the chart's: Ctrl+- and Ctrl+0 at the fit
+            # go on to the zoom of the interface.
+            @test read_intent(proj, iomap, KeyDown(:minus, ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyDown(:zero, ctrl; time = 0.0)) === nothing
+            plot.view = zoomed
+            send(KeyDown(:zero, ctrl; time = 0.0))
+            @test plot.view === nothing
+            # A typed character with Ctrl is not a second zoom.
+            @test read_intent(proj, iomap, KeyPress('=', ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, iomap, KeyPress('+', ModifierKeys(; shift = true); time = 0.0)) !== nothing
+
+            # Page Up and Page Down scroll a page up and down, Alt and the page keys
+            # a page across, and each stops at the edge of the data.
+            plot.view = zoomed
+            send(KeyDown(:page_up, ModifierKeys(); time = 0.0))
+            @test plot.view.y_min ≈ min(0.5, fit.y_max - 1.0)
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 60.0)
+            plot.view = zoomed
+            send(KeyDown(:page_down, ModifierKeys(; alt = true); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (60.0, 100.0)
+            send(KeyDown(:page_up, ModifierKeys(; alt = true); time = 0.0))
+            @test (plot.view.x_min, plot.view.x_max) == (20.0, 60.0)
+            plot.view = nothing
+            @test read_intent(proj, iomap, KeyDown(:page_down, ModifierKeys(); time = 0.0)) === nothing
+
+            # Ctrl+Shift and an arrow is the move of a series, not a pan.
+            plot.view = zoomed
+            send(KeyDown(:up, ModifierKeys(; ctrl = true, shift = true); time = 0.0))
+            @test plot.view == zoomed
+        end
+
+        @testset "the menu and the buttons" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            view = make_chart_projection(; measure = FontFileMeasure())
+            iomap = print_document(view, view, chart, PrinterContext())
+            canvas_iomap = _find_chart_canvas_iomap(iomap)
+            plot = canvas_iomap.input
+            # An answer as the editor takes it: a mouse target goes to the chart.
+            apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
+                         op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
+                         evaluate_operation(nothing, op)
+            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            viewports() = [e for e in canvas_iomap.output.elements if e isa GraphicsViewport]
+
+            # The menu holds the view actions, and an action that changes nothing is
+            # disabled: a chart that shows all its data can not zoom out.
+            menu = compute_context_menu(plot)
+            labels = [String(string(item.action.label)) for item in menu.elements]
+            @test labels == ["Zoom in", "Zoom out", "Show all the data", "Fit the x axis", "Fit the y axis"]
+            @test [item.enabled for item in menu.elements] == [true, false, false, false, false]
+            evaluate_operation(nothing, menu.elements[1].operation)
+            @test plot.view isa ChartView
+            menu = compute_context_menu(plot)
+            @test menu.elements[3].enabled
+            evaluate_operation(nothing, menu.elements[3].operation)
+            @test plot.view === nothing
+            # A right click on the plot opens that menu.
+            g = canvas_iomap.geometry
+            op = read_intent(view, iomap, MouseClick(:right, g.plot_x + 20, g.plot_y + 20, 1, ModifierKeys(); time = 0.0))
+            @test op !== nothing
+            @test compute_context_menu(ChartPlot(Chart("pie", Any[ChartPieSeries("p", ["a"], [1.0])]))) === nothing
+
+            # The buttons: their icons, and the disabled state of an action at a limit.
+            buttons = plot.toolbar.elements
+            @test [item.action.icon for item in buttons] == [:zoom_in, :zoom_out, :maximize]
+            @test [item.enabled for item in buttons] == [true, false, false]
+            # They show only while the pointer is over the chart.
+            @test length(viewports()) == 1
+            replace_mouse_target!(chart, EmptyReference())
+            @test length(viewports()) == 2
+            shown = first(ChartModule._find_shown_chart_parts(canvas_iomap))
+            @test shown.x + shown.w < canvas_iomap.output.w && shown.y < g.plot_y + g.plot_h
+            # A click on the first button zooms in; the third then shows all the data.
+            centre(k) = (shown.x + (2k - 1) * shown.w ÷ 6, shown.y + shown.h ÷ 2)
+            bx, by = centre(1)
+            # The button under the pointer lights, and a press holds it down.
+            send(MouseMove(bx, by, MouseButtons(), ModifierKeys(); time = 0.0))
+            @test get_mouse_target(buttons[1]) !== nothing
+            @test get_mouse_target(buttons[2]) === nothing
+            @test length(viewports()) == 2
+            send(MouseDown(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor === nothing
+            @test buttons[1].pressed
+            send(MouseUp(:left, bx, by, ModifierKeys(); time = 0.0))
+            @test !buttons[1].pressed
+            send(MouseClick(:left, bx, by, 1, ModifierKeys(); time = 0.0))
+            @test plot.view isa ChartView
+            @test buttons[3].enabled
+            cx, cy = centre(3)
+            send(MouseClick(:left, cx, cy, 1, ModifierKeys(); time = 0.0))
+            @test plot.view === nothing
+            # A drag hides them, and so does the leave of the pointer.
+            plot.drag_anchor = (0, 0, :zoom, resolve_view(plot), g.xs, g.ys, nothing)
+            @test length(viewports()) == 1
+            plot.drag_anchor = nothing
+            replace_mouse_target!(chart, nothing)
+            @test length(viewports()) == 1
+            # A pie shows none.
+            pie = Chart("pie", Any[ChartPieSeries("p", ["a", "b"], [1.0, 2.0])])
+            pie_iomap = _find_chart_canvas_iomap(print_document(view, view, pie, PrinterContext()))
+            replace_mouse_target!(pie, EmptyReference())
+            @test count(e -> e isa GraphicsViewport, pie_iomap.output.elements) == 1
+        end
+
+        @testset "the bars of a zoomed chart" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            view = make_chart_projection(; measure = FontFileMeasure())
+            iomap = print_document(view, view, chart, PrinterContext())
+            canvas_iomap = _find_chart_canvas_iomap(iomap)
+            plot = canvas_iomap.input
+            apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
+                         op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
+                         evaluate_operation(nothing, op)
+            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            bars() = Dict(part.field => part for part in ChartModule._find_shown_chart_parts(canvas_iomap))
+            fit = resolve_view(plot)
+            h, v = plot.horizontal_scroll_bar, plot.vertical_scroll_bar
+            span_x, span_y = fit.x_max - fit.x_min, fit.y_max - fit.y_min
+
+            # At the fit no bar is there.
+            @test h.thumb_size == 1.0 && v.thumb_size == 1.0
+            @test isempty(bars())
+            # A zoom on x: the bar under the plot holds the place of the window.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            @test h.thumb_size ≈ 25 / span_x
+            @test h.value ≈ (25 - fit.x_min) / (span_x - 25)
+            @test v.thumb_size == 1.0
+            shown = bars()
+            @test haskey(shown, "horizontal_scroll_bar") && !haskey(shown, "vertical_scroll_bar")
+            g = canvas_iomap.geometry
+            bar = shown["horizontal_scroll_bar"]
+            @test bar.x == g.plot_x && bar.w == g.plot_w
+            @test bar.y + bar.h == g.plot_y + g.plot_h
+            # A zoom on y too: the bar right of the plot holds the place from the
+            # top, and the bar under the plot stops before it.
+            plot.view = ChartView(25.0, 50.0, 0.0, 0.5)
+            @test v.thumb_size ≈ 0.5 / span_y
+            @test v.value ≈ 1 - (0.0 - fit.y_min) / (span_y - 0.5)
+            shown = bars()
+            right, under = shown["vertical_scroll_bar"], shown["horizontal_scroll_bar"]
+            @test right.x + right.w == g.plot_x + g.plot_w && right.y == g.plot_y && right.h == g.plot_h
+            @test under.x + under.w == right.x
+
+            # A click on the track moves the window a page; a press there starts no band.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            under = bars()["horizontal_scroll_bar"]
+            far, middle = under.x + under.w - 2, under.y + under.h ÷ 2
+            send(MouseDown(:left, far, middle, ModifierKeys(); time = 0.0))
+            @test plot.drag_anchor === nothing
+            send(MouseUp(:left, far, middle, ModifierKeys(); time = 0.0))
+            send(MouseClick(:left, far, middle, 1, ModifierKeys(); time = 0.0))
+            @test plot.view.x_min > 25.0
+            @test plot.view.x_max - plot.view.x_min ≈ 25.0
+
+            # A drag of the thumb moves the window with the pointer, and the chart
+            # keeps the drag.
+            plot.view = ChartView(25.0, 50.0, fit.y_min, fit.y_max)
+            under = bars()["horizontal_scroll_bar"]
+            along = under.x + round(Int, under.w * (h.value * (1 - h.thumb_size) + h.thumb_size / 2))
+            send(MouseDown(:left, along, middle, ModifierKeys(); time = 0.0))
+            @test h.thumb_drag !== nothing
+            @test plot.drag_anchor === nothing
+            send(DragMove(along + 40, middle; time = 0.0))
+            @test plot.view.x_min > 25.0
+            @test plot.view.x_max - plot.view.x_min ≈ 25.0
+            send(DragEnd(along + 40, middle; time = 0.0))
+            @test h.thumb_drag === nothing
+            # A view that shows all the data on x again takes the bar away.
+            plot.view = nothing
+            @test isempty(bars())
         end
 
         @testset "crosshair" begin
             x = collect(0.0:1.0:20.0)
             chart = Chart("c", [ChartLineSeries("a", x, x)])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             g = iomap.step_iomaps[2][].geometry
 
@@ -1114,6 +1881,67 @@ function test_chart_projection()
             # Two dashed crosshair lines, and a readout naming the series.
             @test count(e -> e isa GraphicsLine && e.dash !== nothing, els) == 2
             @test any(e -> e isa GraphicsText && occursin("a", String(e.text)), els)
+        end
+
+        @testset "an axis that names its whole numbers" begin
+            names = ["before step 5", "step 5", "step 7", "step 8"]
+            chart = Chart("c", [ChartLineSeries("timeouts", 1:4, [63.0, 63.0, 60.0, 75.0])];
+                          x_axis = ChartAxis(; names, min = 0.5, max = 4.5))
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            # Each whole number has its name as its tick, and no tick lies between them.
+            @test g.xticks == [1.0, 2.0, 3.0, 4.0]
+            @test g.xlabels == names
+            # The readout gives the name of the nearest whole number, and a number outside.
+            @test ChartModule._format_axis_value(chart.x_axis, 2.3) == "step 5"
+            @test ChartModule._format_axis_value(chart.x_axis, 4.4) == "step 8"
+            @test ChartModule._format_axis_value(chart.x_axis, 4.6) == ChartModule.format_tick(4.6)
+            # The pointer on the third point reads its name and its value.
+            x = round(Int, ChartModule.to_pixel(g.xs, 3.0))
+            y = round(Int, ChartModule.to_pixel(g.ys, 60.0))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)))
+            @test plot.cursor !== nothing
+            @test any(e -> e isa GraphicsText && occursin("timeouts  step 7, ", String(e.text)),
+                      _series_elements(iomap.output))
+
+            # Many names in a narrow chart: every k-th, each at its whole number.
+            many = ["run $k" for k in 1:40]
+            narrow = Chart("n", [ChartLineSeries("a", 1:40, rand(40))]; x_axis = ChartAxis(; names = many))
+            gn = _chart_layout(narrow; width = 300)
+            @test 2 <= length(gn.xticks) < 40
+            @test all(isinteger, gn.xticks)
+            @test gn.xlabels == [many[Int(tick)] for tick in gn.xticks]
+
+            # The y axis names its whole numbers too, and hides the names when its labels are off.
+            levels = Chart("y", [ChartLineSeries("a", [0.0, 1.0, 2.0], [1.0, 2.0, 3.0])];
+                           y_axis = ChartAxis(; names = ["low", "middle", "high"]))
+            @test _chart_layout(levels).ylabels == ["low", "middle", "high"]
+            hidden = Chart("y", [ChartLineSeries("a", [0.0, 1.0], [1.0, 2.0])];
+                           y_axis = ChartAxis(; names = ["low", "high"], show_labels = false))
+            @test isempty(_chart_layout(hidden).ylabels)
+
+            # A file keeps the names.
+            loaded = parse_pred_text(print_pred_text(chart))
+            @test loaded.x_axis.names == names
+        end
+
+        @testset "a zoomed strip draws the segment that covers its window" begin
+            commits = ChartStripSeries("commits", collect(1:1188), ones(Int, 1188); states = ["passed"], x_end = 1189)
+            positions = ChartStripSeries("positions", [1, 209], [1, 2]; states = ["approved", "ahead"], x_end = 1189)
+            chart = Chart("w", [commits, positions])
+            iomap = _chart_iomap(chart)
+            plot = iomap.step_iomaps[1][].output
+            # A window inside the last segment: no start of the strip lies in it.
+            plot.view = ChartModule.ChartView(300.0, 400.0, 0.5, 2.5)
+            g = iomap.step_iomaps[2][].geometry
+            spans = g.strip_spans[2]
+            @test length(spans) == 1 && spans[1][3] == 2
+            @test spans[1][1] <= g.plot_x && spans[1][2] >= g.plot_x + g.plot_w
+            # A window across the change of state draws both segments.
+            plot.view = ChartModule.ChartView(150.0, 250.0, 0.5, 2.5)
+            @test [span[3] for span in iomap.step_iomaps[2][].geometry.strip_spans[2]] == [1, 2]
         end
 
         @testset "part navigation" begin
@@ -1182,9 +2010,11 @@ function test_chart_projection()
 
             # The view gestures do not take the arrows away from navigation.
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
                               KeyDown(:right, no_modifier; time = 0.0)) === nothing
+            # Shift and an arrow pan a window that has room to move.
+            iomap.step_iomaps[1][].output.view = ChartView(2.0, 4.0, 0.0, 1.0)
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
                               KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) !== nothing
         end
@@ -1333,7 +2163,7 @@ function test_chart_scale()
             plot = ChartPlot(chart)
             plot.view = ChartView(0.0, 0.1, 0.5, 1.5)
             p = ChartPlotToGraphicsCanvas(measure=FontFileMeasure())
-            zoomed = print_document(p, p, plot, PrinterContext()).output
+            zoomed = print_document(p, _chart_widgets(), plot, PrinterContext()).output
             spans = filter(e -> e isa GraphicsRect, _series_elements(zoomed))
             visible = count(v -> 0.0 <= v <= 0.1, x)
             # Every visible segment draws as its own rect — nothing folded away.
@@ -1379,13 +2209,24 @@ function test_chart_scale()
             @test length(els) < ceiling
         end
 
+        @testset "four-million-cell matrix" begin
+            # Cells of a few pixels fold into blocks, and blocks of one shade
+            # along a row merge, so a smooth matrix stays under the ceiling.
+            n = 2_000
+            chart = Chart("m", [ChartMatrixSeries("v", ["r$i" for i in 1:n],
+                                                  [Float64[i + j for j in 1:n] for i in 1:n])];
+                          x_axis = ChartCategoryAxis(categories = ["c$j" for j in 1:n]))
+            @test length(_flatten_elements(_chart_canvas(chart))) < ceiling
+            @test (@elapsed _chart_canvas(chart)) < 5.0
+        end
+
         @testset "zoomed in stays exact" begin
             # Once the window holds few enough samples that each has its own
             # pixel column, decimation drops nothing.
             x = collect(0.0:1.0:100_000.0)
             chart = Chart("z", [ChartLineSeries("a", x, sin.(x ./ 500))])
             proj = _chart_projection()
-            iomap = print_document(proj, proj, chart, PrinterContext())
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             plot.view = ChartView(0.0, 100.0, -1.0, 1.0)
             pl = first(e for e in _series_elements(iomap.output) if e isa GraphicsPolyline)

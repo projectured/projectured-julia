@@ -61,10 +61,11 @@ make_inverse_operation(document, ::ReplaceViewStateOperation) = DoNothingOperati
 make_inverse_operation(document, op::ToggleCollapseOperation) =
     op.target === nothing ? nothing : op
 
-# Both move the selection, so both are taken back by putting the selection where
+# Each moves the selection, so each is taken back by putting the selection where
 # it is now. A document with no live selection has nothing to restore.
 make_inverse_operation(document, ::Union{ReplaceSelectionOperation,
-                                         SelectNextInsertionOperation}) =
+                                         SelectNextInsertionOperation,
+                                         SelectDocumentOperation}) =
     _make_selection_inverse(document)
 
 # The pointer is where the person put it, and taking an edit back does not move

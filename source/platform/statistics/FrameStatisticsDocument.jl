@@ -29,12 +29,16 @@ the value of each of these frames: one column for each row, in the order of the
 rows and in the unit of the row. A value is `NaN` where a frame did not measure
 the name.
 
-`paused` stops the flush, so the numbers stay while a person reads them. The
-other three fields are the view state of the table of the frames: `anchor` is
-the place of the row at the head of its list, counted from the newest frame,
-`top_row` is the row at the top of the table, counted from that head, and
-`scroll_position` is the offset of the table. The table shares the cells of
-`top_row` and `scroll_position`.
+`paused` stops the flush, so the numbers stay while a person reads them.
+`summary_statistic` is the field of a row that the table of the parts of a
+frame shows: `:mean`, `:minimum`, `:maximum`, `:standard_deviation` or `:total`.
+`frame_measure` is what the table of the frames shows for each part: a measure
+of `FRAME_PART_MEASURES`, such as `:time` or `:cell_reads`, or `:other` for the
+measurements that belong to no part. The other three fields are the view state
+of the table of the frames: `anchor` is the place of the row at the head of its
+list, counted from the newest frame, `top_row` is the row at the top of the
+table, counted from that head, and `scroll_position` is the offset of the
+table. The table shares the cells of `top_row` and `scroll_position`.
 """
 @document struct FrameStatistics
     rows::CellVector = CellVector()
@@ -42,6 +46,8 @@ the place of the row at the head of its list, counted from the newest frame,
     frames::Vector{Int} = Int[]
     columns::Vector{Vector{Float64}} = Vector{Float64}[]
     paused::Bool = false
+    summary_statistic::Symbol = :mean
+    frame_measure::Symbol = :time
     anchor::Int = 1
     top_row::Int = 1
     scroll_position::Point2D = Point2D(0, 0)
@@ -49,8 +55,8 @@ end
 
 # The name the tab calls itself, and the name a person types into an empty
 # tab to open one.
-get_document_title(::FrameStatistics) = "Statistics"
-get_insertion_aliases(::Type{FrameStatistics}) = ["statistics"]
+get_document_title(::FrameStatistics) = "Frame statistics"
+get_insertion_aliases(::Type{FrameStatistics}) = ["frame statistics", "statistics"]
 
 # Last session's numbers are not this one's: a file keeps that it shows the
 # statistics of the session, and a load gives those of the session of its editor.
@@ -217,5 +223,10 @@ function collect_roster_items(::_SessionFrames, link, series)
                for k in eachindex(frames)]
 end
 
-get_document_decoration(::FrameStatistics) = DocumentDecoration(; icon = :chart)
-get_document_decoration(::FrameTimeSeries) = DocumentDecoration(; icon = :chart_line)
+get_document_decoration(statistics::FrameStatistics) =
+    DocumentDecoration(; icon = :chart, tooltip = () -> TooltipNote(; title = "Frame statistics",
+        text = "How long the frames of this window take.",
+        facts = ["Frames" => string(statistics.frame_count), "Paused" => statistics.paused ? "yes" : "no"]))
+get_document_decoration(series::FrameTimeSeries) =
+    DocumentDecoration(; icon = :chart_line, tooltip = () -> TooltipNote(; title = "Frame times",
+        text = "The time of each recent frame.", facts = ["Frames" => string(length(series.frames))]))
