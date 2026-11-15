@@ -73,7 +73,7 @@ field in a natural sentence (16, `NaturalArrangement.jl`). The task buttons set 
 ## 3. Decisions
 
 The owner decided D1 and D3 on 2026-11-15, and D4 on 2026-11-15 (option 1). The assistant proposed
-D2, D5, D6 and D7. A proposed decision counts as approved when the owner approves this plan for
+D2, D5, D6 and D7, and decided D8 during step 2. A proposed decision counts as approved when the owner approves this plan for
 implementation. The owner can name one to see it first.
 
 - **D1. A widget cuts its content at the size that it sets.** The owner chose this (option A).
@@ -106,6 +106,18 @@ implementation. The owner can name one to see it first.
   from the caret alone; the text then moves with each step of the caret to the left from the end.
 - **D7. `rows` of a text area is its set height.** The area is `rows` lines tall, cuts the other
   lines, and scrolls them by D6. Rejected: `rows` as a minimum height (option B of D1).
+- **D8. A viewport gives no exact range.** Found in step 2 by `test_platform()`: a scroll pane
+  gave its content the view as an exact range on an axis where the content fits, so under D2 a
+  widget placed directly in a pane, such as a card or the rows of a list, took the view and cut
+  its content, and the pane had nothing to scroll. A scroll pane and a transform pane now give the
+  view as a minimum and an edge in two cells (`_make_view_edge`), the bounded range with a minimum
+  that `layout-rules.md` §1 already names: a text wraps at the view, a content takes at least the
+  view, and a content that can not fit stays larger and scrolls. The assistant decided this as a
+  consequence of D2; it adds no mechanism. A tree took the width of its parent only from an exact
+  range, so it now also takes at least the minimum of its range, as `_resolve_size` does for
+  every widget. Rejected: a pane that grows on both axes by default, which takes the edge from a
+  text, so that the text does not wrap; and a mark in the context for an offer of a viewport,
+  which a new field of `PrinterContext` would carry.
 
 ## 4. Steps
 

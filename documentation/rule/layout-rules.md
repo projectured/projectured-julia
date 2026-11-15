@@ -189,9 +189,13 @@ There its extent never comes from its content, which is what a viewport is.
 
 Each axis of a viewport says whether its content **fits** the view or **grows**
 past it (`grows = (width = false, height = true)` for a page). Where the content
-fits, the offer is exact, `(view, view)`: a text wraps there. Where it grows, the
-offer is a minimum, `(view, ∅)`: a weighted part takes at least its share of the
-view (§4), and the content can be taller. Both axes fit by default. On both kinds
+fits, the offer is the view as a minimum and an edge, `(view, view)` in two cells,
+which is no slot (§1): a text wraps there, and a content that can not fit, such as
+a widget larger than the view, stays larger, and the viewport scrolls it. An exact
+offer would make a widget take the view and cut its content (§3b), and leave the
+viewport nothing to scroll. Where the content grows, the offer is a minimum,
+`(view, ∅)`: a weighted part takes at least its share of the view (§4), and the
+content can be taller. Both axes fit by default. On both kinds
 of axis the viewport gives the view as the **visible extent**: a part that builds
 only the rows that show reads `get_visible_height(ctx)`, which is the maximum of
 its range when it has one, else its minimum, and else that view (§3c).
@@ -242,7 +246,8 @@ it holds. That is deliberate. A widget that clamped itself to an edge would repo
 the edge as its extent, and a stack could no longer tell a child that is too big
 from one that fits, which is the measurement `Content` and `allocate_axis` both run
 on. No stack measures a child in an exact range: the range is a `Fixed` size or a
-share, which the stack decided.
+share, which the stack decided. A viewport gives no exact range, because it scrolls
+a content that is larger (§3).
 
 **A layout is not a widget.** A row, a column, a stack, a flow and a composite place
 their children and emit no viewport. A layout in an exact range draws at least that

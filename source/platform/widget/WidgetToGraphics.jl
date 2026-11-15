@@ -7221,6 +7221,14 @@ function _compute_scroll_pane_geometry(p::WidgetScrollPaneToGraphicsCanvas, w::W
     BoxGeometry(_NO_SPACE, box.margin, box.border, box.padding .+ space)
 end
 
+# The view of a viewport as the edge of the range that it offers its content on an
+# axis where the content fits: a second cell that holds the number of the minimum,
+# so the range is bounded with a minimum and gives no slot (`layout-rules.md` §3).
+# A content takes at least the view and wraps at it, and a content that can not
+# fit stays larger, because the viewport scrolls it; a widget takes an exact size
+# and cuts, so an exact offer would leave the viewport nothing to scroll.
+_make_view_edge(view::Cell) = Cell(@computation Int32(Int(view[])))
+
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
     w.visible == false &&
         return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing, nothing,
@@ -7304,10 +7312,10 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         grows = w.at_natural_size ? (width = true, height = true) : w.grows
         content_ctx = inner_ctx
         content_ctx = offer_w !== nothing ?
-            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)) :
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : _make_view_edge(offer_w))) :
             grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
         content_ctx = offer_h !== nothing ?
-            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : offer_h)) :
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : _make_view_edge(offer_h))) :
             grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
         content_ctx = with_inner_size(content_ctx; width = part_inset_w, height = part_inset_h)
         visible_w = offer_w !== nothing ? content_ctx.minimum_width : inner_ctx.maximum_width
@@ -8182,10 +8190,10 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
         grows = w.grows
         content_ctx = inner_ctx
         content_ctx = offer_w !== nothing ?
-            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : offer_w)) :
+            with_size_range(content_ctx; width = (offer_w, grows.width ? nothing : _make_view_edge(offer_w))) :
             grows.width ? with_size_range(content_ctx; width = (inner_ctx.minimum_width, nothing)) : content_ctx
         content_ctx = offer_h !== nothing ?
-            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : offer_h)) :
+            with_size_range(content_ctx; height = (offer_h, grows.height ? nothing : _make_view_edge(offer_h))) :
             grows.height ? with_size_range(content_ctx; height = (inner_ctx.minimum_height, nothing)) : content_ctx
         visible_w = something(offer_w, inner_ctx.maximum_width, Some(nothing))
         visible_h = something(offer_h, inner_ctx.maximum_height, Some(nothing))
@@ -14648,10 +14656,12 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
 
     # The tree takes the width that its parent offers, and what holds the tree
     # clips a longer label. With no offer the tree is as wide as its widest row,
-    # which reads the node of every row of the open tree; a lazy list of rows is as
-    # wide as the rows that a walk from its head to the edges of its view reaches,
-    # so it can grow as a person scrolls.
-    width = Cell(@computation begin
+    # which reads the node of every row of the open tree, and at least the minimum
+    # of its range, as a viewport gives its rows; a lazy list of rows is as wide as
+    # the rows that a walk from its head to the edges of its view reaches, so it can
+    # grow as a person scrolls.
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
+    function measure_width()
         avail_w === nothing || return max(1, Int(avail_w[]) - inset_width)
         widest = 1
         row_right = _get_row_side_padding(pad, w, ctx)[2]
@@ -14682,7 +14692,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             widest = max(widest, measure_row(row, _wtree_node_at(w, row.path)))
         end
         widest
-    end)
+    end
+    width = Cell(@computation max(measure_width(), minimum_w === nothing ? 1 : Int(minimum_w[]) - inset_width))
 
     # What a row draws after its label: the glyphs of the facts of its document, its
     # detail, and its pills, each after a gap. `push_tail!` draws them from `x`, and
