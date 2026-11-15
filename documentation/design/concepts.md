@@ -24,7 +24,8 @@ A user of ProjecturEd and a developer of it use different words for the same thi
 | view | projection output | What a view definition makes from the data: widgets, text or graphics. |
 | view definition | projection | A pair of functions: one makes the view, one maps an edit back to the data. |
 | view on demand | reflection view | A view that nobody designed for this data. |
-| view state | view document | What one view keeps of how it shows the data, such as its open nodes, its scroll or its filter. The data itself does not change. |
+| view state | view document | What one view keeps of how it shows the data, such as its caret, its open nodes, its scroll or its filter. The data itself does not change. |
+| content | content document | The data of a kind that has views. It holds no caret and no fold. |
 | edit | operation | A typed change of the data. |
 | selection | selection, reference | A path from the root of the data to the part you work on. |
 | assistant | `Assistant` | A language model with a set of tools, inside the running program. |
@@ -72,6 +73,21 @@ A path through the data survives what a text position does not: a filtered view,
 The **tool set** is the set of functions that a language model can call: search the API of the loaded packages, read a guide, run Julia code in the running program, read the data, and change the data through edits.
 
 The tool set is a layer of the kernel, not an add-on beside it. The assistant in the window uses it, and an external client uses the same tool set through MCP, at `http://127.0.0.1:9876/mcp`. The conversation with the assistant is data like any other, with its own view, so you can read it, edit it, save it, and run Julia code in it yourself.
+
+## Content and view
+
+For some kinds of data, the data is split in two: the **content** and a **view of the content**.
+
+- The content holds what the data says: the strings, the numbers and the elements of an array. It holds no state of an edit.
+- A view holds the state of one showing of the content: the caret, the part under the pointer, and the folds. A text view also holds the look of its text, such as whether its lines wrap.
+
+So two views of one array keep two carets and two folds, and an edit through one view shows in both. A view of one array shown at two places keeps one caret. The place that the live selection reaches draws it live, and the other place draws it dormant.
+
+A view is a tree with one node for each node of its content. A view of an array holds the views of the elements. A path of the content is a path of its view, so `.elements[2].value{3}` names the third character of the second element in the array and in each view of it.
+
+Views of different domains compose as content does. A view of a Markdown document that holds a JSON array holds a view of the array, and neither domain names the other. A child that has no view prints as content, and a caret in the view names it only as a whole.
+
+Only some kinds of data have views: the text, the syntax tree, JSON and a part of Markdown. [../rule/architecture-rules.md](../rule/architecture-rules.md) lists them. Any other data keeps its caret in the data, as the rest of this document says.
 
 ## A designed view and a view on demand
 

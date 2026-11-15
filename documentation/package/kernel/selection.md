@@ -258,6 +258,36 @@ the same document shows the same stored path as a dormant one. The flag is a
 computation over the selections of the documents above the place, so it follows
 the selection with no new print.
 
+### A selection through views
+
+A type that has views keeps no part of the path in its content. The caret goes
+through the views, and the content holds none ([architecture-rules.md](../../rule/architecture-rules.md#content-documents-and-view-documents)).
+The path is still one path from the root, and its steps are the steps of the
+content. The walk that stores the path enters a child view by the name of its
+field, such as `.elements[2]`. It stops at the view where the next step names a
+field that the view does not have, such as `.value{3}`, because the walk enters a
+child only when the document has that field. So `view.elements[2].selection`
+holds `.value{3}`, and the `JsonString` below it holds nothing.
+
+- **Each view keeps its caret while the focus is elsewhere.** A `ContentView`
+  answers `has_dormant_selection` with `true`. When a write moves the path away,
+  the view keeps its part as a dormant selection, and a later path that comes back
+  makes it live again.
+- **One view at two places has one caret.** The place that the live selection
+  reaches draws it live, and the other place draws it dormant
+  (`is_live_place`). `ViewRecursion` gives a child view the flag of its place: the
+  place of the parent is live and the live caret of the parent goes on into the
+  child. Two views of one content are different documents, so each keeps its own
+  caret.
+- **A write of the stored path repairs the parts below it.** When a write of a
+  value puts a document into a place on the path, that document holds no part of
+  the path, or another part, or a dormant one. The write walks the path again from
+  the first document that does not hold its part (`_repair_selection_chain!`) and
+  writes no cell above it. A paste that puts a new view into a place uses this.
+- **A text view keeps a flat caret.** The caret of a `TextView` is a place such as
+  `{3}` in the flat string of its text, and it never enters the `TextBlock` that
+  the view shows, so a block that two views share holds none.
+
 ## Selection stored in each domain type
 
 Different domains interpret selection paths differently, but always as the same
@@ -274,7 +304,8 @@ are elements or characters.
 | `JsonObject` | `[i] + <entry path>` — into entry `i` (1-based) |
 | `SyntaxLeaf` | `.open/.value/.close + {k}` — cursor at offset `k` in the named span |
 | `SyntaxNode` | `[i] + <child path>` — into child `i`; or `.open/.close + {k}` for delimiter |
-| `TextBlock` | `{k}` — flat cursor at offset `k` in the flat string of the lines |
+| `TextBlock` | `{k}` — flat cursor at offset `k` in the flat string of the lines; a `TextBlock` under a `TextView` holds none, the view holds it |
+| `TextView`, `SyntaxLeafView`, `SyntaxNodeView`, a JSON view, a Markdown view | The path of its content, such as `.value{3}` or `.elements[2].value{3}` |
 
 `GraphicsText`, `GraphicsRect`, and `GraphicsCanvas` are **not** selectable
 containers. They are terminal output; the selection mechanism does not enter

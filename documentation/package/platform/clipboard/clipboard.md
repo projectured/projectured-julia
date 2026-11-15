@@ -62,6 +62,20 @@ A stored document that is no plain text, pasted while the selection names a whol
 
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
 
+### Pastes of a view
+
+A stored document can be a view (`ContentView`) of a content. A view keeps the caret and the folds of one showing, so three pastes of it give three results:
+
+| Keys | The content | The view |
+| --- | --- | --- |
+| Ctrl+C, then Ctrl+V | a copy | a new view |
+| Ctrl+N, then Ctrl+V | the same content | a new view |
+| Ctrl+N, then Ctrl+Alt+V ("Paste the same view") | the same content | the same view at a second place |
+
+Ctrl+C stores a copy of the view: a new view of a copy of the content, with the folds of the view (`copy_document` of a `ContentView`). Ctrl+N stores the view itself. Ctrl+V puts in what `make_pasted_document` answers for the stored document, which for a view is `make_sibling_view(stored)`: a second view of the content of the stored view. It starts with the folds of the stored view and its caret as a dormant one, and it never is the stored view. Ctrl+Alt+V puts the stored view itself, so its two places share one caret and one fold, and the place that the live selection reaches draws the caret live ([selection.md](../../kernel/selection.md#a-selection-through-views)). Ctrl+Shift+V puts a copy, as for any document. A paste selects what it puts in as a whole; the caret of the stored view waits in the new view as a dormant one.
+
+A view owns no place that takes a pasted value (`is_admitted_by_declared_type` of a `ContentView` answers `false`), and a cut takes an element out of a list only when the owner of the list accepts the change (`_is_slot_accepting`, the check that a paste makes). So a paste and a cut do not write into a view: its parts are the views of the parts of its content. A paste can replace the whole view at the place that its container owns, and a cut of a view that is an element of a layout takes it out of the layout.
+
 ### The reference
 
 Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no path, so it travels up the chain unchanged. When it runs, it reads the complete selection from the root document of the editor, and drops steps from the end until the path names a document: a caret inside a text names the document that holds the text. It writes this code into the slice as a `PrimitiveString` and onto the system clipboard:

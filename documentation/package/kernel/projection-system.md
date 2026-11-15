@@ -500,11 +500,68 @@ rows are representative (every domain adds its own `*To*` projection).
 | **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `PaneToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `PrimitiveToSyntax`, `CollectionToSyntax`, `HighlightedTextToText`, `FilteredTextToText`, … | Translate between two distinct domains |
 | **Domain-preserving** | `WordWrapping`, `TextLineNumbering`, `GraphicsCanvasToGraphicsImage`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
 | **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `IdentityProjection`, `ConstantProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (8 in `generic/`, plus `ObjectToWidget` in `widget/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
-| **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowInputUnwrappingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `DraggingProjection` | Compose other projections (8 in `higherorder/`; the other 3 sit beside the domain each one touches) |
+| **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `ViewingProjection`, `WindowInputUnwrappingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `DraggingProjection` | Compose other projections (9 in `higherorder/`; the other 3 sit beside the domain each one touches) |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
 See [higher-order projections](../platform/projection/higher-order-projections.md) and
 [generic projections](../platform/projection/generic-projections.md) for details.
+
+## Views in a chain
+
+A stage of a chain that prints a type with views wraps its table in a
+`ViewingProjection(content)`
+([Viewing.jl](../../../source/platform/projection/higherorder/Viewing.jl)). The
+content projection is the table of the stage, and no row of it changes.
+
+```julia
+ChainingProjection(RecursiveProjection(ViewingProjection(JsonToSyntax())),
+                   RecursiveProjection(ViewingProjection(SyntaxToText())),
+                   ...)
+```
+
+For an input that is a `ContentView`, the step does four things:
+
+1. It prints the content of the view (`input.viewed`) with the content projection,
+   as a chain with no view does. The row of the content builds its output and its
+   IO map as it always does.
+2. It gives the row a recursion of the view, a `ViewRecursion`. When the row
+   prints a child, the recursion takes the steps that the context of the child
+   adds to the path of the view, such as `.elements[2]`, and applies them to the
+   view. That gives the view of the child. It prints the child view through the
+   whole recursion, keeps the IO map of that print, and gives the row the IO map of
+   the content of the child. A child that has no view prints as content.
+3. It makes the **output view**: the view of the next domain over the printed
+   content, with `make_content_view(content.output, children)`. A compound view
+   gives a compound view, and a leaf view gives a leaf view. A type with no
+   method for the output gives an error. `map_view_state!(output, view, iomap)`
+   maps the state that is no path, such as a fold, to the output view.
+4. It sets the paths of the output view. A caret of the view maps forward through
+   the maps of the content print, because a path of a view is a path of its
+   content (`get_content_path`). The caret is live only when the place of the
+   print is live ([is_live_place](selection.md#a-document-at-two-places)).
+
+The IO map of the step is a `ViewingIoMap` with the fields `input` (the view),
+`output` (the output view) and `content` (the IO map of the print of the content).
+A path maps through the maps of `content`; the step adds no map of its own. For an
+input that is no view, the step prints the input with the content projection.
+
+**The reader.** A key goes down along the live caret, and the deepest view reads it
+first. `read_intent` of a `ViewingProjection` asks the key tables of the views on
+the live caret, from the deepest, with `read_gesture_outward`
+([the recursive reading](#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation)),
+so the view of a JSON array inside the view of a Markdown document answers its keys
+there. A key table belongs to a view type, such as `@gestures JsonArrayView`. An
+edit that the table makes with the helpers of the content goes through the view
+with `make_content_edit`, which writes below the field `viewed`. An operation that
+comes back from the next stage goes through `read_view_operation` first, which
+turns an operation of the next stage into an operation of the state of the view,
+such as a toggle of a fold of a text into a `ToggleFoldOperation` at the path of the
+view of the node. Any other operation goes back through the readers of the content
+print.
+
+**Limits.** A view makes the views of the whole list of its children
+(`make_child_views`), so a lazy list has no view. A child with no view takes no
+caret in its text inside a view. A chain that prints to widgets has no views.
 
 ## A print while a value is still to come
 

@@ -126,6 +126,23 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` sh
 
 `make_natural_to_syntax_dispatch(; appearance)` builds the table of the general renderer, and passes the `Appearance` of the editor to every registered row. The rows that domains register with `register_natural_syntax!` come first. Then come `PrimitiveToSyntax`, the placeholder and insertion rows of `Text` and `Document`, `CollectionToSyntax` and the `ObjectToSyntax` table. The `DocumentNothing` and `DocumentInsertion` rows are what an empty pane tab shows.
 
+### Views of the syntax
+
+A `SyntaxLeaf` and a `SyntaxNode` have views ([SyntaxView.jl](../../../../source/platform/syntax/SyntaxView.jl)); the other compounds have none. The caret and the fold are state of the view, and the tree holds neither.
+
+- **`SyntaxLeafView(viewed)`** keeps the caret of one view of a leaf, a path of the leaf such as `.value{3}`, or `∅` for the whole leaf. Its key table has Ctrl+Alt+Home (select the whole leaf), Ctrl+A (select all) and Ctrl+Space (toggle the structural and the text cursor).
+- **`SyntaxNodeView(viewed, children, collapsed)`** keeps the caret and the fold of one view of a node. `children` holds the view of each child of the node, in the order of the children, and follows them by identity (`make_child_views`), so `.children[2].value{3}` is a path of the view and of the node. `collapsed` is the fold of this view. A closed view shows the first line of its node and the placeholder of its fold, and another view of the same node keeps a fold of its own. Its key table has the keys of a node: Ctrl+Alt+Home (select the root node), Ctrl+A, Ctrl+Space, and the arrows. A plain arrow moves the selected node (`_navigate_selected_syntax_node`), and Alt with an arrow navigates the tree.
+
+A step of `SyntaxToText` for views is `ViewingProjection(SyntaxToText(text_folds = true))`. With `text_folds`, a collapsible node keeps its children in the text and makes a `TextFold` over their lines, so the closed state is not in the text itself. The step gives a `TextView` of the text of the node. The view computes its `closed_folds` from the views of the nodes: the fold of each `SyntaxNodeView` that is closed (`map_view_state!`). `TextFolding` then hides those lines in that view only. A click on the placeholder of a fold, or Ctrl+. in a fold, reaches the step as a `ToggleCollapseOperation` of a `TextFold`, and `read_view_operation` turns it into a `ToggleFoldOperation` at the path of the view of the node whose print made the fold. The operation flips `collapsed` of that view and changes no tree.
+
+```julia
+node = SyntaxNode(...)                          # the tree holds no fold
+view_a, view_b = SyntaxNodeView(node), SyntaxNodeView(node)
+view_a.collapsed = true                         # closed in view_a, open in view_b
+```
+
+Limits: a child that is not a node or a leaf with a view prints as content, and takes no caret in its text inside a view. A chain of `SyntaxToText` that has no view, which is most of them, keeps the caret in the tree, and its fold is a cell of the node that each print makes.
+
 ### The theme
 
 `SyntaxTheme` holds the text of each kind of leaf that this slice prints (a
