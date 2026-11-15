@@ -1,6 +1,6 @@
 # The wheel scrolls a cut text, and a tab strip that does not fit
 
-Status: pending. Branch `widget-scroll`, worktree `projectured-julia-widget-scroll`.
+Status: done 2026-11-15. Branch `widget-scroll`, worktree `projectured-julia-widget-scroll`.
 
 ## 1. The ask
 
@@ -136,8 +136,10 @@ space".
      - The reader computed the strip geometry again for each read, with the cut of each name.
        The IO map now keeps the geometry cell of the printer (`strip_geometry`), and the reader
        reads it.
-3. [ ] The guides: the widget page and the docstrings of the two widgets. Move the plan to
-   `plan/done/`.
+3. [x] The guides: the widget page and the docstrings of the two widgets and of the tabbed pane.
+   Done 2026-11-15. Checks of the last commit: `test_platform` in parts, 231633 passed and 13
+   failed, the 13 that fail on `main` too (the layering guard, `ClipboardTest` 502–504,
+   `NavigatorChoicesTest` 174/178/208/211, `FileDialogTest` 138); the broken count stays 22.
 
 ## 5. Open question
 
@@ -146,3 +148,7 @@ None. The question of the tab strip was answered with D6.
 ## 6. Not in this plan
 
 - A scroll bar on a text area.
+- A keyboard switch of a window tab after a turn of the wheel over its strip, back to the tab of
+  the turn, shows the strip where the wheel put it (D5).
+- Tabs whose names share a long start, such as "Tab number 1" to "Tab number 10", read "Tab…" at
+  the least width; only the menu tells them apart.
