@@ -359,16 +359,7 @@ const _RULES_CONSTRAINT_CASES = Dict{String,Any}(
 
 # The cases whose constraint draws its child, and not its size.
 # @broken: a constraint does not yet cut its child at the size that it sets; plan/pending/a-widget-cuts-its-content-at-its-box.md, step 4.
-const _RULES_CONSTRAINT_BROKEN = Set{String}([
-    "a Fixed height in a column",
-    "a Fixed height in a row",
-    "a Fixed width in a column",
-    "a Fixed width in a flow",
-    "a Fixed width in a row",
-    "a Fixed width in a stack",
-    "a maximum in a row",
-    "a share of a row",
-])
+const _RULES_CONSTRAINT_BROKEN = Set{String}([])
 
 # The constraint, the first child of the container, draws `expected` on `axis`, and
 # draws no ink past its box.

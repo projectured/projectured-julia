@@ -595,11 +595,19 @@ end
 """
     LayoutConstraintToGraphicsCanvas
 
-Recurse into the wrapped child with the parent-provided context unchanged
-and forward the child's canvas as this projection's output, as a computation, so
-a new canvas of the child is the new output. The constraint values are not
-consumed here — they are read by the *parent* layout when it allocates space
-across its children.
+Recurse into the wrapped child with the parent-provided context unchanged, and
+forward the child's canvas as this projection's output, as a computation, so a new
+canvas of the child is the new output. The constraint values are read by the
+*parent* layout when it allocates space across its children.
+
+A constraint that states a size cuts its child at that size (`layout-rules.md`
+§3b): on an axis where it states a preferred size or a weight and gets an exact
+size, it cuts at that size, and on an axis where it states a maximum and gets an
+edge, it cuts at the edge. While the child is larger than that size, its output
+is a canvas of the size that holds the child in a viewport (`_CUT_CHILD_STEPS`),
+so the next child of a row starts after the size, and nothing draws past it; a
+child that fits is the output itself. The cut matters for a child that is a layout:
+a widget takes an exact size and cuts its content at its box itself.
 """
 function print_document(p::LayoutConstraintToGraphicsCanvas,
                           recursion, doc::LayoutConstraint, ctx)
@@ -608,8 +616,94 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
             SimpleIoMap(nothing, child, child) :
             print_child(recursion, child,
                              make_child_context(ctx, doc, (@reference_step child)))
-    output = Cell(@computation (drawn = inner.output; drawn isa GraphicsDocument ? drawn : _empty_canvas()))
+    drawn = Cell(@computation (child_output = inner.output;
+                               child_output isa GraphicsDocument ? child_output : _empty_canvas()))
+    cut_x = _get_constraint_cut(doc, ctx, :x)
+    cut_y = _get_constraint_cut(doc, ctx, :y)
+    (cut_x === nothing && cut_y === nothing) && return ContentIoMap(p, doc, drawn, inner)
+    output = Cell(@computation begin
+        child_output = drawn[]
+        width, height = _child_w(inner), _child_h(inner)
+        fits = _get_cut_extent(cut_x, width) >= width && _get_cut_extent(cut_y, height) >= height
+        fits ? child_output : _make_cut_constraint_output(child_output, cut_x, cut_y, width, height)
+    end)
     ContentIoMap(p, doc, output, inner)
+end
+
+# Where a constraint cuts its child on `axis`: `(size, :exact)` for the exact size
+# that it gets where it states a preferred size or a weight, else for its preferred
+# size, which a parent that gives no exact size, such as a stack or a flow, leaves
+# to it; `(edge, :maximum)` for the edge that it gets where it states a maximum; or
+# `nothing`. The size and the edge are cells.
+function _get_constraint_cut(doc::LayoutConstraint, ctx, axis::Symbol)
+    ctx isa PrinterContext || return nothing
+    preferred = axis === :x ? doc.preferred_width : doc.preferred_height
+    weight = axis === :x ? doc.weight_width : doc.weight_height
+    maximum = axis === :x ? doc.max_width : doc.max_height
+    exact = axis === :x ? get_exact_width(ctx) : get_exact_height(ctx)
+    # A preferred size of 0 states no size, as for `Fill`, whose weight is its size.
+    states_preferred = preferred !== nothing && preferred > 0
+    states_size = states_preferred || (weight !== nothing && weight > 0)
+    states_size && exact !== nothing && return (exact, :exact)
+    states_preferred && return (Cell(Int32(preferred)), :exact)
+    edge = axis === :x ? ctx.maximum_width : ctx.maximum_height
+    maximum !== nothing && edge !== nothing && return (edge, :maximum)
+    nothing
+end
+
+# The extent of a cut constraint on one axis: the exact size, the drawn extent of
+# the child up to the edge, or the drawn extent where the constraint does not cut.
+_get_cut_extent(::Nothing, drawn::Int) = drawn
+_get_cut_extent(cut::Tuple, drawn::Int) = cut[2] === :exact ? Int(cut[1][]) : min(drawn, Int(cut[1][]))
+
+# The output of a constraint that cuts its child, which draws `drawn_width` by
+# `drawn_height`: a canvas of the cut size that holds the output of the child in a
+# viewport of that size.
+function _make_cut_constraint_output(child::GraphicsDocument, cut_x, cut_y, drawn_width::Int, drawn_height::Int)
+    width = Int32(max(0, _get_cut_extent(cut_x, drawn_width)))
+    height = Int32(max(0, _get_cut_extent(cut_y, drawn_height)))
+    held = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), CellVector(Cell[Cell(child)]),
+                          layout_none, true, Cell(nothing))
+    viewport = GraphicsViewport(Int32(0), Int32(0), width, height, held)
+    GraphicsCanvas(Int32(0), Int32(0), width, height, CellVector(Cell[Cell(viewport)]),
+                   layout_none, true, Cell(nothing))
+end
+
+# The steps from the output of a constraint that cuts its child to the output of
+# the child: the viewport, the canvas in it, and the child in that canvas.
+const _CUT_CHILD_STEPS =
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(0, 1),
+        ConcreteReference(FieldReferenceStep("content"), ConcreteReference(FieldReferenceStep("elements"),
+            ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))))
+
+# Whether the constraint of `iomap` cuts its child: its output holds the output of
+# the child, by identity, at the end of `_CUT_CHILD_STEPS`.
+function _is_cut_constraint(iomap)
+    inner = iomap.inner_iomap
+    inner === nothing && return false
+    output = unwrap_cell(get_iomap_output(iomap))
+    output isa GraphicsCanvas || return false
+    elements = unwrap_cell(getfield(output, :elements))
+    length(elements) == 1 || return false
+    viewport = unwrap_cell(elements[1])
+    viewport isa GraphicsViewport || return false
+    held = unwrap_cell(getfield(unwrap_cell(getfield(viewport, :content)), :elements))
+    length(held) == 1 && unwrap_cell(held[1]) === unwrap_cell(get_iomap_output(inner))
+end
+
+# `reference`, a path into the output of a constraint that cuts its child, as a path
+# into the output of the child: `_CUT_CHILD_STEPS` taken off. A path that stops
+# before the child names the child itself, and any other path is the same in both
+# frames, because the child sits at the origin of the output.
+function _strip_cut_child_steps(reference)
+    steps = _CUT_CHILD_STEPS
+    rest = reference
+    while steps isa ConcreteReference
+        rest isa ConcreteReference || return EmptyReference()
+        rest.head == steps.head || return reference
+        rest, steps = rest.tail, steps.tail
+    end
+    rest
 end
 
 # The wrapper forwards the child's canvas as its own output, so the wrapper itself
@@ -622,14 +716,18 @@ function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::Conten
     reference isa ConcreteReference || return nothing
     h = reference.head
     h isa FieldReferenceStep && h.name == "child" || return nothing
-    map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
+    answer = map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
+    answer === nothing && return nothing
+    _is_cut_constraint(iomap) ? concat_references(_CUT_CHILD_STEPS, answer) : answer
 end
 
 # The wrapper forwards the child's canvas as its own output, so a path into that
-# output is already a path into the child's — there is no step of its own to peel.
+# output is already a path into the child's; a constraint that cuts its child peels
+# the steps of its viewport first.
 function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
+    _is_cut_constraint(iomap) && (reference = _strip_cut_child_steps(reference))
     answer = map_reference_backward(inner.projection, inner, reference)
     answer === nothing && return nothing
     annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("child"), answer))

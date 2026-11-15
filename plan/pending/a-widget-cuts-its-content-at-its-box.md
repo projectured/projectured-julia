@@ -201,6 +201,22 @@ Each step is one commit in a worktree of projectured-julia, on a branch of its o
    step `content` of the viewport, as `make_slot_reference` does. Tests: `test_layout_rules()`, and
    in `test/platform/outline/OutlineTest.jl`: the menu column of a row is `menu_width` wide and
    nothing draws past it.
+   **Done on 2026-11-15.** `_get_constraint_cut` finds the cut on each axis: the exact size that
+   the constraint gets where it states a preferred size above 0 or a weight; else its own
+   preferred size, which a stack or a flow leaves to it, because they give no exact size; else
+   the edge where it states a maximum. A preferred size of 0 states no size: `Fill` writes it.
+   The cut is conditional, as the cut of a widget is: while the child fits, the output of the
+   constraint is the output of the child, so a view whose children fit draws the same tree as
+   before. A larger child is held in a viewport of the size inside a canvas of the size
+   (`_make_cut_constraint_output`); the forward map adds `_CUT_CHILD_STEPS`, and the backward map
+   strips them, when the output holds the child there by identity (`_is_cut_constraint`).
+   `clip_child_to_slot` is not used: its viewport is the output of a grid slot and has no canvas
+   of its own around it. The outline needs no test of its own: its menu fits `menu_width`, so its
+   output does not change, and `test_layout_rules()` checks a constraint in a row, a column, a
+   stack and a flow. `test_layout_rules()`, `test_widget_text_editing()`,
+   `test_widget_rows_scroll()`, `test_scroll_pane_hover()` and `test_widget_transform_pane()`:
+   790 passed, 9 broken (the older ink faults of other widgets).
+
 5. **The checks.** Run `test_platform()`, `test_dataframes()` (a layout change broke data frame
    edits before), and the suites of the domains that use a `LayoutConstraint` with a set size.
    Render the probe of §2 again: no text passes its box. Look at the explorer filter and the
