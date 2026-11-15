@@ -11,14 +11,15 @@ page.
 
 `wrap` is applied to the content that the file document holds, and `file_wrap`
 to the file document: an opener puts a part of its own around the file there,
-such as a navigator. When the editor has settings, the evaluation of the open
-gives the file a history, whatever started the open: around the part that
-`file_wrap` makes, so it records every edit of that part, and else around the
-content, inside the file, as a file tab has it.
+such as a navigator. The evaluation of the open gives the file a history, as many
+steps long as the settings of the editor say, or the default settings when the
+editor has none, whatever started the open: around the part that `file_wrap`
+makes, so it records every edit of that part, and else around the content, inside
+the file, as a file tab has it.
 
 A part that opens a file answers it; code opens a file with `open_file!`.
 
-See also `make_file_tab_content` and `SaveFileOperation`.
+See also `open_file!` and `SaveFileOperation`.
 """
 struct OpenFileOperation <: Operation
     path::String

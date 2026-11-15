@@ -3,7 +3,10 @@
 > **Kind:** design · **Status:** a plan, 2026-11-05, revised at `main` `6b93bfcf3`, and revised
 > again on 2026-11-06 after the owner's decision D10: the file document watches its file and keeps
 > the hash and the band, and the page goes away. Steps 1 and 1a are built on the branch
-> `file-rewrites`; step 1b changes the view of step 1a into the view of a file. · **Sibling plan:** G3
+> `file-rewrites`; step 1b changes the view of step 1a into the view of a file. Steps 6 and 7, D1,
+> §6 and open question 9 are revised on 2026-11-15 at `main` `11585943d` to the one file document
+> of a path: a tab, a card, the explorer and a load all hold the editor's one document of a path
+> (steps 5 and 6 of the plan of the save, G3), and the owner said "Yes" to the revision. · **Sibling plan:** G3
 > [the-assistant-shows-a-picture-file.md](../done/the-assistant-shows-a-picture-file.md) · **Stands on:**
 > [a-window-watches-its-open-files.md](../done/a-window-watches-its-open-files.md),
 > [filechange.md](../../documentation/package/platform/filechange/filechange.md),
@@ -198,9 +201,11 @@ A decision that the assistant proposed counts as approved when the owner approve
 implementation (the owner, 2026-11-05). The owner can name one to see it first.
 
 - **D1. What says that a page has edits.** A, decided by the owner on 2026-11-05: only the history,
-  as D15e says. The open of a file always gives a history, with the default capacity when the editor has no
-  settings. `make_file_tab` and `make_file_tab_content` lose their mark, because no gesture of a
-  person makes a page with no history. B, rejected: the hash of a print against the hash of the last
+  as D15e says. Each file document that the editor makes has a history, with the default capacity
+  when the editor has no settings. The editor makes one document of each path, for the first place
+  that asks for it, so this holds for a tab, a card, the explorer and a load alike.
+  `make_file_tab` and `make_file_tab_content` lose their mark, because no gesture of a person
+  makes a file document with no history, or a second document of a path. B, rejected: the hash of a print against the hash of the last
   load. The owner said on 2026-11-03 that a save prints the tree with no print comparisons, and a
   Markdown page prints another text (§2). C, rejected: the page counts the operations that pass its
   reader. That copies the history, and an undo back to the saved step still counts as an edit.
@@ -314,8 +319,8 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
 ## 6. How the names reach the assistant, and the order of the plans
 
 G4 adds no name for the assistant. A tab uses `open_file!`, and a card uses
-`find_open_file_document`, `insert_elements!`, `DashboardCard` and `find_explorer_content`. Each of
-these carries the mark on main (§2).
+`open_file_document!`, `insert_elements!`, `DashboardCard` and `find_explorer_content`. Each of
+these carries the mark on main.
 
 - **The rule.** Steps 1 to 4 of the reflection plan landed on main at `2bbc18fb5` on 2026-11-05. A
   name reaches the assistant when the docstring of its generic function or of its type ends with
@@ -325,7 +330,8 @@ these carries the mark on main (§2).
   function answers a view. Step 6 removes the mark from `make_file_tab` and
   `make_file_tab_content`. It changes the marked docstrings that name them, `get_file_content` and
   `Workspace`, so that their example and their "See also" line name only offered names. It changes
-  the marked docstring of `open_file!`: the tab follows a rewrite while it has no edits. Step 1b
+  the marked docstrings of `open_file!` and `open_file_document!`: each place that holds the file
+  follows a rewrite while the file has no edits. Step 1b
   changes the marked docstring of `make_file_tab_content` again, because it answers the view of a
   file, and of `find_open_file_document`, which answers a file document and never a page.
   `FileView`, `FileDiskState` and `collect_shown_file_paths` carry no mark.
@@ -745,26 +751,123 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       Update `book.md` and `rst.md`. Test: the image tests of each domain, then `test_book()` and
       `test_rst()`. (Decided by the assistant on 2026-11-05 from the owner's rule that a printer
       reads no disk; G3 open question 10.)
-- [ ] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan
-      on main. The open of a file always gives a history, with the default capacity when the
-      editor has no settings: `_make_opened_file` and `_read_file_page` in
-      `FileSystemDocument.jl`. The window of the application gives one already
-      (`Application.jl:116-117`), so that call does not change. `make_file_tab` and
-      `make_file_tab_content` lose their mark. The docstrings of `get_file_content`
-      (`FileProject.jl:110-115`) and `Workspace` (`Workspace.jl:108`) name `open_file!` in their
-      place. The docstring of `open_file!` says that the tab follows a rewrite while it has no
-      edits. `documentation/guide/orientation.md` gets one example of a page in a card, after the
-      example of `open_file!` (`orientation.md:242-247`) that step 6 of the reflection plan wrote. Update "The tool set" of
-      `fileformat.md` and the open of a file in `filesystem.md`. Tests: `test_application()`,
-      `test_assistant_documentation()`, `test_assistant_verbs()` and
-      `test_referenced_document_editor()`.
-- [ ] **7. The check in the window.** No code. In a window of `projectured` and of `omnet_ide`, a
-      script rewrites a page with three pictures 20 times, 2 s apart. The assistant opens the page
-      with `open_file!` and puts it in a card. `take_picture` after the first and the last rewrite
-      must show the new pictures in both views and no band. `describe_undo_history()` must have no
-      new step. The caret must stay, and a scroll in the tab must leave the card where it is. Then
-      the person types one letter, and the next rewrite must show the band. Record the results
-      here.
+- [x] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan,
+      which is on main since `0836ec536`. The editor holds one file document of each path: a tab,
+      a card, the explorer content and a load of a saved file all get it, and the first place that
+      asks for it makes it (steps 5 and 6 of the plan of the save, G3).
+      - **The history.** Each file document that the editor makes has a history, with the default
+        capacity when the editor has no settings. The two ways that make one take the history from
+        `_make_editor_history_wrap` (`FileSystemDocument.jl:255`): `_make_opened_file`, the open
+        of a tab by `open_file!`, and `open_file_document!`, for a card, the explorer content and
+        a held file of a load. So the change is in that one function: when
+        `find_editor_settings` answers `nothing`, it answers the history of the default settings.
+        The window of the application gives a history already (`Application.jl:120-121`), so that
+        call does not change.
+      - **The marks.** `make_file_tab` and `make_file_tab_content` lose their mark. Each makes a
+        new file document that the editor does not hold open. An assistant that called them would
+        make a second document of a path that a tab or a card holds already, with no history. The
+        assistant uses `open_file!` for a tab and `open_file_document!` for every other place.
+      - **The docstrings.** The marked docstrings of `get_file_content` (its example and its "See
+        also" line, `FileProject.jl:140-143`) and of `Workspace` (`Workspace.jl:108`) name
+        `open_file!` and `open_file_document!` in place of the two builders. The docstring of
+        `open_file!` says that the tab follows a rewrite while the file has no edits. The
+        docstring of `open_file_document!` says the same of each place that holds the document.
+      - **The guide.** "Work with files" of `documentation/guide/orientation.md` (`:245`) has an
+        example of a file document in a card already, which G3 wrote for a picture (`:258-269`).
+        Its sentence says that this holds for every file, not only for a picture. Update "The
+        tool set" of `fileformat.md` (`:113`) and "Open a file" of `filesystem.md` (`:81`).
+      - **omnet-julia, in the same landing (open question 9).** The INI link
+        (`source/ide/LegacyIniFileEntryToWidget.jl:144-149`) gets the editor's document of the
+        file with `open_file_document!`, in place of `make_file_tab(path)`. Thus the link and a
+        tab of the INI file show one document and its history.
+      - **Tests.** `test_application()`, `test_assistant_documentation()`, `test_assistant_verbs()`,
+        `test_referenced_document_editor()`, `test_filechange()` and `test_explorer()`. The last
+        two open files in an editor with no settings, and such a file now has a history. In
+        omnet-julia: `test_ide_file_navigator()`.
+      **Done in projectured-julia on 2026-11-15 (branch `file-open`):** the history, the marks,
+      the docstrings, the guide and the tests. **Done in omnet-julia on 2026-11-15 (branch
+      `file-open`, `6b6375c93`):** the INI link and its test. Not landed.
+      What the implementation found (2026-11-15, branch `file-open`):
+      - `_make_editor_history_wrap(editor)` is
+        `make_history_wrap(something(find_editor_settings(; editor), Settings()))`. The file-system
+        slice uses the settings slice for `Settings`, which comes before it in the include order.
+        A `Settings()` holds only the groups that a call asks for, so it makes only
+        `HistorySettings`, with its default of 100 steps.
+      - Besides the docstrings that the step names, two more named the old state:
+        `OpenFileOperation` said that the open gives a history only when the editor has settings,
+        and the marked docstring of `ImageFile` named `make_file_tab`. Both are changed. The
+        docstrings of `make_file_tab` and `make_file_tab_content` say that each makes a new
+        document that no other place shares, and name `open_file_document!` and `open_file!`.
+      - `ApplicationTest` asked for `:make_file_tab` among the names of the assistant. It asks for
+        `:open_file!` now, and that neither builder is offered.
+      - The new test set "each file that an editor with no settings makes keeps a history" in
+        `FileChangeStoreTest.jl` opens a tab with `open_file!` and gets a card document with
+        `open_file_document!` in an editor with no settings: each content is an `UndoBuffer` of
+        100 steps whose `has_unsaved_edits` answers `false`, not `nothing`.
+      - `test_explorer()` expected the selection path of a JSON file in an editor with no
+        settings as `….document.content.entries[1]…`. The content of the file is its history now,
+        so the path is `….document.content.content.entries[1]…` (`ExplorerTest.jl:377`).
+      - `test_open_page_operation()` asserted that a file which a link opens in an editor with no
+        settings has no history. The set "a target that names a file opens it with a navigator, in
+        a history" now asserts a history in both editors (`OpenPageOperationTest.jl:315`).
+      - Eight more test functions open a file in an editor with no settings, so they run too:
+        `test_background_work()`, `test_open_page_operation()`, `test_window_wrappers()`,
+        `test_assistant_work()`, `test_window_shell()` and `test_work_plan()` of the platform, and
+        `test_markdown_link_target()` with `test_markdown_link_gestures()` of Markdown.
+      - The results on the branch: `test_filechange()` 241 pass and 1 broken, as on main;
+        `test_explorer()` 507 pass; `test_open_page_operation()` 103 pass; the other five
+        platform functions pass; the two Markdown functions 14 and 18 pass;
+        `test_assistant_verbs()` 98 pass; `test_referenced_document_editor()` 134 pass.
+        `test_application()` gives 412 pass, 1 fail and 2 broken: the fail is the usage text of
+        an agent bar (`ApplicationTest.jl:1016`), which fails on main too.
+        `test_assistant_documentation()` gives 2889 pass and 4 errors: the three range functions
+        of `ReferenceModule` and `describe_task`, which fail on main too.
+      - The INI link of omnet-julia can not simply call `open_file_document!`. A new document of
+        that call reads its file only when a view draws it, and the link finds its section with
+        `find_navigator_target(file, section)` at the click, so an unread file has no section.
+        On main the link reads the file in the gesture answer with `make_file_tab(path)`, which
+        is a read of the disk in a reader. A listing does not call the answer, because the
+        bindings of the link have no name. The owner chose option B (open question 13).
+      - The finders of a section of a file did not look past the history (open question 14).
+        The default `find_navigator_target(root, target)` now calls
+        `find_edited_document_target(root, target)` (`NavigatorPageOpen.jl`): a layer, a node
+        whose `get_edited_field` names a field, answers what the document in that field names,
+        with the step of the field before each `Reference`; a node that is no layer answers
+        `find_web_url(target)`, as the default did. So a file and the history inside it both
+        are layers, and a file of a type with no method names the parts of its root. The
+        Markdown and RST file methods call it first and then look for a file beside them; the
+        `IniFile` method of omnet-julia did by hand what the default does, so it is removed.
+        The navigator guide says the rule, and its sentence on the history of a file that a
+        link opens names the history inside the file.
+      - The INI link calls `open_file_document!(path)` and answers `DoNothingOperation()` when
+        no editor opens the file. `LegacyPartPageTest.jl` presses its links in the evaluation of
+        an editor with no settings: the file link opens the editor's one document, whose content
+        is an `UndoBuffer`; the section link opens the file at its top before a read, and at the
+        section after `ReloadFileOperation`.
+      - Tests of the rule: `test_markdown_link_target()` and `test_rst_link_target()` each have a
+        file whose content is an `UndoBuffer`, and the target answers
+        `.content.content.elements[…]`.
+      - The omnet results, in a scratch environment of the two worktrees:
+        `test_legacy_part_pages()` 44 pass, `test_ini()` 47 pass, and `test_ide_file_navigator()`
+        50 pass and 2 fail. The two fails are the Julia file (`IdeNavigatorTest.jl:50`) and the
+        Markdown file (`:57`) of the folder, which fail on main too; the set of a NED and an INI
+        file that open in a history passes 20 of 20.
+      - The three omnet functions build no assistant (the file navigator test uses `llm = :none`),
+        so they run with no network namespace: a `bounded-run` job is a user service, which can
+        not make one. Ollama loaded no model in the run.
+      - After the rebase on main (projectured-julia `8541a3592`, omnet-julia `9f698f89c`, no
+        change to a `Project.toml`), the same functions give the same counts: `test_filechange()`
+        241 and 1 broken, `test_explorer()` 507, `test_open_page_operation()` 103, the Markdown
+        link targets 17 and gestures 18, the RST link targets 16, and the three omnet functions as
+        above.
+- [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
+      and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
+      apart. The assistant opens the file with `open_file!`, and it puts the same file document in
+      a card with `open_file_document!`. `take_picture` after the first and the last rewrite must
+      show the new pictures in both views and no band. `describe_undo_history()` must have no new
+      step. The caret must stay, and a scroll in the tab must leave the card where it is. Then the
+      person types one letter, and the next rewrite must show the band in both views. Record the
+      results here.
 
 ## 8. Risks
 
@@ -865,8 +968,10 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
    wait for step 6 of the reflection plan, or change that sentence itself? Recommended by the
    assistant: wait. The branch has the text already, and both plans change `Application.jl`.
 9. **D1 in omnet-julia.** Decided by the assistant on 2026-11-05, as for G8 and G9: step 6 changes
-   the INI link of omnet-julia (`LegacyIniFileEntryToWidget.jl:150-156`) in the same landing, so
-   that it opens through `OpenFileOperation` and gets a page and a history. The question was: the INI link of omnet-julia opens a file with no page and no history. Must
+   the INI link of omnet-julia (`LegacyIniFileEntryToWidget.jl:144-149`) in the same landing.
+   Revised on 2026-11-15: the link gets the editor's document of the file with
+   `open_file_document!`, and with it the history. `OpenFileOperation` opens a tab, but the link
+   opens the file in the navigator, here or in a new tab, and the page of a file is gone. The question was: the INI link of omnet-julia opens a file with no page and no history. Must
    a plan of omnet-julia open it through `OpenFileOperation`, so that it gets a page and a
    history? Recommended by the assistant: yes, in a plan of omnet-julia after G4 step 6.
 10. **One rule for what a holder holds.** Deferred by the owner on 2026-11-07 ("Yes") until after
@@ -901,3 +1006,23 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
     which step 4 updates only at a load. Proposed by the assistant: the reader of the file adds the
     change of what it holds to such an edit, as the reader of a dashboard does for an edit of
     `cards` (`_add_card_holds`).
+13. **The INI link of omnet-julia (step 6).** Answered by the owner on 2026-11-15 ("Agreed"):
+    option B in this landing, and option C later, in a plan of its own that also covers a
+    Markdown link to a heading of another file. The question was: the link gets the editor's
+    document with `open_file_document!`, which reads the file only when a view draws it, so a
+    first press finds no section. (A) keep `make_file_tab`, a second document with no history;
+    (B) use `open_file_document!`, and a press on a file that is not read yet opens it at the
+    top, as a Markdown link to a heading of another file does; (C) the navigator keeps the
+    name of the section and finds it after the read, a new mechanism. Recommended by the
+    assistant: B, then C.
+14. **A section in a file whose content is a history.** Answered by the owner on 2026-11-15
+    ("Yes"): fix the finders of the three file types in this landing, by one shared function of
+    the platform. Found on 2026-11-15 at step 6: the
+    finders of a section of a file, `find_navigator_target(file::IniFile, …)`,
+    `(file::MarkdownFile, …)` and `(file::RstFile, …)`, read `get_file_content(file)` and expect
+    the root of the domain there. With a history the content is the `UndoBuffer`, so they find
+    nothing: `find_navigator_target(file, "#usage")` answers `.content.elements[3]` for a file
+    with no history and `nothing` for the same file with a history. On main this holds for each
+    file that the window opens, because the window has settings; step 6 gives a history in each
+    editor. With option B of question 13, a press on a file that is read reaches its section
+    only when the finder looks past the history.

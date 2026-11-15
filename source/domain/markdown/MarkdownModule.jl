@@ -17,6 +17,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
 import ..ProjectionAlgebraModule: make_content_view
+using ..NavigatorModule: find_edited_document_target
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content

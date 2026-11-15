@@ -60,7 +60,7 @@ export get_navigator_page_address, get_navigator_address_steps, get_navigator_pa
 export find_navigator_choices, make_navigator_choice_operation
 export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
        make_navigator_address_reset_operation, is_navigator_address_selected
-export find_navigator_target, find_navigator_address, open_page!
+export find_navigator_target, find_edited_document_target, find_navigator_address, open_page!
 export make_navigator_address_projection, ReferenceStepToSyntaxLeaf
 export NavigatorToWidget, make_navigator_projection
 

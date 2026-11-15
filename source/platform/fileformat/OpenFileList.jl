@@ -121,10 +121,16 @@ end
 
 The file document that a held file at `path` gets in `editor`: the one that `editor`
 holds open for that file, else a new one that reads nothing and reads the file when a
-view of it is drawn, with the history of the settings of the editor around its
-content. A new one is in the open files of the editor at once. It is not shown: the
-view of a file draws it, and the call places it in no tab. `nothing` when no editor
-opens it, so a load with no editor keeps each reference to a file as it is.
+view of it is drawn, with a history around its content, as many steps long as the
+settings of the editor say. A new one is in the open files of the editor at once. It
+is not shown: the view of a file draws it, and the call places it in no tab. `nothing`
+when no editor opens it, so a load with no editor keeps each reference to a file as it
+is.
+
+Each place that holds the document shows the same file, a tab of `open_file!` too.
+When another program writes the file again, each of them shows the new text while the
+file has no edits that are not saved; else they keep the edits and show a band that
+says the file changed on disk.
 
 `open_file_document!(editor, path)` is the method that a load calls with the editor
 that loads, and that a slice extends (the file-system slice does); the default method

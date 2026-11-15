@@ -82,12 +82,11 @@ end
 find_navigator_target(root::MarkdownRoot, target::AbstractString) =
     something(_find_markdown_heading(root, target, ReferenceStep[]), find_web_url(target), Some(nothing))
 
-# A file names the headings of its page, an address outside the editor, and a file
-# beside it by a relative path, when that file exists; the part after `#` in such
-# a path is not followed.
+# A file names the headings of its page, past the history inside the file, an address
+# outside the editor, and a file beside it by a relative path, when that file exists;
+# the part after `#` in such a path is not followed.
 function find_navigator_target(file::MarkdownFile, target::AbstractString)
-    startswith(target, "#") &&
-        return _find_markdown_heading(get_file_content(file), target, ReferenceStep[FieldReferenceStep("content")])
+    startswith(target, "#") && return find_edited_document_target(file, target)
     something(find_web_url(target), _find_link_file(file.filename, target), Some(nothing))
 end
 

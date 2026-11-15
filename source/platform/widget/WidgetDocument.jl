@@ -201,7 +201,12 @@ or beside a button that uses it.
 
 `width` is the width of the box in pixels. A text that is wider is cut at the
 box, and the field scrolls its text so that the caret stays in view;
-`scroll_position` is that offset, view state that no undo records. `width` is
+`scroll_position` is that offset, view state that no undo records. A horizontal
+turn of the wheel scrolls a text that is cut, as it scrolls a pane, and leaves the
+caret where it is; a vertical turn goes on to the pane around the field. The text
+stays where the wheel puts it until the selection changes: `scrolled_selection`
+is the selection at the last turn, and `wheel_run` the last notch of a run of the
+wheel, both view state. `width` is
 `0` by default, which is the box that fits its content exactly — and which is a
 box of nothing at all when the content is empty. A form gives its fields a width
 so that an empty one can still be clicked. `WidgetSpinBox` carries the same field
@@ -252,6 +257,8 @@ For the assistant.
     style::Any
     tooltip::Any
     scroll_position::Point2D   # view state: the offset of a text that the box cuts
+    wheel_run::Any             # view state: the last notch of a run of the wheel, or nothing
+    scrolled_selection::Any    # view state: the selection at the last turn of the wheel, or nothing
 end
 
 function WidgetText(content; position::Point2D=Point2D(0, 0),
@@ -270,7 +277,8 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
                Cell(placeholder), Cell(text_style), Cell(wrap), Cell(line_spacing), Cell(quiet), Cell(visible), Cell(enabled), Cell(margin), Cell(border),
-               Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position), Cell(nothing))
+               Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position), Cell(nothing), Cell(nothing),
+               Cell(nothing))
 end
 
 """
@@ -1552,6 +1560,11 @@ decides what the gesture *means*: the strip answers with
 [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
 [`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 
+In a slot that is narrower than its tabs, the long names shrink so that the tabs
+fit, and a cut name ends with "…". When the names at their least width still do
+not fit, a menu button at the right end of the strip lists all tabs, and a click
+on an item opens its tab. The strip scrolls with the wheel, and shows the open tab.
+
 See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
 children shown at once.
 
@@ -1565,6 +1578,7 @@ For the assistant.
     padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tab_scroll::Int = 0
+    scrolled_tab::Int = 0
     closable::Bool = false
     new_tab::Bool = false
     draggable::Bool = false
@@ -1573,7 +1587,10 @@ end
 
 # `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
 # horizontal pixel offset (≥0) that scrolls the tab strip when it is wider than the
-# pane, so overflow tabs stay reachable. 0 ⇒ no scroll.
+# pane, so overflow tabs stay reachable. 0 ⇒ no scroll. The strip moves by the least
+# amount that shows the open tab, except while the open tab is `scrolled_tab`, the tab
+# that was open at the last turn of the wheel over the strip (0 for none): then the
+# strip stays where the wheel put it. Both are view state.
 function WidgetTabbedPane(selector_element_pairs::Vector;
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
@@ -1585,7 +1602,7 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style),
-                     Cell(Int(tab_scroll)),
+                     Cell(Int(tab_scroll)), Cell(0),
                      Cell(closable), Cell(new_tab), Cell(draggable),
                      Cell(tooltip), Cell(nothing))
 end
@@ -2836,7 +2853,10 @@ Use it to show or take a paragraph: a note, a NED fragment, a finding.
 `content` is a string, and its newlines split the rows; `rows` is the height in
 lines and `width` the width in pixels. A larger text is cut at the box, and the
 area scrolls its text so that the caret stays in view; `scroll_position` is that
-offset, view state that no undo records. A string is read only. A text document, such
+offset, view state that no undo records. A turn of the wheel scrolls a text that is
+cut on the axis of the turn, as it scrolls a pane, and leaves the caret where it
+is; `scrolled_selection` and `wheel_run` are view state, as for a `WidgetText`.
+A string is read only. A text document, such
 as a `TextBlock`, is edited as the content of a `WidgetText` is, and Return
 types a line break.
 
@@ -2862,6 +2882,8 @@ For the assistant.
     style::Any
     tooltip::Any
     scroll_position::Point2D   # view state: the offset of a text that the box cuts
+    wheel_run::Any             # view state: the last notch of a run of the wheel, or nothing
+    scrolled_selection::Any    # view state: the selection at the last turn of the wheel, or nothing
 end
 WidgetTextarea(content; position::Point2D=Point2D(0, 0), width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing,
@@ -2869,7 +2891,7 @@ WidgetTextarea(content; position::Point2D=Point2D(0, 0), width::Integer=0, rows:
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(enabled),
                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(scroll_position),
-                   Cell(nothing))
+                   Cell(nothing), Cell(nothing), Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -4203,8 +4225,9 @@ get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :sho
 
 # The offset of a text in a field that cuts it follows the caret, and is no part of
 # what the field holds.
-get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position,)
-get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position,)
+get_view_state_fields(::Type{<:WidgetTabbedPane}) = (:tab_scroll, :scrolled_tab)
+get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position, :wheel_run, :scrolled_selection)
+get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position, :wheel_run, :scrolled_selection)
 
 # A saved table keeps its headers and its cells. The counts of its rows and of
 # its columns, which a table without data for them derives from the cells and the

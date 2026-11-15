@@ -137,10 +137,10 @@ Use it to read what an open file holds.
 
 # Example
 
-    file_1 = make_file_tab("notes.json")
-    content_1 = get_file_content(file_1)
+    notes_tab_1 = open_file!("notes.json")
+    content_1 = get_file_content(notes_tab_1)
 
-See also `get_edited_document` and `make_file_tab`.
+See also `get_edited_document` and `open_file!`.
 
 For the assistant.
 """

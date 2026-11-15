@@ -362,7 +362,10 @@ function test_application()
             # shows here and not in a window.
             @test :open_pane! in names          # the pane arranges the window
             @test :WidgetTable in names         # a widget shows a value
-            @test :make_file_tab in names       # a path becomes a tab
+            @test :open_file! in names          # a path becomes a tab
+            # A builder makes a second document of a path that a tab holds.
+            @test !(:make_file_tab in names)
+            @test !(:make_file_tab_content in names)
             @test :Workspace in names           # the Files pane lists a tree
             @test :list_task_groups in names    # the groups of tasks of the session
 
@@ -370,7 +373,7 @@ function test_application()
             # search indexes the kernel's own modules and a person asking to open
             # a file is told about cells.
             set = declare_api!(ToolSet(), api)
-            @test occursin("make_file_tab", search_api(set, "make_file_tab"))
+            @test occursin("open_file!", search_api(set, "open_file!"))
             # And the declaration BOUNDS the surface. A kernel name the window
             # does not offer is refused, and the refusal lists what may be
             # written instead. Undeclared, the same search answers the kernel's

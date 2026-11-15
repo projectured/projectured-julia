@@ -255,9 +255,11 @@ replace_referenced_value!(notes_1["done"], parse_natural_text(:json, "true"))
 save_file_to_disk!(notes_tab_1)
 ```
 
-A picture file is a file document too. Get it with `open_file_document!`, so that a
-card, a zoom tab and a file tab share one document of the path, and each of them
-shows the new picture after a program writes the file again:
+The editor holds one document of each file. `open_file_document!` answers it with no
+tab, so that a card, a zoom tab and the tab of `open_file!` share one document of the
+path. Each of them shows the new text or the new picture after a program writes the
+file again, while the file has no edits that are not saved. A picture file is a file
+document too:
 
 ```julia
 throughput_1 = open_file_document!("media/throughput-new.png")

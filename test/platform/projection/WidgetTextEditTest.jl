@@ -361,4 +361,95 @@ end
     @test top <= y < top + height
 end
 
+# The turns of the wheel at `(x, y)` that move the text of `widget`, one by one, until
+# a turn moves nothing; the IO map of the last print.
+function _turn_wheel_to_end!(proj, editor, widget, iomap, dx, dy, x, y)
+    for second in 1:20
+        operation = read_intent(proj, iomap, MouseScroll(dx, dy, x, y; time = Float64(second)))
+        operation === nothing && return iomap
+        evaluate_operation(editor, operation)
+        iomap, _ = _print_cut_text(proj, widget)
+    end
+    iomap
+end
+
+@testset "a horizontal turn of the wheel scrolls a cut field and leaves its caret, and a key shows the caret again" begin
+    proj = _proj()
+    doc = WidgetText("abcdefghijklmnopqrstuvwxyz0123"; width = 60)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _plain_cursor(30))
+    iomap, (left, top, width, _) = _print_cut_text(proj, doc)
+    x, y = left + 5, top + 5
+    # A vertical turn goes on to the pane around the field, and Ctrl and the wheel zoom.
+    @test read_intent(proj, iomap, MouseScroll(0, 1, x, y; time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseScroll(1, 0, x, y, ModifierKeys(; ctrl = true); time = 0.0)) === nothing
+    # A turn toward the start moves the text, and the caret at the end stays there,
+    # out of the view.
+    start = iomap.scroll.offset[1]
+    evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(1, 0, x, y; time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test iomap.scroll.offset[1] < start
+    @test strip_reference_types(get_selection(doc)) == _plain_cursor(30)
+    @test _find_drawn_caret(iomap, doc).x > left + width
+    # At the start of the text a turn moves nothing, and goes on.
+    iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 1, 0, x, y)
+    @test iomap.scroll.offset[1] == 0
+    # A step to the left moves the caret, and the text moves to show it again.
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 30.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test left <= _find_drawn_caret(iomap, doc).x <= left + width
+    # A turn is no edit, so a disabled field scrolls too.
+    disabled = WidgetText("abcdefghijklmnopqrstuvwxyz0123"; width = 60, enabled = false)
+    iomap, _ = _print_cut_text(proj, disabled)
+    @test read_intent(proj, iomap, MouseScroll(-1, 0, x, y; time = 0.0)) !== nothing
+end
+
+@testset "after a turn of the wheel a key shows the caret again, also in a text document and at a caret that stays" begin
+    proj = _proj()
+    text = "abcdefghijklmnopqrstuvwxyz0123"
+    # The editor changes the path of the caret of a text document in place.
+    doc = WidgetText(TextBlock(TextLine(TextString(text, _font, color_default))); width = 60)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _cursor(30))
+    iomap, (left, top, _, _) = _print_cut_text(proj, doc)
+    iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 1, 0, left + 5, top + 5)
+    @test iomap.scroll.offset[1] == 0
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 30.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test iomap.scroll.offset[1] >= 290 - 60
+    # A Delete keeps the caret where it is, and shows it.
+    plain = WidgetText(text; width = 60)
+    editor = _WidgetTextMockEditor(plain)
+    set_selection!(plain, _plain_cursor(25))
+    iomap, _ = _print_cut_text(proj, plain)
+    iomap = _turn_wheel_to_end!(proj, editor, plain, iomap, 1, 0, left + 5, top + 5)
+    @test iomap.scroll.offset[1] == 0
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:delete, ModifierKeys(); time = 30.0)))
+    iomap, _ = _print_cut_text(proj, plain)
+    @test plain.content == "abcdefghijklmnopqrstuvwxy0123"
+    @test iomap.scroll.offset[1] >= 250 - 60
+end
+
+@testset "a turn of the wheel scrolls the lines of a cut text area, and goes on at its end" begin
+    proj = _proj()
+    doc = WidgetTextarea(join(["line $i" for i in 1:10], "\n"); rows = 2)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _plain_cursor(0))
+    iomap, (left, top, _, height) = _print_cut_text(proj, doc)
+    x, y = left + 5, top + 5
+    shown_lines(iomap) = [t[1] for t in _drawn_texts_in_views(iomap.output) if top <= t[3] < top + height]
+    # At the start a turn up goes on to the pane around the area.
+    @test read_intent(proj, iomap, MouseScroll(0, 1, x, y; time = 0.0)) === nothing
+    # A turn down shows the next lines, and the caret on the first line stays there.
+    evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(0, -1, x, y; time = 0.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test iomap.scroll.offset[2] > 0
+    @test !("line 1" in shown_lines(iomap))
+    @test strip_reference_types(get_selection(doc)) == _plain_cursor(0)
+    # The turns stop at the last line.
+    iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 0, -1, x, y)
+    @test iomap.scroll.offset[2] == iomap.scroll.room[2] > 0
+    @test "line 10" in shown_lines(iomap)
+end
+
 end # test_widget_text_editing

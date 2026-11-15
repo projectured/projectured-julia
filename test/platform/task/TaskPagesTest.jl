@@ -197,6 +197,20 @@ function test_task_pages()
             lines.filter_text = ""
         end
 
+        # The natural renderer draws the lines of a stream alone, such as the atom of
+        # the catalog, as the page draws them, and does not reflect their fields.
+        @testset "the lines of a stream alone draw as the page draws them" begin
+            lines = only(getfield(document, :executions)[]).stdout_page.lines
+            natural = NaturalToGraphics(; measure = FixedMeasure(10, 18, 6, 0))
+            context = with_exact_size(PrinterContext(); width = Cell(Int32(1200)), height = Cell(Int32(600)))
+            texts = _collect_task_view_texts(print_document(natural, nothing, lines, context).output)
+            find_text(text) = only(t for t in texts if t[3] == text)
+            counts = find_text("302 lines · 1 error · 1 progress")
+            (number, line) = (find_text("302"), find_text("progress 5"))
+            @test counts[2] < number[2] && number[2] == line[2] && number[1] < line[1]
+            @test !any(t -> t[3] == "line 1" || t[3] == "TaskStreamLines", texts)
+        end
+
         @testset "find, the first error and the wheel move the line at the top" begin
             lines = only(getfield(document, :executions)[]).stdout_page.lines
             holder = _NavHolder(lines)

@@ -312,7 +312,7 @@ function test_open_page_operation()
         @test _nav_tabs(editor)[3].content.content === other
     end
 
-    @testset "a target that names a file opens it with a navigator, in a history with settings" begin
+    @testset "a target that names a file opens it with a navigator, in a history" begin
         folder = mktempdir()
         path = joinpath(folder, "notes.txt")
         write(path, "hello")
@@ -322,9 +322,10 @@ function test_open_page_operation()
         answer = read_rooted_operation(editor, @reference(navigator, content.home.children[2]), _nav_link("notes.txt"))
         @test answer isa OpenFileOperation && answer.path == path
         @test answer.file_wrap(PrimitiveString("x")) isa Navigator
-        # The navigator holds the file, and an editor with settings puts a history
-        # inside the file, around its content, so it records the edits of the file.
-        for (settings, has_history) in ((make_settings(), true), (false, false))
+        # The navigator holds the file, and the editor puts a history inside the file,
+        # around its content, so it records the edits of the file; an editor with no
+        # settings gives the history of the default settings.
+        for settings in (make_settings(), false)
             editor = build_editor(_nav_make_shelf(), _nav_natural(); backend = HeadlessBackend(),
                                   devices = Device[Keyboard(), Mouse(), Display()], window = false, tabs = true,
                                   appearance = false, settings)
@@ -334,7 +335,7 @@ function test_open_page_operation()
             run_frame!(editor)
             found = only(search_documents(editor.document, node -> node isa Navigator && node.content isa TextFile))
             @test found.content.filename == path
-            @test (found.content.content isa UndoBuffer) == has_history
+            @test found.content.content isa UndoBuffer
             @test isempty(search_documents(editor.document, node -> node isa UndoBuffer && node.content === found))
         end
     end

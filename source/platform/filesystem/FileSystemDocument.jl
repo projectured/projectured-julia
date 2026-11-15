@@ -216,9 +216,9 @@ make_filesystem_chooser(directory::AbstractString) =
 # The destination is a pane tree, in a new tab: `make_file_tab` reads the file into
 # the document type its extension owns, the tab shows the view of the file
 # (`make_file_view`) or the part that the opener puts around it, and
-# `get_pane_file_group` asks the pane tree where a file belongs. An editor with
-# settings gives the file a history (`make_history_wrap`), around the content inside
-# the file, whatever the opener puts around the file. This runs while the editor
+# `get_pane_file_group` asks the pane tree where a file belongs. The editor gives the
+# file a history (`_make_editor_history_wrap`), around the content inside the file,
+# whatever the opener puts around the file. This runs while the editor
 # evaluates the open, so the new tab is posted, and the loop evaluates it at the top
 # of the next frame.
 function evaluate_operation(editor, op::OpenFileOperation)
@@ -240,9 +240,8 @@ function evaluate_operation(editor, op::OpenFileOperation)
 end
 
 # The file of `op`: read from disk, with each `file("…")` in it given the file
-# document that the editor holds for that file, and a history around its content
-# when the editor has settings. The splice runs before the history wraps the content,
-# so the history gets no step.
+# document that the editor holds for that file, and a history around its content.
+# The splice runs before the history wraps the content, so the history gets no step.
 function _make_opened_file(editor, op::OpenFileOperation)
     history = _make_editor_history_wrap(editor)
     base_dir = dirname(abspath(op.path))
@@ -250,16 +249,16 @@ function _make_opened_file(editor, op::OpenFileOperation)
         splice_held_files!(document, base_dir, path -> open_file_document!(editor, path)))))
 end
 
-# What wraps the content of a file that the editor opens: a history when the editor
-# has settings, else nothing.
-function _make_editor_history_wrap(editor)
-    settings = find_editor_settings(; editor)
-    settings === nothing ? identity : make_history_wrap(settings)
-end
+# What wraps the content of each file document that the editor makes: a history, as
+# many steps long as the settings of the editor say, or the default settings when the
+# editor has none. Only the history says whether a file has edits, so a file with no
+# history could not follow a rewrite of its file.
+_make_editor_history_wrap(editor) =
+    make_history_wrap(something(find_editor_settings(; editor), Settings()))
 
 # The file document of a held file at `path` in `editor`: the one that the editor
 # holds open, else a new one that reads nothing (`make_unread_file`), with the history
-# of the settings of the editor around its content, and in the open files of the
+# of `_make_editor_history_wrap` around its content, and in the open files of the
 # editor from this call on. It runs on the task of the editor. A new file document
 # reads its file when a view of it is drawn, and a holder that holds it watches its
 # file.
@@ -298,9 +297,13 @@ end
 
 Open the file at `path` in a tab, where the window puts files, and answer the tab.
 The tab shows the file as the extension of its name reads it, and keeps the
-history of its edits, so Ctrl+Z undoes them. A file that is open already keeps
-its tab, and the answer is that tab. The tab does not take the focus, and the
-group shows it only when `show_pane!` shows it.
+history of its edits, so Ctrl+Z undoes them. When another program writes the file
+again, the tab shows the new text while the file has no edits that are not saved;
+else it keeps the edits and shows a band that says the file changed on disk. A file
+that is open already keeps its tab, and the answer is that tab. A file that a card
+or another place holds already is the document of the new tab too, so each place
+shows the same file. The tab does not take the focus, and the group shows it only
+when `show_pane!` shows it.
 
 Use it to open a file of the disk, so that you can read it and change it as a
 part of the window.
@@ -310,7 +313,7 @@ part of the window.
     notes_tab_1 = open_file!("notes.json")
     show_pane!(notes_tab_1)
 
-See also `save_file_to_disk!`, `reload_file_from_disk!`, `show_pane!`.
+See also `open_file_document!`, `save_file_to_disk!`, `reload_file_from_disk!`, `show_pane!`.
 
 For the assistant.
 """
