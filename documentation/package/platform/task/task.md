@@ -583,7 +583,11 @@ that a press reaches its button, and the slice registers them, so any
 ## The pages
 
 A navigator shows a task, an execution and a stream as pages; the slice registers
-a row of the natural renderer for each. A part that leads to another page answers
+a row of the natural renderer for each. It registers one more row for the lines
+of a stream alone, a `TaskStreamLines` with no page around it: they draw as the
+page of the stream draws them, with no bar. Without that row the renderer would
+reflect their fields, and the reflection would go through the shadow into both
+pages of the stream, a text of thousands of lines. A part that leads to another page answers
 `OpenPageOperation` with the document that holds it and a path from it, so the
 navigator around the page opens it, and Ctrl+press opens it in a new tab.
 

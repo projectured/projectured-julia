@@ -1597,8 +1597,9 @@ _describe_closed_row(kind::AbstractString) =
         -> Vector{Pair{Type,Any}}
 
 The rows of the natural renderer that draw a group of tasks as its pane, the
-groups of the session as the Tasks pane, a closed group, and a task, an execution
-and a stream as their pages. Each pane draws with the scaled
+groups of the session as the Tasks pane, a closed group, a task, an execution
+and a stream as their pages, and the lines of a stream alone as the page of the
+stream draws them. Each pane draws with the scaled
 `TaskTheme` of `appearance`, and its widgets draw with a widget renderer of
 their own, which also takes a click back to the button under it. `measure` is
 what the registry gives every row; a row made by hand measures with the font
@@ -1662,7 +1663,8 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
                                               widgets()),
         TaskDocument => ChainingProjection(TaskDocumentToWidgetPane(; styles...), widgets()),
         ACTaskExecution => ChainingProjection(TaskExecutionToWidgetPane(; Base.structdiff(styles, (button_gap = 0,))...), widgets()),
-        TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.section_gap), stream_widgets())]
+        TaskStream => ChainingProjection(TaskStreamToWidget(; gap = styles.section_gap), stream_widgets()),
+        TaskStreamLines => stream_widgets()]
 end
 
 function __init__()
