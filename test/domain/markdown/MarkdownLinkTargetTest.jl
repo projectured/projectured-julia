@@ -18,6 +18,13 @@ function test_markdown_link_target()
     write(joinpath(folder, "guide.md"), "# Guide\n")
     file = MarkdownFile(joinpath(folder, "readme.md"), root)
     @test evaluate_reference(file, find_navigator_target(file, "#use-it_now")) === headings[3]
+    # A file with a history names its headings past the history.
+    held_root = parse_markdown(source)
+    held = MarkdownFile(joinpath(folder, "held.md"), UndoModule.UndoBuffer(held_root))
+    found = find_navigator_target(held, "#use-it_now")
+    @test repr(found) == ".content.content.elements[5]"
+    @test evaluate_reference(held, found) === held_root.elements[5]
+    @test find_navigator_target(held, "#nothing-here") === nothing
     @test find_navigator_target(file, "guide.md") == joinpath(folder, "guide.md")
     @test find_navigator_target(file, "guide.md#guide") == joinpath(folder, "guide.md")
     @test find_navigator_target(file, "missing.md") === nothing

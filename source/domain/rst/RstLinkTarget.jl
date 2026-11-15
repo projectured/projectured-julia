@@ -65,15 +65,12 @@ find_navigator_target(root::RstRoot, target::AbstractString) =
     something(_find_rst_target(root, _normalize_rst_name(_get_rst_target_name(target)), ReferenceStep[]),
               find_web_url(target), Some(nothing))
 
-# A file names the targets and the sections of its document first, then an address
-# outside the editor, and else a file beside it by a relative path, when that file
-# exists.
+# A file names what its document names first, past the history inside the file: the
+# targets and the sections of the document, then an address outside the editor; and
+# else a file beside it by a relative path, when that file exists.
 function find_navigator_target(file::RstFile, target::AbstractString)
-    found = _find_rst_target(get_file_content(file), _normalize_rst_name(_get_rst_target_name(target)),
-                             ReferenceStep[FieldReferenceStep("content")])
+    found = find_edited_document_target(file, target)
     found === nothing || return found
-    web = find_web_url(target)
-    web === nothing || return web
     path = first(split(target, '#'; limit = 2))
     (isempty(path) || occursin(r"^[A-Za-z][A-Za-z0-9+.\-]*:", path)) && return nothing
     candidate = normpath(joinpath(dirname(abspath(file.filename)), path))

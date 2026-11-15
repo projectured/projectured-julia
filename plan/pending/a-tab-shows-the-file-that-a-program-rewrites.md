@@ -827,7 +827,26 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         `find_navigator_target(file, section)` at the click, so an unread file has no section.
         On main the link reads the file in the gesture answer with `make_file_tab(path)`, which
         is a read of the disk in a reader. A listing does not call the answer, because the
-        bindings of the link have no name. Asked the owner on 2026-11-15.
+        bindings of the link have no name. The owner chose option B (open question 13).
+      - The finders of a section of a file did not look past the history (open question 14).
+        The default `find_navigator_target(root, target)` now calls
+        `find_edited_document_target(root, target)` (`NavigatorPageOpen.jl`): a layer, a node
+        whose `get_edited_field` names a field, answers what the document in that field names,
+        with the step of the field before each `Reference`; a node that is no layer answers
+        `find_web_url(target)`, as the default did. So a file and the history inside it both
+        are layers, and a file of a type with no method names the parts of its root. The
+        Markdown and RST file methods call it first and then look for a file beside them; the
+        `IniFile` method of omnet-julia did by hand what the default does, so it is removed.
+        The navigator guide says the rule, and its sentence on the history of a file that a
+        link opens names the history inside the file.
+      - The INI link calls `open_file_document!(path)` and answers `DoNothingOperation()` when
+        no editor opens the file. `LegacyPartPageTest.jl` presses its links in the evaluation of
+        an editor with no settings: the file link opens the editor's one document, whose content
+        is an `UndoBuffer`; the section link opens the file at its top before a read, and at the
+        section after `ReloadFileOperation`.
+      - Tests of the rule: `test_markdown_link_target()` and `test_rst_link_target()` each have a
+        file whose content is an `UndoBuffer`, and the target answers
+        `.content.content.elements[…]`.
 - [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
@@ -974,3 +993,23 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
     which step 4 updates only at a load. Proposed by the assistant: the reader of the file adds the
     change of what it holds to such an edit, as the reader of a dashboard does for an edit of
     `cards` (`_add_card_holds`).
+13. **The INI link of omnet-julia (step 6).** Answered by the owner on 2026-11-15 ("Agreed"):
+    option B in this landing, and option C later, in a plan of its own that also covers a
+    Markdown link to a heading of another file. The question was: the link gets the editor's
+    document with `open_file_document!`, which reads the file only when a view draws it, so a
+    first press finds no section. (A) keep `make_file_tab`, a second document with no history;
+    (B) use `open_file_document!`, and a press on a file that is not read yet opens it at the
+    top, as a Markdown link to a heading of another file does; (C) the navigator keeps the
+    name of the section and finds it after the read, a new mechanism. Recommended by the
+    assistant: B, then C.
+14. **A section in a file whose content is a history.** Answered by the owner on 2026-11-15
+    ("Yes"): fix the finders of the three file types in this landing, by one shared function of
+    the platform. Found on 2026-11-15 at step 6: the
+    finders of a section of a file, `find_navigator_target(file::IniFile, …)`,
+    `(file::MarkdownFile, …)` and `(file::RstFile, …)`, read `get_file_content(file)` and expect
+    the root of the domain there. With a history the content is the `UndoBuffer`, so they find
+    nothing: `find_navigator_target(file, "#usage")` answers `.content.elements[3]` for a file
+    with no history and `nothing` for the same file with a history. On main this holds for each
+    file that the window opens, because the window has settings; step 6 gives a history in each
+    editor. With option B of question 13, a press on a file that is read reaches its section
+    only when the finder looks past the history.

@@ -35,6 +35,12 @@ function test_rst_link_target()
     write(joinpath(folder, "other.rst"), "Other\n=====\n")
     file = RstFile(joinpath(folder, "index.rst"), root)
     @test get_rst_title_text(evaluate_reference(file, find_navigator_target(file, "Queueing"))) == "Queueing"
+    # A file with a history names its targets and sections past the history.
+    held = RstFile(joinpath(folder, "held.rst"), UndoModule.UndoBuffer(parse_rst(source)))
+    found = find_navigator_target(held, "Queueing")
+    @test startswith(repr(found), ".content.content.elements[1]")
+    @test get_rst_title_text(evaluate_reference(held, found)) == "Queueing"
+    @test find_navigator_target(held, "other.rst") == joinpath(folder, "other.rst")
     @test find_navigator_target(file, "other.rst") == joinpath(folder, "other.rst")
     web = find_navigator_target(file, "https://omnetpp.org")
     @test web isa Url && format_url(web) == "https://omnetpp.org"

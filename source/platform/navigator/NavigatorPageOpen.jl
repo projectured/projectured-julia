@@ -10,12 +10,36 @@ What the target of a link names, for a navigator whose content is `root`:
 `#install`, `guide.md` or the name of an rst target. The answer is a `Reference`
 to a part of `root`, the absolute path of a file, a `Url` for an address outside
 the editor, such as a web address, which opens in the program of the system for
-it, or `nothing` for a target that names nothing. An address outside the editor
-needs no page to resolve it, so the default answers a `Url` for an address of the
-web or of mail (`find_web_url`) and `nothing` for any other target; a domain adds
-a method for its root and its file document.
+it, or `nothing` for a target that names nothing. A layer that holds a document
+for a person to edit, such as a file or the history inside it, names what that
+document names ([`find_edited_document_target`](@ref)), so a file with a history
+names the same parts as a file with none. An address outside the editor needs no
+page to resolve it, so a node that is no layer answers a `Url` for an address of the
+web or of mail (`find_web_url`) and `nothing` for any other target; a domain adds a method for
+its root, and for its file document when the file names more, such as a file beside
+it.
 """
-find_navigator_target(root, target::AbstractString) = find_web_url(target)
+find_navigator_target(root, target::AbstractString) = find_edited_document_target(root, target)
+
+"""
+    find_edited_document_target(layer, target) -> Reference, String, Url or nothing
+
+What the document that a person edits in `layer` names for `target`, as
+[`find_navigator_target`](@ref) of that document answers it, with each `Reference`
+from `layer`: the walk follows the field that `get_edited_field` names, through each
+layer, such as a file and the history inside it. A node that is no layer answers a
+`Url` for an address of the web or of mail (`find_web_url`), and `nothing` for any
+other target.
+
+A domain whose file names more than its document calls it first, so the file names
+the parts of its document past its history.
+"""
+function find_edited_document_target(layer, target::AbstractString)
+    field = get_edited_field(layer)
+    field === nothing && return find_web_url(target)
+    found = find_navigator_target(getproperty(layer, field), target)
+    found isa Reference ? concat_references(Reference(FieldReferenceStep(String(field))), found) : found
+end
 
 """
     find_navigator_address(root, document) -> Reference or nothing
