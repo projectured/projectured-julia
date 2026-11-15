@@ -953,6 +953,24 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         241 and 1 broken, `test_explorer()` 507, `test_open_page_operation()` 103, the Markdown
         link targets 17 and gestures 18, the RST link targets 16, and the three omnet functions as
         above.
+- [ ] **6a. After a load, the caret takes keys (D6).** Found by the check of step 7 on
+      2026-11-15. The owner on 2026-11-15: "Yes" to a step that fixes it, and then step 7 runs
+      again in both windows. The selection is stored along its path: each document on the path
+      keeps the rest of the path in its own `selection` field (`selection.md`, "Selection
+      storage"). A load puts a new document in the file, and the nodes of the new document keep
+      none. So the views draw no caret and the readers take no key, while the root still names a
+      valid path. `_repair_selection!` writes the selection only when its path names no part.
+      Proposed by the assistant on 2026-11-15:
+      - After a load, a live selection that passes through the file (`get_stored_selection(file)`
+        and `is_live_selection(file)`) is written again from the root with
+        `ReplaceSelectionOperation`, with the types of the new document, so the new document
+        holds its part of the path. A selection that names no part becomes the longest start of
+        its path that names a part, as before. A dormant selection is left alone, because the tab
+        writes it again when it takes the focus.
+      - Update `filechange.md` (the limit of the selection after a load) and `fileformat.md`.
+      - Test: the set of step 3 in `FileChangeStoreTest.jl` asserts where the new document holds
+        the selection after a load, and that a typed letter goes in at the caret. Then
+        `test_filechange()`, `test_explorer()` and step 7 again.
 - [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
