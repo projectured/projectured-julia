@@ -751,7 +751,7 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       Update `book.md` and `rst.md`. Test: the image tests of each domain, then `test_book()` and
       `test_rst()`. (Decided by the assistant on 2026-11-05 from the owner's rule that a printer
       reads no disk; G3 open question 10.)
-- [ ] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan,
+- [x] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan,
       which is on main since `0836ec536`. The editor holds one file document of each path: a tab,
       a card, the explorer content and a load of a saved file all get it, and the first place that
       asks for it makes it (steps 5 and 6 of the plan of the save, G3).
@@ -785,8 +785,8 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         two open files in an editor with no settings, and such a file now has a history. In
         omnet-julia: `test_ide_file_navigator()`.
       **Done in projectured-julia on 2026-11-15 (branch `file-open`):** the history, the marks,
-      the docstrings, the guide and the tests. **Open:** the INI link of omnet-julia (see the last
-      fact below).
+      the docstrings, the guide and the tests. **Done in omnet-julia on 2026-11-15 (branch
+      `file-open`, `6b6375c93`):** the INI link and its test. Not landed.
       What the implementation found (2026-11-15, branch `file-open`):
       - `_make_editor_history_wrap(editor)` is
         `make_history_wrap(something(find_editor_settings(; editor), Settings()))`. The file-system
@@ -847,6 +847,19 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       - Tests of the rule: `test_markdown_link_target()` and `test_rst_link_target()` each have a
         file whose content is an `UndoBuffer`, and the target answers
         `.content.content.elements[…]`.
+      - The omnet results, in a scratch environment of the two worktrees:
+        `test_legacy_part_pages()` 44 pass, `test_ini()` 47 pass, and `test_ide_file_navigator()`
+        50 pass and 2 fail. The two fails are the Julia file (`IdeNavigatorTest.jl:50`) and the
+        Markdown file (`:57`) of the folder, which fail on main too; the set of a NED and an INI
+        file that open in a history passes 20 of 20.
+      - The three omnet functions build no assistant (the file navigator test uses `llm = :none`),
+        so they run with no network namespace: a `bounded-run` job is a user service, which can
+        not make one. Ollama loaded no model in the run.
+      - After the rebase on main (projectured-julia `8541a3592`, omnet-julia `9f698f89c`, no
+        change to a `Project.toml`), the same functions give the same counts: `test_filechange()`
+        241 and 1 broken, `test_explorer()` 507, `test_open_page_operation()` 103, the Markdown
+        link targets 17 and gestures 18, the RST link targets 16, and the three omnet functions as
+        above.
 - [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
