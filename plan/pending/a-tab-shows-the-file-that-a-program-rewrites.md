@@ -995,7 +995,7 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
           navigator document 32 and gestures 26; `test_markdown_image_picture()` 19;
           `test_markdown_link_gestures()` 18; `test_platform_layering()` 5 Pass and 2 Fail with
           the 9 known entries and no new one.
-- [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
+- [x] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
       a card with `open_file_document!`. `take_picture` after the first and the last rewrite must
@@ -1038,7 +1038,39 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
           load leaves the selection as it was, and the views do not map it to the new document
           until the selection is written again. The test of step 3 asserts only a valid selection
           and no fault, so it does not see this.
-        - Not run yet: the check in `omnet_ide`. It must run again after a fix of the caret.
+        - Step 6a fixes the caret, so the check runs again below.
+      - **The check in the window of `projectured` again on 2026-11-16**, on `window-check` with
+        step 6a (`833e73496`), in a new process of the worktree (so the bare import of
+        `SelectionModule` loads), the same way as above. The caret came from one click at
+        offset 38 before the rewrites.
+        - Rewrites 1 to 20: 36 loads; each picture read and decoded 20 times; the same three
+          picture files, each watched once; no band; the caret at offset 38 after each load;
+          `describe_undo_history()` the same as before the rewrites; the history of the file
+          empty.
+        - The wheel in the tab after rewrite 19 scrolled it to 171 px, and the card stayed at 0.
+          After rewrite 20 and after the letter, the tab was still at 171: the write of the
+          selection after a load scrolls nothing.
+        - A letter typed after the 20 rewrites, with no new click, went in at the caret ("The
+          xcaret goes here."), and the history of the file had one step. Rewrite 21 showed the
+          band "guide.md changed on disk." with "Load it" and "Keep mine" in both views, the page
+          kept the letter, and both views drew the caret.
+      - **The check in the window of `omnet_ide` on 2026-11-16**, omnet-julia main `6b6375c93`
+        with projectured-julia `window-check` (`833e73496`). The IDE ran as
+        `run_omnet_ide(<copy of the fifo sample>; backend = SdlBackend(), wait = false, llm = :none)`
+        under the offscreen driver, in a copy of `environment/all` of omnet-julia whose paths name
+        the worktree. `ollama ps` showed no model before and after.
+        - The same steps as in `projectured`: the tab and a card of a dashboard "Check" in the
+          Explorer side by side, a click at offset 38, then rewrites 1 to 20, 2 s apart.
+        - The results are the same: 34 loads; each picture read and decoded 20 times, one picture
+          file of each path, each watched once; no band; the caret at offset 38;
+          `describe_undo_history()` the same; the wheel scrolled the tab to 171 px and the card
+          stayed at 0, also after rewrite 20 and after the letter. The letter after the rewrites
+          went in at the caret with no new click, and rewrite 21 showed the band in both views.
+        - Found, outside this plan: the `Manifest.toml` of `environment/all` of the omnet main
+          checkout is not in git and dates from 2026-11-11. It has no entry for `ProjecturedGit`
+          and `ProjecturedGitExample`, which `Project.toml` names since 2026-11-14, so a load of
+          `OmnetIde` in that environment fails until a `Pkg.resolve()`. The copy for this check
+          got the two entries by hand.
 
 ## 8. Risks
 
