@@ -953,7 +953,7 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         241 and 1 broken, `test_explorer()` 507, `test_open_page_operation()` 103, the Markdown
         link targets 17 and gestures 18, the RST link targets 16, and the three omnet functions as
         above.
-- [ ] **6a. After a load, the caret takes keys (D6).** Found by the check of step 7 on
+- [x] **6a. After a load, the caret takes keys (D6).** Found by the check of step 7 on
       2026-11-15. The owner on 2026-11-15: "Yes" to a step that fixes it, and then step 7 runs
       again in both windows. The selection is stored along its path: each document on the path
       keeps the rest of the path in its own `selection` field (`selection.md`, "Selection
@@ -971,6 +971,30 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       - Test: the set of step 3 in `FileChangeStoreTest.jl` asserts where the new document holds
         the selection after a load, and that a typed letter goes in at the caret. Then
         `test_filechange()`, `test_explorer()` and step 7 again.
+      - What the implementation found:
+        - A `ReplaceSelectionOperation` of the same path writes nothing: `_sync_selection!`
+          returns at the root when the stored path equals the new one, because it takes the
+          chain below as whole. (In the live probe of step 7 it worked, because the stored path
+          there differed above the file.) So `_repair_selection!(editor, file)` calls
+          `set_selection!` at the root, which writes the rest of the path into each document on
+          the path, as `_select_under!` of the conversation editor does. It runs inside the
+          evaluation of the load, at the root of the editor, so it keeps
+          PAR-SELECTION-WRITTEN-AT-ROOT.
+        - `FileFormatModule` names `SelectionModule` bare now, so the list of the platform
+          import check loses the entry `using ..SelectionModule: get_selection` (9 entries).
+        - The card title of a dashboard takes no typed letter in the natural view, also with no
+          load, so the key test types into a text file (`notes.txt`, `PrimitiveString`). The test
+          editor needs `Keyboard`, `Mouse` and `Display`; with `devices = Device[]` it reads no
+          key.
+        - The set of step 3 asserts that the new card holds `.title{1}`, and the new set "after a
+          load, the caret takes keys" asserts that the new text holds `.value{24}` and that a
+          typed "w" goes in at offset 24. Without the fix the three assertions fail, with it they
+          pass.
+        - Results in a warm session of the worktree: `test_filechange()` 245 Pass, 0 Broken;
+          `test_explorer()` 507; `test_pred_file()` 87; `test_open_page_operation()` 103; the
+          navigator document 32 and gestures 26; `test_markdown_image_picture()` 19;
+          `test_markdown_link_gestures()` 18; `test_platform_layering()` 5 Pass and 2 Fail with
+          the 9 known entries and no new one.
 - [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
