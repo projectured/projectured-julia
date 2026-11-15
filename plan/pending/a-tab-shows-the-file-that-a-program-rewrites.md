@@ -961,6 +961,42 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       step. The caret must stay, and a scroll in the tab must leave the card where it is. Then the
       person types one letter, and the next rewrite must show the band in both views. Record the
       results here.
+      - **The check in the window of `projectured` on 2026-11-15**, main `6a24a6db6`. The window
+        ran in a Julia of the main checkout, with the editor of `run_application`
+        (`_make_application_editor`, no settings file, no assistant), on the SDL backend under
+        the offscreen driver, so no window opened on the desktop of the owner. The loop ran with
+        `run_editor!(make; wait = false)`. A script in a second process wrote `guide.md` and its
+        three PNG files `a.png`, `b.png` and `c.png` (ImageMagick) for each rewrite. The
+        assistant functions ran from the script of the check: `open_file!`,
+        `open_file_document!`, a dashboard "Check" with one card of the file in the Explorer
+        (`insert_elements!`, `open_explorer_page!`), and `move_pane!`, so the card and the tab
+        show side by side. The click, the wheel and the keys went to SDL as pushed events.
+        `write_window_picture`, the writer of `take_picture`, took the pictures.
+        - Rewrites 1 to 20, 2 s apart: after each rewrite, each picture read its file once and
+          decoded it once (20 and 20), and both views showed the new pictures, with no band.
+          The page and the tab kept the same three picture files, each watched once. The caret
+          kept its path (offset 38 of the first paragraph). `describe_undo_history()` had no new
+          step, and the history of the file had none.
+        - The page loaded 37 times for 20 rewrites, because the shell writes `guide.md` in many
+          small writes, and a read can see a part of them. Each picture file is written at once,
+          and reads once.
+        - A wheel of 3 notches in the tab scrolled it to 171 px. The card stayed at 0, also after
+          the next rewrite.
+        - After one typed letter, the next rewrite showed the band "guide.md changed on disk."
+          with "Load it" and "Keep mine" in both views. The page kept the letter, and the
+          pictures still showed each rewrite, because a picture file has no edits.
+        - **Found: after a load, the caret takes no key.** A letter typed after rewrites 1 to 20
+          made no edit, and the caret did not draw, although the selection kept its path. The
+          letter went in after a new click. A test of each cause alone: with the caret scrolled
+          out of view and no load, a letter goes in; after one load of the page, with the caret
+          in view, a letter does nothing. A plain text file (`notes.txt`) does the same, so the
+          fault belongs to each load of a file (step 3), not to the pictures of step 5. After the
+          load, the selection is valid and equal (`==`) to the same path with fresh types. A
+          `ReplaceSelectionOperation` with that same path makes the caret take keys again. So a
+          load leaves the selection as it was, and the views do not map it to the new document
+          until the selection is written again. The test of step 3 asserts only a valid selection
+          and no fault, so it does not see this.
+        - Not run yet: the check in `omnet_ide`. It must run again after a fix of the caret.
 
 ## 8. Risks
 
