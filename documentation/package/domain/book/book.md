@@ -14,10 +14,12 @@ The Book domain, `ProjecturedBook`, holds structured prose: a book, its chapters
 | `BookChapter` | `title`, `numbering`, `elements` |
 | `BookParagraph` | `content`, a `TextBlock` of lines of styled runs; `alignment` |
 | `BookList` | `elements`, one bullet for each |
-| `BookPicture` | `content` (an image or a path), `title` |
+| `BookPicture` | `content` (an image, a picture file or a path), `title`; `picture`, the picture file that a path names |
 | `BookInsertion` | the placeholder |
 
 `BookBook`, `BookChapter` and `BookList` pass their `collapsed` field to the syntax node, so they fold in the view.
+
+A picture draws the picture file that it shows, with `make_picture_span`, and reads no disk. A `.pred` file of a book gives a picture file in `content` from `file("…")`. For a path in `content`, the open and each load of the file give `picture`, the editor's one picture file of the path, against the folder of the file (`splice_named_file!`). `BookBook` holds its pictures while a holder holds the file, and each picture holds its file, so the editor watches it once and the view draws each rewrite of it. A path with no picture file prints as text. An edit changes no hold, as in Markdown.
 
 A paragraph holds a `TextBlock`, not a string. The runs of the block carry their own font and colour, so a paragraph can mix styles without a markup language. A typed character goes to the run under the caret through the `splice_value!` step of the text package.
 

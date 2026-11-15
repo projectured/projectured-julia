@@ -379,7 +379,9 @@ end
 
 """
 `.. figure:: path` — a picture with a caption. The caption is the indented
-block that follows the options.
+block that follows the options. `picture` is the editor's file document of the
+picture that `path` names, with the path that named it, as `path => file`, or
+`nothing`: the open and each load of the file give it, and no save writes it.
 """
 @document struct RstFigure <: RstDocument
     path::String
@@ -388,13 +390,14 @@ block that follows the options.
     caption::CellVector{Document} = CellVector{Document}()
     extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
         CellVector{Union{RstDirectiveOption, RstInsertion}}()
+    picture::Any = nothing
 end
 
 RstFigure(path::AbstractString; align::AbstractString = "", width::AbstractString = "",
           caption = [], extra = []) =
     RstFigure(Cell(String(path)), Cell(String(align)), Cell(String(width)),
               _rst_cellvector(Document, caption),
-              _rst_cellvector(Union{RstDirectiveOption, RstInsertion}, extra), Cell(nothing))
+              _rst_cellvector(Union{RstDirectiveOption, RstInsertion}, extra), Cell(nothing), Cell(nothing))
 
 """
 `.. code-block:: language` — a verbatim block with a language for colouring.
@@ -409,7 +412,8 @@ RstFigure(path::AbstractString; align::AbstractString = "", width::AbstractStrin
 end
 
 """
-`.. image:: path` — a picture with no caption.
+`.. image:: path` — a picture with no caption. `picture` is the editor's file
+document of the picture that `path` names, with the path, as for a figure.
 """
 @document struct RstImage <: RstDocument
     path::String
@@ -418,6 +422,7 @@ end
     alt::String = ""
     extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
         CellVector{Union{RstDirectiveOption, RstInsertion}}()
+    picture::Any = nothing
 end
 
 """
