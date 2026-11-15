@@ -313,8 +313,9 @@ implementation (the owner, 2026-11-05). The owner can name one to see it first.
   background cell that only a draw demands stay). Consequences:
   - Step 4 as built (the table `shown_files` of the page, filled at a load, and its hold in
     `acquire_document!(::FileDocument)`) follows the replaced model, so it does not stay.
-  - A hold that follows an edit needs the general hold rule of the lifecycle of a document (Q10),
-    so the plan of Q10 comes before step 5.
+  - A hold that follows an edit needs the general hold rule of the lifecycle of a document (Q10).
+    The owner on 2026-11-15: "Do step 5 and 5a, question 10 can wait". So steps 5 and 5a come
+    before the plan of Q10, and a page holds its pictures at its open and at each load only.
 
 ## 6. How the names reach the assistant, and the order of the plans
 
@@ -736,21 +737,53 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       - Results: `test_filechange()` 264 Pass, 1 Broken (the marker of the open question 10), 0 Fail,
         0 Error (the process ends with SIGSEGV after the summary, as before); `test_explorer()` 392
         Pass; `test_pred_file()` 87 Pass; `test_file_tab()` 31 Pass.
-- [ ] **5. The image of a Markdown page draws the picture that its file keeps.** Needs G3 on main.
-      **Needs the plan of Q10 too (D14),** and its text below follows the replaced model of step 4:
-      revise it after Q10.
-      `collect_shown_file_paths(::MarkdownRoot)` gives the path of each image that names no web
-      address, and `_md_image_value` takes its picture from `:shown_files` and reads no disk.
-      Update `markdown.md`. Test: `test_markdown_image_leaf()` in
-      `test/domain/markdown/MarkdownImageLeafTest.jl`, with the document in a page. A new set: a
-      relative path names the picture beside the page, and a rewrite of the PNG gives the new size
-      of the picture. Then `test_markdown()`.
-- [ ] **5a. The images of Book and RST draw the picture that their file keeps.** Needs step 5. The same
-      model for `BookToSyntax.jl` and `RstToSyntax.jl`: a method of `collect_shown_file_paths` for
-      each root, and the image span takes its picture from `:shown_files` and calls no `isfile`.
-      Update `book.md` and `rst.md`. Test: the image tests of each domain, then `test_book()` and
-      `test_rst()`. (Decided by the assistant on 2026-11-05 from the owner's rule that a printer
-      reads no disk; G3 open question 10.)
+- [ ] **5. The image of a Markdown page draws the picture that it holds (D14).** Needs G3, which is
+      on main. The owner on 2026-11-15: "Do step 5 and 5a, question 10 can wait". So a page holds
+      its pictures when it opens or loads, and an edit changes no hold (§8). Proposed by the
+      assistant on 2026-11-15:
+      - **The picture.** `MarkdownImage` gets the field `picture`: the editor's file document of
+        the picture that its url names, or `nothing`. It is view state, as the `document_view` of a
+        file of the explorer is, so no save writes it, and the text of the page names only the
+        url. The image keeps the url that named the picture with it, and draws the picture only
+        while its url is that url.
+      - **Who gives the picture.** `splice_held_files!` runs where a file enters the editor: at the
+        open of a tab (`open_file!`), at each load (`ReloadFileOperation`, also the first read of a
+        file that `open_file_document!` gave), and at the load of the explorer content. Its walk
+        calls one new generic function of the serialization slice, `splice_named_file!(node,
+        find_file)`, for each document. The default does nothing, and the Markdown domain adds a
+        method for `MarkdownImage`. A path is against the folder of the file, as a `file("…")` is.
+        A url with a scheme, such as `https:`, and a path whose file type is not a picture get no
+        picture, so an image never holds a page (§8).
+      - **Who holds the picture.** The image holds it, as a tab holds the file that it shows:
+        `acquire_document!(editor, ::MarkdownImage)` calls `hold_documents!`. `MarkdownRoot` holds
+        each image of its tree, in one walk at its acquire. A tab holds the root already, because
+        it holds each layer that it shows. The acquire of a file document holds its edited
+        document too, so a card and a navigator hold the root. A load moves the hold of the file
+        from the document before the load to the new document (`ChangeHeldDocumentsOperation`).
+        So the first read of a file in a card holds its pictures, and a rewrite that names a new
+        picture holds that picture.
+      - **The printer.** `_md_image_value` draws `get_shown_picture(picture)`, and calls no
+        `isfile` and no `Image(url)`. An image with no picture shows its url as text. So a
+        Markdown document that no file of an editor holds, such as a test document, shows its
+        images as text, unless the code that makes it gives each image a picture.
+      - Update `markdown.md`, and the docstring of `ImageFile`, which names a card and a tab as the
+        holders of a picture.
+      - Test: `test_markdown_image_leaf()` gives its image a picture. A new set in
+        `test/domain/markdown/`: a Markdown file with an image of a relative path, in a tab
+        (`open_file!`) and in a card (`open_file_document!`). The image holds the editor's one
+        `ImageFile` of the path, and the file is watched once, also while a tab of the picture
+        shows it. A rewrite of the PNG gives the new size of the picture. An image with a web url
+        or with the path of a page gets no picture. The release of the last holder stops the
+        watch. Then `test_markdown()`, `test_filechange()` and `test_explorer()`.
+- [ ] **5a. The images of Book and RST draw the picture that they hold.** Needs step 5. The same
+      model for `RstImage` and `RstFigure` (`RstToSyntax.jl`) and for `BookPicture`
+      (`BookToSyntax.jl`): the field `picture`, a method of `splice_named_file!` for each type, the
+      hold of each image by `RstRoot` and `BookBook`, and the picture span calls no `isfile`. A
+      `BookPicture` whose `content` is a picture file, as a `.pred` file gives it from
+      `file("…")`, draws that file and needs no `picture`. Update `book.md` and `rst.md`. Test: the
+      image tests of each domain, one set as in step 5 for an RST file and for a book in a `.pred`
+      file, then `test_book()` and `test_rst()`. (The owner's rule that a printer reads no disk,
+      G3 open question 10.)
 - [x] **6. The assistant opens a file as a person does (D1).** Needs step 6 of the reflection plan,
       which is on main since `0836ec536`. The editor holds one file document of each path: a tab,
       a card, the explorer content and a load of a saved file all get it, and the first place that
@@ -901,6 +934,11 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
   `b` is not held and not watched, and the old file stays held and watched. Main has the same gap
   for a tab today, so G4 does not make it worse. Only the open and the close of a tab, the four
   places of step 1, the navigator, the tree and the Files tree change a hold.
+- **An edit of an image changes no hold** (steps 5 and 5a, accepted by the owner on 2026-11-15).
+  An image that an edit adds, or whose url an edit changes, has no picture: it shows its url as
+  text until the next load of its file. A picture whose image an edit or a rewrite removes stays
+  held and watched until the last tab or card of the page closes, because a tab holds the root
+  that it opened with. Both last a bounded time, and the plan of Q10 removes them.
 - **The part under the pointer.** Step 3 repairs the selection only. The part under the pointer can
   name no part after a load, until the pointer moves.
 - **A saved explorer content.** `shown_files` and the view of a card must stay out of the explorer
