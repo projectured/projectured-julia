@@ -331,3 +331,14 @@ proposed by the assistant, and the owner gets it in the next report.
   read removes one line break, so an INI file that ends with an empty line has one node
   less in its tree, and the text that the file writes is equal.
 
+**2026-11-15, the baseline.** The worktree on `6a24a6db6` with Julia 1.13.1 and the private
+depot `/var/tmp/projectured-julia-file-format-depot`. The summary of 31 suites, with the
+commands, the logs and the failures of each, is
+`/var/tmp/projectured-julia-file-format-depot/baseline/summary.md`. The suites of the
+serialization slice, the natural slice, the file tab and the eight domains pass, except one
+failure each in `test_math()` and `test_julia()`. Main already fails `test_documentation()`
+(11), `test_exports()` (37), `test_arguments()` (6), `test_platform_layering()` (2) and
+`test_platform()` (108 failures and 66 errors, most of them in the conversation tests). A
+step compares its counts with these. `test_platform()` in one call needs a cap of 14 GB and
+`-t 2`, and takes 36 minutes.
+
