@@ -530,7 +530,7 @@ end
     box::Any
     name_view::Any
     close_iomaps::Any
-    strip_slot_width::Any   # the width that the slot gives the strip, or nothing with no slot
+    strip_geometry::Any     # the geometry of the strip that the printer drew, or nothing for a pane that drew none
 end
 
 # An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
@@ -2634,24 +2634,30 @@ _make_fitting_text_scroll(view_width::Int, view_height::Int) =
     (offset = (0, 0), room = (0, 0), view = (view_width, view_height))
 
 # Whether the text widget `w` moves its text to show its selection: always, except
-# while it holds the selection that it held at the last turn of the wheel.
+# while it holds the selection that it held at the last turn of the wheel. The
+# editor changes a stored path in place, so the turn keeps a copy of it, and the
+# test compares the path with that copy.
 function _is_following_selection(w)
     scrolled = w.scrolled_selection
-    scrolled === nothing || get_selection(w) != scrolled
+    scrolled === nothing && return true
+    selection = get_selection(w)
+    !(selection isa Reference && is_reference_equal(strip_reference_types(selection), scrolled))
 end
 
-# The answer of a text widget, with the write of the offset that `scroll` draws its
-# text at when the widget stores another offset: the next print moves the text from
-# where it is, so the text stays while the caret moves inside the view. A widget that
-# shows its selection again forgets the selection of the last turn of the wheel. No
-# answer writes nothing.
-function _keep_text_scroll(w, scroll, answer)
+# The answer of a text widget to `evt`, with the write of the offset that `scroll`
+# draws its text at when the widget stores another offset: the next print moves the
+# text from where it is, so the text stays while the caret moves inside the view.
+# The widget forgets the selection of the last turn of the wheel once it shows its
+# selection again, and at the answer to a key or a press, which can edit the text
+# at a caret that stays where it is. No answer writes nothing.
+function _keep_text_scroll(w, scroll, answer, evt)
     answer === nothing && return nothing
     writes = Any[]
     stored = w.scroll_position::Point2D
     (Int(stored.x[]), Int(stored.y[])) == scroll.offset ||
         push!(writes, _write_view_state(w, "scroll_position", Point2D(scroll.offset...)))
-    (w.scrolled_selection === nothing || !_is_following_selection(w)) ||
+    w.scrolled_selection === nothing ||
+        !(evt isa Union{KeyDown, KeyPress, MouseDown, MouseClick} || _is_following_selection(w)) ||
         push!(writes, _write_view_state(w, "scrolled_selection", nothing))
     isempty(writes) ? answer : CompoundOperation(Any[answer, writes...])
 end
@@ -2680,7 +2686,8 @@ function _read_text_wheel(p, iomap, evt::MouseScroll, font)
                          (x, clamp(y - distance, 0, scroll.room[2]))
     moved == (x, y) && return nothing
     _add_wheel_run(CompoundOperation(Any[_write_view_state(w, "scroll_position", Point2D(moved...)),
-                                         _write_view_state(w, "scrolled_selection", get_selection(w))]),
+                                         _write_view_state(w, "scrolled_selection",
+                                                           copy_reference(strip_reference_types(get_selection(w))))]),
                    w, run)
 end
 
@@ -2742,7 +2749,7 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
         _read_text_content_intent(p, iomap, evt, left - scroll.offset[1], top - scroll.offset[2]))
     child = iomap.value_iomap
     _keep_text_scroll(iomap.input, scroll,
-                      child === nothing ? operation : _make_value_text_store(iomap.input, child, operation))
+                      child === nothing ? operation : _make_value_text_store(iomap.input, child, operation), evt)
 end
 
 # An edit of the text view of the value that the child of `content` gives: the
@@ -5979,12 +5986,14 @@ _get_close_button_size(output::GraphicsCanvas) =
     (Int(unwrap_cell(getfield(output, :w))), Int(unwrap_cell(getfield(output, :h))))
 _get_close_button_size(output) = (0, 0)
 
-# The geometry of the strip that `iomap` printed, with its close buttons, in the
-# width that its slot gave it.
-_get_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, iomap) =
-    _tab_strip_geometry(p, w, _get_box_geometry(iomap),
-                        _get_close_button_sizes(getfield(iomap, :close_iomaps)[]),
-                        unwrap_cell(getfield(iomap, :strip_slot_width)))
+# The geometry of the strip that `iomap` printed, as the printer computed it. A pane
+# that drew no strip, such as one with no tab, has the geometry of its box and its
+# new-tab button.
+function _get_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane, iomap)
+    drawn = unwrap_cell(getfield(iomap, :strip_geometry))
+    drawn === nothing || return drawn
+    _tab_strip_geometry(p, w, _get_box_geometry(iomap), _get_close_button_sizes(getfield(iomap, :close_iomaps)[]))
+end
 
 # The box of the close button of a tab in strip coordinates, `(x, y, width,
 # height)`: at the right end of the tab, and at the middle of the height of the
@@ -6045,8 +6054,12 @@ end
 # as the pages, such as the pane tree, maps the list and the choice to its own.
 function _make_tab_menu_operation(w::WidgetTabbedPane, g)
     pages = w.selector_element_pairs
+    # The item forgets the tab of the last turn of the wheel, as a click on a tab does,
+    # so the strip shows the tab that it opens.
     items = Any[WidgetMenuItem(_get_tab_selector_text(pages[i].selector);
-                               operation = ReplaceSelectionOperation(Reference(ElementReferenceStep(i))))
+                               operation = CompoundOperation(Any[
+                                   ReplaceSelectionOperation(Reference(ElementReferenceStep(i))),
+                                   _write_view_state(w, "scrolled_tab", 0)]))
                 for i in 1:length(pages)]
     source = Reference(FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1))
     ReplaceViewStateOperation(
@@ -6065,9 +6078,9 @@ function _keep_tab_scroll(w::WidgetTabbedPane, offset::Int, answer)
 end
 
 # The width inside the box of a tabbed pane whose strip is `g` and whose page is
-# `page_w` wide: the width of its slot, which cuts the strip, else the wider of the
-# strip and the page.
-_get_tabbed_pane_inner_width(g, page_w::Int, slot_w) = slot_w === nothing ? max(g.strip_w, page_w) : page_w
+# `page_w` wide: `slot_w[]`, the width of its slot less the insets, also when the open
+# page has no content, else the wider of the strip and the page.
+_get_tabbed_pane_inner_width(g, page_w::Int, slot_w) = slot_w === nothing ? max(g.strip_w, page_w) : Int(slot_w[])
 
 # ── The name that holds the caret ───────────────────────────────────────────
 #
@@ -6083,11 +6096,20 @@ _get_tabbed_pane_inner_width(g, page_w::Int, slot_w) = slot_w === nothing ? max(
 # `(index, start, stop, direction)`, or `nothing`.
 function _find_tab_name_range(selection)
     selection isa Reference || return nothing
-    steps = get_reference_steps(strip_reference_types(selection))
+    # The steps are read one by one, and a path that leaves the name stops the read,
+    # so a caret that moves in the page reads no step of the page.
+    steps = Any[]
+    reference = selection
+    while reference isa ConcreteReference && length(steps) < 6
+        push!(steps, get_reference_head(reference))
+        length(steps) == 1 && !(steps[1] isa FieldReferenceStep && steps[1].name == "selector_element_pairs") &&
+            return nothing
+        length(steps) == 3 && !(steps[3] isa FieldReferenceStep && steps[3].name == "selector") &&
+            return nothing
+        reference = get_reference_tail(reference)
+    end
     length(steps) in (4, 5) || return nothing
-    (steps[1] isa FieldReferenceStep && steps[1].name == "selector_element_pairs" &&
-     steps[2] isa RangeReferenceStep &&
-     steps[3] isa FieldReferenceStep && steps[3].name == "selector") || return nothing
+    steps[2] isa RangeReferenceStep || return nothing
     length(steps) == 5 &&
         !(steps[4] isa FieldReferenceStep && steps[4].name == "text") && return nothing
     range = steps[end]
@@ -6412,7 +6434,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
-    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps, strip_slot)
+    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps, geom)
 end
 
 # The extent of the page of a tabbed pane: the slot offered on each axis, else
@@ -12469,7 +12491,7 @@ function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToG
     left, top = _get_content_offset(_get_box_geometry(iomap))
     scroll = iomap.scroll
     _keep_text_scroll(iomap.input, scroll,
-                      _read_text_content_intent(p, iomap, evt, left - scroll.offset[1], top - scroll.offset[2]))
+                      _read_text_content_intent(p, iomap, evt, left - scroll.offset[1], top - scroll.offset[2]), evt)
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────

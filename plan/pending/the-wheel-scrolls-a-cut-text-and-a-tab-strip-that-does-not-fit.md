@@ -121,6 +121,21 @@ space".
      `OpenContextMenuOperation` with the source `selector_element_pairs[1]`, one step below the
      part, and the point under the button. Tests in `WidgetTabStripTest.jl`: the shrink, the cut
      names, and the menu item that opens its tab through `find_menu_item_part`.
+   - [x] Review fixes, 2026-11-15. A separate review found five faults, all fixed with tests:
+     - The editor changes a stored selection path in place, so a mark that held the path was
+       the selection itself, and a text document never followed its caret after a turn. The
+       turn now keeps `copy_reference` of the path, compared by `is_reference_equal`.
+     - A key such as Delete keeps the path, so the text did not move to the caret. The answer to
+       a key or a press now clears `scrolled_selection`.
+     - A menu item did not clear `scrolled_tab`; it now does, as a click on a tab does.
+     - The strip geometry read the whole selection path when the tabs did not fit, so each
+       caret move in the page laid out the pane again. `_find_tab_name_range` now reads the
+       steps one by one and stops at the first step that leaves the name.
+     - With no content in the open page, the line and the box were 0 wide in a slot. They now
+       take the slot width.
+     - The reader computed the strip geometry again for each read, with the cut of each name.
+       The IO map now keeps the geometry cell of the printer (`strip_geometry`), and the reader
+       reads it.
 3. [ ] The guides: the widget page and the docstrings of the two widgets. Move the plan to
    `plan/done/`.
 

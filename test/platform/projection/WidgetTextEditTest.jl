@@ -404,6 +404,32 @@ end
     @test read_intent(proj, iomap, MouseScroll(-1, 0, x, y; time = 0.0)) !== nothing
 end
 
+@testset "after a turn of the wheel a key shows the caret again, also in a text document and at a caret that stays" begin
+    proj = _proj()
+    text = "abcdefghijklmnopqrstuvwxyz0123"
+    # The editor changes the path of the caret of a text document in place.
+    doc = WidgetText(TextBlock(TextLine(TextString(text, _font, color_default))); width = 60)
+    editor = _WidgetTextMockEditor(doc)
+    set_selection!(doc, _cursor(30))
+    iomap, (left, top, _, _) = _print_cut_text(proj, doc)
+    iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 1, 0, left + 5, top + 5)
+    @test iomap.scroll.offset[1] == 0
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 30.0)))
+    iomap, _ = _print_cut_text(proj, doc)
+    @test iomap.scroll.offset[1] >= 290 - 60
+    # A Delete keeps the caret where it is, and shows it.
+    plain = WidgetText(text; width = 60)
+    editor = _WidgetTextMockEditor(plain)
+    set_selection!(plain, _plain_cursor(25))
+    iomap, _ = _print_cut_text(proj, plain)
+    iomap = _turn_wheel_to_end!(proj, editor, plain, iomap, 1, 0, left + 5, top + 5)
+    @test iomap.scroll.offset[1] == 0
+    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:delete, ModifierKeys(); time = 30.0)))
+    iomap, _ = _print_cut_text(proj, plain)
+    @test plain.content == "abcdefghijklmnopqrstuvwxy0123"
+    @test iomap.scroll.offset[1] >= 250 - 60
+end
+
 @testset "a turn of the wheel scrolls the lines of a cut text area, and goes on at its end" begin
     proj = _proj()
     doc = WidgetTextarea(join(["line $i" for i in 1:10], "\n"); rows = 2)

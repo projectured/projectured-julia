@@ -463,6 +463,27 @@ end
     @test WidgetModule._tab_index_from_selection(get_stored_selection(pane), 10) == 7
     iomap = print_document(proj, nothing, pane, context)
     @test "7 t…" in _drawn_names(iomap, names)
+    @test _shown_tab(iomap, "7 t…")[2]
+    # After a turn of the wheel hides the open tab, its item shows it again.
+    for second in 1:100
+        _shown_tab(iomap, "1 t…")[2] && break
+        evaluate_operation((document = pane,), read_intent(proj, iomap, MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
+                                                                                    time = Float64(second))))
+        iomap = print_document(proj, nothing, pane, context)
+    end
+    @test !_shown_tab(iomap, "7 t…")[2]
+    evaluate_operation((document = pane,),
+                       reroot_operation(item.operation, Tuple(get_reference_steps(strip_reference_types(part)))))
+    iomap = print_document(proj, nothing, pane, context)
+    @test _shown_tab(iomap, "7 t…")[2]
+end
+
+@testset "in a slot the line under the tabs reaches the edge also when the open page has no content" begin
+    proj = _proj()
+    pane = WidgetTabbedPane(Any[("a", nothing), ("b", WidgetLabel("b"))])
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(200)), height = Cell(Int32(80)))
+    iomap = print_document(proj, nothing, pane, context)
+    @test 190 <= maximum(_right_edges_outside_views(iomap.output)) <= 200
 end
 
 end # testset
