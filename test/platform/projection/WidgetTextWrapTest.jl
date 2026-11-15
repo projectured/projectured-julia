@@ -91,7 +91,7 @@ end
     @test rows(whole) == 1
 end
 
-@testset "the selection of a field text is the step viewed and the tail of the block" begin
+@testset "the caret of a field text is in its view, and its block holds none" begin
     field = WidgetText("alpha beta")
     set_selection!(field, ConcreteReference(FieldReferenceStep("content"),
                                             ConcreteReference(RangeReferenceStep(3, 3), EmptyReference())))
@@ -99,14 +99,13 @@ end
     view = iomap.content_iomap.input
     @test view isa TextView
     block = view.viewed
-    caret = block.selection
-    @test caret !== nothing
-    @test get_reference_head(strip_reference_types(view.selection)) == FieldReferenceStep("viewed")
-    @test get_reference_tail(strip_reference_types(view.selection)) == strip_reference_types(caret)
-    # A move of the caret changes the cell of the block, and the view follows it.
+    @test strip_reference_types(view.selection) == make_flat_caret_reference(3)
+    @test get_stored_selection(block) === nothing
+    # A move of the caret of the field moves the caret of the view.
     set_selection!(field, ConcreteReference(FieldReferenceStep("content"),
                                             ConcreteReference(RangeReferenceStep(5, 5), EmptyReference())))
-    @test get_reference_tail(strip_reference_types(view.selection)) == strip_reference_types(block.selection)
+    @test strip_reference_types(view.selection) == make_flat_caret_reference(5)
+    @test get_stored_selection(block) === nothing
 end
 
 end

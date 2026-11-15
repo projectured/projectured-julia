@@ -2303,13 +2303,8 @@ end
 function _make_plain_text_view(w, style::StyleText, appearance; value_slot = nothing)
     text = value_slot === nothing ? () -> string(w.content) : () -> string(value_slot[].output)
     language = hasfield(typeof(w), :language) ? w.language : nothing
-    view = language === nothing ? make_text_block(text, style) :
-                                  TextBlock(() -> _make_code_lines(w, style, appearance; text = text()))
-    set_cell_computation!(getfield(view, :selection),
-                          () -> _get_text_view_caret(w.selection, value_slot))
-    set_cell_computation!(getfield(view, :mouse_target),
-                          () -> _get_text_view_caret(w.mouse_target, value_slot))
-    view
+    language === nothing ? make_text_block(text, style) :
+                           TextBlock(() -> _make_code_lines(w, style, appearance; text = text()))
 end
 
 _get_text_view_caret(selection, value_slot::Nothing) = _get_plain_text_caret(selection)
@@ -2338,17 +2333,23 @@ end
 function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing,
                                 value_slot = nothing)
     block = _make_plain_text_view(w, style, appearance; value_slot)
-    view = _make_widget_text_view(w, block)
+    view = _make_widget_text_view(w, block; value_slot)
     make_reconciled_child_iomap_cell(() -> view, v -> print_child(recursion, v, ctx))
 end
 
 # The view of the block of a widget: it follows `wrap` and `line_spacing` of the
-# widget where it has them.
-function _make_widget_text_view(w, block::TextBlock)
+# widget where it has them, and its caret and its part under the pointer follow
+# those of the widget (`_get_text_view_caret`). The block holds no caret.
+function _make_widget_text_view(w, block::TextBlock; value_slot = nothing)
     wrap = hasfield(typeof(w), :wrap) ? Cell(@computation w.wrap === true) : false
     line_spacing = hasfield(typeof(w), :line_spacing) ?
         Cell(@computation w.line_spacing === nothing ? SingleSpacing() : w.line_spacing) : SingleSpacing()
-    make_text_view(block; wrap, line_spacing)
+    view = TextView(block, wrap, line_spacing)
+    set_cell_computation!(getfield(view, :selection),
+                          () -> _get_text_view_caret(w.selection, value_slot))
+    set_cell_computation!(getfield(view, :mouse_target),
+                          () -> _get_text_view_caret(w.mouse_target, value_slot))
+    view
 end
 
 # The caret of the view: the range of `content` that the widget holds, as a flat
@@ -2368,26 +2369,14 @@ _make_content_range_reference(start::Int, stop::Int, direction::Symbol = :forwar
                       ConcreteReference(RangeReferenceStep(start, stop, start == stop ? :forward : direction),
                                         EmptyReference()))
 
-# A reference of a `TextView` of a block, as a reference of the block: the step
-# `viewed` of the view comes off. A reference that does not start with it names the
-# block already.
-function _strip_text_view_step(reference)
-    reference isa ConcreteReference || return reference
-    stripped = strip_reference_types(reference)
-    stripped isa ConcreteReference || return reference
-    head = get_reference_head(stripped)
-    (head isa FieldReferenceStep && head.name == "viewed") ? get_reference_tail(stripped) : reference
-end
-
-# A reference of the view, mapped to a range of the `content` field. The text
-# domain answers a place in the view in either form that a text takes, and
-# `get_flat_range` reads both. A flat offset of the view is an offset of the
-# string, because the lines of the view are the lines of the string, with one
-# break between two and no indentation. The whole view, which a press on an empty
-# string answers, is the caret at the end of the string.
+# A reference of the text view of a block, a place of its lines, mapped to a range
+# of the `content` field. The text domain answers a place in either form that a
+# text takes, and `get_flat_range` reads both. A flat offset of the view is an
+# offset of the string, because the lines of the view are the lines of the string,
+# with one break between two and no indentation. The whole view, which a press on
+# an empty string answers, is the caret at the end of the string.
 function _map_plain_text_reference(view::TextBlock, reference)
     reference === nothing && return nothing
-    reference = _strip_text_view_step(reference)
     if isempty(get_reference_steps(strip_reference_types(reference)))
         n = get_flat_length(view)
         return _make_content_range_reference(n, n)
@@ -2578,8 +2567,7 @@ function _map_content_into_view(w, value_iomap, view, reference)
         make_flat_range_reference(steps[2].start, steps[2].stop)
     end
     text === nothing && return nothing
-    inner = ConcreteReference(FieldReferenceStep("viewed"), text)
-    map_reference_forward(get_iomap_projection(view), view, annotate_reference_types(get_iomap_input(view), inner))
+    map_reference_forward(get_iomap_projection(view), view, text)
 end
 
 # The box `(x, y, width, height)` of the selection of the text widget `w` in
@@ -5933,13 +5921,12 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, place::Cell, ct
         (found === nothing || !(1 <= found.index <= length(pairs))) ? "" :
             _get_tab_selector_text(pairs[found.index].selector)
     end, _get_state_text(p, w, :tab; state = :selected))
-    view = TextBlock(TextLine(span))
-    set_cell_computation!(getfield(view, :selection), () -> begin
+    text_view = TextView(TextBlock(TextLine(span)), false, SingleSpacing())
+    set_cell_computation!(getfield(text_view, :selection), () -> begin
         found = place[]
         found === nothing ? nothing :
             make_flat_range_reference(found.start, found.stop; direction = found.direction)
     end)
-    text_view = make_text_view(view)
     make_reconciled_child_iomap_cell(() -> text_view, v -> print_child(recursion, v, ctx))
 end
 
@@ -6579,7 +6566,6 @@ _map_tab_name_operation(view::TextBlock, index::Int, operation) = nothing
 # takes, as the place in the text of its label, in the direction of the range.
 function _map_tab_name_reference(view::TextBlock, index::Int, reference)
     reference === nothing && return nothing
-    reference = _strip_text_view_step(reference)
     range = get_flat_range(view, reference)
     range === nothing && return nothing
     direction = range[1] == range[2] ? :forward : get_range_direction(strip_reference_types(reference))
@@ -15445,10 +15431,9 @@ needs larger text scales the fonts of its appearance.
 a widget draws with; `nothing` takes the default text theme.
 
 The dispatch draws the text of a widget with one rule, `TextView`: a widget prints a
-view of its text, which holds the look (the wrap and the line spacing), and the rule
-nests the printer of the view over a word wrapping and a text printer of
-`text_theme`. No document of an editor is a `TextView`, so the rule takes no document
-from the table that holds the dispatch.
+view of its text, which holds the caret and the look (the wrap and the line
+spacing), and the rule nests the printer of the view over a word wrapping and a
+printer of the lines of `text_theme`.
 """
 function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing,
                           text_theme = nothing)
@@ -15508,8 +15493,9 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
     TypeDispatchingProjection(vcat(widgets.dispatch,
         LayoutToGraphics(; theme = graphics_theme).dispatch,
         Pair{Type,Any}[TextView => NestingProjection(
-            TextViewToGraphics(),
-            ChainingProjection(WordWrapping(; measure), TextToGraphics(; measure, theme = text_theme)))]))
+            TextViewToGraphicsCanvas(; theme = text_theme),
+            ChainingProjection(WordWrapping(; measure),
+                               TextBlockToGraphicsCanvas(; measure, theme = text_theme)))]))
 end
 
 # ── A route gives a child the point in its own frame ───────────────────────

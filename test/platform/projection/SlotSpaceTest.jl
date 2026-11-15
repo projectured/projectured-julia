@@ -109,7 +109,7 @@ function test_slot_space()
     end
 
     @testset "a text view passes the space on to its text" begin
-        view = make_text_view(TextBlock(TextLine(TextString("abc", StyleFont("Ubuntu Mono", 20), color_default))))
+        view = TextView(TextBlock(TextLine(TextString("abc", StyleFont("Ubuntu Mono", 20), color_default))))
         bare = print_sample(view, _ss_offer((0, 0, 0, 0)))
         spaced = print_sample(view, _ss_offer(_SS_SPACE))
         left, top, right, bottom = _SS_SPACE

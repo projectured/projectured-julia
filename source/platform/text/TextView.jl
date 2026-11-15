@@ -1,21 +1,14 @@
 # Fragment of `TextModule`.
 #
-# A view of a text, and the projections that draw it. The text is content: it says
+# A view of a text, and the projection that draws it. The text is content: it says
 # what is written, and every view of it shows the same lines. A view keeps the state
 # of one view: its caret and the part under the pointer, the folds that it closes,
 # and its look, which is whether its lines wrap at the width they are offered and
 # the distance of its lines. Two views of one text keep two carets; two places that
 # show one view show its one caret.
-#
-# Two projections draw a view. `TextViewToGraphicsCanvas` draws a view that keeps
-# its caret on itself, over the lines of its content. `TextViewToGraphics` draws the
-# text of a widget, a view that `make_text_view` makes: its caret is a place in the
-# block that it shows, and its selection is that place with the step `viewed` in
-# front.
 
 """
-    TextView(viewed::TextBlock, wrap = false, line_spacing = SingleSpacing(),
-             closed_folds = nothing)
+    TextView(viewed::TextBlock, wrap = false, line_spacing = nothing, closed_folds = nothing)
 
 A view of the text `viewed`. Its `selection` is the caret of this view: a flat
 place in `viewed`, a `TextRangeReferenceStep` caret or range, or a whole-element
@@ -27,25 +20,26 @@ its caret while the focus is elsewhere, as a dormant selection.
 
 `wrap` says whether its lines break at the width that the view is offered (`true`),
 or keep each line whole (`false`). `line_spacing` is the `LineSpacing` of its
-lines. A table of rules chooses by the type of a document and so gives the same
-look to every document of that type; a view gives the look to one text.
+lines, or `nothing` for the spacing that the printer of the lines gives. A table of
+rules chooses by the type of a document and so gives the same look to every
+document of that type; a view gives the look to one text. `wrap` and `line_spacing`
+may be cells, so a field that follows another document keeps the view in step with
+it.
 
 `closed_folds` are the folds of the text that this view closes, or `nothing`:
 `TextFolding` hides their lines in this view only. The view of the text of a node
 of syntax computes them from the folds of the views of the nodes.
 
 `TextViewToGraphicsCanvas` draws the view over the drawing of its content.
-`make_text_view` makes the view of the text of a widget, which `TextViewToGraphics`
-draws.
 
 # Example
 
-    view = TextView(TextBlock(TextLine(TextString("alpha beta"))))
+    view = TextView(TextBlock(TextLine(TextString("alpha beta"))), true)
 """
 @document struct TextView <: ContentView
     viewed::TextBlock
     wrap::Bool = false
-    line_spacing::Any = SingleSpacing()
+    line_spacing::Any = nothing
     closed_folds::Any = nothing
 end
 
@@ -53,21 +47,6 @@ end
 make_content_view(content::TextBlock) = TextView(content)
 
 _find_edited_text(view::TextView) = view.viewed
-
-"""
-    make_text_view(viewed; wrap = false, line_spacing = SingleSpacing()) -> TextView
-
-A [`TextView`](@ref) of the block `viewed` for the text of a widget: its selection
-and its part under the pointer are the paths of `viewed` with the step `viewed` in
-front, so the caret stays in the block and a move of the caret changes only the
-cell of the block. `wrap` and `line_spacing` may be cells, so a field that follows
-another document keeps the view in step with it. `TextViewToGraphics` draws it.
-"""
-function make_text_view(viewed::TextBlock; wrap = false, line_spacing = SingleSpacing())
-    view = TextView(viewed, wrap, line_spacing)
-    set_output_path_computations!(view, viewed, path -> ConcreteReference(FieldReferenceStep("viewed"), path))
-    view
-end
 
 # The keys of a view: the keys of a text, read against the lines of its content and
 # the caret of the view. Each edit and each motion is a flat place of the view, so
@@ -97,21 +76,29 @@ end
     KeyDown(:end; ctrl, shift)   => "Extend the selection to the end"   => _text_extend(doc.viewed, :end, doc.selection)
 end
 
-# ── A view that keeps its caret ─────────────────────────────────────────────
-
 """
     TextViewToGraphicsCanvas(; theme = nothing)
 
-Draw a `TextView`: the drawing of its content, which the recursion prints with the
-row of `TextBlock` (`TextBlockToGraphicsCanvas`), and over it the band under the
-selection of the view and its caret. `theme` is a `TextTheme`, scaled or not, whose
-caret and band it draws; with `nothing`, those of the default theme. A dormant
-caret is drawn muted, and so is the caret of a view at a place that the live
-selection does not reach (`is_live_place`).
+Draw a `TextView`: the drawing of its content, which the recursion prints, and over
+it the band under the selection of the view and its caret. `theme` is a
+`TextTheme`, scaled or not, whose caret and band it draws; with `nothing`, those of
+the default theme. A dormant caret is drawn muted, and so is the caret of a view at
+a place that the live selection does not reach (`is_live_place`).
+
+The content prints in a context that holds the look of the view: the line spacing
+of the view where it sets one, and a free width when the view does not wrap, so a
+stage that breaks lines where the context gives a width keeps each line whole. The
+last stage of the print of the content is `TextBlockToGraphicsCanvas`, which lays
+out the lines; a stage before it, such as `WordWrapping`, maps a place of the text
+to a place of the lines that it gives. The projection holds no projection: the
+table that draws the view gives the stages to the recursion.
 
 The caret of the view maps forward through the IO map of the content, and a point
 maps back through it to a caret of the view. The keys are the keys of the view
-(`@gestures TextView`); Up, Down, Home and End read the segments of the content.
+(`@gestures TextView`); Up, Down, Home, End and the page keys read the layout of
+the lines. A press puts the caret at its point and starts a drag, which moves the
+moving end of the selection; a double click selects a word, and a triple click a
+line.
 """
 @projection UntrackedCell struct TextViewToGraphicsCanvas
     caret_color::StyleColor
@@ -134,7 +121,7 @@ TextViewToGraphicsCanvas(; theme = nothing) =
     TextViewToGraphicsCanvasIoMap
 
 IoMap for `TextViewToGraphicsCanvas`: `content` is the IO map of the print of the
-content of the view.
+content of the view, which the look of the view makes again when it changes.
 """
 @iomap struct TextViewToGraphicsCanvasIoMap
     projection::Any
@@ -143,7 +130,8 @@ content of the view.
     content::Any
 end
 
-find_first_baseline(iomap::TextViewToGraphicsCanvasIoMap) = find_first_baseline(iomap.content)
+find_first_baseline(iomap::TextViewToGraphicsCanvasIoMap) =
+    find_first_baseline(_find_text_layout(iomap.content).lines)
 
 # The output is the band, the drawing of the content and the caret, in this order,
 # so the content is its second element, at the place of the view.
@@ -151,22 +139,82 @@ const _TEXT_VIEW_CONTENT_STEP =
     ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
 
 function print_document(p::TextViewToGraphicsCanvas, recursion, view::TextView, ctx)
-    content = print_child(recursion, view.viewed, make_child_context(ctx, FieldReferenceStep("viewed")))
-    content isa TextBlockToGraphicsCanvasIoMap || throw(ArgumentError(
-        "TextViewToGraphicsCanvas draws its caret over a content that TextBlockToGraphicsCanvas " *
-        "prints; the recursion printed it with $(typeof(content.projection))"))
+    # The look is read inside the cell, so a change of it prints the content again.
+    content = Cell(@computation begin
+        wrap = view.wrap
+        line_spacing = view.line_spacing
+        viewed = view.viewed
+        run_without_cell_tracking(() -> print_child(recursion, viewed, _make_look_context(ctx, wrap, line_spacing)))
+    end)
     # The marks read the stored selection, live or dormant, so a dormant caret has a
     # place on the screen too; `is_live` decides how it is painted.
     selection_cell = getfield(view, :selection)
-    overlay = Cell(@computation _compute_selection_marks(content, _get_stored_path(selection_cell[])))
+    overlay = Cell(Computation(function ()
+        layout = _find_text_layout(content[])
+        _compute_selection_marks(layout.lines, _map_to_layout(layout, _get_stored_path(selection_cell[])))
+    end))
     is_live = Cell(@computation _is_live_selection(selection_cell[]) && is_live_place(ctx))
-    marks = _make_selection_marks(p, overlay, is_live, content.space)
-    drawing = content.output
-    elements = CellVector(Cell[Cell(marks.band), Cell(drawing), Cell(marks.caret)])
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), getfield(drawing, :w), getfield(drawing, :h),
+    marks = _make_selection_marks(p, overlay, is_live, ctx === nothing ? (0, 0, 0, 0) : ctx.space)
+    drawing = Cell(@computation content[].output)
+    elements = CellVector(Cell[Cell(marks.band), drawing, Cell(marks.caret)])
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                            Cell(@computation Int32(drawing[].w)), Cell(@computation Int32(drawing[].h)),
                             elements, layout_none, true, Cell(nothing))
     TextViewToGraphicsCanvasIoMap(p, view, canvas, content)
 end
+
+# The context of the content of a view: the step `viewed`, the line spacing of the
+# view where it sets one, and a free width when the lines do not wrap. The space of
+# the context stays.
+function _make_look_context(ctx, wrap::Bool, line_spacing)
+    look = make_child_context(ctx === nothing ? PrinterContext() : ctx, FieldReferenceStep("viewed"))
+    wrap || (look = with_free_axis(look, :x; space = look.space))
+    line_spacing === nothing ? look : with_property(look, :line_spacing, line_spacing)
+end
+
+# ── The layout of the lines ─────────────────────────────────────────────────
+
+# The IO maps of the stages that print the content of a view, the first first: a
+# chain gives the IO map of each of its stages, and a nesting those of what it
+# nests.
+_collect_text_stages(iomap::ChainingIoMap) =
+    reduce(vcat, Any[_collect_text_stages(unwrap_cell(stage)) for stage in iomap.step_iomaps]; init = Any[])
+_collect_text_stages(iomap::NestingIoMap) = _collect_text_stages(iomap.child_iomap)
+_collect_text_stages(iomap) = Any[iomap]
+
+# The layout of the lines in `content`, the IO map of the print of the content of a
+# view: `lines`, the IO map of its last stage, which `TextBlockToGraphicsCanvas`
+# prints, and `before`, the IO maps of the stages before it.
+function _find_text_layout(content)
+    stages = _collect_text_stages(content)
+    lines = last(stages)
+    lines isa TextBlockToGraphicsCanvasIoMap || throw(ArgumentError(
+        "TextViewToGraphicsCanvas draws its caret over a content that TextBlockToGraphicsCanvas " *
+        "prints; the recursion printed it with $(typeof(lines.projection))"))
+    (lines = lines, before = stages[1:(end - 1)])
+end
+
+# A place of the content of a view, as a place of the lines that `layout` laid out:
+# each stage before the layout maps it forward.
+function _map_to_layout(layout, place)
+    for stage in layout.before
+        place isa Reference || return nothing
+        place = map_reference_forward(stage.projection, stage, place)
+    end
+    place
+end
+
+# An operation on the lines that `layout` laid out, as an operation on the content
+# of the view: each stage before the layout reads it, the last first.
+function _read_from_layout(layout, operation)
+    for stage in Iterators.reverse(layout.before)
+        operation isa Operation || return nothing
+        operation = read_intent(stage.projection, stage, operation)
+    end
+    operation
+end
+
+# ── Maps ────────────────────────────────────────────────────────────────────
 
 # A place of the view: its own caret, range or box, or a place in its content, maps
 # through the IO map of the content to the drawing of the content.
@@ -174,7 +222,8 @@ function map_reference_forward(::TextViewToGraphicsCanvas, iomap::TextViewToGrap
     place = _find_text_view_place(reference)
     place isa EmptyReference && return place
     place === nothing && return nothing
-    image = map_reference_forward(iomap.content.projection, iomap.content, place)
+    content = iomap.content
+    image = map_reference_forward(content.projection, content, place)
     image === nothing ? nothing : concat_references(_TEXT_VIEW_CONTENT_STEP, image)
 end
 
@@ -184,25 +233,9 @@ function map_reference_backward(::TextViewToGraphicsCanvas, iomap::TextViewToGra
     point = find_reference_point(reference)
     inner = point !== nothing ? reference : _find_content_drawing_path(reference)
     inner === nothing && return nothing
-    place = map_reference_backward(iomap.content.projection, iomap.content, inner)
-    place === nothing ? nothing : strip_reference_types(place)
-end
-
-read_intent(::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyPress) =
-    read_gesture(iomap.input, evt)
-
-function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyDown)
-    operation = read_gesture(iomap.input, evt)
-    operation === nothing || return operation
     content = iomap.content
-    _read_geometry_key(content.projection, content, content.input, iomap.input.selection, evt)
-end
-
-# A click puts the caret of the view at the point.
-function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseClick)
-    evt.button === :left || return nothing
-    path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    place = map_reference_backward(content.projection, content, inner)
+    place === nothing ? nothing : strip_reference_types(place)
 end
 
 # The place in the content that a reference of the view names: its own caret, range
@@ -229,93 +262,62 @@ _is_flat_text_place(reference) =
     reference isa ConcreteReference && reference.tail isa EmptyReference &&
     reference.head isa Union{TextRangeReferenceStep, TextSpanReferenceStep}
 
-# ── The text of a widget ────────────────────────────────────────────────────
-
-"""
-    TextViewToGraphics()
-
-Draw a [`TextView`](@ref) that `make_text_view` made, the text of a widget: the
-graphics of the block that it shows, which the recursion prints with the caret of
-the block, in a context that holds the look of the view. The context sets the line
-spacing of the view, and a free width when the view does not wrap, so a text
-printer that breaks lines where the context gives a width keeps each line whole.
-The projection holds no text printer; the table that draws the view gives one to
-the recursion.
-
-A reference of the view starts with the step `viewed`. On the way forward the
-step comes off, and the rest maps through the IO map of the block; on the way back
-the other way, and the step goes on again. A key and a gesture go to the IO map of
-the block, and what they answer names the block through the step `viewed`.
-"""
-struct TextViewToGraphics <: Projection end
-
-"""
-    TextViewToGraphicsIoMap(projection, input, output, content_iomap)
-
-`input` is the `TextView`. `content_iomap` is the IO map of the block that it
-shows, printed through the recursion; `output` is the graphics of that IO map.
-"""
-@iomap struct TextViewToGraphicsIoMap
-    projection::Any
-    input::TextView
-    output::Any
-    content_iomap::Any
-end
-
-function print_document(p::TextViewToGraphics, recursion, view::TextView, ctx)
-    # The look is read inside the cell, so a change of it prints the block again.
-    content_iomap = Cell(@computation begin
-        wrap = view.wrap
-        line_spacing = view.line_spacing
-        content = view.viewed
-        run_without_cell_tracking(() -> print_child(recursion, content,
-                                                    _make_look_context(ctx, wrap, line_spacing)))
-    end)
-    TextViewToGraphicsIoMap(p, view, Cell(@computation content_iomap[].output), content_iomap)
-end
-
-# The context of the block of a view: the step `viewed`, the line spacing of the
-# view, and a free width when the lines do not wrap. The space of the context stays.
-function _make_look_context(ctx, wrap::Bool, line_spacing)
-    look = make_child_context(ctx === nothing ? PrinterContext() : ctx, FieldReferenceStep("viewed"))
-    wrap || (look = with_free_axis(look, :x; space = look.space))
-    with_property(look, :line_spacing, line_spacing === nothing ? SingleSpacing() : line_spacing)
-end
-
-# ── The step `viewed` ───────────────────────────────────────────────────────
-
-# The rest of a reference of the view after its step `viewed`, or `nothing`.
-function _strip_viewed_step(reference)
-    reference isa Reference || return nothing
-    stripped = strip_reference_types(reference)
-    stripped isa ConcreteReference || return nothing
-    head = get_reference_head(stripped)
-    (head isa FieldReferenceStep && head.name == "viewed") || return nothing
-    get_reference_tail(stripped)
-end
-
-function map_reference_forward(p::TextViewToGraphics, iomap::TextViewToGraphicsIoMap, reference)
-    inner = _strip_viewed_step(reference)
-    inner === nothing && return nothing
-    content_iomap = iomap.content_iomap
-    map_reference_forward(content_iomap.projection, content_iomap, inner)
-end
-
-function map_reference_backward(p::TextViewToGraphics, iomap::TextViewToGraphicsIoMap, reference)
-    reference === nothing && return nothing
-    content_iomap = iomap.content_iomap
-    inner = map_reference_backward(content_iomap.projection, content_iomap, reference)
-    inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("viewed"), inner)
-end
-
 # ── Readers ─────────────────────────────────────────────────────────────────
 
-# A key or a gesture goes to the IO map of the block, which reads it against the
-# lines and the caret of the block; the answer names the block, so it gets the step
-# `viewed`.
-function read_intent(::TextViewToGraphics, iomap::TextViewToGraphicsIoMap,
-                     event::Union{Event, Gesture, CollectIntents})
-    content_iomap = iomap.content_iomap
-    answer = read_intent(content_iomap.projection, content_iomap, event)
-    answer === nothing ? nothing : reroot_operation(answer, (FieldReferenceStep("viewed"),))
+read_intent(::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyPress) =
+    read_gesture(iomap.input, evt)
+
+# A key of the table of the view, and else a key that the layout of the lines
+# answers, read against the caret of the view.
+function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyDown)
+    view = iomap.input
+    operation = read_gesture(view, evt)
+    operation === nothing || return operation
+    layout = _find_text_layout(iomap.content)
+    lines = layout.lines
+    _read_from_layout(layout, _read_geometry_key(lines.projection, lines, lines.input,
+                                                 _map_to_layout(layout, view.selection), evt))
+end
+
+# A single click is the caret of the view at its point, as the press before it put
+# it; with Shift, the moving end of the selection goes to the point. A double click
+# selects the word at the point, and a triple click the line. An Alt+click is the
+# caret at the point too.
+function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseClick)
+    evt.button === :left || return nothing
+    if evt.count >= 2 && !evt.modifiers.alt
+        layout = _find_text_layout(iomap.content)
+        lines = layout.lines
+        return _read_from_layout(layout, _make_unit_selection(lines.projection, lines, evt.x, evt.y, evt.count))
+    end
+    _read_pointer_selection(iomap, evt.x, evt.y, evt.modifiers.shift && !evt.modifiers.alt)
+end
+
+# A left press with no Alt and no Ctrl: the caret at the point, or with Shift the
+# moving end of the selection there, and the view takes the pointer for a drag, so
+# each move of the drag goes to the view wherever the pointer is. The drag names
+# the view as a whole, which each projection above maps back to its input.
+function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseDown)
+    evt.button === :left || return nothing
+    (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
+    selection = _read_pointer_selection(iomap, evt.x, evt.y, evt.modifiers.shift)
+    selection === nothing && return nothing
+    CompoundOperation(Any[selection, StartDragOperation(EmptyReference(), nothing)])
+end
+
+# A move and the end of a drag that a press on the view started: the moving end of
+# the selection goes to the character nearest to the point, and the anchor stays
+# where the press put it.
+read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::Union{DragMove,DragEnd}) =
+    _read_pointer_selection(iomap, evt.x, evt.y, true)
+
+# The selection of the view that a pointer at `(x, y)` makes: the caret there, or
+# with `extend` the range from the anchor of the selection of the view to the caret
+# there.
+function _read_pointer_selection(iomap::TextViewToGraphicsCanvasIoMap, x::Int, y::Int, extend::Bool)
+    layout = _find_text_layout(iomap.content)
+    lines = layout.lines
+    path = _find_pointer_selection(lines.projection, lines, x, y, extend,
+                                   _map_to_layout(layout, iomap.input.selection))
+    path === nothing ? nothing : _read_from_layout(layout, ReplaceSelectionOperation(path))
 end

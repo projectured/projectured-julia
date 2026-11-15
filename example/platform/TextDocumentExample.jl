@@ -105,4 +105,4 @@ make_text_graphics_atom_document_example() = TextGraphics(ImageMemory(nothing), 
 
 # A view of a block of two words that wraps its lines.
 make_text_view_document_example() =
-    make_text_view(TextBlock(TextLine(TextString("alpha beta", StyleFont("Ubuntu Mono", 20), color_default))); wrap = true)
+    TextView(TextBlock(TextLine(TextString("alpha beta", StyleFont("Ubuntu Mono", 20), color_default))), true)

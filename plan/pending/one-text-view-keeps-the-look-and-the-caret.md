@@ -1,7 +1,7 @@
 # One text view keeps the look and the caret
 
 **Status:** pending. The owner approved the plan on 2026-11-15 ("Üres", then "That is yes on a
-Hungarian keyboard"). Step 1 is done. Step 2 is next.
+Hungarian keyboard"). Steps 1 and 2 are done. Step 3 is next.
 
 This plan is point 1 of the order in
 `plan/tentative/content-and-view-for-the-whole-project.md`. The owner approved
@@ -149,7 +149,7 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
   tests of the widgets of `main` (`WidgetTextEditTest.jl`, `WidgetTextWrapTest.jl`,
   `WidgetTextFitTest.jl`, `SlotSpaceTest.jl`), the layer guards and the naming
   guard.
-- [ ] **2. One printer and one caret rule** (proposed decisions 1, 2 and 3). The
+- [x] **2. One printer and one caret rule** (proposed decisions 1, 2 and 3). The
   text of a widget keeps its caret in the view. The printer and the helper of
   `main` go.
   Tests: the tests of step 1, and a real editor: a text field and a text area
@@ -244,6 +244,56 @@ A merge in memory (`git merge-tree`, no branch changed), `main` at `8541a3592`,
 - **Left for step 3:** 186 of the 737 recorded precompile calls of
   `ProjecturedJSON` do not resolve after the merge, so the package compiles more
   while it runs until the record is made again.
+
+## Step 2: what the one printer made
+
+- **`TextViewToGraphicsCanvas` is the one printer of a text view.** It prints the
+  content of the view through the recursion, in a context that holds the look: the
+  line spacing of the view where it sets one, and a free width when the view does
+  not wrap. It draws the band and the caret of the view over the drawing. Its
+  readers are those of `main` for a text: the keys of the table of the view, the
+  keys that read the layout (Up, Down, Home, End and the page keys), the press
+  that puts the caret and starts a drag, the drag, and the word and the line of a
+  double and a triple click. The print of the content is in a cell, so a change of
+  the look prints the content again, as on `main`.
+- **The content of a view can have stages before the lines.** The last stage is
+  `TextBlockToGraphicsCanvas`. The printer maps a place of the view forward
+  through each stage before it to the lines, and reads an answer back through
+  those stages (`_find_text_layout`, `_map_to_layout`, `_read_from_layout`).
+  `WordWrapping` moves no place, so its maps give each place as it is.
+- **`line_spacing` of a view is `nothing` when the view sets none.** Then the
+  printer of the lines gives its own spacing, or the context does. A view that a
+  stage of the pilot makes for a text of code must not force single spacing. The
+  text of a widget sets its spacing as on `main`.
+- **The text of a widget keeps its caret in its view.** `_make_widget_text_view`
+  sets the caret and the part under the pointer of the view from those of the
+  widget, and the block that the widget makes holds none. The name of a tab does
+  the same. A widget reads a flat place of the view where it read a place of the
+  block behind the step of the view; `_strip_text_view_step` is gone.
+- **Removed:** `make_text_view`, `TextViewToGraphics` and `TextViewToGraphicsIoMap`.
+  The row of the widget table is
+  `TextView => NestingProjection(TextViewToGraphicsCanvas(; theme = text_theme), ChainingProjection(WordWrapping(; measure), TextBlockToGraphicsCanvas(; measure, theme = text_theme)))`.
+- **Tests, 2026-11-15.**
+  - The text of both sides, the set of step 1: 922 pass, 5 fail, the same 5 known
+    failures of `main`.
+  - The whole suite of the platform (`test_platform()`): 235562 pass, 13 fail, 22
+    broken. Each of the 13 is in code of `main` that this plan does not change:
+    the two sets of the layer guard (the same 10 entries); three edges between
+    slices that the files of `main` have (`ConversationModule` to `SettingsModule`,
+    `SyntaxModule` to `FocusModule`, `UndoModule` to `LayoutModule`); four
+    assertions of `NavigatorChoicesTest.jl` (lines 174, 178, 208, 211); the cut of a
+    range in `ClipboardTest.jl` (lines 502 to 504); and `FileDialogTest.jl` line
+    138. They are named by their entry, and not by a run of the suite on `main`.
+  - A real editor with a headless backend and real mouse and key events: 21 of 21.
+    A press puts the caret in the view and the block holds none; typed text, Right,
+    End, Shift+Left, Backspace; a double click selects a word; a press and a drag
+    make a range; in a text area, Down goes to the next line and Return makes a
+    line; a field of 120 pixels with a text of 187 draws the text 69 pixels to the
+    left so the caret at its end shows; a text wider than the window wraps to two
+    rows. The name of a tab has no real editor check; `WidgetTabLabelTest.jl` and
+    `PaneRenameTest.jl` of the platform suite cover it.
+  - The domains and the umbrella, the set of step 1: 16202 pass, 0 fail.
+  - The naming guard passes.
 
 ## Risks
 

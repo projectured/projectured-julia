@@ -47,7 +47,7 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: replace_wrapped_document!, get_edited_field
+import ..DocumentModule: replace_wrapped_document!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -73,8 +73,7 @@ export WordWrapping, WordWrappingIoMap
 export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
-export TextView, make_text_view, TextViewToGraphics, TextViewToGraphicsIoMap
-export TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
+export TextView, TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
 export TextBlockToGraphicsCanvas, TextBlockToGraphicsCanvasIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks, make_marked_text_lines
