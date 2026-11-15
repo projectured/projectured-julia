@@ -337,5 +337,74 @@ _middle(x, y) = MouseClick(:middle, x, y, ModifierKeys(); time = 0.0)
     @test all(isnothing(read_intent(proj, plain_iomap, _middle(x, y))) for y in rows, x in 0:2:400)
 end
 
+# The first viewport in `node`, the view of the strip, as `(x, y, width, height)` in
+# the frame of `node`.
+function _strip_view(node, ox = 0, oy = 0)
+    node isa GraphicsViewport && return (ox + Int(node.x), oy + Int(node.y), Int(node.w), Int(node.h))
+    node isa GraphicsCanvas || return nothing
+    for e in node.elements
+        found = _strip_view(e, ox + Int(node.x), oy + Int(node.y))
+        found === nothing || return found
+    end
+    nothing
+end
+
+# The right edge of each rectangle that is drawn outside every viewport.
+function _right_edges_outside_views(node, ox = 0, found = Int[])
+    if node isa GraphicsCanvas
+        for e in node.elements
+            _right_edges_outside_views(e, ox + Int(node.x), found)
+        end
+    elseif node isa GraphicsRect
+        push!(found, ox + Int(node.x) + Int(node.w))
+    end
+    found
+end
+
+# The x of the name `name` in the strip, and whether the name shows whole in the
+# view of the strip.
+function _shown_tab(iomap, name)
+    view_x, _, view_w, _ = _strip_view(iomap.output)
+    x = only(x for (x, _, text, _) in _strip_texts(iomap.output) if text == name)
+    (x, view_x <= x && x + 10 * length(name) <= view_x + view_w)
+end
+
+@testset "a strip that does not fit shows its open tab and stays where the wheel puts it" begin
+    proj = _proj()
+    pane = WidgetTabbedPane(Any[("tab $i", WidgetLabel("$i")) for i in 1:10])
+    open_tab!(index) = set_selection!(pane, Reference(FieldReferenceStep("selector_element_pairs"),
+                                                      ElementReferenceStep(index)))
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(200)), height = Cell(Int32(80)))
+    print_pane() = print_document(proj, nothing, pane, context)
+    editor = (document = pane,)
+    open_tab!(9)
+    iomap = print_pane()
+    # The open tab shows, and nothing is drawn past the right edge of the slot: the
+    # line under the tabs and the page stop there.
+    @test _shown_tab(iomap, "tab 9")[2]
+    @test !_shown_tab(iomap, "tab 1")[2]
+    @test maximum(_right_edges_outside_views(iomap.output)) <= 200
+    # A turn of the wheel over the strip moves it toward the first tab, and the open
+    # tab goes out of view and stays out.
+    view_x, view_y, _, view_h = _strip_view(iomap.output)
+    for second in 1:200
+        _shown_tab(iomap, "tab 1")[2] && break
+        evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
+                                                                         time = Float64(second))))
+        iomap = print_pane()
+    end
+    @test _shown_tab(iomap, "tab 1")[2]
+    @test !_shown_tab(iomap, "tab 9")[2]
+    # A click on a tab in view opens it, and the strip does not move.
+    x, _ = _shown_tab(iomap, "tab 2")
+    evaluate_operation(editor, read_intent(proj, iomap, _press(x + 2, view_y + view_h ÷ 2)))
+    iomap = print_pane()
+    @test _shown_tab(iomap, "tab 2")[1] == x
+    # A tab that opens in another way shows.
+    open_tab!(10)
+    iomap = print_pane()
+    @test _shown_tab(iomap, "tab 10")[2]
+end
+
 end # testset
 end # function

@@ -530,6 +530,7 @@ end
     box::Any
     name_view::Any
     close_iomaps::Any
+    strip_view_width::Any   # the width of the view of the strip, or nothing for a pane that draws no strip
 end
 
 # An IO map that keeps `(x, y, child_iomap)` entries of the children of a container.
@@ -5948,11 +5949,46 @@ function _push_tab_close_button!(result, g, tab, close_iomap)
     push!(result, _make_canvas(box[1], box[2], Any[close_iomap.output]))
 end
 
-# Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
-# the strip's overflow past the viewport (0 when it fits). Shared by printer (draws
-# at `-offset`) and reader (offsets hit-testing and the scroll delta base).
-_tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
-    clamp(Int(getfield(w, :tab_scroll)[]), 0, max(0, strip_w - view_w))
+# The offset that the strip `g` of `w` is drawn at in a view of `view_w`: the stored
+# `tab_scroll`, moved by the least amount that shows the open tab, and kept between 0
+# and the part of the strip past the view (0 when the strip fits). While the open tab
+# is `scrolled_tab`, the tab that was open at the last turn of the wheel, the strip
+# stays where the wheel put it. The printer draws the strip at `-offset`, and the
+# reader moves its hit tests and a turn of the wheel by it.
+function _tab_scroll_offset(w::WidgetTabbedPane, g, view_w::Int)
+    room = max(0, g.strip_w - view_w)
+    room == 0 && return 0
+    offset = Int(getfield(w, :tab_scroll)[])
+    open = _find_open_tab(w, length(g.tabs))
+    if open > 0 && open != Int(getfield(w, :scrolled_tab)[])
+        tab = g.tabs[open]
+        offset = _compute_shown_offset(offset, view_w, tab[5] - g.cox, tab[6])
+    end
+    clamp(offset, 0, room)
+end
+
+# The open tab of `w`, which has `n` tabs: the tab that its selection names, else the
+# first; 0 when it has no tab.
+function _find_open_tab(w::WidgetTabbedPane, n::Int)
+    n == 0 && return 0
+    index = _tab_index_from_selection(get_stored_selection(w), n)
+    index == 0 ? 1 : index
+end
+
+# `answer`, the click on a tab, with the writes that keep the strip where it is drawn:
+# `offset`, the offset that the strip is drawn at, when the pane stores another one,
+# and no tab of the last turn of the wheel, so the strip shows the open tab again.
+function _keep_tab_scroll(w::WidgetTabbedPane, offset::Int, answer)
+    operations = Any[answer]
+    Int(getfield(w, :tab_scroll)[]) == offset || push!(operations, _write_view_state(w, "tab_scroll", offset))
+    Int(getfield(w, :scrolled_tab)[]) == 0 || push!(operations, _write_view_state(w, "scrolled_tab", 0))
+    length(operations) == 1 ? answer : CompoundOperation(operations)
+end
+
+# The width inside the box of a tabbed pane whose strip is `g` and whose page is
+# `page_w` wide: the width of its slot, which cuts the strip, else the wider of the
+# strip and the page.
+_get_tabbed_pane_inner_width(g, page_w::Int, slot_w) = slot_w === nothing ? max(g.strip_w, page_w) : page_w
 
 # ── The name that holds the caret ───────────────────────────────────────────
 #
@@ -6001,7 +6037,8 @@ end
 
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
     w.visible == false &&
-        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing, Cell(Any[]))
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(Any[]), _NO_BOX_GEOMETRY, nothing, Cell(Any[]),
+                                                     nothing)
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
     # A tabbed pane is a part of the frame: its strip and its page reach the edges
@@ -6013,7 +6050,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     name_place = Cell(@computation _find_tab_name_range(get_stored_selection(w)))
     name_view = _print_tab_name_view(p, recursion, w, name_place, _with_no_space(ctx))
     if isempty(pairs)
-        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, name_view, Cell(Any[]))
+        return WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), Cell(child_iomaps), geometry, name_view, Cell(Any[]),
+                                                     nothing)
     end
 
     box = geometry[]                     # stable — independent of the tab count
@@ -6165,7 +6203,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         end
         result = Any[]
         page_color = _get_part_color(w, :page_color, p.page_color)
-        _push_panel!(result, cox, coy + sel_h, max(geom[][5], page_w), page_h; fill = page_color)
+        _push_panel!(result, cox, coy + sel_h, _get_tabbed_pane_inner_width(geom[], page_w, avail_w_inner), page_h;
+                     fill = page_color)
         cim === nothing && return result
         push!(result, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy + sel_h)),
                              Cell(Int32(page_w)), Cell(Int32(page_h)),
@@ -6188,7 +6227,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             page_w, page_h = _compute_page_extent(cim, avail_w_inner, avail_h_inner)
         end
         result = Any[]
-        _push_box_parts!(result, box, colors, max(geom[][5], page_w), sel_h + page_h)
+        _push_box_parts!(result, box, colors, _get_tabbed_pane_inner_width(geom[], page_w, avail_w_inner),
+                         sel_h + page_h)
         result
     end)
 
@@ -6206,7 +6246,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # canvas left by the clamped `tab_scroll` so overflow tabs scroll into view (a
     # wheel over the strip drives it — see read_intent). Reactive on both the
     # stored offset and the viewport width.
-    scroll_x = Cell(@computation Int32(-cox - _tab_scroll_offset(w, geom[][5], Int(sel_view_w[]))))
+    scroll_x = Cell(@computation Int32(-cox - _tab_scroll_offset(w, geom[], Int(sel_view_w[]))))
     # The viewport sits at the content origin; its inner canvas is shifted back
     # by that origin (minus any scroll) so the strip elements keep their original
     # coordinates at scroll 0.
@@ -6229,12 +6269,12 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         end
         tab_idx = _active_idx(get_stored_selection(w), length(g.tabs))
         left = cox - box.padding[1]
-        right = cox + max(g.strip_w, page_w) + box.padding[3]
+        right = cox + _get_tabbed_pane_inner_width(g, page_w, avail_w_inner) + box.padding[3]
         y = coy + g.height
         color = p.tab_row_line_stroke.color
         open_from, open_to = right, right
         if !isempty(g.tabs)
-            scroll = _tab_scroll_offset(w, g.strip_w, Int(sel_view_w[]))
+            scroll = _tab_scroll_offset(w, g, Int(sel_view_w[]))
             _, _, _, _, tx, rw = g.tabs[tab_idx]
             open_from, open_to = clamp(tx - scroll, left, right), clamp(tx + rw - scroll, left, right)
         end
@@ -6283,7 +6323,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                        layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = Cell(@computation Any[(cox, coy + geom[].page_top, cim) for cim in all_cims[] if cim !== nothing])
-    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps)
+    WidgetTabbedPaneToGraphicsCanvasIoMap(p, w, canvas, child_iomaps, geometry, name_view, close_iomaps, sel_view_w)
 end
 
 # The extent of the page of a tabbed pane: the slot offered on each axis, else
@@ -6434,16 +6474,12 @@ function _find_tab_part_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
                                                  FieldReferenceStep(part === :close ? "close" : "selector")))
 end
 
-# Selector-viewport width as drawn (the clip box). Read back from the output so the
-# reader clamps scroll / hit-tests against exactly what the printer produced; falls
-# back to `strip_w` (no clip) when the pane is empty/invisible.
+# The width of the view of the strip as the printer drew it, so the reader moves its
+# hit tests and a turn of the wheel by the offset that the printer drew; `strip_w`
+# for a pane that draws no strip.
 function _tab_view_w(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, strip_w::Int)
-    canvas = iomap.output
-    canvas isa GraphicsCanvas || return strip_w
-    els = canvas.elements
-    length(els) >= 1 || return strip_w
-    vp = els[1]
-    vp isa GraphicsViewport ? Int(vp.w[]) : strip_w
+    width = unwrap_cell(getfield(iomap, :strip_view_width))
+    width === nothing ? strip_w : Int(width)
 end
 
 # The strip-space x of a point that lands in the tab strip, or `nothing` when it
@@ -6456,7 +6492,7 @@ function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTab
     (y >= g.coy && y < g.coy + g.height) || return nothing
     view_w = _tab_view_w(iomap, g.strip_w)
     (x >= g.cox && x < g.cox + view_w) || return nothing
-    x + _tab_scroll_offset(w, g.strip_w, view_w)
+    x + _tab_scroll_offset(w, g, view_w)
 end
 
 # The 1-based tab at the strip-space point `(xx, yy)`, or 0, and the part of the
@@ -6483,7 +6519,7 @@ function _read_close_button(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTa
     index <= length(g.tabs) || return nothing
     box = _get_tab_button_box(g, g.tabs[index])
     box === nothing && return nothing
-    scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+    scroll = _tab_scroll_offset(w, g, _tab_view_w(iomap, g.strip_w))
     dx, dy = box[1] - scroll, box[2]
     answer = shift_operation_position(read_child_event(close_iomaps[index], shift_event_position(evt, -dx, -dy)),
                                       dx, dy)
@@ -6533,28 +6569,33 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPan
             # own local path, so the ordinary re-targeting carries it to the document
             # root: the walk then starts high enough to see a sibling group and mark
             # it dormant, which a widget-rooted write never could.
-            index > 0 && return ReplaceSelectionOperation(Reference(
-                                    FieldReferenceStep("selector_element_pairs"),
-                                    ElementReferenceStep(index)))
+            index > 0 && return _keep_tab_scroll(w, _tab_scroll_offset(w, g, _tab_view_w(iomap, g.strip_w)),
+                                                 ReplaceSelectionOperation(Reference(
+                                                     FieldReferenceStep("selector_element_pairs"),
+                                                     ElementReferenceStep(index))))
         end
         return _read_tab_answer(w, evt, _route_active_tab(iomap, child_iomaps, evt))
     end
     if evt isa MouseScroll
         w = iomap.input
         if w isa WidgetTabbedPane
-            cox, coy, _, sel_h, strip_w, tabs = _get_strip_geometry(p, w, iomap)
+            g = _get_strip_geometry(p, w, iomap)
             # A wheel over the strip scrolls it horizontally (the strip is a horizontal
             # row, so vertical wheel maps to horizontal motion); over the content it
-            # scrolls the active tab as before. Ctrl and the wheel never scroll it.
-            if !evt.modifiers.ctrl && !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
-                view_w = _tab_view_w(iomap, strip_w)
-                max_s = max(0, strip_w - view_w)
+            # scrolls the active tab as before. Ctrl and the wheel never scroll it. The
+            # open tab is kept as the tab of the turn, so the strip stays where the
+            # turn puts it, also when the open tab goes out of view.
+            if !evt.modifiers.ctrl && !isempty(g.tabs) && evt.y >= g.coy && evt.y < g.coy + g.height
+                view_w = _tab_view_w(iomap, g.strip_w)
+                max_s = max(0, g.strip_w - view_w)
                 if max_s > 0
                     step, _ = _text_size(p.measure, p.font, "M")
                     delta = evt.dx != 0 ? evt.dx : -evt.dy
-                    s = _tab_scroll_offset(w, strip_w, view_w)
+                    s = _tab_scroll_offset(w, g, view_w)
                     new_s = clamp(s + delta * step, 0, max_s)
-                    return _write_view_state(w, "tab_scroll", new_s)
+                    return CompoundOperation(Any[_write_view_state(w, "tab_scroll", new_s),
+                                                 _write_view_state(w, "scrolled_tab",
+                                                                   _find_open_tab(w, length(g.tabs)))])
                 end
             end
         end
@@ -15603,7 +15644,7 @@ function ProjectionModule.read_child_by_route(p::WidgetTabbedPaneToGraphicsCanva
     w = iomap.input
     if w isa WidgetTabbedPane
         g = _get_strip_geometry(p, w, iomap)
-        scroll = _tab_scroll_offset(w, g.strip_w, _tab_view_w(iomap, g.strip_w))
+        scroll = _tab_scroll_offset(w, g, _tab_view_w(iomap, g.strip_w))
         for (tab, cim) in zip(g.tabs, getfield(iomap, :close_iomaps)[])
             box = _get_tab_button_box(g, tab)
             (cim === nothing || box === nothing) || push!(entries, (box[1] - scroll, box[2], cim))

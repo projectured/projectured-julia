@@ -1573,6 +1573,7 @@ For the assistant.
     padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tab_scroll::Int = 0
+    scrolled_tab::Int = 0
     closable::Bool = false
     new_tab::Bool = false
     draggable::Bool = false
@@ -1581,7 +1582,10 @@ end
 
 # `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
 # horizontal pixel offset (≥0) that scrolls the tab strip when it is wider than the
-# pane, so overflow tabs stay reachable. 0 ⇒ no scroll.
+# pane, so overflow tabs stay reachable. 0 ⇒ no scroll. The strip moves by the least
+# amount that shows the open tab, except while the open tab is `scrolled_tab`, the tab
+# that was open at the last turn of the wheel over the strip (0 for none): then the
+# strip stays where the wheel put it. Both are view state.
 function WidgetTabbedPane(selector_element_pairs::Vector;
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
@@ -1593,7 +1597,7 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style),
-                     Cell(Int(tab_scroll)),
+                     Cell(Int(tab_scroll)), Cell(0),
                      Cell(closable), Cell(new_tab), Cell(draggable),
                      Cell(tooltip), Cell(nothing))
 end
@@ -4216,6 +4220,7 @@ get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :sho
 
 # The offset of a text in a field that cuts it follows the caret, and is no part of
 # what the field holds.
+get_view_state_fields(::Type{<:WidgetTabbedPane}) = (:tab_scroll, :scrolled_tab)
 get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position, :wheel_run, :scrolled_selection)
 get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position, :wheel_run, :scrolled_selection)
 

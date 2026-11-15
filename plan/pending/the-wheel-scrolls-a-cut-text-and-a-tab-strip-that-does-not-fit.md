@@ -57,6 +57,10 @@ space".
   with the text. No editor that a person knows does that.
 - **D4** (proposed by the assistant): a disabled text widget scrolls with the wheel too. A turn is
   no edit, and a person can read a long disabled text.
+- **D5** (proposed by the assistant): the tab strip shows the open tab, as a text widget shows its
+  caret, and the wheel moves it away until the open tab changes. A keyboard switch of a window tab
+  is read above the tabbed pane, so it does not clear `scrolled_tab`: after a turn, a switch away
+  and back to the tab of the turn shows the strip where the wheel put it.
 
 ## 4. Steps
 
@@ -73,6 +77,16 @@ space".
    turn shows too. The build reads the selection box only while it follows the selection.
    `test_widget_text_editing`: all pass, 14 new assertions.
 2. [ ] The tab strip that does not fit. Open question to the owner; see §5.
+   - [x] The parts that do not depend on the answer, done 2026-11-15. The page panel, the box
+     and the line under the tabs take the width of the slot (`_get_tabbed_pane_inner_width`).
+     The strip moves by the least amount that shows the open tab, except while the open tab is
+     `scrolled_tab`, the tab that was open at the last turn of the wheel (D5). A click on a tab
+     writes the drawn offset and clears `scrolled_tab`, so the strip does not jump. Both fields
+     are declared view state. Found on the way: in a slot, the reader read the width of the strip
+     view at the wrong level of the output, so it took the strip as one that fits. The wheel then
+     moved nothing, and a click on a scrolled strip hit the wrong tab. The IO map now keeps the
+     width that the printer used (`strip_view_width`). Test in `WidgetTabStripTest.jl`.
+   - [ ] What shows the hidden tabs: the answer of the owner.
 3. [ ] The guides: the widget page and the docstrings of the two widgets. Move the plan to
    `plan/done/`.
 
